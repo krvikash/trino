@@ -222,14 +222,32 @@ public class BufferAllocator
         // NOTE: all the array sizes above are with a +1 size to allow accessing them with the record length as index to the array without the need to -1
         // since 0 is not a valid length and the maximal value is
         this.fixedRecordBufferSizes = new int[maxRecLenForFixedRecordBuffer + 1]; // largest case is long decimal
+        for (int len = 1; len <= maxRecLenForFixedRecordBuffer; len++) {
+            fixedRecordBufferSizes[len] = storageEngine.getFixedRecordBufferSize(len);
+        }
         this.varlenRecordBufferSizes = new int[maxRecLenForVarlenRecordBuffer + 1];
-        storageEngine.initRecordBufferSizes(fixedRecordBufferSizes, varlenRecordBufferSizes);
+        for (int len = 1; len <= maxRecLenForVarlenRecordBuffer; len++) {
+            varlenRecordBufferSizes[len] = storageEngine.getVarlenRecordBufferSize(len);
+        }
+
         this.fixedCollectTxSizes = new int[maxRecLenForFixedTxSize + 1]; // largest case is long decimal
+        for (int len = 1; len <= maxRecLenForFixedTxSize; len++) {
+            fixedCollectTxSizes[len] = storageEngine.getFixedCollectTxSize(len);
+        }
         this.varlenCollectTxSizes = new int[maxRecLenForVarlenTxSize + 1];
-        storageEngine.initCollectTxSizes(fixedCollectTxSizes, varlenCollectTxSizes);
+        for (int len = 1; len <= maxRecLenForVarlenTxSize; len++) {
+            varlenCollectTxSizes[len] = storageEngine.getVarlenCollectTxSize(len);
+        }
+
         this.fixedWarmupDataTxSizes = new int[maxRecLenForFixedTxSize + 1]; // largest case is long decimal
+        for (int len = 1; len <= maxRecLenForFixedTxSize; len++) {
+            fixedWarmupDataTxSizes[len] = storageEngine.getFixedWarmupDataTxSize(len);
+        }
         this.varlenWarmupDataTxSizes = new int[maxRecLenForVarlenTxSize + 1];
-        warmupIndexTxSize = (int) storageEngine.initWarmupTxSizes(fixedWarmupDataTxSizes, varlenWarmupDataTxSizes);
+        for (int len = 1; len <= maxRecLenForVarlenTxSize; len++) {
+            varlenWarmupDataTxSizes[len] = storageEngine.getVarlenWarmupDataTxSize(len);
+        }
+        warmupIndexTxSize = Math.max((int) storageEngine.getWarmupBasicTxSize(), (int) storageEngine.getWarmupLuceneTxSize());
 
         int warmBufferSize = buffTypeSizes[JbufType.JBUF_TYPE_NULL.ordinal()] +
                 buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()] +

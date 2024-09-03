@@ -23,18 +23,42 @@ import java.nio.ByteBuffer;
 public interface StorageEngine
 {
     //----------------------- initialization ----------------------------------------
-    default void initRecordBufferSizes(int[] fixedRecordBufferSizes, int[] varlenRecordBufferSizes)
+    default int getFixedRecordBufferSize(int recTypeLength)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void initCollectTxSizes(int[] fixedCollectTxSizes, int[] varlenCollectTxSizes)
+    default int getVarlenRecordBufferSize(int recTypeLength)
     {
         throw new UnsupportedOperationException();
     }
 
-    // returns the warm up tx size for index
-    default long initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes)
+    default int getFixedCollectTxSize(int recTypeLength)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default int getVarlenCollectTxSize(int recTypeLength)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default int getFixedWarmupDataTxSize(int recTypeLength)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default int getVarlenWarmupDataTxSize(int recTypeLength)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default int getWarmupBasicTxSize()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default int getWarmupLuceneTxSize()
     {
         throw new UnsupportedOperationException();
     }

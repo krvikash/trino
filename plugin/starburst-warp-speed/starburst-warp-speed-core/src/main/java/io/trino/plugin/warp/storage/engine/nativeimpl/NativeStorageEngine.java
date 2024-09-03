@@ -42,11 +42,21 @@ public class NativeStorageEngine
     private static final Logger logger = Logger.get(NativeStorageEngine.class);
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final ExceptionThrower exceptionThrower; // we keep a reference to hold this object for native layer ref
+    // file API
     private final MethodHandle mFileOpen;
     private final MethodHandle mFileClose;
     private final MethodHandle mFileTruncate;
     private final MethodHandle mFilePunchHole;
     private final MethodHandle mFileAboutToBeDeleted;
+    // initialization API
+    private final MethodHandle mInitGetFixedRecordBufferSize;
+    private final MethodHandle mInitGetVarlenRecordBufferSize;
+    private final MethodHandle mInitGetFixedCollectTxSize;
+    private final MethodHandle mInitGetVarlenCollectTxSize;
+    private final MethodHandle mInitGetFixedWarmupDataTxSize;
+    private final MethodHandle mInitGetVarlenWarmupDataTxSize;
+    private final MethodHandle mInitGetWarmupBasicTxSize;
+    private final MethodHandle mInitGetWarmupLuceneTxSize;
 
     public NativeStorageEngine(
             NativeConfig nativeConfig,
@@ -77,6 +87,24 @@ public class NativeStorageEngine
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
             mFileAboutToBeDeleted = linker.downcallHandle(libraryHandle.find("warp_speed_file_is_about_to_be_deleted").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_INT));
+
+            // init API
+            mInitGetFixedRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_record_buffer_size").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mInitGetVarlenRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_varlen_record_buffer_size").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mInitGetFixedCollectTxSize = linker.downcallHandle(libraryHandle.find("data_chunk_get_fixed_query_tx_size").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mInitGetVarlenCollectTxSize = linker.downcallHandle(libraryHandle.find("data_chunk_get_varlen_query_tx_size").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mInitGetFixedWarmupDataTxSize = linker.downcallHandle(libraryHandle.find("data_chunk_get_fixed_warmup_tx_size").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mInitGetVarlenWarmupDataTxSize = linker.downcallHandle(libraryHandle.find("data_chunk_get_varlen_warmup_tx_size").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mInitGetWarmupBasicTxSize = linker.downcallHandle(libraryHandle.find("index_chunk_tx_warmup_alloc_get_size").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT));
+            mInitGetWarmupLuceneTxSize = linker.downcallHandle(libraryHandle.find("lucene_chunk_tx_warmup_alloc_get_size").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT));
 
             nativeInit(taskMaxWorkerThreads,
                     Runtime.getRuntime().maxMemory(),
@@ -127,13 +155,100 @@ public class NativeStorageEngine
             boolean validateWarmId);
 
     @Override
-    public native void initRecordBufferSizes(int[] fixedRecordBufferSizes, int[] varlenRecordBufferSizes);
+    public int getFixedRecordBufferSize(int recTypeLength)
+    {
+        try {
+            return (int) mInitGetFixedRecordBufferSize.invokeExact(recTypeLength);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to init record buffer size");
+            throw new RuntimeException("failed to init record buffer size");
+        }
+    }
 
     @Override
-    public native void initCollectTxSizes(int[] fixedCollectTxSizes, int[] varlenCollectTxSizes);
+    public int getVarlenRecordBufferSize(int recTypeLength)
+    {
+        try {
+            return (int) mInitGetVarlenRecordBufferSize.invokeExact(recTypeLength);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to init record buffer size");
+            throw new RuntimeException("failed to init record buffer size");
+        }
+    }
 
     @Override
-    public native long initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes);
+    public int getFixedCollectTxSize(int recTypeLength)
+    {
+        try {
+            return (int) mInitGetFixedCollectTxSize.invokeExact(recTypeLength);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to init collect tx size");
+            throw new RuntimeException("failed to init collect tx size");
+        }
+    }
+
+    @Override
+    public int getVarlenCollectTxSize(int recTypeLength)
+    {
+        try {
+            return (int) mInitGetVarlenCollectTxSize.invokeExact(recTypeLength);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to init collect tx size");
+            throw new RuntimeException("failed to init collect tx size");
+        }
+    }
+
+    @Override
+    public int getFixedWarmupDataTxSize(int recTypeLength)
+    {
+        try {
+            return (int) mInitGetFixedWarmupDataTxSize.invokeExact(recTypeLength);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to init warmup tx size");
+            throw new RuntimeException("failed to init warmup tx size");
+        }
+    }
+
+    @Override
+    public int getVarlenWarmupDataTxSize(int recTypeLength)
+    {
+        try {
+            return (int) mInitGetVarlenWarmupDataTxSize.invokeExact(recTypeLength);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to init warmup tx size");
+            throw new RuntimeException("failed to init warmup tx size");
+        }
+    }
+
+    @Override
+    public int getWarmupBasicTxSize()
+    {
+        try {
+            return (int) mInitGetWarmupBasicTxSize.invokeExact();
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to init warmup tx size");
+            throw new RuntimeException("failed to init warmup tx size");
+        }
+    }
+
+    @Override
+    public int getWarmupLuceneTxSize()
+    {
+        try {
+            return (int) mInitGetWarmupLuceneTxSize.invokeExact();
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to init warmup tx size");
+            throw new RuntimeException("failed to init warmup tx size");
+        }
+    }
 
     @Override
     public int fileOpen(String fileName)

@@ -31,36 +31,50 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void initRecordBufferSizes(int[] fixedRecordBufferSizes, int[] varlenRecordBufferSizes)
+    public int getFixedRecordBufferSize(int recTypeLength)
     {
-        for (int i = 0; i < fixedRecordBufferSizes.length; i++) {
-            fixedRecordBufferSizes[i] = 64 * 1024 * i;
-        }
-        for (int i = 0; i < varlenRecordBufferSizes.length; i++) {
-            varlenRecordBufferSizes[i] = 64 * 1024 * i;
-        }
+        return 64 * 1024 * recTypeLength;
     }
 
     @Override
-    public void initCollectTxSizes(int[] fixedCollectTxSizes, int[] varlenCollectTxSizes)
+    public int getVarlenRecordBufferSize(int recTypeLength)
     {
-        for (int i = 0; i < fixedCollectTxSizes.length; i++) {
-            fixedCollectTxSizes[i] = 1024 * i;
-        }
-        for (int i = 0; i < varlenCollectTxSizes.length; i++) {
-            varlenCollectTxSizes[i] = 1024 * i;
-        }
+        return 64 * 1024 * recTypeLength;
     }
 
     @Override
-    public long initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes)
+    public int getFixedCollectTxSize(int recTypeLength)
     {
-        for (int i = 0; i < fixedWarmupDataTxSizes.length; i++) {
-            fixedWarmupDataTxSizes[i] = 1024 * i;
-        }
-        for (int i = 0; i < varlenWarmupDataTxSizes.length; i++) {
-            varlenWarmupDataTxSizes[i] = 1024 * i;
-        }
+        return 1024 * recTypeLength;
+    }
+
+    @Override
+    public int getVarlenCollectTxSize(int recTypeLength)
+    {
+        return 1024 * recTypeLength;
+    }
+
+    @Override
+    public int getFixedWarmupDataTxSize(int recTypeLength)
+    {
+        return 1024 * recTypeLength;
+    }
+
+    @Override
+    public int getVarlenWarmupDataTxSize(int recTypeLength)
+    {
+        return 1024 * recTypeLength;
+    }
+
+    @Override
+    public int getWarmupBasicTxSize()
+    {
+        return 1024;
+    }
+
+    @Override
+    public int getWarmupLuceneTxSize()
+    {
         return 1024;
     }
 
