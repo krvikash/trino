@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
@@ -39,7 +38,6 @@ public class NativeStorageStateHandlerTest
             1, ENV_EXCEPTION_STORAGE_TIMEOUT_ERROR);
     private NativeConfig nativeConfig;
     private NativeStorageStateHandler handler;
-    private final Random random = new Random();
 
     @BeforeEach
     public void beforeEach()
@@ -102,7 +100,7 @@ public class NativeStorageStateHandlerTest
 
         IntStream.range(1, times)
                 .forEach(i -> {
-                    handler.handleErrorCode(tempErrorCodes.get(Math.abs(random.nextInt(Integer.MAX_VALUE)) % 2));
+                    handler.handleErrorCode(tempErrorCodes.get(i % 2));
                     assertThat(handler.isStorageAvailable()).isFalse();
 
                     assertThat(handler.storageDisablePermanently).isFalse();
@@ -127,7 +125,7 @@ public class NativeStorageStateHandlerTest
 
         IntStream.range(1, times)
                 .forEach(i -> {
-                    handler.handleErrorCode(tempErrorCodes.get(Math.abs(random.nextInt(Integer.MAX_VALUE)) % 2));
+                    handler.handleErrorCode(tempErrorCodes.get(i % 2));
                     assertThat(handler.isStorageAvailable()).isFalse();
 
                     assertThat(handler.storageDisablePermanently).isFalse();
@@ -162,7 +160,7 @@ public class NativeStorageStateHandlerTest
 
         IntStream.range(1, times)
                 .forEach(i -> {
-                    handler.handleErrorCode(tempErrorCodes.get(Math.abs(random.nextInt(Integer.MAX_VALUE)) % 2));
+                    handler.handleErrorCode(tempErrorCodes.get(i % 2));
                     assertThat(handler.isStorageAvailable()).isFalse();
 
                     assertThat(handler.storageDisablePermanently).isFalse();
@@ -179,7 +177,7 @@ public class NativeStorageStateHandlerTest
                     }
                 });
 
-        handler.handleErrorCode(tempErrorCodes.get(Math.abs(random.nextInt(Integer.MAX_VALUE)) % 2));
+        handler.handleErrorCode(tempErrorCodes.get(times % 2));
         assertThat(handler.isStorageAvailable()).isFalse();
 
         assertThat(handler.storageDisablePermanently).isTrue();
@@ -200,7 +198,7 @@ public class NativeStorageStateHandlerTest
 
         IntStream.range(1, times)
                 .forEach(i -> {
-                    handler.handleErrorCode(tempErrorCodes.get(Math.abs(random.nextInt(Integer.MAX_VALUE)) % 2));
+                    handler.handleErrorCode(tempErrorCodes.get(i % 2));
                     assertThat(handler.isStorageAvailable()).isFalse();
 
                     assertThat(handler.storageDisablePermanently).isFalse();
