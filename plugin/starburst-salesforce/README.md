@@ -135,9 +135,10 @@ Tests using expired password will fail with an `INVALID_OPERATION_WITH_EXPIRED_P
 A new password will need to be created upon expiration, which generates a new security token as well.
 
 1. Login to https://starburstdata--partial.sandbox.my.salesforce.com/ as `sep.salesforcedl.test2@starburstdata.com` and the current (expired) password
-2. You will be prompted to create a new password. Once created, an email is sent to `sep.salesforcedl.test2@starburstdata.com` containing the new security token
+2. Security question/answer is stored in https://keepersecurity.com/vault/#detail/-Fj2Nqar9cayZsuQc8gGkA (`Salesforce Sandbox with basic authentication`) keeper vault
+3. You will be prompted to create a new password. Once created, an email is sent to `sep.salesforcedl.test2@starburstdata.com` containing the new security token
    * Following associates are part of the DL.  
    Wojciech Biela, Piotr Findeisen, Mateusz Gajewski, Ashhar Hasan, Grzegorz Kokosinski, Anu Sudarsan, Mayank Vadariya
-3. Update the secret value for `SALESFORCE_USER2_PASSWORD` and `SALESFORCE_USER2_SECURITY_TOKEN` to the new values through script located 
+4. Update the secret value for `SALESFORCE_USER2_PASSWORD` and `SALESFORCE_USER2_SECURITY_TOKEN` to the new values through script located 
    in [sep-ci-infra](https://github.com/starburstdata/sep-ci-infra/tree/main/secrets) repo.
-4. Let the CI build run; the tests should no longer fail with an expired password error
+5. Let the CI build run; the tests should no longer fail with an expired password error
