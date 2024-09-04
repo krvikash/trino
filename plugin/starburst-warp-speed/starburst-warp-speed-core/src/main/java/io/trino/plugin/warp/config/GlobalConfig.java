@@ -86,7 +86,7 @@ public class GlobalConfig
     private boolean enableMatchCollect = true;
     private boolean enableMappedMatchCollect = true;
     private boolean enableVarcharMappedMatchCollect;
-    private boolean enableLazyCollect;
+    private boolean enableLazyCollect = true;
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
     private int shapingLoggerThreshold = 1000;
