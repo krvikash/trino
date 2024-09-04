@@ -13,12 +13,11 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-public record CollectTxArgs(
-        int[] weCollectParams,
-        long[][] collectBuffIds,
-        byte[] collectStoreBuff,
-        byte[] collect2MatchParams,
-        QueryParams queryParams,
-        long[] fileCookie)
+public record QueryArgs(QueryParams queryParams,
+                        TxArgs txArgs,
+                        int chunkSize,
+                        int numChunks,
+                        int numChunksInRange,
+                        ChunksQueue chunksQueue)
 {
 }

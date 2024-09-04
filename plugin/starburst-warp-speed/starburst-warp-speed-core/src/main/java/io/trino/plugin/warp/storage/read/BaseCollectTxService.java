@@ -43,23 +43,22 @@ public abstract class BaseCollectTxService
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()
-    int collectOpen(CollectTxArgs collectTxArgs, int numCollectElements, int numChunksInRange, long matchBmAddr, long[] metadataBuffIds)
+    int collectOpen(QueryParams queryParams, TxArgs txArgs, int numCollectElements, int numChunksInRange, long matchBmAddr, long[] metadataBuffIds)
     {
         metadataBuffIds[0] = -1;
         metadataBuffIds[1] = -1;
-        QueryParams queryParams = collectTxArgs.queryParams();
 
         int collectTxId = (int) storageEngine.collectOpen(queryParams.getTotalNumRecords(),
-                collectTxArgs.fileCookie(),
-                collectTxArgs.collectStoreBuff(),
-                collectTxArgs.collect2MatchParams(),
+                txArgs.fileCookie(),
+                txArgs.collectStoreBuff(),
+                txArgs.collect2MatchParams(),
                 numCollectElements,
                 numChunksInRange,
-                collectTxArgs.weCollectParams(),
+                txArgs.weCollectParams(),
                 queryParams.getCatalogSequence(),
                 matchBmAddr,
                 queryParams.getMinCollectOffset(),
-                collectTxArgs.collectBuffIds(),
+                txArgs.collectBuffIds(),
                 metadataBuffIds);
         if (collectTxId < 0) {
             throw new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for collect");

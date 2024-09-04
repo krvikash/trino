@@ -29,14 +29,14 @@ public class LazyCollectTxService
     LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs)
     {
         long[] metadataBuffIds = new long[2];
-        int collectTxId = collectOpen(lazyCollectorLoaderArgs.collectTxArgs(), 1, lazyCollectorLoaderArgs.numChunksInRange(), 0, metadataBuffIds);
+        int collectTxId = collectOpen(lazyCollectorLoaderArgs.queryParams(), lazyCollectorLoaderArgs.txArgs(), 1, lazyCollectorLoaderArgs.numChunksInRange(), 0, metadataBuffIds);
 
         WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
         lazyCollectorLoaderArgs.collectJufferWE().createBuffers(
                 collectParams.getRecTypeCode(),
                 collectParams.getRecTypeLength(),
                 collectParams.hasDictionary(),
-                lazyCollectorLoaderArgs.collectTxArgs().collectBuffIds()[0]);
+                lazyCollectorLoaderArgs.txArgs().collectBuffIds()[0]);
         logger.debug("collectOpen collectTxId %d rowsLimit %d", collectTxId, rowsLimit);
         return new LazyCollectOpenResult(collectTxId);
     }

@@ -67,6 +67,7 @@ public class StorageReader
     private final long[][] matchBuffIds;
     private final List<ReadJuffersWarmUpElement> matchJuffersWE;
     private final LuceneMatcher[] luceneMatchers;
+    private final QueryArgs queryArgs;
     private boolean matchExhausted;
     private int matchTxId;
     short[] matchedChunksIndexes;
@@ -89,7 +90,6 @@ public class StorageReader
             DictionaryCacheService dictionaryCacheService,
             QueryParams queryParams,
             CustomStatsContext customStatsContext,
-            StorageCollectorArgs storageCollectorArgs,
             ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
             GlobalConfig globalConfig)
@@ -105,10 +105,14 @@ public class StorageReader
         this.queryParams = queryParams;
         this.matchBuffIds = new long[queryParams.getNumMatchElements()][];
         this.luceneMatchers = new LuceneMatcher[queryParams.getNumLucene()];
-        this.storageCollectorArgs = storageCollectorArgs;
+        this.queryArgs = storageCollectorService.getQueryArgs(queryParams);
+        this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryArgs);
         this.chunksQueueService = chunksQueueService;
         this.queryResultType = new int[queryParams.getNumCollectElements()];
         this.storeRowListResult = Optional.empty();
+
+        storageCollectorService.init(queryArgs);
+
         //  match
         this.matchTxId = INVALID_TX_ID;
         this.matchExhausted = true; // we initialize as true, and at the first call it will be set by calling match
@@ -134,7 +138,7 @@ public class StorageReader
 
     void close()
     {
-        storageCollectorService.terminate(storageCollectorArgs);
+        storageCollectorService.terminate(queryArgs);
     }
 
     private void createLuceneMatchers(GlobalConfig globalConfig)
@@ -151,7 +155,7 @@ public class StorageReader
                         matchJuffersWE.get(matchIx),
                         matchParams.getLuceneQueryMatchData(),
                         matchIx,
-                        storageCollectorArgs.numChunksInRange(),
+                        queryArgs.numChunksInRange(),
                         queryParams.getFilePath(),
                         lucenePageCacheStats,
                         statsDispatcherPageSource,
@@ -198,17 +202,17 @@ public class StorageReader
             loadDictionaries();
             dictionariesLoaded = true;
         }
-        collectOpenResult = storageCollectorService.open(storageCollectorArgs, numRowsCollectedInPrevRounds, rowsLimit, storeRowListResult);
+        collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, numRowsCollectedInPrevRounds, rowsLimit, storeRowListResult);
 
         if (queryParams.getNumMatchElements() > 0) {
             try {
                 matchTxId = (int) storageEngine.matchOpen(queryParams.getTotalNumRecords(),
-                        storageCollectorArgs.collectTxArgs().fileCookie(),
+                        queryArgs.txArgs().fileCookie(),
                         collectOpenResult.collectTxId(),
-                        storageCollectorArgs.collectTxArgs().collectStoreBuff(),
-                        storageCollectorArgs.collectTxArgs().collect2MatchParams(),
+                        queryArgs.txArgs().collectStoreBuff(),
+                        queryArgs.txArgs().collect2MatchParams(),
                         queryParams.getNumMatchElements(),
-                        storageCollectorArgs.numChunksInRange(),
+                        queryArgs.numChunksInRange(),
                         weMatchTree,
                         collectOpenResult.matchResultBitmaps().address(),
                         queryParams.getMinMatchOffset(),
@@ -222,8 +226,8 @@ public class StorageReader
                 queryAbort(e);
                 throw e;
             }
-            matchedChunksIndexes = new short[storageCollectorArgs.numChunksInRange()];
-            matchBitmapResetPoints = new int[storageCollectorArgs.numChunksInRange()];
+            matchedChunksIndexes = new short[queryArgs.numChunksInRange()];
+            matchBitmapResetPoints = new int[queryArgs.numChunksInRange()];
         }
 
         int matchIx = 0;
@@ -244,10 +248,10 @@ public class StorageReader
     private void matchIfNeeded()
     {
         if (matchExhausted) {
-            ChunksQueue chunksQueue = storageCollectorArgs.chunksQueue();
+            ChunksQueue chunksQueue = queryArgs.chunksQueue();
             if (matchTxId == INVALID_TX_ID) {
-                matchExhausted = chunksQueueService.updateChunkRangeFullScan(chunksQueue, storageCollectorArgs.numChunks(), storageCollectorArgs.numChunksInRange());
-                logger.debug("matchIfNeeded matchExhausted %b after full scan update numChunks %d range %d", matchExhausted, storageCollectorArgs.numChunks(), storageCollectorArgs.numChunksInRange());
+                matchExhausted = chunksQueueService.updateChunkRangeFullScan(chunksQueue, queryArgs.numChunks(), queryArgs.numChunksInRange());
+                logger.debug("matchIfNeeded matchExhausted %b after full scan update numChunks %d range %d", matchExhausted, queryArgs.numChunks(), queryArgs.numChunksInRange());
             }
             else {
                 long matchResult = 0;
@@ -332,18 +336,18 @@ public class StorageReader
         matchIfNeeded();
         // we continue as long as buffer is not full and we have more chunks to match and collect
         while (!matchExhausted && (collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_FULL)) {
-            CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(collectOpenResult,
-                    storageCollectorArgs,
+            CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(queryArgs,
+                    collectOpenResult,
                     isMatchGetNumRanges,
                     numRowsCollectedInCurRound,
                     queryResultType);
             collectBufferState = collectFromStorageResult.collectBufferState();
             numRowsCollectedInCurRound = collectFromStorageResult.numCollectedRows();
-            matchExhausted = chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue());
+            matchExhausted = chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue());
             matchIfNeeded();
         }
 
-        readTimeMeasurement.updateRuntimeMeasurements(startTime, storageCollectorArgs);
+        readTimeMeasurement.updateRuntimeMeasurements(startTime, queryArgs);
         return collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
     }
 
@@ -352,6 +356,7 @@ public class StorageReader
         int rowsToFill = Math.min(numRowsCollectedInCurRound, collectOpenResult.rowsLimit());
 
         storageCollectorService.fillBlocks(blocks,
+                queryArgs,
                 storageCollectorArgs,
                 rowsToFill,
                 numRowsCollectedInPrevRounds,
@@ -388,7 +393,7 @@ public class StorageReader
         }
 
         numRowsCollectedInPrevRounds += numRowsCollectedInCurRound;
-        CollectCloseResult collectCloseResult = storageCollectorService.close(collectOpenResult, storageCollectorArgs, numRowsCollectedInCurRound);
+        CollectCloseResult collectCloseResult = storageCollectorService.close(queryArgs, collectOpenResult, storageCollectorArgs, numRowsCollectedInCurRound);
         collectOpenResult = null;
         storeRowListResult = collectCloseResult.storeRowListResult();
         return collectCloseResult.readPages();

@@ -62,9 +62,9 @@ public class LazyCollectorService
         return queryParams.getNumMatchElements() == 0;
     }
 
-    private LazyCollectorLoaderArgs getLazyLoaderArgs(StorageCollectorArgs storageCollectorArgs, int weIx, int lazyCollectStartRowIndex, int numRows)
+    private LazyCollectorLoaderArgs getLazyLoaderArgs(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, int weIx, int lazyCollectStartRowIndex, int numRows)
     {
-        QueryParams queryParams = storageCollectorArgs.collectTxArgs().queryParams();
+        QueryParams queryParams = queryArgs.queryParams();
         WarmupElementCollectParams collectParams = queryParams.getCollectElementsParamsList().get(weIx);
 
         int[] weCollectParams = queryParams.dumpSingleCollectParams(collectParams);
@@ -72,26 +72,26 @@ public class LazyCollectorService
         collectBuffIds[0] = bufferAllocator.getQueryIdsArray();
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(0)];
         byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
-        long[] fileCookieParams = storageCollectorArgs.collectTxArgs().fileCookie();
+        long[] fileCookieParams = queryArgs.txArgs().fileCookie();
 
-        CollectTxArgs collectTxArgs = new CollectTxArgs(
+        TxArgs txArgs = new TxArgs(
                 weCollectParams,
                 collectBuffIds,
                 collectStoreBuff,
                 collect2MatchParams,
-                queryParams,
                 fileCookieParams);
 
         ReadJuffersWarmUpElement juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true, false);
         return new LazyCollectorLoaderArgs(
-                collectTxArgs,
+                queryParams,
+                txArgs,
                 collectParams,
                 juffersWE,
                 storageCollectorArgs.blockFillers().get(weIx),
                 lazyCollectStartRowIndex,
                 numRows,
-                storageCollectorArgs.numChunksInRange(),
-                storageCollectorArgs.chunkSize());
+                queryArgs.numChunksInRange(),
+                queryArgs.chunkSize());
     }
 
     @Override
@@ -102,26 +102,27 @@ public class LazyCollectorService
     }
 
     @Override
-    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, StorageCollectorArgs storageCollectorArgs, int currentNumCollectedRows)
+    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, QueryArgs queryArgs, int currentNumCollectedRows)
     {
         // assuming lazy collect is only in full scan and that we have only 1 round per getNextPage so can get numCollectedFromCurrentChunk from numCollectedInPreviousRounds
-        int numCollectedFromCurrentChunk = collectOpenResult.numCollectedInPreviousRounds() % storageCollectorArgs.chunkSize();
+        int numCollectedFromCurrentChunk = collectOpenResult.numCollectedInPreviousRounds() % queryArgs.chunkSize();
         return baseRow + numCollectedFromCurrentChunk;
     }
 
     @Override
     void fillBlocks(Block[] blocks,
+            QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
             int rowsToFill,
             int numRowsCollectedInPrevRounds,
             int[] queryResultTypes, // was not filled since collect was not called yet
             DispatcherPageSourceStats stats)
     {
-        List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.collectTxArgs().queryParams().getCollectElementsParamsList();
+        List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(storageCollectorArgs, weIx, numRowsCollectedInPrevRounds, rowsToFill);
+            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(queryArgs, storageCollectorArgs, weIx, numRowsCollectedInPrevRounds, rowsToFill);
             blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, new LazyCollectorLoader(
                     lazyCollectTxService,
                     lazyCollectorLoaderArgs,

@@ -19,7 +19,7 @@ public interface RangeFillerService
     boolean isCurrentChunkCompleted(RangeData rangeData, int chunkSize);
 
     // return the number of rows collected in this round
-    int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService);
+    int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService);
 
     WarpStoragePageSource.RowRanges reset(RangeData rangeData);
 
@@ -30,7 +30,7 @@ public interface RangeFillerService
     // list type and size are kept as memebers
     // in type all we store the first row index in the byte array
     // in type all we store the part of the list we have not collected yet in the byte array
-    StoreRowListResult storeRowList(StorageCollectorArgs storageCollectorArgs, RangeData rangeData);
+    StoreRowListResult storeRowList(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, RangeData rangeData);
 
     void restoreRowList(long rowsBuffId, StoreRowListResult storeRowListResult, byte[] storeRowListBuff);
 

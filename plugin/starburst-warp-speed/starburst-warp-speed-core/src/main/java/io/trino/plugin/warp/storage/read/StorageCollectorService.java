@@ -84,33 +84,42 @@ public class StorageCollectorService
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
     }
 
-    public CollectOpenResult open(StorageCollectorArgs storageCollectorArgs, int numRowsCollectedInPrevRounds, int rowsLimit, Optional<StoreRowListResult> storeRowListResult)
+    public void init(QueryArgs queryArgs)
+    {
+        queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
+        queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()] = storageEngine.fileOpen(queryArgs.queryParams().getFilePath());
+        queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(queryArgs.queryParams().getFilePath());
+        queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = queryArgs.queryParams().getFileModTime();
+    }
+
+    public CollectOpenResult open(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, int numRowsCollectedInPrevRounds, int rowsLimit, Optional<StoreRowListResult> storeRowListResult)
     {
         bufferAllocator.readerOnAllocBundle();
-        return collectTxService.collectOpenAndRestore(rowsLimit,
+        return collectTxService.collectOpenAndRestore(queryArgs,
+                rowsLimit,
                 numRowsCollectedInPrevRounds,
                 storageCollectorArgs,
                 storeRowListResult);
     }
 
     // returns true if we should stop before this collect since query result type is now single, false otherwise
-    boolean prepareChunk(StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
+    boolean prepareChunk(QueryArgs queryArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
     {
-        if (chunksQueueService.isChunkPreparationNeeded(storageCollectorArgs.chunksQueue())) {
+        if (chunksQueueService.isChunkPreparationNeeded(queryArgs.chunksQueue())) {
             boolean stopForOptimization = collectTxService.prepareChunk(collectOpenResult.collectTxId(),
-                    storageCollectorArgs.chunksQueue().getCurrent(),
+                    queryArgs.chunksQueue().getCurrent(),
                     collectOpenResult.rowsLimit() - numCollectedRows,
-                    storageCollectorArgs.chunksQueue().getCurrentResetPoint());
-            chunksQueueService.setFirstChunkPrepared(storageCollectorArgs.chunksQueue());
+                    queryArgs.chunksQueue().getCurrentResetPoint());
+            chunksQueueService.setFirstChunkPrepared(queryArgs.chunksQueue());
             return stopForOptimization && (numCollectedRows > 0);
         }
         return false;
     }
 
-    boolean advanceChunk(StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
+    boolean advanceChunk(QueryArgs queryArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
     {
-        if (numCollectedRows == 0 || rangeFillerService.isCurrentChunkCompleted(collectOpenResult.rangeData(), storageCollectorArgs.chunkSize())) {
-            storageCollectorArgs.chunksQueue().currentCompleted();
+        if (numCollectedRows == 0 || rangeFillerService.isCurrentChunkCompleted(collectOpenResult.rangeData(), queryArgs.chunkSize())) {
+            queryArgs.chunksQueue().currentCompleted();
             logger.debug("collectFromStorage advance numCollectedRows %d", numCollectedRows);
             return true;
         }
@@ -125,41 +134,41 @@ public class StorageCollectorService
 
     // returns indication if anything is collected in the buffer and if the buffer is full
     @NativeInterrupt
-    CollectFromStorageResult collectFromStorage(CollectOpenResult collectOpenResult,
-            StorageCollectorArgs storageCollectorArgs,
+    CollectFromStorageResult collectFromStorage(QueryArgs queryArgs,
+            CollectOpenResult collectOpenResult,
             boolean isMatchGetNumRanges,
             int numCollectedRows,
             int[] outQueryResultType)
     {
-        if (chunksQueueService.isCompletelyFinished(storageCollectorArgs.chunksQueue(), storageCollectorArgs.numChunks())) {
+        if (chunksQueueService.isCompletelyFinished(queryArgs.chunksQueue(), queryArgs.numChunks())) {
             return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, numCollectedRows);
         }
 
         int numToCollect = 1; // Not a real value, just making sure to enter the loop in the first iteration
         boolean stopForOptimization = false;
-        while (!chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue()) && numToCollect > 0) {
+        while (!chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue()) && numToCollect > 0) {
             // get next chunk to collect and check if its already done on buffer
-            int chunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
-            if (prepareChunk(storageCollectorArgs, collectOpenResult, numCollectedRows)) {
+            int chunkIndex = queryArgs.chunksQueue().getCurrent();
+            if (prepareChunk(queryArgs, collectOpenResult, numCollectedRows)) {
                 numToCollect = 0;
                 break;
             }
 
-            QueryParams queryParams = storageCollectorArgs.collectTxArgs().queryParams();
+            QueryParams queryParams = queryArgs.queryParams();
             if (queryParams.getNumCollectElements() > 0) {
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, collectOpenResult.rangeData());
-                numToCollect = getNumToCollect(storageCollectorArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
+                numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
                 if (numToCollect > 0) {
                     stopForOptimization = collect(collectOpenResult, queryParams.getNumCollectElements(), chunkIndex, numToCollect, outQueryResultType);
                 }
-                numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult, this);
+                numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, queryArgs, isMatchGetNumRanges, collectOpenResult, this);
             }
             else {
-                numCollectedRows += rangeFillerService.add(chunkIndex, 0, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult, this);
+                numCollectedRows += rangeFillerService.add(chunkIndex, 0, queryArgs, isMatchGetNumRanges, collectOpenResult, this);
             }
             logger.debug("collectFromStorage after native collect chunkIndex %d numToCollect %d numCollectedRows %d", chunkIndex, numToCollect, numCollectedRows);
 
-            if (!advanceChunk(storageCollectorArgs, collectOpenResult, numCollectedRows)) {
+            if (!advanceChunk(queryArgs, collectOpenResult, numCollectedRows)) {
                 numToCollect = 0; // We do not collect from one chunk twice in one round
             }
             // In case we are in full scan we are stopping after one chunk
@@ -181,13 +190,14 @@ public class StorageCollectorService
     }
 
     void fillBlocks(Block[] blocks,
+            QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
             int rowsToFill,
             int numRowsCollectedInPrevRounds,
             int[] queryResultTypes,
             DispatcherPageSourceStats stats)
     {
-        List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.collectTxArgs().queryParams().getCollectElementsParamsList();
+        List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
@@ -203,20 +213,20 @@ public class StorageCollectorService
         stats.addwrapped_collect_total_lazy_blocks(collectElementsParamsList.size());
     }
 
-    int getNumToCollect(StorageCollectorArgs storageCollectorArgs,
+    int getNumToCollect(QueryArgs queryArgs,
             int numCollectedFromCurrentChunk,
             CollectOpenResult collectOpenResult,
             int numCollectedRows)
     {
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = collectOpenResult.warmupElementRecordBufferStates();
         if (warmupElementRecordBufferStates.isEmpty()) {
-            logger.debug("getNumToCollect no wes %d", storageCollectorArgs.chunkSize() - numCollectedRows);
-            return storageCollectorArgs.chunkSize() - numCollectedRows;
+            logger.debug("getNumToCollect no wes %d", queryArgs.chunkSize() - numCollectedRows);
+            return queryArgs.chunkSize() - numCollectedRows;
         }
 
         int recLimit = Integer.MAX_VALUE;
         for (WarmupElementRecordBufferState warmupElementRecordBufferState : warmupElementRecordBufferStates) {
-            int limit = getNumToCollect(storageCollectorArgs,
+            int limit = getNumToCollect(queryArgs,
                     numCollectedFromCurrentChunk,
                     warmupElementRecordBufferState,
                     collectOpenResult.rangeData(),
@@ -234,7 +244,7 @@ public class StorageCollectorService
         return recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_TOTAL_BYTES.ordinal()) - recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_USED_BYTES.ordinal());
     }
 
-    int getNumToCollect(StorageCollectorArgs storageCollectorArgs,
+    int getNumToCollect(QueryArgs queryArgs,
             int numCollectedFromCurrentChunk,
             WarmupElementRecordBufferState warmupElementRecordBufferState,
             RangeData rangeData,
@@ -242,8 +252,8 @@ public class StorageCollectorService
     {
         IntBuffer recordBufferStateBuff = bufferAllocator.ids2RecordBufferStateBuff(warmupElementRecordBufferState.getRecordBufferStateBuffId());
         ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rangeData.getRowsBuffId());
-        int maxToCollect = storageCollectorArgs.chunkSize() - numCollectedRows; // according to buffer capacity
-        int numToCollect = getTotalNumToCollect(storageCollectorArgs, rowsBuff) - numCollectedFromCurrentChunk; // according to current chunk
+        int maxToCollect = queryArgs.chunkSize() - numCollectedRows; // according to buffer capacity
+        int numToCollect = getTotalNumToCollect(queryArgs, rowsBuff) - numCollectedFromCurrentChunk; // according to current chunk
         if (numToCollect > maxToCollect) {
             logger.debug("getNumToCollect zero basePos %d numToCollect %d maxToCollect %d", warmupElementRecordBufferState.getBasePos(), numToCollect, maxToCollect);
             return 0; // we want to avoid decompressing twice the same chunk
@@ -262,13 +272,34 @@ public class StorageCollectorService
     }
 
     // since the size is a short, zero means a full chunk, we translate to integer here
-    private int getTotalNumToCollect(StorageCollectorArgs storageCollectorArgs, ShortBuffer rowsBuff)
+    private int getTotalNumToCollect(QueryArgs queryArgs, ShortBuffer rowsBuff)
     {
         int total = Short.toUnsignedInt(rowsBuff.get(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TOTAL_SIZE.ordinal()));
-        return (total > 0) ? total : storageCollectorArgs.chunkSize();
+        return (total > 0) ? total : queryArgs.chunkSize();
     }
 
-    CollectTxArgs getCollectTxArgs(QueryParams queryParams)
+    public QueryArgs getQueryArgs(QueryParams queryParams)
+    {
+        TxArgs txArgs = getTxArgs(queryParams);
+        int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
+        // number of chunks is number of records divided by the chunk size which is fixed. we round it up in case the last chunk is not full.
+        int numChunks = (int) Math.ceil((double) queryParams.getTotalNumRecords() / (double) chunkSize);
+        if (numChunks == 0) {
+            throw new RuntimeException("no chunks");
+        }
+        int numChunksInRange = getNumChunksInRange(queryParams);
+
+        ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
+
+        return new QueryArgs(queryParams,
+                txArgs,
+                chunkSize,
+                numChunks,
+                numChunksInRange,
+                chunksQueue);
+    }
+
+    TxArgs getTxArgs(QueryParams queryParams)
     {
         int[] weCollectParams = queryParams.dumpCollectParams();
         long[][] collectBuffIds = new long[queryParams.getNumCollectElements()][];
@@ -279,26 +310,21 @@ public class StorageCollectorService
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];
         byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
 
-        //  file
+        // file is opened at init
         long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
-        fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
-        fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = storageEngine.fileOpen(queryParams.getFilePath());
-        fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(queryParams.getFilePath());
-        fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = queryParams.getFileModTime();
 
-        return new CollectTxArgs(
+        return new TxArgs(
                 weCollectParams,
                 collectBuffIds,
                 collectStoreBuff,
                 collect2MatchParams,
-                queryParams,
                 fileCookieParams);
     }
 
-    StorageCollectorArgs getStorageCollectorArgs(QueryParams queryParams)
+    StorageCollectorArgs getStorageCollectorArgs(QueryArgs queryArgs)
     {
-        CollectTxArgs collectTxArgs = getCollectTxArgs(queryParams);
-        StorageCollectorCallBack storageCollectorCallBack = new StorageCollectorCallBack(collectTxArgs, bufferAllocator);
+        QueryParams queryParams = queryArgs.queryParams();
+        StorageCollectorCallBack storageCollectorCallBack = new StorageCollectorCallBack(queryArgs.txArgs(), bufferAllocator);
 
         ArrayList<BlockFiller<?>> blockFillers = new ArrayList<>(queryParams.getNumCollectElements());
         for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
@@ -308,7 +334,6 @@ public class StorageCollectorService
                 .stream()
                 .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true, false))
                 .collect(Collectors.toList());
-        int numChunksInRange = getNumChunksInRange(queryParams);
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
         byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
 
@@ -319,15 +344,10 @@ public class StorageCollectorService
         }
 
         return new StorageCollectorArgs(
-                collectTxArgs,
                 storageCollectorCallBack,
                 blockFillers,
-                numChunksInRange,
                 collectJuffersWE,
-                storeRowListBuff,
-                chunkSize,
-                numChunks,
-                new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize()));
+                storeRowListBuff);
     }
 
     private int getNumChunksInRange(QueryParams queryParams)
@@ -346,7 +366,7 @@ public class StorageCollectorService
         return numChunksInRange;
     }
 
-    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, StorageCollectorArgs storageCollectorArgs, int currentNumCollectedRows)
+    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, QueryArgs queryArgs, int currentNumCollectedRows)
     {
         return rangeFillerService.getMinForTypeAll(baseRow, collectOpenResult, currentNumCollectedRows);
     }
@@ -356,9 +376,10 @@ public class StorageCollectorService
         return rangeFillerService.collectRanges(collectOpenResult.rangeData(), collectOpenResult.rowsLimit());
     }
 
-    public CollectCloseResult close(CollectOpenResult collectOpenResult, StorageCollectorArgs storageCollectorArgs, int numRowsCollectedInCurRound)
+    public CollectCloseResult close(QueryArgs queryArgs, CollectOpenResult collectOpenResult, StorageCollectorArgs storageCollectorArgs, int numRowsCollectedInCurRound)
     {
-        CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(collectOpenResult,
+        CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(queryArgs,
+                collectOpenResult,
                 storageCollectorArgs,
                 numRowsCollectedInCurRound);
 
@@ -372,8 +393,8 @@ public class StorageCollectorService
         bufferAllocator.readerOnFreeBundle();
     }
 
-    public void terminate(StorageCollectorArgs storageCollectorArgs)
+    public void terminate(QueryArgs queryArgs)
     {
-        storageEngine.fileClose((int) storageCollectorArgs.collectTxArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
+        storageEngine.fileClose((int) queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
     }
 }

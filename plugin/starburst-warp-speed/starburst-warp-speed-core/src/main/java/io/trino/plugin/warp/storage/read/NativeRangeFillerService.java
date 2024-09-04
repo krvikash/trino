@@ -63,7 +63,7 @@ public class NativeRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
+    public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
     {
         RangeData rangeData = collectOpenResult.rangeData();
         advanceChunkIfNeeded(chunkIndex, rangeData);
@@ -71,11 +71,11 @@ public class NativeRangeFillerService
         ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rangeData.getRowsBuffId());
 
         int numRows;
-        if (storageCollectorArgs.collectTxArgs().queryParams().getNumCollectElements() > 0) {
+        if (queryArgs.queryParams().getNumCollectElements() > 0) {
             numRows = currentNumCollectedRows;
         }
         else {
-            numRows = (getListTypeFromBuffer(rowsBuff) == RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL) ? storageCollectorArgs.chunkSize() : getTotalNumCollected(rowsBuff, storageCollectorArgs.chunkSize());
+            numRows = (getListTypeFromBuffer(rowsBuff) == RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL) ? queryArgs.chunkSize() : getTotalNumCollected(rowsBuff, queryArgs.chunkSize());
         }
         // in case collected count is zero, it means nothing was collected regardless of the type
         if (numRows == 0) {
@@ -84,10 +84,10 @@ public class NativeRangeFillerService
 
         // if we are here we have at least one row that was collected
         RecordIndexListType listType = getListTypeFromBuffer(rowsBuff);
-        int baseRow = chunkIndex * storageCollectorArgs.chunkSize();
+        int baseRow = chunkIndex * queryArgs.chunkSize();
         switch (listType) {
             case RECORD_INDEX_LIST_TYPE_FULL -> {
-                numRows = storageCollectorArgs.chunkSize();
+                numRows = queryArgs.chunkSize();
                 if (rangesRequired) {
                     rangeData.addLowerInclusive(baseRow);
                     rangeData.addUpperExclusive(baseRow + numRows);
@@ -95,7 +95,7 @@ public class NativeRangeFillerService
             }
             case RECORD_INDEX_LIST_TYPE_ALL -> {
                 if (rangesRequired) {
-                    int min = storageCollectorService.getMinForTypeAll(baseRow, collectOpenResult, storageCollectorArgs, currentNumCollectedRows);
+                    int min = storageCollectorService.getMinForTypeAll(baseRow, collectOpenResult, queryArgs, currentNumCollectedRows);
                     long minValue = mergeRanges(min, rangeData);
                     rangeData.addLowerInclusive(minValue);
                     rangeData.addUpperExclusive(min + numRows);
@@ -163,11 +163,11 @@ public class NativeRangeFillerService
     // in type all we store the first row index in the byte array
     // in type all we store the part of the list we have not collected yet in the byte array
     @Override
-    public StoreRowListResult storeRowList(StorageCollectorArgs storageCollectorArgs, RangeData rangeData)
+    public StoreRowListResult storeRowList(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, RangeData rangeData)
     {
         ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rangeData.getRowsBuffId());
 
-        int currChunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
+        int currChunkIndex = queryArgs.chunksQueue().getCurrent();
         advanceChunkIfNeeded(currChunkIndex, rangeData);
 
         RecordIndexListType storeRowListType = getListTypeFromBuffer(rowsBuff);
@@ -175,21 +175,21 @@ public class NativeRangeFillerService
         int storeRowListSize;
         switch (storeRowListType) {
             case RECORD_INDEX_LIST_TYPE_FULL:
-                storeRowListSize = storageCollectorArgs.chunkSize();
+                storeRowListSize = queryArgs.chunkSize();
                 break;
             case RECORD_INDEX_LIST_TYPE_ALL:
                 int posTypeAll = getFirstIndexPosition() * Short.BYTES;
-                int totalNumCollectedTypeAll = getTotalNumCollected(rowsBuff, storageCollectorArgs.chunkSize());
+                int totalNumCollectedTypeAll = getTotalNumCollected(rowsBuff, queryArgs.chunkSize());
                 storeRowListSize = totalNumCollectedTypeAll - rangeData.getNumChunkRowsCollected();
-                if (storeRowListCommon(storeRowListSize, posTypeAll, false, storageCollectorArgs.chunkSize(), rangeData, storeRowListBuff)) {
+                if (storeRowListCommon(storeRowListSize, posTypeAll, false, queryArgs.chunkSize(), rangeData, storeRowListBuff)) {
                     storeRowListType = RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL;
                 }
                 break;
             case RECORD_INDEX_LIST_TYPE_VALUES:
                 int posListTypeValues = (getFirstIndexPosition() + rangeData.getNumChunkRowsCollected()) * Short.BYTES;
-                int totalNumCollectedTypeValues = getTotalNumCollected(rowsBuff, storageCollectorArgs.chunkSize());
+                int totalNumCollectedTypeValues = getTotalNumCollected(rowsBuff, queryArgs.chunkSize());
                 storeRowListSize = totalNumCollectedTypeValues - rangeData.getNumChunkRowsCollected();
-                if (storeRowListCommon(storeRowListSize, posListTypeValues, true, storageCollectorArgs.chunkSize(), rangeData, storeRowListBuff)) {
+                if (storeRowListCommon(storeRowListSize, posListTypeValues, true, queryArgs.chunkSize(), rangeData, storeRowListBuff)) {
                     storeRowListType = RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL;
                 }
                 break;

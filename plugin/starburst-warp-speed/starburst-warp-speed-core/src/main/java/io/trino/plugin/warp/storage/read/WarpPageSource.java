@@ -74,7 +74,6 @@ public class WarpPageSource
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
-        StorageCollectorArgs storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryParams);
         boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
         StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
         reader = new StorageReader(storageEngine,
@@ -83,7 +82,6 @@ public class WarpPageSource
                 dictionaryCacheService,
                 queryParams,
                 customStatsContext,
-                storageCollectorArgs,
                 chunksQueueService,
                 collectorService,
                 globalConfig);

@@ -37,7 +37,7 @@ public class ReadTimeMeasurement
         return System.currentTimeMillis();
     }
 
-    public void updateRuntimeMeasurements(long startTime, StorageCollectorArgs storageCollectorArgs)
+    public void updateRuntimeMeasurements(long startTime, QueryArgs queryArgs)
     {
         long outTime = System.currentTimeMillis();
         long roundTime = outTime - startTime;
@@ -51,7 +51,7 @@ public class ReadTimeMeasurement
         wallTime += roundTime;
         if (outTime - lastReportTime >= TIME_REPORT_INTERVAL_MILLIS) {
             logger.info("wallTime %d runTime %d minRoundTime %d maxRoundTime %d processed %d chunks out of %d",
-                    wallTime, runTime, minRoundTime, maxRoundTime, storageCollectorArgs.chunksQueue().getTotalNumChunks(), storageCollectorArgs.numChunks());
+                    wallTime, runTime, minRoundTime, maxRoundTime, queryArgs.chunksQueue().getTotalNumChunks(), queryArgs.numChunks());
             lastReportTime = outTime;
         }
     }

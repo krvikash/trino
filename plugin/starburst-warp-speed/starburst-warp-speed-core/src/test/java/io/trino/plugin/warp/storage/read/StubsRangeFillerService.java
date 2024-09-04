@@ -34,7 +34,7 @@ public class StubsRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
+    public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
     {
         return 0;
     }
@@ -61,7 +61,7 @@ public class StubsRangeFillerService
     // in type all we store the first row index in the byte array
     // in type all we store the part of the list we have not collected yet in the byte array
     @Override
-    public StoreRowListResult storeRowList(StorageCollectorArgs storageCollectorArgs, RangeData rangeData)
+    public StoreRowListResult storeRowList(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, RangeData rangeData)
     {
         return new StoreRowListResult(RECORD_INDEX_LIST_TYPE_ALL, 0);
     }

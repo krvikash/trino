@@ -93,12 +93,13 @@ public class CollectTxService
     /**
      * prepare buffers for filling
      */
-    CollectOpenResult collectOpenAndRestore(int rowsLimit,
+    CollectOpenResult collectOpenAndRestore(QueryArgs queryArgs,
+            int rowsLimit,
             int numCollectedInPrevRounds,
             StorageCollectorArgs storageCollectorArgs,
             Optional<StoreRowListResult> storeRowListResult)
     {
-        QueryParams queryParams = storageCollectorArgs.collectTxArgs().queryParams();
+        QueryParams queryParams = queryArgs.queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
         int numCollectElements = collectParamsList.size();
         long[] metadataBuffIds = new long[2];
@@ -111,7 +112,7 @@ public class CollectTxService
             matchBmAddr = bmSeg.address();
         }
 
-        int collectTxId = collectOpen(storageCollectorArgs.collectTxArgs(), numCollectElements, storageCollectorArgs.numChunksInRange(), matchBmAddr, metadataBuffIds);
+        int collectTxId = collectOpen(queryArgs.queryParams(), queryArgs.txArgs(), numCollectElements, queryArgs.numChunksInRange(), matchBmAddr, metadataBuffIds);
 
         int collectIx = 0;
         for (WarmupElementCollectParams collectParams : collectParamsList) {
@@ -119,7 +120,7 @@ public class CollectTxService
                     collectParams.mappedMatchCollect() ? RecTypeCode.REC_TYPE_TINYINT : collectParams.getRecTypeCode(),
                     collectParams.mappedMatchCollect() ? 1 : collectParams.getRecTypeLength(),
                     collectParams.hasDictionary(),
-                    storageCollectorArgs.collectTxArgs().collectBuffIds()[collectIx]);
+                    queryArgs.txArgs().collectBuffIds()[collectIx]);
             collectIx++;
         }
 
@@ -132,20 +133,20 @@ public class CollectTxService
         }
 
         int restoredChunkIndex = -1;
-        if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
+        if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {
             checkState(storeRowListResult.isPresent(), "Restore needed but store data doesn't exists");
             rangeFillerService.restoreRowList(rangeData.getRowsBuffId(), storeRowListResult.get(), storageCollectorArgs.storeRowListBuff());
-            restoredChunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
+            restoredChunkIndex = queryArgs.chunksQueue().getCurrent();
             if (storageEngine.collectRestoreState(collectTxId, restoredChunkIndex, storageCollectorArgs.storageCollectorCallBack()) < 0) {
                 throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                         String.format("failed to restore collect state restoredChunkIndex %d numChunks %d",
                         restoredChunkIndex,
-                        storageCollectorArgs.numChunks()));
+                        queryArgs.numChunks()));
             }
         }
 
         logger.debug("collectOpen collectTxId %d rowsLimit %d numChunks %d numCollectElements %d restoredChunkIndex %d",
-                collectTxId, rowsLimit, storageCollectorArgs.numChunks(), queryParams.getNumCollectElements(), restoredChunkIndex);
+                collectTxId, rowsLimit, queryArgs.numChunks(), queryParams.getNumCollectElements(), restoredChunkIndex);
         return new CollectOpenResult(collectTxId,
                 rowsLimit,
                 numCollectedInPrevRounds,
@@ -154,7 +155,8 @@ public class CollectTxService
                 bmSeg);
     }
 
-    CollectCloseResult collectStoreAndClose(CollectOpenResult collectOpenResult,
+    CollectCloseResult collectStoreAndClose(QueryArgs queryArgs,
+            CollectOpenResult collectOpenResult,
             StorageCollectorArgs storageCollectorArgs,
             int numCollectedRows)
     {
@@ -165,16 +167,16 @@ public class CollectTxService
         }
 
         Optional<int[]> chunksWithBitmapsToStoreOpt = Optional.empty();
-        if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
-            if (chunksQueueService.isChunkPreparationNeeded(storageCollectorArgs.chunksQueue())) {
+        if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {
+            if (chunksQueueService.isChunkPreparationNeeded(queryArgs.chunksQueue())) {
                 prepareChunk(collectOpenResult.collectTxId(),
-                        storageCollectorArgs.chunksQueue().getCurrent(),
+                        queryArgs.chunksQueue().getCurrent(),
                         collectOpenResult.rowsLimit() - numCollectedRows,
-                        storageCollectorArgs.chunksQueue().getCurrentResetPoint());
+                        queryArgs.chunksQueue().getCurrentResetPoint());
             }
 
-            chunksWithBitmapsToStoreOpt = storageCollectorArgs.chunksQueue().getChunkIndexesWithBitmap();
-            storeRowListResult = Optional.of(rangeFillerService.storeRowList(storageCollectorArgs, collectOpenResult.rangeData()));
+            chunksWithBitmapsToStoreOpt = queryArgs.chunksQueue().getChunkIndexesWithBitmap();
+            storeRowListResult = Optional.of(rangeFillerService.storeRowList(queryArgs, storageCollectorArgs, collectOpenResult.rangeData()));
         }
         int[] chunksWithBitmaps = chunksWithBitmapsToStoreOpt.orElse(null);
         int numChunksWithBitmap = (chunksWithBitmaps != null) ? chunksWithBitmaps.length : 0;
