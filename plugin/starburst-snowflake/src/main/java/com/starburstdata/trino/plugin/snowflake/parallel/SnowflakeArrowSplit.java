@@ -64,13 +64,6 @@ public record SnowflakeArrowSplit(
 
     @JsonIgnore
     @Override
-    public Object getInfo()
-    {
-        return this;
-    }
-
-    @JsonIgnore
-    @Override
     public long getRetainedSizeInBytes()
     {
         return INSTANCE_SIZE

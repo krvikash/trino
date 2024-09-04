@@ -64,12 +64,6 @@ public class MockPlanAlternativeSplit
     }
 
     @Override
-    public Object getInfo()
-    {
-        return delegate.getInfo();
-    }
-
-    @Override
     public SplitWeight getSplitWeight()
     {
         return delegate.getSplitWeight();

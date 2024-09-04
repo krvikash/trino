@@ -16,7 +16,6 @@ package io.trino.server.dataframe;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.starburstdata.dataframe.analyzer.Analyzer;
@@ -173,14 +172,6 @@ public class AnalyzeLogicalPlan
         public List<HostAddress> getAddresses()
         {
             return addresses;
-        }
-
-        @Override
-        public Object getInfo()
-        {
-            return ImmutableMap.builder()
-                    .put("addresses", addresses)
-                    .buildOrThrow();
         }
 
         @Override
