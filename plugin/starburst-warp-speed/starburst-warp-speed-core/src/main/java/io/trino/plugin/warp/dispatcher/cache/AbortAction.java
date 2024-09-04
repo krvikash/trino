@@ -20,6 +20,7 @@ import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.CacheWarmState;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
@@ -29,6 +30,7 @@ import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.warp.storage.write.WarpCacheFilesMerger;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -86,13 +88,23 @@ public class AbortAction
     public boolean close(List<WarmingCandidate> failedWarmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig)
     {
         List<RowGroupData> tmpRowGroupDataList = new ArrayList<>();
+        List<WarmUpElement> actualFailedWarmupElements = new ArrayList<>();
         try {
             for (WarmingCandidate warmingCandidate : failedWarmingCandidates) {
                 try {
                     RowGroupKey tmpRowGroupKey = warmingCandidate.tmpRowGroupKey();
                     RowGroupData tmpRowGroupData = rowGroupDataService.getOrCreateTmpRowGroupData(tmpRowGroupKey);
-                    closeStorageLayer(tmpRowGroupData, warmingCandidate);
+                    closeStorageLayer(tmpRowGroupData, warmingCandidate.fileCookie());
                     tmpRowGroupDataList.add(tmpRowGroupData);
+                    if (warmingCandidate.isFailedCandidate()) {
+                        for (WarmUpElement we : tmpRowGroupData.getWarmUpElements()) {
+                            if (!we.isValid()) {
+                                //we only mark failed the candidate who caused the failure.
+                                //note that warmup from tmpRowGroupData holds the updated warmup state
+                                actualFailedWarmupElements.add(we);
+                            }
+                        }
+                    }
                 }
                 catch (Exception e) {
                     logger.error(e, "failed to cleanStorage for warmingCandidate=%s", warmingCandidate);
@@ -103,10 +115,13 @@ public class AbortAction
             }
 
             try {
-                warpCacheFilesMerger.handleWarmFailed(tmpRowGroupDataList, permanentRowGroupKey);
+                rowGroupDataService.markAsFailed(permanentRowGroupKey, actualFailedWarmupElements, Collections.emptyMap());
             }
             catch (Exception e) {
                 logger.error(e, "failed on merge %s. key=%s", tmpRowGroupDataList, permanentRowGroupKey);
+            }
+            finally {
+                warpCacheFilesMerger.deleteTmpRowGroups(tmpRowGroupDataList);
             }
         }
         finally {
@@ -119,8 +134,8 @@ public class AbortAction
         return false;
     }
 
-    private void closeStorageLayer(RowGroupData rowGroupData, WarmingCandidate warmingCandidate)
+    private void closeStorageLayer(RowGroupData rowGroupData, long[] fileCookie)
     {
-        storageWarmerService.fileClose(warmingCandidate.fileCookie(), Optional.of(rowGroupData));
+        storageWarmerService.fileClose(fileCookie, Optional.of(rowGroupData));
     }
 }

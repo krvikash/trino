@@ -25,12 +25,10 @@ import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
-import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
-import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.util.StorageUtils;
 import io.trino.spi.NodeManager;
 import io.trino.spi.TrinoException;
@@ -38,10 +36,8 @@ import io.trino.spi.TrinoException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -231,7 +227,6 @@ public class RowGroupDataService
         WarmUpElement.Builder warmupElementBuilder = WarmUpElement.builder(warmUpElement).totalRecords(totalRecords);
         if (!warmUpElement.isValid()) {
             warmupElementBuilder
-                    .state(addTemporaryFailure(warmUpElement.getState(), System.currentTimeMillis()))
                     .warmState(WarmState.COLD);
         }
         warmUpElement = warmupElementBuilder.build();
@@ -321,45 +316,23 @@ public class RowGroupDataService
             Map<WarpColumn, String> partitionKeys)
     {
         RowGroupData rowGroupData = get(rowGroupKey);
-
-        long lastTemporaryFailure = System.currentTimeMillis();
-        Map<Pair<WarpColumn, WarmUpType>, WarmUpElement> failedElementByColNameAndWarmUpType = new HashMap<>();
-
-        for (WarmUpElement we : proxiedWarmUpElements) {
-            WarmUpElementState state = addTemporaryFailure(we.getState(), lastTemporaryFailure);
-            failedElementByColNameAndWarmUpType.put(
-                    Pair.of(we.getWarpColumn(), we.getWarmUpType()),
-                    WarmUpElement.builder(we)
-                            .state(state)
-                            .warmState(WarmState.COLD)
-                            .build());
-        }
-
-        RowGroupData.Builder builder;
-
-        if (Objects.isNull(rowGroupData)) {
-            builder = RowGroupData.builder()
+        if (rowGroupData == null) {
+            rowGroupData = RowGroupData.builder()
                     .rowGroupKey(rowGroupKey)
                     .nodeIdentifier(nodeIdentifier)
-                    .warmUpElements(failedElementByColNameAndWarmUpType.values())
-                    .partitionKeys(partitionKeys);
+                    .nextOffset(0)
+                    .warmUpElements(Collections.emptyList())
+                    .partitionKeys(partitionKeys)
+                    .build();
             warmingServiceStats.incrow_group_count();
         }
-        else {
-            builder = RowGroupData.builder(rowGroupData);
-            List<WarmUpElement> updatedWarmUpElements = new ArrayList<>(failedElementByColNameAndWarmUpType.values());
-
-            for (WarmUpElement existingWarmUpElement : rowGroupData.getWarmUpElements()) {
-                if (!failedElementByColNameAndWarmUpType.containsKey(Pair.of(existingWarmUpElement.getWarpColumn(), existingWarmUpElement.getWarmUpType()))) {
-                    updatedWarmUpElements.add(existingWarmUpElement);
-                }
+        for (WarmUpElement failedElement : proxiedWarmUpElements) {
+            if (failedElement.isValid()) {
+                //should not happen. added in order to protect from unfamiliar error flow
+                failedElement = WarmUpElement.builder(failedElement).state(new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY)).build();
             }
-            builder.warmUpElements(updatedWarmUpElements);
+            updateRowGroupData(rowGroupData, failedElement, rowGroupData.getNextOffset(), -1);
         }
-
-        save(builder.build());
-        warmingServiceStats.addwarm_failed(failedElementByColNameAndWarmUpType.size());
-
         flush(rowGroupKey);
     }
 

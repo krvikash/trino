@@ -18,11 +18,111 @@ import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.storage.write.PageSink;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
-public record WarmingCandidate(long[] fileCookie,
-                               PageSink pageSink,
-                               int fileOffset,
-                               WarmupElementWriteMetadata warmupElementWriteMetadata,
-                               List<DictionaryWarmInfo> outDictionaryWarmInfos,
-                               RowGroupKey tmpRowGroupKey) {}
+public final class WarmingCandidate
+{
+    private final long[] fileCookie;
+    private final PageSink pageSink;
+    private final int fileOffset;
+    private final WarmupElementWriteMetadata warmupElementWriteMetadata;
+    private final List<DictionaryWarmInfo> outDictionaryWarmInfos;
+    private final RowGroupKey tmpRowGroupKey;
+    private boolean isFailedCandidate;
+
+    public WarmingCandidate(long[] fileCookie,
+            PageSink pageSink,
+            int fileOffset,
+            WarmupElementWriteMetadata warmupElementWriteMetadata,
+            List<DictionaryWarmInfo> outDictionaryWarmInfos,
+            RowGroupKey tmpRowGroupKey)
+    {
+        this.fileCookie = fileCookie;
+        this.pageSink = pageSink;
+        this.fileOffset = fileOffset;
+        this.warmupElementWriteMetadata = warmupElementWriteMetadata;
+        this.outDictionaryWarmInfos = outDictionaryWarmInfos;
+        this.tmpRowGroupKey = tmpRowGroupKey;
+        this.isFailedCandidate = false;
+    }
+
+    public long[] fileCookie()
+    {
+        return fileCookie;
+    }
+
+    public PageSink pageSink()
+    {
+        return pageSink;
+    }
+
+    public int fileOffset()
+    {
+        return fileOffset;
+    }
+
+    public WarmupElementWriteMetadata warmupElementWriteMetadata()
+    {
+        return warmupElementWriteMetadata;
+    }
+
+    public List<DictionaryWarmInfo> outDictionaryWarmInfos()
+    {
+        return outDictionaryWarmInfos;
+    }
+
+    public RowGroupKey tmpRowGroupKey()
+    {
+        return tmpRowGroupKey;
+    }
+
+    public void setFailedCandidate()
+    {
+        isFailedCandidate = true;
+    }
+
+    public boolean isFailedCandidate()
+    {
+        return isFailedCandidate;
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null || obj.getClass() != this.getClass()) {
+            return false;
+        }
+        var that = (WarmingCandidate) obj;
+        return Arrays.equals(this.fileCookie, that.fileCookie) &&
+                Objects.equals(this.pageSink, that.pageSink) &&
+                this.fileOffset == that.fileOffset &&
+                this.isFailedCandidate == that.isFailedCandidate &&
+                Objects.equals(this.warmupElementWriteMetadata, that.warmupElementWriteMetadata) &&
+                Objects.equals(this.outDictionaryWarmInfos, that.outDictionaryWarmInfos) &&
+                Objects.equals(this.tmpRowGroupKey, that.tmpRowGroupKey);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(Arrays.hashCode(fileCookie), pageSink, fileOffset, isFailedCandidate, warmupElementWriteMetadata, outDictionaryWarmInfos, tmpRowGroupKey);
+    }
+
+    @Override
+    public String toString()
+    {
+        return "WarmingCandidate[" +
+                "fileCookie=" + Arrays.toString(fileCookie) + ", " +
+                "pageSink=" + pageSink + ", " +
+                "fileOffset=" + fileOffset + ", " +
+                "warmupElementWriteMetadata=" + warmupElementWriteMetadata + ", " +
+                "outDictionaryWarmInfos=" + outDictionaryWarmInfos + ", " +
+                "isFailedCandidate=" + isFailedCandidate + ", " +
+                "tmpRowGroupKey=" + tmpRowGroupKey + ']';
+    }
+}

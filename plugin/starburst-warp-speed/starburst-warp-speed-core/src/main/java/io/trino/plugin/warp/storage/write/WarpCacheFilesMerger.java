@@ -110,16 +110,6 @@ public class WarpCacheFilesMerger
         return succes;
     }
 
-    public void handleWarmFailed(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)
-    {
-        try {
-            setAllWeToFailedState(tmpRowGroupDataList, permanentRowGroupKey);
-        }
-        finally {
-            deleteTmpRowGroups(tmpRowGroupDataList);
-        }
-    }
-
     private void setAllWeToFailedState(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)
     {
         //in case of failure, add all WE as failed to permanent RG

@@ -134,44 +134,15 @@ public class RowGroupDataServiceTest
     {
         Map<WarpColumn, String> partitionKeys = Map.of(new RegularColumn("1"), "2");
         List<WarmUpElement> newWarmUpElements = IntStream.range(0, 5)
-                .mapToObj(i -> createWarmUpElement("col" + i, true))
+                .mapToObj(i -> createWarmUpElement("col" + i, false))
                 .collect(Collectors.toList());
         rowGroupDataService.markAsFailed(rowGroupKey, newWarmUpElements, partitionKeys);
 
-        verify(rowGroupDataService, times(1)).save(rowGroupDataCapture.capture());
+        verify(rowGroupDataService, times(newWarmUpElements.size())).save(rowGroupDataCapture.capture());
         RowGroupData rowGroupData = rowGroupDataCapture.getValue();
         assertThat(rowGroupData.getRowGroupKey()).isEqualTo(rowGroupKey);
         assertThat(rowGroupData.getPartitionKeys()).isEqualTo(partitionKeys);
         assertThat(rowGroupData.getWarmUpElements().stream().allMatch(we -> we.getState().state().equals(WarmUpElementState.State.FAILED_TEMPORARILY))).isTrue();
-        assertThat(rowGroupData.getWarmUpElements().stream().allMatch(we -> we.getState().temporaryFailureCount() == 1)).isTrue();
-    }
-
-    @Test
-    public void testMarkAsFailedExistingRowGroup()
-    {
-        List<WarmUpElement> existingWarmUpElements = IntStream.range(0, 5)
-                .mapToObj(i -> createWarmUpElement("col" + i, true))
-                .collect(Collectors.toList());
-        RowGroupData rowGroupData = createRowGroupData(existingWarmUpElements);
-        when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
-
-        List<WarmUpElement> newWarmUpElements = IntStream.range(3, 8).mapToObj(i -> createWarmUpElement("col" + i, true)).collect(Collectors.toList());
-        rowGroupDataService.markAsFailed(rowGroupKey, newWarmUpElements, rowGroupData.getPartitionKeys());
-
-        verify(rowGroupDataService, times(1)).save(rowGroupDataCapture.capture());
-        RowGroupData updatedRowGroupData = rowGroupDataCapture.getValue();
-        assertThat(updatedRowGroupData.getRowGroupKey()).isEqualTo(rowGroupKey);
-        assertThat(updatedRowGroupData.getPartitionKeys()).isEqualTo(rowGroupData.getPartitionKeys());
-        assertThat(rowGroupData.getValidWarmUpElements().stream().allMatch(x -> x.getTotalRecords() == existingWarmUpElements.getFirst().getTotalRecords())).isTrue();
-        // warmUpElements 3-5 were already exist and should be updated to FAILED_TEMPORARILY. warmUpElements 6-7 are new FAILED_TEMPORARILY
-        assertThat(updatedRowGroupData.getWarmUpElements().stream()
-                .filter(we -> we.getState().state().equals(WarmUpElementState.State.FAILED_TEMPORARILY) &&
-                        we.getState().temporaryFailureCount() == 1).count())
-                .isEqualTo(5);
-        assertThat(updatedRowGroupData.getWarmUpElements().stream()
-                .filter(we -> we.getState().state().equals(WarmUpElementState.State.VALID))
-                .count())
-                .isEqualTo(3);
     }
 
     @Test
@@ -194,7 +165,7 @@ public class RowGroupDataServiceTest
         rowGroupDataService.markAsFailed(rowGroupKey, warmUpElements, new HashMap<>());
 
         ArgumentCaptor<RowGroupData> savedRowGroupDataCapture = ArgumentCaptor.forClass(RowGroupData.class);
-        verify(rowGroupDataService, times(1))
+        verify(rowGroupDataService, times(2))
                 .save(savedRowGroupDataCapture.capture());
         RowGroupData savedRowGroupData = savedRowGroupDataCapture.getValue();
         assertThat(savedRowGroupData.getNodeIdentifier()).isEqualTo(nodeIdentifier);
