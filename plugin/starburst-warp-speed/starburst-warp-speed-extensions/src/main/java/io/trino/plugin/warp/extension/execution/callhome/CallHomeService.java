@@ -30,6 +30,7 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Version;
 import io.trino.spi.HostAddress;
 import io.trino.spi.NodeManager;
+import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.lang.management.ManagementFactory;
@@ -186,6 +187,17 @@ public class CallHomeService
             }
         }
         return Optional.empty();
+    }
+
+    @PreDestroy
+    public void shutdown()
+    {
+        try {
+            triggerCallHome(null, false, true);
+        }
+        catch (Exception e) {
+            logger.warn("failed to call-home on shutdown");
+        }
     }
 
     private String getCatalogPath()
