@@ -16,11 +16,9 @@ package io.trino.plugin.warp.storage.read;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -49,19 +47,17 @@ public class WarpPageSource
     private long completedBytes;
     private long completedPositions;
 
-    public WarpPageSource(StorageEngine storageEngine,
-            StorageEngineConstants storageEngineConstants,
+    public WarpPageSource(StorageEngineConstants storageEngineConstants,
             long rowsLimit,
-            BufferAllocator bufferAllocator,
             QueryParams queryParams,
             boolean isMatchGetNumRanges,
             PredicatesCacheService predicatesCacheService,
             DictionaryCacheService dictionaryCacheService,
             CustomStatsContext customStatsContext,
             GlobalConfig globalConfig,
-            ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
-            LazyCollectorService lazyCollectorService)
+            LazyCollectorService lazyCollectorService,
+            MatchService matchService)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.isMatchGetNumRanges = isMatchGetNumRanges;
@@ -76,14 +72,12 @@ public class WarpPageSource
                 globalConfig.getShapingLoggerNumberOfSamples());
         boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
         StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
-        reader = new StorageReader(storageEngine,
-                storageEngineConstants,
-                bufferAllocator,
+        reader = new StorageReader(
                 dictionaryCacheService,
                 queryParams,
                 customStatsContext,
-                chunksQueueService,
                 collectorService,
+                matchService,
                 globalConfig);
     }
 
@@ -160,15 +154,9 @@ public class WarpPageSource
         ReadResult readResult;
         long numReadPages;
 
-        try {
-            reader.queryOpen(limit);
-            readResult = reader.getPage(blocks, isMatchGetNumRanges);
-            numReadPages = reader.queryClose();
-        }
-        catch (Exception e) {
-            reader.queryAbort(e);
-            throw e;
-        }
+        reader.queryOpen(limit);
+        readResult = reader.getPage(blocks, isMatchGetNumRanges);
+        numReadPages = reader.queryClose();
 
         if (readResult.numCollectedRows() == 0) {
             finished = true;

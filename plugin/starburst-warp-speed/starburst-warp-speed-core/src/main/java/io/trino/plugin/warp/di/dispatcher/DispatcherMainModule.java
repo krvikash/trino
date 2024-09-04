@@ -52,6 +52,7 @@ import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
+import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
@@ -123,6 +124,7 @@ public class DispatcherMainModule
             binder.bind(BlockAppenderFactory.class);
             binder.bind(BlockTransformerFactory.class);
             binder.bind(DomainToMapBlockConvertor.class);
+            binder.bind(MatchService.class);
         }
         if (WarpBaseModule.isSingle(config)) {
             binder.bind(DispatcherConnectorBase.class).to(SingleDispatcherConnector.class);

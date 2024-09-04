@@ -33,14 +33,12 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
-import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
+import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.QueryParams;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.WarpPageSource;
@@ -65,11 +63,8 @@ public class WarpCachePageSourceFactory
     private static final Logger logger = Logger.get(WarpCachePageSourceFactory.class);
 
     private final ReadErrorHandler readErrorHandler;
-    private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
-    private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
-    private final BufferAllocator bufferAllocator;
     private final RowGroupDataService rowGroupDataService;
     private final MetricsManager metricsManager;
     private final PredicatesCacheService predicatesCacheService;
@@ -79,11 +74,10 @@ public class WarpCachePageSourceFactory
     private final GlobalConfig globalConfig;
     private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final LazyCollectorService lazyCollectorService;
+    private final MatchService matchService;
 
     @Inject
-    public WarpCachePageSourceFactory(StorageEngine storageEngine,
-                                      StorageEngineConstants storageEngineConstants,
-                                      BufferAllocator bufferAllocator,
+    public WarpCachePageSourceFactory(StorageEngineConstants storageEngineConstants,
                                       RowGroupDataService rowGroupDataService,
                                       MetricsManager metricsManager,
                                       PredicatesCacheService predicatesCacheService,
@@ -91,13 +85,11 @@ public class WarpCachePageSourceFactory
                                       DictionaryCacheService dictionaryCacheService,
                                       GlobalConfig globalConfig,
                                       ReadErrorHandler readErrorHandler,
-                                      ChunksQueueService chunksQueueService,
                                       StorageCollectorService storageCollectorService,
-                                      LazyCollectorService lazyCollectorService)
+                                      LazyCollectorService lazyCollectorService,
+                                      MatchService matchService)
     {
-        this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
-        this.bufferAllocator = requireNonNull(bufferAllocator);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.metricsManager = requireNonNull(metricsManager);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
@@ -105,9 +97,9 @@ public class WarpCachePageSourceFactory
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.globalConfig = requireNonNull(globalConfig);
         this.readErrorHandler = requireNonNull(readErrorHandler);
-        this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
+        this.matchService = requireNonNull(matchService);
         this.statsDispatcherPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
     }
 
@@ -143,19 +135,18 @@ public class WarpCachePageSourceFactory
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
         QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime);
-        WarpPageSource warpPageSource = new WarpPageSource(storageEngine,
+        WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 Long.MAX_VALUE,
-                bufferAllocator,
                 queryParams,
                 false,
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                chunksQueueService,
                 storageCollectorService,
-                lazyCollectorService);
+                lazyCollectorService,
+                matchService);
         RowGroupCloseHandler closeHandler = new RowGroupCloseHandler();
         try {
             PageSourceDecision pageSourceDecision = PageSourceDecision.WARP;

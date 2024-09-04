@@ -53,9 +53,9 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
-import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
+import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
@@ -217,9 +217,8 @@ public class DispatcherPageSourceFactoryTest
         nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
 
-        pageSourceFactory = new DispatcherPageSourceFactory(storageEngine,
+        pageSourceFactory = new DispatcherPageSourceFactory(
                 storageEngineConstants,
-                bufferAllocator,
                 rowGroupDataService,
                 workerWarmingService,
                 metricsManager,
@@ -231,9 +230,9 @@ public class DispatcherPageSourceFactoryTest
                 nativeStorageStateHandler,
                 new ReadErrorHandler(mock(WarmupDemoterService.class), rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),
-                mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class));
+                mock(LazyCollectorService.class),
+                mock(MatchService.class));
     }
 
     @Test

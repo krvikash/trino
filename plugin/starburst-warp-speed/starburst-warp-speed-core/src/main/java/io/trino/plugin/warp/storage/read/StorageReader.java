@@ -19,115 +19,70 @@ import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
-import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
-import io.trino.plugin.warp.storage.engine.ExceptionThrower;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
-import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
-import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
-import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_FAILED;
-import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
-import static io.trino.plugin.warp.WarpErrorCode.WARP_TX_ALLOCATION_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
-import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
 import static java.util.Objects.requireNonNull;
 
 public class StorageReader
 {
     private static final Logger logger = Logger.get(StorageReader.class);
-    private static final int INVALID_TX_ID = -1;
-    private static final long MATCH_RESULT_MASK = 0x00000000ffffffffL;
     private final ShapingLogger shapingLogger;
 
     // services
-    private final StorageEngine storageEngine;
-    private final StorageEngineConstants storageEngineConstants;
     private final DictionaryStats dictionaryStats;
     private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final DictionaryCacheService dictionaryCacheService;
-    private final LucenePageCacheStats lucenePageCacheStats;
 
     // parameters
     private final QueryParams queryParams;
     private final ReadTimeMeasurement readTimeMeasurement;
 
-    // match
-    private final int[] weMatchTree;
-    private final long[][] matchBuffIds;
-    private final List<ReadJuffersWarmUpElement> matchJuffersWE;
-    private final LuceneMatcher[] luceneMatchers;
     private final QueryArgs queryArgs;
-    private boolean matchExhausted;
-    private int matchTxId;
-    short[] matchedChunksIndexes;
-    int[] matchBitmapResetPoints;
-
-    // collect
     private final StorageCollectorArgs storageCollectorArgs;
-    private final ChunksQueueService chunksQueueService;
+    private final MatchArgs matchArgs;
+
     private final StorageCollectorService storageCollectorService;
+    private final MatchService matchService;
+
     private int numRowsCollectedInCurRound; // num rows collected in this getNextPage
     private int numRowsCollectedInPrevRounds; // num rows collected in all previous getNextPages
     private int[] queryResultType;
     private boolean dictionariesLoaded;
     private Optional<StoreRowListResult> storeRowListResult;
     private CollectOpenResult collectOpenResult;
+    private MatchOpenResult matchOpenResult;
 
-    StorageReader(StorageEngine storageEngine,
-            StorageEngineConstants storageEngineConstants,
-            BufferAllocator bufferAllocator,
-            DictionaryCacheService dictionaryCacheService,
+    StorageReader(DictionaryCacheService dictionaryCacheService,
             QueryParams queryParams,
             CustomStatsContext customStatsContext,
-            ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
+            MatchService matchService,
             GlobalConfig globalConfig)
     {
-        this.storageEngine = requireNonNull(storageEngine);
-        this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.storageCollectorService = requireNonNull(storageCollectorService);
+        this.matchService = requireNonNull(matchService);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.statsDispatcherPageSource = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
-        this.lucenePageCacheStats = (LucenePageCacheStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY);
 
         this.queryParams = queryParams;
-        this.matchBuffIds = new long[queryParams.getNumMatchElements()][];
-        this.luceneMatchers = new LuceneMatcher[queryParams.getNumLucene()];
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams);
         this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryArgs);
-        this.chunksQueueService = chunksQueueService;
+
         this.queryResultType = new int[queryParams.getNumCollectElements()];
         this.storeRowListResult = Optional.empty();
 
         storageCollectorService.init(queryArgs);
 
-        //  match
-        this.matchTxId = INVALID_TX_ID;
-        this.matchExhausted = true; // we initialize as true, and at the first call it will be set by calling match
-
-        this.weMatchTree = queryParams.dumpMatchParams();
-        for (int matchIx = 0; matchIx < matchBuffIds.length; matchIx++) {
-            matchBuffIds[matchIx] = bufferAllocator.getQueryIdsArray();
-        }
-        this.matchJuffersWE = queryParams.getMatchElementsParamsList()
-                .stream()
-                .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, false, we.hasLuceneParams()))
-                .collect(Collectors.toList());
-
-        createLuceneMatchers(globalConfig); // this call must be after creating the matchJuffersWE
-
+        this.matchArgs = matchService.init(queryArgs, customStatsContext);
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -139,30 +94,6 @@ public class StorageReader
     void close()
     {
         storageCollectorService.terminate(queryArgs);
-    }
-
-    private void createLuceneMatchers(GlobalConfig globalConfig)
-    {
-        if (luceneMatchers.length == 0) {
-            return;
-        }
-
-        int matchIx = 0;
-        for (WarmupElementMatchParams matchParams : queryParams.getMatchElementsParamsList()) {
-            if (matchParams.hasLuceneParams()) {
-                luceneMatchers[matchParams.getLuceneIx()] = new LuceneMatcher(storageEngine,
-                        storageEngineConstants,
-                        matchJuffersWE.get(matchIx),
-                        matchParams.getLuceneQueryMatchData(),
-                        matchIx,
-                        queryArgs.numChunksInRange(),
-                        queryParams.getFilePath(),
-                        lucenePageCacheStats,
-                        statsDispatcherPageSource,
-                        globalConfig);
-            }
-            matchIx++;
-        }
     }
 
     private void loadDictionaries()
@@ -204,122 +135,15 @@ public class StorageReader
         }
         collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, numRowsCollectedInPrevRounds, rowsLimit, storeRowListResult);
 
-        if (queryParams.getNumMatchElements() > 0) {
-            try {
-                matchTxId = (int) storageEngine.matchOpen(queryParams.getTotalNumRecords(),
-                        queryArgs.txArgs().fileCookie(),
-                        collectOpenResult.collectTxId(),
-                        queryArgs.txArgs().collectStoreBuff(),
-                        queryArgs.txArgs().collect2MatchParams(),
-                        queryParams.getNumMatchElements(),
-                        queryArgs.numChunksInRange(),
-                        weMatchTree,
-                        collectOpenResult.matchResultBitmaps().address(),
-                        queryParams.getMinMatchOffset(),
-                        matchBuffIds);
-            }
-            catch (Exception e) {
-                shapingLogger.warn(e, "matchOpen failed"); // we dont re-throw, we will throw in the next if since matchTxId was not set
-            }
-            if (matchTxId < 0) {
-                TrinoException e = new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for match");
-                queryAbort(e);
-                throw e;
-            }
-            matchedChunksIndexes = new short[queryArgs.numChunksInRange()];
-            matchBitmapResetPoints = new int[queryArgs.numChunksInRange()];
+        try {
+            matchOpenResult = matchService.open(queryArgs, matchArgs, collectOpenResult);
+        }
+        catch (Exception e) {
+            queryAbort(e);
+            throw new TrinoException(WARP_MATCH_FAILED, "failed to allocate tx for match");
         }
 
-        int matchIx = 0;
-        for (WarmupElementMatchParams matchParams : queryParams.getMatchElementsParamsList()) {
-            // only for lucene
-            matchJuffersWE.get(matchIx).createBuffers(
-                    matchParams.getRecTypeCode(),
-                    matchParams.getRecTypeLength(),
-                    false,
-                    matchBuffIds[matchIx]);
-            matchIx++;
-        }
         numRowsCollectedInCurRound = 0;
-    }
-
-    @SuppressWarnings("Finally")
-    @NativeInterrupt
-    private void matchIfNeeded()
-    {
-        if (matchExhausted) {
-            ChunksQueue chunksQueue = queryArgs.chunksQueue();
-            if (matchTxId == INVALID_TX_ID) {
-                matchExhausted = chunksQueueService.updateChunkRangeFullScan(chunksQueue, queryArgs.numChunks(), queryArgs.numChunksInRange());
-                logger.debug("matchIfNeeded matchExhausted %b after full scan update numChunks %d range %d", matchExhausted, queryArgs.numChunks(), queryArgs.numChunksInRange());
-            }
-            else {
-                long matchResult = 0;
-                long numChunks = 0;
-                boolean luceneSuccess = true;
-                int numMatchedChunks = 0;
-                int chunkIndex = chunksQueueService.getChunkIndexForMatch(chunksQueue);
-                // we loop until either agg result returnes 0 which  means no more chunks (break under if inside the loop)
-                // or if numMatchedChunks returned positive from match call which means at least one chunk has a match
-                // in addition, on every call to storage engine we check for error
-                try {
-                    while (numMatchedChunks == 0) { // no match so far
-                        numChunks = storageEngine.matchAgg(matchTxId, chunkIndex);
-                        if (numChunks < 0) {
-                            break;
-                        }
-                        matchExhausted = numChunks == 0;
-                        if (matchExhausted) {
-                            break;
-                        }
-
-                        if (queryParams.getNumLucene() > 0) {
-                            for (int luceneMatcherIx = 0; luceneMatcherIx < luceneMatchers.length; luceneMatcherIx++) {
-                                if (!luceneMatchers[luceneMatcherIx].match(matchTxId, chunkIndex, (int) numChunks)) {
-                                    luceneSuccess = false;
-                                    break;
-                                }
-                            }
-                            if (!luceneSuccess) {
-                                break;
-                            }
-                        }
-
-                        matchResult = storageEngine.match(matchTxId, chunkIndex, (int) numChunks, matchedChunksIndexes, matchBitmapResetPoints);
-                        if (matchResult < 0) {
-                            break;
-                        }
-                        chunkIndex = (int) (matchResult & MATCH_RESULT_MASK);
-                        numMatchedChunks = (int) (matchResult >> 32);
-                        logger.debug("matchResult %x chunkIndex %d numMatchedChunks %d", matchResult, chunkIndex, numMatchedChunks);
-                    }
-                }
-                catch (Exception e) {
-                    abortMatch(Optional.of(e)); // will close only the match tx here. the caller will close the collect tx
-                    // We can't throw the original exception cause it will skip closing the collect TX.
-                    // But we do need to preserve the recoverable notion from native.
-                    if (e instanceof TrinoException trinoException && trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode())) {
-                        throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED, "failed to match: " + e.getMessage());
-                    }
-                    else {
-                        throw new TrinoException(WARP_MATCH_FAILED, "failed to match: " + e.getMessage());
-                    }
-                }
-                finally {
-                    if ((numChunks < 0) || !luceneSuccess || (matchResult < 0)) {
-                        abortMatch(Optional.empty()); // will close only the match tx here. the caller will close the collect tx
-                        throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED,
-                                "match failed chunkIndex " + chunkIndex + " numChunks " + numChunks + " lucene " + luceneSuccess + " match " + matchResult);
-                    }
-                }
-
-                if (!matchExhausted) {
-                    logger.debug("matchIfNeeded matchStartChunkIndex %d matchEndChunkIndex %d numMatchedChunks %d",
-                            chunksQueueService.getChunkIndexForMatch(chunksQueue), chunkIndex, numMatchedChunks);
-                    chunksQueueService.updateChunkRangeAfterMatch(chunksQueue, chunkIndex, numMatchedChunks, matchedChunksIndexes, matchBitmapResetPoints);
-                }
-            }
-        }
     }
 
     /**
@@ -333,9 +157,9 @@ public class StorageReader
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
         }
         CollectBufferState collectBufferState = CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
-        matchIfNeeded();
+
         // we continue as long as buffer is not full and we have more chunks to match and collect
-        while (!matchExhausted && (collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_FULL)) {
+        while ((collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_FULL) && matchService.match(queryArgs, matchArgs, matchOpenResult)) {
             CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(queryArgs,
                     collectOpenResult,
                     isMatchGetNumRanges,
@@ -343,8 +167,6 @@ public class StorageReader
                     queryResultType);
             collectBufferState = collectFromStorageResult.collectBufferState();
             numRowsCollectedInCurRound = collectFromStorageResult.numCollectedRows();
-            matchExhausted = chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue());
-            matchIfNeeded();
         }
 
         readTimeMeasurement.updateRuntimeMeasurements(startTime, queryArgs);
@@ -370,11 +192,17 @@ public class StorageReader
     {
         int numCollectedRows = 0;
         WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
-        if (matchAndCollect(isMatchGetNumRanges)) {
-            numCollectedRows = fillBlocks(blocks);
-            if (isMatchGetNumRanges) {
-                ranges = storageCollectorService.collectRanges(collectOpenResult);
+        try {
+            if (matchAndCollect(isMatchGetNumRanges)) {
+                numCollectedRows = fillBlocks(blocks);
+                if (isMatchGetNumRanges) {
+                    ranges = storageCollectorService.collectRanges(collectOpenResult);
+                }
             }
+        }
+        catch (Exception e) {
+            queryAbort(e);
+            throw e;
         }
         return new ReadResult(numCollectedRows, ranges);
     }
@@ -383,9 +211,10 @@ public class StorageReader
     long queryClose()
     {
         // match
-        if (matchTxId != INVALID_TX_ID) {
-            storageEngine.matchClose(matchTxId);
-            matchTxId = INVALID_TX_ID;
+
+        if (matchOpenResult != null) {
+            matchService.close(matchOpenResult);
+            matchOpenResult = null;
         }
 
         if (collectOpenResult == null) {
@@ -399,23 +228,12 @@ public class StorageReader
         return collectCloseResult.readPages();
     }
 
-    private void abortMatch(Optional<Exception> e)
+    private void queryAbort(Exception e)
     {
-        if (matchTxId != INVALID_TX_ID) {
-            boolean nativeThrowed = false;
-            if (e.isPresent() && (e.get() instanceof TrinoException)) {
-                nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e.get());
-            }
-            if (!nativeThrowed) {
-                storageEngine.matchClose(matchTxId);
-            }
-            matchTxId = INVALID_TX_ID;
+        if (matchOpenResult != null) {
+            matchService.abort(matchOpenResult, e);
+            matchOpenResult = null;
         }
-    }
-
-    void queryAbort(Exception e)
-    {
-        abortMatch(Optional.of(e));
         if (collectOpenResult != null) {
             storageCollectorService.abort(collectOpenResult, e);
             collectOpenResult = null;

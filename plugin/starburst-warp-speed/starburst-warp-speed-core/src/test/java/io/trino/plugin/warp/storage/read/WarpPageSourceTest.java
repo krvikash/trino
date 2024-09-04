@@ -24,22 +24,17 @@ import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData
 import io.trino.plugin.warp.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.gen.constants.FunctionType;
-import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
-import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicateBufferInfo;
 import io.trino.plugin.warp.juffer.PredicateBufferPoolType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.Page;
@@ -50,23 +45,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class WarpPageSourceTest
 {
     private final boolean isMatchGetNumRanges = false;
-    private StorageEngine storageEngine;
     private StorageEngineConstants storageEngineConstants;
-    private BufferAllocator bufferAllocator;
     private DictionaryCacheService dictionaryCacheService;
     private CustomStatsContext customStatsContext;
     private GlobalConfig globalConfig;
@@ -74,11 +63,9 @@ public class WarpPageSourceTest
     @BeforeEach
     public void before()
     {
-        this.storageEngine = mock(StorageEngine.class);
         this.storageEngineConstants = mock(StorageEngineConstants.class);
         when(storageEngineConstants.getChunkSizeShift()).thenReturn(16);
         when(storageEngineConstants.getMaxChunksInRange()).thenReturn(8);
-        this.bufferAllocator = mock(BufferAllocator.class);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         this.customStatsContext = new CustomStatsContext(metricsManager, Collections.emptyList());
         customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
@@ -91,24 +78,19 @@ public class WarpPageSourceTest
     @Test
     public void testValidPage()
     {
-        ByteBuffer rowsBuff = setMocks();
         PredicatesCacheService predicatesCacheService = mock(PredicatesCacheService.class);
         WarpPageSource warpPageSource = new WarpPageSource(
-                storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
-                bufferAllocator,
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class));
-        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
-        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
+                mock(LazyCollectorService.class),
+                mock(MatchService.class));
         Page nextPage = warpPageSource.getNextPage();
         assertThat(nextPage).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
@@ -118,7 +100,6 @@ public class WarpPageSourceTest
     @Test
     public void testMatchCollect()
     {
-        ByteBuffer rowsBuff = setMocks();
         SchemaTableName schemaTableName = new SchemaTableName("schema", "table");
         SchemaTableColumn schemaTableColumn = new SchemaTableColumn(schemaTableName, new RegularColumn("column"));
         WarmUpElement warmUpElement = WarmUpElement.builder()
@@ -151,21 +132,17 @@ public class WarpPageSourceTest
                 .matchCollectType(MatchCollectType.ORDINARY);*/
 
         WarpPageSource warpPageSource = new WarpPageSource(
-                storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
-                bufferAllocator,
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class));
-        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
-        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
+                mock(LazyCollectorService.class),
+                mock(MatchService.class));
         assertThat(warpPageSource.getNextPage()).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
     }
@@ -174,7 +151,6 @@ public class WarpPageSourceTest
     @Test
     public void testMatchOnly()
     {
-        ByteBuffer rowsBuff = setMocks();
         SchemaTableName schemaTableName = new SchemaTableName("schema", "table");
         SchemaTableColumn schemaTableColumn = new SchemaTableColumn(schemaTableName, new RegularColumn("column"));
         WarmUpElement warmUpElement = WarmUpElement.builder()
@@ -200,21 +176,17 @@ public class WarpPageSourceTest
                 .build();
 
         WarpPageSource warpPageSource = new WarpPageSource(
-                storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
-                bufferAllocator,
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class));
-        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
-        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
+                mock(LazyCollectorService.class),
+                mock(MatchService.class));
         assertThat(warpPageSource.getNextPage()).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
     }
@@ -223,7 +195,6 @@ public class WarpPageSourceTest
     @Test
     public void testCollect()
     {
-        ByteBuffer rowsBuff = setMocks();
         SchemaTableName schemaTableName = new SchemaTableName("schema", "table");
         SchemaTableColumn schemaTableColumn = new SchemaTableColumn(schemaTableName, new RegularColumn("column"));
         WarmUpElement warmUpElement = WarmUpElement.builder()
@@ -240,21 +211,17 @@ public class WarpPageSourceTest
         nativeCollectBuilder.blockIndex(0).type(IntegerType.INTEGER).warmUpElement(warmUpElement).warpColumn(warmUpElement.getWarpColumn());
 
         WarpPageSource warpPageSource = new WarpPageSource(
-                storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
-                bufferAllocator,
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class));
-        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
-        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
+                mock(LazyCollectorService.class),
+                mock(MatchService.class));
         Page nextPage = warpPageSource.getNextPage();
         assertThat(nextPage).isNotNull();
         assertThat(nextPage.getPositionCount()).isEqualTo(10);
@@ -265,7 +232,6 @@ public class WarpPageSourceTest
     @Test
     public void testCollectWithMatchOnDifferentColumn()
     {
-        ByteBuffer rowsBuff = setMocks();
         SchemaTableName schemaTableName = new SchemaTableName("schema", "table");
         SchemaTableColumn schemaTableColumn = new SchemaTableColumn(schemaTableName, new RegularColumn("column"));
         WarmUpElement warmUpElement = WarmUpElement.builder()
@@ -303,41 +269,18 @@ public class WarpPageSourceTest
         nativeCollectBuilderMatch.blockIndex(1).type(IntegerType.INTEGER).warmUpElement(warmUpElementMatch).warpColumn(warmUpElementMatch.getWarpColumn());
 
         WarpPageSource warpPageSource = new WarpPageSource(
-                storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
-                bufferAllocator,
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class));
-        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
-        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
+                mock(LazyCollectorService.class),
+                mock(MatchService.class));
         assertThat(warpPageSource.getNextPage()).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
-    }
-
-    private ByteBuffer setMocks()
-    {
-        ByteBuffer rowsBuff = ByteBuffer.allocate(100);
-        when(bufferAllocator.getQueryIdsArray()).thenReturn(new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()]);
-        when(bufferAllocator.ids2RecBuff(any())).thenReturn(ByteBuffer.allocate(100));
-        when(bufferAllocator.ids2NullBuff(any())).thenReturn(ByteBuffer.allocate(100));
-        when(bufferAllocator.ids2RowsBuff(anyLong())).thenReturn(rowsBuff.asShortBuffer());
-        when(bufferAllocator.id2ByteBuff(anyLong())).thenReturn(ByteBuffer.allocate(100));
-        when(bufferAllocator.ids2RecordBufferStateBuff(anyLong())).thenReturn(ByteBuffer.allocate(100).asIntBuffer());
-        return rowsBuff;
-    }
-
-    private long mockMatch(ByteBuffer rowsBuff)
-    {
-        rowsBuff.asShortBuffer().put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
-        rowsBuff.asShortBuffer().put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TOTAL_SIZE.ordinal(), (short) 10);
-        return 0x100000001L;
     }
 }

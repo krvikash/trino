@@ -31,7 +31,6 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
-import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
@@ -43,9 +42,9 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
-import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
+import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
@@ -501,9 +500,7 @@ public class DispatcherAlternativePageSourceProviderTest
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
 
         DispatcherPageSourceFactory pageSourceFactory = new DispatcherPageSourceFactory(
-                mock(StorageEngine.class),
                 storageEngineConstants,
-                mock(BufferAllocator.class),
                 rowGroupDataService,
                 workerWarmingService,
                 metricsManager,
@@ -515,9 +512,9 @@ public class DispatcherAlternativePageSourceProviderTest
                 nativeStorageStateHandler,
                 new ReadErrorHandler(mock(WarmupDemoterService.class), rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),
-                mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class));
+                mock(LazyCollectorService.class),
+                mock(MatchService.class));
 
         return new DispatcherAlternativePageSourceProvider(proxiedPageSourceProvider,
                 pageSourceFactory,
