@@ -46,9 +46,7 @@ public abstract class ArraySliceFiller
     }
 
     @Override
-    protected Block getSingleValue(ReadJuffersWarmUpElement juffersWE,
-            int recLength, // not used
-            int currPos)
+    protected Block getSingleValue(ReadJuffersWarmUpElement juffersWE, int recLength, int currPos)
     {
         Type type = new ArrayType(elementType);
         ByteBuffer recordBuff = (ByteBuffer) juffersWE.getRecordBuffer();
@@ -71,10 +69,7 @@ public abstract class ArraySliceFiller
     }
 
     @Override
-    protected Block createSingleWithNullBlock(ReadJuffersWarmUpElement juffersWE,
-            RecTypeCode recTypeCode,
-            int recLength, // not used
-            int rowsToFill)
+    protected Block createSingleWithNullBlock(ReadJuffersWarmUpElement juffersWE, RecTypeCode recTypeCode, int recLength, int rowsToFill)
     {
         ByteBuffer recordBuff = (ByteBuffer) juffersWE.getRecordBuffer();
         ByteBuffer nullBuff = juffersWE.getNullBuffer();

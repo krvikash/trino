@@ -95,9 +95,10 @@ public class LazyCollectorService
     }
 
     @Override
-    void collect(CollectOpenResult collectOpenResult, int numCollectElements, int chunkIndex, int numToCollect, int[] outQueryResultType)
+    boolean collect(CollectOpenResult collectOpenResult, int numCollectElements, int chunkIndex, int numToCollect, int[] outQueryResultType)
     {
         // collect is done in LazyCollectorLoader
+        return false; // do not stop the collect after this round for query result type
     }
 
     @Override

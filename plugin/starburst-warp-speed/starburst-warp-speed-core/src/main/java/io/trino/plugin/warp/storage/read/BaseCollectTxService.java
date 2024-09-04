@@ -68,7 +68,8 @@ public abstract class BaseCollectTxService
     }
 
     // prepare chunk with match result, error throws and exception
-    void prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint)
+    // returns true if we should stop before this collect since query result type is now single, false otherwise
+    boolean prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint)
     {
         logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d matchBitmapResetPoint %d", chunkIndex, numRowsToCollect, matchBitmapResetPoint);
         int ret = (int) storageEngine.processMatchResult(collectTxId,
@@ -80,6 +81,7 @@ public abstract class BaseCollectTxService
                     String.format("prepareChunk failed unexpectedly collectTxId %d chunkIndex %d matchBitmapResetPoint %d numRowsToCollect %d",
                             collectTxId, chunkIndex, matchBitmapResetPoint, numRowsToCollect));
         }
+        return (ret > 0); // if storage engine returned a positive number it means at least one element has a single chunk
     }
 
     // prepare chunk for full scan case, also used by lazy collect, throws exception if error
@@ -93,20 +95,19 @@ public abstract class BaseCollectTxService
         }
     }
 
-    void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outQueryResultType)
+    // returns true if we should stop after this collect since query result type is different than raw, false otherwise
+    boolean collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outQueryResultType)
     {
         try {
             storageEngine.collect(txId, numWes, chunkIndex, numToCollect, outQueryResultType);
-            // @TODO until we implement support for single value and single value no nulls we ignore the indication and act as if its raw
-            // storage engine currently fills raw values and only sends the indication. once java part is implement, we will change also native behavior
             for (int weIx = 0; weIx < outQueryResultType.length; weIx++) {
-                if (outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_SINGLE.ordinal()) {
-                    outQueryResultType[weIx] = QueryResultType.QUERY_RESULT_TYPE_RAW.ordinal();
-                }
-                if (outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_SINGLE_NO_NULL.ordinal()) {
-                    outQueryResultType[weIx] = QueryResultType.QUERY_RESULT_TYPE_RAW_NO_NULL.ordinal();
+                if ((outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_SINGLE.ordinal()) ||
+                        (outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_SINGLE_NO_NULL.ordinal()) ||
+                        (outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_ALL_NULL.ordinal())) {
+                    return true;
                 }
             }
+            return false;
         }
         catch (Exception e) {
             shapingLogger.error(e, "collect failed chunkIndex %d rowsLimit %d numToCollect %d", chunkIndex, numToCollect, numToCollect);

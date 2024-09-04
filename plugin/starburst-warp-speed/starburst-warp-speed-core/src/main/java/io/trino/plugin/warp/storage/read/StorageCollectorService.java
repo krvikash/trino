@@ -83,15 +83,18 @@ public class StorageCollectorService
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
     }
 
-    void prepareChunk(StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
+    // returns true if we should stop before this collect since query result type is now single, false otherwise
+    boolean prepareChunk(StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
     {
         if (chunksQueueService.isChunkPreparationNeeded(storageCollectorArgs.chunksQueue())) {
-            collectTxService.prepareChunk(collectOpenResult.collectTxId(),
+            boolean stopForOptimization = collectTxService.prepareChunk(collectOpenResult.collectTxId(),
                     storageCollectorArgs.chunksQueue().getCurrent(),
                     collectOpenResult.rowsLimit() - numCollectedRows,
                     storageCollectorArgs.chunksQueue().getCurrentResetPoint());
             chunksQueueService.setFirstChunkPrepared(storageCollectorArgs.chunksQueue());
+            return stopForOptimization && (numCollectedRows > 0);
         }
+        return false;
     }
 
     boolean advanceChunk(StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
@@ -104,9 +107,10 @@ public class StorageCollectorService
         return false;
     }
 
-    void collect(CollectOpenResult collectOpenResult, int numWes, int chunkIndex, int numToCollect, int[] outQueryResultType)
+    // returns true if we should stop after this collect since query result type is different than raw, false otherwise
+    boolean collect(CollectOpenResult collectOpenResult, int numWes, int chunkIndex, int numToCollect, int[] outQueryResultType)
     {
-        collectTxService.collect(collectOpenResult.collectTxId(), numWes, chunkIndex, numToCollect, outQueryResultType);
+        return collectTxService.collect(collectOpenResult.collectTxId(), numWes, chunkIndex, numToCollect, outQueryResultType);
     }
 
     // returns indication if anything is collected in the buffer and if the buffer is full
@@ -115,24 +119,28 @@ public class StorageCollectorService
             StorageCollectorArgs storageCollectorArgs,
             boolean isMatchGetNumRanges,
             int numCollectedRows,
-            int[] queryResultType)
+            int[] outQueryResultType)
     {
         if (chunksQueueService.isCompletelyFinished(storageCollectorArgs.chunksQueue(), storageCollectorArgs.numChunks())) {
             return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, numCollectedRows);
         }
 
         int numToCollect = 1; // Not a real value, just making sure to enter the loop in the first iteration
+        boolean stopForOptimization = false;
         while (!chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue()) && numToCollect > 0) {
             // get next chunk to collect and check if its already done on buffer
             int chunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
-            prepareChunk(storageCollectorArgs, collectOpenResult, numCollectedRows);
+            if (prepareChunk(storageCollectorArgs, collectOpenResult, numCollectedRows)) {
+                numToCollect = 0;
+                break;
+            }
 
             QueryParams queryParams = storageCollectorArgs.collectTxArgs().queryParams();
             if (queryParams.getNumCollectElements() > 0) {
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, collectOpenResult.rangeData());
                 numToCollect = getNumToCollect(storageCollectorArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
                 if (numToCollect > 0) {
-                    collect(collectOpenResult, queryParams.getNumCollectElements(), chunkIndex, numToCollect, queryResultType);
+                    stopForOptimization = collect(collectOpenResult, queryParams.getNumCollectElements(), chunkIndex, numToCollect, outQueryResultType);
                 }
                 numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult, this);
             }
@@ -145,7 +153,7 @@ public class StorageCollectorService
                 numToCollect = 0; // We do not collect from one chunk twice in one round
             }
             // In case we are in full scan we are stopping after one chunk
-            if (queryParams.getNumMatchElements() == 0) {
+            if ((queryParams.getNumMatchElements() == 0) || stopForOptimization) {
                 numToCollect = 0;
             }
         }
