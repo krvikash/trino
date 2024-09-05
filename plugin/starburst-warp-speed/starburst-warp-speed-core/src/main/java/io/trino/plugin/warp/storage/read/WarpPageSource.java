@@ -35,7 +35,6 @@ public class WarpPageSource
     private final ShapingLogger shapingLogger;
 
     private final StorageEngineConstants storageEngineConstants;
-    private final boolean isMatchGetNumRanges;
     private final PredicatesCacheService predicatesCacheService;
     private final QueryParams queryParams;
     private final StorageReader reader;
@@ -49,7 +48,6 @@ public class WarpPageSource
     public WarpPageSource(StorageEngineConstants storageEngineConstants,
             long rowsLimit,
             QueryParams queryParams,
-            boolean isMatchGetNumRanges,
             PredicatesCacheService predicatesCacheService,
             CustomStatsContext customStatsContext,
             GlobalConfig globalConfig,
@@ -58,7 +56,6 @@ public class WarpPageSource
             MatchService matchService)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
-        this.isMatchGetNumRanges = isMatchGetNumRanges;
         this.predicatesCacheService = predicatesCacheService;
         this.sortedRowRanges = RowRanges.EMPTY;
         this.rowsLimit = rowsLimit;
@@ -151,7 +148,7 @@ public class WarpPageSource
         long numReadPages;
 
         reader.queryOpen(limit);
-        readResult = reader.getPage(blocks, isMatchGetNumRanges);
+        readResult = reader.getPage(blocks);
         numReadPages = reader.queryClose();
 
         if (readResult.numCollectedRows() == 0) {

@@ -91,7 +91,7 @@ public class StorageReader
     /**
      * collect rows from native, return true if something was collected, false otherwise
      */
-    private boolean matchAndCollect(boolean isMatchGetNumRanges)
+    private boolean matchAndCollect()
     {
         long startTime = readTimeMeasurement.getStartTime();
 
@@ -104,7 +104,6 @@ public class StorageReader
         while ((collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_FULL) && matchService.match(queryArgs, matchArgs, matchOpenResult)) {
             CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(queryArgs,
                     collectOpenResult,
-                    isMatchGetNumRanges,
                     numRowsCollectedInCurRound,
                     queryResultType);
             collectBufferState = collectFromStorageResult.collectBufferState();
@@ -128,14 +127,14 @@ public class StorageReader
         return rowsToFill;
     }
 
-    ReadResult getPage(Block[] blocks, boolean isMatchGetNumRanges)
+    ReadResult getPage(Block[] blocks)
     {
         int numCollectedRows = 0;
         WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
         try {
-            if (matchAndCollect(isMatchGetNumRanges)) {
+            if (matchAndCollect()) {
                 numCollectedRows = fillBlocks(blocks);
-                if (isMatchGetNumRanges) {
+                if (queryArgs.queryParams().isRangesRequired()) {
                     ranges = storageCollectorService.collectRanges(collectOpenResult);
                 }
             }

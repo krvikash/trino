@@ -59,6 +59,7 @@ public class RangeDataServiceTest
 
         TxArgs txArgs = mock(TxArgs.class);
         QueryParams queryParams = mock(QueryParams.class);
+        when(queryParams.isRangesRequired()).thenReturn(true);
         when(queryParams.getTotalNumRecords()).thenReturn(80);
         when(queryParams.getNumCollectElements()).thenReturn(1);
         when(queryParams.getCollectElementsParamsList()).thenReturn(Collections.emptyList());
@@ -74,7 +75,7 @@ public class RangeDataServiceTest
         RangeData rangeData = new RangeData(0L);
         when(queryArgs.chunkSize()).thenReturn(64);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 1, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 1, queryArgs, collectOpenResult, storageCollectorService);
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(1);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(0);
@@ -91,7 +92,7 @@ public class RangeDataServiceTest
         RangeData rangeData = new RangeData(0L);
         when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 5, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 5, queryArgs, collectOpenResult, storageCollectorService);
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(1);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(3);
@@ -108,13 +109,13 @@ public class RangeDataServiceTest
         RangeData rangeData = new RangeData(0L);
         when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 5, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 5, queryArgs, collectOpenResult, storageCollectorService);
 
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL.ordinal());
         rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
         rowsBuffer.put((short) 18); // first row is 8 and we add the size
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 10, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 10, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(1);
@@ -145,7 +146,7 @@ public class RangeDataServiceTest
         // 4th range [63-64)
         rowsBuffer.put((short) 63);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 10, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 10, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(4);
@@ -178,8 +179,7 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 50);
         pos = rowsBuffer.position();
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 6, queryArgs, true, collectOpenResult, storageCollectorService);
-
+        rangeFillerService.add(0, 6, queryArgs, collectOpenResult, storageCollectorService);
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
         rowsBuffer.position(pos);
         rowsBuffer.put((short) 51);
@@ -188,7 +188,7 @@ public class RangeDataServiceTest
         // 4th range [63-64)
         rowsBuffer.put((short) 63);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 4, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 4, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(4);
@@ -211,7 +211,7 @@ public class RangeDataServiceTest
         rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
         rowsBuffer.put((short) (3 + pos)); // first row is 3 and we add the size
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, pos, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, pos, queryArgs, collectOpenResult, storageCollectorService);
 
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
         rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal() + pos);
@@ -219,7 +219,7 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 9);
         pos = rowsBuffer.position();
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 2, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 2, queryArgs, collectOpenResult, storageCollectorService);
 
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
         rowsBuffer.position(pos);
@@ -227,7 +227,7 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 14);
         rowsBuffer.put((short) 15);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 3, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 3, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(2);
@@ -250,7 +250,7 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 27);
         pos = rowsBuffer.position();
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 3, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 3, queryArgs, collectOpenResult, storageCollectorService);
 
         short all = 22;
         pos += all;
@@ -258,20 +258,20 @@ public class RangeDataServiceTest
         rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
         rowsBuffer.put((short) (28 + all)); // first row is 28 and we add the size
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, all, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, all, queryArgs, collectOpenResult, storageCollectorService);
 
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
         rowsBuffer.position(pos);
         rowsBuffer.put((short) 50);
         pos = rowsBuffer.position();
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 1, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 1, queryArgs, collectOpenResult, storageCollectorService);
 
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
         rowsBuffer.position(pos);
         rowsBuffer.put((short) 60);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 1, queryArgs, true, collectOpenResult, storageCollectorService);
+        rangeFillerService.add(0, 1, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(2);

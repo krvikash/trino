@@ -54,7 +54,6 @@ import static org.mockito.Mockito.when;
 
 public class WarpPageSourceTest
 {
-    private final boolean isMatchGetNumRanges = false;
     private StorageEngineConstants storageEngineConstants;
     private CustomStatsContext customStatsContext;
     private GlobalConfig globalConfig;
@@ -81,7 +80,6 @@ public class WarpPageSourceTest
                 storageEngineConstants,
                 Integer.MAX_VALUE,
                 mock(QueryParams.class),
-                isMatchGetNumRanges,
                 predicatesCacheService,
                 customStatsContext,
                 globalConfig,
@@ -132,7 +130,6 @@ public class WarpPageSourceTest
                 storageEngineConstants,
                 Integer.MAX_VALUE,
                 mock(QueryParams.class),
-                isMatchGetNumRanges,
                 predicatesCacheService,
                 customStatsContext,
                 globalConfig,
@@ -175,7 +172,6 @@ public class WarpPageSourceTest
                 storageEngineConstants,
                 Integer.MAX_VALUE,
                 mock(QueryParams.class),
-                isMatchGetNumRanges,
                 predicatesCacheService,
                 customStatsContext,
                 globalConfig,
@@ -209,7 +205,6 @@ public class WarpPageSourceTest
                 storageEngineConstants,
                 Integer.MAX_VALUE,
                 mock(QueryParams.class),
-                isMatchGetNumRanges,
                 predicatesCacheService,
                 customStatsContext,
                 globalConfig,
@@ -266,7 +261,6 @@ public class WarpPageSourceTest
                 storageEngineConstants,
                 Integer.MAX_VALUE,
                 mock(QueryParams.class),
-                isMatchGetNumRanges,
                 predicatesCacheService,
                 customStatsContext,
                 globalConfig,

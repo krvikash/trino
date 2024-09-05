@@ -34,7 +34,7 @@ public class StubsRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
+    public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
     {
         return 0;
     }

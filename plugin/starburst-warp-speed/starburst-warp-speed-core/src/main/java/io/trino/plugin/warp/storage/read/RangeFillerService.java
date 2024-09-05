@@ -19,7 +19,7 @@ public interface RangeFillerService
     boolean isCurrentChunkCompleted(RangeData rangeData, int chunkSize);
 
     // return the number of rows collected in this round
-    int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService);
+    int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService);
 
     WarpStoragePageSource.RowRanges reset(RangeData rangeData);
 

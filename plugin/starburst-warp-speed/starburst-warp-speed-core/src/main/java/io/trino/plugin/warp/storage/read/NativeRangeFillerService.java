@@ -63,7 +63,7 @@ public class NativeRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
+    public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
     {
         RangeData rangeData = collectOpenResult.rangeData();
         advanceChunkIfNeeded(chunkIndex, rangeData);
@@ -85,6 +85,7 @@ public class NativeRangeFillerService
         // if we are here we have at least one row that was collected
         RecordIndexListType listType = getListTypeFromBuffer(rowsBuff);
         int baseRow = chunkIndex * queryArgs.chunkSize();
+        boolean rangesRequired = queryArgs.queryParams().isRangesRequired();
         switch (listType) {
             case RECORD_INDEX_LIST_TYPE_FULL -> {
                 numRows = queryArgs.chunkSize();

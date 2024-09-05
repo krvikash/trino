@@ -195,7 +195,6 @@ public class StorageCollectorService
     @NativeInterrupt
     CollectFromStorageResult collectFromStorage(QueryArgs queryArgs,
             CollectOpenResult collectOpenResult,
-            boolean isMatchGetNumRanges,
             int numCollectedRows,
             int[] outQueryResultType)
     {
@@ -220,10 +219,10 @@ public class StorageCollectorService
                 if (numToCollect > 0) {
                     stopForOptimization = collect(collectOpenResult, queryParams.getNumCollectElements(), chunkIndex, numToCollect, outQueryResultType);
                 }
-                numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, queryArgs, isMatchGetNumRanges, collectOpenResult, this);
+                numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, queryArgs, collectOpenResult, this);
             }
             else {
-                numCollectedRows += rangeFillerService.add(chunkIndex, 0, queryArgs, isMatchGetNumRanges, collectOpenResult, this);
+                numCollectedRows += rangeFillerService.add(chunkIndex, 0, queryArgs, collectOpenResult, this);
             }
             logger.debug("collectFromStorage after native collect chunkIndex %d numToCollect %d numCollectedRows %d", chunkIndex, numToCollect, numCollectedRows);
 

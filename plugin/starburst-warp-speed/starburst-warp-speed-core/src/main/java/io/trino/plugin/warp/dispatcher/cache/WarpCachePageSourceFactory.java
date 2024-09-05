@@ -132,12 +132,11 @@ public class WarpCachePageSourceFactory
 
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
-        QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime);
+        QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime, false);
         WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 Long.MAX_VALUE,
                 queryParams,
-                false,
                 predicatesCacheService,
                 customStatsContext,
                 globalConfig,
