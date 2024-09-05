@@ -82,6 +82,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
@@ -451,6 +452,7 @@ public class DataResource
                                 boolean shouldRetainMemory = false;
 
                                 Map<Integer, List<Slice>> pagesMap = new HashMap<>();
+                                Supplier<String> errorPrefix = () -> "error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId);
                                 while (sliceInput.isReadable()) {
                                     int partitionId = sliceInput.readInt();
                                     int bytes = sliceInput.readInt();
@@ -468,7 +470,7 @@ public class DataResource
                                     }
 
                                     if (bytes != 0) {
-                                        resumeWithError("error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId), format("Data corruption, no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes)), USER_ERROR);
+                                        resumeWithError(errorPrefix.get(), format("Data corruption, no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes)), USER_ERROR);
                                         return;
                                     }
                                     // do not call chunkManager.addDataPages(exchangeId, partitionId, ...)
@@ -485,12 +487,12 @@ public class DataResource
                                         calculatedChecksum++;
                                     }
                                     if (readChecksum != calculatedChecksum) {
-                                        resumeWithError("error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId), format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum), USER_ERROR);
+                                        resumeWithError(errorPrefix.get(), format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum), USER_ERROR);
                                         return;
                                     }
                                 }
                                 else if (readChecksum != NO_CHECKSUM) {
-                                    resumeWithError("error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId), format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum), USER_ERROR);
+                                    resumeWithError(errorPrefix.get(), format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum), USER_ERROR);
                                     return;
                                 }
 
@@ -510,7 +512,7 @@ public class DataResource
                                     }
                                 }
                                 catch (DataApiException e) {
-                                    resumeWithError("error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId), e);
+                                    resumeWithError(errorPrefix.get(), e);
                                     return;
                                 }
 
@@ -543,7 +545,7 @@ public class DataResource
                                     @Override
                                     public void onFailure(Throwable throwable)
                                     {
-                                        logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId));
+                                        logger.warn(throwable, errorPrefix.get());
                                         if (!asyncResponse.isDone()) {
                                             asyncResponse.resume(errorResponse(throwable));
                                         }
