@@ -66,6 +66,7 @@ import jakarta.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -446,6 +447,8 @@ public class DataResource
                                 long readChecksum = sliceInput.readLong();
                                 XxHash64 hash = new XxHash64();
                                 boolean shouldRetainMemory = false;
+
+                                Map<Integer, List<Slice>> pagesMap = new HashMap<>();
                                 while (sliceInput.isReadable()) {
                                     int partitionId = sliceInput.readInt();
                                     int bytes = sliceInput.readInt();
@@ -461,17 +464,13 @@ public class DataResource
                                         pages.add(page);
                                         bytes -= pageLength;
                                     }
+
                                     checkState(bytes == 0, "no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes));
-                                    AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(
-                                            exchangeId,
-                                            partitionId,
-                                            taskId,
-                                            attemptId,
-                                            dataPagesId,
-                                            pages.build());
-                                    addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
-                                    shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
+                                    // do not call chunkManager.addDataPages(exchangeId, partitionId, ...)
+                                    // just yet so we verify checksums for whole request first
+                                    pagesMap.put(partitionId, pages.build());
                                 }
+
                                 if (dataIntegrityVerificationEnabled) {
                                     long calculatedChecksum = hash.hash();
                                     if (calculatedChecksum == NO_CHECKSUM) {
@@ -483,6 +482,20 @@ public class DataResource
                                 }
                                 else if (readChecksum != NO_CHECKSUM) {
                                     throw new DataServerException(USER_ERROR, format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
+                                }
+
+                                for (Map.Entry<Integer, List<Slice>> entry : pagesMap.entrySet()) {
+                                    Integer partitionId = entry.getKey();
+                                    List<Slice> pages = entry.getValue();
+                                    AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(
+                                            exchangeId,
+                                            partitionId,
+                                            taskId,
+                                            attemptId,
+                                            dataPagesId,
+                                            pages);
+                                    addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
+                                    shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
                                 }
 
                                 writtenDataSize.update(contentLength);
