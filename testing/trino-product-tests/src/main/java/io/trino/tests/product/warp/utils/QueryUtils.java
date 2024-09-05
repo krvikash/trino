@@ -107,9 +107,7 @@ public class QueryUtils
 
     private void warmAndQueryCache(TestFormat.QueryData queryData, int splitCount, boolean isWarp)
     {
-        QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
         QueryResult exportRowBefore = null;
-
         if (isWarp) {
             exportRowBefore = JMXCachingManager.getExportStats();
         }
@@ -126,19 +124,6 @@ public class QueryUtils
                     List<Object> expectedResult = queryData.expected_result();
                     if (validateQueryResult(expectedResult)) {
                         verifyQueryResult(queryResult, expectedResult, queryData.query_id());
-                    }
-                    QueryResult warmingStatsAfter = JMXCachingManager.getWarmingStats();
-                    long invalidType = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.CACHE_INVALID_TYPE);
-                    if (invalidType > 0) {
-                        logger.error("invalid type %s", query);
-                        //  fail("invalid type");
-                        return;
-                    }
-                    long cacheWarmFailed = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.CACHE_WARM_FAILED);
-                    if (cacheWarmFailed > 0) {
-                        logger.error("cacheWarmFailed %s", query);
-                        //     fail("cacheWarmFailed");
-                        return;
                     }
                     String queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
                     ruleUtils.validateLoadByCacheDataOperator(queryId);
