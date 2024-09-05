@@ -137,8 +137,7 @@ public class CollectTxService
     CollectCloseResult collectStoreAndClose(QueryArgs queryArgs,
             CollectOpenResult collectOpenResult,
             StorageCollectorArgs storageCollectorArgs,
-            int numCollectedRows,
-            TestStats testStats)
+            int numCollectedRows)
     {
         Optional<StoreRowListResult> storeRowListResult = Optional.empty();
         // idiom potent case
@@ -169,6 +168,7 @@ public class CollectTxService
                 collectStats);
 
         int totalReadPages = 0;
+        TestStats testStats = queryArgs.testStats();
         testStats.addread_cache_md_chunk_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_HITS.ordinal()]);
         totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_HITS.ordinal()];
         testStats.addread_cache_md_basic_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_BASIC_HITS.ordinal()]);

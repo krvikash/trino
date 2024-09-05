@@ -13,9 +13,6 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
-import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.spi.TrinoException;
@@ -29,10 +26,6 @@ import static java.util.Objects.requireNonNull;
 
 public class StorageReader
 {
-    // services
-    private final DispatcherPageSourceStats statsDispatcherPageSource;
-    private final TestStats testStats;
-
     // parameters
     private final ReadTimeMeasurement readTimeMeasurement;
 
@@ -57,10 +50,8 @@ public class StorageReader
     {
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.matchService = requireNonNull(matchService);
-        this.statsDispatcherPageSource = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        this.testStats = (TestStats) customStatsContext.getStat("test");
 
-        this.queryArgs = storageCollectorService.getQueryArgs(queryParams);
+        this.queryArgs = storageCollectorService.getQueryArgs(queryParams, customStatsContext);
         this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryArgs);
 
         this.queryResultType = new int[queryParams.getNumCollectElements()];
@@ -133,10 +124,7 @@ public class StorageReader
                 storageCollectorArgs,
                 rowsToFill,
                 numRowsCollectedInPrevRounds,
-                queryResultType,
-                statsDispatcherPageSource,
-                testStats);
-        statsDispatcherPageSource.addcached_read_rows(rowsToFill);
+                queryResultType);
         return rowsToFill;
     }
 
@@ -175,8 +163,7 @@ public class StorageReader
         CollectCloseResult collectCloseResult = storageCollectorService.close(queryArgs,
                 collectOpenResult,
                 storageCollectorArgs,
-                numRowsCollectedInCurRound,
-                testStats);
+                numRowsCollectedInCurRound);
         collectOpenResult = null;
         storeRowListResult = collectCloseResult.storeRowListResult();
         return collectCloseResult.readPages();

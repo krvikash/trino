@@ -18,6 +18,7 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
+import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
@@ -26,6 +27,7 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -251,9 +253,7 @@ public class StorageCollectorService
             StorageCollectorArgs storageCollectorArgs,
             int rowsToFill,
             int numRowsCollectedInPrevRounds,
-            int[] queryResultTypes,
-            DispatcherPageSourceStats stats,
-            TestStats testStats)
+            int[] queryResultTypes)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
 
@@ -264,11 +264,12 @@ public class StorageCollectorService
             ReadJuffersWarmUpElement readJuffersWarmUpElement = storageCollectorArgs.collectJuffersWE().get(weIx);
             Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats);
             blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, () -> {
-                stats.incwrapped_collect_loaded_lazy_blocks();
+                queryArgs.dispatcherPageSourceStats().incwrapped_collect_loaded_lazy_blocks();
                 return block;
             });
         }
-        stats.addwrapped_collect_total_lazy_blocks(collectElementsParamsList.size());
+        queryArgs.dispatcherPageSourceStats().addwrapped_collect_total_lazy_blocks(collectElementsParamsList.size());
+        queryArgs.dispatcherPageSourceStats().addcached_read_rows(rowsToFill);
     }
 
     int getNumToCollect(QueryArgs queryArgs,
@@ -336,9 +337,12 @@ public class StorageCollectorService
         return (total > 0) ? total : queryArgs.chunkSize();
     }
 
-    public QueryArgs getQueryArgs(QueryParams queryParams)
+    public QueryArgs getQueryArgs(QueryParams queryParams, CustomStatsContext customStatsContext)
     {
         TxArgs txArgs = getTxArgs(queryParams);
+        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        TestStats testStats = (TestStats) customStatsContext.getStat("test");
+
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
         // number of chunks is number of records divided by the chunk size which is fixed. we round it up in case the last chunk is not full.
         int numChunks = (int) Math.ceil((double) queryParams.getTotalNumRecords() / (double) chunkSize);
@@ -350,6 +354,8 @@ public class StorageCollectorService
         ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
 
         return new QueryArgs(queryParams,
+                dispatcherPageSourceStats,
+                testStats,
                 txArgs,
                 chunkSize,
                 numChunks,
@@ -437,14 +443,12 @@ public class StorageCollectorService
     public CollectCloseResult close(QueryArgs queryArgs,
             CollectOpenResult collectOpenResult,
             StorageCollectorArgs storageCollectorArgs,
-            int numRowsCollectedInCurRound,
-            TestStats testStats)
+            int numRowsCollectedInCurRound)
     {
         CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(queryArgs,
                 collectOpenResult,
                 storageCollectorArgs,
-                numRowsCollectedInCurRound,
-                testStats);
+                numRowsCollectedInCurRound);
 
         bufferAllocator.readerOnFreeBundle();
         return collectCloseResult;

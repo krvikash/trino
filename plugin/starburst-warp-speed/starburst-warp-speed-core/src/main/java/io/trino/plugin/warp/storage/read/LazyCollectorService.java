@@ -18,8 +18,6 @@ import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -122,9 +120,7 @@ public class LazyCollectorService
             StorageCollectorArgs storageCollectorArgs,
             int rowsToFill,
             int numRowsCollectedInPrevRounds,
-            int[] queryResultTypes, // was not filled since collect was not called yet
-            DispatcherPageSourceStats stats,
-            TestStats testStats)
+            int[] queryResultTypes) // was not filled since collect was not called yet
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
 
@@ -135,11 +131,12 @@ public class LazyCollectorService
                     lazyCollectTxService,
                     lazyCollectorLoaderArgs,
                     dictionaryStats,
-                    stats,
+                    queryArgs.dispatcherPageSourceStats(),
                     globalConfig,
-                    testStats));
+                    queryArgs.testStats()));
         }
-        stats.addlazy_collect_total_blocks(collectElementsParamsList.size());
+        queryArgs.dispatcherPageSourceStats().addlazy_collect_total_blocks(collectElementsParamsList.size());
+        queryArgs.dispatcherPageSourceStats().addcached_read_rows(rowsToFill);
     }
 
     @Override
