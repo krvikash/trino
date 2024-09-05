@@ -29,6 +29,7 @@ import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
+import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
@@ -493,18 +494,24 @@ public class DataResource
                                     return;
                                 }
 
-                                for (Map.Entry<Integer, List<Slice>> entry : pagesMap.entrySet()) {
-                                    Integer partitionId = entry.getKey();
-                                    List<Slice> pages = entry.getValue();
-                                    AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(
-                                            exchangeId,
-                                            partitionId,
-                                            taskId,
-                                            attemptId,
-                                            dataPagesId,
-                                            pages);
-                                    addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
-                                    shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
+                                try {
+                                    for (Map.Entry<Integer, List<Slice>> entry : pagesMap.entrySet()) {
+                                        Integer partitionId = entry.getKey();
+                                        List<Slice> pages = entry.getValue();
+                                        AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(
+                                                exchangeId,
+                                                partitionId,
+                                                taskId,
+                                                attemptId,
+                                                dataPagesId,
+                                                pages);
+                                        addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
+                                        shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
+                                    }
+                                }
+                                catch (DataApiException e) {
+                                    resumeWithError("error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId), e);
+                                    return;
                                 }
 
                                 if (shouldRetainMemory) {
@@ -549,6 +556,17 @@ public class DataResource
                                 try {
                                     logger.warn("%s; %s; %s", prefix, errorCode, message);
                                     asyncResponse.resume(errorResponse(errorCode, message, getRateLimitHeaders(clientId)));
+                                }
+                                finally {
+                                    finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
+                                }
+                            }
+
+                            private void resumeWithError(String prefix, Throwable exception)
+                            {
+                                try {
+                                    logger.warn(exception, prefix);
+                                    asyncResponse.resume(errorResponse(exception, getRateLimitHeaders(clientId)));
                                 }
                                 finally {
                                     finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
