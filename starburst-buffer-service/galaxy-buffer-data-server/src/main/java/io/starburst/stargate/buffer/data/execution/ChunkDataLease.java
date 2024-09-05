@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 
@@ -23,6 +24,8 @@ public class ChunkDataLease
     private final long checksum;
     private final int numDataPages;
     private final Runnable releaseCallback;
+    // TODO[https://github.com/starburstdata/galaxy-trino/issues/2163]  remove after diagnosing
+    private String releaseStackTrace;
 
     public static final int CHUNK_SLICES_METADATA_SIZE = Long.BYTES + Integer.BYTES;
 
@@ -57,7 +60,8 @@ public class ChunkDataLease
 
     public void release()
     {
-        checkState(chunkSlices != null, "already released");
+        checkState(chunkSlices != null, "already released; previous release: %s", releaseStackTrace);
+        releaseStackTrace = Throwables.getStackTraceAsString(new RuntimeException());
         chunkSlices = null; // ensure no dangling reference
         releaseCallback.run();
     }
