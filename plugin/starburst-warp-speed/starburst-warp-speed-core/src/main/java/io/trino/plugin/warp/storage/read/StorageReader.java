@@ -13,14 +13,9 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
-import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.TestStats;
-import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.spi.TrinoException;
@@ -34,17 +29,11 @@ import static java.util.Objects.requireNonNull;
 
 public class StorageReader
 {
-    private static final Logger logger = Logger.get(StorageReader.class);
-    private final ShapingLogger shapingLogger;
-
     // services
-    private final DictionaryStats dictionaryStats;
     private final DispatcherPageSourceStats statsDispatcherPageSource;
-    private final DictionaryCacheService dictionaryCacheService;
     private final TestStats testStats;
 
     // parameters
-    private final QueryParams queryParams;
     private final ReadTimeMeasurement readTimeMeasurement;
 
     private final QueryArgs queryArgs;
@@ -57,26 +46,20 @@ public class StorageReader
     private int numRowsCollectedInCurRound; // num rows collected in this getNextPage
     private int numRowsCollectedInPrevRounds; // num rows collected in all previous getNextPages
     private int[] queryResultType;
-    private boolean dictionariesLoaded;
     private Optional<StoreRowListResult> storeRowListResult;
     private CollectOpenResult collectOpenResult;
     private MatchOpenResult matchOpenResult;
 
-    StorageReader(DictionaryCacheService dictionaryCacheService,
-            QueryParams queryParams,
+    StorageReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
             StorageCollectorService storageCollectorService,
-            MatchService matchService,
-            GlobalConfig globalConfig)
+            MatchService matchService)
     {
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.matchService = requireNonNull(matchService);
-        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.statsDispatcherPageSource = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
         this.testStats = (TestStats) customStatsContext.getStat("test");
 
-        this.queryParams = queryParams;
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams);
         this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryArgs);
 
@@ -86,11 +69,7 @@ public class StorageReader
         storageCollectorService.init(queryArgs);
 
         this.matchArgs = matchService.init(queryArgs, customStatsContext);
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+
         readTimeMeasurement = new ReadTimeMeasurement();
     }
 
@@ -99,43 +78,12 @@ public class StorageReader
         storageCollectorService.terminate(queryArgs);
     }
 
-    private void loadDictionaries()
-    {
-        if (queryParams.getNumLoadDataValues() == 0) {
-            return;
-        }
-
-        try {
-            for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
-                // load dictionaries if needed according to existence of dictionary key prepared earlier
-                if (collectParams.hasDictionaryParams()) {
-                    collectParams.setDictionary(dictionaryCacheService.computeReadIfAbsent(
-                            collectParams.getDictionaryKey(),
-                            collectParams.getUsedDictionarySize(),
-                            collectParams.getDataValuesRecTypeCode(),
-                            collectParams.getRecTypeLength(),
-                            collectParams.getDictionaryOffset(),
-                            queryParams.getFilePath()));
-                    dictionaryStats.incdictionary_read_elements_count();
-                }
-            }
-        }
-        catch (Exception e) {
-            shapingLogger.error(e, "loadDictionaries failed");
-            throw e;
-        }
-    }
-
     /**
      * prepare buffers for filling
      */
     @NativeInterrupt
     void queryOpen(int rowsLimit)
     {
-        if (!dictionariesLoaded) {
-            loadDictionaries();
-            dictionariesLoaded = true;
-        }
         collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, numRowsCollectedInPrevRounds, rowsLimit, storeRowListResult);
 
         try {
@@ -214,8 +162,6 @@ public class StorageReader
     @NativeInterrupt
     long queryClose()
     {
-        // match
-
         if (matchOpenResult != null) {
             matchService.close(matchOpenResult);
             matchOpenResult = null;

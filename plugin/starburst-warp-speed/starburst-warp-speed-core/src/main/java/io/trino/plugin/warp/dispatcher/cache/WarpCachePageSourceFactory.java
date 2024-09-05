@@ -70,7 +70,6 @@ public class WarpCachePageSourceFactory
     private final MetricsManager metricsManager;
     private final PredicatesCacheService predicatesCacheService;
     private final QueryClassifier queryClassifier;
-    private final DictionaryCacheService dictionaryCacheService;
 
     private final GlobalConfig globalConfig;
     private final DispatcherPageSourceStats statsDispatcherPageSource;
@@ -83,7 +82,6 @@ public class WarpCachePageSourceFactory
                                       MetricsManager metricsManager,
                                       PredicatesCacheService predicatesCacheService,
                                       QueryClassifier queryClassifier,
-                                      DictionaryCacheService dictionaryCacheService,
                                       GlobalConfig globalConfig,
                                       ReadErrorHandler readErrorHandler,
                                       StorageCollectorService storageCollectorService,
@@ -95,7 +93,6 @@ public class WarpCachePageSourceFactory
         this.metricsManager = requireNonNull(metricsManager);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
         this.queryClassifier = requireNonNull(queryClassifier);
-        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.globalConfig = requireNonNull(globalConfig);
         this.readErrorHandler = requireNonNull(readErrorHandler);
         this.storageCollectorService = requireNonNull(storageCollectorService);
@@ -142,7 +139,6 @@ public class WarpCachePageSourceFactory
                 queryParams,
                 false,
                 predicatesCacheService,
-                dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
                 storageCollectorService,

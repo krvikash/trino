@@ -16,6 +16,8 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
@@ -23,6 +25,7 @@ import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -63,6 +66,8 @@ public class StorageCollectorService
     final ChunksQueueService chunksQueueService;
     private final StorageEngineConstants storageEngineConstants;
     private final BlockFillersFactory blockFillersFactory;
+    private final DictionaryCacheService dictionaryCacheService;
+    private final ShapingLogger shapingLogger;
 
     @Inject
     StorageCollectorService(
@@ -73,7 +78,9 @@ public class StorageCollectorService
             RangeFillerService rangeFillerService,
             CollectTxService collectTxService,
             StorageEngineConstants storageEngineConstants,
-            BlockFillersFactory blockFillersFactory)
+            BlockFillersFactory blockFillersFactory,
+            DictionaryCacheService dictionaryCacheService,
+            GlobalConfig globalConfig)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.collectTxService = requireNonNull(collectTxService);
@@ -83,14 +90,55 @@ public class StorageCollectorService
         this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
+        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
-    public void init(QueryArgs queryArgs)
+    private void loadDictionaries(QueryArgs queryArgs)
+    {
+        QueryParams queryParams = queryArgs.queryParams();
+
+        if (queryParams.getNumLoadDataValues() == 0) {
+            return;
+        }
+
+        try {
+            for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
+                // load dictionaries if needed according to existence of dictionary key prepared earlier
+                if (collectParams.hasDictionaryParams()) {
+                    collectParams.setDictionary(dictionaryCacheService.computeReadIfAbsent(
+                            collectParams.getDictionaryKey(),
+                            collectParams.getUsedDictionarySize(),
+                            collectParams.getDataValuesRecTypeCode(),
+                            collectParams.getRecTypeLength(),
+                            collectParams.getDictionaryOffset(),
+                            queryParams.getFilePath()));
+                    dictionaryStats.incdictionary_read_elements_count();
+                }
+            }
+        }
+        catch (Exception e) {
+            shapingLogger.error(e, "loadDictionaries failed");
+            throw e;
+        }
+    }
+
+    private void fileOpen(QueryArgs queryArgs)
     {
         queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
         queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()] = storageEngine.fileOpen(queryArgs.queryParams().getFilePath());
         queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(queryArgs.queryParams().getFilePath());
         queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = queryArgs.queryParams().getFileModTime();
+    }
+
+    public void init(QueryArgs queryArgs)
+    {
+        fileOpen(queryArgs);
+        loadDictionaries(queryArgs);
     }
 
     public CollectOpenResult open(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, int numRowsCollectedInPrevRounds, int rowsLimit, Optional<StoreRowListResult> storeRowListResult)

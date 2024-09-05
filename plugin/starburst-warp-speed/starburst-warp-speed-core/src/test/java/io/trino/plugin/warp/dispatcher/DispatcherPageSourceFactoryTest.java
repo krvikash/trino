@@ -22,8 +22,6 @@ import io.trino.plugin.warp.connector.TestingConnectorPageSource;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.connector.TestingConnectorTableHandle;
 import io.trino.plugin.warp.connector.TestingConnectorTransactionHandle;
-import io.trino.plugin.warp.dictionary.AttachDictionaryService;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -185,9 +183,6 @@ public class DispatcherPageSourceFactoryTest
         NodeManager nodeManager = mockNodeManager();
         ConnectorSync connectorSync = mock(ConnectorSync.class);
         when(connectorSync.isDefaultCatalog()).thenReturn(true);
-        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
-                metricsManager,
-                mock(AttachDictionaryService.class));
         RowGroupDataService rowGroupDataService = new RowGroupDataService(
                 rowGroupDataDao,
                 storageEngine,
@@ -225,7 +220,6 @@ public class DispatcherPageSourceFactoryTest
                 dispatcherProxiedConnectorTransformer,
                 predicatesCacheService,
                 queryClassifier,
-                dictionaryCacheService,
                 new GlobalConfig(),
                 nativeStorageStateHandler,
                 new ReadErrorHandler(mock(WarmupDemoterService.class), rowGroupDataService, mock(PrintMetricsTimerTask.class)),

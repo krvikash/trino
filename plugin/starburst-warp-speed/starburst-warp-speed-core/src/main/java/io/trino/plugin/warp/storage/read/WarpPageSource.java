@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.read;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
@@ -52,7 +51,6 @@ public class WarpPageSource
             QueryParams queryParams,
             boolean isMatchGetNumRanges,
             PredicatesCacheService predicatesCacheService,
-            DictionaryCacheService dictionaryCacheService,
             CustomStatsContext customStatsContext,
             GlobalConfig globalConfig,
             StorageCollectorService storageCollectorService,
@@ -73,12 +71,10 @@ public class WarpPageSource
         boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
         StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
         reader = new StorageReader(
-                dictionaryCacheService,
                 queryParams,
                 customStatsContext,
                 collectorService,
-                matchService,
-                globalConfig);
+                matchService);
     }
 
     @Override

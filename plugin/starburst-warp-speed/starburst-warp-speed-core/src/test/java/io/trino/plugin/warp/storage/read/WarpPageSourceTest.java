@@ -56,7 +56,6 @@ public class WarpPageSourceTest
 {
     private final boolean isMatchGetNumRanges = false;
     private StorageEngineConstants storageEngineConstants;
-    private DictionaryCacheService dictionaryCacheService;
     private CustomStatsContext customStatsContext;
     private GlobalConfig globalConfig;
 
@@ -71,7 +70,6 @@ public class WarpPageSourceTest
         customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
         customStatsContext.getOrRegister(new DictionaryStats(DictionaryCacheService.DICTIONARY_STAT_GROUP));
         globalConfig = new GlobalConfig();
-        dictionaryCacheService = mock(DictionaryCacheService.class);
     }
 
     @Disabled
@@ -85,7 +83,6 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
-                dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
                 mock(StorageCollectorService.class),
@@ -137,7 +134,6 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
-                dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
                 mock(StorageCollectorService.class),
@@ -181,7 +177,6 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
-                dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
                 mock(StorageCollectorService.class),
@@ -216,7 +211,6 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
-                dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
                 mock(StorageCollectorService.class),
@@ -274,7 +268,6 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 isMatchGetNumRanges,
                 predicatesCacheService,
-                dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
                 mock(StorageCollectorService.class),

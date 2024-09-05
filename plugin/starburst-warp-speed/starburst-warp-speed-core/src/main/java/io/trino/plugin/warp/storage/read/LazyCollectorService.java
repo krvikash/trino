@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
@@ -49,10 +50,11 @@ public class LazyCollectorService
             LazyCollectTxService lazyCollectTxService,
             StorageEngineConstants storageEngineConstants,
             BlockFillersFactory blockFillersFactory,
+            DictionaryCacheService dictionaryCacheService,
             NativeConfig nativeConfig,
             GlobalConfig globalConfig)
     {
-        super(storageEngine, bufferAllocator, metricsManager, chunksQueueService, rangeFillerService, collectTxService, storageEngineConstants, blockFillersFactory);
+        super(storageEngine, bufferAllocator, metricsManager, chunksQueueService, rangeFillerService, collectTxService, storageEngineConstants, blockFillersFactory, dictionaryCacheService, globalConfig);
         this.globalConfig = globalConfig;
         this.lazyCollectTxService = lazyCollectTxService;
         this.nativeConfig = nativeConfig;

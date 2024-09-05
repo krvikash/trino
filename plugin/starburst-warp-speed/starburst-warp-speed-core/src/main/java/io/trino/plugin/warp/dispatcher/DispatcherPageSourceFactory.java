@@ -101,7 +101,6 @@ public class DispatcherPageSourceFactory
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final PredicatesCacheService predicatesCacheService;
     private final QueryClassifier queryClassifier;
-    private final DictionaryCacheService dictionaryCacheService;
 
     private final GlobalConfig globalConfig;
     private final NativeStorageStateHandler nativeStorageStateHandler;
@@ -115,7 +114,6 @@ public class DispatcherPageSourceFactory
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             PredicatesCacheService predicatesCacheService,
             QueryClassifier queryClassifier,
-            DictionaryCacheService dictionaryCacheService,
             GlobalConfig globalConfig,
             NativeStorageStateHandler nativeStorageStateHandler,
             ReadErrorHandler readErrorHandler,
@@ -130,7 +128,6 @@ public class DispatcherPageSourceFactory
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
         this.queryClassifier = requireNonNull(queryClassifier);
-        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.globalConfig = requireNonNull(globalConfig);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.shapingLogger = ShapingLogger.getInstance(
@@ -479,7 +476,6 @@ public class DispatcherPageSourceFactory
                 queryParams,
                 isMixedQuery,
                 predicatesCacheService,
-                dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
                 storageCollectorService,

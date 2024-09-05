@@ -20,7 +20,6 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.connector.TestingConnectorPageSource;
 import io.trino.plugin.warp.connector.TestingConnectorPageSourceProvider;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -507,7 +506,6 @@ public class DispatcherAlternativePageSourceProviderTest
                 dispatcherProxiedConnectorTransformer,
                 mock(PredicatesCacheService.class),
                 queryClassifier,
-                mock(DictionaryCacheService.class),
                 globalConfig,
                 nativeStorageStateHandler,
                 new ReadErrorHandler(mock(WarmupDemoterService.class), rowGroupDataService, mock(PrintMetricsTimerTask.class)),
