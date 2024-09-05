@@ -47,9 +47,9 @@ public class ParallelWarehouseAwareDriverPoolingConnectionFactory
     }
 
     @Override
-    protected Map<String, String> getConnectionProperties(ConnectorSession session)
+    protected Map<String, Object> getConnectionProperties(ConnectorSession session)
     {
-        ImmutableMap.Builder<String, String> propertiesBuilder = ImmutableMap.<String, String>builder()
+        ImmutableMap.Builder<String, Object> propertiesBuilder = ImmutableMap.<String, Object>builder()
                 .putAll(super.getConnectionProperties(session));
         getResultChunkSize(session)
                 .ifPresent(chunkSize -> propertiesBuilder.put(CLIENT_RESULT_CHUNK_SIZE, chunkSize.to(MEGABYTE).toString()));

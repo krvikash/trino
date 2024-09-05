@@ -46,9 +46,9 @@ public class WarehouseAwareDriverPoolingConnectionFactory
     }
 
     @Override
-    protected Map<String, String> getConnectionProperties(ConnectorSession session)
+    protected Map<String, Object> getConnectionProperties(ConnectorSession session)
     {
-        ImmutableMap.Builder<String, String> propertiesBuilder = ImmutableMap.<String, String>builder().putAll(super.getConnectionProperties(session));
+        ImmutableMap.Builder<String, Object> propertiesBuilder = ImmutableMap.<String, Object>builder().putAll(super.getConnectionProperties(session));
         getWarehouse(session).ifPresent(warehouse -> propertiesBuilder.put(WAREHOUSE, warehouse));
         return propertiesBuilder.buildKeepingLast();
     }

@@ -515,7 +515,7 @@ public abstract class BasePoolingConnectionFactoryTest
     {
         private final AtomicInteger connectionCounter = new AtomicInteger(1);
 
-        public TestingPoolingConnectionFactory(String catalogName, Class<? extends Driver> driverClass, Properties connectionProperties, BaseJdbcConfig config, JdbcConnectionPoolConfig poolConfig, CredentialPropertiesProvider<String, String> credentialPropertiesProvider, IdentityCacheMapping identityCacheMapping)
+        public TestingPoolingConnectionFactory(String catalogName, Class<? extends Driver> driverClass, Properties connectionProperties, BaseJdbcConfig config, JdbcConnectionPoolConfig poolConfig, CredentialPropertiesProvider credentialPropertiesProvider, IdentityCacheMapping identityCacheMapping)
         {
             super(catalogName, driverClass, connectionProperties, config, poolConfig, credentialPropertiesProvider, identityCacheMapping);
         }

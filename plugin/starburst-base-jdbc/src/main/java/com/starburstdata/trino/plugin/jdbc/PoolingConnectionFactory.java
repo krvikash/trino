@@ -59,7 +59,7 @@ public class PoolingConnectionFactory
     private final Map<String, String> connectionProperties;
     private final Duration maxConnectionLifetime;
     private final int maxPoolSize;
-    private final CredentialPropertiesProvider<String, String> credentialPropertiesProvider;
+    private final CredentialPropertiesProvider credentialPropertiesProvider;
     private final NonKeyEvictableCache<IdentityCacheKey, HikariDataSource> dataSourceCache;
     private final Queue<HikariDataSource> evictedDataSources = new ConcurrentLinkedQueue<>();
     private final ScheduledExecutorService executorService = newSingleThreadScheduledExecutor(daemonThreadsNamed("pooling-connection-factory-%s"));
@@ -94,7 +94,7 @@ public class PoolingConnectionFactory
             Properties connectionProperties,
             BaseJdbcConfig config,
             JdbcConnectionPoolConfig poolConfig,
-            CredentialPropertiesProvider<String, String> credentialPropertiesProvider,
+            CredentialPropertiesProvider credentialPropertiesProvider,
             IdentityCacheMapping identityCacheMapping)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
@@ -113,7 +113,7 @@ public class PoolingConnectionFactory
         executorService.scheduleAtFixedRate(this::cleanupEvictedDataSources, 0, 5, SECONDS);
     }
 
-    private HikariDataSource createHikariDataSource(Map<String, String> properties)
+    private HikariDataSource createHikariDataSource(Map<String, Object> properties)
     {
         HikariConfig hikariConfig = new HikariConfig();
         hikariConfig.setDriverClassName(driverClass.getName());
@@ -193,9 +193,9 @@ public class PoolingConnectionFactory
         };
     }
 
-    protected Map<String, String> getConnectionProperties(ConnectorSession session)
+    protected Map<String, Object> getConnectionProperties(ConnectorSession session)
     {
-        return ImmutableMap.<String, String>builder()
+        return ImmutableMap.<String, Object>builder()
                 .putAll(connectionProperties)
                 .putAll(credentialPropertiesProvider.getCredentialProperties(session.getIdentity()))
                 .buildOrThrow();
@@ -214,7 +214,7 @@ public class PoolingConnectionFactory
         executorService.shutdownNow();
     }
 
-    private static Properties toProperties(Map<String, String> map)
+    private static Properties toProperties(Map<String, Object> map)
     {
         Properties properties = new Properties();
         properties.putAll(requireNonNull(map, "map is null"));

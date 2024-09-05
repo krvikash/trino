@@ -125,7 +125,7 @@ public class DynamoDbConnectionFactory
     // the URL from being logged or thrown in an error message
     private final Driver driver;
     private final String connectionUrl;
-    private final CredentialPropertiesProvider<String, String> credentialPropertiesProvider;
+    private final CredentialPropertiesProvider credentialPropertiesProvider;
 
     public DynamoDbConnectionFactory(DynamoDbConfig dynamoDbConfig, CredentialProvider credentialProvider)
     {
