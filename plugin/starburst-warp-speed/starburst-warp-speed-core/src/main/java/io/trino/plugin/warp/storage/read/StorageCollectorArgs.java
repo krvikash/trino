@@ -21,6 +21,7 @@ import java.util.List;
 public record StorageCollectorArgs(StorageCollectorCallBack storageCollectorCallBack,
                                    List<BlockFiller<?>> blockFillers,
                                    List<ReadJuffersWarmUpElement> collectJuffersWE,
-                                   byte[] storeRowListBuff)
+                                   byte[] storeRowListBuff,
+                                   int[] queryResultType)
 {
 }

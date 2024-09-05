@@ -194,9 +194,9 @@ public class StorageCollectorService
     // returns indication if anything is collected in the buffer and if the buffer is full
     @NativeInterrupt
     CollectFromStorageResult collectFromStorage(QueryArgs queryArgs,
+            StorageCollectorArgs storageCollectorArgs,
             CollectOpenResult collectOpenResult,
-            int numCollectedRows,
-            int[] outQueryResultType)
+            int numCollectedRows)
     {
         if (chunksQueueService.isCompletelyFinished(queryArgs.chunksQueue(), queryArgs.numChunks())) {
             return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, numCollectedRows);
@@ -217,7 +217,7 @@ public class StorageCollectorService
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, collectOpenResult.rangeData());
                 numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
                 if (numToCollect > 0) {
-                    stopForOptimization = collect(collectOpenResult, queryParams.getNumCollectElements(), chunkIndex, numToCollect, outQueryResultType);
+                    stopForOptimization = collect(collectOpenResult, queryParams.getNumCollectElements(), chunkIndex, numToCollect, storageCollectorArgs.queryResultType());
                 }
                 numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, queryArgs, collectOpenResult, this);
             }
@@ -251,14 +251,13 @@ public class StorageCollectorService
             QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
             int rowsToFill,
-            int numRowsCollectedInPrevRounds,
-            int[] queryResultTypes)
+            int numRowsCollectedInPrevRounds)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            QueryResultType queryResultType = QueryResultType.values()[queryResultTypes[weIx]];
+            QueryResultType queryResultType = QueryResultType.values()[storageCollectorArgs.queryResultType()[weIx]];
             BlockFiller<?> blockFiller = storageCollectorArgs.blockFillers().get(weIx);
             ReadJuffersWarmUpElement readJuffersWarmUpElement = storageCollectorArgs.collectJuffersWE().get(weIx);
             Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats);
@@ -406,11 +405,13 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
 
+        int[] queryResultType = new int[queryParams.getNumCollectElements()];
         return new StorageCollectorArgs(
                 storageCollectorCallBack,
                 blockFillers,
                 collectJuffersWE,
-                storeRowListBuff);
+                storeRowListBuff,
+                queryResultType);
     }
 
     private int getNumChunksInRange(QueryParams queryParams)

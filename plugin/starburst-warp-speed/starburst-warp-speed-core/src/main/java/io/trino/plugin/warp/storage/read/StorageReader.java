@@ -38,7 +38,6 @@ public class StorageReader
 
     private int numRowsCollectedInCurRound; // num rows collected in this getNextPage
     private int numRowsCollectedInPrevRounds; // num rows collected in all previous getNextPages
-    private int[] queryResultType;
     private Optional<StoreRowListResult> storeRowListResult;
     private CollectOpenResult collectOpenResult;
     private MatchOpenResult matchOpenResult;
@@ -54,7 +53,6 @@ public class StorageReader
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams, customStatsContext);
         this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryArgs);
 
-        this.queryResultType = new int[queryParams.getNumCollectElements()];
         this.storeRowListResult = Optional.empty();
 
         storageCollectorService.init(queryArgs);
@@ -101,9 +99,9 @@ public class StorageReader
         // we continue as long as buffer is not full and we have more chunks to match and collect
         while ((collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_FULL) && matchService.match(queryArgs, matchArgs, matchOpenResult)) {
             CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(queryArgs,
+                    storageCollectorArgs,
                     collectOpenResult,
-                    numRowsCollectedInCurRound,
-                    queryResultType);
+                    numRowsCollectedInCurRound);
             collectBufferState = collectFromStorageResult.collectBufferState();
             numRowsCollectedInCurRound = collectFromStorageResult.numCollectedRows();
         }
@@ -120,8 +118,7 @@ public class StorageReader
                 queryArgs,
                 storageCollectorArgs,
                 rowsToFill,
-                numRowsCollectedInPrevRounds,
-                queryResultType);
+                numRowsCollectedInPrevRounds);
         return rowsToFill;
     }
 

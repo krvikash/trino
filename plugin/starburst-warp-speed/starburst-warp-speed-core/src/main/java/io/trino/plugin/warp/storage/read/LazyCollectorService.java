@@ -119,8 +119,7 @@ public class LazyCollectorService
             QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
             int rowsToFill,
-            int numRowsCollectedInPrevRounds,
-            int[] queryResultTypes) // was not filled since collect was not called yet
+            int numRowsCollectedInPrevRounds)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
 
