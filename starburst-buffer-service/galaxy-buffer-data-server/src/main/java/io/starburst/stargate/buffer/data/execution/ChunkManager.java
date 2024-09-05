@@ -731,7 +731,7 @@ public class ChunkManager
                             contentLength);
                     exchange.markSpooled();
                     // in case of failure we still need to decrease reference count to avoid memory leak
-                    addExceptionCallback(spoolingFuture, failure -> chunkDataLeaseMap.values().forEach(ChunkDataLease::release));
+                    addExceptionCallback(spoolingFuture, _ -> chunkDataLeaseMap.values().forEach(ChunkDataLease::release));
                     return Futures.transform(
                             spoolingFuture,
                             spooledChunkMap -> {
