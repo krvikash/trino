@@ -29,6 +29,7 @@ import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
+import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.AddDataPagesResult;
@@ -465,11 +466,17 @@ public class DataResource
                                         bytes -= pageLength;
                                     }
 
-                                    checkState(bytes == 0, "no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes));
+                                    if (bytes != 0) {
+                                        resumeWithError("error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId), format("Data corruption, no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes)), USER_ERROR);
+                                        return;
+                                    }
                                     // do not call chunkManager.addDataPages(exchangeId, partitionId, ...)
                                     // just yet so we verify checksums for whole request first
                                     pagesMap.put(partitionId, pages.build());
                                 }
+
+                                writtenDataSize.update(contentLength);
+                                writtenDataSizeDistribution.add(contentLength);
 
                                 if (dataIntegrityVerificationEnabled) {
                                     long calculatedChecksum = hash.hash();
@@ -477,11 +484,13 @@ public class DataResource
                                         calculatedChecksum++;
                                     }
                                     if (readChecksum != calculatedChecksum) {
-                                        throw new DataServerException(USER_ERROR, format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum));
+                                        resumeWithError("error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId), format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum), USER_ERROR);
+                                        return;
                                     }
                                 }
                                 else if (readChecksum != NO_CHECKSUM) {
-                                    throw new DataServerException(USER_ERROR, format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
+                                    resumeWithError("error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId), format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum), USER_ERROR);
+                                    return;
                                 }
 
                                 for (Map.Entry<Integer, List<Slice>> entry : pagesMap.entrySet()) {
@@ -497,9 +506,6 @@ public class DataResource
                                     addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
                                     shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
                                 }
-
-                                writtenDataSize.update(contentLength);
-                                writtenDataSizeDistribution.add(contentLength);
 
                                 if (shouldRetainMemory) {
                                     // only release memory when all addDataPagesFutures complete
@@ -536,6 +542,17 @@ public class DataResource
                                         }
                                     }
                                 }, responseExecutor);
+                            }
+
+                            private void resumeWithError(String prefix, String message, ErrorCode errorCode)
+                            {
+                                try {
+                                    logger.warn("%s; %s; %s", prefix, errorCode, message);
+                                    asyncResponse.resume(errorResponse(errorCode, message, getRateLimitHeaders(clientId)));
+                                }
+                                finally {
+                                    finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
+                                }
                             }
 
                             @Override
@@ -960,6 +977,17 @@ public class DataResource
                     .entity(throwable.getMessage());
         }
 
+        headers.forEach(responseBuilder::header);
+        return responseBuilder.build();
+    }
+
+    private static Response errorResponse(ErrorCode errorCode, String message, Map<String, String> headers)
+    {
+        Response.ResponseBuilder responseBuilder = Response
+                .status(Status.INTERNAL_SERVER_ERROR)
+                .header(CONTENT_TYPE, TEXT_PLAIN)
+                .header(ERROR_CODE_HEADER, errorCode)
+                .entity(message);
         headers.forEach(responseBuilder::header);
         return responseBuilder.build();
     }
