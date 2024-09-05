@@ -28,8 +28,8 @@ import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.util.StorageUtils;
 import io.trino.spi.NodeManager;
@@ -59,8 +59,8 @@ public class RowGroupDataService
     private final GlobalConfig globalConfig;
     private final RowGroupDataDao rowGroupDataDao;
     private final WarmingServiceStats warmingServiceStats;
-    private final ConnectorSync connectorSync;
     private final String nodeIdentifier;
+    private final CatalogNameProvider catalogNameProvider;
 
     @Inject
     public RowGroupDataService(RowGroupDataDao rowGroupDataDao,
@@ -68,14 +68,14 @@ public class RowGroupDataService
             GlobalConfig globalConfig,
             MetricsManager metricsManager,
             NodeManager nodeManager,
-            ConnectorSync connectorSync)
+            CatalogNameProvider catalogNameProvider)
     {
         this.rowGroupDataDao = requireNonNull(rowGroupDataDao);
         this.storageEngine = requireNonNull(storageEngine);
         this.globalConfig = requireNonNull(globalConfig);
         this.warmingServiceStats = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.nodeIdentifier = requireNonNull(nodeManager).getCurrentNode().getNodeIdentifier();
-        this.connectorSync = requireNonNull(connectorSync);
+        this.catalogNameProvider = requireNonNull(catalogNameProvider);
     }
 
     public RowGroupKey createRowGroupKey(String schema,
@@ -93,7 +93,7 @@ public class RowGroupDataService
                 length,
                 fileModifiedTime,
                 deletedFilesHash,
-                connectorSync.getCatalogName());
+                catalogNameProvider.get());
     }
 
     public void save(RowGroupData rowGroupData)

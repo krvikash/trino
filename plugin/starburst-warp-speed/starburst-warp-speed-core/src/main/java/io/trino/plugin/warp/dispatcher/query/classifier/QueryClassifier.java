@@ -32,6 +32,7 @@ import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
@@ -58,6 +59,7 @@ public class QueryClassifier
     private final PredicateContextFactory predicateContextFactory;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final GlobalConfig globalConfig;
+    private final CatalogName catalogName;
 
     @Inject
     public QueryClassifier(ClassifierFactory classifierFactory,
@@ -65,7 +67,8 @@ public class QueryClassifier
             MatchCollectIdService matchCollectIdService,
             PredicateContextFactory predicateContextFactory,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            CatalogName catalogName)
     {
         this.classifierFactory = requireNonNull(classifierFactory);
         this.connectorSync = requireNonNull(connectorSync);
@@ -73,6 +76,7 @@ public class QueryClassifier
         this.predicateContextFactory = requireNonNull(predicateContextFactory);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.globalConfig = requireNonNull(globalConfig);
+        this.catalogName = requireNonNull(catalogName);
     }
 
     public QueryContext classifyCache(ImmutableList<ColumnHandle> projectColumns, Optional<UUID> storeIdOpt, RowGroupData rowGroupData)
@@ -238,7 +242,7 @@ public class QueryClassifier
         String matchCollectCatalog = WarpSessionProperties.getMatchCollectCatalog(session);
         boolean enableMatchCollect = (classificationType == ClassificationType.QUERY) &&
                 WarpSessionProperties.getEnableMatchCollect(session) &&
-                ((matchCollectCatalog == null) ? (connectorSync.getCatalogSequence() == DEFAULT_CATALOG) : matchCollectCatalog.equals(connectorSync.getCatalogName()));
+                ((matchCollectCatalog == null) ? (connectorSync.getCatalogSequence() == DEFAULT_CATALOG) : matchCollectCatalog.equals(catalogName.toString()));
         if (enableMatchCollect) {
             WarpExpression expression = predicateContextData.getRootExpression();
             if (expression instanceof WarpCall warpCall && (warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||

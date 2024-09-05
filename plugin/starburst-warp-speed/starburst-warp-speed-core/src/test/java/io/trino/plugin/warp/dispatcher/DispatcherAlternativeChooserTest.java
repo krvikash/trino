@@ -42,6 +42,7 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.NodeManager;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -120,6 +121,7 @@ public class DispatcherAlternativeChooserTest
         when(session.getProperty(eq(ENABLE_MATCH_COLLECT), eq(Boolean.class))).thenReturn(true);
         dispatcherSplit = new DispatcherSplit(SCHEMA, TABLE, "path", 1, 2, 3, emptyList(), emptyList(), "a", createRemoteSplit());
 
+        CatalogNameProvider catalogNameProvider = new CatalogNameProvider("catalog-name");
         rowGroupKey = new RowGroupKey(
                 dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
@@ -128,7 +130,7 @@ public class DispatcherAlternativeChooserTest
                 dispatcherSplit.getLength(),
                 dispatcherSplit.getFileModifiedTime(),
                 dispatcherSplit.getDeletedFilesHash(),
-                "");
+                catalogNameProvider.get());
         Type columnType = INTEGER;
         List<ColumnHandle> columnHandleList = mockColumns(List.of(
                 Pair.of("warmedColumn", columnType),
@@ -146,14 +148,13 @@ public class DispatcherAlternativeChooserTest
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         NodeManager nodeManager = mockNodeManager();
         ConnectorSync connectorSync = mock(ConnectorSync.class);
-        when(connectorSync.getCatalogName()).thenReturn("");
         when(connectorSync.getCatalogSequence()).thenReturn(0);
         rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
                 globalConfig,
                 metricsManager,
                 nodeManager,
-                connectorSync);
+                catalogNameProvider);
 
         StubsStorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
         predicatesCacheService = mock(PredicatesCacheService.class);
@@ -180,7 +181,8 @@ public class DispatcherAlternativeChooserTest
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig);
+                globalConfig,
+                new CatalogName("catalog-name"));
         connectorPageSourceProvider = new TestingConnectorPageSourceProvider();
         dispatcherAlternativeChooser = createAlternativeChooser(queryClassifier);
     }
@@ -383,7 +385,7 @@ public class DispatcherAlternativeChooserTest
                 mock(DispatcherPageSourceFactory.class),
                 mock(StorageEngineTxService.class),
                 mock(MetricsManager.class),
-                new CatalogNameProvider("connector"),
+                new CatalogName("connector"),
                 queryClassifier,
                 rowGroupDataService,
                 predicatesCacheService,

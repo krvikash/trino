@@ -61,6 +61,7 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.type.TypeUtils;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
@@ -247,7 +248,8 @@ public class QueryClassifierTest
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig);
+                globalConfig,
+                new CatalogName("catalog-name"));
     }
 
     /**
@@ -386,7 +388,8 @@ public class QueryClassifierTest
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig);
+                globalConfig,
+                new CatalogName("catalog-name"));
         QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchCollectIntColumn), 0, true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
@@ -447,7 +450,8 @@ public class QueryClassifierTest
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig);
+                globalConfig,
+                new CatalogName("catalog-name"));
 
         QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchCollectIntColumn), 0, true, "query-id"),
                 rowGroupData,

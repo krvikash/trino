@@ -16,7 +16,7 @@ package io.trino.plugin.warp.dispatcher;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativePageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -50,7 +50,7 @@ public class DispatcherAlternativePageSourceProvider
             DispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             CustomStatsContext customStatsContext,
-            CatalogNameProvider catalogNameProvider,
+            CatalogName catalogName,
             ConnectorSplit split,
             ConnectorTableHandle table,
             DispatcherAlternativeChooser.ResourceCloser resourceCloser)
@@ -59,7 +59,7 @@ public class DispatcherAlternativePageSourceProvider
         this.pageSourceFactory = requireNonNull(pageSourceFactory);
         this.txService = requireNonNull(txService);
         this.customStatsContext = requireNonNull(customStatsContext);
-        this.catalogName = requireNonNull(catalogNameProvider).get();
+        this.catalogName = requireNonNull(catalogName).toString();
         this.split = requireNonNull(split);
         this.table = requireNonNull(table);
         this.resourceCloser = requireNonNull(resourceCloser);

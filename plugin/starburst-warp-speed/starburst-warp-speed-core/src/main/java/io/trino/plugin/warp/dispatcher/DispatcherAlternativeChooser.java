@@ -31,7 +31,7 @@ import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -59,7 +59,7 @@ public class DispatcherAlternativeChooser
     private final DispatcherPageSourceFactory pageSourceFactory;
     private final StorageEngineTxService txService;
     private final MetricsManager metricsManager;
-    private final CatalogNameProvider catalogNameProvider;
+    private final CatalogName catalogName;
     private final QueryClassifier queryClassifier;
     private final RowGroupDataService rowGroupDataService;
     private final PredicatesCacheService predicatesCacheService;
@@ -71,7 +71,7 @@ public class DispatcherAlternativeChooser
             DispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             MetricsManager metricsManager,
-            CatalogNameProvider catalogNameProvider,
+            CatalogName catalogName,
             QueryClassifier queryClassifier,
             RowGroupDataService rowGroupDataService,
             PredicatesCacheService predicatesCacheService,
@@ -81,7 +81,7 @@ public class DispatcherAlternativeChooser
         this.pageSourceFactory = requireNonNull(pageSourceFactory);
         this.txService = requireNonNull(txService);
         this.metricsManager = requireNonNull(metricsManager);
-        this.catalogNameProvider = requireNonNull(catalogNameProvider);
+        this.catalogName = requireNonNull(catalogName);
         this.queryClassifier = requireNonNull(queryClassifier);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
@@ -167,7 +167,7 @@ public class DispatcherAlternativeChooser
                             pageSourceFactory,
                             txService,
                             customStatsContext,
-                            catalogNameProvider,
+                            catalogName,
                             split,
                             alternative,
                             new ResourceCloser(closeHandler, rowGroupKey, Optional.ofNullable(queryContext))));

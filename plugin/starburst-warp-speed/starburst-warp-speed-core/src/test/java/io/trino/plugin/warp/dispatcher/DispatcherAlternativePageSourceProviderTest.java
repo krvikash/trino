@@ -38,7 +38,6 @@ import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.MetricsRegistry;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
@@ -51,6 +50,7 @@ import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
@@ -141,15 +141,12 @@ public class DispatcherAlternativePageSourceProviderTest
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = WarmupTestDataUtil.mockConnectorSplit();
         dispatcherSplit = dispatcherSplitRowGroupKeyPair.getLeft();
         rowGroupKey = dispatcherSplitRowGroupKeyPair.getRight();
-        ConnectorSync connectorSync = mock(ConnectorSync.class);
-        when(connectorSync.getCatalogName()).thenReturn("");
-        when(connectorSync.getCatalogSequence()).thenReturn(0);
         rowGroupDataService = spy(new RowGroupDataService(mock(RowGroupDataDao.class),
                 storageEngine,
                 globalConfig,
                 metricsManager,
                 mockNodeManager(),
-                connectorSync));
+                new CatalogNameProvider("catalog-name")));
         rowGroupKey = rowGroupDataService.createRowGroupKey(dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
@@ -526,7 +523,7 @@ public class DispatcherAlternativePageSourceProviderTest
                 pageSourceFactory,
                 txService,
                 customStatsContext,
-                new CatalogNameProvider("warp"),
+                new CatalogName("warp"),
                 split,
                 table,
                 resourceCloser);

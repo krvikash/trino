@@ -167,12 +167,6 @@ public class NativeConnectorSync
     }
 
     @Override
-    public String getCatalogName()
-    {
-        return catalogName.toString();
-    }
-
-    @Override
     public boolean isCatalogReducedResources()
     {
         return catalogSequence >= 4;

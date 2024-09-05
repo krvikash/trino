@@ -17,7 +17,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,13 +24,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.String.format;
-import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class StubsConnectorSync
         implements ConnectorSync
 {
-    private final CatalogNameProvider catalogNameProvider;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final AtomicInteger demoteSequence = new AtomicInteger();
 
@@ -39,9 +36,8 @@ public class StubsConnectorSync
     private double epsilon;
 
     @Inject
-    public StubsConnectorSync(CatalogNameProvider catalogNameProvider)
+    public StubsConnectorSync()
     {
-        this.catalogNameProvider = requireNonNull(catalogNameProvider);
     }
 
     @Override
@@ -114,11 +110,5 @@ public class StubsConnectorSync
     public void setWarmupDemoterService(WarmupDemoterService warmupDemoterService)
     {
         this.warmupDemoterService = warmupDemoterService;
-    }
-
-    @Override
-    public String getCatalogName()
-    {
-        return catalogNameProvider.get();
     }
 }

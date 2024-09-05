@@ -45,11 +45,6 @@ public interface ConnectorSync
         return 0;
     }
 
-    default String getCatalogName()
-    {
-        return "";
-    }
-
     default boolean isCatalogReducedResources()
     {
         return false;

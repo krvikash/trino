@@ -59,10 +59,12 @@ import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.tools.util.WarpReadWriteLock;
 import io.trino.spi.HostAddress;
 import io.trino.spi.NodeManager;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -182,7 +184,6 @@ public class DispatcherPageSourceFactoryTest
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         NodeManager nodeManager = mockNodeManager();
         ConnectorSync connectorSync = mock(ConnectorSync.class);
-        when(connectorSync.getCatalogName()).thenReturn("");
         when(connectorSync.getCatalogSequence()).thenReturn(0);
         DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
@@ -193,7 +194,7 @@ public class DispatcherPageSourceFactoryTest
                 globalConfig,
                 metricsManager,
                 nodeManager,
-                connectorSync);
+                new CatalogNameProvider("catalog-name"));
         PredicatesCacheService predicatesCacheService = mock(PredicatesCacheService.class);
         PredicateContextFactory predicateContextFactory = new PredicateContextFactory(globalConfig, new TestingConnectorProxiedConnectorTransformer());
         when(predicatesCacheService.predicateDataToBuffer(isA(PredicateData.class), any())).thenReturn(Optional.of(new PredicateCacheData(new PredicateBufferInfo(null, PredicateBufferPoolType.INVALID), Optional.empty())));
@@ -210,7 +211,8 @@ public class DispatcherPageSourceFactoryTest
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig);
+                globalConfig,
+                new CatalogName("catalog-name"));
 
         nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);

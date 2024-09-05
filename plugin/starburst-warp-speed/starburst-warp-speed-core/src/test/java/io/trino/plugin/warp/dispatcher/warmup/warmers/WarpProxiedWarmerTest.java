@@ -36,12 +36,12 @@ import io.trino.plugin.warp.gen.stats.TxServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.NodeManager;
@@ -364,12 +364,11 @@ public class WarpProxiedWarmerTest
                 mock(FailureGeneratorInvocationHandler.class),
                 storageWriterService,
                 new GlobalConfig());
-        ConnectorSync connectorSync = mock(ConnectorSync.class);
         StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, storageEngine, globalConfig, mock(WarmupDemoterService.class), storageEngineTxService, mock(FlowsSequencer.class), TestingTxService.createMetricsManager());
         return new WarpProxiedWarmer(warpPageSinkFactory,
                 dispatcherProxiedConnectorTransformer,
                 nodeManager,
-                connectorSync,
+                new CatalogNameProvider("catalog-name"),
                 globalConfig,
                 rowGroupDataService,
                 storageWarmerService,

@@ -15,20 +15,23 @@ package io.trino.plugin.warp.tools;
 
 import com.google.inject.Provider;
 
+/**
+ * Return a unique value of the catalog name + version
+ */
 public class CatalogNameProvider
         implements Provider<String>
 {
-    private final String connectorName;
+    private final String catalogName;
 
-    public CatalogNameProvider(String connectorName)
+    public CatalogNameProvider(String catalogName)
     {
-        this.connectorName = connectorName;
+        this.catalogName = catalogName;
     }
 
     @Override
     public String get()
     {
-        return connectorName;
+        return catalogName;
     }
 
     public String getRestTaskPrefix()

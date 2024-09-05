@@ -37,12 +37,12 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.write.PageSink;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.util.ExceptionUtils;
 import io.trino.spi.NodeManager;
@@ -87,7 +87,7 @@ public class WarpProxiedWarmer
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final String nodeIdentifier;
     private final WarpPageSinkFactory warpPageSinkFactory;
-    private final ConnectorSync connectorSync;
+    private final CatalogNameProvider catalogNameProvider;
     private final GlobalConfig globalConfig;
     private final RowGroupDataService rowGroupDataService;
     private final StorageWarmerService storageWarmerService;
@@ -97,7 +97,7 @@ public class WarpProxiedWarmer
     public WarpProxiedWarmer(WarpPageSinkFactory warpPageSinkFactory,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             NodeManager nodeManager,
-            ConnectorSync connectorSync,
+            CatalogNameProvider catalogNameProvider,
             GlobalConfig globalConfig,
             RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
@@ -106,7 +106,7 @@ public class WarpProxiedWarmer
         this.warpPageSinkFactory = warpPageSinkFactory;
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.nodeIdentifier = requireNonNull(nodeManager).getCurrentNode().getNodeIdentifier();
-        this.connectorSync = requireNonNull(connectorSync);
+        this.catalogNameProvider = requireNonNull(catalogNameProvider);
         this.globalConfig = requireNonNull(globalConfig);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
@@ -166,7 +166,7 @@ public class WarpProxiedWarmer
                             List.of(pair.getValue()),
                             DynamicFilter.EMPTY);
                     logger.debug("create connectorPageSource for element %s offset %d connector %s",
-                            pair.getValue(), fileOffset, connectorSync.getCatalogName());
+                            pair.getValue(), fileOffset, catalogNameProvider.get());
 
                     PageSink pageSink = null;
                     try {

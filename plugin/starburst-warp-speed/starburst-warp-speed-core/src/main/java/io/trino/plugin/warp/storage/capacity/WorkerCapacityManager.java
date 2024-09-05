@@ -221,7 +221,7 @@ public class WorkerCapacityManager
         String[] ls = localStore.list();
 
         if ((ls == null) || (ls.length == 0)) {
-            logger.info("cleanLocalStorage exiting since no files found");
+            logger.info("cleanLocalStorage exiting since no files found in %s", localStorePath);
             calculateTotalCapacity();
             return;
         }

@@ -28,10 +28,10 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.WarpReadWriteLock;
 import io.trino.spi.NodeManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,7 +80,7 @@ public class RowGroupDataServiceTest
                 globalConfig,
                 metricsManager,
                 nodeManager,
-                mock(ConnectorSync.class)));
+                new CatalogNameProvider("catalog-name")));
     }
 
     @Test
@@ -186,7 +186,7 @@ public class RowGroupDataServiceTest
                 globalConfig,
                 metricsManager,
                 nodeManager,
-                mock(ConnectorSync.class)));
+                new CatalogNameProvider("catalog-name")));
 
         WarmUpElement validWarmUpElement = createWarmUpElement("col1", true);
         WarmUpElement failedWarmUpElement = createWarmUpElement("col2", false);
@@ -209,7 +209,7 @@ public class RowGroupDataServiceTest
                 new GlobalConfig(),
                 metricsManager,
                 nodeManager,
-                mock(ConnectorSync.class));
+                new CatalogNameProvider("catalog-name"));
         RowGroupKey k1 = new RowGroupKey("s1", "t1", "f", 0, 1, 100, "", "");
         RowGroupKey k2 = new RowGroupKey("s2", "t2", "f", 0, 1, 100, "", "");
         WarmUpElement warmUpElement = createWarmUpElement("c1", true);
@@ -233,7 +233,7 @@ public class RowGroupDataServiceTest
                 new GlobalConfig(),
                 metricsManager,
                 nodeManager,
-                mock(ConnectorSync.class));
+                new CatalogNameProvider("catalog-name"));
 
         WarmUpElement warmUpElement1 = createWarmUpElement("col1", true);
         WarmUpElement warmUpElement2 = createWarmUpElement("col2", true);
@@ -274,7 +274,7 @@ public class RowGroupDataServiceTest
                 new GlobalConfig(),
                 metricsManager,
                 nodeManager,
-                mock(ConnectorSync.class));
+                new CatalogNameProvider("catalog-name"));
         WarmUpElement warmUpElement1 = createWarmUpElement("col1", true);
         WarmUpElement warmUpElement2 = createWarmUpElement("col2", true);
         WarmUpElement warmUpElement3 = createWarmUpElement("col3", true);

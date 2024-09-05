@@ -43,13 +43,13 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
@@ -149,7 +149,7 @@ public class WarmingManagerTest
                 globalConfig,
                 metricsManager,
                 nodeManager,
-                mock(ConnectorSync.class)));
+                new CatalogNameProvider("catalog-name")));
         //Whitebox.setInternalState(rowGroupDataService, "warmingServiceStats", warmingServiceStats);
 
         // Mock get(rowGroupKey) to return the last saved RowGroupData
@@ -200,12 +200,11 @@ public class WarmingManagerTest
                 mock(FailureGeneratorInvocationHandler.class),
                 storageWriterService,
                 new GlobalConfig());
-        ConnectorSync connectorSync = mock(ConnectorSync.class);
         StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, storageEngine, globalConfig, mock(WarmupDemoterService.class), storageEngineTxService, mock(FlowsSequencer.class), TestingTxService.createMetricsManager());
         return new WarpProxiedWarmer(warpPageSinkFactory,
                 dispatcherProxiedConnectorTransformer,
                 nodeManager,
-                connectorSync,
+                new CatalogNameProvider("catalog-name"),
                 globalConfig,
                 rowGroupDataService,
                 storageWarmerService,

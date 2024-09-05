@@ -31,10 +31,10 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupCacheData;
 import io.trino.plugin.warp.storage.write.WarpCachePageSink;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.spi.NodeManager;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheManager;
@@ -62,7 +62,7 @@ public class WorkerCacheManager
     private static final Logger logger = Logger.get(WorkerCacheManager.class);
     private final ShapingLogger shapingLogger;
     private final GlobalConfig globalConfig;
-    private final ConnectorSync connectorSync;
+    private final CatalogNameProvider catalogNameProvider;
     private final Map<CacheWarmState, CacheAction> cacheActions;
     private final MemoryContextService memoryContextService;
     private final PredicateHashCalculator predicateHashCalculator;
@@ -85,7 +85,7 @@ public class WorkerCacheManager
                               StorageWarmerService storageWarmerService,
                               StorageEngineConstants storageEngineConstants,
                               GlobalConfig globalConfig,
-                              ConnectorSync connectorSync,
+                              CatalogNameProvider catalogNameProvider,
                               @Named("CacheActions") Map<CacheWarmState, CacheAction> cacheActions,
                               MemoryContextService memoryContextService,
                               PredicateHashCalculator predicateHashCalculator)
@@ -104,7 +104,7 @@ public class WorkerCacheManager
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
-        this.connectorSync = requireNonNull(connectorSync);
+        this.catalogNameProvider = requireNonNull(catalogNameProvider);
         this.cacheActions = requireNonNull(cacheActions);
         this.memoryContextService = requireNonNull(memoryContextService);
         this.predicateHashCalculator = requireNonNull(predicateHashCalculator);
@@ -251,7 +251,7 @@ public class WorkerCacheManager
                     0,
                     0,
                     "",
-                    connectorSync.getCatalogName());
+                    catalogNameProvider.get());
         }
     }
 }

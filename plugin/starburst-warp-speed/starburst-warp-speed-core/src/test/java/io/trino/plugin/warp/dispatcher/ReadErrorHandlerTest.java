@@ -34,9 +34,9 @@ import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.spi.TrinoException;
@@ -77,7 +77,7 @@ class ReadErrorHandlerTest
                 new GlobalConfig(),
                 TestingTxService.createMetricsManager(),
                 NodeUtils.mockNodeManager(),
-                mock(ConnectorSync.class));
+                new CatalogNameProvider("catalog-name"));
     }
 
     @Test
