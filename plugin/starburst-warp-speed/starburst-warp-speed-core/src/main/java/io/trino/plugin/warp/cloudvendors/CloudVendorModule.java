@@ -54,7 +54,7 @@ public interface CloudVendorModule
     {
         StoreType storeType = StoreType.ofConfigName(config.get(storePathName), config.get(storeTypeName));
         return switch (storeType) {
-            case S3, AZURE, GS -> new CloudVendorStorageModule(annotation, prefix, config, catalogName, context, configClazz);
+            case S3, AZURE, GS -> new CloudVendorStorageModule(annotation, prefix, config, catalogName, context, storeType, configClazz);
             case LOCAL -> new LocalStoreModule(prefix, annotation, config, configClazz);
         };
     }

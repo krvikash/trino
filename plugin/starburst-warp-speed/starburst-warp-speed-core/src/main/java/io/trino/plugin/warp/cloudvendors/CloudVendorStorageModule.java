@@ -21,6 +21,7 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.cloudstorage.CloudStorage;
 import io.trino.plugin.warp.cloudstorage.CloudStorageModule;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
+import io.trino.plugin.warp.cloudvendors.config.StoreType;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.lang.annotation.Annotation;
@@ -35,6 +36,7 @@ public class CloudVendorStorageModule
 
     private final String catalogName;
     private final ConnectorContext context;
+    private final StoreType storeType;
 
     public CloudVendorStorageModule(
             Class<? extends Annotation> annotation,
@@ -42,11 +44,13 @@ public class CloudVendorStorageModule
             Map<String, String> config,
             String catalogName,
             ConnectorContext context,
+            StoreType storeType,
             Class<? extends CloudVendorConfig> configClazz)
     {
         super(prefix, annotation, config, configClazz);
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");
+        this.storeType = requireNonNull(storeType, "storeType is null");
     }
 
     @Override
@@ -56,7 +60,7 @@ public class CloudVendorStorageModule
 
         ConfigurationFactory configFactory = new ConfigFactoryWithPrefix(config, prefix, logger::warn);
         logger.debug("annotation %s configFactory %s", annotation.toString(), configFactory.getProperties());
-        Injector injector = Guice.createInjector(new CloudStorageModule(catalogName, context, configFactory, annotation));
+        Injector injector = Guice.createInjector(new CloudStorageModule(catalogName, context, configFactory, storeType, annotation));
 
         CloudStorage cloudStorage = injector.getInstance(Key.get(CloudStorage.class, annotation));
         bind(CloudVendorService.class).annotatedWith(annotation).toInstance(new CloudVendorStorageService(cloudStorage));

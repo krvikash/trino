@@ -32,6 +32,7 @@ import io.trino.plugin.warp.cloudstorage.hdfs.HdfsCloudStorage;
 import io.trino.plugin.warp.cloudstorage.hdfs.HdfsCloudStorageModule;
 import io.trino.plugin.warp.cloudstorage.s3.S3CloudStorage;
 import io.trino.plugin.warp.cloudstorage.s3.S3CloudStorageModule;
+import io.trino.plugin.warp.cloudvendors.config.StoreType;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.lang.annotation.Annotation;
@@ -50,16 +51,19 @@ public class CloudStorageModule
     private final String catalogName;
     private final ConnectorContext context;
     private final ConfigurationFactory configFactory;
+    private final StoreType storeType;
     private final Class<? extends Annotation> annotation;
 
     public CloudStorageModule(String catalogName,
                               ConnectorContext context,
                               ConfigurationFactory configFactory,
+                              StoreType storeType,
                               Class<? extends Annotation> annotation)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");
         this.configFactory = requireNonNull(configFactory, "configFactory is null");
+        this.storeType = requireNonNull(storeType, "storeType is null");
         this.annotation = requireNonNull(annotation, "annotation is null");
     }
 
@@ -77,23 +81,26 @@ public class CloudStorageModule
                 binder1 -> {
                     MapBinder<String, CloudStorage> cloudStorageMap = newMapBinder(binder1, String.class, CloudStorage.class, annotation);
 
-                    if (config.isNativeS3Enabled()) {
-                        binder1.install(new S3CloudStorageModule(context, configFactory, annotation));
-                        Key<S3CloudStorage> s3CloudStorageKey = Key.get(S3CloudStorage.class, annotation);
-                        cloudStorageMap.addBinding("s3").to(s3CloudStorageKey);
-                        cloudStorageMap.addBinding("s3a").to(s3CloudStorageKey);
-                        cloudStorageMap.addBinding("s3n").to(s3CloudStorageKey);
-                    }
-                    if (config.isNativeAzureEnabled()) {
-                        binder1.install(new AzureCloudStorageModule(context, configFactory, annotation));
-                        Key<AzureCloudStorage> azureCloudStorageKey = Key.get(AzureCloudStorage.class, annotation);
-                        cloudStorageMap.addBinding("abfs").to(azureCloudStorageKey);
-                        cloudStorageMap.addBinding("abfss").to(azureCloudStorageKey);
-                    }
-                    if (config.isNativeGcsEnabled()) {
-                        binder1.install(new GcsCloudStorageModule(context, configFactory, annotation));
-                        Key<GcsCloudStorage> gcsCloudStorageKey = Key.get(GcsCloudStorage.class, annotation);
-                        cloudStorageMap.addBinding("gs").to(gcsCloudStorageKey);
+                    switch (storeType) {
+                        case S3 -> {
+                            binder1.install(new S3CloudStorageModule(context, configFactory, annotation));
+                            Key<S3CloudStorage> s3CloudStorageKey = Key.get(S3CloudStorage.class, annotation);
+                            cloudStorageMap.addBinding("s3").to(s3CloudStorageKey);
+                            cloudStorageMap.addBinding("s3a").to(s3CloudStorageKey);
+                            cloudStorageMap.addBinding("s3n").to(s3CloudStorageKey);
+                        }
+                        case AZURE -> {
+                            binder1.install(new AzureCloudStorageModule(context, configFactory, annotation));
+                            Key<AzureCloudStorage> azureCloudStorageKey = Key.get(AzureCloudStorage.class, annotation);
+                            cloudStorageMap.addBinding("abfs").to(azureCloudStorageKey);
+                            cloudStorageMap.addBinding("abfss").to(azureCloudStorageKey);
+                        }
+                        case GS -> {
+                            binder1.install(new GcsCloudStorageModule(context, configFactory, annotation));
+                            Key<GcsCloudStorage> gcsCloudStorageKey = Key.get(GcsCloudStorage.class, annotation);
+                            cloudStorageMap.addBinding("gs").to(gcsCloudStorageKey);
+                        }
+                        case LOCAL -> {}
                     }
                 });
 
