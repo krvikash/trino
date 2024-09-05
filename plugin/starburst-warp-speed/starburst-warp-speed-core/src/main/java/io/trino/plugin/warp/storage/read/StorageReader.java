@@ -73,16 +73,14 @@ public class StorageReader
      * prepare buffers for filling
      */
     @NativeInterrupt
-    void queryOpen(int rowsLimit)
+    private void queryOpen(int rowsLimit)
     {
         collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, numRowsCollectedInPrevRounds, rowsLimit, storeRowListResult);
-
         try {
             matchOpenResult = matchService.open(queryArgs, matchArgs, collectOpenResult);
         }
         catch (Exception e) {
-            queryAbort(e);
-            throw new TrinoException(WARP_MATCH_FAILED, "failed to allocate tx for match");
+            throw new TrinoException(WARP_MATCH_FAILED, "failed to open match");
         }
 
         numRowsCollectedInCurRound = 0;
@@ -127,27 +125,31 @@ public class StorageReader
         return rowsToFill;
     }
 
-    ReadResult getPage(Block[] blocks)
+    ReadResult getPage(Block[] blocks, int limit)
     {
-        int numCollectedRows = 0;
-        WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
         try {
+            int numCollectedRows = 0;
+            WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
+
+            queryOpen(limit);
             if (matchAndCollect()) {
                 numCollectedRows = fillBlocks(blocks);
                 if (queryArgs.queryParams().isRangesRequired()) {
                     ranges = storageCollectorService.collectRanges(collectOpenResult);
                 }
             }
+            long numReadPages = queryClose();
+
+            return new ReadResult(numCollectedRows, ranges, numReadPages);
         }
         catch (Exception e) {
             queryAbort(e);
             throw e;
         }
-        return new ReadResult(numCollectedRows, ranges);
     }
 
     @NativeInterrupt
-    long queryClose()
+    private long queryClose()
     {
         if (matchOpenResult != null) {
             matchService.close(matchOpenResult);

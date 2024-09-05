@@ -145,11 +145,8 @@ public class WarpPageSource
     {
         int limit = (int) Math.min(rowsLimit, Integer.MAX_VALUE);
         ReadResult readResult;
-        long numReadPages;
 
-        reader.queryOpen(limit);
-        readResult = reader.getPage(blocks);
-        numReadPages = reader.queryClose();
+        readResult = reader.getPage(blocks, limit);
 
         if (readResult.numCollectedRows() == 0) {
             finished = true;
@@ -157,7 +154,7 @@ public class WarpPageSource
 
         updateRowsLimit(readResult.numCollectedRows());
         sortedRowRanges = readResult.ranges();
-        completedBytes += (numReadPages << storageEngineConstants.getPageSizeShift());
+        completedBytes += (readResult.numReadPages() << storageEngineConstants.getPageSizeShift());
         completedPositions += readResult.numCollectedRows();
         return readResult.numCollectedRows();
     }
