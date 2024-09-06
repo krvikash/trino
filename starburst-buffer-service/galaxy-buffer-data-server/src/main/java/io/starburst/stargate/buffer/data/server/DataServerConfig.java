@@ -30,6 +30,7 @@ public class DataServerConfig
     private int httpResponseThreads = 100;
     private boolean testingEnableStatsLogging;
     private Duration broadcastInterval = succinctDuration(5, SECONDS);
+    private Duration broadcastFailureInactivityThreshold = succinctDuration(30, SECONDS);
     private int drainingMaxAttempts = 4;
     private Duration minDrainingDuration = succinctDuration(30, SECONDS);
     private int maxInProgressAddDataPagesRequests = 150;
@@ -103,6 +104,19 @@ public class DataServerConfig
     public DataServerConfig setBroadcastInterval(Duration broadcastInterval)
     {
         this.broadcastInterval = broadcastInterval;
+        return this;
+    }
+
+    @NotNull
+    public Duration getBroadcastFailureInactivityThreshold()
+    {
+        return broadcastFailureInactivityThreshold;
+    }
+
+    @Config("discovery-broadcast-failure-inactivity-threshold")
+    public DataServerConfig setBroadcastFailureInactivityThreshold(Duration broadcastFailureInactivityThreshold)
+    {
+        this.broadcastFailureInactivityThreshold = broadcastFailureInactivityThreshold;
         return this;
     }
 
