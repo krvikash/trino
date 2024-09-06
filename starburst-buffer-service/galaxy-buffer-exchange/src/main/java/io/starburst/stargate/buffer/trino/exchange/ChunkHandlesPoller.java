@@ -20,6 +20,7 @@ import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.trino.spi.TrinoException;
 
 import java.util.List;
 import java.util.OptionalLong;
@@ -30,6 +31,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.util.concurrent.Futures.addCallback;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.addSuccessCallback;
+import static io.starburst.stargate.buffer.trino.exchange.BufferServiceExchangeErrorCode.COMMUNICATION_FAILURE;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -87,8 +89,12 @@ class ChunkHandlesPoller
             @Override
             public void onFailure(Throwable failure)
             {
-                registerFuture.setException(failure);
-                callback.onFailure(failure);
+                TrinoException trinoException = new TrinoException(
+                        COMMUNICATION_FAILURE,
+                        "Error registering exchange %s in data node %s".formatted(externalExchangeId, dataNodeId),
+                        failure);
+                registerFuture.setException(trinoException);
+                callback.onFailure(trinoException);
             }
         }, executorService);
     }
@@ -140,7 +146,11 @@ class ChunkHandlesPoller
                                 return;
                             }
                         }
-                        callback.onFailure(failure);
+                        TrinoException trinoException = new TrinoException(
+                                COMMUNICATION_FAILURE,
+                                "Error pinging exchange %s in data node %s".formatted(externalExchangeId, dataNodeId),
+                                failure);
+                        callback.onFailure(trinoException);
                     }
                 }, executorService);
                 return;
@@ -180,7 +190,11 @@ class ChunkHandlesPoller
                 @Override
                 public void onFailure(Throwable failure)
                 {
-                    callback.onFailure(failure);
+                    TrinoException trinoException = new TrinoException(
+                            COMMUNICATION_FAILURE,
+                            "Error listing closed chunks exchange %s in data node %s".formatted(externalExchangeId, dataNodeId),
+                            failure);
+                    callback.onFailure(trinoException);
                 }
             }, executorService);
         }
@@ -203,7 +217,11 @@ class ChunkHandlesPoller
                                 return;
                             }
                         }
-                        callback.onFailure(failure);
+                        TrinoException trinoException = new TrinoException(
+                                COMMUNICATION_FAILURE,
+                                "Error marking exchange finished %s in data node %s".formatted(externalExchangeId, dataNodeId),
+                                failure);
+                        callback.onFailure(trinoException);
                     });
                 },
                 executorService);

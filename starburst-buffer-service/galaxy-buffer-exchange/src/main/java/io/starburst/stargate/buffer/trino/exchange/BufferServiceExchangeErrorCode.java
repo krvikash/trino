@@ -19,7 +19,8 @@ public enum BufferServiceExchangeErrorCode
         implements ErrorCodeSupplier
 {
     INVALID_TASK_ID(0, INTERNAL_ERROR, true),
-    INVALID_ATTEMPT_ID(1, INTERNAL_ERROR, true);
+    INVALID_ATTEMPT_ID(1, INTERNAL_ERROR, true),
+    COMMUNICATION_FAILURE(2, INTERNAL_ERROR, false);
 
     private final ErrorCode errorCode;
 

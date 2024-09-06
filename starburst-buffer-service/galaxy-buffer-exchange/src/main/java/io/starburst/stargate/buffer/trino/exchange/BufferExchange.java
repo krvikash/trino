@@ -335,10 +335,10 @@ public class BufferExchange
     @Override
     public synchronized ExchangeSourceHandleSource getSourceHandles()
     {
-        throwIfFailed();
         BufferExchangeSourceHandleSource sourceHandleSource = new BufferExchangeSourceHandleSource();
         if (failure != null) {
             sourceHandleSource.markFailed(failure);
+            throwIfFailed();
         }
         else {
             sourceHandleSource.addSourceHandles(readySourceHandles, allSourceHandlesCreated);
