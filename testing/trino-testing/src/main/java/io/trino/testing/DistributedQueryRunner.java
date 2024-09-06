@@ -30,6 +30,8 @@ import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.trino.Session;
 import io.trino.Session.SessionBuilder;
 import io.trino.cache.CacheMetadata;
+import io.trino.client.ClientSession;
+import io.trino.client.StatementClient;
 import io.trino.connector.CoordinatorDynamicCatalogManager;
 import io.trino.cost.StatsCalculator;
 import io.trino.execution.FailureInjector.InjectedFailureType;
@@ -57,8 +59,11 @@ import io.trino.sql.analyzer.QueryExplainer;
 import io.trino.sql.parser.SqlParser;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.Plan;
+import io.trino.testing.LocalSpoolingManager.LocalSpoolingPlugin;
 import io.trino.testing.containers.OpenTracingCollector;
 import io.trino.transaction.TransactionManager;
+import io.trino.util.Ciphers;
+import okhttp3.OkHttpClient;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
 import org.intellij.lang.annotations.Language;
@@ -68,6 +73,7 @@ import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,6 +98,7 @@ import static io.airlift.log.Level.ERROR;
 import static io.airlift.log.Level.WARN;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.airlift.units.Duration.nanosSince;
+import static io.trino.client.StatementClientFactory.newStatementClient;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.System.getenv;
@@ -716,6 +723,7 @@ public class DistributedQueryRunner
         private List<EventListener> eventListeners = ImmutableList.of();
         private ImmutableList.Builder<AutoCloseable> extraCloseables = ImmutableList.builder();
         private TestingTrinoClientFactory testingTrinoClientFactory = TestingTrinoClient::new;
+        private Optional<String> encodingId = Optional.empty();
 
         protected Builder(Session defaultSession)
         {
@@ -897,6 +905,12 @@ public class DistributedQueryRunner
             return self();
         }
 
+        public SELF withProtocolSpooling(String encodingId)
+        {
+            this.encodingId = Optional.of(encodingId);
+            return self();
+        }
+
         @SuppressWarnings("unchecked")
         protected SELF self()
         {
@@ -906,6 +920,18 @@ public class DistributedQueryRunner
         public DistributedQueryRunner build()
                 throws Exception
         {
+            if (encodingId.isPresent()) {
+                setTestingTrinoClientFactory((server, session) -> createClient(server, session, encodingId.get()));
+                addExtraProperty("experimental.protocol.spooling.enabled", "true");
+                // create smaller number of segments
+                addExtraProperty("protocol.spooling.initial-segment-size", "16MB");
+                addExtraProperty("protocol.spooling.maximum-segment-size", "32MB");
+                addExtraProperty("protocol.spooling.shared-secret-key", randomAESKey());
+                setAdditionalSetup(queryRunner -> {
+                    queryRunner.installPlugin(new LocalSpoolingPlugin());
+                    queryRunner.loadSpoolingManager("test-local", Map.of());
+                });
+            }
             if (withTracing) {
                 OpenTracingCollector collector = new OpenTracingCollector();
                 collector.start();
@@ -976,5 +1002,26 @@ public class DistributedQueryRunner
     public interface TestingTrinoClientFactory
     {
         TestingTrinoClient create(TestingTrinoServer server, Session session);
+    }
+
+    private static TestingTrinoClient createClient(TestingTrinoServer testingTrinoServer, Session session, String encodingId)
+    {
+        return new TestingTrinoClient(testingTrinoServer, new TestingStatementClientFactory() {
+            @Override
+            public StatementClient create(OkHttpClient httpClient, Session session, ClientSession clientSession, String query)
+            {
+                ClientSession clientSessionSpooled = ClientSession
+                        .builder(clientSession)
+                        .encodingId(Optional.ofNullable(encodingId))
+                        .build();
+                return newStatementClient(httpClient, clientSessionSpooled, query, Optional.empty());
+            }
+        }, session, new OkHttpClient());
+    }
+
+    private static String randomAESKey()
+    {
+        return Base64.getEncoder()
+                .encodeToString(Ciphers.createRandomAesEncryptionKey().getEncoded());
     }
 }
