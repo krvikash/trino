@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.dynamodb;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
@@ -17,6 +16,7 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
+import dev.failsafe.RetryPolicy;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.ConnectionFactory;
@@ -24,7 +24,6 @@ import io.trino.plugin.jdbc.ExtraCredentialsBasedIdentityCacheMappingModule;
 import io.trino.plugin.jdbc.ForBaseJdbc;
 import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.RetryingConnectionFactory;
-import io.trino.plugin.jdbc.RetryingConnectionFactory.DefaultRetryStrategy;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.plugin.jdbc.credential.CredentialProviderModule;
 import io.trino.plugin.jdbc.jmx.StatisticsAwareConnectionFactory;
@@ -88,7 +87,7 @@ public class DynamoDbModule
         return new RetryingConnectionFactory(
                 new StatisticsAwareConnectionFactory(
                         new DynamoDbConnectionFactory(dynamoDbConfig, credentialProvider)),
-                ImmutableSet.of(new DefaultRetryStrategy()));
+                RetryPolicy.ofDefaults());
     }
 
     @Retention(RetentionPolicy.RUNTIME)
