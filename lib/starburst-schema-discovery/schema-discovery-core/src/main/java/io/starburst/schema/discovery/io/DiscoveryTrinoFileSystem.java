@@ -22,6 +22,7 @@ import io.trino.spi.TrinoException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -141,6 +142,12 @@ public class DiscoveryTrinoFileSystem
 
     @Override
     public TrinoInputFile newInputFile(Location location, long length)
+    {
+        throw new UnsupportedOperationException("DiscoveryTrinoFileSystem is read only");
+    }
+
+    @Override
+    public TrinoInputFile newInputFile(Location location, long length, Instant lastModified)
     {
         throw new UnsupportedOperationException("DiscoveryTrinoFileSystem is read only");
     }

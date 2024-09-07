@@ -1382,6 +1382,12 @@ public class TestBackgroundHiveSplitLoader
                 }
 
                 @Override
+                public TrinoInputFile newInputFile(Location location, long length, Instant lastModified)
+                {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
                 public TrinoOutputFile newOutputFile(Location location)
                 {
                     throw new UnsupportedOperationException();

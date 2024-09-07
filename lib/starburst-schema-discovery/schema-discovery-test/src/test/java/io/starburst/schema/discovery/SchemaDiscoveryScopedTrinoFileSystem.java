@@ -17,6 +17,7 @@ import io.trino.filesystem.TrinoOutputFile;
 import io.trino.filesystem.UriLocation;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Optional;
 
 public interface SchemaDiscoveryScopedTrinoFileSystem
@@ -24,6 +25,12 @@ public interface SchemaDiscoveryScopedTrinoFileSystem
 {
     @Override
     default TrinoInputFile newInputFile(Location location, long length)
+    {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    default TrinoInputFile newInputFile(Location location, long length, Instant lastModified)
     {
         throw new UnsupportedOperationException("Not implemented");
     }
