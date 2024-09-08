@@ -130,18 +130,6 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default long warmupLucene(long weCookie, int fileId, int offset, int len, int recTypeCode, int recTypeLength, int warmUpType,
-            long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader)
-    {
-        return 0;
-    }
-
-    default long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, int recTypeCode, int recTypeLength, int warmUpType,
-            long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader)
-    {
-        return 0;
-    }
-
     //----------------------- query ----------------------------------------
     default int queryGetCollect2MatchSize()
     {
@@ -307,11 +295,6 @@ public interface StorageEngine
     default void matchClose(int txId)
     {
         throw new UnsupportedOperationException();
-    }
-
-    default int luceneReadBuffer(int txId, long nativeCookie, int fileId, int offset, int length)
-    {
-        return -1;
     }
 
     //----------------------- statistics and debug ----------------------------------------

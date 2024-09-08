@@ -79,8 +79,7 @@ public class WarpReadIndexInput
         this.sliceDescription = sliceDescription;
         this.digest = new BufferedChecksum(new CRC32());
         this.logPrefix = String.format("%d(%s_%s_%d-%d)", indexUniqueIdInRowGroup, luceneFileType, sliceDescription, sliceOffset, sliceOffset + length);
-
-        this.pageSize = luceneFileType.isSmallFile() ? storageEngineConstants.getLuceneSmallJufferSize() : storageEngineConstants.getPageSize();
+        this.pageSize = storageEngineConstants.getPageSize();
         currentPageIndex = (int) (sliceOffset / pageSize);
         setCurrentBuffer();
         localCopyBuffer.position((int) sliceOffset % pageSize);

@@ -56,7 +56,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -326,7 +325,7 @@ public class WarpPageSourceTest
     private ByteBuffer setMocks()
     {
         ByteBuffer rowsBuff = ByteBuffer.allocate(100);
-        when(bufferAllocator.getQueryIdsArray(anyBoolean())).thenReturn(new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()]);
+        when(bufferAllocator.getQueryIdsArray()).thenReturn(new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()]);
         when(bufferAllocator.ids2RecBuff(any())).thenReturn(ByteBuffer.allocate(100));
         when(bufferAllocator.ids2NullBuff(any())).thenReturn(ByteBuffer.allocate(100));
         when(bufferAllocator.ids2RowsBuff(anyLong())).thenReturn(rowsBuff.asShortBuffer());

@@ -63,9 +63,6 @@ public class NativeStorageEngineConstants
     private final int maxMatchColumns;
     private final int maxLuceneColumnsInBundle;
     private final int matchTxSize;
-    // lucene
-    private final int luceneSmallJufferSize;
-    private final int luceneBigJufferSize;
 
     @Inject
     public NativeStorageEngineConstants()
@@ -111,10 +108,6 @@ public class NativeStorageEngineConstants
             maxMatchColumns = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_match_columns");
             maxLuceneColumnsInBundle = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_lucene_columns_in_bundle");
             matchTxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_match_tx_size");
-
-            // lucene
-            luceneBigJufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_lucene_big_juffer_size");
-            luceneSmallJufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_lucene_small_juffer_size");
         }
         catch (Throwable t) {
             logger.error(t, "failed to retrieve constants from native library");
@@ -300,17 +293,5 @@ public class NativeStorageEngineConstants
     public int getMatchTxSize()
     {
         return matchTxSize;
-    }
-
-    @Override
-    public int getLuceneSmallJufferSize()
-    {
-        return luceneSmallJufferSize;
-    }
-
-    @Override
-    public int getLuceneBigJufferSize()
-    {
-        return luceneBigJufferSize;
     }
 }

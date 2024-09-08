@@ -18,7 +18,6 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.WarmUpElementAllocationParams;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.lucene.LuceneFileType;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.type.Int128;
@@ -272,21 +271,6 @@ public class WriteJuffersWarmUpElement
     }
 
     // lucene APIs
-    public ByteBuffer[] getLuceneFileBuffers()
-    {
-        return getLuceneJuffer().getLuceneWEBuffer();
-    }
-
-    public ByteBuffer getLuceneFileBuffer(LuceneFileType luceneFileType)
-    {
-        return getLuceneJuffer().getLuceneByteBuffer(luceneFileType.getFileId());
-    }
-
-    public boolean getSingleAndResetLuceneWE()
-    {
-        return getLuceneJuffer().getSingleAndResetLuceneWE();
-    }
-
     public void updateLuceneProps(Slice val)
     {
         getLuceneJuffer().updateLuceneProps(val);

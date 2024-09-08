@@ -273,7 +273,7 @@ public class StorageCollectorService
         int[] weCollectParams = queryParams.dumpCollectParams();
         long[][] collectBuffIds = new long[queryParams.getNumCollectElements()][];
         for (int collectIx = 0; collectIx < queryParams.getNumCollectElements(); collectIx++) {
-            collectBuffIds[collectIx] = bufferAllocator.getQueryIdsArray(false);
+            collectBuffIds[collectIx] = bufferAllocator.getQueryIdsArray();
         }
 
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];

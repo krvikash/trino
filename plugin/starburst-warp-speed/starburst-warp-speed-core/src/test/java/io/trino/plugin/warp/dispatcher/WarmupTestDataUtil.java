@@ -43,7 +43,6 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.lucene.LuceneFileType;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
@@ -77,7 +76,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createLikeQuery;
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createRangeQuery;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -339,12 +337,6 @@ public class WarmupTestDataUtil
         for (int i = 0; i < numSegments; i++) {
             segments[i] = Arena.global().allocate(defaultSize);
         }
-        ByteBuffer[] luceneBuffers = new ByteBuffer[LuceneFileType.values().length - 1];
-        for (LuceneFileType luceneFileType : LuceneFileType.values()) {
-            if (luceneFileType != LuceneFileType.UNKNOWN) {
-                luceneBuffers[luceneFileType.getFileId()] = allocateByteBuffer(defaultSize);
-            }
-        }
 
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).ids2NullBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2NullBuff(any());
@@ -354,19 +346,8 @@ public class WarmupTestDataUtil
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2ExtRecsBuff(any());
         doReturn(allocateIntBuffer(defaultSize)).when(bufferAllocator).memorySegment2VarlenMdBuff(any());
 
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2LuceneSmallCfeBuff(any());
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2LuceneSmallSiBuff(any());
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2LuceneSmallSegmentsBuff(any());
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2LuceneBigCfsBuff(any());
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).ids2LuceneBigCfsBuff(any());
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).ids2LuceneSmallCfeBuff(any());
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).ids2LuceneSmallSiBuff(any());
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).ids2LuceneSmallSegmentsBuff(any());
-        doReturn(luceneBuffers).when(bufferAllocator).memorySegment2LuceneBuffers(any());
-        doReturn(luceneBuffers).when(bufferAllocator).ids2LuceneBuffers(any());
-
         doReturn(segments).when(bufferAllocator).getWarmBuffers(any());
-        doReturn(new long[JbufType.JBUF_TYPE_NUM_OF.ordinal()]).when(bufferAllocator).getQueryIdsArray(anyBoolean());
+        doReturn(new long[JbufType.JBUF_TYPE_NUM_OF.ordinal()]).when(bufferAllocator).getQueryIdsArray();
         return bufferAllocator;
     }
 

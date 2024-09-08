@@ -56,7 +56,6 @@ public class WarpReadIndexInputTest
         BufferAllocator bufferAllocator = mock(BufferAllocator.class);
         when(bufferAllocator.ids2NullBuff(any())).thenReturn(allocateByteBuffer());
         when(bufferAllocator.ids2RecBuff(any())).thenReturn(allocateByteBuffer());
-        when(bufferAllocator.ids2LuceneBuffers(any())).thenReturn(allocateLuceneByteBuffers());
         when(bufferAllocator.ids2LuceneResultBM(any())).thenReturn(allocateByteBuffer());
 
         long[] outColBuffIds = new long[JbufType.JBUF_TYPE_NUM_OF.ordinal()];

@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.juffers;
 
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.BufferAllocator;
-import io.trino.plugin.warp.storage.lucene.LuceneFileType;
 
 import java.nio.ByteBuffer;
 
@@ -35,8 +34,6 @@ public class ReadJuffersWarmUpElement
         }
 
         if (withLucene) {
-            LuceneReadJuffer luceneJuffers = new LuceneReadJuffer(bufferAllocator);
-            juffers.put(luceneJuffers.getJufferType(), luceneJuffers);
             LuceneBMResultJuffer luceneBMResultJuffers = new LuceneBMResultJuffer(bufferAllocator);
             juffers.put(luceneBMResultJuffers.getJufferType(), luceneBMResultJuffers);
         }
@@ -48,16 +45,6 @@ public class ReadJuffersWarmUpElement
             BaseReadJuffer readJuffer = (BaseReadJuffer) juffer;
             readJuffer.createBuffer(recTypeCode, recTypeLength, buffIds, hasDictionary);
         }
-    }
-
-    public ByteBuffer getLuceneFileBuffer(LuceneFileType luceneFileType)
-    {
-        return getLuceneJuffer().getLuceneByteBuffer(luceneFileType.getFileId());
-    }
-
-    public LuceneReadJuffer getLuceneJuffer()
-    {
-        return (LuceneReadJuffer) getJufferByType(JuffersType.LUCENE);
     }
 
     public ByteBuffer getLuceneBMResultBuffer()

@@ -75,8 +75,4 @@ public interface StorageEngineConstants
     int getMaxLuceneColumnsInBundle();
 
     int getMatchTxSize();
-
-    int getLuceneSmallJufferSize();
-
-    int getLuceneBigJufferSize();
 }

@@ -31,7 +31,6 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.lucene.LuceneFileType;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.TrinoException;
@@ -57,7 +56,6 @@ public class BufferAllocator
 {
     private static final Logger logger = Logger.get(BufferAllocator.class);
     private static final long BUF_ID_OFFSET_MASK = 0x00000000ffffffffL;
-    private static final long INVALID_BUF_ID = -1;
     static final String BUFFER_ALLOCATOR_METRICS_GROUP = "BufferAllocator";
 
     @VisibleForTesting
@@ -229,11 +227,6 @@ public class BufferAllocator
         buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()] = storageEngineConstants.getChunksMapSize();
         buffTypeSizes[JbufType.JBUF_TYPE_SKIPLIST.ordinal()] = roundToPageSize(((chunkSize / storageEngineConstants.getVarlenMdGranularity()) + 1) * Integer.BYTES);
 
-        buffTypeSizes[JbufType.JBUF_TYPE_LUCENE_SMALL_SI.ordinal()] = storageEngineConstants.getLuceneSmallJufferSize();
-        buffTypeSizes[JbufType.JBUF_TYPE_LUCENE_SMALL_CFE.ordinal()] = storageEngineConstants.getLuceneSmallJufferSize();
-        buffTypeSizes[JbufType.JBUF_TYPE_LUCENE_SMALL_SEGMENTS.ordinal()] = storageEngineConstants.getLuceneSmallJufferSize();
-        buffTypeSizes[JbufType.JBUF_TYPE_LUCENE_BIG_CFS.ordinal()] = storageEngineConstants.getLuceneBigJufferSize();
-
         this.dataTempBufferSize = storageEngineConstants.getWarmupDataTempBufferSize();
         this.indexTempBufferSize = storageEngineConstants.getWarmupIndexTempBufferSize();
         this.extRecBuffSize = storageEngineConstants.getRecordBufferMaxSize();
@@ -392,29 +385,14 @@ public class BufferAllocator
             buffs[JbufType.JBUF_TYPE_SKIPLIST.ordinal()] = slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_SKIPLIST.ordinal()], alignment);
         }
 
-        if (weAllocParams.isLuceneIndexNeeded()) {
-            slicer.allocate(32, alignment); // @TODO KOBI - lucnee header size
-            buffs[JbufType.JBUF_TYPE_LUCENE_SMALL_SI.ordinal()] = slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_LUCENE_SMALL_SI.ordinal()]);
-            buffs[JbufType.JBUF_TYPE_LUCENE_SMALL_CFE.ordinal()] = slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_LUCENE_SMALL_CFE.ordinal()]);
-            buffs[JbufType.JBUF_TYPE_LUCENE_SMALL_SEGMENTS.ordinal()] = slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_LUCENE_SMALL_SEGMENTS.ordinal()]);
-            buffs[JbufType.JBUF_TYPE_LUCENE_BIG_CFS.ordinal()] = slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_LUCENE_BIG_CFS.ordinal()], alignment);
-        }
-
         buffs[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()] = slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()], alignment);
 
         return buffs;
     }
 
-    public long[] getQueryIdsArray(boolean lucene)
+    public long[] getQueryIdsArray()
     {
-        long[] idsArray = new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()];
-        if (!lucene) {
-            idsArray[JbufType.JBUF_TYPE_LUCENE_SMALL_SI.ordinal()] = INVALID_BUF_ID;
-            idsArray[JbufType.JBUF_TYPE_LUCENE_SMALL_CFE.ordinal()] = INVALID_BUF_ID;
-            idsArray[JbufType.JBUF_TYPE_LUCENE_SMALL_SEGMENTS.ordinal()] = INVALID_BUF_ID;
-            idsArray[JbufType.JBUF_TYPE_LUCENE_BIG_CFS.ordinal()] = INVALID_BUF_ID;
-        }
-        return idsArray;
+        return new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()];
     }
 
     public ByteBuffer id2ByteBuff(long bufId)
@@ -470,66 +448,6 @@ public class BufferAllocator
     public ByteBuffer memorySegment2PredicateBuff(MemorySegment buff)
     {
         return memorySegment2ByteBuffer(buff);
-    }
-
-    public ByteBuffer ids2LuceneSmallCfeBuff(long[] idsByType)
-    {
-        return id2Buff(idsByType[JbufType.JBUF_TYPE_LUCENE_SMALL_CFE.ordinal()]);
-    }
-
-    public ByteBuffer ids2LuceneSmallSiBuff(long[] idsByType)
-    {
-        return id2Buff(idsByType[JbufType.JBUF_TYPE_LUCENE_SMALL_SI.ordinal()]);
-    }
-
-    public ByteBuffer ids2LuceneSmallSegmentsBuff(long[] idsByType)
-    {
-        return id2Buff(idsByType[JbufType.JBUF_TYPE_LUCENE_SMALL_SEGMENTS.ordinal()]);
-    }
-
-    public ByteBuffer ids2LuceneBigCfsBuff(long[] idsByType)
-    {
-        return id2Buff(idsByType[JbufType.JBUF_TYPE_LUCENE_BIG_CFS.ordinal()]);
-    }
-
-    public ByteBuffer[] ids2LuceneBuffers(long[] idsByType)
-    {
-        ByteBuffer[] luceneBuffers = new ByteBuffer[4];
-        luceneBuffers[LuceneFileType.SI.getFileId()] = ids2LuceneSmallSiBuff(idsByType);
-        luceneBuffers[LuceneFileType.CFE.getFileId()] = ids2LuceneSmallCfeBuff(idsByType);
-        luceneBuffers[LuceneFileType.SEGMENTS.getFileId()] = ids2LuceneSmallSegmentsBuff(idsByType);
-        luceneBuffers[LuceneFileType.CFS.getFileId()] = ids2LuceneBigCfsBuff(idsByType);
-        return luceneBuffers;
-    }
-
-    public ByteBuffer memorySegment2LuceneSmallCfeBuff(MemorySegment[] buffs)
-    {
-        return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_LUCENE_SMALL_CFE.ordinal()]);
-    }
-
-    public ByteBuffer memorySegment2LuceneSmallSiBuff(MemorySegment[] buffs)
-    {
-        return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_LUCENE_SMALL_SI.ordinal()]);
-    }
-
-    public ByteBuffer memorySegment2LuceneSmallSegmentsBuff(MemorySegment[] buffs)
-    {
-        return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_LUCENE_SMALL_SEGMENTS.ordinal()]);
-    }
-
-    public ByteBuffer memorySegment2LuceneBigCfsBuff(MemorySegment[] buffs)
-    {
-        return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_LUCENE_BIG_CFS.ordinal()]);
-    }
-
-    public ByteBuffer[] memorySegment2LuceneBuffers(MemorySegment[] buffs)
-    {
-        ByteBuffer[] luceneBuffers = new ByteBuffer[4];
-        luceneBuffers[LuceneFileType.SI.getFileId()] = memorySegment2LuceneSmallSiBuff(buffs);
-        luceneBuffers[LuceneFileType.CFE.getFileId()] = memorySegment2LuceneSmallCfeBuff(buffs);
-        luceneBuffers[LuceneFileType.SEGMENTS.getFileId()] = memorySegment2LuceneSmallSegmentsBuff(buffs);
-        luceneBuffers[LuceneFileType.CFS.getFileId()] = memorySegment2LuceneBigCfsBuff(buffs);
-        return luceneBuffers;
     }
 
     public ByteBuffer ids2LuceneResultBM(long[] idsByType)

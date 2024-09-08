@@ -15,11 +15,8 @@ package io.trino.plugin.warp.storage.juffers;
 
 import io.airlift.slice.Slice;
 import io.trino.plugin.warp.juffer.BufferAllocator;
-import io.trino.plugin.warp.storage.lucene.LuceneFileType;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 /**
  * buffer for marking extended strings
@@ -31,14 +28,12 @@ public class LuceneWriteJuffer
     private static final int SINGLE_DISABLED = 0;
     private static final int SINGLE_ENABLED = 1;
 
-    private final ByteBuffer[] luceneBuffers;
     private int luceneBufferSingleExist;
     private Slice luceneBufferSingleSlice;
 
     public LuceneWriteJuffer(BufferAllocator bufferAllocator)
     {
         super(bufferAllocator, JuffersType.LUCENE);
-        this.luceneBuffers = new ByteBuffer[LuceneFileType.values().length - 1];
     }
 
     @Override
@@ -50,22 +45,7 @@ public class LuceneWriteJuffer
     @Override
     public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
     {
-        ByteBuffer[] buffers = bufferAllocator.memorySegment2LuceneBuffers(buffs);
-        for (int i = 0; i < buffers.length; i++) {
-            this.luceneBuffers[i] = buffers[i].slice().order(ByteOrder.BIG_ENDIAN);
-            this.luceneBuffers[i].position(0);
-        }
         luceneBufferSingleExist = SINGLE_UNINITIALIZED;
-    }
-
-    public ByteBuffer getLuceneByteBuffer(int nativeId)
-    {
-        return getLuceneWEBuffer()[nativeId];
-    }
-
-    public ByteBuffer[] getLuceneWEBuffer()
-    {
-        return luceneBuffers;
     }
 
     public void updateLuceneProps(Slice val)

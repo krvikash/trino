@@ -69,7 +69,7 @@ public class LazyCollectorService
 
         int[] weCollectParams = queryParams.dumpSingleCollectParams(collectParams);
         long[][] collectBuffIds = new long[1][];
-        collectBuffIds[0] = bufferAllocator.getQueryIdsArray(false);
+        collectBuffIds[0] = bufferAllocator.getQueryIdsArray();
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(0)];
         byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
         long[] fileCookieParams = storageCollectorArgs.collectTxArgs().fileCookie();

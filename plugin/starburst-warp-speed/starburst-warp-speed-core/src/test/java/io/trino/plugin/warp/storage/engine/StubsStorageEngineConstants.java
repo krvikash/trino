@@ -201,16 +201,4 @@ public class StubsStorageEngineConstants
     {
         return 16 * 1024;
     }
-
-    @Override
-    public int getLuceneSmallJufferSize()
-    {
-        return 2730;
-    }
-
-    @Override
-    public int getLuceneBigJufferSize()
-    {
-        return 512 * 1024;
-    }
 }

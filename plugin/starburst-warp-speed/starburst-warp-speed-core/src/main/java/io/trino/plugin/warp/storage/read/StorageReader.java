@@ -114,10 +114,8 @@ public class StorageReader
         this.matchExhausted = true; // we initialize as true, and at the first call it will be set by calling match
 
         this.weMatchTree = queryParams.dumpMatchParams();
-        int matchIx = 0;
-        for (WarmupElementMatchParams matchParams : queryParams.getMatchElementsParamsList()) {
-            matchBuffIds[matchIx] = bufferAllocator.getQueryIdsArray(matchParams.hasLuceneParams());
-            matchIx++;
+        for (int matchIx = 0; matchIx < matchBuffIds.length; matchIx++) {
+            matchBuffIds[matchIx] = bufferAllocator.getQueryIdsArray();
         }
         this.matchJuffersWE = queryParams.getMatchElementsParamsList()
                 .stream()

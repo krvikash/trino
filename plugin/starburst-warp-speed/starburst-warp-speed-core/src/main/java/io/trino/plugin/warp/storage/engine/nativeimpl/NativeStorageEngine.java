@@ -343,14 +343,6 @@ public class NativeStorageEngine
             long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader);
 
     @Override
-    public native long warmupLucene(long weCookie, int fileId, int offset, int len, int recTypeCode, int recTypeLength, int warmUpType,
-            long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader);
-
-    @Override
-    public native long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, int recTypeCode, int recTypeLength, int warmUpType,
-            long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader);
-
-    @Override
     public native int queryGetCollect2MatchSize();
 
     @Override
@@ -403,7 +395,4 @@ public class NativeStorageEngine
 
     @Override
     public native String executeDebugCommand(String commandName, int numParams, String[] paramNames, String[] paramValues);
-
-    @Override
-    public native int luceneReadBuffer(int txId, long nativeCookie, int fileId, int offset, int length);
 }

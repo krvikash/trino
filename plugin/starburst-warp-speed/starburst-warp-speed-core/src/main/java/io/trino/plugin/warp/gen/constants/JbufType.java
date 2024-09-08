@@ -17,10 +17,6 @@ package io.trino.plugin.warp.gen.constants;
 
 public enum JbufType
 {
-    JBUF_TYPE_LUCENE_SMALL_SI,
-    JBUF_TYPE_LUCENE_SMALL_CFE,
-    JBUF_TYPE_LUCENE_SMALL_SEGMENTS,
-    JBUF_TYPE_LUCENE_BIG_CFS,
     JBUF_TYPE_LUCENE_MATCH_BM,
     JBUF_TYPE_REC,
     JBUF_TYPE_NULL,

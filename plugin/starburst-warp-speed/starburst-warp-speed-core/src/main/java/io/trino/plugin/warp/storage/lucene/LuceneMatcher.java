@@ -35,7 +35,6 @@ import java.util.List;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_LUCENE_FAILED;
 import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_DOCS_TO_FIND;
 import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_INDEX_UNIQUE_ID;
-import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_NATIVE_COOKIE;
 import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_NUM_OF;
 
 @SuppressWarnings("deprecation")
@@ -128,23 +127,21 @@ public class LuceneMatcher
     void luceneMatch(ChunkState chunkState)
     {
         int baseMatchParams = currChunkInRange * LUCENE_MATCH_JPARAMS_NUM_OF.ordinal();
-        long nativeCookie = matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_NATIVE_COOKIE.ordinal()];
-
+        long indexUniqueIdInRowGroup = matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_INDEX_UNIQUE_ID.ordinal()];
         // in case native decided to skip a chunk in the range it will mark the cookie as zero and we need to skip thie one
         // another case for skip is if index is invalid
-        if (nativeCookie == 0) {
+        if (indexUniqueIdInRowGroup == -1) {
             matchResult[currChunkInRange] = 0; // return no match
             return;
         }
 
         long startTime = System.currentTimeMillis();
-        int indexUniqueIdInRowGroup = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_INDEX_UNIQUE_ID.ordinal()];
         int docsToFind = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_DOCS_TO_FIND.ordinal()];
         int resultBufferOffset = (int) (currChunkInRange * storageEngineConstants.getPageSize());
 
         if (logger.isDebugEnabled()) {
-            logger.debug("luceneMatch currChunkInRange %d nativeCookie %x indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
-                    currChunkInRange, nativeCookie, indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, chunkState);
+            logger.debug("luceneMatch currChunkInRange %d indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
+                    currChunkInRange, indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, chunkState);
         }
 
         try {
@@ -153,7 +150,7 @@ public class LuceneMatcher
             WarpInputDirectory warpInputDirectory = new WarpInputDirectory(luceneIndexReader,
                     storageEngineConstants,
                     lucenePageCacheStats,
-                    indexUniqueIdInRowGroup,
+                    (int) indexUniqueIdInRowGroup,
                     FILE_PREFIX,
                     chunkState.filesLength());
             IndexReader reader = DirectoryReader.open(warpInputDirectory);
@@ -164,8 +161,8 @@ public class LuceneMatcher
             matchResult[currChunkInRange] = warpCollector.getCount();
         }
         catch (Exception e) {
-            shapingLogger.error(e, "error in lucene search nativeCookie %d indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
-                    nativeCookie, indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, chunkState);
+            shapingLogger.error(e, "error in lucene search indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
+                    indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, chunkState);
             throw new TrinoException(WARP_MATCH_LUCENE_FAILED, e.getMessage());
         }
         finally {
