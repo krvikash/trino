@@ -24,6 +24,7 @@ import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.trino.spi.QueryId;
+import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeId;
@@ -47,6 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.sortedCopyOf;
 import static com.google.common.util.concurrent.Futures.addCallback;
@@ -389,7 +391,8 @@ public class BufferExchange
     private void throwIfFailed()
     {
         if (failure != null) {
-            throw new RuntimeException("Exchange marked already failed", failure);
+            throwIfInstanceOf(failure, TrinoException.class);
+            throw new TrinoException(StandardErrorCode.GENERIC_INTERNAL_ERROR, "Exchange marked already failed", failure);
         }
     }
 
