@@ -71,7 +71,7 @@ public class GlobalConfig
     private String azureConnectionString;
     private boolean failureGeneratorEnabled;
     private long emptyPageIterations = 5000;
-    private boolean enableDictionary;
+    private boolean enableDictionary = true;
     private SwaggerExposingLevel swaggerExposingLevel = SwaggerExposingLevel.DEBUG;
 
     private boolean debugWarmingSingleThreaded;
