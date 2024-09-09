@@ -163,7 +163,7 @@ import io.trino.operator.window.pattern.PhysicalValuePointer;
 import io.trino.operator.window.pattern.SetEvaluator.SetEvaluatorSupplier;
 import io.trino.plugin.base.MappedRecordSet;
 import io.trino.server.protocol.spooling.QueryDataEncoder;
-import io.trino.server.protocol.spooling.QueryDataEncoderSelector;
+import io.trino.server.protocol.spooling.QueryDataEncoders;
 import io.trino.server.protocol.spooling.SpoolingManagerBridge;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
@@ -451,7 +451,7 @@ public class LocalExecutionPlanner
     private final DataSize maxPagePartitioningBufferSize;
     private final DataSize maxLocalExchangeBufferSize;
     private final SpillerFactory spillerFactory;
-    private final QueryDataEncoderSelector encoderSelector;
+    private final QueryDataEncoders encoders;
     private final Optional<SpoolingManagerBridge> spoolingManager;
     private final SingleStreamSpillerFactory singleStreamSpillerFactory;
     private final PartitioningSpillerFactory partitioningSpillerFactory;
@@ -507,7 +507,7 @@ public class LocalExecutionPlanner
             CacheStats cacheStats,
             TaskManagerConfig taskManagerConfig,
             SpillerFactory spillerFactory,
-            QueryDataEncoderSelector encoderSelector,
+            QueryDataEncoders encoders,
             Optional<SpoolingManagerBridge> spoolingManager,
             SingleStreamSpillerFactory singleStreamSpillerFactory,
             PartitioningSpillerFactory partitioningSpillerFactory,
@@ -541,7 +541,7 @@ public class LocalExecutionPlanner
         this.cacheStats = requireNonNull(cacheStats, "cacheStats is null");
         this.maxIndexMemorySize = taskManagerConfig.getMaxIndexMemoryUsage();
         this.spillerFactory = requireNonNull(spillerFactory, "spillerFactory is null");
-        this.encoderSelector = requireNonNull(encoderSelector, "encoderSelector is null");
+        this.encoders = requireNonNull(encoders, "encoders is null");
         this.spoolingManager = requireNonNull(spoolingManager, "spoolingManager is null");
         this.singleStreamSpillerFactory = requireNonNull(singleStreamSpillerFactory, "singleStreamSpillerFactory is null");
         this.partitioningSpillerFactory = requireNonNull(partitioningSpillerFactory, "partitioningSpillerFactory is null");
@@ -1111,7 +1111,7 @@ public class LocalExecutionPlanner
             Session session = context.taskContext.getSession();
             Optional<QueryDataEncoder.Factory> encoderFactory = session
                     .getQueryDataEncodingId()
-                    .flatMap(encoderSelector::select);
+                    .map(encoders::get);
             PhysicalOperation operation = node.getSource().accept(this, context);
 
             if (encoderFactory.isEmpty()) {
