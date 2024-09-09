@@ -31,17 +31,6 @@ public class ConstraintApplicationResult<T>
     private final List<Alternative<T>> alternatives;
 
     /**
-     * @param precalculateStatistics Indicates whether engine should consider calculating statistics based on the plan before pushdown,
-     * as the connector may be unable to provide good table statistics for {@code handle}.
-     * @deprecated Use {@link #ConstraintApplicationResult(Object, TupleDomain, ConnectorExpression, boolean)}.
-     */
-    @Deprecated
-    public ConstraintApplicationResult(T handle, TupleDomain<ColumnHandle> remainingFilter, boolean precalculateStatistics)
-    {
-        this(false, List.of(new Alternative<>(handle, remainingFilter, Optional.empty(), precalculateStatistics)));
-    }
-
-    /**
      * @param remainingExpression the remaining expression, which will be AND-ed with {@code remainingFilter},
      * @param precalculateStatistics Indicates whether engine should consider calculating statistics based on the plan before pushdown,
      * as the connector may be unable to provide good table statistics for {@code handle}.
