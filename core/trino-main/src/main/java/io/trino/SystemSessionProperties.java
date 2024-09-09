@@ -210,6 +210,9 @@ public final class SystemSessionProperties
     private static final String FAULT_TOLERANT_EXECUTION_STAGE_ESTIMATION_FOR_EAGER_PARENT_ENABLED = "fault_tolerant_execution_stage_estimation_for_eager_parent_enabled";
     private static final String FAULT_TOLERANT_EXECUTION_STAGE_ESTIMATION_BY_STATS_ENABLED = "fault_tolerant_execution_stage_estimation_by_stats_enabled";
     public static final String FAULT_TOLERANT_EXECUTION_ADAPTIVE_QUERY_PLANNING_ENABLED = "fault_tolerant_execution_adaptive_query_planning_enabled";
+    public static final String FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_ENABLED = "fault_tolerant_execution_adaptive_join_reordering_enabled";
+    public static final String FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_SIZE_DIFFERENCE_RATIO = "fault_tolerant_execution_adaptive_join_reordering_size_difference_ratio";
+    public static final String FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_MIN_SIZE_THRESHOLD = "fault_tolerant_execution_adaptive_join_reordering_min_size_threshold";
     public static final String ADAPTIVE_PARTIAL_AGGREGATION_ENABLED = "adaptive_partial_aggregation_enabled";
     public static final String ADAPTIVE_PARTIAL_AGGREGATION_UNIQUE_ROWS_RATIO_THRESHOLD = "adaptive_partial_aggregation_unique_rows_ratio_threshold";
     public static final String REMOTE_TASK_ADAPTIVE_UPDATE_REQUEST_SIZE_ENABLED = "remote_task_adaptive_update_request_size_enabled";
@@ -1085,6 +1088,28 @@ public final class SystemSessionProperties
                         "Enable adaptive query planning for the fault tolerant execution",
                         queryManagerConfig.isFaultTolerantExecutionAdaptiveQueryPlanningEnabled(),
                         false),
+                booleanProperty(
+                        FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_ENABLED,
+                        "Reorder partitioned join based on run time stats in fault tolerant execution",
+                        queryManagerConfig.isFaultTolerantExecutionAdaptiveJoinReorderingEnabled(),
+                        false),
+                doubleProperty(
+                        FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_SIZE_DIFFERENCE_RATIO,
+                        "The ratio of difference in estimated size of right and left side of join to consider reordering",
+                        queryManagerConfig.getFaultTolerantExecutionAdaptiveJoinReorderingSizeDifferenceRatio(),
+                        value -> {
+                            if (value < 1.0) {
+                                throw new TrinoException(
+                                        INVALID_SESSION_PROPERTY,
+                                        format("%s must be greater than or equal to 1.0: %s", FAULT_TOLERANT_EXECUTION_SMALL_STAGE_SOURCE_SIZE_MULTIPLIER, value));
+                            }
+                        },
+                        true),
+                dataSizeProperty(
+                        FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_MIN_SIZE_THRESHOLD,
+                        "The minimum size of the right side of join to consider reordering",
+                        queryManagerConfig.getFaultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold(),
+                        true),
                 booleanProperty(
                         ADAPTIVE_PARTIAL_AGGREGATION_ENABLED,
                         "When enabled, partial aggregation might be adaptively turned off when it does not provide any performance gain",
@@ -2051,6 +2076,21 @@ public final class SystemSessionProperties
     public static boolean isFaultTolerantExecutionAdaptiveQueryPlanningEnabled(Session session)
     {
         return session.getSystemProperty(FAULT_TOLERANT_EXECUTION_ADAPTIVE_QUERY_PLANNING_ENABLED, Boolean.class);
+    }
+
+    public static boolean isFaultTolerantExecutionAdaptiveJoinReorderingEnabled(Session session)
+    {
+        return session.getSystemProperty(FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_ENABLED, Boolean.class);
+    }
+
+    public static double getFaultTolerantExecutionAdaptiveJoinReorderingSizeDifferenceRatio(Session session)
+    {
+        return session.getSystemProperty(FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_SIZE_DIFFERENCE_RATIO, Double.class);
+    }
+
+    public static DataSize getFaultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold(Session session)
+    {
+        return session.getSystemProperty(FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_MIN_SIZE_THRESHOLD, DataSize.class);
     }
 
     public static boolean isAdaptivePartialAggregationEnabled(Session session)

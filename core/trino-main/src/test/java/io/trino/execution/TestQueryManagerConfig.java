@@ -113,7 +113,10 @@ public class TestQueryManagerConfig
                 .setFaultTolerantExecutionSmallStageRequireNoMorePartitions(false)
                 .setFaultTolerantExecutionStageEstimationForEagerParentEnabled(true)
                 .setFaultTolerantExecutionStageEstimationByStatsEnabled(false)
-                .setFaultTolerantExecutionAdaptiveQueryPlanningEnabled(false)
+                .setFaultTolerantExecutionAdaptiveQueryPlanningEnabled(true)
+                .setFaultTolerantExecutionAdaptiveJoinReorderingEnabled(true)
+                .setFaultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold(DataSize.of(5, GIGABYTE))
+                .setFaultTolerantExecutionAdaptiveJoinReorderingSizeDifferenceRatio(1.5)
                 .setMaxWriterTaskCount(100));
     }
 
@@ -193,7 +196,10 @@ public class TestQueryManagerConfig
                 .put("fault-tolerant-execution-small-stage-require-no-more-partitions", "true")
                 .put("fault-tolerant-execution-stage-estimation-for-eager-parent-enabled", "false")
                 .put("fault-tolerant-execution-stage-estimation-by-stats-enabled", "true")
-                .put("fault-tolerant-execution-adaptive-query-planning-enabled", "true")
+                .put("fault-tolerant-execution-adaptive-query-planning-enabled", "false")
+                .put("fault-tolerant-execution-adaptive-join-reordering-enabled", "false")
+                .put("fault-tolerant-execution-adaptive-join-reordering-min-size-threshold", "1GB")
+                .put("fault-tolerant-execution-adaptive-join-reordering-size-difference-ratio", "2")
                 .buildOrThrow();
 
         QueryManagerConfig expected = new QueryManagerConfig()
@@ -268,7 +274,10 @@ public class TestQueryManagerConfig
                 .setFaultTolerantExecutionSmallStageRequireNoMorePartitions(true)
                 .setFaultTolerantExecutionStageEstimationForEagerParentEnabled(false)
                 .setFaultTolerantExecutionStageEstimationByStatsEnabled(true)
-                .setFaultTolerantExecutionAdaptiveQueryPlanningEnabled(true)
+                .setFaultTolerantExecutionAdaptiveQueryPlanningEnabled(false)
+                .setFaultTolerantExecutionAdaptiveJoinReorderingEnabled(false)
+                .setFaultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold(DataSize.of(1, GIGABYTE))
+                .setFaultTolerantExecutionAdaptiveJoinReorderingSizeDifferenceRatio(2.0)
                 .setMaxWriterTaskCount(101);
 
         assertFullMapping(properties, expected);
