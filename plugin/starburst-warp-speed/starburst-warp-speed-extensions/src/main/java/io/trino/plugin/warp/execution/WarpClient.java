@@ -33,7 +33,7 @@ import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.jackson.io.JacksonSerializer;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.spi.catalog.CatalogName;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -58,17 +58,17 @@ public class WarpClient
 {
     public static final JsonCodec<Void> VOID_RESULTS_CODEC = JsonCodec.jsonCodec(Void.class);
     private static final Logger logger = Logger.get(WarpClient.class);
-    private final CatalogNameProvider catalogNameProvider;
+    private final CatalogName catalogName;
     private final HttpClient httpClient;
     private final WarpExtensionConfig warpExtensionConfig;
     private final Optional<Supplier<JwtBuilder>> jwtBuilder;
 
     @Inject
-    public WarpClient(CatalogNameProvider catalogNameProvider,
+    public WarpClient(CatalogName catalogName,
             @ForWarp HttpClient httpClient,
             WarpExtensionConfig warpExtensionConfig)
     {
-        this.catalogNameProvider = requireNonNull(catalogNameProvider, "httpClient is null");
+        this.catalogName = requireNonNull(catalogName, "catalog name is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.warpExtensionConfig = requireNonNull(warpExtensionConfig);
 
@@ -92,7 +92,7 @@ public class WarpClient
         if (Objects.isNull(uri)) {
             throw new RuntimeException("uri is null");
         }
-        URI fullUri = uri.appendPath(catalogNameProvider.getRestTaskPrefix())
+        URI fullUri = uri.appendPath("/v1/ext/" + catalogName.toString())
                 .appendPath(taskData.getTaskName()).build();
         String callerName = taskData.getClass().getSimpleName();
         Request.Builder builder = Request.Builder.preparePost()
@@ -183,7 +183,7 @@ public class WarpClient
             if (isInternal && warpExtensionConfig.getInternalCommunicationSharedSecret() != null) {
                 uriBuilder.appendPath("internal");
             }
-            uriBuilder.appendPath(catalogNameProvider.get());
+            uriBuilder.appendPath(catalogName.toString());
         }
         return uriBuilder;
     }

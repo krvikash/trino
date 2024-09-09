@@ -33,9 +33,4 @@ public class CatalogNameProvider
     {
         return catalogName;
     }
-
-    public String getRestTaskPrefix()
-    {
-        return "/v1/ext/" + get();
-    }
 }
