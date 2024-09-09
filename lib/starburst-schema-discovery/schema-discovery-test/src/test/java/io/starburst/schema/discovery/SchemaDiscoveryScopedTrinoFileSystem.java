@@ -9,10 +9,12 @@
  */
 package io.starburst.schema.discovery;
 
+import io.airlift.units.Duration;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoOutputFile;
+import io.trino.filesystem.UriLocation;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -69,6 +71,13 @@ public interface SchemaDiscoveryScopedTrinoFileSystem
 
     @Override
     default Optional<Location> createTemporaryDirectory(Location targetPath, String temporaryPrefix, String relativePrefix)
+            throws IOException
+    {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    default Optional<UriLocation> preSignedUri(Location location, Duration ttl)
             throws IOException
     {
         throw new UnsupportedOperationException("Not implemented");
