@@ -18,6 +18,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
+import io.trino.filesystem.s3.S3FileSystemStats;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.containers.Minio;
@@ -64,7 +65,8 @@ public class TestUnloadMinio
                         .setAwsAccessKey(MINIO_ACCESS_KEY)
                         .setAwsSecretKey(MINIO_SECRET_KEY)
                         .setEndpoint(minio.getMinioAddress())
-                        .setPathStyleAccess(true));
+                        .setPathStyleAccess(true),
+                new S3FileSystemStats());
     }
 
     @Override

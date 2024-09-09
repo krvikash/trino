@@ -21,6 +21,7 @@ import io.starburst.schema.discovery.request.GenerateOptions;
 import io.starburst.schema.discovery.request.GuessRequest;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
+import io.trino.filesystem.s3.S3FileSystemStats;
 import io.trino.spi.security.ConnectorIdentity;
 
 import java.io.BufferedReader;
@@ -66,7 +67,8 @@ public class Tester
                 OpenTelemetry.noop(),
                 new S3FileSystemConfig()
                         .setRegion("us-east-1")
-                        .setStreamingPartSize(DataSize.valueOf("5.5MB")));
+                        .setStreamingPartSize(DataSize.valueOf("5.5MB")),
+                new S3FileSystemStats());
 
         return new DiscoveryTrinoFileSystem(s3FileSystemFactory.create(ConnectorIdentity.ofUser("local-discovery")));
     }

@@ -18,6 +18,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
+import io.trino.filesystem.s3.S3FileSystemStats;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.testing.QueryRunner;
 
@@ -50,7 +51,8 @@ public class TestUnloadS3
                 new S3FileSystemConfig()
                         .setRegion(requireEnv("AWS_REGION"))
                         .setAwsAccessKey(requireEnv("AWS_ACCESS_KEY_ID"))
-                        .setAwsSecretKey(requireEnv("AWS_SECRET_ACCESS_KEY")));
+                        .setAwsSecretKey(requireEnv("AWS_SECRET_ACCESS_KEY")),
+                new S3FileSystemStats());
     }
 
     @Override

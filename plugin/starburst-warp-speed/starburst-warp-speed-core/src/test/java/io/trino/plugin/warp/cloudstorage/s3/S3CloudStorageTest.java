@@ -18,6 +18,7 @@ import io.airlift.units.DataSize;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
+import io.trino.filesystem.s3.S3FileSystemStats;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudstorage.CloudStorageAbstractTest;
 import io.trino.spi.connector.ConnectorContext;
@@ -52,7 +53,7 @@ public class S3CloudStorageTest
                 .setRoleSessionName("S3CloudStorageTest@warp-speed")
                 .setStreamingPartSize(DataSize.valueOf("5.5MB"));
 
-        S3FileSystemFactory fileSystemFactory = new S3FileSystemFactory(OpenTelemetry.noop(), config);
+        S3FileSystemFactory fileSystemFactory = new S3FileSystemFactory(OpenTelemetry.noop(), config, new S3FileSystemStats());
 
         S3CloudStorageModule module = new S3CloudStorageModule(new TestingConnectorContext(), new ConfigurationFactory(Map.of()), ForWarp.class);
 
