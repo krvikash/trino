@@ -23,7 +23,7 @@ import com.starburstdata.dataframe.analyzer.AnalyzerFactory;
 import com.starburstdata.dataframe.analyzer.TrinoMetadata;
 import com.starburstdata.dataframe.plan.LogicalPlan;
 import com.starburstdata.dataframe.plan.TrinoPlan;
-import io.airlift.compress.zstd.ZstdDecompressor;
+import io.airlift.compress.v3.zstd.ZstdDecompressor;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
@@ -129,8 +129,9 @@ public class AnalyzeLogicalPlan
             if (logicalPlan.startsWith(PREFIX)) {
                 String encoded = logicalPlan.substring(PREFIX.length());
                 byte[] compressed = Base64.getDecoder().decode(encoded);
-                byte[] logicalPlanBytes = new byte[toIntExact(ZstdDecompressor.getDecompressedSize(compressed, 0, compressed.length))];
-                new ZstdDecompressor().decompress(compressed, 0, compressed.length, logicalPlanBytes, 0, logicalPlanBytes.length);
+                ZstdDecompressor zstdDecompressor = ZstdDecompressor.create();
+                byte[] logicalPlanBytes = new byte[toIntExact(zstdDecompressor.getDecompressedSize(compressed, 0, compressed.length))];
+                zstdDecompressor.decompress(compressed, 0, compressed.length, logicalPlanBytes, 0, logicalPlanBytes.length);
                 logicalPlan = new String(logicalPlanBytes, UTF_8);
             }
             Session session = ((FullConnectorSession) connectorSession).getSession();
