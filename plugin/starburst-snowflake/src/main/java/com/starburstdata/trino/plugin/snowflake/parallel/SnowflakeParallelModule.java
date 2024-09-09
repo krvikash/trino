@@ -41,7 +41,7 @@ public class SnowflakeParallelModule
     protected void setup(Binder binder)
     {
         newOptionalBinder(binder, ConnectorPageSourceProvider.class)
-                .setDefault().to(SnowflakePageSourceProvider.class).in(Scopes.SINGLETON);
+                .setBinding().to(SnowflakePageSourceProvider.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, Key.get(ConnectorSplitManager.class, ForJdbcDynamicFiltering.class))
                 .setBinding().to(SnowflakeSplitManager.class).in(SINGLETON);
         bindSessionPropertiesProvider(binder, SnowflakeParallelSessionProperties.class);

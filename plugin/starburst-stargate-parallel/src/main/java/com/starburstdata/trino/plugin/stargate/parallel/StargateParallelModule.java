@@ -31,10 +31,12 @@ public class StargateParallelModule
     @Override
     protected void setup(Binder binder)
     {
-        newOptionalBinder(binder, ConnectorRecordSetProvider.class).setBinding().to(StargateParallelRecordSetProvider.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, ConnectorRecordSetProvider.class)
+                .setBinding()
+                .to(StargateParallelRecordSetProvider.class)
+                .in(Scopes.SINGLETON);
         newOptionalBinder(binder, Key.get(ConnectorSplitManager.class, ForJdbcDynamicFiltering.class))
                 .setBinding().to(StargateParallelSplitManager.class).in(SINGLETON);
-        binder.bind(StargateParallelConnector.class).in(Scopes.SINGLETON);
         binder.bind(JdbcSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(SegmentLoader.class).to(OkHttpSegmentLoader.class).in(Scopes.SINGLETON);
 

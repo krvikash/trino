@@ -16,6 +16,7 @@ import com.starburstdata.trino.plugin.stargate.StargateMetadataFactory;
 import com.starburstdata.trino.plugin.stargate.StargateModule;
 import io.airlift.bootstrap.Bootstrap;
 import io.trino.plugin.jdbc.ExtraCredentialsBasedIdentityCacheMappingModule;
+import io.trino.plugin.jdbc.JdbcConnector;
 import io.trino.plugin.jdbc.JdbcMetadataFactory;
 import io.trino.plugin.jdbc.JdbcModule;
 import io.trino.spi.NodeManager;
@@ -73,6 +74,6 @@ public class StargateParallelConnectorFactory
                 .setRequiredConfigurationProperties(requiredConfig)
                 .initialize();
 
-        return injector.getInstance(StargateParallelConnector.class);
+        return injector.getInstance(JdbcConnector.class);
     }
 }

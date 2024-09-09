@@ -523,6 +523,12 @@ public class RetryingJdbcClient
     }
 
     @Override
+    public List<JdbcColumnHandle> getPrimaryKeys(ConnectorSession session, RemoteTableName remoteTableName)
+    {
+        return retry(policy, () -> delegate.getPrimaryKeys(session, remoteTableName));
+    }
+
+    @Override
     public List<JdbcColumnHandle> getColumns(ConnectorSession session, JdbcTableHandle tableHandle)
     {
         return retry(policy, () -> delegate.getColumns(session, tableHandle));

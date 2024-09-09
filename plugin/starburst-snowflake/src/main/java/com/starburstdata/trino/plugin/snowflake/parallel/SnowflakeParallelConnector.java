@@ -37,7 +37,6 @@ public class SnowflakeParallelConnector
     public SnowflakeParallelConnector(
             LifeCycleManager lifeCycleManager,
             ConnectorSplitManager jdbcSplitManager,
-            ConnectorRecordSetProvider jdbcRecordSetProvider,
             ConnectorPageSinkProvider jdbcPageSinkProvider,
             Optional<ConnectorAccessControl> accessControl,
             Set<Procedure> procedures,
@@ -50,7 +49,7 @@ public class SnowflakeParallelConnector
         super(
                 lifeCycleManager,
                 jdbcSplitManager,
-                jdbcRecordSetProvider,
+                connectorPageSourceProvider,
                 jdbcPageSinkProvider,
                 accessControl,
                 procedures,

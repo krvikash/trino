@@ -503,4 +503,10 @@ public abstract class ForwardingJdbcClient
     {
         return delegate().getColumns(session, tableHandle);
     }
+
+    @Override
+    public List<JdbcColumnHandle> getPrimaryKeys(ConnectorSession session, RemoteTableName remoteTableName)
+    {
+        return delegate().getPrimaryKeys(session, remoteTableName);
+    }
 }

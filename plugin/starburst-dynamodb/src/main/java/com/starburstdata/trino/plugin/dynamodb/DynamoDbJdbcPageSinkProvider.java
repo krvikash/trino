@@ -12,6 +12,7 @@ package com.starburstdata.trino.plugin.dynamodb;
 import com.google.inject.Inject;
 import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcPageSinkProvider;
+import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.connector.ConnectorInsertTableHandle;
 import io.trino.spi.connector.ConnectorMergeSink;
@@ -31,9 +32,9 @@ public class DynamoDbJdbcPageSinkProvider
         extends JdbcPageSinkProvider
 {
     @Inject
-    public DynamoDbJdbcPageSinkProvider(JdbcClient jdbcClient, RemoteQueryModifier queryModifier)
+    public DynamoDbJdbcPageSinkProvider(JdbcClient jdbcClient, RemoteQueryModifier queryModifier, QueryBuilder queryBuilder)
     {
-        super(jdbcClient, queryModifier);
+        super(jdbcClient, queryModifier, queryBuilder);
     }
 
     @Override
