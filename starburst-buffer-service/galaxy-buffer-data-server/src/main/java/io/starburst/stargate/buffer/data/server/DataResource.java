@@ -328,30 +328,47 @@ public class DataResource
             return;
         }
 
-        int currentInProgressAddDataPagesRequests = incrementInProgressAddDataPagesRequests();
-        if (bufferNodeStateManager.isDrainingStarted()) {
-            decrementInProgressAddDataPagesRequests();
-            logger.info("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
-            consumeRequestAndCompleteAsyncResponse(clientId, asyncResponse, inputStream, processingStart, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
-            return;
+        InProgressLatch inProgressLatch = incrementInProgressAddDataPagesRequests();
+
+        try {
+            if (bufferNodeStateManager.isDrainingStarted()) {
+                inProgressLatch.decrement();
+                logger.info("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
+                consumeRequestAndCompleteAsyncResponse(clientId, asyncResponse, inputStream, processingStart, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
+                return;
+            }
+
+            if (inProgressLatch.currentRequestsCount() > maxInProgressAddDataPagesRequests) {
+                inProgressLatch.decrement();
+                stats.getOverloadedAddDataPagesCount().update(1);
+                addDataPagesThrottlingCalculator.recordThrottlingEvent();
+                logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
+                        exchangeId, taskId, attemptId, dataPagesId, inProgressLatch, maxInProgressAddDataPagesRequests);
+                consumeRequestAndCompleteAsyncResponse(
+                        clientId,
+                        asyncResponse,
+                        inputStream,
+                        processingStart,
+                        Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
+                return;
+            }
+        }
+        catch (Exception e) {
+            // ensure we are not loosing counter
+            inProgressLatch.decrement();
+            throw e;
         }
 
-        if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
-            decrementInProgressAddDataPagesRequests();
-            stats.getOverloadedAddDataPagesCount().update(1);
-            addDataPagesThrottlingCalculator.recordThrottlingEvent();
-            logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
-                    exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
-            consumeRequestAndCompleteAsyncResponse(
-                    clientId,
-                    asyncResponse,
-                    inputStream,
-                    processingStart,
-                    Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
-            return;
+        SliceLease sliceLease;
+        try {
+            sliceLease = new SliceLease(memoryAllocator, contentLength);
+            timeoutExecutor.schedule(sliceLease::cancel, asyncTimeout, MILLISECONDS);
         }
-        SliceLease sliceLease = new SliceLease(memoryAllocator, contentLength);
-        timeoutExecutor.schedule(sliceLease::cancel, asyncTimeout, MILLISECONDS);
+        catch (Exception e) {
+            inProgressLatch.decrement();
+            throw e;
+        }
+
         try {
             // callbacks must be registered before bindAsyncResponse is called; otherwise callback may be not called
             // if request is completed quickly
@@ -387,249 +404,254 @@ public class DataResource
                 sliceLease.release();
             }
             finally {
-                decrementInProgressAddDataPagesRequests();
+                inProgressLatch.decrement();
             }
             throw e;
         }
 
-        AtomicReference<ReleasableReadListener> releasableReadListenerWrapper = new AtomicReference<>();
-        AtomicBoolean inProgressCompletionFlag = new AtomicBoolean();
-        addCallback(
-                sliceLease.getSliceFuture(),
-                new FutureCallback<>()
-                {
-                    @Override
-                    public void onSuccess(Slice slice)
+        try {
+            AtomicReference<ReleasableReadListener> releasableReadListenerWrapper = new AtomicReference<>();
+            AtomicBoolean inProgressCompletionFlag = new AtomicBoolean();
+            addCallback(
+                    sliceLease.getSliceFuture(),
+                    new FutureCallback<>()
                     {
-                        ReadListener readListener = new ReadListener()
+                        @Override
+                        public void onSuccess(Slice slice)
                         {
-                            private final List<ListenableFuture<Void>> addDataPagesFutures = new ArrayList<>();
-
-                            private int bytesRead;
-
-                            @Override
-                            public void onDataAvailable()
-                                    throws IOException
+                            ReadListener readListener = new ReadListener()
                             {
-                                // && !inputStream.isFinished() seems unnecessary but it is still
-                                // added in Jetty 12 examples using ReadListener
-                                // Keeping for now to see if we still get some spurious internal
-                                // race conditions with it.
-                                while (inputStream.isReady() && !inputStream.isFinished()) {
-                                    if (processingDeadline < System.currentTimeMillis()) {
-                                        // we've exceeded client timeout for consuming an input stream
-                                        if (!asyncResponse.isDone()) {
-                                            asyncResponse.resume(errorResponse(new TimeoutException("Exceeded deadline")));
-                                        }
-                                        break;
-                                    }
-                                    if (bytesRead < contentLength) {
-                                        int readLength = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
-                                        if (readLength == -1) {
+                                private final List<ListenableFuture<Void>> addDataPagesFutures = new ArrayList<>();
+
+                                private int bytesRead;
+
+                                @Override
+                                public void onDataAvailable()
+                                        throws IOException
+                                {
+                                    // && !inputStream.isFinished() seems unnecessary but it is still
+                                    // added in Jetty 12 examples using ReadListener
+                                    // Keeping for now to see if we still get some spurious internal
+                                    // race conditions with it.
+                                    while (inputStream.isReady() && !inputStream.isFinished()) {
+                                        if (processingDeadline < System.currentTimeMillis()) {
+                                            // we've exceeded client timeout for consuming an input stream
+                                            if (!asyncResponse.isDone()) {
+                                                asyncResponse.resume(errorResponse(new TimeoutException("Exceeded deadline")));
+                                            }
                                             break;
                                         }
-                                        bytesRead += readLength;
+                                        if (bytesRead < contentLength) {
+                                            int readLength = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
+                                            if (readLength == -1) {
+                                                break;
+                                            }
+                                            bytesRead += readLength;
+                                        }
+                                        else {
+                                            // we need extra call to read after we read number of bytes denoted by contentLength,
+                                            // otherwise inputStream will never signal EOF and `onAllDataRead` will not be called.
+                                            int readLength = inputStream.read();
+                                            checkState(readLength == -1, "expected EOF but read %s", readLength);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                @Override
+                                public void onAllDataRead()
+                                {
+                                    verify(bytesRead == contentLength,
+                                            "Actual number of bytes read %s not equal to contentLength %s", bytesRead, contentLength);
+
+                                    SliceInput sliceInput = slice.getInput();
+                                    long readChecksum = sliceInput.readLong();
+                                    XxHash64 hash = new XxHash64();
+                                    boolean shouldRetainMemory = false;
+
+                                    Map<Integer, List<Slice>> pagesMap = new HashMap<>();
+                                    Supplier<String> errorPrefix = () -> "error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId);
+                                    while (sliceInput.isReadable()) {
+                                        int partitionId = sliceInput.readInt();
+                                        int bytes = sliceInput.readInt();
+                                        writtenDataSizePerPartitionDistribution.add(bytes);
+                                        ImmutableList.Builder<Slice> pages = ImmutableList.builder();
+                                        while (bytes > 0 && sliceInput.isReadable()) {
+                                            int pageLength = sliceInput.readInt();
+                                            bytes -= Integer.BYTES;
+                                            Slice page = sliceInput.readSlice(pageLength);
+                                            if (dataIntegrityVerificationEnabled) {
+                                                hash = hash.update(page);
+                                            }
+                                            pages.add(page);
+                                            bytes -= pageLength;
+                                        }
+
+                                        if (bytes != 0) {
+                                            resumeWithError(errorPrefix.get(), format("Data corruption, no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes)), USER_ERROR);
+                                            return;
+                                        }
+                                        // do not call chunkManager.addDataPages(exchangeId, partitionId, ...)
+                                        // just yet so we verify checksums for whole request first
+                                        pagesMap.put(partitionId, pages.build());
+                                    }
+
+                                    writtenDataSize.update(contentLength);
+                                    writtenDataSizeDistribution.add(contentLength);
+
+                                    if (dataIntegrityVerificationEnabled) {
+                                        long calculatedChecksum = hash.hash();
+                                        if (calculatedChecksum == NO_CHECKSUM) {
+                                            calculatedChecksum++;
+                                        }
+                                        if (readChecksum != calculatedChecksum) {
+                                            resumeWithError(errorPrefix.get(), format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum), USER_ERROR);
+                                            return;
+                                        }
+                                    }
+                                    else if (readChecksum != NO_CHECKSUM) {
+                                        resumeWithError(errorPrefix.get(), format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum), USER_ERROR);
+                                        return;
+                                    }
+                                    try {
+                                        for (Map.Entry<Integer, List<Slice>> entry : pagesMap.entrySet()) {
+                                            Integer partitionId = entry.getKey();
+                                            List<Slice> pages = entry.getValue();
+                                            AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(
+                                                    exchangeId,
+                                                    partitionId,
+                                                    taskId,
+                                                    attemptId,
+                                                    dataPagesId,
+                                                    pages);
+                                            addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
+                                            shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
+                                        }
+                                    }
+                                    catch (DataApiException e) {
+                                        resumeWithError(errorPrefix.get(), e);
+                                        return;
+                                    }
+
+                                    if (shouldRetainMemory) {
+                                        // only release memory when all addDataPagesFutures complete
+                                        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
                                     }
                                     else {
-                                        // we need extra call to read after we read number of bytes denoted by contentLength,
-                                        // otherwise inputStream will never signal EOF and `onAllDataRead` will not be called.
-                                        int readLength = inputStream.read();
-                                        checkState(readLength == -1, "expected EOF but read %s", readLength);
-                                        break;
+                                        // addDataPagesFutures are all old futures and we can release sliceLease early
+                                        finalizeAddDataPagesRequest(emptyList(), sliceLease);
                                     }
-                                }
-                            }
 
-                            @Override
-                            public void onAllDataRead()
-                            {
-                                verify(bytesRead == contentLength,
-                                        "Actual number of bytes read %s not equal to contentLength %s", bytesRead, contentLength);
+                                    // complete http response if not completed yet via timeout
+                                    addCallback(nonCancellationPropagating(allAsList(addDataPagesFutures)), new FutureCallback<>()
+                                    {
+                                        @Override
+                                        public void onSuccess(List<Void> value)
+                                        {
+                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
+                                            Response response = rateLimit.isPresent() ? okResponse(Map.of(
+                                                    RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
+                                                    AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis())))
+                                                    : okResponse();
 
-                                SliceInput sliceInput = slice.getInput();
-                                long readChecksum = sliceInput.readLong();
-                                XxHash64 hash = new XxHash64();
-                                boolean shouldRetainMemory = false;
-
-                                Map<Integer, List<Slice>> pagesMap = new HashMap<>();
-                                Supplier<String> errorPrefix = () -> "error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId);
-                                while (sliceInput.isReadable()) {
-                                    int partitionId = sliceInput.readInt();
-                                    int bytes = sliceInput.readInt();
-                                    writtenDataSizePerPartitionDistribution.add(bytes);
-                                    ImmutableList.Builder<Slice> pages = ImmutableList.builder();
-                                    while (bytes > 0 && sliceInput.isReadable()) {
-                                        int pageLength = sliceInput.readInt();
-                                        bytes -= Integer.BYTES;
-                                        Slice page = sliceInput.readSlice(pageLength);
-                                        if (dataIntegrityVerificationEnabled) {
-                                            hash = hash.update(page);
+                                            if (!asyncResponse.isDone()) {
+                                                asyncResponse.resume(response);
+                                            }
                                         }
-                                        pages.add(page);
-                                        bytes -= pageLength;
-                                    }
 
-                                    if (bytes != 0) {
-                                        resumeWithError(errorPrefix.get(), format("Data corruption, no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes)), USER_ERROR);
-                                        return;
-                                    }
-                                    // do not call chunkManager.addDataPages(exchangeId, partitionId, ...)
-                                    // just yet so we verify checksums for whole request first
-                                    pagesMap.put(partitionId, pages.build());
-                                }
-
-                                writtenDataSize.update(contentLength);
-                                writtenDataSizeDistribution.add(contentLength);
-
-                                if (dataIntegrityVerificationEnabled) {
-                                    long calculatedChecksum = hash.hash();
-                                    if (calculatedChecksum == NO_CHECKSUM) {
-                                        calculatedChecksum++;
-                                    }
-                                    if (readChecksum != calculatedChecksum) {
-                                        resumeWithError(errorPrefix.get(), format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum), USER_ERROR);
-                                        return;
-                                    }
-                                }
-                                else if (readChecksum != NO_CHECKSUM) {
-                                    resumeWithError(errorPrefix.get(), format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum), USER_ERROR);
-                                    return;
+                                        @Override
+                                        public void onFailure(Throwable throwable)
+                                        {
+                                            logger.warn(throwable, errorPrefix.get());
+                                            if (!asyncResponse.isDone()) {
+                                                asyncResponse.resume(errorResponse(throwable));
+                                            }
+                                        }
+                                    }, responseExecutor);
                                 }
 
-                                try {
-                                    for (Map.Entry<Integer, List<Slice>> entry : pagesMap.entrySet()) {
-                                        Integer partitionId = entry.getKey();
-                                        List<Slice> pages = entry.getValue();
-                                        AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(
-                                                exchangeId,
-                                                partitionId,
-                                                taskId,
-                                                attemptId,
-                                                dataPagesId,
-                                                pages);
-                                        addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
-                                        shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
-                                    }
-                                }
-                                catch (DataApiException e) {
-                                    resumeWithError(errorPrefix.get(), e);
-                                    return;
-                                }
-
-                                if (shouldRetainMemory) {
-                                    // only release memory when all addDataPagesFutures complete
-                                    finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
-                                }
-                                else {
-                                    // addDataPagesFutures are all old futures and we can release sliceLease early
-                                    finalizeAddDataPagesRequest(emptyList(), sliceLease);
-                                }
-
-                                // complete http response if not completed yet via timeout
-                                addCallback(nonCancellationPropagating(allAsList(addDataPagesFutures)), new FutureCallback<>()
+                                private void resumeWithError(String prefix, String message, ErrorCode errorCode)
                                 {
-                                    @Override
-                                    public void onSuccess(List<Void> value)
-                                    {
-                                        OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
-                                        Response response = rateLimit.isPresent() ? okResponse(Map.of(
-                                                RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
-                                                AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis())))
-                                                : okResponse();
-
-                                        if (!asyncResponse.isDone()) {
-                                            asyncResponse.resume(response);
-                                        }
+                                    try {
+                                        logger.warn("%s; %s; %s", prefix, errorCode, message);
+                                        asyncResponse.resume(errorResponse(errorCode, message, getRateLimitHeaders(clientId)));
                                     }
-
-                                    @Override
-                                    public void onFailure(Throwable throwable)
-                                    {
-                                        logger.warn(throwable, errorPrefix.get());
-                                        if (!asyncResponse.isDone()) {
-                                            asyncResponse.resume(errorResponse(throwable));
-                                        }
+                                    finally {
+                                        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
                                     }
-                                }, responseExecutor);
-                            }
-
-                            private void resumeWithError(String prefix, String message, ErrorCode errorCode)
-                            {
-                                try {
-                                    logger.warn("%s; %s; %s", prefix, errorCode, message);
-                                    asyncResponse.resume(errorResponse(errorCode, message, getRateLimitHeaders(clientId)));
                                 }
-                                finally {
+
+                                private void resumeWithError(String prefix, Throwable exception)
+                                {
+                                    try {
+                                        logger.warn(exception, prefix);
+                                        asyncResponse.resume(errorResponse(exception, getRateLimitHeaders(clientId)));
+                                    }
+                                    finally {
+                                        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
+                                    }
+                                }
+
+                                @Override
+                                public void onError(Throwable throwable)
+                                {
                                     finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
+                                    logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                                    if (!asyncResponse.isDone()) {
+                                        asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
+                                    }
                                 }
-                            }
+                            };
 
-                            private void resumeWithError(String prefix, Throwable exception)
-                            {
-                                try {
-                                    logger.warn(exception, prefix);
-                                    asyncResponse.resume(errorResponse(exception, getRateLimitHeaders(clientId)));
-                                }
-                                finally {
-                                    finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
-                                }
-                            }
-
-                            @Override
-                            public void onError(Throwable throwable)
-                            {
-                                finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
-                                logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                                if (!asyncResponse.isDone()) {
-                                    asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
-                                }
-                            }
-                        };
-
-                        // wrap readListener in releasableReadListenerWrapper to allow breaking reference chain
-                        releasableReadListenerWrapper.set(new ReleasableReadListener(readListener));
-                        inputStream.setReadListener(releasableReadListenerWrapper.get());
-                    }
-
-                    @Override
-                    public void onFailure(Throwable throwable)
-                    {
-                        finalizeAddDataPagesRequest(emptyList(), sliceLease);
-                        logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                        if (!asyncResponse.isDone()) {
-                            asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
+                            // wrap readListener in releasableReadListenerWrapper to allow breaking reference chain
+                            releasableReadListenerWrapper.set(new ReleasableReadListener(readListener));
+                            inputStream.setReadListener(releasableReadListenerWrapper.get());
                         }
-                    }
 
-                    private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures, SliceLease sliceLease)
-                    {
-                        ListenableFuture<?> future = Futures.whenAllComplete(addDataPagesFutures).run(() -> {
-                            // Only mark request no longer in-progress when all futures complete.
-                            // The HTTP request may return to caller earlier if one of the futures
-                            // returned by chunkManager.addDataPages() fails.
-                            if (!inProgressCompletionFlag.getAndSet(true)) {
-                                try {
-                                    sliceLease.release();
-                                }
-                                finally {
-                                    recordAddDataPagesRequest(processingStart, clientId);
-                                    decrementInProgressAddDataPagesRequests();
+                        @Override
+                        public void onFailure(Throwable throwable)
+                        {
+                            finalizeAddDataPagesRequest(emptyList(), sliceLease);
+                            logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                            if (!asyncResponse.isDone()) {
+                                asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
+                            }
+                        }
 
-                                    // break reference chain from Jetty's HttpInput (implementation of ServletInputStream) to registered ReadListener.
-                                    // For some reason Jetty keeps reference to ReadListener attached to ServletInputStream even after releases is already
-                                    // complete. We need to break references chain as ReadListener we use has reference to Slice used for holding request data
-                                    // while at this point this memory is no longer accounted for in MemoryAllocator. This was resulting in OOMs
-                                    ReleasableReadListener listener = releasableReadListenerWrapper.get();
-                                    if (listener != null) {
-                                        listener.releaseDelegate();
+                        private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures, SliceLease sliceLease)
+                        {
+                            ListenableFuture<?> future = Futures.whenAllComplete(addDataPagesFutures).run(() -> {
+                                // Only mark request no longer in-progress when all futures complete.
+                                // The HTTP request may return to caller earlier if one of the futures
+                                // returned by chunkManager.addDataPages() fails.
+                                if (!inProgressCompletionFlag.getAndSet(true)) {
+                                    try {
+                                        sliceLease.release();
+                                    }
+                                    finally {
+                                        inProgressLatch.decrement();
+                                        recordAddDataPagesRequest(processingStart, clientId);
+
+                                        // break reference chain from Jetty's HttpInput (implementation of ServletInputStream) to registered ReadListener.
+                                        // For some reason Jetty keeps reference to ReadListener attached to ServletInputStream even after releases is already
+                                        // complete. We need to break references chain as ReadListener we use has reference to Slice used for holding request data
+                                        // while at this point this memory is no longer accounted for in MemoryAllocator. This was resulting in OOMs
+                                        ReleasableReadListener listener = releasableReadListenerWrapper.get();
+                                        if (listener != null) {
+                                            listener.releaseDelegate();
+                                        }
                                     }
                                 }
-                            }
-                        }, directExecutor());
-                        addExceptionCallback(future, throwable -> logger.error(throwable, "Unexpected error during finalizeAddDataPagesRequest"), directExecutor());
-                    }
-                },
-                executor);
+                            }, directExecutor());
+                            addExceptionCallback(future, throwable -> logger.error(throwable, "Unexpected error during finalizeAddDataPagesRequest"), directExecutor());
+                        }
+                    },
+                    executor);
+        }
+        catch (Exception e) {
+            inProgressLatch.decrement();
+            throw e;
+        }
     }
 
     private void recordAddDataPagesRequest(long start, String clientId)
@@ -647,17 +669,35 @@ public class DataResource
         return clientId;
     }
 
-    private int incrementInProgressAddDataPagesRequests()
+    private InProgressLatch incrementInProgressAddDataPagesRequests()
     {
         int currentRequestsCount = inProgressAddDataPagesRequests.incrementAndGet();
         stats.updateInProgressAddDataPagesRequests(currentRequestsCount);
-        return currentRequestsCount;
+        return new InProgressLatch(currentRequestsCount);
     }
 
-    private void decrementInProgressAddDataPagesRequests()
+    private class InProgressLatch
     {
-        int currentRequestsCount = inProgressAddDataPagesRequests.decrementAndGet();
-        stats.updateInProgressAddDataPagesRequests(currentRequestsCount);
+        private final long currentRequestsCount;
+        private AtomicBoolean decremented = new AtomicBoolean(false);
+
+        public InProgressLatch(int currentRequestsCount)
+        {
+            this.currentRequestsCount = currentRequestsCount;
+        }
+
+        public void decrement()
+        {
+            if (decremented.compareAndSet(false, true)) {
+                int currentRequestsCount = inProgressAddDataPagesRequests.decrementAndGet();
+                stats.updateInProgressAddDataPagesRequests(currentRequestsCount);
+            }
+        }
+
+        public long currentRequestsCount()
+        {
+            return currentRequestsCount;
+        }
     }
 
     Duration getAsyncTimeout(@Nullable Duration clientMaxWait)
