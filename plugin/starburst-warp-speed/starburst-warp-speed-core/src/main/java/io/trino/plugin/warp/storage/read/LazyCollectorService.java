@@ -59,7 +59,7 @@ public class LazyCollectorService
 
     public boolean useLazyCollect(QueryParams queryParams)
     {
-        return queryParams.isLazyCollectEnabled() && (queryParams.getNumMatchElements() == 0);
+        return queryParams.getNumMatchElements() == 0;
     }
 
     private LazyCollectorLoaderArgs getLazyLoaderArgs(StorageCollectorArgs storageCollectorArgs, int weIx, int lazyCollectStartRowIndex, int numRows)

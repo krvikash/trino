@@ -39,7 +39,6 @@ public class QueryParams
     private final int minMatchOffset;
     private final int minCollectOffset;
     private final ImmutableList<PredicateCacheData> predicateCacheData;
-    private final boolean lazyCollectEnabled;
 
     private final String filePath;
     private final long fileModTime;
@@ -54,8 +53,7 @@ public class QueryParams
             int minCollectOffset,
             String filePath,
             long fileModTime,
-            ImmutableList<PredicateCacheData> predicateCacheData,
-            boolean lazyCollectEnabled)
+            ImmutableList<PredicateCacheData> predicateCacheData)
     {
         this.rootMatchNode = requireNonNull(rootMatchNode, "rootMatchNode is null");
         this.leaves = rootMatchNode.map(this::getLeaves).orElse(Collections.emptyList());
@@ -72,7 +70,6 @@ public class QueryParams
         this.minMatchOffset = minMatchOffset;
         this.minCollectOffset = minCollectOffset;
         this.predicateCacheData = predicateCacheData;
-        this.lazyCollectEnabled = lazyCollectEnabled;
         //TODO hash of file path
         this.rowGroupUniqueId = Calendar.getInstance().getTimeInMillis();
         this.filePath = filePath;
@@ -229,10 +226,5 @@ public class QueryParams
     public Optional<MatchNode> getRootMatchNode()
     {
         return rootMatchNode;
-    }
-
-    public boolean isLazyCollectEnabled()
-    {
-        return lazyCollectEnabled;
     }
 }

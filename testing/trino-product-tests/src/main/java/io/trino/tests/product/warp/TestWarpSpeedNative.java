@@ -316,7 +316,6 @@ public class TestWarpSpeedNative
                 LAZY_COLLECT_LOADED, 1L,
                 EXTERNAL_COLLECT, 0L,
                 EXTERNAL_MATCH, 0L);
-        onTrino().executeQuery("set session warp.enable_lazy_collect = true");
         logger.info("testLazyCollectFailure::before warmAndValidate");
 
         //check that it works before setting failures

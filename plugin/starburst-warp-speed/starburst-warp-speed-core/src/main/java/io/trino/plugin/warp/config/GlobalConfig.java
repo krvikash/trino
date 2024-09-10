@@ -86,7 +86,6 @@ public class GlobalConfig
     private boolean enableMatchCollect = true;
     private boolean enableMappedMatchCollect = true;
     private boolean enableVarcharMappedMatchCollect;
-    private boolean enableLazyCollect = true;
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
     private int shapingLoggerThreshold = 1000;
@@ -212,11 +211,6 @@ public class GlobalConfig
         return enableVarcharMappedMatchCollect;
     }
 
-    public boolean getEnableLazyCollect()
-    {
-        return enableLazyCollect;
-    }
-
     public boolean getEnableInverseWithNulls()
     {
         return enableInverseWithNulls;
@@ -238,12 +232,6 @@ public class GlobalConfig
     public void setEnableVarcharMappedMatchCollect(boolean enableVarcharMappedMatchCollect)
     {
         this.enableVarcharMappedMatchCollect = enableVarcharMappedMatchCollect;
-    }
-
-    @Config("warp-speed.enable.lazy-collect")
-    public void setEnableLazyCollect(boolean enableLazyCollect)
-    {
-        this.enableLazyCollect = enableLazyCollect;
     }
 
     @Config("warp-speed.enable.inverse-with-nulls")

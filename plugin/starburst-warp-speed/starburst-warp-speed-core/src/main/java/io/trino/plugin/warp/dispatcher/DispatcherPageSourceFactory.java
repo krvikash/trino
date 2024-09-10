@@ -477,7 +477,7 @@ public class DispatcherPageSourceFactory
         boolean isMixedQuery = PageSourceDecision.MIXED.equals(pageSourceDecision);
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
-        QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime, WarpSessionProperties.getEnableLazyCollect(session));
+        QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime);
         WarpPageSource warpPageSource = new WarpPageSource(storageEngine,
                 storageEngineConstants,
                 dispatcherTableHandle.getLimit().orElse(Long.MAX_VALUE),
