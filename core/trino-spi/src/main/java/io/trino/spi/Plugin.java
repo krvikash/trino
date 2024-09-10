@@ -19,6 +19,7 @@ import io.trino.spi.catalog.CatalogStoreFactory;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.eventlistener.EventListenerFactory;
 import io.trino.spi.exchange.ExchangeManagerFactory;
+import io.trino.spi.protocol.SpoolingManagerFactory;
 import io.trino.spi.resourcegroups.ResourceGroupConfigurationManagerFactory;
 import io.trino.spi.security.CertificateAuthenticatorFactory;
 import io.trino.spi.security.GroupProviderFactory;
@@ -112,6 +113,11 @@ public interface Plugin
     }
 
     default Iterable<CacheManagerFactory> getCacheManagerFactories()
+    {
+        return emptyList();
+    }
+
+    default Iterable<SpoolingManagerFactory> getSpoolingManagerFactories()
     {
         return emptyList();
     }

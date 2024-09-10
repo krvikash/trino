@@ -54,6 +54,7 @@ import io.trino.server.BasicQueryInfo;
 import io.trino.server.DynamicFilterService;
 import io.trino.server.ResultQueryInfo;
 import io.trino.server.protocol.Slug;
+import io.trino.server.protocol.spooling.SpoolingManagerRegistry;
 import io.trino.spi.QueryId;
 import io.trino.spi.TrinoException;
 import io.trino.sql.PlannerContext;
@@ -118,6 +119,7 @@ public class SqlQueryExecution
     private final SplitSourceFactory splitSourceFactory;
     private final NodePartitioningManager nodePartitioningManager;
     private final NodeScheduler nodeScheduler;
+    private final SpoolingManagerRegistry spoolingManagerRegistry;
     private final NodeAllocatorService nodeAllocatorService;
     private final PartitionMemoryEstimatorFactory partitionMemoryEstimatorFactory;
     private final OutputStatsEstimatorFactory outputStatsEstimatorFactory;
@@ -159,6 +161,7 @@ public class SqlQueryExecution
             SplitSourceFactory splitSourceFactory,
             NodePartitioningManager nodePartitioningManager,
             NodeScheduler nodeScheduler,
+            SpoolingManagerRegistry spoolingManagerRegistry,
             NodeAllocatorService nodeAllocatorService,
             PartitionMemoryEstimatorFactory partitionMemoryEstimatorFactory,
             OutputStatsEstimatorFactory outputStatsEstimatorFactory,
@@ -194,6 +197,7 @@ public class SqlQueryExecution
             this.splitSourceFactory = requireNonNull(splitSourceFactory, "splitSourceFactory is null");
             this.nodePartitioningManager = requireNonNull(nodePartitioningManager, "nodePartitioningManager is null");
             this.nodeScheduler = requireNonNull(nodeScheduler, "nodeScheduler is null");
+            this.spoolingManagerRegistry = requireNonNull(spoolingManagerRegistry, "spoolingManagerRegistry is null");
             this.nodeAllocatorService = requireNonNull(nodeAllocatorService, "nodeAllocatorService is null");
             this.partitionMemoryEstimatorFactory = requireNonNull(partitionMemoryEstimatorFactory, "partitionMemoryEstimatorFactory is null");
             this.outputStatsEstimatorFactory = requireNonNull(outputStatsEstimatorFactory, "outputDataSizeEstimatorFactory is null");
@@ -496,6 +500,7 @@ public class SqlQueryExecution
                 alternativeOptimizers,
                 idAllocator,
                 plannerContext,
+                spoolingManagerRegistry,
                 statsCalculator,
                 costCalculator,
                 stateMachine.getWarningCollector(),
@@ -787,6 +792,7 @@ public class SqlQueryExecution
         private final SplitSourceFactory splitSourceFactory;
         private final NodePartitioningManager nodePartitioningManager;
         private final NodeScheduler nodeScheduler;
+        private final SpoolingManagerRegistry spoolingManagerRegistry;
         private final NodeAllocatorService nodeAllocatorService;
         private final PartitionMemoryEstimatorFactory partitionMemoryEstimatorFactory;
         private final OutputStatsEstimatorFactory outputStatsEstimatorFactory;
@@ -820,6 +826,7 @@ public class SqlQueryExecution
                 SplitSourceFactory splitSourceFactory,
                 NodePartitioningManager nodePartitioningManager,
                 NodeScheduler nodeScheduler,
+                SpoolingManagerRegistry spoolingManagerRegistry,
                 NodeAllocatorService nodeAllocatorService,
                 PartitionMemoryEstimatorFactory partitionMemoryEstimatorFactory,
                 OutputStatsEstimatorFactory outputStatsEstimatorFactory,
@@ -852,6 +859,7 @@ public class SqlQueryExecution
             this.splitSourceFactory = requireNonNull(splitSourceFactory, "splitSourceFactory is null");
             this.nodePartitioningManager = requireNonNull(nodePartitioningManager, "nodePartitioningManager is null");
             this.nodeScheduler = requireNonNull(nodeScheduler, "nodeScheduler is null");
+            this.spoolingManagerRegistry = requireNonNull(spoolingManagerRegistry, "spoolingManagerRegistry is null");
             this.nodeAllocatorService = requireNonNull(nodeAllocatorService, "nodeAllocatorService is null");
             this.partitionMemoryEstimatorFactory = requireNonNull(partitionMemoryEstimatorFactory, "partitionMemoryEstimatorFactory is null");
             this.outputStatsEstimatorFactory = requireNonNull(outputStatsEstimatorFactory, "outputDataSizeEstimatorFactory is null");
@@ -900,6 +908,7 @@ public class SqlQueryExecution
                     splitSourceFactory,
                     nodePartitioningManager,
                     nodeScheduler,
+                    spoolingManagerRegistry,
                     nodeAllocatorService,
                     partitionMemoryEstimatorFactory,
                     outputStatsEstimatorFactory,

@@ -63,6 +63,7 @@ import io.trino.security.AccessControlManager;
 import io.trino.security.AccessControlModule;
 import io.trino.security.GroupProviderManager;
 import io.trino.server.dataframe.StarburstDataframeModule;
+import io.trino.server.protocol.spooling.SpoolingManagerRegistry;
 import io.trino.server.security.CertificateAuthenticatorManager;
 import io.trino.server.security.HeaderAuthenticatorManager;
 import io.trino.server.security.PasswordAuthenticatorManager;
@@ -187,6 +188,7 @@ public class Server
             injector.getInstance(GroupProviderManager.class).loadConfiguredGroupProvider();
             injector.getInstance(ExchangeManagerRegistry.class).loadExchangeManager();
             injector.getInstance(CacheManagerRegistry.class).loadCacheManager();
+            injector.getInstance(SpoolingManagerRegistry.class).loadSpoolingManager();
             injector.getInstance(CertificateAuthenticatorManager.class).loadCertificateAuthenticator();
             injector.getInstance(Key.get(new TypeLiteral<Optional<HeaderAuthenticatorManager>>() {}))
                     .ifPresent(HeaderAuthenticatorManager::loadHeaderAuthenticator);

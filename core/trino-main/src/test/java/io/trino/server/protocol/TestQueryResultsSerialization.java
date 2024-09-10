@@ -13,27 +13,43 @@
  */
 package io.trino.server.protocol;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
-import io.airlift.json.JsonCodec;
+import io.airlift.json.JsonCodecFactory;
+import io.airlift.json.ObjectMapperProvider;
 import io.trino.client.ClientTypeSignature;
 import io.trino.client.Column;
+import io.trino.client.JsonCodec;
+import io.trino.client.QueryData;
 import io.trino.client.QueryResults;
+import io.trino.client.RawQueryData;
 import io.trino.client.StatementStats;
+import io.trino.server.protocol.spooling.QueryDataJacksonModule;
 import org.junit.jupiter.api.Test;
 
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.List;
 import java.util.OptionalDouble;
+import java.util.Set;
 
-import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.trino.client.ClientStandardTypes.BIGINT;
+import static io.trino.client.FixJsonDataUtils.fixData;
+import static io.trino.client.JsonCodec.jsonCodec;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestQueryResultsSerialization
 {
-    private static final JsonCodec<QueryResults> CODEC = jsonCodec(QueryResults.class);
+    private static final List<Column> COLUMNS = ImmutableList.of(new Column("_col0", BIGINT, new ClientTypeSignature("bigint")));
+
+    // As close as possible to the server mapper (client mapper differs)
+    private static final io.airlift.json.JsonCodec<QueryResults> SERVER_CODEC = new JsonCodecFactory(new ObjectMapperProvider()
+            .withModules(Set.of(new QueryDataJacksonModule())))
+            .jsonCodec(QueryResults.class);
+
+    private static final JsonCodec<QueryResults> CLIENT_CODEC = jsonCodec(QueryResults.class);
 
     @Test
     public void testNullDataSerialization()
@@ -79,27 +95,32 @@ public class TestQueryResultsSerialization
     @Test
     public void testEmptyArraySerialization()
     {
-        testRoundTrip(ImmutableList.of(), "[]");
+        testRoundTrip(RawQueryData.of(ImmutableList.of()), "[]");
 
-        assertThatThrownBy(() -> testRoundTrip(ImmutableList.of(ImmutableList.of()), "[[]]"))
+        assertThatThrownBy(() -> testRoundTrip(RawQueryData.of(ImmutableList.of(ImmutableList.of())), "[[]]"))
                 .isInstanceOf(RuntimeException.class)
-                .hasRootCauseMessage("row/column size mismatch");
+                .hasMessage("row/column size mismatch");
     }
 
     @Test
     public void testSerialization()
     {
-        Iterable<List<Object>> values = ImmutableList.of(ImmutableList.of(1L), ImmutableList.of(5L));
+        QueryData values = RawQueryData.of(ImmutableList.of(ImmutableList.of(1L), ImmutableList.of(5L)));
         testRoundTrip(values, "[[1],[5]]");
     }
 
-    private void testRoundTrip(Iterable<List<Object>> results, String expectedDataRepresentation)
+    private void testRoundTrip(QueryData results, String expectedDataRepresentation)
     {
         assertThat(serialize(results))
                 .isEqualToIgnoringWhitespace(queryResultsJson(expectedDataRepresentation));
 
         String serialized = serialize(results);
-        assertThat(CODEC.fromJson(serialized).getData()).isEqualTo(results);
+        try {
+            assertThat(fixData(COLUMNS, CLIENT_CODEC.fromJson(serialized).getData().getData())).hasSameElementsAs(results.getData());
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private String queryResultsJson(String expectedDataField)
@@ -141,9 +162,9 @@ public class TestQueryResultsSerialization
                   }""", expectedDataField);
     }
 
-    private static String serialize(Iterable<List<Object>> data)
+    private static String serialize(QueryData data)
     {
-        return CODEC.toJson(new QueryResults(
+        return SERVER_CODEC.toJson(new QueryResults(
                 "20160128_214710_00012_rk68b",
                 URI.create("http://coordinator/query.html?20160128_214710_00012_rk68b"),
                 null,

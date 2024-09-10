@@ -45,6 +45,7 @@ import io.trino.metadata.TableHandle;
 import io.trino.metadata.TableLayout;
 import io.trino.metadata.TableMetadata;
 import io.trino.operator.RetryPolicy;
+import io.trino.server.protocol.spooling.SpoolingManagerRegistry;
 import io.trino.spi.ErrorCodeSupplier;
 import io.trino.spi.RefreshType;
 import io.trino.spi.TrinoException;
@@ -138,6 +139,7 @@ import static io.trino.SystemSessionProperties.isCollectPlanStatisticsForAllQuer
 import static io.trino.SystemSessionProperties.isUsePreferredWritePartitioning;
 import static io.trino.SystemSessionProperties.isUseSubPlanAlternatives;
 import static io.trino.metadata.MetadataUtil.createQualifiedObjectName;
+import static io.trino.server.protocol.spooling.SpooledBlock.SPOOLING_METADATA_SYMBOL;
 import static io.trino.spi.StandardErrorCode.CATALOG_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.CONSTRAINT_VIOLATION;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
@@ -187,6 +189,7 @@ public class LogicalPlanner
     private final SymbolAllocator symbolAllocator = new SymbolAllocator();
     private final Metadata metadata;
     private final PlannerContext plannerContext;
+    private final SpoolingManagerRegistry spoolingManagerRegistry;
     private final StatisticsAggregationPlanner statisticsAggregationPlanner;
     private final StatsCalculator statsCalculator;
     private final CostCalculator costCalculator;
@@ -202,13 +205,14 @@ public class LogicalPlanner
             List<PlanOptimizer> alternativeOptimizers,
             PlanNodeIdAllocator idAllocator,
             PlannerContext plannerContext,
+            SpoolingManagerRegistry spoolingManagerRegistry,
             StatsCalculator statsCalculator,
             CostCalculator costCalculator,
             WarningCollector warningCollector,
             PlanOptimizersStatsCollector planOptimizersStatsCollector,
             CachingTableStatsProvider tableStatsProvider)
     {
-        this(session, planOptimizers, alternativeOptimizers, DISTRIBUTED_PLAN_SANITY_CHECKER, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider);
+        this(session, planOptimizers, alternativeOptimizers, DISTRIBUTED_PLAN_SANITY_CHECKER, idAllocator, plannerContext, spoolingManagerRegistry, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider);
     }
 
     public LogicalPlanner(
@@ -218,6 +222,7 @@ public class LogicalPlanner
             PlanSanityChecker planSanityChecker,
             PlanNodeIdAllocator idAllocator,
             PlannerContext plannerContext,
+            SpoolingManagerRegistry spoolingManagerRegistry,
             StatsCalculator statsCalculator,
             CostCalculator costCalculator,
             WarningCollector warningCollector,
@@ -230,6 +235,7 @@ public class LogicalPlanner
         this.planSanityChecker = requireNonNull(planSanityChecker, "planSanityChecker is null");
         this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
         this.plannerContext = requireNonNull(plannerContext, "plannerContext is null");
+        this.spoolingManagerRegistry = requireNonNull(spoolingManagerRegistry, "spoolingManagerRegistry is null");
         this.metadata = plannerContext.getMetadata();
         this.statisticsAggregationPlanner = new StatisticsAggregationPlanner(symbolAllocator, plannerContext, session);
         this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
@@ -949,6 +955,10 @@ public class LogicalPlanner
             columnNumber++;
         }
 
+        if (session.getQueryDataEncodingId().isPresent() && spoolingManagerRegistry.getSpoolingManager().isPresent()) {
+            names.add(SPOOLING_METADATA_SYMBOL.name());
+            outputs.add(SPOOLING_METADATA_SYMBOL);
+        }
         return new OutputNode(idAllocator.getNextId(), plan.getRoot(), names.build(), outputs.build());
     }
 
