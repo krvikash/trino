@@ -192,19 +192,19 @@ public class DataApiFacade
         Set<Long> staleDataApiBufferNodeIds = dataApiClients.keySet().stream()
                 .filter(isBufferNodeStale)
                 .collect(toImmutableSet());
-        log.info("cleaning up stale dataApi clients for buffer nodes %s", staleDataApiBufferNodeIds);
+        log.debug("cleaning up stale dataApi clients for buffer nodes %s", staleDataApiBufferNodeIds);
         staleDataApiBufferNodeIds.forEach(dataApiClients::remove);
 
         Set<Long> staleDefaultRetryExecutors = defaultRetryExecutors.keySet().stream()
                 .filter(isBufferNodeStale)
                 .collect(toImmutableSet());
-        log.info("cleaning up stale retry executors for buffer nodes %s", staleDefaultRetryExecutors);
+        log.debug("cleaning up stale retry executors for buffer nodes %s", staleDefaultRetryExecutors);
         staleDefaultRetryExecutors.forEach(defaultRetryExecutors::remove);
 
         Set<Long> staleAddDataPagesRetryExecutors = addDataPagesRetryExecutors.keySet().stream()
                 .filter(isBufferNodeStale)
                 .collect(toImmutableSet());
-        log.info("cleaning up stale add data pages retry executors for buffer nodes %s", staleAddDataPagesRetryExecutors);
+        log.debug("cleaning up stale add data pages retry executors for buffer nodes %s", staleAddDataPagesRetryExecutors);
         staleAddDataPagesRetryExecutors.forEach(addDataPagesRetryExecutors::remove);
 
         rateMonitor.cleanUp(isBufferNodeStale);

@@ -102,13 +102,13 @@ public class RateMonitor
         Set<Long> staleRateLimitInfos = rateLimitInfos.keySet().stream()
                 .filter(isBufferNodeStale)
                 .collect(toImmutableSet());
-        log.info("cleaning up stale rate limit infos for buffer nodes %s", staleRateLimitInfos);
+        log.debug("cleaning up stale rate limit infos for buffer nodes %s", staleRateLimitInfos);
         staleRateLimitInfos.forEach(rateLimitInfos::remove);
 
         Set<Long> staleExecutionSchedules = executionSchedules.keySet().stream()
                 .filter(isBufferNodeStale)
                 .collect(toImmutableSet());
-        log.info("cleaning up stale execution schedules for buffer nodes %s", staleExecutionSchedules);
+        log.debug("cleaning up stale execution schedules for buffer nodes %s", staleExecutionSchedules);
         staleExecutionSchedules.forEach(executionSchedules::remove);
     }
 
