@@ -69,7 +69,10 @@ public class DrainService
 
         executor.submit(() -> {
             try {
-                waitNoInProgressAddDataPagesRequests();
+                boolean success = waitNoInProgressAddDataPagesRequests();
+                if (!success) {
+                    log.error("HACK: draining all chunks even though addDataPages in progress reported");
+                }
                 chunkManager.drainAllChunks();
             }
             catch (Exception e) {
@@ -83,7 +86,7 @@ public class DrainService
         });
     }
 
-    private void waitNoInProgressAddDataPagesRequests()
+    private boolean waitNoInProgressAddDataPagesRequests()
     {
         long waitStart = System.currentTimeMillis();
         while (true) {
@@ -94,7 +97,8 @@ public class DrainService
             }
             if (System.currentTimeMillis() > waitStart + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis()) {
                 chunkManager.logAddDataPagesInProgressDebugInfo();
-                throw new RuntimeException("Still %s in flight addData requests after waiting %s".formatted(inProgressAddDataPagesRequests, MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS));
+                log.error("Still %s in flight addData requests after waiting %s".formatted(inProgressAddDataPagesRequests, MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS));
+                return false;
             }
             log.info("Waiting until remaining %s in flight addData requests complete", inProgressAddDataPagesRequests);
             // busy looping is fine here as we expect in flight requests to finish fast
@@ -105,5 +109,6 @@ public class DrainService
                 // ignore
             }
         }
+        return true;
     }
 }
