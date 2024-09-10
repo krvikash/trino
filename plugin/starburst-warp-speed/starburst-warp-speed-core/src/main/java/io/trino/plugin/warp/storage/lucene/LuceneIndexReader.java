@@ -43,17 +43,13 @@ public class LuceneIndexReader
     {
         File rowGroupDataFile = new File(rowGroupFilePath);
         int[] filesLength = chunkState.filesLength();
+        long smallFileSize = (long) (storageEngineConstants.getPageSize() / (filesLength.length - 1));
 
         try (RandomAccessFile randomAccessFile = new RandomAccessFile(rowGroupDataFile, "rw")) {
-            long offset = Integer.toUnsignedLong(chunkState.startOffset()) * storageEngineConstants.getPageSize();
-
-            for (int i = 0; i < luceneFileType.getFileId(); i++) {
-                offset += filesLength[i];
-            }
+            long offset = Integer.toUnsignedLong(chunkState.startOffset()) * storageEngineConstants.getPageSize() + smallFileSize * luceneFileType.getFileId();
             randomAccessFile.seek(offset);
 
-            int length = filesLength[luceneFileType.getFileId()];
-            byte[] luceneBytes = new byte[length];
+            byte[] luceneBytes = new byte[filesLength[luceneFileType.getFileId()]];
             int readBytes = randomAccessFile.read(luceneBytes);
 
             if (readBytes <= 0) {

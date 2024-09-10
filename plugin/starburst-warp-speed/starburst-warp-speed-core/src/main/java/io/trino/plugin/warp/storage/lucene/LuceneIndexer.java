@@ -18,6 +18,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.WarpErrorCode;
+import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.StopWatch;
@@ -53,6 +54,8 @@ public class LuceneIndexer
         implements Closeable
 {
     public static final Slice LUCENE_NULL_STRING = Slices.wrappedBuffer(base64().decode("27d52991a99c455789ed5e39b77226c8"));
+    private static final int SIZE_LIMIT_DOCS_COUNT = 512;
+    private static final int MAX_TMP_FILE_NAME = 200;
     static final String VALUE_FIELD_NAME = "value";
 
     private static final Logger logger = Logger.get(LuceneIndexer.class);
@@ -68,15 +71,25 @@ public class LuceneIndexer
     private final StopWatch stopWatch;
 
     private IndexWriter indexWriter;
+    private LuceneIndexWriter luceneIndexWriter;
     private String failedDocumentError;
     private boolean failedCommit;
+    private int countDocsForSizeLimit;
 
     public LuceneIndexer(StorageEngineConstants storageEngineConstants, String rowGroupFilePath, LuceneIndexerStats stats)
     {
         this.storageEngineConstants = storageEngineConstants;
         this.rowGroupFilePath = rowGroupFilePath;
-        this.path = Path.of(rowGroupFilePath.substring(0, rowGroupFilePath.lastIndexOf('/')),
-                rowGroupFilePath.substring(rowGroupFilePath.lastIndexOf('/') + 1) + "-lucene");
+
+        String uniqueName = rowGroupFilePath;
+        for (int i = 0; i < RowGroupKey.FILE_NAME_START_OF_FILE_NAME; i++) {
+            uniqueName = uniqueName.substring(uniqueName.indexOf('/') + 1);
+        }
+        if (uniqueName.length() > MAX_TMP_FILE_NAME) {
+            uniqueName = uniqueName.substring(uniqueName.length() - MAX_TMP_FILE_NAME);
+        }
+        this.path = Path.of("/tmp", uniqueName.replaceAll("/", "-"));
+
         this.stats = stats;
         this.stopWatch = new StopWatch();
     }
@@ -98,6 +111,14 @@ public class LuceneIndexer
             }
 
             indexWriter.addDocument(doc);
+
+            countDocsForSizeLimit++;
+            if (countDocsForSizeLimit == SIZE_LIMIT_DOCS_COUNT) {
+                if (luceneIndexWriter.isBigFileSizeExceededMax()) {
+                    failedCommit = true;
+                }
+                countDocsForSizeLimit = 0;
+            }
             stopWatch.stop();
             stats.addaddDoc(stopWatch.getNanoTime());
         }
@@ -112,7 +133,6 @@ public class LuceneIndexer
 
     public void resetLuceneIndex()
     {
-        logger.debug("reset index");
         try {
             LogDocMergePolicy logDocMergePolicy = new LogDocMergePolicy();
             logDocMergePolicy.setMaxCFSSegmentSizeMB(Double.POSITIVE_INFINITY);
@@ -128,8 +148,9 @@ public class LuceneIndexer
             if (dir.exists()) {
                 FileUtils.cleanDirectory(dir);
             }
-            logger.debug("resetLuceneIndex path %s", path);
+            logger.debug("create temporary directory %s", path);
             indexWriter = new IndexWriter(FSDirectory.open(path), config);
+            luceneIndexWriter = new LuceneIndexWriter(storageEngineConstants, indexWriter, rowGroupFilePath);
         }
         catch (Exception e) {
             logger.warn("Got exception when creating the indexWriter - %s", e);
@@ -143,7 +164,6 @@ public class LuceneIndexer
         if (indexWriter == null) {
             return;
         }
-        logger.debug("close index");
         try {
             stopWatch.reset();
             stopWatch.start();
@@ -160,27 +180,31 @@ public class LuceneIndexer
                     throw new TrinoException(WARP_LUCENE_FAILURE, "lucene index failed before closing");
                 }
             }
-
-            saveLuceneIndex(fileCookieParams);
+            if (!saveLuceneIndex(fileCookieParams)) {
+                logger.warn("lucene index failed on file too big rowGroupFilePath %s", rowGroupFilePath);
+                throw new TrinoException(WARP_LUCENE_FAILURE, "lucene index failed on file too big");
+            }
         }
         catch (Exception e) {
             throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "Got exception when closing the indexWriter", e);
         }
         finally {
-            close(indexWriter.getDirectory());
+            closeDirectory(indexWriter.getDirectory());
         }
     }
 
-    private void saveLuceneIndex(long[] fileCookieParams)
+    private boolean saveLuceneIndex(long[] fileCookieParams)
     {
         int startOffset = (int) fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()];
-        LuceneIndexWriter luceneIndexWriter = new LuceneIndexWriter(storageEngineConstants, indexWriter, rowGroupFilePath, startOffset);
-        Optional<ChunkState> chunkState = luceneIndexWriter.saveLuceneIndex();
+        Optional<ChunkState> chunkState = luceneIndexWriter.saveLuceneIndex(startOffset);
 
-        chunkState.ifPresent(state -> {
+        if (chunkState.isPresent()) {
+            ChunkState state = chunkState.get();
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = state.endOffset();
             chunkStates.add(state);
-        });
+            return true;
+        }
+        return false;
     }
 
     public int saveLuceneIndexState(int startOffset)
@@ -189,15 +213,17 @@ public class LuceneIndexer
         return chunkStateHandler.save(chunkStates);
     }
 
-    private void close(Directory directory)
+    private void closeDirectory(Directory directory)
     {
         stopWatch.reset();
         stopWatch.start();
         try {
             directory.close();
+            logger.debug("closed temporary directory %s", path);
+            close();
         }
         catch (IOException e) {
-            logger.info(e.getMessage());
+            logger.warn(e.getMessage());
         }
         stopWatch.stop();
     }
@@ -209,13 +235,14 @@ public class LuceneIndexer
         File dir = path.toFile();
         if (dir.exists()) {
             FileUtils.deleteDirectory(dir);
+            logger.debug("removed temporary directory %s", path);
         }
     }
 
     public void abort()
     {
         if (indexWriter != null) {
-            close(indexWriter.getDirectory());
+            closeDirectory(indexWriter.getDirectory());
         }
     }
 

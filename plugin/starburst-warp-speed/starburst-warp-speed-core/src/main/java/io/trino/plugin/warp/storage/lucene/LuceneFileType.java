@@ -20,8 +20,8 @@ public enum LuceneFileType
     SI(0, true),
     CFE(1, true),
     SEGMENTS(2, true),
-    CFS(3, false),
-    UNKNOWN(-1, false);
+    CFS(3, false), // must be after the small files
+    UNKNOWN(-1, false); // must be last
 
     private final int fileId;
     private final boolean smallFile;

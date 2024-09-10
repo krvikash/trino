@@ -34,6 +34,9 @@ public record RowGroupKey(
         @JsonProperty("catalog_name") String catalogName)
         implements Serializable
 {
+    // how many slashes to skip in file name to reach the file path and offset/length/file-modification-time part
+    public static final int FILE_NAME_START_OF_FILE_NAME = 6;
+
     @JsonCreator
     public RowGroupKey {}
 

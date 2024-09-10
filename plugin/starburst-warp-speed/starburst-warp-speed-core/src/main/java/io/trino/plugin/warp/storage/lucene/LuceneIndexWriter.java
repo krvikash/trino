@@ -23,157 +23,129 @@ import org.apache.lucene.store.IndexInput;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.Arrays;
 import java.util.Optional;
 
 public class LuceneIndexWriter
 {
     private static final Logger logger = Logger.get(LuceneIndexWriter.class);
 
-    private static final byte[] padding = new byte[8192];   // PageSize
-    private static final int maxSaveSize = 512 * 1024;
+    private static final int BIG_FILE_BUFFER_SIZE = 512 * 1024;     // 0.5 MB
+    private static final int MAX_TOTAL_FILE_SIZES = 64 * 1024 * 1024; // 128 MB
 
     private final StorageEngineConstants storageEngineConstants;
     private final IndexWriter indexWriter;
     private final String rowGroupFilePath;
-    private final int startOffset;
 
-    public LuceneIndexWriter(StorageEngineConstants storageEngineConstants,
-                             IndexWriter indexWriter,
-                             String rowGroupFilePath,
-                             int startOffset)
+    public LuceneIndexWriter(StorageEngineConstants storageEngineConstants, IndexWriter indexWriter, String rowGroupFilePath)
     {
         this.storageEngineConstants = storageEngineConstants;
         this.indexWriter = indexWriter;
         this.rowGroupFilePath = rowGroupFilePath;
-        this.startOffset = startOffset;
     }
 
-    public Optional<ChunkState> saveLuceneIndex()
+    public Optional<ChunkState> saveLuceneIndex(int startOffset)
     {
         if (indexWriter == null) {
             return Optional.empty();
         }
 
-        int sizeInPages = 0;
-
         try {
             Directory luceneDirectory = indexWriter.getDirectory();
             String[] luceneFiles = luceneDirectory.listAll();
-            int[] filesLength = getFilesLength(luceneDirectory, luceneFiles);
+            int[] filesLength = new int[LuceneFileType.values().length - 1];
             File rowGroupDataFile = new File(rowGroupFilePath);
+            int bigFileSizeAligned = 0;
 
             try (RandomAccessFile randomAccessFile = new RandomAccessFile(rowGroupDataFile, "rw")) {
-                long offset = Integer.toUnsignedLong(startOffset) * storageEngineConstants.getPageSize();
-                randomAccessFile.seek(offset);
+                long startOffsetInBytes = Integer.toUnsignedLong(startOffset) * storageEngineConstants.getPageSize();
+                String luceneBigFile = null;
+                LuceneFileType luceneBigFileType = LuceneFileType.UNKNOWN;
+                IOContext context = IOContext.READONCE;
+                int totalFileSizes = 0;
 
-                // write padding page, will be overwritten later by the small files
-                randomAccessFile.write(padding);
-
+                // read all small files into one page and gather total size
+                byte[] smallFilesPage = new byte[storageEngineConstants.getPageSize()];
+                int smallFileSize = smallFilesPage.length / (filesLength.length - 1);
                 for (String luceneFile : luceneFiles) {
                     LuceneFileType luceneFileType = LuceneFileType.getType(luceneFile);
-
                     if (luceneFileType != LuceneFileType.UNKNOWN) {
-                        IOContext context = IOContext.READONCE;
-
                         try (IndexInput indexInput = luceneDirectory.openInput(luceneFile, context)) {
-                            if (luceneFileType.isSmallFile()) {
-                                saveSmallFile(indexInput, luceneFileType, filesLength, offset, randomAccessFile);
+                            int length = (int) indexInput.length();
+                            totalFileSizes += length;
+                            if (totalFileSizes > MAX_TOTAL_FILE_SIZES) {
+                                logger.warn("lucene index exceeded size limit on size %d rowGroupFilePath %s", totalFileSizes, rowGroupFilePath);
+                                return Optional.empty();
                             }
-                            else {
-                                // reserve one page for small files
-                                sizeInPages += saveBigFile(indexInput, startOffset + 1, randomAccessFile);
+                            if (!luceneFileType.isSmallFile()) {
+                                luceneBigFile = luceneFile;
+                                luceneBigFileType = luceneFileType;
+                                continue;
                             }
+                            indexInput.readBytes(smallFilesPage, smallFileSize * luceneFileType.getFileId(), length);
+                            filesLength[luceneFileType.getFileId()] = length;
                         }
                     }
                 }
+                randomAccessFile.seek(startOffsetInBytes);
+                randomAccessFile.write(smallFilesPage, 0, smallFilesPage.length);
+
+                // big file
+                try (IndexInput indexInput = luceneDirectory.openInput(luceneBigFile, context)) {
+                    int length = (int) indexInput.length();
+                    int bytesLeft = length;
+                    int pageRemainder = length & storageEngineConstants.getPageOffsetMask();
+                    int paddingSize = (pageRemainder != 0) ? (storageEngineConstants.getPageSize() - pageRemainder) : 0;
+                    bigFileSizeAligned = length + paddingSize;
+
+                    byte[] bigFilesBuffer = new byte[Math.min(bigFileSizeAligned, BIG_FILE_BUFFER_SIZE)];
+                    // full buffer rounds
+                    while (bytesLeft > BIG_FILE_BUFFER_SIZE) {
+                        indexInput.readBytes(bigFilesBuffer, 0, BIG_FILE_BUFFER_SIZE);
+                        randomAccessFile.write(bigFilesBuffer, 0, BIG_FILE_BUFFER_SIZE);
+                        bytesLeft -= BIG_FILE_BUFFER_SIZE;
+                    }
+                    // last round - we add the padding to page size
+                    indexInput.readBytes(bigFilesBuffer, 0, bytesLeft);
+                    randomAccessFile.write(bigFilesBuffer, 0, bytesLeft + paddingSize);
+                    // update the length
+                    filesLength[luceneBigFileType.getFileId()] = length;
+                }
             }
-            ChunkState chunkState = new ChunkState(startOffset, sizeInPages + 1, filesLength);
+            ChunkState chunkState = new ChunkState(startOffset, (bigFileSizeAligned / storageEngineConstants.getPageSize()) + 1, filesLength);
             logger.debug("saveLuceneIndex rowGroupFilePath %s chunkState %s", rowGroupFilePath, chunkState);
             return Optional.of(chunkState);
         }
         catch (IOException e) {
-            logger.error("saveLuceneIndex failed rowGroupFilePath %s startOffset %d message %s",
-                    rowGroupFilePath, startOffset, e.getMessage());
+            logger.error("saveLuceneIndex failed rowGroupFilePath %s startOffset %d message %s", rowGroupFilePath, startOffset, e.getMessage());
             throw new RuntimeException(e);
         }
     }
 
-    private int[] getFilesLength(Directory luceneDirectory, String[] luceneFiles)
-            throws IOException
+    public boolean isBigFileSizeExceededMax()
     {
-        int[] filesLength = new int[LuceneFileType.values().length - 1];
-
-        for (String luceneFile : luceneFiles) {
-            LuceneFileType luceneFileType = LuceneFileType.getType(luceneFile);
-
-            if (luceneFileType != LuceneFileType.UNKNOWN) {
-                IOContext context = IOContext.READONCE;
-
-                try (IndexInput indexInput = luceneDirectory.openInput(luceneFile, context)) {
-                    filesLength[luceneFileType.getFileId()] = (int) indexInput.length();
+        try {
+            // find the big file
+            Directory luceneDirectory = indexWriter.getDirectory();
+            String[] luceneFiles = luceneDirectory.listAll();
+            int totalFileSizes = 0;
+            IOContext context = IOContext.READONCE;
+            for (String luceneFile : luceneFiles) {
+                LuceneFileType luceneFileType = LuceneFileType.getType(luceneFile);
+                if (luceneFileType != LuceneFileType.UNKNOWN) {
+                    try (IndexInput indexInput = luceneDirectory.openInput(luceneFile, context)) {
+                        totalFileSizes += (int) indexInput.length();
+                    }
                 }
             }
+            if (totalFileSizes > MAX_TOTAL_FILE_SIZES) {
+                logger.warn("lucene big file exceeded size limit on size %d rowGroupFilePath %s", totalFileSizes, rowGroupFilePath);
+                return true;
+            }
+            return false;
         }
-        logger.debug("getFilesLength rowGroupFilePath %s filesLength %s", rowGroupFilePath, Arrays.toString(filesLength));
-        return filesLength;
-    }
-
-    private void saveSmallFile(IndexInput indexInput, LuceneFileType luceneFileType, int[] filesLength, long offset, RandomAccessFile randomAccessFile)
-            throws IOException
-    {
-        int fileOffset = 0;
-
-        for (int i = 0; i < luceneFileType.getFileId(); i++) {
-            fileOffset += filesLength[i];
+        catch (IOException e) {
+            logger.error("lucene big file size check failed rowGroupFilePath %s message %s", rowGroupFilePath, e.getMessage());
+            throw new RuntimeException(e);
         }
-        randomAccessFile.seek(offset + fileOffset);
-
-        int length = saveFile(indexInput, randomAccessFile);
-
-        logger.debug("saveSmallFile rowGroupFilePath %s luceneFileType %s offset %d (%d) fileOffset %d length %d",
-                rowGroupFilePath, luceneFileType, offset, offset / storageEngineConstants.getPageSize(), fileOffset, length);
-    }
-
-    private int saveBigFile(IndexInput indexInput, int pageOffset, RandomAccessFile randomAccessFile)
-            throws IOException
-    {
-        long offset = Integer.toUnsignedLong(pageOffset) * storageEngineConstants.getPageSize();
-        randomAccessFile.seek(offset);
-
-        int length = saveFile(indexInput, randomAccessFile);
-
-        int pageRemainder = length & storageEngineConstants.getPageOffsetMask();
-        int paddingSize = (pageRemainder != 0) ? (storageEngineConstants.getPageSize() - pageRemainder) : 0;
-
-        if (paddingSize > 0) {
-            // write padding
-            randomAccessFile.write(padding, 0, paddingSize);
-            length += paddingSize;
-        }
-
-        int sizeInPages = length / storageEngineConstants.getPageSize();
-        logger.debug("saveBigFile rowGroupFilePath %s pageOffset %d length %d paddingSize %d sizeInPages %d",
-                rowGroupFilePath, pageOffset, length, paddingSize, sizeInPages);
-        return sizeInPages;
-    }
-
-    private int saveFile(IndexInput indexInput, RandomAccessFile randomAccessFile)
-            throws IOException
-    {
-        int length = (int) indexInput.length();
-        int bufferSize = Math.min(length, maxSaveSize);
-        byte[] luceneBytes = new byte[bufferSize];
-        int bytesLeft = length;
-
-        while (bytesLeft > 0) {
-            int bytesToRead = Math.min(bufferSize, bytesLeft);
-
-            indexInput.readBytes(luceneBytes, 0, bytesToRead);
-            randomAccessFile.write(luceneBytes, 0, bytesToRead);
-
-            bytesLeft -= bytesToRead;
-        }
-        return length;
     }
 }
