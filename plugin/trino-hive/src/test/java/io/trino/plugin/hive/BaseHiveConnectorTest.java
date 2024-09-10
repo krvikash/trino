@@ -284,9 +284,9 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Override
-    protected String createTableForWrites(String createTable)
+    protected void createTableForWrites(String createTable, String tableName, Optional<String> primaryKey, OptionalInt updateCount)
     {
-        return createTable + " WITH (transactional = true)";
+        assertUpdate(createTable + " WITH (transactional = true)");
     }
 
     @Override
