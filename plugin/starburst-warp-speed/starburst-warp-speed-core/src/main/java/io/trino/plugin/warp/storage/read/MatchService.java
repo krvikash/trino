@@ -35,7 +35,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_MATCH_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_TX_ALLOCATION_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
 import static io.trino.plugin.warp.storage.read.BaseCollectTxService.INVALID_TX_ID;
@@ -139,8 +141,9 @@ public class MatchService
                         matchArgs.matchBuffIds());
             }
             catch (Exception e) {
+                // will throw WARP_TX_ALLOCATION_FAILED cause matchTxId == INVALID_TX_ID
+                // this will make sure that collect tx will be closed by the caller
                 shapingLogger.warn(e, "matchOpen failed");
-                throw e;
             }
 
             if (matchTxId < 0) {
@@ -217,8 +220,13 @@ public class MatchService
                     }
                 }
                 catch (Exception e) {
-                    if (e instanceof TrinoException trinoException && trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode())) {
-                        throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED, "failed to match: " + e.getMessage());
+                    if (e instanceof TrinoException trinoException && ExceptionThrower.isNativeException(trinoException)) {
+                        if (trinoException.getErrorCode().getCode() == WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode().getCode()) {
+                            throw new TrinoException(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR, "failed to match: " + e.getMessage());
+                        }
+                        else {
+                            throw new TrinoException(WARP_NATIVE_MATCH_ERROR, "failed to match: " + e.getMessage());
+                        }
                     }
                     else {
                         throw new TrinoException(WARP_MATCH_FAILED, "failed to match: " + e.getMessage());
@@ -240,10 +248,17 @@ public class MatchService
         return !matchExhausted;
     }
 
+    private boolean isNativeMatchException(Exception e)
+    {
+        return e instanceof TrinoException trinoException &&
+                (trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode()) || trinoException.getErrorCode().equals(WARP_NATIVE_MATCH_ERROR.toErrorCode()));
+    }
+
     public void abort(MatchOpenResult matchOpenResult, Exception e)
     {
         if (matchOpenResult.matchTxId() != INVALID_TX_ID) {
-            if (!ExceptionThrower.isNativeException((TrinoException) e)) {
+            // In case of native match exception match tx already closed
+            if (!isNativeMatchException(e)) {
                 storageEngine.matchClose(matchOpenResult.matchTxId());
             }
         }

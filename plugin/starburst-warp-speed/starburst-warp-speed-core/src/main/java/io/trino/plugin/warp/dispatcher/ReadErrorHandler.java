@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_READ_OUT_OF_BOUNDS;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
 import static java.util.Objects.requireNonNull;
@@ -65,7 +66,8 @@ public class ReadErrorHandler
             ErrorCode errorCode = trinoException.getErrorCode();
             if (errorCode.equals(WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode()) ||
                     errorCode.equals(WARP_UNRECOVERABLE_MATCH_FAILED.toErrorCode()) ||
-                    errorCode.equals(WARP_UNRECOVERABLE_COLLECT_FAILED.toErrorCode())) {
+                    errorCode.equals(WARP_UNRECOVERABLE_COLLECT_FAILED.toErrorCode()) ||
+                    errorCode.equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode())) {
                 Set<WarmUpElement> queryContextWarmupElements = getQueryContextWarmupElements(queryContext);
                 logger.warn("unrecoverable error: demoting rowGroupKey %s queryContextWarmupElements %s", failedRowGroupData.getRowGroupKey(), queryContextWarmupElements);
                 warmupDemoterService.tryDemoteStart(List.of(new RowGroupDataFilter(failedRowGroupData.getRowGroupKey(), queryContextWarmupElements)));
