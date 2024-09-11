@@ -14,6 +14,7 @@
 package io.trino;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
 import io.trino.jdbc.BaseTestJdbcResultSet;
 import org.testcontainers.DockerClientFactory;
@@ -30,6 +31,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -49,6 +51,7 @@ public class TestJdbcResultSetCompatibilityOldServer
     private static final int FIRST_VERSION = 351;
     private static final int NUMBER_OF_TESTED_VERSIONS = 5;
     private static final int TESTED_VERSIONS_GRANULARITY = 3;
+    private static final Set<Integer> SKIPPED_VERSIONS = ImmutableSet.of(404, 456);
 
     /**
      * Empty means that we could not obtain current Trino version and tests defined here will be marked as failed.
@@ -73,8 +76,7 @@ public class TestJdbcResultSetCompatibilityOldServer
             ImmutableList.Builder<String> testedTrinoVersions = ImmutableList.builder();
             int testVersion = currentVersion - 1; // last release version
             for (int i = 0; i < NUMBER_OF_TESTED_VERSIONS; i++) {
-                if (testVersion == 404) {
-                    // 404 release was skipped.
+                if (SKIPPED_VERSIONS.contains(testVersion)) {
                     testVersion--;
                 }
                 if (testVersion < FIRST_VERSION) {

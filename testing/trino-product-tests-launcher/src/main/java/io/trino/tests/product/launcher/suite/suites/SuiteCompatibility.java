@@ -14,6 +14,7 @@
 package io.trino.tests.product.launcher.suite.suites;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import io.trino.testing.TestingProperties;
 import io.trino.tests.product.launcher.env.EnvironmentConfig;
 import io.trino.tests.product.launcher.env.EnvironmentDefaults;
@@ -23,6 +24,7 @@ import io.trino.tests.product.launcher.suite.SuiteTestRun;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +50,7 @@ public class SuiteCompatibility
 
     private static final int NUMBER_OF_TESTED_VERSIONS = 5;
     private static final int TESTED_VERSIONS_GRANULARITY = 3;
+    private static final Set<Integer> SKIPPED_VERSIONS = ImmutableSet.of(404, 456);
 
     @Override
     public List<SuiteTestRun> getTestRuns(EnvironmentConfig config)
@@ -81,8 +84,7 @@ public class SuiteCompatibility
             ImmutableList.Builder<TestedImage> testedTrinoVersions = ImmutableList.builder();
             int testVersion = currentVersion - 1; // always test last release version
             for (int i = 0; i < NUMBER_OF_TESTED_VERSIONS; i++) {
-                if (testVersion == 404) {
-                    // 404 release was skipped.
+                if (SKIPPED_VERSIONS.contains(testVersion)) {
                     testVersion--;
                 }
                 if (testVersion < FIRST_TRINO_VERSION) {
