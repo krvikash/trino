@@ -14,15 +14,22 @@
 package io.trino.plugin.warp.storage.read.fill;
 
 import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.ReadDictionary;
+import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.VarcharType;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
+
+import static io.trino.plugin.warp.util.SliceUtils.trimSlice;
 
 public class VariableLengthStringSliceBlockFiller
         extends SliceBlockFiller
@@ -74,5 +81,19 @@ public class VariableLengthStringSliceBlockFiller
         Slice slice = (Slice) readDictionary.get(Short.toUnsignedInt(buff.get(currPos)));
         outputSlice.setBytes(offsets[currPos], slice);
         offsets[currPos + 1] = offsets[currPos] + slice.length();
+    }
+
+    @Override
+    protected Block fillSingleNoNullWithDictionary(ReadJuffersWarmUpElement juffersWE,
+            int rowsToFill,
+            RecTypeCode recTypeCode,
+            int recTypeLength,
+            ReadDictionary readDictionary)
+    {
+        ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
+        Slice slice = (Slice) readDictionary.get(Short.toUnsignedInt(buff.get(0)));
+        int trimmedLength = trimSlice(slice.toByteBuffer(), slice.length(), 0);
+        slice = Slices.wrappedBuffer(slice.getBytes(), 0, trimmedLength);
+        return RunLengthEncodedBlock.create(spiBuilderType, slice, rowsToFill);
     }
 }

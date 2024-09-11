@@ -253,7 +253,10 @@ public abstract class SliceBlockFiller
     protected Block createSingleWithNullBlockWithDictionary(ReadJuffersWarmUpElement juffersWE, int mappingKey, int rowsToFill, ReadDictionary readDictionary)
     {
         Slice singleValue = getSingleValueWithDictionary(mappingKey, readDictionary);
-        Block mappingBlock = createSingleMappingBlock(singleValue);
+        int trimmedRecLength = SliceUtils.trimSlice(singleValue.toByteBuffer(), singleValue.length(), 0);
+        int[] offsets = SliceUtils.allocateOffsetsArray(rowsToFill);
+        Slice trimmedSlice = Slices.wrappedBuffer(singleValue.byteArray(), offsets[0], trimmedRecLength);
+        Block mappingBlock = createSingleMappingBlock(trimmedSlice);
         return wrapSingleWithNulls(juffersWE, rowsToFill, mappingBlock, 1);
     }
 
