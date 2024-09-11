@@ -39,7 +39,7 @@ public class ChunkDataLease
 
     public ImmutableList<Slice> getChunkSlices()
     {
-        checkState(chunkSlices != null, "already released");
+        checkState(chunkSlices != null, "already released; previous release: %s", releaseStackTrace);
         return chunkSlices;
     }
 
