@@ -60,7 +60,6 @@ import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
-import io.trino.plugin.warp.warmup.dal.WarmupRuleDao;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorContext;
 
@@ -136,7 +135,6 @@ public class DispatcherMainModule
         else {
             binder.bind(DispatcherConnectorBase.class).to(WorkerDispatcherConnector.class);
         }
-        binder.bind(WarmupRuleDao.class);
         binder.bind(DispatcherTableHandleBuilderProvider.class);
         binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
     }

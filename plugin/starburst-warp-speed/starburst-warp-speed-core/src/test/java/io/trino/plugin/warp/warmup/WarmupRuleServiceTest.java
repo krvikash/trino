@@ -14,12 +14,10 @@
 package io.trino.plugin.warp.warmup;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.eventbus.EventBus;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.DefaultFakeConnectorSessionProvider;
-import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
@@ -27,7 +25,6 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.tools.util.Pair;
-import io.trino.plugin.warp.warmup.dal.WarmupRuleDao;
 import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
@@ -101,9 +98,6 @@ public class WarmupRuleServiceTest
                 new WarmupDemoterConfig(),
                 dispatcherProxiedConnectorTransformer,
                 new DefaultFakeConnectorSessionProvider(),
-                new WarmupRuleDao(),
-                mock(EventBus.class),
-                new WarpInitializedServiceRegistry(),
                 globalConfig);
     }
 

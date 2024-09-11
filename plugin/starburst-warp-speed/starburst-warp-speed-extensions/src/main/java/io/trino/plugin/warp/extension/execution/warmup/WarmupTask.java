@@ -95,6 +95,7 @@ public class WarmupTask
     private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final WarpClient warpClient;
+    private final EventBus eventBus;
     private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
 
     @Inject
@@ -109,6 +110,7 @@ public class WarmupTask
         this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
         this.warpClient = requireNonNull(warpClient);
+        this.eventBus = requireNonNull(eventBus);
         this.warmupRuleCloudFetcherConfig = requireNonNull(warmupRuleCloudFetcherConfig);
 
         requireNonNull(eventBus).register(this);
@@ -163,6 +165,7 @@ public class WarmupTask
                 .map(WarmupRuleApiMapper::toModel)
                 .collect(Collectors.toList());
         WarmupRuleResult warmupRuleResult = warmupRuleService.save(collect);
+        eventBus.post(new WarmRulesChangedEvent());
         ImmutableList<WarmupColRuleData> appliedRules = warmupRuleResult.appliedRules().stream().map(WarmupRuleApiMapper::fromModel).collect(toImmutableList());
         ImmutableList<WarmupColRuleRejectionData> rejectedRules = warmupRuleResult.rejectedRules().entrySet().stream()
                 .map(e -> new WarmupColRuleRejectionData(WarmupRuleApiMapper.fromModel(e.getKey()), ImmutableSet.copyOf(e.getValue()))).collect(toImmutableList());
@@ -175,6 +178,7 @@ public class WarmupTask
     public RuleResultDTO replace(@JsonProperty("warmupColRuleDataList") List<WarmupColRuleData> warmupColRuleDataList)
     {
         WarmupRuleResult warmupRuleResult = warmupRuleService.replaceAll(warmupColRuleDataList.stream().map(WarmupRuleApiMapper::toModel).collect(Collectors.toList()));
+        eventBus.post(new WarmRulesChangedEvent());
         ImmutableList<WarmupColRuleData> appliedRules = warmupRuleResult.appliedRules().stream().map(WarmupRuleApiMapper::fromModel).collect(toImmutableList());
         ImmutableList<WarmupColRuleRejectionData> rejectedRules = warmupRuleResult.rejectedRules().entrySet().stream()
                 .map(e -> new WarmupColRuleRejectionData(WarmupRuleApiMapper.fromModel(e.getKey()), ImmutableSet.copyOf(e.getValue()))).collect(toImmutableList());
@@ -210,6 +214,7 @@ public class WarmupTask
     public void delete(@JsonProperty("ids") List<Integer> ids)
     {
         warmupRuleService.delete(ids);
+        eventBus.post(new WarmRulesChangedEvent());
     }
 
     @Path(TASK_NAME_GET_USAGE)
@@ -249,7 +254,7 @@ public class WarmupTask
         warmupRulesUsageData.warmupColRuleUsageDataList()
                 .forEach(warmupColRuleUsageData -> hashToWarmupColRuleUsageDataMapBuilder.compute(
                         warmupColRuleDataHashWithoutUsage(warmupColRuleUsageData),
-                        (key, oldValue) -> {
+                        (_, oldValue) -> {
                             if (Objects.isNull(oldValue)) {
                                 return WarmupColRuleUsageData.builder(warmupColRuleUsageData);
                             }
@@ -262,7 +267,7 @@ public class WarmupTask
         warmupRulesUsageData.warmupDefaultRuleUsageDataList()
                 .forEach(warmupDefaultRuleUsageData -> warmupTypeToWarmupDefaultRuleUsageDataMap.compute(
                         warmupDefaultRuleUsageData.warmUpType(),
-                        (key, oldValue) -> {
+                        (_, oldValue) -> {
                             if (Objects.isNull(oldValue)) {
                                 return warmupDefaultRuleUsageData;
                             }

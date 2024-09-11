@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp.warmup;
 
-import com.google.common.eventbus.EventBus;
+import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -23,20 +23,15 @@ import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.FakeConnectorSessionProvider;
-import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
-import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
-import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
-import io.trino.plugin.warp.warmup.dal.WarmupRuleDao;
 import io.trino.plugin.warp.warmup.model.WarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.plugin.warp.warmup.model.WarmupRuleResult;
-import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
@@ -62,6 +57,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -71,7 +67,6 @@ import static java.util.stream.Collectors.groupingBy;
 
 @Singleton
 public class WarmupRuleService
-        implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(WarmupRuleService.class);
 
@@ -83,11 +78,11 @@ public class WarmupRuleService
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final FakeConnectorSessionProvider fakeConnectorSessionProvider;
-    private final WarmupRuleDao warmupRuleDao;
-    private final EventBus eventBus;
 
-    protected final ReadWriteLock readWriteLock;
     private final GlobalConfig globalConfig;
+    private final Map<Integer, WarmupRule> cache;
+    protected final ReadWriteLock readWriteLock;
+    private static final AtomicInteger idGen = new AtomicInteger(1);
 
     @Inject
     public WarmupRuleService(@ForWarp Connector proxiedConnector,
@@ -95,9 +90,6 @@ public class WarmupRuleService
             WarmupDemoterConfig warmupDemoterConfig,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             FakeConnectorSessionProvider fakeConnectorSessionProvider,
-            WarmupRuleDao warmupRuleDao,
-            EventBus eventBus,
-            WarpInitializedServiceRegistry warpInitializedServiceRegistry,
             GlobalConfig globalConfig)
     {
         this.proxiedConnector = requireNonNull(proxiedConnector);
@@ -105,42 +97,21 @@ public class WarmupRuleService
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.fakeConnectorSessionProvider = requireNonNull(fakeConnectorSessionProvider);
-        this.warmupRuleDao = requireNonNull(warmupRuleDao);
-        this.eventBus = requireNonNull(eventBus);
         this.globalConfig = requireNonNull(globalConfig);
-        warpInitializedServiceRegistry.addService(this);
 
-        this.readWriteLock = new ReentrantReadWriteLock();
+        cache = new HashMap<>();
+        readWriteLock = new ReentrantReadWriteLock();
     }
 
-    @Override
-    public void init()
-    {
-        readWriteLock.writeLock().lock();
-        try {
-            Collection<WarmupRule> allRules = getAll();
-            logger.debug("total rules size=%s", allRules.size());
-        }
-        catch (Exception e) {
-            throw new TrinoException(StandardErrorCode.GENERIC_INTERNAL_ERROR,
-                    "failed to init warmupRules",
-                    e);
-        }
-        finally {
-            readWriteLock.writeLock().unlock();
-        }
-    }
-
-    public synchronized WarmupRuleResult save(List<WarmupRule> newWarmupRules)
+    public WarmupRuleResult save(List<WarmupRule> newWarmupRules)
             throws TrinoException
     {
         readWriteLock.writeLock().lock();
         try {
             WarmupRuleResult warmupRuleResult = validate(getAll(), newWarmupRules);
-            List<WarmupRule> appliedRules = warmupRuleResult.appliedRules();
+            List<WarmupRule> appliedRules = List.of();
             if (!warmupRuleResult.appliedRules().isEmpty()) {
-                appliedRules = warmupRuleDao.save(warmupRuleResult.appliedRules());
-                notifyWarmRulesChangedEvent();
+                appliedRules = internalSave(warmupRuleResult.appliedRules());
             }
             return new WarmupRuleResult(appliedRules, warmupRuleResult.rejectedRules());
         }
@@ -155,15 +126,17 @@ public class WarmupRuleService
         }
     }
 
-    public synchronized WarmupRuleResult replaceAll(List<WarmupRule> newWarmupRules)
+    public WarmupRuleResult replaceAll(List<WarmupRule> newWarmupRules)
             throws TrinoException
     {
         readWriteLock.writeLock().lock();
         try {
             WarmupRuleResult warmupRuleResult = validate(Collections.emptyList(), newWarmupRules);
-            List<WarmupRule> appliedRules = warmupRuleDao.replaceAll(warmupRuleResult.appliedRules());
-            notifyWarmRulesChangedEvent();
-            appliedRules = (appliedRules == null) ? Collections.emptyList() : appliedRules;
+            List<WarmupRule> appliedRules = List.of();
+            if (!warmupRuleResult.appliedRules().isEmpty() || newWarmupRules.isEmpty()) {
+                cache.clear();
+                appliedRules = internalSave(warmupRuleResult.appliedRules());
+            }
             return new WarmupRuleResult(appliedRules, warmupRuleResult.rejectedRules());
         }
         catch (Exception e) {
@@ -203,11 +176,11 @@ public class WarmupRuleService
                 .collect(Collectors.toSet());
         for (WarmupRule warmupRule : newWarmupRules) {
             long uniqueRuleId = getUniqueRuleId(warmupRule);
-            if (uniqueIds.contains(uniqueRuleId) || (warmupRule.getId() == 0 && existingUniqueRuleIds.contains(uniqueRuleId))) {
+            if (uniqueIds.contains(uniqueRuleId) || (isNew(warmupRule) && existingUniqueRuleIds.contains(uniqueRuleId))) {
                 String error = String.format("%d: can't add 2 rules with the same key. rules=%s",
                         WarpErrorCode.WARP_DUPLICATE_RECORD.getCode(),
                         warmupRule);
-                rejectedRules.computeIfAbsent(warmupRule, e -> new HashSet<>()).add(error);
+                rejectedRules.computeIfAbsent(warmupRule, _ -> new HashSet<>()).add(error);
                 continue;
             }
             else {
@@ -216,7 +189,7 @@ public class WarmupRuleService
             if (warmupRule.getId() != 0 && !existingRuleIds.contains(warmupRule.getId())) {
                 String error = String.format("%d: New Rule id must be 0, or override an existing rule id",
                         WarpErrorCode.WARP_WARMUP_RULE_ID_NOT_VALID.getCode());
-                rejectedRules.computeIfAbsent(warmupRule, e -> new HashSet<>()).add(error);
+                rejectedRules.computeIfAbsent(warmupRule, _ -> new HashSet<>()).add(error);
                 continue;
             }
             Map<String, ColumnMetadata> tableColumnsMetadata = getTableColumnsMetadata(tablesColumnsMetadata, warmupRule);
@@ -224,7 +197,7 @@ public class WarmupRuleService
                 String error = String.format("%d: Rule refer to a non-exist table (%s)",
                         WarpErrorCode.WARP_WARMUP_RULE_UNKNOWN_TABLE.getCode(),
                         getSchemaTableName(warmupRule));
-                rejectedRules.computeIfAbsent(warmupRule, e -> new HashSet<>()).add(error);
+                rejectedRules.computeIfAbsent(warmupRule, _ -> new HashSet<>()).add(error);
             }
             else {
                 Optional<Type> columnType = getColumnType(tableColumnsMetadata, warmupRule);
@@ -232,13 +205,13 @@ public class WarmupRuleService
                     String error = String.format("%d: Rule refer to a non-exist column (%s)",
                             WarpErrorCode.WARP_WARMUP_RULE_UNKNOWN_COLUMN.getCode(),
                             warmupRule.getWarpColumn().getName());
-                    rejectedRules.computeIfAbsent(warmupRule, e -> new HashSet<>()).add(error);
+                    rejectedRules.computeIfAbsent(warmupRule, _ -> new HashSet<>()).add(error);
                 }
                 else {
                     String columnUniqueKey = getColumnUniqueKey(warmupRule);
                     boolean valid = validateRule(rejectedRules, warmupRule, columnType);
                     if (valid) {
-                        List<WarmupRule> columnRules = existingRuleByColumn.computeIfAbsent(columnUniqueKey, rule -> new ArrayList<>());
+                        List<WarmupRule> columnRules = existingRuleByColumn.computeIfAbsent(columnUniqueKey, _ -> new ArrayList<>());
                         columnRules.add(warmupRule); // adding to find failures in the list to be saved
                         appliedRules.add(warmupRule);
                     }
@@ -260,8 +233,7 @@ public class WarmupRuleService
                     validateMaxCharLength(errors, warmupRule, type);
                 }
                 validateDataOnly(errors, warmupRule);
-            },
-                    () -> errors.add("WarmUpType is null"));
+            }, () -> errors.add("WarmUpType is null"));
             if (!errors.isEmpty()) {
                 rejectedRules.put(warmupRule, errors);
                 return false;
@@ -320,15 +292,20 @@ public class WarmupRuleService
 
     public List<WarmupRule> getAll()
     {
-        return warmupRuleDao.getAll();
+        readWriteLock.readLock().lock();
+        try {
+            return ImmutableList.copyOf(cache.values());
+        }
+        finally {
+            readWriteLock.readLock().unlock();
+        }
     }
 
     public void delete(List<Integer> ids)
     {
         readWriteLock.writeLock().lock();
         try {
-            warmupRuleDao.delete(ids);
-            notifyWarmRulesChangedEvent();
+            ids.forEach(cache::remove);
         }
         catch (Exception e) {
             logger.error("failed to delete new rules ids=%s.", ids);
@@ -420,8 +397,21 @@ public class WarmupRuleService
         return String.format("%s:%s:%s:%s", warmupRule.getSchema(), warmupRule.getTable(), warmupRule.getWarpColumn().getName(), predicateHash);
     }
 
-    private void notifyWarmRulesChangedEvent()
+    private static boolean isNew(WarmupRule warmupRule)
     {
-        eventBus.post(new WarmRulesChangedEvent());
+        return warmupRule.getId() == 0;
+    }
+
+    private List<WarmupRule> internalSave(List<WarmupRule> appliedRules)
+    {
+        List<WarmupRule> actualAppliedRules = new ArrayList<>();
+        appliedRules.forEach(warmupRule -> {
+            if (isNew(warmupRule)) {
+                warmupRule = WarmupRule.builder(warmupRule).id(idGen.getAndIncrement()).build();
+            }
+            cache.put(warmupRule.getId(), warmupRule);
+            actualAppliedRules.add(warmupRule);
+        });
+        return actualAppliedRules;
     }
 }
