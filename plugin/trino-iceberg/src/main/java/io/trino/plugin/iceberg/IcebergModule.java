@@ -25,6 +25,9 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.parquet.cache.MemoryParquetFooterCache;
 import io.trino.parquet.cache.ParquetFooterCache;
+import io.trino.plugin.base.ConnectorSplitManagerDecorator;
+import io.trino.plugin.base.DecoratingConnectorSplitManager;
+import io.trino.plugin.base.ForDecorator;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorCacheMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSinkProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSourceProviderFactory;
@@ -126,7 +129,9 @@ public class IcebergModule
         binder.bind(IcebergMaterializedViewProperties.class).in(Scopes.SINGLETON);
         binder.bind(IcebergAnalyzeProperties.class).in(Scopes.SINGLETON);
 
-        binder.bind(ConnectorSplitManager.class).annotatedWith(ForClassLoaderSafe.class).to(IcebergSplitManager.class).in(Scopes.SINGLETON);
+        newSetBinder(binder, ConnectorSplitManagerDecorator.class);
+        binder.bind(ConnectorSplitManager.class).annotatedWith(ForDecorator.class).to(IcebergSplitManager.class).in(Scopes.SINGLETON);
+        binder.bind(ConnectorSplitManager.class).annotatedWith(ForClassLoaderSafe.class).to(DecoratingConnectorSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorSplitManager.class).to(ClassLoaderSafeConnectorSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorPageSourceProviderFactory.class).annotatedWith(ForClassLoaderSafe.class).to(IcebergPageSourceProviderFactory.class).in(Scopes.SINGLETON);
         binder.bind(IcebergPageSourceProviderFactory.class).in(Scopes.SINGLETON);
