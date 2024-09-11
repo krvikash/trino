@@ -27,6 +27,7 @@ import io.trino.plugin.warp.WorkerNodeManager;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.CloudVendorModule;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
+import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.MetricsConfig;
@@ -127,6 +128,7 @@ public class DispatcherCacheManagerModule
         configBinder(binder).bindConfig(GlobalConfig.class);
         configBinder(binder).bindConfig(NativeConfig.class);
         configBinder(binder).bindConfig(WarmupDemoterConfig.class);
+        configBinder(binder).bindConfig(CacheManagerConfig.class);
 
         EmptyConnectorContext context = new EmptyConnectorContext();
 

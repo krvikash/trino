@@ -23,6 +23,7 @@ import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.NodeModule;
 import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
+import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.di.WarmupCloudFetcherModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
@@ -91,8 +92,9 @@ public class WarpExtensionModule
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
+        CacheManagerConfig cacheManagerConfig = configFactory.build(CacheManagerConfig.class);
         if (WarpBaseModule.isWorker(connectorContext, config) &&
-                !WarpBaseModule.isCache(config) &&
+                !cacheManagerConfig.getIsCache() &&
                 StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder().bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(WorkerWarmupRuleFetcher.class);
             configBinder(binder()).bindConfig(WarmupRuleCloudFetcherConfig.class, ForWarmupRuleCloudFetcher.class);

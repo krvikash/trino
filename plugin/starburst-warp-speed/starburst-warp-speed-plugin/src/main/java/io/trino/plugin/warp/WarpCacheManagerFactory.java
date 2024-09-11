@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_CACHE;
+import static io.trino.plugin.warp.config.CacheManagerConfig.CONFIG_IS_CACHE;
 
 public class WarpCacheManagerFactory
         implements CacheManagerFactory

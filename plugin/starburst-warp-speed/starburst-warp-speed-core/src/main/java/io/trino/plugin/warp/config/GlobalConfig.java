@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 public class GlobalConfig
 {
     public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
-    public static final String CONFIG_IS_CACHE = "warp-speed.config.is-cache";
     public static final String CLUSTER_UP_TIME = "warp-speed.cluster_up_time";
     public static final String ENABLE_DEFAULT_WARMING = "warp-speed.enable-default-warming";
     public static final String DEFAULT_WARMING_INDEX = "warp-speed.default-warming-index";
@@ -44,7 +43,6 @@ public class GlobalConfig
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
     public static final String DATA_ONLY_WARMING = "warp-speed.data-only-warming";
     public static final String EMPTY_PAGE_ITERATIONS = "warp-speed.config-empty-page-iterations";
-    public static final String CACHE_MANAGER_MAX_PARALLEL_WARMUP_ELEMENTS = "warp-speed.cache-manager.max-parallel-warmup-elements";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
     public static final String ENABLE_DICTIONARY = "warp-speed.enable.dictionary";
     private static final Logger logger = Logger.get(GlobalConfig.class);
@@ -53,7 +51,6 @@ public class GlobalConfig
     private int stripeSize = 32;
     private String cardinalityBuckets = "1000,1000000"; // allows applying most selective predicate first when using predicate push-down
     private boolean isSingle;
-    private boolean isCache;
     private Set<String> unsupportedFunctions = Collections.emptySet();
     private long clusterUpTime;
     private boolean enableDefaultWarming = true;
@@ -93,7 +90,6 @@ public class GlobalConfig
     private int shapingLoggerNumberOfSamples = 3;
     private boolean dataOnlyWarming;
     private boolean enableInverseWithNulls;
-    private int cacheManagerMaxParallelWarmupElements = 200;
     private int cloudExecutorPoolSize = Runtime.getRuntime().availableProcessors() * 100;
     private int prioritizeExecutorPoolSize = 1000;
 
@@ -128,17 +124,6 @@ public class GlobalConfig
     public void setEnableDictionary(boolean enableDictionary)
     {
         this.enableDictionary = enableDictionary;
-    }
-
-    public boolean getIsCache()
-    {
-        return isCache;
-    }
-
-    @Config(CONFIG_IS_CACHE)
-    public void setIsCache(boolean isCache)
-    {
-        this.isCache = isCache;
     }
 
     public String getCardinalityBuckets()
@@ -560,17 +545,6 @@ public class GlobalConfig
         this.dataOnlyWarming = dataOnlyWarming;
     }
 
-    public int getCacheManagerMaxParallelWarmupElements()
-    {
-        return cacheManagerMaxParallelWarmupElements;
-    }
-
-    @Config(CACHE_MANAGER_MAX_PARALLEL_WARMUP_ELEMENTS)
-    public void setCacheManagerMaxParallelWarmupElements(int cacheManagerMaxParallelWarmupElements)
-    {
-        this.cacheManagerMaxParallelWarmupElements = cacheManagerMaxParallelWarmupElements;
-    }
-
     @Config(EMPTY_PAGE_ITERATIONS)
     public void setEmptyPageIterations(long emptyPageIterations)
     {
@@ -590,7 +564,6 @@ public class GlobalConfig
                 ", stripeSize=" + stripeSize +
                 ", cardinalityBuckets='" + cardinalityBuckets + '\'' +
                 ", isSingle=" + isSingle +
-                ", isCache=" + isCache +
                 ", unsupportedFunctions=" + unsupportedFunctions +
                 ", clusterUpTime=" + clusterUpTime +
                 ", enableDefaultWarming=" + enableDefaultWarming +
@@ -623,7 +596,6 @@ public class GlobalConfig
                 ", debugWarmingSingleThreaded=" + debugWarmingSingleThreaded +
                 ", debugNoPredicateBuffer=" + debugNoPredicateBuffer +
                 ", emptyPageIterations=" + emptyPageIterations +
-                ", cacheManagerMaxParallelWarmupElements=" + cacheManagerMaxParallelWarmupElements +
                 '}';
     }
 }
