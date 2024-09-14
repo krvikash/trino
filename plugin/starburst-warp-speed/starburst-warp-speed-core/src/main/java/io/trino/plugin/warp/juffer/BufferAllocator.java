@@ -36,6 +36,7 @@ import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.TinyintType;
+import jakarta.annotation.PreDestroy;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -72,8 +73,11 @@ public class BufferAllocator
     private final ConnectorSync connectorSync;
     private final MetricsManager metricsManager;
     private ByteBuffer[] bundles;         // pool of Buffers initialized at startup. native layer manages alloc/free
+    private MemorySegment loadSegmentsMem;
     private ArrayBlockingQueue<MemorySegment> loadSegmentsQueue; // loadSegment is the bundle, we use it to allocate juffers (record/null/etc)
+    private MemorySegment loadWriteBufferMem;
     private ArrayBlockingQueue<MemorySegment> loadWriteBufferQueue; // loadWriteBuffer is storage engine buffer used to write to disk
+    private MemorySegment loadConetxtMem;
     private ArrayBlockingQueue<MemorySegment> loadContextQueue; // loadContextQueue is storage engine buffer used for keeping in memory context during warmup
     private final NativeConfig nativeConfig;
     private final int maxRecLenForVarlenRecordBuffer;
@@ -88,6 +92,7 @@ public class BufferAllocator
     private int warmWriteBufferSize;
     private int warmContextBufferSize;
     private final BufferAllocatorStats stats;
+    private MemorySegment predicateBundleMem;
     private PredicateBufferPool[] predicateBufferPools;
     private int[] buffTypeSizes;
     private int[] fixedRecordBufferSizes;
@@ -125,12 +130,22 @@ public class BufferAllocator
         this.stats = BufferAllocatorStats.create(BUFFER_ALLOCATOR_METRICS_GROUP);
     }
 
+    @PreDestroy
+    public void shutdown()
+    {
+        loadSegmentsMem = null;
+        loadWriteBufferMem = null;
+        loadConetxtMem = null;
+        predicateBundleMem = null;
+    }
+
     private void initWarmBundles(int numSegments)
     {
         final long alignment = storageEngineConstants.getPageSize();
         final long allocSize = (long) warmBundleSize * numSegments + alignment;
 
-        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
+        loadSegmentsMem = Arena.ofAuto().allocate(allocSize, alignment);
+        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(loadSegmentsMem);
         ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
         for (int i = 0; i < numSegments; i++) {
             segmentList.add(nativeAllocator.allocate(warmBundleSize, alignment));
@@ -149,7 +164,8 @@ public class BufferAllocator
         final long alignment = storageEngineConstants.getPageSize();
         final long allocSize = (long) warmWriteBufferSize * numSegments + alignment;
 
-        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
+        loadWriteBufferMem = Arena.ofAuto().allocate(allocSize, alignment);
+        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(loadWriteBufferMem);
         ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
         for (int i = 0; i < numSegments; i++) {
             segmentList.add(nativeAllocator.allocate(warmWriteBufferSize, alignment));
@@ -164,7 +180,9 @@ public class BufferAllocator
         this.warmContextBufferSize = storageEngineConstants.getMaxWeContextSize() * 1024;
         final long alignment = Integer.BYTES;
         final long allocSize = ((long) warmContextBufferSize) * numSegments + alignment;
-        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
+
+        loadConetxtMem = Arena.ofAuto().allocate(allocSize, alignment);
+        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(loadConetxtMem);
 
         ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
         for (int i = 0; i < numSegments; i++) {
@@ -185,7 +203,8 @@ public class BufferAllocator
             predicateBundleSize = (predicateBundleSize >> 2) + alignment;
         }
 
-        SegmentAllocator poolSlicer = SegmentAllocator.slicingAllocator(Arena.global().allocate(predicateBundleSize, alignment));
+        predicateBundleMem = Arena.ofAuto().allocate(predicateBundleSize, alignment);
+        SegmentAllocator poolSlicer = SegmentAllocator.slicingAllocator(predicateBundleMem);
         predicateBufferPools[PredicateBufferPoolType.SMALL.ordinal()] = new PredicateBufferPool(PredicateBufferPoolType.SMALL,
                 PREDICATE_SMALL_BUF_SIZE,
                 PREDICATE_SMALL_NUM_BUFFERS,

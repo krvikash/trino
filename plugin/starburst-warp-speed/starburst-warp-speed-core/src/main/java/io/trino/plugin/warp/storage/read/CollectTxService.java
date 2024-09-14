@@ -21,6 +21,7 @@ import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.TrinoException;
+import jakarta.annotation.PreDestroy;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -41,6 +42,7 @@ public class CollectTxService
 {
     private final ChunksQueueService chunksQueueService;
     private final RangeFillerService rangeFillerService;
+    private MemorySegment matchBitmapsMem;
     private final ArrayBlockingQueue<MemorySegment> matchBitmapsQueue;
 
     @Inject
@@ -62,13 +64,20 @@ public class CollectTxService
         final long segmentSize = storageEngineConstants.getPageSize() * maxChunks;
         final long allocSize = segmentSize * numSegments + alignment;
 
-        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
+        matchBitmapsMem = Arena.ofAuto().allocate(allocSize, alignment);
+        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(matchBitmapsMem);
         ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
         for (int i = 0; i < numSegments; i++) {
             segmentList.add(nativeAllocator.allocate(segmentSize, alignment));
         }
 
         matchBitmapsQueue = new ArrayBlockingQueue<>(segmentList.size(), true, segmentList);
+    }
+
+    @PreDestroy
+    public void shutdown()
+    {
+        matchBitmapsMem = null;
     }
 
     public void freeCollectOpenResources(CollectOpenResult collectOpenResult)
