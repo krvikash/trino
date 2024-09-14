@@ -49,8 +49,8 @@ public final class EnvMultinodeAllConnectors
                         "bigquery",
                         "cassandra",
                         "clickhouse",
-                        "druid",
                         "delta_lake",
+                        "druid",
                         "elasticsearch",
                         "faker",
                         "gsheets",
@@ -62,7 +62,6 @@ public final class EnvMultinodeAllConnectors
                         "kudu",
                         "mariadb",
                         "memory",
-                        "singlestore",
                         "mongodb",
                         "mysql",
                         "opensearch",
@@ -73,11 +72,12 @@ public final class EnvMultinodeAllConnectors
                         "prometheus",
                         "redis",
                         "redshift",
+                        "singlestore",
                         // "snowflake", excluded to avoid confusion with Starburst's connector with similar name
                         "sqlserver",
                         "stargate",
-                        "trino_thrift",
                         "tpcds",
+                        "trino_thrift",
                         "vertica")
                 .forEach(connector -> builder.addConnector(
                         connector,
