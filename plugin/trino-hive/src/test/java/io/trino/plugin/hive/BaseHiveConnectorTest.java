@@ -3863,7 +3863,7 @@ public abstract class BaseHiveConnectorTest
 
     private int getBucketCount(String tableName)
     {
-        return (int) getHiveTableProperty(tableName, table -> table.getBucketHandle().get().tableBucketCount());
+        return (int) getHiveTableProperty(tableName, table -> table.getTablePartitioning().get().tableBucketCount());
     }
 
     @Test

@@ -70,7 +70,7 @@ public class HiveCacheMetadata
                 TupleDomain.all(),
                 // enforced constraint is only enforced on partition columns, therefore it can be skipped
                 TupleDomain.all(),
-                hiveTableHandle.getBucketHandle(),
+                hiveTableHandle.getTablePartitioning(),
                 // skip bucket filter as splits are entirely embedded within buckets
                 Optional.empty(),
                 Optional.empty(),
@@ -79,7 +79,7 @@ public class HiveCacheMetadata
         HiveCacheTableId tableId = new HiveCacheTableId(
                 hiveTableHandle.getSchemaName(),
                 hiveTableHandle.getTableName(),
-                hiveTableHandle.getBucketHandle());
+                hiveTableHandle.getTablePartitioning());
         return Optional.of(new CacheTableId(tableIdCodec.toJson(tableId)));
     }
 

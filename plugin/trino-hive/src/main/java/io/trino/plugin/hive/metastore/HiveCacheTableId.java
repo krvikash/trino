@@ -14,7 +14,7 @@
 package io.trino.plugin.hive.metastore;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.trino.plugin.hive.HiveBucketHandle;
+import io.trino.plugin.hive.HiveTablePartitioning;
 
 import java.util.Optional;
 
@@ -24,16 +24,16 @@ public class HiveCacheTableId
 {
     private final String schemaName;
     private final String tableName;
-    private final Optional<HiveBucketHandle> bucketHandle;
+    private final Optional<HiveTablePartitioning> hiveTablePartitioning;
 
     public HiveCacheTableId(
             String schemaName,
             String tableName,
-            Optional<HiveBucketHandle> bucketHandle)
+            Optional<HiveTablePartitioning> hiveTablePartitioning)
     {
         this.schemaName = requireNonNull(schemaName, "schemaName is null");
         this.tableName = requireNonNull(tableName, "tableName is null");
-        this.bucketHandle = requireNonNull(bucketHandle, "bucketHandle is null");
+        this.hiveTablePartitioning = requireNonNull(hiveTablePartitioning, "bucketHandle is null");
     }
 
     @JsonProperty
@@ -49,8 +49,8 @@ public class HiveCacheTableId
     }
 
     @JsonProperty
-    public Optional<HiveBucketHandle> getBucketHandle()
+    public Optional<HiveTablePartitioning> getTablePartitioning()
     {
-        return bucketHandle;
+        return hiveTablePartitioning;
     }
 }

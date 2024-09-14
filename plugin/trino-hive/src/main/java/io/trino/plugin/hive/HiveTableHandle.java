@@ -51,7 +51,7 @@ public class HiveTableHandle
     private final Optional<List<HivePartition>> partitions;
     private final TupleDomain<HiveColumnHandle> compactEffectivePredicate;
     private final TupleDomain<ColumnHandle> enforcedConstraint;
-    private final Optional<HiveBucketHandle> bucketHandle;
+    private final Optional<HiveTablePartitioning> tablePartitioning;
     private final Optional<HiveBucketFilter> bucketFilter;
     private final Optional<List<List<String>>> analyzePartitionValues;
     private final Set<HiveColumnHandle> constraintColumns;
@@ -68,7 +68,7 @@ public class HiveTableHandle
             @JsonProperty("dataColumns") List<HiveColumnHandle> dataColumns,
             @JsonProperty("compactEffectivePredicate") TupleDomain<HiveColumnHandle> compactEffectivePredicate,
             @JsonProperty("enforcedConstraint") TupleDomain<ColumnHandle> enforcedConstraint,
-            @JsonProperty("bucketHandle") Optional<HiveBucketHandle> bucketHandle,
+            @JsonProperty("tablePartitioning") Optional<HiveTablePartitioning> tablePartitioning,
             @JsonProperty("bucketFilter") Optional<HiveBucketFilter> bucketFilter,
             @JsonProperty("analyzePartitionValues") Optional<List<List<String>>> analyzePartitionValues,
             @JsonProperty("transaction") AcidTransaction transaction)
@@ -83,7 +83,7 @@ public class HiveTableHandle
                 Optional.empty(),
                 compactEffectivePredicate,
                 enforcedConstraint,
-                bucketHandle,
+                tablePartitioning,
                 bucketFilter,
                 analyzePartitionValues,
                 ImmutableSet.of(),
@@ -98,7 +98,7 @@ public class HiveTableHandle
             Map<String, String> tableParameters,
             List<HiveColumnHandle> partitionColumns,
             List<HiveColumnHandle> dataColumns,
-            Optional<HiveBucketHandle> bucketHandle)
+            Optional<HiveTablePartitioning> tablePartitioning)
     {
         this(
                 schemaName,
@@ -110,7 +110,7 @@ public class HiveTableHandle
                 Optional.empty(),
                 TupleDomain.all(),
                 TupleDomain.all(),
-                bucketHandle,
+                tablePartitioning,
                 Optional.empty(),
                 Optional.empty(),
                 ImmutableSet.of(),
@@ -129,7 +129,7 @@ public class HiveTableHandle
             Optional<List<HivePartition>> partitions,
             TupleDomain<HiveColumnHandle> compactEffectivePredicate,
             TupleDomain<ColumnHandle> enforcedConstraint,
-            Optional<HiveBucketHandle> bucketHandle,
+            Optional<HiveTablePartitioning> tablePartitioning,
             Optional<HiveBucketFilter> bucketFilter,
             Optional<List<List<String>>> analyzePartitionValues,
             Set<HiveColumnHandle> constraintColumns,
@@ -147,7 +147,7 @@ public class HiveTableHandle
                 partitions,
                 compactEffectivePredicate,
                 enforcedConstraint,
-                bucketHandle,
+                tablePartitioning,
                 bucketFilter,
                 analyzePartitionValues,
                 constraintColumns,
@@ -167,7 +167,7 @@ public class HiveTableHandle
             Optional<List<HivePartition>> partitions,
             TupleDomain<HiveColumnHandle> compactEffectivePredicate,
             TupleDomain<ColumnHandle> enforcedConstraint,
-            Optional<HiveBucketHandle> bucketHandle,
+            Optional<HiveTablePartitioning> tablePartitioning,
             Optional<HiveBucketFilter> bucketFilter,
             Optional<List<List<String>>> analyzePartitionValues,
             Set<HiveColumnHandle> constraintColumns,
@@ -186,7 +186,7 @@ public class HiveTableHandle
         this.partitions = partitions.map(ImmutableList::copyOf);
         this.compactEffectivePredicate = requireNonNull(compactEffectivePredicate, "compactEffectivePredicate is null");
         this.enforcedConstraint = requireNonNull(enforcedConstraint, "enforcedConstraint is null");
-        this.bucketHandle = requireNonNull(bucketHandle, "bucketHandle is null");
+        this.tablePartitioning = requireNonNull(tablePartitioning, "tablePartitioning is null");
         this.bucketFilter = requireNonNull(bucketFilter, "bucketFilter is null");
         this.analyzePartitionValues = analyzePartitionValues.map(ImmutableList::copyOf);
         this.constraintColumns = ImmutableSet.copyOf(requireNonNull(constraintColumns, "constraintColumns is null"));
@@ -208,7 +208,7 @@ public class HiveTableHandle
                 partitions,
                 compactEffectivePredicate,
                 enforcedConstraint,
-                bucketHandle,
+                tablePartitioning,
                 bucketFilter,
                 Optional.of(analyzePartitionValues),
                 constraintColumns,
@@ -230,7 +230,7 @@ public class HiveTableHandle
                 partitions,
                 compactEffectivePredicate,
                 enforcedConstraint,
-                bucketHandle,
+                tablePartitioning,
                 bucketFilter,
                 analyzePartitionValues,
                 constraintColumns,
@@ -252,7 +252,7 @@ public class HiveTableHandle
                 partitions,
                 compactEffectivePredicate,
                 enforcedConstraint,
-                bucketHandle,
+                tablePartitioning,
                 bucketFilter,
                 analyzePartitionValues,
                 constraintColumns,
@@ -274,7 +274,7 @@ public class HiveTableHandle
                 partitions,
                 compactEffectivePredicate,
                 enforcedConstraint,
-                bucketHandle,
+                tablePartitioning,
                 bucketFilter,
                 analyzePartitionValues,
                 constraintColumns,
@@ -296,7 +296,7 @@ public class HiveTableHandle
                 partitions,
                 compactEffectivePredicate,
                 enforcedConstraint,
-                bucketHandle,
+                tablePartitioning,
                 bucketFilter,
                 analyzePartitionValues,
                 constraintColumns,
@@ -323,7 +323,7 @@ public class HiveTableHandle
                 */
                 TupleDomain.all(),
                 enforcedConstraint,
-                bucketHandle,
+                tablePartitioning,
                 bucketFilter,
                 analyzePartitionValues,
                 constraintColumns,
@@ -400,9 +400,9 @@ public class HiveTableHandle
     }
 
     @JsonProperty
-    public Optional<HiveBucketHandle> getBucketHandle()
+    public Optional<HiveTablePartitioning> getTablePartitioning()
     {
-        return bucketHandle;
+        return tablePartitioning;
     }
 
     @JsonProperty
@@ -479,7 +479,7 @@ public class HiveTableHandle
                 Objects.equals(partitions, that.partitions) &&
                 Objects.equals(compactEffectivePredicate, that.compactEffectivePredicate) &&
                 Objects.equals(enforcedConstraint, that.enforcedConstraint) &&
-                Objects.equals(bucketHandle, that.bucketHandle) &&
+                Objects.equals(tablePartitioning, that.tablePartitioning) &&
                 Objects.equals(bucketFilter, that.bucketFilter) &&
                 Objects.equals(analyzePartitionValues, that.analyzePartitionValues) &&
                 Objects.equals(constraintColumns, that.constraintColumns) &&
@@ -502,7 +502,7 @@ public class HiveTableHandle
                 partitions,
                 compactEffectivePredicate,
                 enforcedConstraint,
-                bucketHandle,
+                tablePartitioning,
                 bucketFilter,
                 analyzePartitionValues,
                 constraintColumns,
@@ -523,7 +523,7 @@ public class HiveTableHandle
                     .map(HiveColumnHandle::getName)
                     .collect(joining(", ", "[", "]")));
         }
-        bucketHandle.ifPresent(bucket -> {
+        tablePartitioning.ifPresent(bucket -> {
             builder.append(" buckets=").append(bucket.readBucketCount());
             if (!bucket.sortedBy().isEmpty()) {
                 builder.append(" sorted_by=")

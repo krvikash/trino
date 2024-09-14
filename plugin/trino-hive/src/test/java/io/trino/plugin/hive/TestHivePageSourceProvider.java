@@ -54,7 +54,7 @@ public class TestHivePageSourceProvider
     private static final HiveColumnHandle DATA_COLUMN = createBaseColumn("data_col", 0, HIVE_INT, INTEGER, REGULAR, Optional.empty());
     private static final HiveColumnHandle BUCKET_COLUMN = createBaseColumn("bucket_col", 1, HIVE_INT, INTEGER, REGULAR, Optional.empty());
     private static final String PARTITION_NAME = "part1";
-    private static final HiveBucketHandle HIVE_BUCKET_HANDLE = new HiveBucketHandle(
+    private static final HiveTablePartitioning HIVE_TABLE_PARTITIONING = new HiveTablePartitioning(
             ImmutableList.of(BUCKET_COLUMN),
             BUCKETING_V1,
             10,
@@ -71,7 +71,7 @@ public class TestHivePageSourceProvider
                     DATA_COLUMN, DATA_DOMAIN,
                     PARTITION_COLUMN, PARTITION_DOMAIN)),
             TupleDomain.all(),
-            Optional.of(HIVE_BUCKET_HANDLE),
+            Optional.of(HIVE_TABLE_PARTITIONING),
             Optional.empty(),
             Optional.empty(),
             NO_ACID_TRANSACTION);

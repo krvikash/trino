@@ -70,7 +70,7 @@ public class TestHiveTableHandle
         assertThat(canonicalHandle.getDataColumns()).isEqualTo(handle.getDataColumns());
         assertThat(canonicalHandle.getCompactEffectivePredicate()).isEqualTo(TupleDomain.all());
         assertThat(canonicalHandle.getEnforcedConstraint()).isEqualTo(handle.getEnforcedConstraint());
-        assertThat(canonicalHandle.getBucketHandle()).isEqualTo(handle.getBucketHandle());
+        assertThat(canonicalHandle.getTablePartitioning()).isEqualTo(handle.getTablePartitioning());
         assertThat(canonicalHandle.getBucketFilter()).isEqualTo(handle.getBucketFilter());
         assertThat(canonicalHandle.getAnalyzePartitionValues()).isEqualTo(handle.getAnalyzePartitionValues());
         assertThat(canonicalHandle.getTransaction()).isEqualTo(handle.getTransaction());
