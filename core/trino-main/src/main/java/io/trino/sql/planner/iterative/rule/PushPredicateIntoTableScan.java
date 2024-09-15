@@ -14,7 +14,6 @@
 package io.trino.sql.planner.iterative.rule;
 
 import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.cost.StatsProvider;
@@ -220,7 +219,7 @@ public class PushPredicateIntoTableScan
             // TODO: DomainTranslator.fromPredicate can infer that the expression is "false" in some cases (TupleDomain.none()).
             // This should move to another rule that simplifies the filter using that logic and then rely on RemoveTrivialFilters
             // to turn the subtree into a Values node
-            return Result.ofPlanNode(new ValuesNode(node.getId(), node.getOutputSymbols(), ImmutableList.of()));
+            return Result.ofPlanNode(new ValuesNode(node.getId(), node.getOutputSymbols()));
         }
 
         Optional<ConstraintApplicationResult<TableHandle>> result = plannerContext.getMetadata().applyFilter(session, node.getTable(), constraint);
@@ -233,11 +232,10 @@ public class PushPredicateIntoTableScan
         List<PlanNode> alternatives = new ArrayList<>(result.get().getAlternatives().size());
         for (int i = 0; i < result.get().getAlternatives().size(); i++) {
             ConstraintApplicationResult.Alternative<TableHandle> alternative = result.get().getAlternatives().get(i);
-
             TableProperties newTableProperties = plannerContext.getMetadata().getTableProperties(session, alternative.handle());
             if (newTableProperties.getPredicate().isNone()) {
                 // if there's an alternative with "false" filter - choose it without asking the connector
-                return Result.ofPlanNode(new ValuesNode(node.getId(), node.getOutputSymbols(), ImmutableList.of()));
+                return Result.ofPlanNode(new ValuesNode(node.getId(), node.getOutputSymbols()));
             }
 
             TupleDomain<ColumnHandle> remainingFilter = alternative.remainingFilter();
