@@ -35,7 +35,7 @@ public class QueryParams
     private final int numLoadDataValues;
     private final int numMatchCollect;
     private final int totalNumRecords;
-    private final int catalogSequence;
+    private final long catalogContext;
     private final int minMatchOffset;
     private final int minCollectOffset;
     private final ImmutableList<PredicateCacheData> predicateCacheData;
@@ -48,7 +48,7 @@ public class QueryParams
             int numLucene,
             List<WarmupElementCollectParams> collectParams,
             int totalNumRecords,
-            int catalogSequence,
+            long catalogContext,
             int minMatchOffset,
             int minCollectOffset,
             String filePath,
@@ -66,7 +66,7 @@ public class QueryParams
                 .filter(WarmupElementCollectParams::hasMatchCollect)
                 .count();
         this.totalNumRecords = totalNumRecords;
-        this.catalogSequence = catalogSequence;
+        this.catalogContext = catalogContext;
         this.minMatchOffset = minMatchOffset;
         this.minCollectOffset = minCollectOffset;
         this.predicateCacheData = predicateCacheData;
@@ -143,9 +143,9 @@ public class QueryParams
         return fileModTime;
     }
 
-    public int getCatalogSequence()
+    public long getCatalogContext()
     {
-        return catalogSequence;
+        return catalogContext;
     }
 
     public int getMinMatchOffset()
@@ -212,7 +212,7 @@ public class QueryParams
 
         return rootMatchNode.equals(o.rootMatchNode) &&
                 collectParams.equals(o.collectParams) &&
-                catalogSequence == o.catalogSequence &&
+                catalogContext == o.catalogContext &&
                 rowGroupUniqueId == o.rowGroupUniqueId;
     }
 

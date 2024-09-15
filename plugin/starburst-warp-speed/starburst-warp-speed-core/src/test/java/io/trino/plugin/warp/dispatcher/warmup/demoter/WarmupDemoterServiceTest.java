@@ -209,8 +209,7 @@ public class WarmupDemoterServiceTest
 
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
         assertThat(warmupDemoterService.getCurrentRunStats().getfailed_row_group_data()).isEqualTo(1);
         assertThat(warmupDemoterService.getCurrentRunStats().getdeleted_by_low_priority()).isEqualTo(4);
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData1), anyCollection());
@@ -265,8 +264,7 @@ public class WarmupDemoterServiceTest
         warmupDemoterService.tryDemoteStart();
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         assertThat(warmupDemoterService.getCurrentRunStats().getdead_objects_deleted()).isEqualTo(elements.size());
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test
@@ -288,8 +286,7 @@ public class WarmupDemoterServiceTest
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
 
         assertThat(warmupDemoterService.getCurrentRunStats().getfailed_objects_deleted()).isEqualTo(elements.size());
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test
@@ -303,8 +300,7 @@ public class WarmupDemoterServiceTest
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
         assertThat(warmupDemoterService.getDemoterHighestPriority().get()).isEqualTo(0);
         assertThat(warmupDemoterService.getCurrentRunStats().getdeleted_by_low_priority()).isGreaterThan(1);
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(eq(warmupDemoterService.getCurrentRunSequence()), eq(0D), eq(0D), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(connectorSync, times(1)).syncDemoteEnd(eq(warmupDemoterService.getCurrentRunSequence()), eq(0D), eq(0D), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test
@@ -346,10 +342,8 @@ public class WarmupDemoterServiceTest
         setConfig(85, 80, 2, 100, List.of());
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED));
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_REACHED_THRESHOLD));
+        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED));
+        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_REACHED_THRESHOLD));
         assertThat(usageCapacity.get()).isLessThan(0.88);
         assertThat(usageCapacity.get()).isGreaterThan(0.5);
         assertThat(warmupDemoterService.getCurrentRunStats().getdeleted_by_low_priority()).isEqualTo(0);
@@ -602,9 +596,7 @@ public class WarmupDemoterServiceTest
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
         verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupDataList.getFirst()), eq(true));
-
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test
@@ -626,8 +618,7 @@ public class WarmupDemoterServiceTest
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
 
         //first delete old objects due to columnFilterNonMatch
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
 
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
         verify(rowGroupDataService, times(1))
@@ -635,8 +626,7 @@ public class WarmupDemoterServiceTest
                         eq(List.of()),
                         eq(List.of(elements.getFirst())));
 
-        verify(connectorSync, times(2))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(connectorSync, times(2)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test

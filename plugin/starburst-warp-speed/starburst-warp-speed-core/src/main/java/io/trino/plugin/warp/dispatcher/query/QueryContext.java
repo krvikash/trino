@@ -52,7 +52,7 @@ public class QueryContext
     private final int totalCollectCount;
     private final boolean enableMatchCollect;
     private final int matchCollectId;
-    private final int catalogSequence;
+    private final long catalogContext;
 
     /**
      * means that predicate calculation result is None, will return EmptyPageSource
@@ -65,7 +65,7 @@ public class QueryContext
 
     public QueryContext(PredicateContextData predicateContextData,
                         ImmutableList<ColumnHandle> remainingCollectColumns,
-                        int catalogSequence,
+                        long catalogContext,
                         boolean enableMatchCollect,
                         String queryId)
     {
@@ -78,7 +78,7 @@ public class QueryContext
                 calculateRemainingCollectColumnByBlockIndex(remainingCollectColumns),
                 enableMatchCollect,
                 MatchCollectIdService.INVALID_ID,
-                catalogSequence,
+                catalogContext,
                 false,
                 predicateContextData.getRemainingColumns().isEmpty(),
                 INVALID_TOTAL_RECORDS,
@@ -114,7 +114,7 @@ public class QueryContext
             ImmutableMap<Integer, ColumnHandle> remainingCollectColumnByBlockIndex,
             boolean enableMatchCollect,
             int matchCollectId,
-            int catalogSequence,
+            long catalogContext,
             boolean isNone,
             boolean canBeTight,
             int totalRecords,
@@ -130,7 +130,7 @@ public class QueryContext
         this.totalCollectCount = toIntExact(getQueryCollectDataStream().count()) + remainingCollectColumnByBlockIndex.size();
         this.enableMatchCollect = enableMatchCollect;
         this.matchCollectId = matchCollectId;
-        this.catalogSequence = catalogSequence;
+        this.catalogContext = catalogContext;
         this.isNone = isNone;
         this.totalRecords = totalRecords;
         this.queryId = queryId;
@@ -219,9 +219,9 @@ public class QueryContext
         return matchCollectId;
     }
 
-    public int getCatalogSequence()
+    public long getCatalogContext()
     {
-        return catalogSequence;
+        return catalogContext;
     }
 
     public boolean isProxyOnly()
@@ -268,7 +268,7 @@ public class QueryContext
                 .remainingCollectColumnByBlockIndex(remainingCollectColumnByBlockIndex)
                 .enableMatchCollect(enableMatchCollect)
                 .matchCollectId(matchCollectId)
-                .catalogSequence(catalogSequence)
+                .catalogContext(catalogContext)
                 .totalRecords(totalRecords)
                 .queryId(queryId)
                 .canBeTight(canBeTight);
@@ -289,7 +289,7 @@ public class QueryContext
                 ", enableMatchCollect=" + enableMatchCollect +
                 ", matchLeaves.size=" + matchData.map(data -> data.getLeavesDFS().size()).orElse(0) +
                 ", matchCollectId=" + matchCollectId +
-                ", catalogSequence=" + catalogSequence +
+                ", catalogContext=" + catalogContext +
                 ", totalRecords=" + totalRecords +
                 ", canBeTight=" + canBeTight +
                 '}';
@@ -306,7 +306,7 @@ public class QueryContext
 
         private boolean enableMatchCollect;
         private int matchCollectId;
-        private int catalogSequence;
+        private long catalogContext;
         private boolean isNone;
         private boolean canBeTight;
         private int totalRecords;
@@ -327,7 +327,7 @@ public class QueryContext
                     ImmutableMap.copyOf(remainingCollectColumnByBlockIndex),
                     enableMatchCollect,
                     matchCollectId,
-                    catalogSequence,
+                    catalogContext,
                     isNone,
                     canBeTight,
                     totalRecords,
@@ -394,9 +394,9 @@ public class QueryContext
             return this;
         }
 
-        public Builder catalogSequence(int catalogSequence)
+        public Builder catalogContext(long catalogContext)
         {
-            this.catalogSequence = catalogSequence;
+            this.catalogContext = catalogContext;
             return this;
         }
 

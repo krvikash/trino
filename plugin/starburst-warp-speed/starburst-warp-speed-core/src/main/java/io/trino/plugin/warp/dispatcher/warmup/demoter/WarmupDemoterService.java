@@ -156,7 +156,7 @@ public class WarmupDemoterService
     private void init()
     {
         logger.debug("WarmupDemoterService init = %d", System.identityHashCode(connectorSync));
-        connectorSync.setWarmupDemoterService(this);
+        connectorSync.init(this);
     }
 
     //called from warmup - async
@@ -256,7 +256,7 @@ public class WarmupDemoterService
     void cancelDemoteExecution()
     {
         logger.error("failed to execute demote, call native to cancel demote with sequenceId = %d", demoteArguments.demoterSequence);
-        connectorSync.syncDemoteCycleEnd(demoteArguments.demoterSequence,
+        connectorSync.syncDemoteEnd(demoteArguments.demoterSequence,
                 demoteArguments.getLowestPriority(),
                 highestPriority.get(),
                 DemoteStatus.DEMOTE_STATUS_REACHED_THRESHOLD);
@@ -360,7 +360,7 @@ public class WarmupDemoterService
         }
         logger.debug("%s: demoteCycleEnd: call connectorSync.syncDemoteCycleEnd (demoteSequence = %d, lowestPriority = %f, highestPriority = %f, demoteStatus = %s)",
                 catalogNameProvider.get(), demoteArguments.demoterSequence, demoteArguments.getLowestPriority(), highestPriority.get(), demoteStatus.name());
-        connectorSync.syncDemoteCycleEnd(demoteArguments.demoterSequence, demoteArguments.getLowestPriority(), highestPriority.get(), demoteStatus);
+        connectorSync.syncDemoteEnd(demoteArguments.demoterSequence, demoteArguments.getLowestPriority(), highestPriority.get(), demoteStatus);
     }
 
     void abortActiveDemote()
@@ -398,7 +398,7 @@ public class WarmupDemoterService
                 demoteStatus = DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED;
             }
             double lowestPriority = demoteArguments.getLowestPriority();
-            connectorSync.syncDemoteCycleEnd(demoteArguments.demoterSequence, lowestPriority, highestPriority.get(), demoteStatus);
+            connectorSync.syncDemoteEnd(demoteArguments.demoterSequence, lowestPriority, highestPriority.get(), demoteStatus);
         }
         catch (Exception e) {
             if (e instanceof TrinoException) {

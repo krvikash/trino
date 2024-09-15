@@ -150,14 +150,14 @@ public interface StorageEngine
      * @param collect2MatchParams - parameters to pass from collect to match
      * @param numCollectWes - number of collect warm up elements
      * @param weCollectParams - parameters for collect warmup elements dumped into an array
-     * @param connectorId - connector id
+     * @param catalogContext - connector context used for callbacks handles
      * @param outCollectColBuffIds - buffer ids for data and nulls per warm up element
      * @param outMetadataBuffIds - buffer id for row numbers. buffer id for record buffer state. valid id is zero of positive, -1 for invalid.
      *
      * @return transaction id
      */
     default long collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
-            int numChunksInRange, int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
+            int numChunksInRange, int[] weCollectParams, long catalogContext, long matchBitmapAddress, int minOffset,
             long[][] outCollectColBuffIds, long[] outMetadataBuffIds)
     {
         throw new UnsupportedOperationException();

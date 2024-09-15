@@ -82,7 +82,7 @@ public class QueryClassifier
     {
         PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
         String queryId = storeIdOpt.isPresent() ? storeIdOpt.get().toString() : "Empty-Query-Id";
-        QueryContext baseQueryContext = new QueryContext(predicateContextData, projectColumns, connectorSync.getCatalogSequence(), false, queryId);
+        QueryContext baseQueryContext = new QueryContext(predicateContextData, projectColumns, connectorSync.getCatalogContext(), false, queryId);
         return classify(baseQueryContext,
                 rowGroupData,
                 null,
@@ -252,7 +252,7 @@ public class QueryClassifier
         }
         return new QueryContext(predicateContextData,
                 ImmutableList.copyOf(collectColumns),
-                connectorSync.getCatalogSequence(),
+                connectorSync.getCatalogContext(),
                 enableMatchCollect,
                 session.getQueryId());
     }

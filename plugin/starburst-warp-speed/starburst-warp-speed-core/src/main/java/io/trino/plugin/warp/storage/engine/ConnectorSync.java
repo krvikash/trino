@@ -18,9 +18,7 @@ import io.trino.plugin.warp.gen.constants.DemoteStatus;
 
 public interface ConnectorSync
 {
-    int DEFAULT_CATALOG = 0;
-
-    default void setWarmupDemoterService(WarmupDemoterService warmupDemoterService)
+    default void init(WarmupDemoterService warmupDemoterService)
     {
         throw new UnsupportedOperationException();
     }
@@ -35,14 +33,9 @@ public interface ConnectorSync
         throw new UnsupportedOperationException();
     }
 
-    default void syncDemoteCycleEnd(int demoteSequence, double lowestPriorityExist, double highestPriorityDemoted, DemoteStatus demoteCompleted)
+    default void syncDemoteEnd(int demoteSequence, double lowestPriorityExist, double highestPriorityDemoted, DemoteStatus demoteCompleted)
     {
         throw new UnsupportedOperationException();
-    }
-
-    default int getCatalogSequence()
-    {
-        return 0;
     }
 
     default String getCatalogName()
@@ -52,11 +45,16 @@ public interface ConnectorSync
 
     default boolean isDefaultCatalog()
     {
-        return true;
+        throw new UnsupportedOperationException();
     }
 
     default boolean isCatalogReducedResources()
     {
-        return false;
+        throw new UnsupportedOperationException();
+    }
+
+    default long getCatalogContext()
+    {
+        throw new UnsupportedOperationException();
     }
 }

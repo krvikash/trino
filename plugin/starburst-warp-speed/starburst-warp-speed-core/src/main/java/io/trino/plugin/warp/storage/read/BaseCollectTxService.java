@@ -55,7 +55,7 @@ public abstract class BaseCollectTxService
                 numCollectElements,
                 numChunksInRange,
                 txArgs.weCollectParams(),
-                queryParams.getCatalogSequence(),
+                queryParams.getCatalogContext(),
                 matchBmAddr,
                 queryParams.getMinCollectOffset(),
                 txArgs.collectBuffIds(),

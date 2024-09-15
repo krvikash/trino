@@ -76,7 +76,7 @@ public class QueryParamsConverter
                 termsToNumLucene.getRight(),
                 collectAndMatchCollectParams.getLeft(),
                 queryContext.getTotalRecords(),
-                queryContext.getCatalogSequence(),
+                queryContext.getCatalogContext(),
                 minOffsets[MATCH],
                 minOffsets[COLLECT],
                 filePath,

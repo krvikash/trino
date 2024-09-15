@@ -184,7 +184,6 @@ public class DispatcherPageSourceFactoryTest
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         NodeManager nodeManager = mockNodeManager();
         ConnectorSync connectorSync = mock(ConnectorSync.class);
-        when(connectorSync.getCatalogSequence()).thenReturn(0);
         when(connectorSync.isDefaultCatalog()).thenReturn(true);
         DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
