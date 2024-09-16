@@ -140,6 +140,9 @@ public class DictionariesCache
 
     private int getFailedWriteCount(DictionaryKey dictionaryKey)
     {
+        if (dictionaryKey == null) {
+            return 0;
+        }
         DictionaryId dictionaryId = DictionaryId.of(dictionaryKey.schemaTableColumn(), dictionaryKey.nodeIdentifier());
         DictionaryMetadata dictionaryMetadata = dictionaryMetadataMap.get(dictionaryId);
         return dictionaryMetadata != null ? dictionaryMetadata.getFailedWriteCount() : 0;

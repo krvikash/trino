@@ -142,8 +142,10 @@ public class StorageWriterService
         WarmUpElement.Builder warmupElementBuilder = WarmUpElement.builder(warmUpElement);
         warmupElementBuilder.startOffset((int) fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()]);
         // open storage engine WE
-
         boolean hasDictionary = dictionaryState == DictionaryState.DICTIONARY_VALID;
+        if (dictionaryState == DictionaryState.DICTIONARY_REJECTED) {
+            warmupElementBuilder.dictionaryInfo(new DictionaryInfo(dictionaryKey, dictionaryState, 0, 0));
+        }
         StorageOpenResult storageOpenResult = storageWeOpen(warmUpElement,
                 hasDictionary,
                 storageWriterSplitConfig.contextAllocator().allocate(warmUpElement.getWarmUpContextSize(), Integer.BYTES).address(),
@@ -226,7 +228,7 @@ public class StorageWriterService
             long createdTimestamp = dictionaryCacheService.getLastCreatedTimestamp(warmupElementWriteMetadata.schemaTableColumn(), nodeIdentifier);
             dictionaryKey = new DictionaryKey(warmupElementWriteMetadata.schemaTableColumn(), nodeIdentifier, createdTimestamp);
         }
-        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, dictionaryEnabled);
+        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, dictionaryEnabled);
         return Pair.of(dictionaryKey, dictionaryState);
     }
 

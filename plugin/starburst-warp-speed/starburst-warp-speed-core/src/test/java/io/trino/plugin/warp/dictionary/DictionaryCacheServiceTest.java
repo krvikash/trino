@@ -109,7 +109,7 @@ public class DictionaryCacheServiceTest
                 RecTypeCode.REC_TYPE_VARCHAR);
 
         for (WarmUpElement warmUpElement : warmupElements) {
-            DictionaryState res = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
+            DictionaryState res = dictionaryCacheService.calculateDictionaryStateForWrite(null, warmUpElement, null);
             assertThat(res).isEqualTo(DictionaryState.DICTIONARY_VALID);
         }
     }
@@ -123,7 +123,7 @@ public class DictionaryCacheServiceTest
                 metricsManager,
                 attachDictionaryService);
         for (WarmUpElement warmUpElement : warmupElements) {
-            DictionaryState actual = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
+            DictionaryState actual = dictionaryCacheService.calculateDictionaryStateForWrite(null, warmUpElement, null);
             assertThat(actual).isEqualTo(DictionaryState.DICTIONARY_NOT_EXIST);
         }
     }
@@ -145,7 +145,7 @@ public class DictionaryCacheServiceTest
                 RecTypeCode.REC_TYPE_DECIMAL_LONG);
 
         for (WarmUpElement warmUpElement : warmupElements) {
-            DictionaryState actual = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
+            DictionaryState actual = dictionaryCacheService.calculateDictionaryStateForWrite(null, warmUpElement, null);
             assertThat(actual).isEqualTo(DictionaryState.DICTIONARY_NOT_EXIST);
         }
     }
@@ -166,7 +166,7 @@ public class DictionaryCacheServiceTest
             when(warmUpElement.getRecTypeLength()).thenReturn(4);
 
             DictionaryKey dictionaryKey = new DictionaryKey(schemaTableColumn, nodeIdentifier, DictionaryKey.CREATED_TIMESTAMP_UNKNOWN);
-            DictionaryState actual = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
+            DictionaryState actual = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, null);
 
             assertThat(actual).isEqualTo(DictionaryState.DICTIONARY_VALID);
 
@@ -231,7 +231,7 @@ public class DictionaryCacheServiceTest
         when(warmUpElement.getWarpColumn()).thenReturn(new RegularColumn(columnName));
 
 //        when(attachDictionaryService.attachDictionary(any(), any(), any(), any())).thenReturn(new DictionaryAttachResult(new byte[1], 5));
-        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
+        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, null);
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
 
         WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);

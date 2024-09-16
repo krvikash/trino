@@ -86,21 +86,21 @@ public class DictionaryCacheService
         dictionariesCache.incFailedWriteCount(dictionaryKey);
     }
 
-    public DictionaryState calculateDictionaryStateForWrite(WarmUpElement warmUpElement, Boolean dictionaryEnabled)
+    public DictionaryState calculateDictionaryStateForWrite(DictionaryKey dictionaryKey, WarmUpElement warmUpElement, Boolean dictionaryEnabled)
     {
         if (!isDictionaryValidForColumn(warmUpElement, dictionaryEnabled)) {
             return DictionaryState.DICTIONARY_NOT_EXIST;
         }
         DictionaryState res;
         DictionaryInfo dictionaryInfo = warmUpElement.getDictionaryInfo();
-        if (dictionaryInfo == null) {
+        if (dictionariesCache.hasExceededFailedWriteLimit(dictionaryKey)) {
+            res = DictionaryState.DICTIONARY_REJECTED;
+        }
+        else if (dictionaryInfo == null) {
             res = DictionaryState.DICTIONARY_VALID;
         }
-        else if (dictionaryInfo.dictionaryState() == DictionaryState.DICTIONARY_MAX_EXCEPTION) {
-            res = DictionaryState.DICTIONARY_MAX_EXCEPTION;
-        }
         else {
-            res = dictionariesCache.hasExceededFailedWriteLimit(dictionaryInfo.dictionaryKey()) ? DictionaryState.DICTIONARY_REJECTED : DictionaryState.DICTIONARY_VALID;
+            res = dictionaryInfo.dictionaryState();
         }
         return res;
     }

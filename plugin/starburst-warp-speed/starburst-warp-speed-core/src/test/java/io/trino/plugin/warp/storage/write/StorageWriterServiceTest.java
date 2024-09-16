@@ -159,7 +159,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeInt()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", IntegerType.INTEGER), WarmUpType.WARM_UP_TYPE_DATA);
         int[] values = new int[] {1, 2, 3};
         Page page = buildIntPage(values);
@@ -180,7 +180,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeReal()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", RealType.REAL), WarmUpType.WARM_UP_TYPE_DATA);
         int[] values = new int[] {1, 2, 3};
         Page page = buildIntPage(values);
@@ -201,7 +201,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeLong()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", BIGINT), WarmUpType.WARM_UP_TYPE_DATA);
 
         long[] values = new long[] {1, 2, 3};
@@ -223,7 +223,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeArrayTypeArrayOfInteger()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         ArrayType arrayIntType = new ArrayType(IntegerType.INTEGER);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", arrayIntType), WarmUpType.WARM_UP_TYPE_DATA);
         int[] values = new int[] {1, 2, 3};
@@ -238,7 +238,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeArrayTypeArrayOfBigInt()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         ArrayType arrayBigIntType = new ArrayType(BIGINT);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", arrayBigIntType), WarmUpType.WARM_UP_TYPE_DATA);
 
@@ -257,7 +257,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarcharArray_EmptyArray()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         ArrayType varcharArrayType = new ArrayType(VARCHAR);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
                         varcharArrayType),
@@ -275,7 +275,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarcharArray()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         ArrayType varcharArrayType = new ArrayType(VARCHAR);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
 
@@ -298,7 +298,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarcharArrayTest_TestNullBuffer()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         ArrayType varcharArrayType = new ArrayType(VARCHAR);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
 
@@ -318,7 +318,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarcharArrayTest_TestNullAtEndOfRow()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         ArrayType varcharArrayType = new ArrayType(VarcharType.VARCHAR);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
 
@@ -338,7 +338,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarchar_varcharIsSmallerThanVarcharAsCharLimit()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         final int typeLength = 5;
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
                         VarcharType.createVarcharType(typeLength)),
@@ -359,7 +359,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarchar()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_DATA);
@@ -378,7 +378,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarcharIndex()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_BASIC);
@@ -400,7 +400,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarcharWithLucene()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_LUCENE);
@@ -423,7 +423,7 @@ public class StorageWriterServiceTest
     @Test
     public void abortVarcharWithLucene()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
+        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_LUCENE);

@@ -125,7 +125,7 @@ public class DataValueDictionaryTest
         WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);
         DictionaryKey writeDictionaryKey = writeDictionary.getDictionaryKey();
 
-        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
+        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, null);
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
 
         DataValueDictionary dataValueDictionary = new DataValueDictionary(dictionaryConfig, writeDictionaryKey, 0, 0, dictionaryStats);
@@ -193,7 +193,7 @@ public class DataValueDictionaryTest
                     when(localWarmUpElement.getRecTypeCode()).thenReturn(recTypeCode);
                     when(localWarmUpElement.getRecTypeLength()).thenReturn(4);
 
-                    assertThat(dictionaryCacheService.calculateDictionaryStateForWrite(localWarmUpElement, null))
+                    assertThat(dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, localWarmUpElement, null))
                             .isEqualTo(DictionaryState.DICTIONARY_VALID);
 
                     WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);
@@ -221,7 +221,7 @@ public class DataValueDictionaryTest
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
         when(warmUpElement.getRecTypeCode()).thenReturn(recTypeCode);
         when(warmUpElement.getRecTypeLength()).thenReturn(4);
-        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
+        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, null);
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
         DataValueDictionary dataValueDictionary = (DataValueDictionary) dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);
         int overMaxLimit = dictionaryConfig.getDictionaryMaxSize() + 1;
@@ -248,7 +248,7 @@ public class DataValueDictionaryTest
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
         when(warmUpElement.getRecTypeCode()).thenReturn(recTypeCode);
         when(warmUpElement.getRecTypeLength()).thenReturn(4);
-        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
+        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, null);
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
         DataValueDictionary dataValueDictionary = (DataValueDictionary) dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);
         for (long j = 0; j < dictionaryConfig.getDictionaryMaxSize(); j++) {

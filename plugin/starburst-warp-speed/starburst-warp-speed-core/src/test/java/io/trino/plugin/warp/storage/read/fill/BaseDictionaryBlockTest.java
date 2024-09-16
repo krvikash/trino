@@ -139,7 +139,7 @@ public abstract class BaseDictionaryBlockTest
         when(warmUpElement.getRecTypeCode()).thenReturn(recTypeCode);
         when(warmUpElement.getRecTypeLength()).thenReturn(4);
 
-        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
+        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, null);
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
 
         WriteDictionary writeDictionary = getWriteDictionary(recTypeCode);
