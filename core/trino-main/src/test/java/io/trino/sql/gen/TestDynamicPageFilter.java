@@ -42,7 +42,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -54,7 +53,6 @@ import java.util.stream.LongStream;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.airlift.concurrent.MoreFutures.unmodifiableFuture;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.block.BlockAssertions.createBlockOfReals;
@@ -76,6 +74,7 @@ import static io.trino.spi.type.RowType.rowType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static io.trino.util.DynamicFiltersTestUtil.createDynamicFilterEvaluator;
 import static java.lang.Float.floatToRawIntBits;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -466,43 +465,6 @@ public class TestDynamicPageFilter
             assertThat(inputPage.getBlock(3)).isNotInstanceOf(LazyBlock.class);
             assertThat(inputPage.getBlock(4)).isInstanceOf(LazyBlock.class);
         }
-    }
-
-    private static FilterEvaluator createDynamicFilterEvaluator(
-            TupleDomain<ColumnHandle> tupleDomain,
-            Map<ColumnHandle, Integer> channels)
-    {
-        return createDynamicFilterEvaluator(tupleDomain, channels, 1);
-    }
-
-    private static FilterEvaluator createDynamicFilterEvaluator(
-            TupleDomain<ColumnHandle> tupleDomain,
-            Map<ColumnHandle, Integer> channels,
-            double selectivityThreshold)
-    {
-        TestingDynamicFilter dynamicFilter = new TestingDynamicFilter(1);
-        dynamicFilter.update(tupleDomain);
-        Map<ColumnHandle, Type> types = tupleDomain.getDomains().orElse(ImmutableMap.of())
-                .entrySet().stream()
-                .collect(toImmutableMap(Map.Entry::getKey, entry -> entry.getValue().getType()));
-        int index = 0;
-        ImmutableMap.Builder<Symbol, ColumnHandle> columns = ImmutableMap.builder();
-        ImmutableMap.Builder<Symbol, Integer> layout = ImmutableMap.builder();
-        for (Map.Entry<ColumnHandle, Integer> entry : channels.entrySet()) {
-            ColumnHandle column = entry.getKey();
-            Symbol symbol = new Symbol(types.get(column), "col" + index++);
-            columns.put(symbol, column);
-            int channel = entry.getValue();
-            layout.put(symbol, channel);
-        }
-        return new DynamicPageFilter(
-                PLANNER_CONTEXT,
-                SESSION,
-                columns.buildOrThrow(),
-                layout.buildOrThrow(),
-                selectivityThreshold)
-                .createDynamicPageFilterEvaluator(COMPILER, dynamicFilter)
-                .get();
     }
 
     private static SelectedPositions filterPage(Page page, FilterEvaluator filterEvaluator)
