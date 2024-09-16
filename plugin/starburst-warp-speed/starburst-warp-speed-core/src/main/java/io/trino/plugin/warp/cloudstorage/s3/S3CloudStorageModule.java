@@ -28,7 +28,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.awscore.endpoint.DefaultServiceEndpointBuilder;
+import software.amazon.awssdk.awscore.endpoint.AwsClientEndpointProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -94,9 +94,12 @@ public class S3CloudStorageModule
         s3.credentialsProvider(getAwsCredentialsProvider(config, annotation));
         s3.region(region);
         s3.endpointOverride(Optional.ofNullable(config.getEndpoint()).map(URI::create)
-                .orElseGet(() -> new DefaultServiceEndpointBuilder("s3", "http")
-                        .withRegion(region)
-                        .getServiceEndpoint()));
+                .orElseGet(() -> AwsClientEndpointProvider.builder()
+                        .serviceEndpointPrefix("s3")
+                        .defaultProtocol("http")
+                        .region(region)
+                        .build()
+                        .clientEndpoint()));
         s3.forcePathStyle(config.isPathStyleAccess());
 
         S3CrtHttpConfiguration httpConfiguration = S3CrtHttpConfiguration.builder()
