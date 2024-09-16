@@ -45,9 +45,9 @@ public class MockPlanAlternativeConnectorNodePartitioningProvider
     }
 
     @Override
-    public ToIntFunction<ConnectorSplit> getSplitBucketFunction(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorPartitioningHandle partitioningHandle)
+    public ToIntFunction<ConnectorSplit> getSplitBucketFunction(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorPartitioningHandle partitioningHandle, int bucketCount)
     {
-        ToIntFunction<ConnectorSplit> splitBucketFunction = delegate.getSplitBucketFunction(transactionHandle, session, partitioningHandle);
+        ToIntFunction<ConnectorSplit> splitBucketFunction = delegate.getSplitBucketFunction(transactionHandle, session, partitioningHandle, bucketCount);
         return value -> splitBucketFunction.applyAsInt(((MockPlanAlternativeSplit) value).getDelegate());
     }
 

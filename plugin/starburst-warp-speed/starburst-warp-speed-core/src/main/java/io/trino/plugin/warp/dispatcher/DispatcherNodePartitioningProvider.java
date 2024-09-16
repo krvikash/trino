@@ -50,9 +50,13 @@ public class DispatcherNodePartitioningProvider
     }
 
     @Override
-    public ToIntFunction<ConnectorSplit> getSplitBucketFunction(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorPartitioningHandle partitioningHandle)
+    public ToIntFunction<ConnectorSplit> getSplitBucketFunction(
+            ConnectorTransactionHandle transactionHandle,
+            ConnectorSession session,
+            ConnectorPartitioningHandle partitioningHandle,
+            int bucketCount)
     {
-        ToIntFunction<ConnectorSplit> splitBucketFunction = nodePartitionProvider.getSplitBucketFunction(transactionHandle, session, partitioningHandle);
+        ToIntFunction<ConnectorSplit> splitBucketFunction = nodePartitionProvider.getSplitBucketFunction(transactionHandle, session, partitioningHandle, bucketCount);
         return value -> splitBucketFunction.applyAsInt(((DispatcherSplit) value).getProxyConnectorSplit());
     }
 
