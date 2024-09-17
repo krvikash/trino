@@ -249,12 +249,6 @@ public final class LucenePageCacheStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":lucene_page_cache_small_file_hit", lucene_page_cache_small_file_hit.longValue());
-        res.put(getJmxKey() + ":lucene_page_cache_small_file_miss", lucene_page_cache_small_file_miss.longValue());
-        res.put(getJmxKey() + ":lucene_page_cache_small_file_size", lucene_page_cache_small_file_size.longValue());
-        res.put(getJmxKey() + ":lucene_page_cache_big_file_hit", lucene_page_cache_big_file_hit.longValue());
-        res.put(getJmxKey() + ":lucene_page_cache_big_file_miss", lucene_page_cache_big_file_miss.longValue());
-        res.put(getJmxKey() + ":lucene_page_cache_big_file_size", lucene_page_cache_big_file_size.longValue());
         return res;
     }
 
