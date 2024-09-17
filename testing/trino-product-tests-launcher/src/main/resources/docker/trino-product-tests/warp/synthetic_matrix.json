@@ -159,7 +159,7 @@
       },
       {
         "name": "end_null",
-        "type": "integer"
+        "type": "null"
       }
     ],
     "queries": {

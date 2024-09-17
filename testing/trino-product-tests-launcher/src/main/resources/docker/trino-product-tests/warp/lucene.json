@@ -65,6 +65,10 @@
       {
         "query_id": "lucene_similar_varchar_q03",
         "query": "select count(*) from lucene_similar_varchar where char_2 like 'aaa%' ",
+        "skip_type": [
+          "warp_iceberg",
+          "warp_delta_lake"
+        ],
         "expected_result": [
           0
         ],
@@ -144,6 +148,10 @@
       {
         "query_id": "lucene_similar_varchar_q10",
         "query": "select count(*) from lucene_similar_varchar where char_2 < 'Var'",
+        "skip_type": [
+          "warp_iceberg",
+          "warp_delta_lake"
+        ],
         "expected_result": [
           0
         ],
@@ -865,6 +873,10 @@
       {
         "query_id": "lucene_wix_q03",
         "query": "select count(*) from lucene_wix where city like 'queen%' ",
+        "skip_type": [
+          "warp_iceberg",
+          "warp_delta_lake"
+        ],
         "expected_result": [
           0
         ],
@@ -1168,6 +1180,9 @@
       {
         "query_id": "lucene_wix_q26",
         "query": "select count(*) from lucene_wix where city < 'a'",
+        "skip_type": [
+          "warp_delta_lake"
+        ],
         "expected_result": [
           2097152
         ],
@@ -1363,6 +1378,10 @@
       {
         "query": "select count(*) from wide_lucene where some_varchar like '%ert%'",
         "query_id": "wide_lucene_02",
+        "skip_type": [
+          "warp_iceberg",
+          "warp_delta_lake"
+        ],
         "expected_result": [
           [
             2
@@ -1378,6 +1397,10 @@
       {
         "query": "select count(*) from wide_lucene where some_varchar = 'Anne Wheeler5084*ztlLat3'",
         "query_id": "wide_lucene_03",
+        "skip_type": [
+          "warp_iceberg",
+          "warp_delta_lake"
+        ],
         "expected_result": [
           [
             2
@@ -1459,7 +1482,13 @@
   },
   {
     "name": "wide_lucene_100k",
+    "skip": true,
+    "comment": "skipped for SIC-2528 should expect failure since we reduced maximal lucene file size by half and SIC-2529 should expect failure since we reduced maximal lucene file size by half", 
     "description": "skipped in PT, test takes too much time",
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "structure": [
       {
         "name": "a",

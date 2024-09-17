@@ -247,8 +247,8 @@
       },
       {
         "query": "select sum(cast(cast(char_1 as varchar) as integer)) from eight_char",
-          "skip_caching": true,
-          "expected_result": [
+        "skip_caching": true,
+        "expected_result": [
           46
         ],
         "query_id": "eight_char_9",
@@ -261,8 +261,8 @@
       },
       {
         "query": "select sum(cast(cast(char_4 as varchar) as integer)) as sum from eight_char",
-          "skip_caching": true,
-          "expected_result": [
+        "skip_caching": true,
+        "expected_result": [
           11110
         ],
         "query_id": "eight_char_10",
@@ -275,8 +275,8 @@
       },
       {
         "query": "select sum(cast(cast(char_5 as varchar) as integer)) as sum from eight_char",
-          "skip_caching": true,
-          "expected_result": [
+        "skip_caching": true,
+        "expected_result": [
           111110
         ],
         "query_id": "eight_char_11",
@@ -289,8 +289,8 @@
       },
       {
         "query": "select sum(cast(cast(char_6 as varchar) as integer)) as sum from eight_char",
-          "skip_caching": true,
-          "expected_result": [
+        "skip_caching": true,
+        "expected_result": [
           1111110
         ],
         "query_id": "eight_char_12",
@@ -303,8 +303,8 @@
       },
       {
         "query": "select sum(cast(cast(char_8 as varchar) as integer)) as sum from eight_char",
-          "skip_caching": true,
-          "expected_result": [
+        "skip_caching": true,
+        "expected_result": [
           111111110
         ],
         "query_id": "eight_char_13",
@@ -644,7 +644,6 @@
       },
       {
         "query": "select sum(cast(varchar_1 as integer)) from eight_varchar",
-          "skip_caching": true,
         "expected_result": [
           46
         ],
@@ -658,8 +657,8 @@
       },
       {
         "query": "select sum(cast(varchar_4 as integer)) as sum from eight_varchar",
-          "skip_caching": true,
-          "expected_result": [
+        "skip_caching": true,
+        "expected_result": [
           7900
         ],
         "query_id": "eight_varchar_10",
@@ -672,8 +671,8 @@
       },
       {
         "query": "select sum(cast(varchar_5 as integer)) as sum from eight_varchar",
-          "skip_caching": true,
-          "expected_result": [
+        "skip_caching": true,
+        "expected_result": [
           67900
         ],
         "query_id": "eight_varchar_11",
@@ -686,8 +685,8 @@
       },
       {
         "query": "select sum(cast(varchar_6 as integer)) as sum from eight_varchar",
-          "skip_caching": true,
-          "expected_result": [
+        "skip_caching": true,
+        "expected_result": [
           567900
         ],
         "query_id": "eight_varchar_12",
@@ -700,8 +699,8 @@
       },
       {
         "query": "select sum(cast(varchar_8 as integer)) as sum from eight_varchar",
-          "skip_caching": true,
-          "expected_result": [
+        "skip_caching": true,
+        "expected_result": [
           34667900
         ],
         "query_id": "eight_varchar_13",
@@ -2452,7 +2451,7 @@
     "name": "long_dec",
     "table_name": "\"12345long_dec\"",
     "analyze": true,
-    "hive_bucket": "s3a://varadaio-us-east1-systemtests/synthetic/12345long_dec",
+    "hive_bucket": "s3a://warp-speed-us-east-2-systemtests/synthetic/12345long_dec",
     "skip_type": [
       "warp_iceberg",
       "warp_delta_lake"
@@ -2733,6 +2732,19 @@
   },
   {
     "name": "strings_char_100_utf8_encoding",
+    "skip": true,
+    "pt_enable": true,
+    "overriding": {
+      "warp": {
+        "skip" : false
+      },
+      "warp_iceberg": {
+        "skip" : false
+      },
+      "warp_delta_lake": {
+        "skip" : false
+      }
+    },
     "structure": [
       {
         "name": "str",
@@ -4097,8 +4109,8 @@
         "colNameId": "some_varchar",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
+          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -4176,10 +4188,10 @@
       },
       {
         "query": "select count(some_varchar) from varchar_100_64k where some_varchar = 'Jennifer C' or some_varchar = 'Christopher W'",
+        "query_id": "varchar_100_64k_05",
         "session_properties": {
           "enable_varchar_mapped_match_collect": true
         },
-        "query_id": "varchar_100_64k_05",
         "expected_result": [
           [
             10
@@ -4196,10 +4208,10 @@
       },
       {
         "query": "select count(some_char) from varchar_100_64k where some_char = 'Randall S' or some_char = 'Kathleen '",
-        "query_id": "varchar_100_64k_06",
         "session_properties": {
           "enable_varchar_mapped_match_collect": true
         },
+        "query_id": "varchar_100_64k_06",
         "expected_result": [
           [
             154
@@ -4253,6 +4265,7 @@
         "colNameId": "some_varchar",
         "predicates": [],
         "warmUpTypes": [
+          "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -4296,6 +4309,25 @@
         "expected_counters": {
           "warp_match_columns": 1,
           "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(some_varchar) from varchar_32_32k where some_varchar = 'Christ' or some_varchar = 'Brenda' or some_varchar is null",
+        "session_properties": {
+          "enable_varchar_mapped_match_collect": true
+        },
+        "expected_result": [
+          29
+        ],
+        "query_id": "varchar_32_32k_3",
+        "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -4490,6 +4522,7 @@
         "colNameId": "some_varchar",
         "predicates": [],
         "warmUpTypes": [
+          "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -4548,6 +4581,44 @@
           "warp_match_columns": 0,
           "warp_collect_columns": 0,
           "empty_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select some_varchar from varchar_32_32_sorted where some_varchar = 'A' or some_varchar = 'D' or some_varchar is null",
+        "session_properties": {
+          "enable_varchar_mapped_match_collect": true
+        },
+        "expected_result": [
+          "D"
+        ],
+        "query_id": "varchar_32_32_sorted_2",
+        "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select some_char from varchar_32_32_sorted where some_char = 'Dominique' or some_char = 'Chloe Mil' or some_char is null",
+        "session_properties": {
+          "enable_varchar_mapped_match_collect": true
+        },
+        "expected_result": [
+          ["Dominique"],
+          ["Chloe Mil"]
+        ],
+        "query_id": "varchar_32_32_sorted_3",
+        "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5179,7 +5250,7 @@
       "warp_iceberg",
       "warp_delta_lake"
     ],
-    "warm_query": "select int_1 from map_test_2mill where element_at(map_bigint_decimal, -182820756762105127) >= 3695769516.9534903000 and element_at(map_varchar_integer, '6BHAPYDs+(')=341765952 and element_at(map_integer_integer, -1920113223) = -725238340 and element_at(map_varchar_varchar, 'Kg2eZmgx+1') >= '' and varchar_1 = 'abc' and element_at(map_varchar_varchar, 'c0sy8It%$R') = '@8BFQ4Nfc8' and element_at(map_varchar_integer, '#4!rwN&Rm4')=59894181 and element_at(map_integer_varchar, -1752736625) is NULL and element_at(map_integer_varchar, -540996961) = '1pc!oSjy+v' and element_at(map_integer_integer, 535977431)>=1 and element_at(map_varchar_varchar, '*U8UYeOXWD')='z*T5O0xxiM' and element_at(map_bigint_decimal,5545576671375097749) = 6585222768.1177880000 and element_at(map_date_tinyint, CAST('1993-01-07' AS DATE)) <= 43",
+    "warm_query": "select int_1 from map_test_2mill where element_at(map_bigint_decimal, -182820756762105127) >= cast(3695769516.9534903000 as decimal(38,0)) and element_at(map_varchar_integer, '6BHAPYDs+(')=341765952 and element_at(map_integer_integer, -1920113223) = -725238340 and element_at(map_varchar_varchar, 'Kg2eZmgx+1') >= '' and varchar_1 = 'abc' and element_at(map_varchar_varchar, 'c0sy8It%$R') = '@8BFQ4Nfc8' and element_at(map_varchar_integer, '#4!rwN&Rm4')=59894181 and element_at(map_integer_varchar, -1752736625) is NULL and element_at(map_integer_varchar, -540996961) = '1pc!oSjy+v' and element_at(map_integer_integer, 535977431)>=1 and element_at(map_varchar_varchar, '*U8UYeOXWD')='z*T5O0xxiM' and element_at(map_bigint_decimal,5545576671375097749) = cast(6585222768.1177880000 as decimal(38,0)) and element_at(map_date_tinyint, CAST('1993-01-07' AS DATE)) <= 43",
     "queries_data": [
       {
         "query": "select count(*) from map_test_2mill",
@@ -5195,7 +5266,7 @@
         }
       },
       {
-        "query": "select count(int_1) from map_test_2mill where element_at(map_varchar_varchar, 'Kg2eZmgx+1') >= '' and varchar_1 = 'abc' and element_at(map_varchar_varchar, 'c0sy8It%$R') = '@8BFQ4Nfc8' and element_at(map_varchar_integer, '#4!rwN&Rm4')=59894181 and element_at(map_integer_varchar, -1752736625) is NULL and element_at(map_integer_varchar, -540996961) = '1pc!oSjy+v' and element_at(map_integer_integer, 535977431)>=1 and element_at(map_varchar_varchar, '*U8UYeOXWD')='z*T5O0xxiM' and element_at(map_bigint_decimal,5545576671375097749) = 6585222768.1177880000 and element_at(map_date_tinyint, CAST('1993-01-07' AS DATE)) <= 43",
+        "query": "select count(int_1) from map_test_2mill where element_at(map_varchar_varchar, 'Kg2eZmgx+1') >= '' and varchar_1 = 'abc' and element_at(map_varchar_varchar, 'c0sy8It%$R') = '@8BFQ4Nfc8' and element_at(map_varchar_integer, '#4!rwN&Rm4')=59894181 and element_at(map_integer_varchar, -1752736625) is NULL and element_at(map_integer_varchar, -540996961) = '1pc!oSjy+v' and element_at(map_integer_integer, 535977431)>=1 and element_at(map_varchar_varchar, '*U8UYeOXWD')='z*T5O0xxiM' and element_at(map_bigint_decimal,5545576671375097749) = cast(6585222768.1177880000 as decimal(38,0)) and element_at(map_date_tinyint, CAST('1993-01-07' AS DATE)) <= 43",
         "expected_result": [
           0
         ],
@@ -5598,8 +5669,8 @@
           3.0,
           4.0
         ],
-          "skip_caching": true,
-          "query_id": "row_test_4",
+        "skip_caching": true,
+        "query_id": "row_test_4",
         "expected_counters": {
           "warp_match_columns": 2,
           "warp_collect_columns": 1,
@@ -5779,8 +5850,6 @@
   },
   {
     "name": "char_63_2",
-    "skip": true,
-    "skip_comment": "ToDo: temporarily skipped until fixed",
     "pt_enable": true,
     "lines": 100000,
     "warm_query": "select * from char_63_2",
@@ -6878,8 +6947,8 @@
         "args": [
           "version integer",
           "sourcepath varchar",
-          "entity row(resolved_identity(row(identity_type varchar, canonical_name varchar, account_id varchar, principal_id varchar, user_name varchar, arn varchar, invoked_by varchar, aws_region varchar)))",
-          "role_chain array(row(arn varchar, principal_id varchar, role_session_name varchar, aws_access_key varchar))"
+          "entity row(resolved_identity row(identity_type varchar, canonical_name varchar, account_id varchar, principal_id varchar, user_name varchar, arn varchar, invoked_by varchar, aws_region varchar)",
+          "role_chain array(row(arn varchar, principal_id varchar, role_session_name varchar, aws_access_key varchar)))"
         ]
       },
       {
@@ -6911,6 +6980,7 @@
       "warp_iceberg",
       "warp_delta_lake"
     ],
+    "data_format": "JSON",
     "warm_query": "select count(*) from nested_rows where company.entity.resolved_identity.aws_region='example_aws_region' and company.entity.resolved_identity.arn LIKE '%example%' and company.entity.resolved_identity=row('example_identity_type_2','example_canonical_name_2','example_account_id_2','example_principal_id_2','example_user_name_2', 'example_arn_2', 'example_invoked_by_2','example_aws_region') and company.entity.resolved_identity.account_id='example_account_id' and company.version >=0 and company.entity.resolved_identity.canonical_name > 'A' and company_internal.version > 0 and company_internal.sourcepath >= '/'",
     "queries_data": [
       {
@@ -7251,8 +7321,8 @@
       },
       {
         "query": "select sum(col_dec29) from dec29",
-          "skip_caching": true,
-          "query_id": "dec29_2",
+        "skip_caching": true,
+        "query_id": "dec29_2",
         "expected_result": [
           -53407604342.4985
         ],
@@ -7280,8 +7350,8 @@
       },
       {
         "query": "select sum(col_dec29) from dec29 where col_dec29=0.1257",
-          "skip_caching": true,
-          "query_id": "dec29_3",
+        "skip_caching": true,
+        "query_id": "dec29_3",
         "expected_result":[
           6679.9494
         ],
@@ -7295,8 +7365,8 @@
       },
       {
         "query": "select sum(col_dec29) from dec29 where col_dec29<0",
-          "skip_caching": true,
-          "query_id": "dec29_4",
+        "skip_caching": true,
+        "query_id": "dec29_4",
         "expected_result":[
           -53475043534.0400
         ],
@@ -7324,8 +7394,8 @@
       },
       {
         "query": "select sum(col_dec29) from dec29 where col_dec29>0",
-          "skip_caching": true,
-          "query_id": "dec29_5",
+        "skip_caching": true,
+        "query_id": "dec29_5",
         "expected_result":[
           67439191.5415
         ],
@@ -7985,11 +8055,11 @@
         "session_properties": {
           "enable_default_warming": true
         },
-        "warm_query": "select count(*) from objectstore.synthetic.json_unpartitioned_table where json_extract_scalar(json_1, '$.molestiae[1].occaecati')='3794' and json_extract_scalar(json_1, '$.tempore')='true' and json_extract_scalar(json_2, '$.neque')='true'",
+        "warm_query": "select count(*) from json_unpartitioned_table where json_extract_scalar(json_1, '$.molestiae[1].occaecati')='3794' and json_extract_scalar(json_1, '$.tempore')='true' and json_extract_scalar(json_2, '$.neque')='true'",
         "queries_data": [
           {
             "query_id": "json_unpartitioned_table_default_warmup_2_q01",
-            "query": "select count(*) from objectstore.synthetic.json_unpartitioned_table where json_extract_scalar(json_1, '$.molestiae[1].occaecati')='3794' and json_extract_scalar(json_1, '$.tempore')='true' and json_extract_scalar(json_2, '$.neque')='true'",
+            "query": "select count(*) from json_unpartitioned_table where json_extract_scalar(json_1, '$.molestiae[1].occaecati')='3794' and json_extract_scalar(json_1, '$.tempore')='true' and json_extract_scalar(json_2, '$.neque')='true'",
             "expected_result": [
               1
             ],

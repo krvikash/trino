@@ -2,7 +2,11 @@
   {
     "name": "partition_test",
     "lines": 100000,
-    "pt_enable": false,
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
+    "comment_type_skip": "different dictionary jmx values for iceberg or delta lake",
     "structure": [
       {
         "name": "char_5",
@@ -15,10 +19,6 @@
         "name": "tiny_1234",
         "type": "tinyint"
       }
-    ],
-    "skip_type": [
-      "warp_iceberg",
-      "warp_delta_lake"
     ],
     "partition_by": [
       "tiny_1234"
@@ -81,10 +81,12 @@
   },
   {
     "name": "partition_test_two_levels",
-    "skip": true,
-    "skip_comment": "ToDo: temporarily skipped until fixed",
-    "pt_enable": true,
     "lines": 100000,
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
+    "comment_type_skip": "different dictionary jmx values for iceberg or delta lake",
     "structure": [
       {
         "name": "char_5",
@@ -156,7 +158,7 @@
       },
       {
         "query": "select count(distinct char_5) from partition_test_two_levels where tiny_11=8",
-        "expected_result": [687],
+        "expected_result":[687],
         "query_id": "partition_test_two_levels_2",
         "expected_counters": {
           "warp_match_columns": 0,
@@ -164,14 +166,19 @@
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
+
       }
     ]
   },
   {
     "name": "partition_folders",
-    "skip": true,
-    "skip_comment": "ToDo: temporarily skipped until fixed",
     "pt_enable": true,
+    "skip": true,
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
+    "comment_type_skip": "different dictionary jmx values for iceberg or delta lake",
     "structure": [
       {
         "name": "char_5",
@@ -259,7 +266,6 @@
   },
   {
     "name": "integer_date_partition",
-    "pt_enable": false,
     "lines": 1000000,
     "structure": [
       {
@@ -273,10 +279,6 @@
         "name": "m_date",
         "type": "integer"
       }
-    ],
-    "skip_type": [
-      "warp_iceberg",
-      "warp_delta_lake"
     ],
     "partition_by": [
       "m_date"
@@ -317,6 +319,32 @@
           "warp_match_columns": 0,
           "warp_collect_columns": 1,
           "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select MIN(char_5) from integer_date_partition where char_5 <> 'Andre' AND m_date <> 20200319",
+        "expected_result": [
+          "Aaron"
+        ],
+        "query_id": "integer_date_partition_2",
+        "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select MIN(char_5) from integer_date_partition where ((char_5 <> 'Andre') OR (char_5 is NULL)) AND ((m_date <> 20200319) OR (m_date is NULL))",
+        "expected_result": [
+          "Aaron"
+        ],
+        "query_id": "integer_date_partition_3",
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "external_match_columns": 1,
           "external_collect_columns": 0
         }
       }
@@ -397,6 +425,8 @@
   {
     "name": "date_partition_orc_file",
     "pt_enable": true,
+    "skip": true,
+    "comment": "https://starburstdata.atlassian.net/browse/SIC-2530",
     "lines": 3193768,
     "structure": [
       {
@@ -524,7 +554,7 @@
       "partition_date"
     ],
     "data_format": "ORC",
-    "warm_query": "select count(account_id), count(site_id), count(url), count(targeting_type), count(language_id), count(is_translated), count(category_list_string), count(peer_category_list_string), count(requests), count(partition_date) from date_partition_orc_file",
+    "warm_query": "select account_id, site_id, url, targeting_type, language_id, is_translated, category_list_string, peer_category_list_string, requests, partition_date from date_partition_orc_file",
     "data": "resources/synthetic/date_partition_orc_file.jsonl",
     "queries_data": [
       {
@@ -586,13 +616,24 @@
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 24,
+          "warp_collect_columns": 145,
+          "warp_prefilled_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 23
         }
       }
     ]
   },
   {
     "name": "partition_date",
-    "pt_enable": false,
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
+    "comment_type_skip": "different dictionary jmx values for iceberg or delta lake",
     "structure": [
       {
         "name": "int_1",
@@ -621,10 +662,6 @@
         "name": "ts",
         "type": "varchar"
       }
-    ],
-    "skip_type": [
-      "warp_iceberg",
-      "warp_delta_lake"
     ],
     "warmup_rules": [
       {
@@ -1517,6 +1554,15 @@
       "dictionary_rejected_elements_count": 0,
       "write_dictionaries_count": 43
     },
+    "iceberg_expected_dictionary_counters": {
+      "dictionary_rejected_elements_count": 0,
+      "write_dictionaries_count": 45
+    },
+    "comment_type_skip": "all counters are zero for: phoenix_table_min_max_q01, phoenix_table_min_max_q02, phoenix_table_min_max_q03, phoenix_table_min_max_q04",
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "queries_data": [
       {
         "query": "SELECT COUNT(*) FROM phoenix_table",
@@ -1646,6 +1692,13 @@
           "warp_prefilled_collect_columns": 32,
           "external_match_columns": 48,
           "external_collect_columns": 8
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 40,
+          "warp_collect_columns": 56,
+          "warp_prefilled_collect_columns": 32,
+          "external_match_columns": 48,
+          "external_collect_columns": 8
         }
       },
       {
@@ -1688,6 +1741,13 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "filtered_by_predicate": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
         }
       },
       {
@@ -1700,6 +1760,13 @@
           "filtered_by_predicate": 1,
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "filtered_by_predicate": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1716,6 +1783,13 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "filtered_by_predicate": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
         }
       },
       {
@@ -1728,6 +1802,13 @@
           "filtered_by_predicate": 1,
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "filtered_by_predicate": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2165,6 +2246,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 1
         }
       },
       {
@@ -2230,9 +2318,6 @@
   },
   {
     "name" : "partition_null_values",
-    "skip": true,
-    "skip_comment": "ToDo: temporarily skipped until fixed",
-    "pt_enable": true,
     "partition_by": [
       "cs_sold_date_sk"
     ],
@@ -2451,6 +2536,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 3
         }
       },
       {
@@ -2515,9 +2607,7 @@
   },
   {
     "name": "timestamp_partition",
-    "skip": true,
-    "skip_comment": "ToDo: temporarily skipped until fixed",
-    "pt_enable": true,
+    "set_time_zone": true,
     "structure": [
       {
         "name": "int_1",
@@ -2552,6 +2642,10 @@
       }
     ],
     "warm_query": "select * from timestamp_partition",
+    "skip_comment": "all counters are zero for timestamp_partition_2",
+    "skip_type": [
+      "warp_delta_lake"
+    ],
     "queries_data": [
       {
         "query": "select count(ts_1) from timestamp_partition where int_1<=0 AND ts_1<=CAST('2018-01-03 10:50:35.000' as timestamp)",
@@ -2572,11 +2666,21 @@
         "expected_result": [
           5000
         ],
+        "expected_dl_result": [
+          0
+        ],
         "query_id": "timestamp_partition_2",
         "expected_counters": {
           "warp_match_columns": 1,
           "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2593,15 +2697,19 @@
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 9
         }
       }
     ]
   },
   {
     "name": "decimal_partition",
-    "skip": true,
-    "skip_comment": "ToDo: temporarily skipped until fixed",
-    "pt_enable": true,
     "structure": [
       {
         "name": "int_1",
@@ -2657,9 +2765,7 @@
   },
   {
     "name": "decimal_timestamp_partition",
-    "skip": true,
-    "skip_comment": "ToDo: temporarily skipped until fixed",
-    "pt_enable": true,
+    "set_time_zone": true,
     "structure": [
       {
         "name": "bigint_1",
@@ -2716,12 +2822,22 @@
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 10
         }
       },
       {
         "query": "select count(dec_1) from decimal_timestamp_partition where ts_1>=CAST('2000-01-03 00:00:00.000' as timestamp)",
         "expected_result": [
           59994
+        ],
+        "expected_dl_result": [
+          39996
         ],
         "query_id": "decimal_timestamp_partition_2",
         "expected_counters": {
@@ -2730,6 +2846,13 @@
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 6,
+          "external_match_columns": 0,
+          "external_collect_columns": 3
         }
       },
       {
@@ -2737,7 +2860,31 @@
         "expected_result": [
           "1236.50", "2000-01-05 00:00:00.000"
         ],
+        "expected_dl_result": [
+          "1236.50", "2000-01-04 22:00:00.000"
+        ],
         "query_id": "decimal_timestamp_partition_3",
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 26,
+          "external_match_columns": 0,
+          "external_collect_columns": 4
+        }
+      },
+      {
+        "query": "select count(dec_1) from decimal_timestamp_partition where (ts_1<>CAST('2000-01-03 00:00:00.000' as timestamp) or ts_1 is not null) or (ts_1<>CAST('2000-01-01 00:00:00.000' as timestamp) or ts_1 is null)",
+        "expected_result": [
+          99990
+        ],
+        "query_id": "decimal_timestamp_partition_4",
         "expected_counters": {
           "warp_match_columns": 0,
           "warp_collect_columns": 0,

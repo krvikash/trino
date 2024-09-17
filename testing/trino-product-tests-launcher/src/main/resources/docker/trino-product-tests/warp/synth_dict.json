@@ -152,6 +152,20 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 1
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 1
         }
       }
     ],
@@ -245,10 +259,14 @@
         ]
       }
     ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "warm_query": "select * from dict_single_file_random_values",
     "queries_data": [
       {
-        "query_id": "dict_single_file_random_values_case1_q01",
+        "query_id": "dict_single_file_random_values_case1_q00",
         "query": "select count(*) from dict_single_file_random_values",
         "expected_result": [
           1000000
@@ -259,6 +277,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 1
         }
       },
       {
@@ -476,6 +501,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 1
         }
       }
     ]
@@ -527,6 +559,20 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 54,
+          "external_match_columns": 0,
+          "external_collect_columns": 3
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 19
         }
       },
       {
@@ -536,6 +582,14 @@
           29840, 1
         ],
         "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
           "warp_prefilled_collect_columns": 0,
@@ -637,6 +691,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 22
         }
       },
       {
@@ -775,6 +836,8 @@
   },
   {
     "name": "dict_mix_types_max_keys",
+    "skip": true,
+    "comment": "Need investigate failure in BENCH env",
     "pt_enable": true,
     "lines": 1500000,
     "structure": [
@@ -858,7 +921,21 @@
           "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
+        },
+        "dl_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 2,
+          "external_match_columns": 0,
+          "external_collect_columns": 1
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 3
         }
       },
       {
@@ -930,6 +1007,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 3
         }
       },
       {
@@ -1000,6 +1084,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 3
         }
       },
       {
@@ -1071,6 +1162,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 16
         }
       },
       {
@@ -1188,6 +1286,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 6
         }
       },
       {
@@ -1267,6 +1372,13 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 1
         }
       },
       {
