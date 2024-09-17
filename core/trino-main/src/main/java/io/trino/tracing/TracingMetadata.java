@@ -1523,15 +1523,6 @@ public class TracingMetadata
     }
 
     @Override
-    public boolean isColumnarTableScan(Session session, TableHandle tableHandle)
-    {
-        Span span = startSpan("isColumnarTableScan", tableHandle);
-        try (var ignored = scopedSpan(span)) {
-            return delegate.isColumnarTableScan(session, tableHandle);
-        }
-    }
-
-    @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(Session session, TableHandle tableHandle)
     {
         Span span = startSpan("allowSplittingReadIntoMultipleSubQueries", tableHandle);

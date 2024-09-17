@@ -1254,14 +1254,6 @@ public class ClassLoaderSafeConnectorMetadata
     }
 
     @Override
-    public boolean isColumnarTableScan(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
-            return delegate.isColumnarTableScan(session, tableHandle);
-        }
-    }
-
-    @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {

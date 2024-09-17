@@ -1020,12 +1020,6 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
-    public boolean isColumnarTableScan(Session session, TableHandle tableHandle)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(Session session, TableHandle tableHandle)
     {
         throw new UnsupportedOperationException();

@@ -1030,12 +1030,6 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    public boolean isColumnarTableScan(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        return delegate.isColumnarTableScan(session, getDelegate(tableHandle));
-    }
-
-    @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return delegate.allowSplittingReadIntoMultipleSubQueries(session, tableHandle);

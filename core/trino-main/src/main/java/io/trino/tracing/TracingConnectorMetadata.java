@@ -1376,15 +1376,6 @@ public class TracingConnectorMetadata
     }
 
     @Override
-    public boolean isColumnarTableScan(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        Span span = startSpan("isColumnarTableScan");
-        try (var ignored = scopedSpan(span)) {
-            return delegate.isColumnarTableScan(session, tableHandle);
-        }
-    }
-
-    @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         Span span = startSpan("allowSplittingReadIntoMultipleSubQueries");

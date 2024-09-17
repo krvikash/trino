@@ -841,11 +841,6 @@ public interface Metadata
     OptionalInt getMaxWriterTasks(Session session, String catalogName);
 
     /**
-     * @return whether connector supports reading a single column from the give tableHandle, without reading the entire table.
-     */
-    boolean isColumnarTableScan(Session session, TableHandle tableHandle);
-
-    /**
      * Workaround to lack of statistics about IO and CPU operations performed by the connector.
      * In the long term, this should be replaced by improvements in the cost model.
      *

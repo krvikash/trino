@@ -1752,14 +1752,6 @@ public interface ConnectorMetadata
     }
 
     /**
-     * @return whether connector supports reading a single column from the give tableHandle, without reading the entire table.
-     */
-    default boolean isColumnarTableScan(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        return false;
-    }
-
-    /**
      * @return true if reading a subset of columns from a given table separately from reading a complement of the subset has similar or better
      * performance as reading this table.
      */

@@ -2803,15 +2803,6 @@ public final class MetadataManager
     }
 
     @Override
-    public boolean isColumnarTableScan(Session session, TableHandle tableHandle)
-    {
-        CatalogHandle catalogHandle = tableHandle.catalogHandle();
-        CatalogMetadata catalogMetadata = getCatalogMetadata(session, catalogHandle);
-        ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
-        return catalogMetadata.getMetadata(session).isColumnarTableScan(connectorSession, tableHandle.connectorHandle());
-    }
-
-    @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(Session session, TableHandle tableHandle)
     {
         CatalogHandle catalogHandle = tableHandle.catalogHandle();

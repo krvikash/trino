@@ -154,7 +154,6 @@ public class MockConnectorFactory
 
     private final WriterScalingOptions writerScalingOptions;
     private final Supplier<Set<ConnectorCapabilities>> capabilities;
-    private final boolean supportsSingleColumnReads;
     private final boolean allowSplittingReadIntoMultipleSubQueries;
 
     private MockConnectorFactory(
@@ -213,7 +212,6 @@ public class MockConnectorFactory
             BiFunction<ConnectorSession, ConnectorTableExecuteHandle, Optional<ConnectorTableLayout>> getLayoutForTableExecute,
             WriterScalingOptions writerScalingOptions,
             Supplier<Set<ConnectorCapabilities>> capabilities,
-            boolean supportsSingleColumnReads,
             boolean allowSplittingReadIntoMultipleSubQueries)
     {
         this.name = requireNonNull(name, "name is null");
@@ -271,7 +269,6 @@ public class MockConnectorFactory
         this.getLayoutForTableExecute = requireNonNull(getLayoutForTableExecute, "getLayoutForTableExecute is null");
         this.writerScalingOptions = requireNonNull(writerScalingOptions, "writerScalingOptions is null");
         this.capabilities = requireNonNull(capabilities, "capabilities is null");
-        this.supportsSingleColumnReads = supportsSingleColumnReads;
         this.allowSplittingReadIntoMultipleSubQueries = allowSplittingReadIntoMultipleSubQueries;
     }
 
@@ -339,7 +336,6 @@ public class MockConnectorFactory
                 getLayoutForTableExecute,
                 writerScalingOptions,
                 capabilities,
-                supportsSingleColumnReads,
                 allowSplittingReadIntoMultipleSubQueries);
     }
 
@@ -499,7 +495,6 @@ public class MockConnectorFactory
         private Function<ConnectorTableHandle, ConnectorTableHandle> getCanonicalTableHandle = Function.identity();
         private WriterScalingOptions writerScalingOptions = WriterScalingOptions.DISABLED;
         private Supplier<Set<ConnectorCapabilities>> capabilities = ImmutableSet::of;
-        private boolean supportsSingleColumnReads;
         private boolean allowSplittingReadIntoMultipleSubQueries;
 
         private Builder() {}
@@ -878,12 +873,6 @@ public class MockConnectorFactory
             return this;
         }
 
-        public Builder withColumnarTableScan(boolean supportsSingleColumnReads)
-        {
-            this.supportsSingleColumnReads = supportsSingleColumnReads;
-            return this;
-        }
-
         public Builder withAllowSplittingReadIntoMultipleSubQueries(boolean allowSplittingReadIntoMultipleSubQueries)
         {
             this.allowSplittingReadIntoMultipleSubQueries = allowSplittingReadIntoMultipleSubQueries;
@@ -952,7 +941,6 @@ public class MockConnectorFactory
                     getLayoutForTableExecute,
                     writerScalingOptions,
                     capabilities,
-                    supportsSingleColumnReads,
                     allowSplittingReadIntoMultipleSubQueries);
         }
 

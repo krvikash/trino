@@ -619,12 +619,6 @@ public class MemoryMetadata
     }
 
     @Override
-    public boolean isColumnarTableScan(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        return true;
-    }
-
-    @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return true;
