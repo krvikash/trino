@@ -202,6 +202,8 @@ import static java.lang.Math.min;
 import static java.lang.Math.round;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
+import static java.util.Collections.unmodifiableCollection;
+import static java.util.Collections.unmodifiableSet;
 import static java.util.Map.Entry.comparingByKey;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -1610,6 +1612,7 @@ public class EventDrivenFaultTolerantQueryScheduler
         private void processNodeAcquisitions()
         {
             Iterator<Map.Entry<ScheduledTask, PreSchedulingTaskContext>> iterator = preSchedulingTaskContexts.entries().iterator();
+            List<ScheduledTask> contextsToRemove = new ArrayList<>();
             while (iterator.hasNext()) {
                 Map.Entry<ScheduledTask, PreSchedulingTaskContext> entry = iterator.next();
                 ScheduledTask scheduledTask = entry.getKey();
@@ -1622,7 +1625,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                 NodeLease nodeLease = context.getNodeLease();
                 StageExecution stageExecution = getStageExecution(scheduledTask.stageId());
                 if (stageExecution.getState().isDone()) {
-                    iterator.remove();
+                    contextsToRemove.add(scheduledTask);
                     nodeLease.release();
                 }
                 else if (nodeLease.getNode().isDone()) {
@@ -1645,11 +1648,12 @@ public class EventDrivenFaultTolerantQueryScheduler
                         });
                     }
                     else {
-                        iterator.remove();
+                        contextsToRemove.add(scheduledTask);
                         nodeLease.release();
                     }
                 }
             }
+            contextsToRemove.forEach(preSchedulingTaskContexts::removeContext);
         }
 
         private void updateMemoryRequirements()
@@ -1904,12 +1908,12 @@ public class EventDrivenFaultTolerantQueryScheduler
 
             public Collection<PreSchedulingTaskContext> listContexts()
             {
-                return contexts.values();
+                return unmodifiableCollection(contexts.values());
             }
 
             public Set<Map.Entry<ScheduledTask, PreSchedulingTaskContext>> entries()
             {
-                return contexts.entrySet();
+                return unmodifiableSet(contexts.entrySet());
             }
 
             private long getWaitingForNodeTasksCount(TaskExecutionClass executionClass)
