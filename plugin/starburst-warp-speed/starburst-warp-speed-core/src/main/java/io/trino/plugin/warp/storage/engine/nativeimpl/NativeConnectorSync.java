@@ -17,10 +17,13 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
+import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 import io.trino.spi.catalog.CatalogName;
 import jakarta.annotation.PreDestroy;
@@ -37,18 +40,27 @@ public class NativeConnectorSync
         implements ConnectorSync
 {
     private static final Logger logger = Logger.get(NativeConnectorSync.class);
+    private final GlobalConfig globalConfig;
     private final CatalogName catalogName;
     private final EventBus eventBus;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor(daemonThreadsNamed("warp-speed-native-connector-sync-%s"));
+    private final WorkerCapacityManager workerCapacityManager;
+    private final StorageEngine storageEngine;
     private WarmupDemoterService warmupDemoterService;
     private Integer catalogSequence;
 
     @Inject
-    public NativeConnectorSync(CatalogName catalogName,
-                               EventBus eventBus)
+    public NativeConnectorSync(GlobalConfig globalConfig,
+                               CatalogName catalogName,
+                               EventBus eventBus,
+                               StorageEngine storageEngine,
+                               WorkerCapacityManager workerCapacityManager)
     {
+        this.globalConfig = requireNonNull(globalConfig);
         this.catalogName = catalogName;
         this.eventBus = requireNonNull(eventBus);
+        this.storageEngine = requireNonNull(storageEngine);
+        this.workerCapacityManager = requireNonNull(workerCapacityManager);
     }
 
     @Override
@@ -66,6 +78,9 @@ public class NativeConnectorSync
             if (!unregister(catalogSequence)) {
                 logger.error("failed to unregister");
                 return;
+            }
+            if (globalConfig.isEnableDeleteFilesOnShutdown()) {
+                workerCapacityManager.deleteLocalStorageFiles();
             }
             logger.info("unregister catalog name %s sequence %d", catalogName, catalogSequence);
         }

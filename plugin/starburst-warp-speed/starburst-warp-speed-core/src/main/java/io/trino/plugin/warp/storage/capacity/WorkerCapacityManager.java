@@ -264,4 +264,30 @@ public class WorkerCapacityManager
         });
         cleanLocalStorageThread.start();
     }
+
+    public void deleteLocalStorageFiles()
+    {
+        String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
+        File localStore = new File(localStorePath);
+        try {
+            String[] fileList = localStore.list();
+            boolean cleaned = ((fileList == null) || (fileList.length == 0));
+            int iterations = 0;
+
+            while (!cleaned && (iterations < 3)) {
+                try {
+                    FileUtils.cleanDirectory(new File(localStorePath));
+                    cleaned = true;
+                }
+                catch (FileNotFoundException e) {
+                    fileList = localStore.list();
+                    cleaned = ((fileList == null) || (fileList.length == 0));
+                }
+                iterations++;
+            }
+        }
+        catch (IOException e) {
+            logger.error(e, "deleteLocalStorageFiles failed to clean localStorePath %s", localStorePath);
+        }
+    }
 }
