@@ -28,7 +28,6 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.matcher.Matchers;
 import com.google.inject.multibindings.Multibinder;
-import io.airlift.http.server.TheServlet;
 import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.jaxrs.JaxrsResource;
@@ -55,7 +54,7 @@ public class WarpJaxrsModule
     {
         binder.disableCircularProxies();
 
-        binder.bind(Servlet.class).annotatedWith(TheServlet.class).to(Key.get(ServletContainer.class));
+        binder.bind(Servlet.class).to(Key.get(ServletContainer.class));
         ObjectMapper objectMapper = new ObjectMapper();
         // ignore unknown fields (for backwards compatibility)
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
