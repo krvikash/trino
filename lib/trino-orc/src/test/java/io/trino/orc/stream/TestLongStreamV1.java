@@ -84,7 +84,7 @@ public class TestLongStreamV1
     protected LongInputStreamV1 createValueStream(Slice slice)
             throws OrcCorruptionException
     {
-        Optional<OrcDecompressor> orcDecompressor = createOrcDecompressor(ORC_DATA_SOURCE_ID, SNAPPY, COMPRESSION_BLOCK_SIZE, NATIVE_ZSTD_DECOMPRESSOR_ENABLED);
+        Optional<OrcDecompressor> orcDecompressor = createOrcDecompressor(ORC_DATA_SOURCE_ID, SNAPPY, COMPRESSION_BLOCK_SIZE);
         OrcInputStream input = new OrcInputStream(OrcChunkLoader.create(ORC_DATA_SOURCE_ID, slice, orcDecompressor, newSimpleAggregatedMemoryContext()));
         return new LongInputStreamV1(input, true);
     }

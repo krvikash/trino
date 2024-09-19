@@ -66,7 +66,7 @@ public class TestShortDecimalStream
     protected DecimalInputStream createValueStream(Slice slice)
             throws OrcCorruptionException
     {
-        Optional<OrcDecompressor> orcDecompressor = createOrcDecompressor(ORC_DATA_SOURCE_ID, SNAPPY, COMPRESSION_BLOCK_SIZE, NATIVE_ZSTD_DECOMPRESSOR_ENABLED);
+        Optional<OrcDecompressor> orcDecompressor = createOrcDecompressor(ORC_DATA_SOURCE_ID, SNAPPY, COMPRESSION_BLOCK_SIZE);
         return new DecimalInputStream(OrcChunkLoader.create(ORC_DATA_SOURCE_ID, slice, orcDecompressor, newSimpleAggregatedMemoryContext()));
     }
 

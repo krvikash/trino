@@ -173,7 +173,7 @@ public class OrcReader
 
         // check compression codec is supported
         this.compressionKind = postScript.getCompression();
-        this.decompressor = createOrcDecompressor(orcDataSource.getId(), compressionKind, bufferSize, options.isNativeZstdDecompressorEnabled());
+        this.decompressor = createOrcDecompressor(orcDataSource.getId(), compressionKind, bufferSize);
         validateWrite(validation -> validation.getCompression() == compressionKind, "Unexpected compression");
 
         this.hiveWriterVersion = postScript.getHiveWriterVersion();

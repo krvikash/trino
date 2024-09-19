@@ -15,10 +15,12 @@ package io.trino.plugin.hive.orc;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
 import io.trino.orc.OrcReaderOptions;
 import jakarta.validation.constraints.NotNull;
 
+@DefunctConfig("hive.orc.native-zstd-decompressor.enabled")
 public class OrcReaderConfig
 {
     private boolean useColumnNames;
@@ -150,19 +152,6 @@ public class OrcReaderConfig
     {
         options = options.withNestedLazy(nestedLazy);
         return this;
-    }
-
-    @Config("hive.orc.native-zstd-decompressor.enabled")
-    @ConfigDescription("Enable using native zstd library for faster decompression of ORC files")
-    public OrcReaderConfig setNativeZstdDecompressorEnabled(boolean nativeZstdDecompressorEnabled)
-    {
-        options = options.withNativeZstdDecompressorEnabled(nativeZstdDecompressorEnabled);
-        return this;
-    }
-
-    public boolean isNativeZstdDecompressorEnabled()
-    {
-        return options.isNativeZstdDecompressorEnabled();
     }
 
     public boolean isReadLegacyShortZoneId()

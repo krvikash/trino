@@ -75,7 +75,6 @@ public final class IcebergSessionProperties
     private static final String ORC_MAX_READ_BLOCK_SIZE = "orc_max_read_block_size";
     private static final String ORC_LAZY_READ_SMALL_RANGES = "orc_lazy_read_small_ranges";
     private static final String ORC_NESTED_LAZY_ENABLED = "orc_nested_lazy_enabled";
-    private static final String ORC_NATIVE_ZSTD_DECOMPRESSOR_ENABLED = "orc_native_zstd_decompressor_enabled";
     private static final String ORC_STRING_STATISTICS_LIMIT = "orc_string_statistics_limit";
     private static final String ORC_WRITER_VALIDATE_PERCENTAGE = "orc_writer_validate_percentage";
     private static final String ORC_WRITER_VALIDATE_MODE = "orc_writer_validate_mode";
@@ -178,11 +177,6 @@ public final class IcebergSessionProperties
                         ORC_NESTED_LAZY_ENABLED,
                         "Experimental: ORC: Lazily read nested data",
                         orcReaderConfig.isNestedLazy(),
-                        false))
-                .add(booleanProperty(
-                        ORC_NATIVE_ZSTD_DECOMPRESSOR_ENABLED,
-                        "Enable using native zstd library for faster decompression of ORC files",
-                        orcReaderConfig.isNativeZstdDecompressorEnabled(),
                         false))
                 .add(dataSizeProperty(
                         ORC_STRING_STATISTICS_LIMIT,
@@ -439,11 +433,6 @@ public final class IcebergSessionProperties
     public static boolean isOrcNestedLazy(ConnectorSession session)
     {
         return session.getProperty(ORC_NESTED_LAZY_ENABLED, Boolean.class);
-    }
-
-    public static boolean isOrcNativeZstdDecompressorEnabled(ConnectorSession session)
-    {
-        return session.getProperty(ORC_NATIVE_ZSTD_DECOMPRESSOR_ENABLED, Boolean.class);
     }
 
     public static DataSize getOrcStringStatisticsLimit(ConnectorSession session)
