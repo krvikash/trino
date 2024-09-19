@@ -24,7 +24,6 @@ import io.trino.testing.datatype.SqlDataTypeTest;
 import io.trino.testing.sql.JdbcSqlExecutor;
 import io.trino.testing.sql.TestTable;
 import io.trino.testing.sql.TrinoSqlExecutor;
-import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
@@ -83,8 +82,7 @@ public class TestDynamoDbTypeMapping
                 .setSchemaDirectory(server.getSchemaDirectory().getAbsolutePath());
 
         return DynamoDbQueryRunner.builder(server.getEndpointUrl(), server.getSchemaDirectory())
-                // copy smallest table to enforce DynamicCatalogManager load catalogs
-                .setTables(ImmutableList.of(TpchTable.REGION))
+                .setTables(ImmutableList.of())
                 .setFirstColumnAsPrimaryKeyEnabled(true)
                 .enableWrites()
                 .build();
