@@ -38,8 +38,6 @@ public class TestParquetReaderConfig
                 .setMaxBufferSize(DataSize.of(8, MEGABYTE))
                 .setUseColumnIndex(true)
                 .setUseBloomFilter(true)
-                .setNativeZstdDecompressorEnabled(true)
-                .setNativeSnappyDecompressorEnabled(true)
                 .setSmallFileThreshold(DataSize.of(3, MEGABYTE))
                 .setVectorizedDecodingEnabled(true));
     }
@@ -55,8 +53,6 @@ public class TestParquetReaderConfig
                 .put("parquet.max-merge-distance", "342kB")
                 .put("parquet.use-column-index", "false")
                 .put("parquet.use-bloom-filter", "false")
-                .put("parquet.native-zstd-decompressor.enabled", "false")
-                .put("parquet.native-snappy-decompressor.enabled", "false")
                 .put("parquet.small-file-threshold", "1kB")
                 .put("parquet.experimental.vectorized-decoding.enabled", "false")
                 .buildOrThrow();
@@ -69,8 +65,6 @@ public class TestParquetReaderConfig
                 .setMaxMergeDistance(DataSize.of(342, KILOBYTE))
                 .setUseColumnIndex(false)
                 .setUseBloomFilter(false)
-                .setNativeZstdDecompressorEnabled(false)
-                .setNativeSnappyDecompressorEnabled(false)
                 .setSmallFileThreshold(DataSize.of(1, KILOBYTE))
                 .setVectorizedDecodingEnabled(false);
 

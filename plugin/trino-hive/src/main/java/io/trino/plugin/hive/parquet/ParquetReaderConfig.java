@@ -29,7 +29,9 @@ import jakarta.validation.constraints.NotNull;
         "hive.parquet.fail-on-corrupted-statistics",
         "parquet.fail-on-corrupted-statistics",
         "parquet.optimized-reader.enabled",
-        "parquet.optimized-nested-reader.enabled"
+        "parquet.optimized-nested-reader.enabled",
+        "parquet.native-zstd-decompressor.enabled",
+        "parquet.native-snappy-decompressor.enabled",
 })
 public class ParquetReaderConfig
 {
@@ -130,32 +132,6 @@ public class ParquetReaderConfig
     public boolean isUseBloomFilter()
     {
         return options.useBloomFilter();
-    }
-
-    @Config("parquet.native-zstd-decompressor.enabled")
-    @ConfigDescription("Enable using native zstd library for faster decompression of parquet files")
-    public ParquetReaderConfig setNativeZstdDecompressorEnabled(boolean nativeZstdDecompressorEnabled)
-    {
-        options = options.withNativeZstdDecompressorEnabled(nativeZstdDecompressorEnabled);
-        return this;
-    }
-
-    public boolean isNativeZstdDecompressorEnabled()
-    {
-        return options.isNativeZstdDecompressorEnabled();
-    }
-
-    @Config("parquet.native-snappy-decompressor.enabled")
-    @ConfigDescription("Enable using native snappy library for faster decompression of parquet files")
-    public ParquetReaderConfig setNativeSnappyDecompressorEnabled(boolean nativeSnappyDecompressorEnabled)
-    {
-        options = options.withNativeSnappyDecompressorEnabled(nativeSnappyDecompressorEnabled);
-        return this;
-    }
-
-    public boolean isNativeSnappyDecompressorEnabled()
-    {
-        return options.isNativeSnappyDecompressorEnabled();
     }
 
     @Config("parquet.small-file-threshold")

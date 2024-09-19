@@ -30,7 +30,6 @@ import io.trino.parquet.metadata.BlockMetadata;
 import io.trino.parquet.metadata.ColumnChunkMetadata;
 import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.reader.ChunkedInputStream;
-import io.trino.parquet.reader.Decompressor;
 import io.trino.parquet.reader.MetadataReader;
 import io.trino.parquet.reader.PageReader;
 import io.trino.parquet.reader.ParquetReader;
@@ -142,8 +141,7 @@ public class TestParquetWriter
                 chunkMetaData,
                 new ColumnDescriptor(new String[] {"columna"}, new PrimitiveType(REQUIRED, INT32, "columna"), 0, 0),
                 null,
-                Optional.empty(),
-                new Decompressor(new ParquetReaderOptions()));
+                Optional.empty());
 
         pageReader.readDictionaryPage();
         assertThat(pageReader.hasNext()).isTrue();
@@ -196,8 +194,7 @@ public class TestParquetWriter
                 columnAMetaData,
                 new ColumnDescriptor(new String[] {"columna"}, new PrimitiveType(REQUIRED, INT32, "columna"), 0, 0),
                 null,
-                Optional.empty(),
-                new Decompressor(new ParquetReaderOptions()));
+                Optional.empty());
 
         pageReader.readDictionaryPage();
         assertThat(pageReader.hasNext()).isTrue();
@@ -216,8 +213,7 @@ public class TestParquetWriter
                 columnAMetaData,
                 new ColumnDescriptor(new String[] {"columnb"}, new PrimitiveType(REQUIRED, INT64, "columnb"), 0, 0),
                 null,
-                Optional.empty(),
-                new Decompressor(new ParquetReaderOptions()));
+                Optional.empty());
 
         pageReader.readDictionaryPage();
         assertThat(pageReader.hasNext()).isTrue();
@@ -369,9 +365,7 @@ public class TestParquetWriter
                     new ParquetDataSourceId("test"),
                     chunkMetaData.getCodec().getParquetCompressionCodec(),
                     compressedData,
-                    pageHeader.getUncompressed_page_size(),
-                    false,
-                    false);
+                    pageHeader.getUncompressed_page_size());
             int[] ids = new int[100];
             uncompressedData.getInts(0, ids, 0, 100);
             for (int i = 0; i < 100; i++) {

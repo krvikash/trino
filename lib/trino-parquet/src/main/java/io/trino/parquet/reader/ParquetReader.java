@@ -117,7 +117,6 @@ public class ParquetReader
     private final Map<Integer, Double> maxBytesPerCell;
     private double maxCombinedBytesPerRow;
     private final ParquetReaderOptions options;
-    private final Decompressor decompressor;
     private int maxBatchSize;
 
     private AggregatedMemoryContext currentRowGroupMemoryContext;
@@ -154,7 +153,6 @@ public class ParquetReader
         this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.currentRowGroupMemoryContext = memoryContext.newAggregatedMemoryContext();
         this.options = requireNonNull(options, "options is null");
-        this.decompressor = new Decompressor(options);
         this.maxBatchSize = options.getMaxReadBlockRowCount();
         this.columnReaders = new HashMap<>();
         this.maxBytesPerCell = new HashMap<>();
@@ -460,7 +458,7 @@ public class ParquetReader
             }
             ChunkedInputStream columnChunkInputStream = chunkReaders.get(new ChunkKey(fieldId, currentRowGroup));
             columnReader.setPageReader(
-                    createPageReader(dataSource.getId(), columnChunkInputStream, metadata, columnDescriptor, offsetIndex, fileCreatedBy, decompressor),
+                    createPageReader(dataSource.getId(), columnChunkInputStream, metadata, columnDescriptor, offsetIndex, fileCreatedBy),
                     Optional.ofNullable(rowRanges));
         }
         ColumnChunk columnChunk = columnReader.readPrimitive();

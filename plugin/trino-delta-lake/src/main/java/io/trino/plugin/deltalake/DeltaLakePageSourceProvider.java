@@ -90,8 +90,6 @@ import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getParquetMax
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getParquetMaxReadBlockSize;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getParquetSmallFileThreshold;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetIgnoreStatistics;
-import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetNativeSnappyDecompressorEnabled;
-import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetNativeZstdDecompressorEnabled;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetUseColumnIndex;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetVectorizedDecodingEnabled;
 import static io.trino.plugin.deltalake.DeltaLakeSplitManager.partitionMatchesPredicate;
@@ -220,8 +218,6 @@ public class DeltaLakePageSourceProvider
                 .withSmallFileThreshold(getParquetSmallFileThreshold(session))
                 .withUseColumnIndex(isParquetUseColumnIndex(session))
                 .withIgnoreStatistics(isParquetIgnoreStatistics(session))
-                .withNativeZstdDecompressorEnabled(isParquetNativeZstdDecompressorEnabled(session))
-                .withNativeSnappyDecompressorEnabled(isParquetNativeSnappyDecompressorEnabled(session))
                 .withVectorizedDecodingEnabled(isParquetVectorizedDecodingEnabled(session));
 
         Map<Integer, String> parquetFieldIdToName = columnMappingMode == ColumnMappingMode.ID ? loadParquetIdAndNameMapping(inputFile, options) : ImmutableMap.of();

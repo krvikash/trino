@@ -35,6 +35,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.parquet.ParquetCompressionUtils.decompress;
 import static io.trino.parquet.ParquetReaderUtils.isOnlyDictionaryEncodingPages;
 import static java.util.Objects.requireNonNull;
 
@@ -44,7 +45,6 @@ public final class PageReader
     private final CompressionCodec codec;
     private final boolean hasOnlyDictionaryEncodedPages;
     private final boolean hasNoNulls;
-    private final Decompressor decompressor;
     private final PeekingIterator<Page> compressedPages;
 
     private boolean dictionaryAlreadyRead;
@@ -56,8 +56,7 @@ public final class PageReader
             ColumnChunkMetadata metadata,
             ColumnDescriptor columnDescriptor,
             @Nullable OffsetIndex offsetIndex,
-            Optional<String> fileCreatedBy,
-            Decompressor decompressor)
+            Optional<String> fileCreatedBy)
     {
         // Parquet schema may specify a column definition as OPTIONAL even though there are no nulls in the actual data.
         // Row-group column statistics can be used to identify such cases and switch to faster non-nullable read
@@ -78,8 +77,7 @@ public final class PageReader
                 metadata.getCodec().getParquetCompressionCodec(),
                 compressedPages,
                 hasOnlyDictionaryEncodedPages,
-                hasNoNulls,
-                decompressor);
+                hasNoNulls);
     }
 
     @VisibleForTesting
@@ -88,15 +86,13 @@ public final class PageReader
             CompressionCodec codec,
             Iterator<? extends Page> compressedPages,
             boolean hasOnlyDictionaryEncodedPages,
-            boolean hasNoNulls,
-            Decompressor decompressor)
+            boolean hasNoNulls)
     {
         this.dataSourceId = requireNonNull(dataSourceId, "dataSourceId is null");
         this.codec = codec;
         this.compressedPages = Iterators.peekingIterator(compressedPages);
         this.hasOnlyDictionaryEncodedPages = hasOnlyDictionaryEncodedPages;
         this.hasNoNulls = hasNoNulls;
-        this.decompressor = decompressor;
     }
 
     public boolean hasNoNulls()
@@ -123,7 +119,7 @@ public final class PageReader
                     return dataPageV1;
                 }
                 return new DataPageV1(
-                        decompressor.decompress(dataSourceId, codec, dataPageV1.getSlice(), dataPageV1.getUncompressedSize()),
+                        decompress(dataSourceId, codec, dataPageV1.getSlice(), dataPageV1.getUncompressedSize()),
                         dataPageV1.getValueCount(),
                         dataPageV1.getUncompressedSize(),
                         dataPageV1.getFirstRowIndex(),
@@ -145,7 +141,7 @@ public final class PageReader
                     dataPageV2.getRepetitionLevels(),
                     dataPageV2.getDefinitionLevels(),
                     dataPageV2.getDataEncoding(),
-                    decompressor.decompress(dataSourceId, codec, dataPageV2.getSlice(), uncompressedSize),
+                    decompress(dataSourceId, codec, dataPageV2.getSlice(), uncompressedSize),
                     dataPageV2.getUncompressedSize(),
                     dataPageV2.getFirstRowIndex(),
                     dataPageV2.getStatistics(),
@@ -167,7 +163,7 @@ public final class PageReader
         try {
             DictionaryPage compressedDictionaryPage = (DictionaryPage) compressedPages.next();
             return new DictionaryPage(
-                    decompressor.decompress(dataSourceId, codec, compressedDictionaryPage.getSlice(), compressedDictionaryPage.getUncompressedSize()),
+                    decompress(dataSourceId, codec, compressedDictionaryPage.getSlice(), compressedDictionaryPage.getUncompressedSize()),
                     compressedDictionaryPage.getDictionarySize(),
                     compressedDictionaryPage.getEncoding());
         }

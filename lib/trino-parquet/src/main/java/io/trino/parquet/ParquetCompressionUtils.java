@@ -13,7 +13,6 @@
  */
 package io.trino.parquet;
 
-import com.github.luben.zstd.Zstd;
 import com.google.common.io.ByteStreams;
 import io.airlift.compress.v3.Decompressor;
 import io.airlift.compress.v3.lz4.Lz4Decompressor;
@@ -22,7 +21,6 @@ import io.airlift.compress.v3.snappy.SnappyDecompressor;
 import io.airlift.compress.v3.zstd.ZstdDecompressor;
 import io.airlift.slice.Slice;
 import org.apache.parquet.format.CompressionCodec;
-import org.xerial.snappy.Snappy;
 
 import java.io.IOException;
 import java.util.zip.GZIPInputStream;
@@ -33,7 +31,6 @@ import static io.airlift.slice.SizeOf.SIZE_OF_LONG;
 import static io.airlift.slice.Slices.EMPTY_SLICE;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static java.lang.Math.min;
-import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -43,7 +40,7 @@ public final class ParquetCompressionUtils
 
     private ParquetCompressionUtils() {}
 
-    public static Slice decompress(ParquetDataSourceId dataSourceId, CompressionCodec codec, Slice input, int uncompressedSize, boolean isNativeZstdDecompressorEnabled, boolean isNativeSnappyDecompressorEnabled)
+    public static Slice decompress(ParquetDataSourceId dataSourceId, CompressionCodec codec, Slice input, int uncompressedSize)
             throws IOException
     {
         requireNonNull(input, "input is null");
@@ -55,28 +52,12 @@ public final class ParquetCompressionUtils
         return switch (codec) {
             case UNCOMPRESSED -> input;
             case GZIP -> decompressGzip(input, uncompressedSize);
-            case SNAPPY -> isNativeSnappyDecompressorEnabled ? decompressJniSnappy(input, uncompressedSize) : decompressSnappy(input, uncompressedSize);
+            case SNAPPY -> decompressSnappy(input, uncompressedSize);
             case LZO -> decompressLZO(input, uncompressedSize);
             case LZ4 -> decompressLz4(input, uncompressedSize);
-            case ZSTD -> isNativeZstdDecompressorEnabled ? decompressJniZstd(input, uncompressedSize) : decompressZstd(input, uncompressedSize);
+            case ZSTD -> decompressZstd(input, uncompressedSize);
             case BROTLI, LZ4_RAW -> throw new ParquetCorruptionException(dataSourceId, "Codec not supported in Parquet: %s", codec);
         };
-    }
-
-    private static Slice decompressJniSnappy(Slice input, int uncompressedSize)
-            throws IOException
-    {
-        if (uncompressedSize == 0) {
-            return EMPTY_SLICE;
-        }
-
-        verifyRange(input.byteArray(), input.byteArrayOffset(), input.length());
-        byte[] buffer = new byte[uncompressedSize];
-        int bytesRead = Snappy.uncompress(input.byteArray(), input.byteArrayOffset(), input.length(), buffer, 0);
-        if (bytesRead != uncompressedSize) {
-            throw new IllegalArgumentException(format("Invalid uncompressedSize for ZSTD input. Expected %s, actual: %s", uncompressedSize, bytesRead));
-        }
-        return wrappedBuffer(buffer, 0, bytesRead);
     }
 
     private static Slice decompressSnappy(Slice input, int uncompressedSize)
@@ -89,20 +70,6 @@ public final class ParquetCompressionUtils
             throw new IllegalArgumentException(format("Invalid uncompressedSize for SNAPPY input. Expected %s, actual: %s", uncompressedSize, actualUncompressedSize));
         }
         return wrappedBuffer(buffer, 0, uncompressedSize);
-    }
-
-    private static Slice decompressJniZstd(Slice input, int uncompressedSize)
-    {
-        if (uncompressedSize == 0) {
-            return EMPTY_SLICE;
-        }
-
-        byte[] buffer = new byte[uncompressedSize];
-        int bytesRead = toIntExact(Zstd.decompressByteArray(buffer, 0, buffer.length, input.byteArray(), input.byteArrayOffset(), input.length()));
-        if (bytesRead != uncompressedSize) {
-            throw new IllegalArgumentException(format("Invalid uncompressedSize for ZSTD input. Expected %s, actual: %s", uncompressedSize, bytesRead));
-        }
-        return wrappedBuffer(buffer, 0, bytesRead);
     }
 
     private static Slice decompressZstd(Slice input, int uncompressedSize)

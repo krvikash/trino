@@ -90,8 +90,6 @@ import static io.trino.plugin.hive.HiveSessionProperties.getParquetMaxReadBlockR
 import static io.trino.plugin.hive.HiveSessionProperties.getParquetMaxReadBlockSize;
 import static io.trino.plugin.hive.HiveSessionProperties.getParquetSmallFileThreshold;
 import static io.trino.plugin.hive.HiveSessionProperties.isParquetIgnoreStatistics;
-import static io.trino.plugin.hive.HiveSessionProperties.isParquetNativeSnappyDecompressorEnabled;
-import static io.trino.plugin.hive.HiveSessionProperties.isParquetNativeZstdDecompressorEnabled;
 import static io.trino.plugin.hive.HiveSessionProperties.isParquetUseColumnIndex;
 import static io.trino.plugin.hive.HiveSessionProperties.isParquetVectorizedDecodingEnabled;
 import static io.trino.plugin.hive.HiveSessionProperties.isUseParquetColumnNames;
@@ -194,8 +192,6 @@ public class ParquetPageSourceFactory
                         .withSmallFileThreshold(getParquetSmallFileThreshold(session))
                         .withUseColumnIndex(isParquetUseColumnIndex(session))
                         .withBloomFilter(useParquetBloomFilter(session))
-                        .withNativeZstdDecompressorEnabled(isParquetNativeZstdDecompressorEnabled(session))
-                        .withNativeSnappyDecompressorEnabled(isParquetNativeSnappyDecompressorEnabled(session))
                         .withVectorizedDecodingEnabled(isParquetVectorizedDecodingEnabled(session)),
                 Optional.empty(),
                 domainCompactionThreshold,

@@ -28,7 +28,6 @@ import io.trino.parquet.ParquetReaderOptions;
 import io.trino.parquet.metadata.BlockMetadata;
 import io.trino.parquet.metadata.ColumnChunkMetadata;
 import io.trino.parquet.metadata.PrunedBlockMetadata;
-import io.trino.parquet.reader.Decompressor;
 import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.DecimalType;
@@ -56,6 +55,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.parquet.BloomFilterStore.getBloomFilterStore;
+import static io.trino.parquet.ParquetCompressionUtils.decompress;
 import static io.trino.parquet.ParquetReaderUtils.isOnlyDictionaryEncodingPages;
 import static io.trino.parquet.ParquetTypeUtils.getParquetEncoding;
 import static io.trino.parquet.metadata.PrunedBlockMetadata.createPrunedColumnsMetadata;
@@ -141,8 +141,7 @@ public final class PredicateUtils
             Optional<ColumnIndexStore> columnIndexStore,
             Optional<BloomFilterStore> bloomFilterStore,
             DateTimeZone timeZone,
-            int domainCompactionThreshold,
-            Decompressor decompressor)
+            int domainCompactionThreshold)
             throws IOException
     {
         if (columnsMetadata.getRowCount() == 0) {
@@ -177,8 +176,7 @@ public final class PredicateUtils
                 dataSource,
                 descriptorsByPath,
                 ImmutableSet.copyOf(candidateColumns.get()),
-                columnIndexStore,
-                decompressor);
+                columnIndexStore);
     }
 
     public static List<RowGroupInfo> getFilteredRowGroups(
@@ -196,7 +194,6 @@ public final class PredicateUtils
     {
         long fileRowCount = 0;
         ImmutableList.Builder<RowGroupInfo> rowGroupInfoBuilder = ImmutableList.builder();
-        Decompressor decompressor = new Decompressor(options);
         for (BlockMetadata block : blocksMetaData) {
             long blockStart = block.getStartingPos();
             boolean splitContainsBlock = splitStart <= blockStart && blockStart < splitStart + splitLength;
@@ -216,8 +213,7 @@ public final class PredicateUtils
                             columnIndex,
                             bloomFilterStore,
                             timeZone,
-                            domainCompactionThreshold,
-                            decompressor)) {
+                            domainCompactionThreshold)) {
                         rowGroupInfoBuilder.add(new RowGroupInfo(columnsMetadata, fileRowCount, columnIndex));
                         break;
                     }
@@ -259,8 +255,7 @@ public final class PredicateUtils
             ParquetDataSource dataSource,
             Map<List<String>, ColumnDescriptor> descriptorsByPath,
             Set<ColumnDescriptor> candidateColumns,
-            Optional<ColumnIndexStore> columnIndexStore,
-            Decompressor decompressor)
+            Optional<ColumnIndexStore> columnIndexStore)
             throws IOException
     {
         for (ColumnDescriptor descriptor : descriptorsByPath.values()) {
@@ -275,7 +270,7 @@ public final class PredicateUtils
                 if (!parquetPredicate.matches(new DictionaryDescriptor(
                         descriptor,
                         nullAllowed,
-                        readDictionaryPage(dataSource, columnMetaData, columnIndexStore, decompressor)))) {
+                        readDictionaryPage(dataSource, columnMetaData, columnIndexStore)))) {
                     return false;
                 }
             }
@@ -286,8 +281,7 @@ public final class PredicateUtils
     private static Optional<DictionaryPage> readDictionaryPage(
             ParquetDataSource dataSource,
             ColumnChunkMetadata columnMetaData,
-            Optional<ColumnIndexStore> columnIndexStore,
-            Decompressor decompressor)
+            Optional<ColumnIndexStore> columnIndexStore)
             throws IOException
     {
         int dictionaryPageSize;
@@ -311,7 +305,7 @@ public final class PredicateUtils
         }
         // Get the dictionary page header and the dictionary in single read
         Slice buffer = dataSource.readFully(columnMetaData.getStartingPos(), dictionaryPageSize);
-        return readPageHeaderWithData(buffer.getInput()).map(data -> decodeDictionaryPage(dataSource.getId(), data, columnMetaData, decompressor));
+        return readPageHeaderWithData(buffer.getInput()).map(data -> decodeDictionaryPage(dataSource.getId(), data, columnMetaData));
     }
 
     private static Optional<Integer> getDictionaryPageSize(ColumnIndexStore columnIndexStore, ColumnChunkMetadata columnMetaData)
@@ -350,7 +344,7 @@ public final class PredicateUtils
                 inputStream.readSlice(pageHeader.getCompressed_page_size())));
     }
 
-    private static DictionaryPage decodeDictionaryPage(ParquetDataSourceId dataSourceId, PageHeaderWithData pageHeaderWithData, ColumnChunkMetadata chunkMetaData, Decompressor decompressor)
+    private static DictionaryPage decodeDictionaryPage(ParquetDataSourceId dataSourceId, PageHeaderWithData pageHeaderWithData, ColumnChunkMetadata chunkMetaData)
     {
         PageHeader pageHeader = pageHeaderWithData.pageHeader();
         DictionaryPageHeader dicHeader = pageHeader.getDictionary_page_header();
@@ -360,7 +354,7 @@ public final class PredicateUtils
         Slice compressedData = pageHeaderWithData.compressedData();
         try {
             return new DictionaryPage(
-                    decompressor.decompress(dataSourceId, chunkMetaData.getCodec().getParquetCompressionCodec(), compressedData, pageHeader.getUncompressed_page_size()),
+                    decompress(dataSourceId, chunkMetaData.getCodec().getParquetCompressionCodec(), compressedData, pageHeader.getUncompressed_page_size()),
                     dictionarySize,
                     encoding);
         }

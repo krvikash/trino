@@ -87,8 +87,6 @@ public final class IcebergSessionProperties
     private static final String PARQUET_USE_BLOOM_FILTER = "parquet_use_bloom_filter";
     private static final String PARQUET_MAX_READ_BLOCK_ROW_COUNT = "parquet_max_read_block_row_count";
     private static final String PARQUET_SMALL_FILE_THRESHOLD = "parquet_small_file_threshold";
-    private static final String PARQUET_NATIVE_ZSTD_DECOMPRESSOR_ENABLED = "parquet_native_zstd_decompressor_enabled";
-    private static final String PARQUET_NATIVE_SNAPPY_DECOMPRESSOR_ENABLED = "parquet_native_snappy_decompressor_enabled";
     private static final String PARQUET_IGNORE_STATISTICS = "parquet_ignore_statistics";
     private static final String PARQUET_VECTORIZED_DECODING_ENABLED = "parquet_vectorized_decoding_enabled";
     private static final String PARQUET_WRITER_BLOCK_SIZE = "parquet_writer_block_size";
@@ -257,16 +255,6 @@ public final class IcebergSessionProperties
                         "Parquet: Size below which a parquet file will be read entirely",
                         parquetReaderConfig.getSmallFileThreshold(),
                         value -> validateMaxDataSize(PARQUET_SMALL_FILE_THRESHOLD, value, DataSize.valueOf(PARQUET_READER_MAX_SMALL_FILE_THRESHOLD)),
-                        false))
-                .add(booleanProperty(
-                        PARQUET_NATIVE_ZSTD_DECOMPRESSOR_ENABLED,
-                        "Enable using native zstd library for faster decompression of parquet files",
-                        parquetReaderConfig.isNativeZstdDecompressorEnabled(),
-                        false))
-                .add(booleanProperty(
-                        PARQUET_NATIVE_SNAPPY_DECOMPRESSOR_ENABLED,
-                        "Enable using native snappy library for faster decompression of parquet files",
-                        parquetReaderConfig.isNativeSnappyDecompressorEnabled(),
                         false))
                 .add(booleanProperty(
                         PARQUET_IGNORE_STATISTICS,
@@ -528,16 +516,6 @@ public final class IcebergSessionProperties
     public static DataSize getParquetSmallFileThreshold(ConnectorSession session)
     {
         return session.getProperty(PARQUET_SMALL_FILE_THRESHOLD, DataSize.class);
-    }
-
-    public static boolean isParquetNativeZstdDecompressorEnabled(ConnectorSession session)
-    {
-        return session.getProperty(PARQUET_NATIVE_ZSTD_DECOMPRESSOR_ENABLED, Boolean.class);
-    }
-
-    public static boolean isParquetNativeSnappyDecompressorEnabled(ConnectorSession session)
-    {
-        return session.getProperty(PARQUET_NATIVE_SNAPPY_DECOMPRESSOR_ENABLED, Boolean.class);
     }
 
     public static boolean isParquetIgnoreStatistics(ConnectorSession session)

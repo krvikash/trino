@@ -155,8 +155,6 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.isOrcBloomFilters
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isOrcNativeZstdDecompressorEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isOrcNestedLazy;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isParquetIgnoreStatistics;
-import static io.trino.plugin.iceberg.IcebergSessionProperties.isParquetNativeSnappyDecompressorEnabled;
-import static io.trino.plugin.iceberg.IcebergSessionProperties.isParquetNativeZstdDecompressorEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isParquetVectorizedDecodingEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.useParquetBloomFilter;
@@ -608,8 +606,6 @@ public class IcebergPageSourceProvider
                             .withSmallFileThreshold(getParquetSmallFileThreshold(session))
                             .withIgnoreStatistics(isParquetIgnoreStatistics(session))
                             .withBloomFilter(useParquetBloomFilter(session))
-                            .withNativeZstdDecompressorEnabled(isParquetNativeZstdDecompressorEnabled(session))
-                            .withNativeSnappyDecompressorEnabled(isParquetNativeSnappyDecompressorEnabled(session))
                             // TODO https://github.com/trinodb/trino/issues/11000
                             .withUseColumnIndex(false)
                             .withVectorizedDecodingEnabled(isParquetVectorizedDecodingEnabled(session)),

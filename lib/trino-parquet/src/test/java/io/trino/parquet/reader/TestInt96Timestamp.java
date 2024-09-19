@@ -171,7 +171,7 @@ public class TestInt96Timestamp
         ParquetReaderOptions options = new ParquetReaderOptions();
         ColumnReaderFactory columnReaderFactory = new ColumnReaderFactory(DateTimeZone.UTC, options);
         ColumnReader reader = columnReaderFactory.create(field, newSimpleAggregatedMemoryContext());
-        PageReader pageReader = new PageReader(new ParquetDataSourceId("test"), UNCOMPRESSED, List.of(dataPage).iterator(), false, false, new Decompressor(options));
+        PageReader pageReader = new PageReader(new ParquetDataSourceId("test"), UNCOMPRESSED, List.of(dataPage).iterator(), false, false);
         reader.setPageReader(pageReader, Optional.empty());
         reader.prepareNextRead(valueCount);
         Block block = reader.readPrimitive().getBlock();

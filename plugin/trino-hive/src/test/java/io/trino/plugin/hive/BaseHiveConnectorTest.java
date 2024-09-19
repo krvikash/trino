@@ -8192,68 +8192,6 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
-    public void testNativeZstdCompression()
-    {
-        for (TestingHiveStorageFormat testingStorageFormat : getNativeZstdTestingHiveStorageFormat()) {
-            testReadTableWithCompressionCodec(testingStorageFormat.session(), testingStorageFormat.format(), HiveCompressionCodec.ZSTD);
-        }
-    }
-
-    private List<TestingHiveStorageFormat> getNativeZstdTestingHiveStorageFormat()
-    {
-        Session session = getSession();
-        String catalog = session.getCatalog().orElseThrow();
-        ImmutableList.Builder<TestingHiveStorageFormat> formats = ImmutableList.builder();
-        for (boolean enabled : ImmutableList.of(true, false)) {
-            formats.add(new TestingHiveStorageFormat(
-                    Session.builder(session)
-                            .setCatalogSessionProperty(catalog, "orc_native_zstd_decompressor_enabled", Boolean.toString(enabled))
-                            .build(),
-                    HiveStorageFormat.ORC));
-            formats.add(new TestingHiveStorageFormat(
-                    Session.builder(session)
-                            .setCatalogSessionProperty(catalog, "parquet_native_zstd_decompressor_enabled", Boolean.toString(enabled))
-                            .build(),
-                    HiveStorageFormat.PARQUET));
-        }
-        return formats.build();
-    }
-
-    @Test
-    public void testNativeSnappyCompression()
-    {
-        for (TestingHiveStorageFormat testingStorageFormat : getNativeSnappyTestingHiveStorageFormat()) {
-            testReadTableWithCompressionCodec(testingStorageFormat.session(), testingStorageFormat.format(), HiveCompressionCodec.SNAPPY);
-        }
-    }
-
-    private List<TestingHiveStorageFormat> getNativeSnappyTestingHiveStorageFormat()
-    {
-        Session session = getSession();
-        String catalog = session.getCatalog().orElseThrow();
-        ImmutableList.Builder<TestingHiveStorageFormat> formats = ImmutableList.builder();
-        for (boolean enabled : ImmutableList.of(true, false)) {
-            formats.add(new TestingHiveStorageFormat(
-                    Session.builder(session)
-                            .setCatalogSessionProperty(catalog, "parquet_native_snappy_decompressor_enabled", Boolean.toString(enabled))
-                            .build(),
-                    HiveStorageFormat.PARQUET));
-        }
-        return formats.build();
-    }
-
-    private void testReadTableWithCompressionCodec(Session session, HiveStorageFormat storageFormat, HiveCompressionCodec compressionCodec)
-    {
-        session = Session.builder(session)
-                .setCatalogSessionProperty(session.getCatalog().orElseThrow(), "compression_codec", compressionCodec.name())
-                .build();
-        String tableName = "test_read_table_with_compression_" + compressionCodec;
-        assertUpdate(session, format("CREATE TABLE %s WITH (format = '%s') AS TABLE tpch.tiny.nation", tableName, storageFormat), 25);
-        assertQuery(session, "SELECT * FROM " + tableName, "SELECT * FROM nation");
-        assertUpdate("DROP TABLE " + tableName);
-    }
-
-    @Test
     public void testCreateTableWithCompressionCodec()
     {
         for (HiveCompressionCodec compressionCodec : HiveCompressionCodec.values()) {
