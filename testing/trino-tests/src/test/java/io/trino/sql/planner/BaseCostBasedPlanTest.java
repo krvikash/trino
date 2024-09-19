@@ -22,24 +22,20 @@ import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogSchemaTableName;
-import io.trino.spi.connector.ConnectorFactory;
 import io.trino.sql.DynamicFilters;
-import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy;
 import io.trino.sql.planner.assertions.BasePlanTest;
 import io.trino.sql.planner.plan.AggregationNode;
-import io.trino.sql.planner.plan.CacheDataPlanNode;
-import io.trino.sql.planner.plan.ChooseAlternativeNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.JoinNode;
-import io.trino.sql.planner.plan.LoadCachedDataPlanNode;
 import io.trino.sql.planner.plan.SemiJoinNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.testing.PlanTester;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -48,9 +44,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -81,35 +75,27 @@ public abstract class BaseCostBasedPlanTest
         extends BasePlanTest
 {
     private static final Logger log = Logger.get(BaseCostBasedPlanTest.class);
+    private static final String CATALOG_NAME = "local";
 
-    public static final List<String> TPCH_SQL_FILES = IntStream.rangeClosed(1, 22)
+    protected static final List<String> TPCH_SQL_FILES = IntStream.rangeClosed(1, 22)
             .mapToObj(i -> format("q%02d", i))
             .map(queryId -> format("/sql/trino/tpch/%s.sql", queryId))
             .collect(toImmutableList());
 
-    public static final List<String> TPCDS_SQL_FILES = IntStream.range(1, 100)
+    protected static final List<String> TPCDS_SQL_FILES = IntStream.range(1, 100)
             .mapToObj(i -> format("q%02d", i))
             .map(queryId -> format("/sql/trino/tpcds/%s.sql", queryId))
             .collect(toImmutableList());
 
-    protected static final String CATALOG_NAME = "local";
-
-    protected final String schemaName;
-    private final Optional<String> fileFormatName;
+    private final String schemaName;
     private final boolean partitioned;
-    protected boolean smallFiles;
+    private final IcebergCostBasedPlanTestSetup planTestSetup;
 
-    public BaseCostBasedPlanTest(String schemaName, Optional<String> fileFormatName, boolean partitioned)
-    {
-        this(schemaName, fileFormatName, partitioned, false);
-    }
-
-    public BaseCostBasedPlanTest(String schemaName, Optional<String> fileFormatName, boolean partitioned, boolean smallFiles)
+    public BaseCostBasedPlanTest(String schemaName, boolean partitioned)
     {
         this.schemaName = requireNonNull(schemaName, "schemaName is null");
-        this.fileFormatName = requireNonNull(fileFormatName, "fileFormatName is null");
         this.partitioned = partitioned;
-        this.smallFiles = smallFiles;
+        this.planTestSetup = new IcebergCostBasedPlanTestSetup();
     }
 
     @Override
@@ -126,16 +112,30 @@ public abstract class BaseCostBasedPlanTest
         PlanTester planTester = PlanTester.create(sessionBuilder.build(), 8);
         planTester.createCatalog(
                 CATALOG_NAME,
-                createConnectorFactory(),
+                planTestSetup.createConnectorFactory(),
                 ImmutableMap.of());
         return planTester;
     }
 
-    protected abstract ConnectorFactory createConnectorFactory();
-
     @BeforeAll
-    public abstract void prepareTables()
-            throws Exception;
+    public void prepareTables()
+    {
+        planTestSetup.createDatabase(schemaName);
+        planTestSetup.populateTablesFromResource(getTableNames(), schemaName, getTableResourceDirectory(), getTableTargetDirectory());
+    }
+
+    @AfterAll
+    public void cleanUp()
+            throws Exception
+    {
+        planTestSetup.cleanUp();
+    }
+
+    protected abstract List<String> getTableNames();
+
+    protected abstract String getTableResourceDirectory();
+
+    protected abstract String getTableTargetDirectory();
 
     protected abstract List<String> getQueryResourcePaths();
 
@@ -146,15 +146,12 @@ public abstract class BaseCostBasedPlanTest
         assertThat(generateQueryPlan(readQuery(queryResourcePath))).isEqualTo(read(getQueryPlanResourcePath(queryResourcePath)));
     }
 
-    protected String getQueryPlanResourcePath(String queryResourcePath)
+    private String getQueryPlanResourcePath(String queryResourcePath)
     {
         Path queryPath = Paths.get(queryResourcePath);
         String connectorName = getPlanTester().getCatalogManager().getCatalog(new CatalogName(CATALOG_NAME)).orElseThrow().getConnectorName().toString();
         Path directory = queryPath.getParent();
-        directory = directory.resolve(connectorName + (smallFiles ? "_small_files" : ""));
-        if (fileFormatName.isPresent()) {
-            directory = directory.resolve(fileFormatName.get());
-        }
+        directory = directory.resolve(connectorName);
         directory = directory.resolve(partitioned ? "partitioned" : "unpartitioned");
         String planResourceName = queryPath.getFileName().toString().replaceAll("\\.sql$", ".plan.txt");
         return directory.resolve(planResourceName).toString();
@@ -182,10 +179,6 @@ public abstract class BaseCostBasedPlanTest
                         }
                     });
         }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted", e);
-        }
         catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -194,7 +187,7 @@ public abstract class BaseCostBasedPlanTest
         }
     }
 
-    public static String readQuery(String resource)
+    private static String readQuery(String resource)
     {
         return read(resource).replaceAll("\\s+;\\s+$", "")
                 .replace("${database}.${schema}.", "")
@@ -228,7 +221,7 @@ public abstract class BaseCostBasedPlanTest
         }
     }
 
-    protected Path getSourcePath()
+    private Path getSourcePath()
     {
         Path workingDir = Paths.get(System.getProperty("user.dir"));
         verify(isDirectory(workingDir), "Working directory is not a directory");
@@ -285,27 +278,6 @@ public abstract class BaseCostBasedPlanTest
         }
 
         @Override
-        public Void visitChooseAlternativeNode(ChooseAlternativeNode node, Integer indent)
-        {
-            output(indent, "alternatives");
-            return visitPlan(node, indent + 1);
-        }
-
-        @Override
-        public Void visitCacheDataPlanNode(CacheDataPlanNode node, Integer indent)
-        {
-            output(indent, "cache data");
-            return visitPlan(node, indent + 1);
-        }
-
-        @Override
-        public Void visitLoadCachedDataPlanNode(LoadCachedDataPlanNode node, Integer indent)
-        {
-            output(indent, "load from cache");
-            return null;
-        }
-
-        @Override
         public Void visitExchange(ExchangeNode node, Integer indent)
         {
             Partitioning partitioning = node.getPartitioningScheme().getPartitioning();
@@ -342,34 +314,13 @@ public abstract class BaseCostBasedPlanTest
         public Void visitFilter(FilterNode node, Integer indent)
         {
             DynamicFilters.ExtractResult filters = extractDynamicFilters(node.getPredicate());
-            String unestimatableInputs = filters.getDynamicConjuncts().stream()
-                    .filter(descriptor -> descriptor.getPreferredTimeout().isEmpty())
-                    .map(descriptor -> descriptor.getInput().toString())
-                    .sorted()
-                    .collect(joining(", "));
             String inputs = filters.getDynamicConjuncts().stream()
-                    .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().getAsLong() == 0)
-                    .map(descriptor -> descriptor.getInput().toString())
-                    .sorted()
-                    .collect(joining(", "));
-            String awaitInputs = filters.getDynamicConjuncts().stream()
-                    .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().getAsLong() > 0)
-                    .map(descriptor -> descriptor.getInput().toString())
+                    .map(descriptor -> ((Reference) descriptor.getInput()).name() + "::" + descriptor.getOperator())
                     .sorted()
                     .collect(joining(", "));
 
-            if (!inputs.isEmpty() || !awaitInputs.isEmpty() || !unestimatableInputs.isEmpty()) {
-                List<String> msg = new ArrayList<>();
-                if (!inputs.isEmpty()) {
-                    msg.add("[%s]".formatted(inputs));
-                }
-                if (!unestimatableInputs.isEmpty()) {
-                    msg.add("unestimatable [%s]".formatted(unestimatableInputs));
-                }
-                if (!awaitInputs.isEmpty()) {
-                    msg.add("await [%s]".formatted(awaitInputs));
-                }
-                output(indent, "dynamic filter (%s)", String.join(", ", msg));
+            if (!inputs.isEmpty()) {
+                output(indent, "dynamic filter (%s)", inputs);
                 indent = indent + 1;
             }
             return visitPlan(node, indent);
@@ -410,14 +361,9 @@ public abstract class BaseCostBasedPlanTest
 
     private static String argumentBindingToString(Partitioning.ArgumentBinding argument)
     {
-        if (argument.getConstant() != null) {
-            return argument.getConstant().toString();
+        if (argument.isConstant()) {
+            return argument.getConstant().getValue().toString();
         }
-        Expression expression = argument.getExpression();
-        requireNonNull(expression, "expression is null");
-        if (expression instanceof Reference symbolReference) {
-            return symbolReference.name();
-        }
-        return expression.toString();
+        return argument.getColumn().name();
     }
 }
