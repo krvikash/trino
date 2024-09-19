@@ -15,7 +15,7 @@ package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -57,7 +57,7 @@ public class CacheWarmer
     private final WarpPageSinkFactory warpPageSinkFactory;
     private final StorageWarmerService storageWarmerService;
     private final StorageWriterService storageWriterService;
-    private final GlobalConfig globalConfig;
+    private final DictionaryConfig dictionaryConfig;
     private final AtomicInteger tmpUniqueKeyMarker;
 
     @Inject
@@ -66,14 +66,14 @@ public class CacheWarmer
             WarpPageSinkFactory warpPageSinkFactory,
             StorageWarmerService storageWarmerService,
             StorageWriterService storageWriterService,
-            GlobalConfig globalConfig)
+            DictionaryConfig dictionaryConfig)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
         this.warpPageSinkFactory = requireNonNull(warpPageSinkFactory);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
-        this.globalConfig = requireNonNull(globalConfig);
+        this.dictionaryConfig = requireNonNull(dictionaryConfig);
         this.tmpUniqueKeyMarker = new AtomicInteger(0);
     }
 
@@ -181,7 +181,7 @@ public class CacheWarmer
     {
         RowGroupData rowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
         storageWarmerService.lockRowGroup(rowGroupData);
-        return storageWriterService.startWarming("WarpCacheManager", permanentRowGroupKey.filePath(), globalConfig.isEnableDictionary());
+        return storageWriterService.startWarming("WarpCacheManager", permanentRowGroupKey.filePath(), dictionaryConfig.getEnableDictionary());
     }
 
     public void finishWarmingAndUnlock(StorageWriterSplitConfig storageWriterSplitConfig, RowGroupKey permanentRowGroupKey)

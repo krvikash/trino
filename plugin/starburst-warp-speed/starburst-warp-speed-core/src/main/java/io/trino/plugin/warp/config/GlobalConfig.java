@@ -44,7 +44,6 @@ public class GlobalConfig
     public static final String DATA_ONLY_WARMING = "warp-speed.data-only-warming";
     public static final String EMPTY_PAGE_ITERATIONS = "warp-speed.config-empty-page-iterations";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
-    public static final String ENABLE_DICTIONARY = "warp-speed.enable.dictionary";
     private static final Logger logger = Logger.get(GlobalConfig.class);
 
     private final Optional<String> authorization = Optional.empty();  // by default, no authorization
@@ -71,7 +70,6 @@ public class GlobalConfig
     private String azureConnectionString;
     private boolean failureGeneratorEnabled;
     private long emptyPageIterations = 5000;
-    private boolean enableDictionary;
     private SwaggerExposingLevel swaggerExposingLevel = SwaggerExposingLevel.DEBUG;
 
     private boolean debugWarmingSingleThreaded;
@@ -113,17 +111,6 @@ public class GlobalConfig
     public void setIsSingle(boolean isSingle)
     {
         this.isSingle = isSingle;
-    }
-
-    public boolean isEnableDictionary()
-    {
-        return enableDictionary;
-    }
-
-    @Config(ENABLE_DICTIONARY)
-    public void setEnableDictionary(boolean enableDictionary)
-    {
-        this.enableDictionary = enableDictionary;
     }
 
     public String getCardinalityBuckets()
