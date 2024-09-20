@@ -62,8 +62,8 @@ public class BasicQueryMatchData
     @Override
     public boolean canMapMatchCollect()
     {
-        return domain.filter(value -> PredicateUtil.canMapMatchCollect(type, getNativeExpression().predicateType(),
-                getNativeExpression().functionType(), value.getValues().getRanges().getRangeCount())).isPresent();
+        return domain.filter(domain -> PredicateUtil.canMapMatchCollect(domain.getType(), getNativeExpression().predicateType(),
+                getNativeExpression().functionType(), domain.getValues().getRanges().getRangeCount())).isPresent();
     }
 
     @Override
