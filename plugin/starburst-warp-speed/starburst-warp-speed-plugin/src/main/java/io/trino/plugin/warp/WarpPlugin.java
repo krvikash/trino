@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp;
 
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.warp.dispatcher.CachingPlugin;
 import io.trino.spi.Plugin;
 import io.trino.spi.cache.CacheManagerFactory;
@@ -28,22 +28,22 @@ public class WarpPlugin
         extends CachingPlugin
         implements Plugin
 {
-    private final LicenseManager licenseManager;
+    private final LicenseVerifier licenseVerifier;
 
     public WarpPlugin()
     {
         this(() -> true);
     }
 
-    public WarpPlugin(LicenseManager licenseManager)
+    public WarpPlugin(LicenseVerifier licenseVerifier)
     {
-        this.licenseManager = requireNonNull(licenseManager);
+        this.licenseVerifier = requireNonNull(licenseVerifier);
     }
 
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        WarpConnectorFactory warpConnectorFactory = new WarpConnectorFactory(super.getConnectorFactory(), licenseManager, Collections.emptyList());
+        WarpConnectorFactory warpConnectorFactory = new WarpConnectorFactory(super.getConnectorFactory(), licenseVerifier, Collections.emptyList());
         return List.of(warpConnectorFactory);
     }
 

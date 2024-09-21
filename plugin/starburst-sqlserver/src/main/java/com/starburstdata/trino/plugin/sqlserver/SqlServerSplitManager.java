@@ -13,7 +13,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.microsoft.sqlserver.jdbc.SQLServerException;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
@@ -62,11 +62,11 @@ public class SqlServerSplitManager
     public SqlServerSplitManager(
             ConnectionFactory connectionFactory,
             StarburstSqlServerConfig starburstSqlServerConfig,
-            LicenseManager licenseManager)
+            LicenseVerifier licenseVerifier)
     {
         this.connectionFactory = requireNonNull(connectionFactory, "connectionFactory is null");
         if (starburstSqlServerConfig.getConnectionsCount() > 1) {
-            licenseManager.checkLicense();
+            licenseVerifier.checkLicense();
         }
     }
 

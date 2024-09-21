@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp;
 
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.di.InitializationModule;
@@ -39,16 +39,16 @@ public class WarpConnectorFactory
         implements ConnectorFactory
 {
     private final DispatcherConnectorFactory dispatcherConnectorFactory;
-    private final LicenseManager licenseManager;
+    private final LicenseVerifier licenseVerifier;
     private final List<Class<? extends InitializationModule>> extraModules;
 
     public WarpConnectorFactory(
             DispatcherConnectorFactory dispatcherConnectorFactory,
-            LicenseManager licenseManager,
+            LicenseVerifier licenseVerifier,
             List<Class<? extends InitializationModule>> extraModules)
     {
         this.dispatcherConnectorFactory = requireNonNull(dispatcherConnectorFactory);
-        this.licenseManager = requireNonNull(licenseManager, "licenseManager is null");
+        this.licenseVerifier = requireNonNull(licenseVerifier, "licenseManager is null");
         this.extraModules = requireNonNull(extraModules, "extraModules is null");
     }
 
@@ -61,7 +61,7 @@ public class WarpConnectorFactory
     @Override
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
-        requireNonNull(licenseManager, "licenseManager is null");
+        requireNonNull(licenseVerifier, "licenseManager is null");
         Map<String, String> configMap = new HashMap<>(config);
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);

@@ -11,7 +11,7 @@ package com.starburstdata.trino.plugin.oracle;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.session.PropertyMetadata;
@@ -31,7 +31,7 @@ public final class StarburstOracleSessionProperties
     private final List<PropertyMetadata<?>> sessionProperties;
 
     @Inject
-    public StarburstOracleSessionProperties(LicenseManager licenseManager, StarburstOracleConfig starburstOracleConfig)
+    public StarburstOracleSessionProperties(LicenseVerifier licenseVerifier, StarburstOracleConfig starburstOracleConfig)
     {
         sessionProperties = ImmutableList.<PropertyMetadata<?>>builder()
                 .add(enumProperty(
@@ -41,7 +41,7 @@ public final class StarburstOracleSessionProperties
                         starburstOracleConfig.getParallelismType(),
                         value -> {
                             if (value != NO_PARALLELISM) {
-                                licenseManager.checkLicense();
+                                licenseVerifier.checkLicense();
                             }
                         },
                         false))

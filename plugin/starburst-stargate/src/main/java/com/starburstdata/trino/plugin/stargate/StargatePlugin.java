@@ -12,7 +12,7 @@ package com.starburstdata.trino.plugin.stargate;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Scopes;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.jdbc.ExtraCredentialsBasedIdentityCacheMappingModule;
 import io.trino.plugin.jdbc.JdbcConnectorFactory;
 import io.trino.plugin.jdbc.JdbcMetadataFactory;
@@ -33,19 +33,19 @@ public class StargatePlugin
     }
 
     @VisibleForTesting
-    Iterable<ConnectorFactory> getConnectorFactories(LicenseManager licenseManager, boolean enableWrites)
+    Iterable<ConnectorFactory> getConnectorFactories(LicenseVerifier licenseVerifier, boolean enableWrites)
     {
-        return ImmutableList.of(getConnectorFactory(licenseManager, enableWrites));
+        return ImmutableList.of(getConnectorFactory(licenseVerifier, enableWrites));
     }
 
-    private ConnectorFactory getConnectorFactory(LicenseManager licenseManager, boolean enableWrites)
+    private ConnectorFactory getConnectorFactory(LicenseVerifier licenseVerifier, boolean enableWrites)
     {
-        requireNonNull(licenseManager, "licenseManager is null");
+        requireNonNull(licenseVerifier, "licenseManager is null");
         return new JdbcConnectorFactory(
                 // "stargate" will be used also for the parallel variant, with implementation chosen by a configuration property
                 "stargate",
                 combine(
-                        binder -> binder.bind(LicenseManager.class).toInstance(licenseManager),
+                        binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(enableWrites),
                         binder -> binder.install(new ExtraCredentialsBasedIdentityCacheMappingModule()),
                         binder -> newOptionalBinder(binder, JdbcMetadataFactory.class).setBinding().to(StargateMetadataFactory.class).in(Scopes.SINGLETON),

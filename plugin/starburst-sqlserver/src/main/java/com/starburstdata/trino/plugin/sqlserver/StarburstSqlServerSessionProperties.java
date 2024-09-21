@@ -11,7 +11,7 @@ package com.starburstdata.trino.plugin.sqlserver;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
@@ -33,7 +33,7 @@ public final class StarburstSqlServerSessionProperties
     private final List<PropertyMetadata<?>> sessionProperties;
 
     @Inject
-    public StarburstSqlServerSessionProperties(LicenseManager licenseManager, StarburstSqlServerConfig config)
+    public StarburstSqlServerSessionProperties(LicenseVerifier licenseVerifier, StarburstSqlServerConfig config)
     {
         sessionProperties = ImmutableList.of(
                 stringProperty(
@@ -52,7 +52,7 @@ public final class StarburstSqlServerSessionProperties
                         config.getConnectionsCount(),
                         value -> {
                             if (value > 1) {
-                                licenseManager.checkLicense();
+                                licenseVerifier.checkLicense();
                             }
                         },
                         false));

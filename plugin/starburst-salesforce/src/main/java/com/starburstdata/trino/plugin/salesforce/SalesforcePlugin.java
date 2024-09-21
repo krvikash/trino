@@ -11,7 +11,7 @@ package com.starburstdata.trino.plugin.salesforce;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.jdbc.JdbcConnectorFactory;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
@@ -22,11 +22,11 @@ import static java.util.Objects.requireNonNull;
 public class SalesforcePlugin
         implements Plugin
 {
-    private final LicenseManager licenseManager;
+    private final LicenseVerifier licenseVerifier;
 
-    public SalesforcePlugin(LicenseManager licenseManager)
+    public SalesforcePlugin(LicenseVerifier licenseVerifier)
     {
-        this.licenseManager = requireNonNull(licenseManager, "licenseManager is null");
+        this.licenseVerifier = requireNonNull(licenseVerifier, "licenseManager is null");
     }
 
     @Override
@@ -38,12 +38,12 @@ public class SalesforcePlugin
     @VisibleForTesting
     ConnectorFactory getConnectorFactory(boolean enableWrites)
     {
-        requireNonNull(licenseManager, "licenseManager is null");
+        requireNonNull(licenseVerifier, "licenseManager is null");
         return new JdbcConnectorFactory(
                 "salesforce",
                 combine(
-                        binder -> binder.bind(LicenseManager.class).toInstance(licenseManager),
+                        binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(enableWrites),
-                        new SalesforceModule(licenseManager)));
+                        new SalesforceModule(licenseVerifier)));
     }
 }

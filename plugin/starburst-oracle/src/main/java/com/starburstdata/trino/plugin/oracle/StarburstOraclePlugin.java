@@ -9,7 +9,7 @@
  */
 package com.starburstdata.trino.plugin.oracle;
 
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.jdbc.JdbcPlugin;
 
 public class StarburstOraclePlugin
@@ -20,8 +20,8 @@ public class StarburstOraclePlugin
         this(() -> true);
     }
 
-    public StarburstOraclePlugin(LicenseManager licenseManager)
+    public StarburstOraclePlugin(LicenseVerifier licenseVerifier)
     {
-        super("oracle", new StarburstOracleClientModule(licenseManager));
+        super("oracle", new StarburstOracleClientModule(licenseVerifier));
     }
 }

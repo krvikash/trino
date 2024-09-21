@@ -12,7 +12,7 @@ package com.starburstdata.trino.plugin.oracle;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
@@ -88,7 +88,7 @@ public class StarburstOracleClient
 
     @Inject
     public StarburstOracleClient(
-            LicenseManager licenseManager,
+            LicenseVerifier licenseVerifier,
             BaseJdbcConfig config,
             JdbcMetadataConfig jdbcMetadataConfig,
             JdbcStatisticsConfig statisticsConfig,
@@ -102,7 +102,7 @@ public class StarburstOracleClient
         synonymsEnabled = oracleConfig.isSynonymsEnabled();
         this.statisticsEnabled = requireNonNull(statisticsConfig, "statisticsConfig is null").isEnabled();
         if (jdbcMetadataConfig.isAggregationPushdownEnabled()) {
-            licenseManager.checkLicense();
+            licenseVerifier.checkLicense();
         }
     }
 

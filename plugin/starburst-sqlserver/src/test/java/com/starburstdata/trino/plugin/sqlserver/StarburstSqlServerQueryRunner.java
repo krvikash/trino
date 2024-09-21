@@ -11,7 +11,7 @@ package com.starburstdata.trino.plugin.sqlserver;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
@@ -49,7 +49,7 @@ public final class StarburstSqlServerQueryRunner
     public static final String CHARLIE_USER = "charlie";
     public static final String UNKNOWN_USER = "non_existing_user";
 
-    public static final LicenseManager NOOP_LICENSE_MANAGER = () -> true;
+    public static final LicenseVerifier NOOP_LICENSE_MANAGER = () -> true;
 
     private StarburstSqlServerQueryRunner() {}
 

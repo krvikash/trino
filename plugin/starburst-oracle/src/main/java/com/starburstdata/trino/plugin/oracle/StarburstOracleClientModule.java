@@ -12,7 +12,7 @@ package com.starburstdata.trino.plugin.oracle;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.jdbc.ForBaseJdbc;
 import io.trino.plugin.jdbc.ForJdbcDynamicFiltering;
@@ -43,11 +43,11 @@ import static java.util.Objects.requireNonNull;
 public class StarburstOracleClientModule
         extends AbstractConfigurationAwareModule
 {
-    private final LicenseManager licenseManager;
+    private final LicenseVerifier licenseVerifier;
 
-    public StarburstOracleClientModule(LicenseManager licenseManager)
+    public StarburstOracleClientModule(LicenseVerifier licenseVerifier)
     {
-        this.licenseManager = requireNonNull(licenseManager, "licenseManager is null");
+        this.licenseVerifier = requireNonNull(licenseVerifier, "licenseManager is null");
     }
 
     @Override
@@ -63,7 +63,7 @@ public class StarburstOracleClientModule
 
         bindProcedure(binder, AnalyzeProcedure.class);
 
-        binder.bind(LicenseManager.class).toInstance(licenseManager);
+        binder.bind(LicenseVerifier.class).toInstance(licenseVerifier);
         bindSessionPropertiesProvider(binder, StarburstOracleSessionProperties.class);
         bindSessionPropertiesProvider(binder, OracleSessionProperties.class);
 
@@ -71,7 +71,7 @@ public class StarburstOracleClientModule
         configBinder(binder).bindConfig(StarburstOracleConfig.class);
         configBinder(binder).bindConfig(JdbcStatisticsConfig.class);
 
-        configBinder(binder).bindConfigDefaults(JdbcMetadataConfig.class, config -> config.setAggregationPushdownEnabled(licenseManager.hasLicense()));
+        configBinder(binder).bindConfigDefaults(JdbcMetadataConfig.class, config -> config.setAggregationPushdownEnabled(licenseVerifier.hasLicense()));
 
         install(new JdbcJoinPushdownSupportModule());
 

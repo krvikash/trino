@@ -13,7 +13,7 @@ import io.trino.spi.TrinoException;
 
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 
-public interface LicenseManager
+public interface LicenseVerifier
 {
     boolean hasLicense();
 

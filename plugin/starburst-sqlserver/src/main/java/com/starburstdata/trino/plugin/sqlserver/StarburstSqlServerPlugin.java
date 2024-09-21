@@ -11,7 +11,7 @@ package com.starburstdata.trino.plugin.sqlserver;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.jdbc.JdbcConnectorFactory;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
@@ -22,27 +22,27 @@ import static java.util.Objects.requireNonNull;
 public class StarburstSqlServerPlugin
         implements Plugin
 {
-    private final LicenseManager licenseManager;
+    private final LicenseVerifier licenseVerifier;
 
-    public StarburstSqlServerPlugin(LicenseManager licenseManager)
+    public StarburstSqlServerPlugin(LicenseVerifier licenseVerifier)
     {
-        this.licenseManager = licenseManager;
+        this.licenseVerifier = licenseVerifier;
     }
 
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        return ImmutableList.of(getConnectorFactory(licenseManager));
+        return ImmutableList.of(getConnectorFactory(licenseVerifier));
     }
 
     @VisibleForTesting
-    ConnectorFactory getConnectorFactory(LicenseManager licenseManager)
+    ConnectorFactory getConnectorFactory(LicenseVerifier licenseVerifier)
     {
-        requireNonNull(licenseManager, "licenseManager is null");
+        requireNonNull(licenseVerifier, "licenseManager is null");
         return new JdbcConnectorFactory(
                 "sqlserver",
                 combine(
-                        binder -> binder.bind(LicenseManager.class).toInstance(licenseManager),
-                        new StarburstSqlServerClientModule(licenseManager)));
+                        binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
+                        new StarburstSqlServerClientModule(licenseVerifier)));
     }
 }

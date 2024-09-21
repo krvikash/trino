@@ -9,12 +9,12 @@
  */
 package com.starburstdata.trino.plugin.saphana;
 
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 
 public class TestingSapHanaPlugin
         extends SapHanaPlugin
 {
-    public static final LicenseManager NOOP_LICENSE_MANAGER = () -> true;
+    public static final LicenseVerifier NOOP_LICENSE_MANAGER = () -> true;
 
     public TestingSapHanaPlugin()
     {

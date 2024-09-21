@@ -12,7 +12,7 @@ package com.starburstdata.trino.plugin.saphana;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multiset;
 import com.google.inject.Inject;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
@@ -52,13 +52,13 @@ public class SapHanaSplitManager
 
     @Inject
     public SapHanaSplitManager(
-            LicenseManager licenseManager,
+            LicenseVerifier licenseVerifier,
             ConnectionFactory connectionFactory,
             SapHanaConfig config)
     {
         this.connectionFactory = requireNonNull(connectionFactory, "connectionFactory is null");
         if (config.getParallelismType() != NO_PARALLELISM) {
-            licenseManager.checkLicense();
+            licenseVerifier.checkLicense();
         }
     }
 

@@ -13,7 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Streams;
 import com.google.common.util.concurrent.Runnables;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.metadata.QualifiedObjectName;
@@ -44,7 +44,7 @@ import static java.util.Objects.requireNonNull;
 
 public final class OracleQueryRunner
 {
-    public static final LicenseManager NOOP_LICENSE_MANAGER = () -> true;
+    public static final LicenseVerifier NOOP_LICENSE_MANAGER = () -> true;
 
     private static final Logger LOG = Logger.get(OracleQueryRunner.class);
 

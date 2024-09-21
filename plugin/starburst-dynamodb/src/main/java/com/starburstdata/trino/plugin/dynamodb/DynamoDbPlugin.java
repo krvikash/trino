@@ -11,7 +11,7 @@ package com.starburstdata.trino.plugin.dynamodb;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.jdbc.JdbcConnectorFactory;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
@@ -22,11 +22,11 @@ import static java.util.Objects.requireNonNull;
 public class DynamoDbPlugin
         implements Plugin
 {
-    private final LicenseManager licenseManager;
+    private final LicenseVerifier licenseVerifier;
 
-    public DynamoDbPlugin(LicenseManager licenseManager)
+    public DynamoDbPlugin(LicenseVerifier licenseVerifier)
     {
-        this.licenseManager = requireNonNull(licenseManager, "licenseManager is null");
+        this.licenseVerifier = requireNonNull(licenseVerifier, "licenseManager is null");
     }
 
     @Override
@@ -38,12 +38,12 @@ public class DynamoDbPlugin
     @VisibleForTesting
     ConnectorFactory getConnectorFactory(boolean enableWrites)
     {
-        requireNonNull(licenseManager, "licenseManager is null");
+        requireNonNull(licenseVerifier, "licenseManager is null");
         return new JdbcConnectorFactory(
                 "dynamodb",
                 combine(
-                        binder -> binder.bind(LicenseManager.class).toInstance(licenseManager),
+                        binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(enableWrites),
-                        new DynamoDbModule(licenseManager)));
+                        new DynamoDbModule(licenseVerifier)));
     }
 }

@@ -10,7 +10,7 @@
 package com.starburstdata.trino.plugin.salesforce;
 
 import com.google.common.collect.ImmutableMap;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public final class SalesforceQueryRunner
 {
-    public static final LicenseManager NOOP_LICENSE_MANAGER = () -> true;
+    public static final LicenseVerifier NOOP_LICENSE_MANAGER = () -> true;
 
     private static final Logger log = Logger.get(SalesforceQueryRunner.class);
 

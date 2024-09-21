@@ -10,7 +10,7 @@
 package com.starburstdata.trino.plugin.saphana;
 
 import com.google.common.collect.ImmutableList;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.jdbc.JdbcConnectorFactory;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
@@ -23,16 +23,16 @@ public class SapHanaPlugin
 {
     public static final String CONNECTOR_NAME = "sap_hana";
 
-    private final LicenseManager licenseManager;
+    private final LicenseVerifier licenseVerifier;
 
     public SapHanaPlugin()
     {
         this(() -> true);
     }
 
-    public SapHanaPlugin(LicenseManager licenseManager)
+    public SapHanaPlugin(LicenseVerifier licenseVerifier)
     {
-        this.licenseManager = requireNonNull(licenseManager, "licenseManager is null");
+        this.licenseVerifier = requireNonNull(licenseVerifier, "licenseManager is null");
     }
 
     @Override
@@ -41,7 +41,7 @@ public class SapHanaPlugin
         return ImmutableList.of(new JdbcConnectorFactory(
                 CONNECTOR_NAME,
                 combine(
-                        binder -> binder.bind(LicenseManager.class).toInstance(licenseManager),
+                        binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         new SapHanaClientModule())));
     }
 }

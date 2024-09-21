@@ -14,7 +14,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multiset;
 import com.google.common.math.IntMath;
 import com.google.inject.Inject;
-import com.starburstdata.trino.plugin.license.LicenseManager;
+import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
@@ -58,11 +58,11 @@ public class OracleSplitManager
     public OracleSplitManager(
             ConnectionFactory connectionFactory,
             StarburstOracleConfig starburstOracleConfig,
-            LicenseManager licenseManager)
+            LicenseVerifier licenseVerifier)
     {
         this.connectionFactory = requireNonNull(connectionFactory, "connectionFactory is null");
         if (starburstOracleConfig.getParallelismType() != NO_PARALLELISM) {
-            licenseManager.checkLicense();
+            licenseVerifier.checkLicense();
         }
     }
 
