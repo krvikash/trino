@@ -396,8 +396,6 @@
   },
   {
     "name": "date_partition_orc_file",
-    "skip": true,
-    "skip_comment": "ToDo: temporarily skipped until fixed",
     "pt_enable": true,
     "lines": 3193768,
     "structure": [
@@ -463,7 +461,6 @@
         "colNameId": "url",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -495,7 +492,6 @@
         "colNameId": "category_list_string",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -524,7 +520,6 @@
         ]
       }
     ],
-    "expected_warm_failures": 30,
     "partition_by": [
       "partition_date"
     ],
