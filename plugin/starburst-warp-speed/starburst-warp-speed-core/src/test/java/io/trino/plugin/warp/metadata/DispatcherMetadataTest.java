@@ -52,6 +52,7 @@ import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.LimitApplicationResult;
+import io.trino.spi.connector.RetryMode;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
@@ -128,7 +129,8 @@ public class DispatcherMetadataTest
                         // Deprecated methods
                         ConnectorMetadata.class.getMethod("applyJoin", ConnectorSession.class, JoinType.class, ConnectorTableHandle.class, ConnectorTableHandle.class, List.class, Map.class, Map.class, JoinStatistics.class),
                         ConnectorMetadata.class.getMethod("streamTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
-                        ConnectorMetadata.class.getMethod("listTableColumns", ConnectorSession.class, SchemaTablePrefix.class)));
+                        ConnectorMetadata.class.getMethod("listTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
+                        ConnectorMetadata.class.getMethod("getTableHandleForExecute", ConnectorSession.class, ConnectorTableHandle.class, String.class, Map.class, RetryMode.class)));
     }
 
     @Test
