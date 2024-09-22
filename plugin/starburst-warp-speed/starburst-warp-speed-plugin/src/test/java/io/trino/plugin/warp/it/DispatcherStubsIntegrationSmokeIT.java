@@ -319,7 +319,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         }
         @Language("SQL") String jmxQuery = format("select %s from \"*DispatcherPageSource*\"", columnJoiner);
         MaterializedResult jmxBefore = null;
-        if (jmxCounters.size() > 0) {
+        if (!jmxCounters.isEmpty()) {
             jmxBefore = computeActual(jmxSession, jmxQuery);
         }
 
@@ -347,7 +347,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         Map<String, Long> customMetrics = getCustomMetrics(resultWithQueryId.queryId(), (DistributedQueryRunner) getQueryRunner());
         for (Map.Entry<String, Long> expectedStat : expectedJmxCounters.entrySet()) {
             String key = DispatcherPageSourceFactory.createFixedStatKey(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY, expectedStat.getKey());
-            Long actualResult = customMetrics.get(key);
+            Long actualResult = customMetrics.getOrDefault(key, 0L);
             Long expectedResult = expectedStat.getValue();
             assertThat(actualResult)
                     .as("stat: %s, actualResult: %d, expectedResult: %d. query: %s", key, actualResult, expectedResult, query)

@@ -203,7 +203,7 @@ public class QueryUtils
         long counterValueInCustomMetrics = 0;
         for (String counter : countersList) {
             if (counter.equals(counterWithMaxValue)) {
-                counterValueInCustomMetrics = actualValues.get(counter);
+                counterValueInCustomMetrics = actualValues.getOrDefault(counter, 0L);
                 break;
             }
         }
@@ -213,7 +213,7 @@ public class QueryUtils
         }
         for (String counter : countersList) {
             if (expectedCounters.containsKey(counter)) {
-                double counterValue = (double) actualValues.get(counter);
+                double counterValue = (double) actualValues.getOrDefault(counter, 0L);
                 double expectedValue = expectedCounters.get(counter) * numberOfSplits;
                 String info = "testName: " + testName + "; Counter: " + counter + "; Result: " + counterValue + "; Expected: " + expectedValue;
                 logger.debug(info);
@@ -229,22 +229,29 @@ public class QueryUtils
         ruleUtils.validateLoadByCacheDataOperator(queryId);
     }
 
-    private void verifyQueryCounters(String queryId, Map<String, Long> expectedCounters, CachingType cachingType, String testName, SoftAssertions softAssert)
+    @SuppressWarnings("unchecked")
+    private void verifyQueryCounters(
+            String queryId,
+            Map<String, Long> expectedCounters,
+            CachingType cachingType,
+            String testName,
+            SoftAssertions softAssert)
     {
         if (cachingType == CachingType.ACCORDING_TO_COUNTERS) {
-            logger.debug(expectedCounters.toString());
+            logger.debug("%s", expectedCounters);
             SetMultimap<String, Object> connectorMetrics = ruleUtils.getCustomStats(queryId, "connectorMetrics");
             Map<String, Long> actualValues = connectorMetrics
                     .entries()
                     .stream()
-                    .filter(x -> expectedCounters.containsKey(x.getKey()))
+                    .filter(entry -> expectedCounters.containsKey(entry.getKey()))
                     .collect(Collectors.toMap(
                             Map.Entry::getKey,
-                            x -> {
-                                Map map = (Map) x.getValue();
-                                return Long.valueOf((Integer) map.get("total"));
+                            entry -> {
+                                Map<String, Object> map = (Map<String, Object>) entry.getValue();
+                                return ((Integer) map.get("total")).longValue();
                             },
                             Long::sum));
+
             List<String> queryStatsNames = JMXCachingManager.getQueryStatsNames();
             verifyQueryCountersJson(queryStatsNames, expectedCounters, actualValues, testName, softAssert);
         }
@@ -308,7 +315,7 @@ public class QueryUtils
 
     private boolean validateQueryResult(List<Object> expectedResult)
     {
-        return expectedResult != null && !expectedResult.isEmpty() && !String.valueOf(expectedResult.get(0)).toUpperCase(Locale.ROOT).equals("IGNORE");
+        return expectedResult != null && !expectedResult.isEmpty() && !String.valueOf(expectedResult.getFirst()).toUpperCase(Locale.ROOT).equals("IGNORE");
     }
 
     private Object getValue(ValueNode expectedResult, JDBCType columnType)
@@ -349,11 +356,12 @@ public class QueryUtils
         };
     }
 
+    @SuppressWarnings("unchecked")
     private List<List<ValueNode>> convertExpectedValues(List<Object> expectedValues)
     {
         //ArrayNode arrayNode = (ArrayNode) expectedValues; // Assuming the JSON object is an array of objects
         List<List<ValueNode>> arrayOfArrays = new ArrayList<>(); // The resulting array of arrays
-        if (expectedValues.get(0) instanceof List) {
+        if (expectedValues.getFirst() instanceof List) {
             //array of arrays
             for (Object rowValue : expectedValues) {
                 List<ValueNode> values = convertRowToValues((List<Object>) rowValue);
