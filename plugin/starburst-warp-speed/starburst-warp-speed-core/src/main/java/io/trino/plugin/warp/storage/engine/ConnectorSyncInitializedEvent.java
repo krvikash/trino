@@ -13,4 +13,4 @@
  */
 package io.trino.plugin.warp.storage.engine;
 
-public record ConnectorSyncInitializedEvent(int catalogSequence) {}
+public record ConnectorSyncInitializedEvent(boolean isDefaultCatalog) {}

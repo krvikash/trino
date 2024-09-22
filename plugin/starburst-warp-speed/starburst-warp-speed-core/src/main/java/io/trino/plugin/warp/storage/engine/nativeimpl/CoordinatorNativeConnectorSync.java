@@ -70,7 +70,7 @@ public class CoordinatorNativeConnectorSync
             logger.debug("nativeConnectorSync from init, %d", System.identityHashCode(this));
             catalogSequence = register(catalogName.toString(), 1800);
             logger.info("catalog name %s sequence %d", catalogName, catalogSequence);
-            eventBus.post(new ConnectorSyncInitializedEvent(catalogSequence));
+            eventBus.post(new ConnectorSyncInitializedEvent(isDefaultCatalog()));
         }
         catch (Throwable e) {
             logger.error(e, "failed to register");
@@ -85,6 +85,18 @@ public class CoordinatorNativeConnectorSync
     public int getCatalogSequence()
     {
         return catalogSequence;
+    }
+
+    @Override
+    public String getCatalogName()
+    {
+        return catalogName.toString();
+    }
+
+    @Override
+    public boolean isDefaultCatalog()
+    {
+        return catalogSequence == DEFAULT_CATALOG;
     }
 
     public native int register(String catalogName, int timeoutSec);

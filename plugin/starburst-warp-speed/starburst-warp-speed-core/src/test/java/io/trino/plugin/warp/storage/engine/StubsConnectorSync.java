@@ -111,4 +111,10 @@ public class StubsConnectorSync
     {
         this.warmupDemoterService = warmupDemoterService;
     }
+
+    @Override
+    public String getCatalogName()
+    {
+        return "stub-catalog";
+    }
 }

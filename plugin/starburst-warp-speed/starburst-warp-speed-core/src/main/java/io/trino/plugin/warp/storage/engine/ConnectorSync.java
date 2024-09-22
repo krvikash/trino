@@ -45,6 +45,16 @@ public interface ConnectorSync
         return 0;
     }
 
+    default String getCatalogName()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default boolean isDefaultCatalog()
+    {
+        return true;
+    }
+
     default boolean isCatalogReducedResources()
     {
         return false;

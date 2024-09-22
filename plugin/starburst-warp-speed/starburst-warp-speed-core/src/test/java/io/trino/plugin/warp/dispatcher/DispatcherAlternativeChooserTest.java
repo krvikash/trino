@@ -149,6 +149,7 @@ public class DispatcherAlternativeChooserTest
         NodeManager nodeManager = mockNodeManager();
         ConnectorSync connectorSync = mock(ConnectorSync.class);
         when(connectorSync.getCatalogSequence()).thenReturn(0);
+        when(connectorSync.isDefaultCatalog()).thenReturn(true);
         rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
                 globalConfig,

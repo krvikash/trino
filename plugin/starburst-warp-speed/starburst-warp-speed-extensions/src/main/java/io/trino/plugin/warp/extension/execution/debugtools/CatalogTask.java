@@ -42,6 +42,6 @@ public class CatalogTask
     @Path(IS_DEFAULT)
     public boolean isDefault()
     {
-        return connectorSync.getCatalogSequence() == ConnectorSync.DEFAULT_CATALOG;
+        return connectorSync.isDefaultCatalog();
     }
 }

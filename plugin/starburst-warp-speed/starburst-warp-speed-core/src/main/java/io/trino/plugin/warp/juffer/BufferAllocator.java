@@ -287,14 +287,14 @@ public class BufferAllocator
                 success = true;
             }
             catch (Throwable t) {
-                logger.warn("catalog %d failed to load with numSegments %d", connectorSync.getCatalogSequence(), numSegments);
+                logger.warn("catalog %s failed to load with numSegments %d", connectorSync.getCatalogName(), numSegments);
                 clear();
                 numSegments /= 2;
             }
         }
 
         if (numSegments < minNumSegments) {
-            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + connectorSync.getCatalogSequence() + " failed to load");
+            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + connectorSync.getCatalogName() + " failed to load");
         }
 
         // read bundles
@@ -306,8 +306,8 @@ public class BufferAllocator
             }
         }
 
-        logger.info("catalog %d loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
-                connectorSync.getCatalogSequence(),
+        logger.info("catalog %s loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
+                connectorSync.getCatalogName(),
                 loadSegmentsQueue.size(),
                 warmBundleSize,
                 warmWriteBufferSize,

@@ -44,7 +44,6 @@ import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static io.trino.plugin.warp.storage.engine.ConnectorSync.DEFAULT_CATALOG;
 import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 import static java.util.Objects.requireNonNull;
 
@@ -242,7 +241,7 @@ public class QueryClassifier
         String matchCollectCatalog = WarpSessionProperties.getMatchCollectCatalog(session);
         boolean enableMatchCollect = (classificationType == ClassificationType.QUERY) &&
                 WarpSessionProperties.getEnableMatchCollect(session) &&
-                ((matchCollectCatalog == null) ? (connectorSync.getCatalogSequence() == DEFAULT_CATALOG) : matchCollectCatalog.equals(catalogName.toString()));
+                ((matchCollectCatalog == null) ? connectorSync.isDefaultCatalog() : matchCollectCatalog.equals(catalogName.toString()));
         if (enableMatchCollect) {
             WarpExpression expression = predicateContextData.getRootExpression();
             if (expression instanceof WarpCall warpCall && (warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||

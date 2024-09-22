@@ -44,7 +44,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import static io.trino.plugin.warp.storage.engine.ConnectorSync.DEFAULT_CATALOG;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -119,7 +118,7 @@ public class CallHomeService
     @Subscribe
     public void connectorSyncInitialized(ConnectorSyncInitializedEvent event)
     {
-        if (event.catalogSequence() == DEFAULT_CATALOG && callHomeConfig.isEnable() && cloudVendorConfig.getStoreType() != StoreType.LOCAL) {
+        if (event.isDefaultCatalog() && callHomeConfig.isEnable() && cloudVendorConfig.getStoreType() != StoreType.LOCAL) {
             logger.debug("scheduling call-home every %s seconds", callHomeConfig.getIntervalInSeconds());
             uploadNodeInfo();
             scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(
@@ -167,7 +166,7 @@ public class CallHomeService
         }
 
         if ((scheduledFuture == null) || (scheduledFuture.getDelay(TimeUnit.SECONDS) > 0)) {
-            if (connectorSync.getCatalogSequence() != DEFAULT_CATALOG) {
+            if (!connectorSync.isDefaultCatalog()) {
                 logger.debug("trigger non default catalog");
             }
             logger.debug("storePath = %s, nodeStorePathPrefix=%s", storePath, nodeStorePathPrefix);
