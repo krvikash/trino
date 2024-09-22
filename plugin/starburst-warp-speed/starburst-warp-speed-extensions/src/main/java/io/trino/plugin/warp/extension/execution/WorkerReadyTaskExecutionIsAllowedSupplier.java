@@ -15,7 +15,7 @@ package io.trino.plugin.warp.extension.execution;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.WorkerNodeManager;
+import io.trino.plugin.warp.node.WorkerNodeManager;
 
 import java.util.function.BooleanSupplier;
 

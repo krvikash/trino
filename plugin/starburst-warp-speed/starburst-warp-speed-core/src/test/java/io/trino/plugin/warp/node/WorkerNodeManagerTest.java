@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.warp;
+package io.trino.plugin.warp.node;
 
 import io.airlift.http.client.HttpUriBuilder;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;

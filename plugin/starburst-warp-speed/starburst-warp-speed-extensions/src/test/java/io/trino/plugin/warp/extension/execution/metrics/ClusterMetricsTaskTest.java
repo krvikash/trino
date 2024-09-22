@@ -15,9 +15,9 @@ package io.trino.plugin.warp.extension.execution.metrics;
 
 import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
-import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.api.metrics.ClusterMetricsResult;
 import io.trino.plugin.warp.execution.WarpClient;
+import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.plugin.warp.util.UriUtils;
 import io.trino.spi.Node;

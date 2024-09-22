@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.warp;
+package io.trino.plugin.warp.node;
 
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
@@ -28,7 +28,6 @@ import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.node.CoordinatorInitializedEvent;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;

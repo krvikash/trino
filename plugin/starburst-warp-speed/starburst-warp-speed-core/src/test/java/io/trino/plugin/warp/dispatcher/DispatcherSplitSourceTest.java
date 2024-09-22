@@ -14,9 +14,9 @@
 package io.trino.plugin.warp.dispatcher;
 
 import com.google.common.collect.MoreCollectors;
-import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
+import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.plugin.warp.storage.splits.ConnectorSplitConsistentHashNodeDistributor;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.spi.Node;

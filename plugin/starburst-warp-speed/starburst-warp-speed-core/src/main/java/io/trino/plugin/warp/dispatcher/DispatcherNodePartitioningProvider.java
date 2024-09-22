@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import io.trino.plugin.warp.CoordinatorNodeManager;
+import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.spi.connector.BucketFunction;
 import io.trino.spi.connector.ConnectorBucketNodeMap;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;

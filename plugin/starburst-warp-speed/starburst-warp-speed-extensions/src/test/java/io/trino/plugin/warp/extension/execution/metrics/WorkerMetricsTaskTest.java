@@ -15,9 +15,9 @@ package io.trino.plugin.warp.extension.execution.metrics;
 
 import io.airlift.http.client.FullJsonResponseHandler;
 import io.airlift.http.client.Request;
-import io.trino.plugin.warp.WorkerNodeManager;
 import io.trino.plugin.warp.api.metrics.ClusterMetricsResult;
 import io.trino.plugin.warp.execution.WarpClient;
+import io.trino.plugin.warp.node.WorkerNodeManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import org.junit.jupiter.api.Test;
 

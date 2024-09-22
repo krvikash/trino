@@ -15,8 +15,8 @@ package io.trino.plugin.warp.storage.splits;
 
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
