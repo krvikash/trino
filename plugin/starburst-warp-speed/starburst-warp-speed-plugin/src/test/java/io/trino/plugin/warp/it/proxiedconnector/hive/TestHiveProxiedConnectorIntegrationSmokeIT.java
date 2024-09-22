@@ -1830,6 +1830,10 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select * from %s.%s where cast(timestamp_col as varchar) = '2021-04-12 00:00:00.000'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
+        session = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
+                .build();
+
         query = "select * from %s.%s where cast(date_col as varchar) = '2021-04-12'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
