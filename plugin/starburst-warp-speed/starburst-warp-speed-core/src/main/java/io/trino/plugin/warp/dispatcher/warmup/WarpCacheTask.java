@@ -177,7 +177,7 @@ public class WarpCacheTask
         }
         finally {
             try {
-                cacheWarmer.finishWarmingAndUnlock(storageWriterSplitConfig, rowGroupKey);
+                cacheWarmer.finishWarming(storageWriterSplitConfig);
             }
             catch (Exception e) {
                 logger.error(e, "failed on finish cache warming %s. key=%s", storageWriterSplitConfig, rowGroupKey);
@@ -306,7 +306,7 @@ public class WarpCacheTask
             return CacheWarmState.ABORT_ON_INIT_PROCESS;
         }
 
-        storageWriterSplitConfig = cacheWarmer.lockAndStartWarming(rowGroupKey);
+        storageWriterSplitConfig = cacheWarmer.startWarming(rowGroupKey);
         warmStarted = true;
 
         return initCandidates() ? CacheWarmState.RUNNING : CacheWarmState.ABORTING;

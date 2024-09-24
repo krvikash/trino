@@ -176,24 +176,16 @@ public class CacheWarmer
                 tmpRowGroupKey);
     }
 
-    public StorageWriterSplitConfig lockAndStartWarming(RowGroupKey permanentRowGroupKey)
-            throws InterruptedException
+    public StorageWriterSplitConfig startWarming(RowGroupKey permanentRowGroupKey)
     {
-        RowGroupData rowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
-        storageWarmerService.lockRowGroup(rowGroupData);
+        rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
         return storageWriterService.startWarming("WarpCacheManager", permanentRowGroupKey.filePath(), dictionaryConfig.getEnableDictionary());
     }
 
-    public void finishWarmingAndUnlock(StorageWriterSplitConfig storageWriterSplitConfig, RowGroupKey permanentRowGroupKey)
+    public void finishWarming(StorageWriterSplitConfig storageWriterSplitConfig)
     {
-        try {
-            if (storageWriterSplitConfig != null) {
-                storageWriterService.finishWarming(storageWriterSplitConfig);
-            }
-        }
-        finally {
-            RowGroupData rowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
-            storageWarmerService.releaseRowGroup(rowGroupData, true);
+        if (storageWriterSplitConfig != null) {
+            storageWriterService.finishWarming(storageWriterSplitConfig);
         }
     }
 

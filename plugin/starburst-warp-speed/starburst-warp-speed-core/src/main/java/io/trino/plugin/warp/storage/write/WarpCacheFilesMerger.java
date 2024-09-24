@@ -61,8 +61,9 @@ public class WarpCacheFilesMerger
     public boolean merge(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)
     {
         boolean succes = true;
+        RowGroupData permanentRowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
         try {
-            RowGroupData permanentRowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
+            storageWarmerService.lockRowGroup(permanentRowGroupData);
             storageWarmerService.createFile(permanentRowGroupKey);
             int maxOffset = permanentRowGroupData.getNextOffset();
             String permanentRowGroupPath = permanentRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
@@ -105,6 +106,7 @@ public class WarpCacheFilesMerger
             succes = false;
         }
         finally {
+            storageWarmerService.releaseRowGroup(permanentRowGroupData, true);
             deleteTmpRowGroups(tmpRowGroupDataList);
         }
         return succes;
