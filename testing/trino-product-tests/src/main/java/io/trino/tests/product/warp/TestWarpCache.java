@@ -102,7 +102,7 @@ public class TestWarpCache
     public Iterator<Object[]> synthTypes(ITestContext context)
             throws Exception
     {
-        String filePath = "file:///docker/presto-product-tests/warp/synth_types.json";
+        String filePath = "file:///docker/trino-product-tests/warp/synth_types.json";
         JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
         List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(jsonNodeTests);
@@ -139,7 +139,7 @@ public class TestWarpCache
     public Iterator<Object[]> syntheticCacheManager(ITestContext context)
             throws Exception
     {
-        String filePath = "file:///docker/presto-product-tests/warp/synthetic_cache_manager.json";
+        String filePath = "file:///docker/trino-product-tests/warp/synthetic_cache_manager.json";
         JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
         List<TestCacheFormat> tests = objectMapper.readerFor(new TypeReference<List<TestCacheFormat>>() {})
                 .readValue(jsonNodeTests);
@@ -193,7 +193,7 @@ public class TestWarpCache
     public Iterator<Object[]> synthetic(ITestContext context)
             throws Exception
     {
-        String filePath = "file:///docker/presto-product-tests/warp/synthetic.json";
+        String filePath = "file:///docker/trino-product-tests/warp/synthetic.json";
         JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
         List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(jsonNodeTests);
@@ -222,7 +222,7 @@ public class TestWarpCache
     public Iterator<Object[]> syntheticWithoutAggregations(ITestContext context)
             throws Exception
     {
-        String filePath = "file:///docker/presto-product-tests/warp/synthetic.json";
+        String filePath = "file:///docker/trino-product-tests/warp/synthetic.json";
         JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
         List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(jsonNodeTests);

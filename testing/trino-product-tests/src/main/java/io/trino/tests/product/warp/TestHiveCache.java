@@ -71,7 +71,7 @@ public class TestHiveCache
     public Iterator<Object[]> cache(ITestContext context)
             throws Exception
     {
-        String filePath = "file:///docker/presto-product-tests/warp/synthetic.json";
+        String filePath = "file:///docker/trino-product-tests/warp/synthetic.json";
         JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
         List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(jsonNodeTests);

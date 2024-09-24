@@ -66,21 +66,21 @@ public abstract class MultinodeWarpBase
 
     protected void copyTestResources(DockerContainer container)
     {
-        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/synthetic_cache_manager.json"), 493),
+        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synthetic_cache_manager.json"), 493),
                 "/docker/synthetic_cache_manager.json");
-        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/synthetic.json"), 493),
+        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synthetic.json"), 493),
                 "/docker/synthetic.json");
-        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/lucene.json"), 493),
+        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/trino-product-tests/warp/lucene.json"), 493),
                 "/docker/lucene.json");
-        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/synth_dict.json"), 493),
+        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synth_dict.json"), 493),
                 "/docker/synth_dict.json");
-        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/synth_partit.json"), 493),
+        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synth_partit.json"), 493),
                 "/docker/synth_partit.json");
-        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/synth_types.json"), 493),
+        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synth_types.json"), 493),
                 "/docker/synth_types.json");
-        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/synthetic_mix_query.json"), 493),
+        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synthetic_mix_query.json"), 493),
                 "/docker/synthetic_mix_query.json");
-        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/synthetic_matrix.json"), 493),
+        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synthetic_matrix.json"), 493),
                 "/docker/synthetic_matrix.json");
     }
 
@@ -88,8 +88,8 @@ public abstract class MultinodeWarpBase
     {
         container.withPrivilegedMode(true)
                 .withEnv(Map.of("AWS_REGION", "us-east-1"))
-                .withCopyFileToContainer(forClasspathResource("/docker/presto-product-tests/warp/trino/log.properties"), LOGS_PATH)
-                .withCopyFileToContainer(forClasspathResource("/docker/presto-product-tests/warp/trino/jvm.config"), Standard.CONTAINER_TRINO_JVM_CONFIG)
+                .withCopyFileToContainer(forClasspathResource("/docker/trino-product-tests/warp/trino/log.properties"), LOGS_PATH)
+                .withCopyFileToContainer(forClasspathResource("/docker/trino-product-tests/warp/trino/jvm.config"), Standard.CONTAINER_TRINO_JVM_CONFIG)
                 .withCopyFileToContainer(forHostPath(configDir.getPath("trino/etc")), Standard.CONTAINER_TRINO_ETC);
     }
 
@@ -100,7 +100,7 @@ public abstract class MultinodeWarpBase
 
     private void configureWarpStorage(DockerContainer container)
     {
-        container.withCopyFileToContainer(forClasspathResource("/docker/presto-product-tests/warp/trino/setup-warp-speed.sh", 493),
+        container.withCopyFileToContainer(forClasspathResource("/docker/trino-product-tests/warp/trino/setup-warp-speed.sh", 493),
                 "/docker/presto-init.d/setup-warp-speed.sh");
     }
 

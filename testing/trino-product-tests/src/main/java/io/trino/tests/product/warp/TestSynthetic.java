@@ -94,21 +94,21 @@ public class TestSynthetic
     public Iterator<TestFormat> synthetic(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synthetic.json", TableType.warp);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synthetic.json", TableType.warp);
     }
 
     @DataProvider
     public Iterator<TestFormat> syntheticDeltaLake(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synthetic.json", TableType.warp_delta_lake);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synthetic.json", TableType.warp_delta_lake);
     }
 
     @DataProvider
     public Iterator<TestFormat> syntheticIceberg(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synthetic.json", TableType.warp_iceberg);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synthetic.json", TableType.warp_iceberg);
     }
 
     @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthetic")
@@ -136,7 +136,7 @@ public class TestSynthetic
     public Iterator<TestFormat> lucene(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/lucene.json", TableType.warp);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/lucene.json", TableType.warp);
     }
 
     @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "lucene")
@@ -150,7 +150,7 @@ public class TestSynthetic
     public Iterator<TestFormat> synthDict(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synth_dict.json", TableType.warp);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synth_dict.json", TableType.warp);
     }
 
     @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthDict")
@@ -164,21 +164,21 @@ public class TestSynthetic
     public Iterator<TestFormat> synthPartit(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synth_partit.json", TableType.warp);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synth_partit.json", TableType.warp);
     }
 
     @DataProvider
     public Iterator<TestFormat> synthPartitDelkalake(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synth_partit.json", TableType.warp_delta_lake);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synth_partit.json", TableType.warp_delta_lake);
     }
 
     @DataProvider
     public Iterator<TestFormat> synthPartitIceberg(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synth_partit.json", TableType.warp_iceberg);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synth_partit.json", TableType.warp_iceberg);
     }
 
     @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthPartit")
@@ -206,7 +206,7 @@ public class TestSynthetic
     public Iterator<TestFormat> synthTypes(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synth_types.json", TableType.warp);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synth_types.json", TableType.warp);
     }
 
     @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthTypes")
@@ -220,7 +220,7 @@ public class TestSynthetic
     public Iterator<TestFormat> synthMixed(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synthetic_mix_query.json", TableType.warp);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synthetic_mix_query.json", TableType.warp);
     }
 
     @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthMixed")
@@ -234,7 +234,7 @@ public class TestSynthetic
     public Iterator<TestFormat> synthMatrix(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synthetic_matrix.json", TableType.warp);
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synthetic_matrix.json", TableType.warp);
     }
 
     @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthMatrix")

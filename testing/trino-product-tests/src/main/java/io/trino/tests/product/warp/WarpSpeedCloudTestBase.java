@@ -143,7 +143,7 @@ public abstract class WarpSpeedCloudTestBase
     public Iterator<TestFormat> synth_clouds(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synth_clouds.json");
+        return executeDataProvider("file:///docker/trino-product-tests/warp/synth_clouds.json");
     }
 
     private Iterator<TestFormat> executeDataProvider(String filePath)
