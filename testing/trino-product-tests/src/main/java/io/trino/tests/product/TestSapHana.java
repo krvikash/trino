@@ -19,7 +19,7 @@ import org.testng.annotations.Test;
 import static io.trino.tempto.assertions.QueryAssert.Row.row;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.SAP_HANA;
-import static io.trino.tests.product.TpchTableResults.PRESTO_NATION_RESULT;
+import static io.trino.tests.product.TpchTableResults.TRINO_NATION_RESULT;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,6 +32,6 @@ public class TestSapHana
         assertThat(onTrino().executeQuery("CREATE TABLE saphana.system.nation AS SELECT * FROM tpch.tiny.nation"))
                 .containsOnly(row(25));
         assertThat(onTrino().executeQuery("SELECT nationkey, name, regionkey, comment FROM saphana.system.nation"))
-                .matches(PRESTO_NATION_RESULT);
+                .matches(TRINO_NATION_RESULT);
     }
 }

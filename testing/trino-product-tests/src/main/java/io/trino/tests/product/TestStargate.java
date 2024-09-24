@@ -18,7 +18,7 @@ import org.testng.annotations.Test;
 
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.STARGATE;
-import static io.trino.tests.product.TpchTableResults.PRESTO_NATION_RESULT;
+import static io.trino.tests.product.TpchTableResults.TRINO_NATION_RESULT;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,6 +29,6 @@ public class TestStargate
     public void testSimpleSelect()
     {
         assertThat(onTrino().executeQuery("SELECT nationkey, name, regionkey, comment FROM remote_tpch.sf1.nation"))
-                .matches(PRESTO_NATION_RESULT);
+                .matches(TRINO_NATION_RESULT);
     }
 }
