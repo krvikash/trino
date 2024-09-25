@@ -17,7 +17,6 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
@@ -40,7 +39,6 @@ public class NativeConnectorSync
         implements ConnectorSync
 {
     private static final Logger logger = Logger.get(NativeConnectorSync.class);
-    private final GlobalConfig globalConfig;
     private final CatalogName catalogName;
     private final EventBus eventBus;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor(daemonThreadsNamed("warp-speed-native-connector-sync-%s"));
@@ -50,13 +48,11 @@ public class NativeConnectorSync
     private Integer catalogSequence;
 
     @Inject
-    public NativeConnectorSync(GlobalConfig globalConfig,
-                               CatalogName catalogName,
+    public NativeConnectorSync(CatalogName catalogName,
                                EventBus eventBus,
                                StorageEngine storageEngine,
                                WorkerCapacityManager workerCapacityManager)
     {
-        this.globalConfig = requireNonNull(globalConfig);
         this.catalogName = catalogName;
         this.eventBus = requireNonNull(eventBus);
         this.storageEngine = requireNonNull(storageEngine);
@@ -79,9 +75,7 @@ public class NativeConnectorSync
                 logger.error("failed to unregister");
                 return;
             }
-            if (globalConfig.isEnableDeleteFilesOnShutdown()) {
-                workerCapacityManager.deleteLocalStorageFiles();
-            }
+            workerCapacityManager.deleteLocalStorageFiles();
             logger.info("unregister catalog name %s sequence %d", catalogName, catalogSequence);
         }
         catch (Throwable e) {

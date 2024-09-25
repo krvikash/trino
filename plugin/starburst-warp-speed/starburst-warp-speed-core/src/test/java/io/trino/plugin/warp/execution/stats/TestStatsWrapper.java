@@ -40,13 +40,13 @@ public class TestStatsWrapper
             throws JsonProcessingException
     {
         TestStats dummyNotInNode = new TestStats("group2");
-        dummyNotInNode.addparam1(9); //not persist
-        dummyNotInNode.addparam3(9); //not persist
+        dummyNotInNode.addread_time_wait_nanos(9); //not persist
+        dummyNotInNode.addread_cache_md_chunk_hits(9); //not persist
         JsonNode jsonNode = objectMapper.readerFor(List.class).readTree(objectMapper.writeValueAsString(dummyNotInNode));
         String res = objectMapper.writeValueAsString(dummyNotInNode);
-        assertThat(jsonNode.get("param1")).isEqualTo(null);
+        assertThat(jsonNode.get("read_time_wait_nanos")).isEqualTo(null);
         TestStats deserializeObject = objectMapper.readerFor(TestStats.class).readValue(res);
-        assertThat(deserializeObject.getparam1()).isEqualTo(0);
-        assertThat(deserializeObject.getparam3()).isEqualTo(0);
+        assertThat(deserializeObject.getread_time_wait_nanos()).isEqualTo(0);
+        assertThat(deserializeObject.getread_cache_md_chunk_hits()).isEqualTo(0);
     }
 }

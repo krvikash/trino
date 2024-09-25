@@ -19,6 +19,7 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.spi.block.Block;
@@ -35,6 +36,7 @@ public class LazyCollectorLoader
     private final DispatcherPageSourceStats dispatcherPageSourceStats;
     private final DictionaryStats dictionaryStats;
     private final ShapingLogger shapingLogger;
+    private final TestStats testStats;
     private boolean loaded;
 
     public LazyCollectorLoader(
@@ -42,7 +44,8 @@ public class LazyCollectorLoader
             LazyCollectorLoaderArgs lazyCollectorLoaderArgs,
             DictionaryStats varadaStatsDictionary,
             DispatcherPageSourceStats dispatcherPageSourceStats,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            TestStats testStats)
     {
         this.collectTxService = collectTxService;
         this.dispatcherPageSourceStats = dispatcherPageSourceStats;
@@ -53,6 +56,7 @@ public class LazyCollectorLoader
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
+        this.testStats = testStats;
     }
 
     @Override
@@ -84,7 +88,7 @@ public class LazyCollectorLoader
             retBlock = lazyCollectorLoaderArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats);
 
             // close
-            collectTxService.collectClose(collectTxId);
+            collectTxService.collectClose(collectTxId, testStats);
             dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
         }
         catch (Exception e) {

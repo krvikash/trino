@@ -35,9 +35,19 @@ public final class TestStats
     /* This class file is auto-generated from test xml file for statistics and counters */
     private final String group;
 
-    private final LongAdder param1 = new LongAdder();
-    private final LongAdder param2 = new LongAdder();
-    private final LongAdder param3 = new LongAdder();
+    private final LongAdder collect_time_nanos = new LongAdder();
+    private final LongAdder read_cache_md_chunk_hits = new LongAdder();
+    private final LongAdder read_cache_md_basic_hits = new LongAdder();
+    private final LongAdder read_cache_md_data_hits = new LongAdder();
+    private final LongAdder read_cache_md_nulls_hits = new LongAdder();
+    private final LongAdder read_cache_md_chunk_misses = new LongAdder();
+    private final LongAdder read_cache_md_basic_misses = new LongAdder();
+    private final LongAdder read_cache_md_data_misses = new LongAdder();
+    private final LongAdder read_cache_md_nulls_misses = new LongAdder();
+    private final LongAdder read_uncache_misses = new LongAdder();
+    private final LongAdder read_uncache_data_misses = new LongAdder();
+    private final LongAdder read_uncache_ext_data_misses = new LongAdder();
+    private final LongAdder read_time_wait_nanos = new LongAdder();
 
     @JsonCreator
     public TestStats(@JsonProperty("group") String group)
@@ -56,71 +66,301 @@ public final class TestStats
 
     @JsonIgnore
     @Managed
-    public long getparam1()
+    public long getcollect_time_nanos()
     {
-        return param1.longValue();
+        return collect_time_nanos.longValue();
     }
 
-    public void incparam1()
+    public void inccollect_time_nanos()
     {
-        param1.increment();
+        collect_time_nanos.increment();
     }
 
-    public void addparam1(long val)
+    public void addcollect_time_nanos(long val)
     {
-        param1.add(val);
+        collect_time_nanos.add(val);
     }
 
-    public void setparam1(long val)
+    public void setcollect_time_nanos(long val)
     {
-        param1.reset();
-        addparam1(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getparam2()
-    {
-        return param2.longValue();
-    }
-
-    public void incparam2()
-    {
-        param2.increment();
-    }
-
-    public void addparam2(long val)
-    {
-        param2.add(val);
-    }
-
-    public void setparam2(long val)
-    {
-        param2.reset();
-        addparam2(val);
+        collect_time_nanos.reset();
+        addcollect_time_nanos(val);
     }
 
     @JsonIgnore
     @Managed
-    public long getparam3()
+    public long getread_cache_md_chunk_hits()
     {
-        return param3.longValue();
+        return read_cache_md_chunk_hits.longValue();
     }
 
-    public void incparam3()
+    public void incread_cache_md_chunk_hits()
     {
-        param3.increment();
+        read_cache_md_chunk_hits.increment();
     }
 
-    public void addparam3(long val)
+    public void addread_cache_md_chunk_hits(long val)
     {
-        param3.add(val);
+        read_cache_md_chunk_hits.add(val);
     }
 
-    public void setparam3(long val)
+    public void setread_cache_md_chunk_hits(long val)
     {
-        param3.reset();
-        addparam3(val);
+        read_cache_md_chunk_hits.reset();
+        addread_cache_md_chunk_hits(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_cache_md_basic_hits()
+    {
+        return read_cache_md_basic_hits.longValue();
+    }
+
+    public void incread_cache_md_basic_hits()
+    {
+        read_cache_md_basic_hits.increment();
+    }
+
+    public void addread_cache_md_basic_hits(long val)
+    {
+        read_cache_md_basic_hits.add(val);
+    }
+
+    public void setread_cache_md_basic_hits(long val)
+    {
+        read_cache_md_basic_hits.reset();
+        addread_cache_md_basic_hits(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_cache_md_data_hits()
+    {
+        return read_cache_md_data_hits.longValue();
+    }
+
+    public void incread_cache_md_data_hits()
+    {
+        read_cache_md_data_hits.increment();
+    }
+
+    public void addread_cache_md_data_hits(long val)
+    {
+        read_cache_md_data_hits.add(val);
+    }
+
+    public void setread_cache_md_data_hits(long val)
+    {
+        read_cache_md_data_hits.reset();
+        addread_cache_md_data_hits(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_cache_md_nulls_hits()
+    {
+        return read_cache_md_nulls_hits.longValue();
+    }
+
+    public void incread_cache_md_nulls_hits()
+    {
+        read_cache_md_nulls_hits.increment();
+    }
+
+    public void addread_cache_md_nulls_hits(long val)
+    {
+        read_cache_md_nulls_hits.add(val);
+    }
+
+    public void setread_cache_md_nulls_hits(long val)
+    {
+        read_cache_md_nulls_hits.reset();
+        addread_cache_md_nulls_hits(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_cache_md_chunk_misses()
+    {
+        return read_cache_md_chunk_misses.longValue();
+    }
+
+    public void incread_cache_md_chunk_misses()
+    {
+        read_cache_md_chunk_misses.increment();
+    }
+
+    public void addread_cache_md_chunk_misses(long val)
+    {
+        read_cache_md_chunk_misses.add(val);
+    }
+
+    public void setread_cache_md_chunk_misses(long val)
+    {
+        read_cache_md_chunk_misses.reset();
+        addread_cache_md_chunk_misses(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_cache_md_basic_misses()
+    {
+        return read_cache_md_basic_misses.longValue();
+    }
+
+    public void incread_cache_md_basic_misses()
+    {
+        read_cache_md_basic_misses.increment();
+    }
+
+    public void addread_cache_md_basic_misses(long val)
+    {
+        read_cache_md_basic_misses.add(val);
+    }
+
+    public void setread_cache_md_basic_misses(long val)
+    {
+        read_cache_md_basic_misses.reset();
+        addread_cache_md_basic_misses(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_cache_md_data_misses()
+    {
+        return read_cache_md_data_misses.longValue();
+    }
+
+    public void incread_cache_md_data_misses()
+    {
+        read_cache_md_data_misses.increment();
+    }
+
+    public void addread_cache_md_data_misses(long val)
+    {
+        read_cache_md_data_misses.add(val);
+    }
+
+    public void setread_cache_md_data_misses(long val)
+    {
+        read_cache_md_data_misses.reset();
+        addread_cache_md_data_misses(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_cache_md_nulls_misses()
+    {
+        return read_cache_md_nulls_misses.longValue();
+    }
+
+    public void incread_cache_md_nulls_misses()
+    {
+        read_cache_md_nulls_misses.increment();
+    }
+
+    public void addread_cache_md_nulls_misses(long val)
+    {
+        read_cache_md_nulls_misses.add(val);
+    }
+
+    public void setread_cache_md_nulls_misses(long val)
+    {
+        read_cache_md_nulls_misses.reset();
+        addread_cache_md_nulls_misses(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_uncache_misses()
+    {
+        return read_uncache_misses.longValue();
+    }
+
+    public void incread_uncache_misses()
+    {
+        read_uncache_misses.increment();
+    }
+
+    public void addread_uncache_misses(long val)
+    {
+        read_uncache_misses.add(val);
+    }
+
+    public void setread_uncache_misses(long val)
+    {
+        read_uncache_misses.reset();
+        addread_uncache_misses(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_uncache_data_misses()
+    {
+        return read_uncache_data_misses.longValue();
+    }
+
+    public void incread_uncache_data_misses()
+    {
+        read_uncache_data_misses.increment();
+    }
+
+    public void addread_uncache_data_misses(long val)
+    {
+        read_uncache_data_misses.add(val);
+    }
+
+    public void setread_uncache_data_misses(long val)
+    {
+        read_uncache_data_misses.reset();
+        addread_uncache_data_misses(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_uncache_ext_data_misses()
+    {
+        return read_uncache_ext_data_misses.longValue();
+    }
+
+    public void incread_uncache_ext_data_misses()
+    {
+        read_uncache_ext_data_misses.increment();
+    }
+
+    public void addread_uncache_ext_data_misses(long val)
+    {
+        read_uncache_ext_data_misses.add(val);
+    }
+
+    public void setread_uncache_ext_data_misses(long val)
+    {
+        read_uncache_ext_data_misses.reset();
+        addread_uncache_ext_data_misses(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getread_time_wait_nanos()
+    {
+        return read_time_wait_nanos.longValue();
+    }
+
+    public void incread_time_wait_nanos()
+    {
+        read_time_wait_nanos.increment();
+    }
+
+    public void addread_time_wait_nanos(long val)
+    {
+        read_time_wait_nanos.add(val);
+    }
+
+    public void setread_time_wait_nanos(long val)
+    {
+        read_time_wait_nanos.reset();
+        addread_time_wait_nanos(val);
     }
 
     public static TestStats create(String group)
@@ -137,9 +377,19 @@ public final class TestStats
     public Map<String, LongAdder> getCounters()
     {
         Map<String, LongAdder> ret = new HashMap<>();
-        ret.put("param1", param1);
-        ret.put("param2", param2);
-        ret.put("param3", param3);
+        ret.put("collect_time_nanos", collect_time_nanos);
+        ret.put("read_cache_md_chunk_hits", read_cache_md_chunk_hits);
+        ret.put("read_cache_md_basic_hits", read_cache_md_basic_hits);
+        ret.put("read_cache_md_data_hits", read_cache_md_data_hits);
+        ret.put("read_cache_md_nulls_hits", read_cache_md_nulls_hits);
+        ret.put("read_cache_md_chunk_misses", read_cache_md_chunk_misses);
+        ret.put("read_cache_md_basic_misses", read_cache_md_basic_misses);
+        ret.put("read_cache_md_data_misses", read_cache_md_data_misses);
+        ret.put("read_cache_md_nulls_misses", read_cache_md_nulls_misses);
+        ret.put("read_uncache_misses", read_uncache_misses);
+        ret.put("read_uncache_data_misses", read_uncache_data_misses);
+        ret.put("read_uncache_ext_data_misses", read_uncache_ext_data_misses);
+        ret.put("read_time_wait_nanos", read_time_wait_nanos);
 
         return ret;
     }
@@ -151,26 +401,56 @@ public final class TestStats
             return;
         }
         TestStats other = (TestStats) warpStatsBase;
-        this.param1.add(other.param1.longValue());
-        this.param2.add(other.param2.longValue());
-        this.param3.add(other.param3.longValue());
+        this.collect_time_nanos.add(other.collect_time_nanos.longValue());
+        this.read_cache_md_chunk_hits.add(other.read_cache_md_chunk_hits.longValue());
+        this.read_cache_md_basic_hits.add(other.read_cache_md_basic_hits.longValue());
+        this.read_cache_md_data_hits.add(other.read_cache_md_data_hits.longValue());
+        this.read_cache_md_nulls_hits.add(other.read_cache_md_nulls_hits.longValue());
+        this.read_cache_md_chunk_misses.add(other.read_cache_md_chunk_misses.longValue());
+        this.read_cache_md_basic_misses.add(other.read_cache_md_basic_misses.longValue());
+        this.read_cache_md_data_misses.add(other.read_cache_md_data_misses.longValue());
+        this.read_cache_md_nulls_misses.add(other.read_cache_md_nulls_misses.longValue());
+        this.read_uncache_misses.add(other.read_uncache_misses.longValue());
+        this.read_uncache_data_misses.add(other.read_uncache_data_misses.longValue());
+        this.read_uncache_ext_data_misses.add(other.read_uncache_ext_data_misses.longValue());
+        this.read_time_wait_nanos.add(other.read_time_wait_nanos.longValue());
     }
 
     @Override
     public void reset()
     {
-        param1.reset();
-        param2.reset();
-        param3.reset();
+        collect_time_nanos.reset();
+        read_cache_md_chunk_hits.reset();
+        read_cache_md_basic_hits.reset();
+        read_cache_md_data_hits.reset();
+        read_cache_md_nulls_hits.reset();
+        read_cache_md_chunk_misses.reset();
+        read_cache_md_basic_misses.reset();
+        read_cache_md_data_misses.reset();
+        read_cache_md_nulls_misses.reset();
+        read_uncache_misses.reset();
+        read_uncache_data_misses.reset();
+        read_uncache_ext_data_misses.reset();
+        read_time_wait_nanos.reset();
     }
 
     @Override
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":param1", param1.longValue());
-        res.put(getJmxKey() + ":param2", param2.longValue());
-        res.put(getJmxKey() + ":param3", param3.longValue());
+        res.put(getJmxKey() + ":collect_time_nanos", collect_time_nanos.longValue());
+        res.put(getJmxKey() + ":read_cache_md_chunk_hits", read_cache_md_chunk_hits.longValue());
+        res.put(getJmxKey() + ":read_cache_md_basic_hits", read_cache_md_basic_hits.longValue());
+        res.put(getJmxKey() + ":read_cache_md_data_hits", read_cache_md_data_hits.longValue());
+        res.put(getJmxKey() + ":read_cache_md_nulls_hits", read_cache_md_nulls_hits.longValue());
+        res.put(getJmxKey() + ":read_cache_md_chunk_misses", read_cache_md_chunk_misses.longValue());
+        res.put(getJmxKey() + ":read_cache_md_basic_misses", read_cache_md_basic_misses.longValue());
+        res.put(getJmxKey() + ":read_cache_md_data_misses", read_cache_md_data_misses.longValue());
+        res.put(getJmxKey() + ":read_cache_md_nulls_misses", read_cache_md_nulls_misses.longValue());
+        res.put(getJmxKey() + ":read_uncache_misses", read_uncache_misses.longValue());
+        res.put(getJmxKey() + ":read_uncache_data_misses", read_uncache_data_misses.longValue());
+        res.put(getJmxKey() + ":read_uncache_ext_data_misses", read_uncache_ext_data_misses.longValue());
+        res.put(getJmxKey() + ":read_time_wait_nanos", read_time_wait_nanos.longValue());
         return res;
     }
 

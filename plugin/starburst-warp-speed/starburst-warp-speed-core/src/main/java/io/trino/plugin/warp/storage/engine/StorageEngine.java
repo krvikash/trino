@@ -287,7 +287,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default long collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj)
+    default void collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj, long[] outCollectStats)
     {
         throw new UnsupportedOperationException();
     }

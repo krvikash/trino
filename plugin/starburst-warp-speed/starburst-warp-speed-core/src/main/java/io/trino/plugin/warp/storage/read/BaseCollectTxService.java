@@ -122,7 +122,7 @@ public abstract class BaseCollectTxService
                 nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e);
             }
             if (!nativeThrowed) {
-                storageEngine.collectClose(collectTxId, null, 0, null);
+                storageEngine.collectClose(collectTxId, null, 0, null, null);
             }
         }
     }

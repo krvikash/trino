@@ -33,6 +33,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
+import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -181,5 +182,6 @@ public class WarpCachePageSourceFactory
         customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
         customStatsContext.getOrRegister(new DictionaryStats(DictionaryCacheService.DICTIONARY_STAT_GROUP));
         customStatsContext.getOrRegister(LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY));
+        customStatsContext.getOrRegister(TestStats.create("test"));
     }
 }

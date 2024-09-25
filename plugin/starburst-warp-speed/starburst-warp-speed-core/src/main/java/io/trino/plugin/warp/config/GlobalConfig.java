@@ -36,7 +36,7 @@ public class GlobalConfig
     public static final String DEFAULT_WARMING_INDEX = "warp-speed.default-warming-index";
     public static final String LOCAL_STORE_PATH = "warp-speed.local-store.path";
     public static final String LOCAL_STORE_CLEAN_ON_LOAD = "warp-speed.local-store.clean-on-load";
-    public static final String DELETE_FILES_ON_SHUTDOWN = "warp-speed.delete-files-on-shutdown";
+    public static final String LOCAL_STORE_CLEAN_ON_SHUTDOWN = "warp-speed.local-store.clean-on-shutdown";
     public static final String MAX_COLLECT_COLUMNS_SKIP_DEFAULT_WARMING = "warp-speed.max-collect-columns-skip-default-warming";
     public static final String CERT_LOCAL_LOCATION = "warp-speed.config.cert-local-location";
     public static final String AZURE_CONNECTION_STRING = "warp-speed.config.azure.connection-string";
@@ -59,7 +59,7 @@ public class GlobalConfig
     private int exportDelayInSeconds;
     private String localStorePath = "/opt/data/";
     private boolean enableLocalStoreCleanOnLoad = true;
-    private boolean enableDeleteFilesOnShutdown = true;
+    private boolean enableLocalStoreCleanOnShutdown = true;
     private int maxCollectColumnsSkipDefaultWarming = 128;
     private int predicateSimplifyThreshold = 1_000_000;
     private long reservationUsageForSingleTxInBytes = 1024L * 1024 * 128;
@@ -338,15 +338,15 @@ public class GlobalConfig
         this.enableLocalStoreCleanOnLoad = enableLocalStoreCleanOnLoad;
     }
 
-    public boolean isEnableDeleteFilesOnShutdown()
+    public boolean isEnableLocalStoreCleanOnShutdown()
     {
-        return enableDeleteFilesOnShutdown;
+        return enableLocalStoreCleanOnShutdown;
     }
 
-    @Config(DELETE_FILES_ON_SHUTDOWN)
-    public void setEnableDeleteFilesOnShutdown(boolean enableDeleteFilesOnShutdown)
+    @Config(LOCAL_STORE_CLEAN_ON_SHUTDOWN)
+    public void setEnableLocalStoreCleanOnShutdown(boolean enableLocalStoreCleanOnShutdown)
     {
-        this.enableDeleteFilesOnShutdown = enableDeleteFilesOnShutdown;
+        this.enableLocalStoreCleanOnShutdown = enableLocalStoreCleanOnShutdown;
     }
 
     @Config(MAX_COLLECT_COLUMNS_SKIP_DEFAULT_WARMING)

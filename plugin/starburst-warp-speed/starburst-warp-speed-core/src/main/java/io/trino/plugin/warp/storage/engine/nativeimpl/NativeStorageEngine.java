@@ -382,7 +382,7 @@ public class NativeStorageEngine
     public native void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outResultTypes);
 
     @Override
-    public native long collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj);
+    public native void collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj, long[] outCollectStats);
 
     @Override
     public native void matchClose(int txId);

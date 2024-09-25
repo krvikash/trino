@@ -18,6 +18,7 @@ import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -95,7 +96,11 @@ public class LazyCollectorService
     }
 
     @Override
-    boolean collect(CollectOpenResult collectOpenResult, int numCollectElements, int chunkIndex, int numToCollect, int[] outQueryResultType)
+    boolean collect(CollectOpenResult collectOpenResult,
+            int numCollectElements,
+            int chunkIndex,
+            int numToCollect,
+            int[] outQueryResultType)
     {
         // collect is done in LazyCollectorLoader
         return false; // do not stop the collect after this round for query result type
@@ -116,7 +121,8 @@ public class LazyCollectorService
             int rowsToFill,
             int numRowsCollectedInPrevRounds,
             int[] queryResultTypes, // was not filled since collect was not called yet
-            DispatcherPageSourceStats stats)
+            DispatcherPageSourceStats stats,
+            TestStats testStats)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
 
@@ -128,7 +134,8 @@ public class LazyCollectorService
                     lazyCollectorLoaderArgs,
                     dictionaryStats,
                     stats,
-                    globalConfig));
+                    globalConfig,
+                    testStats));
         }
         stats.addlazy_collect_total_blocks(collectElementsParamsList.size());
     }

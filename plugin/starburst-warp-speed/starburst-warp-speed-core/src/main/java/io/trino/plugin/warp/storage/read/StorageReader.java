@@ -19,6 +19,7 @@ import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
@@ -40,6 +41,7 @@ public class StorageReader
     private final DictionaryStats dictionaryStats;
     private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final DictionaryCacheService dictionaryCacheService;
+    private final TestStats testStats;
 
     // parameters
     private final QueryParams queryParams;
@@ -72,6 +74,7 @@ public class StorageReader
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.statsDispatcherPageSource = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
+        this.testStats = (TestStats) customStatsContext.getStat("test");
 
         this.queryParams = queryParams;
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams);
@@ -183,7 +186,8 @@ public class StorageReader
                 rowsToFill,
                 numRowsCollectedInPrevRounds,
                 queryResultType,
-                statsDispatcherPageSource);
+                statsDispatcherPageSource,
+                testStats);
         statsDispatcherPageSource.addcached_read_rows(rowsToFill);
         return rowsToFill;
     }
@@ -222,7 +226,11 @@ public class StorageReader
         }
 
         numRowsCollectedInPrevRounds += numRowsCollectedInCurRound;
-        CollectCloseResult collectCloseResult = storageCollectorService.close(queryArgs, collectOpenResult, storageCollectorArgs, numRowsCollectedInCurRound);
+        CollectCloseResult collectCloseResult = storageCollectorService.close(queryArgs,
+                collectOpenResult,
+                storageCollectorArgs,
+                numRowsCollectedInCurRound,
+                testStats);
         collectOpenResult = null;
         storeRowListResult = collectCloseResult.storeRowListResult();
         return collectCloseResult.readPages();

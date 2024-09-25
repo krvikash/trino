@@ -21,6 +21,7 @@ import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -127,9 +128,17 @@ public class StorageCollectorService
     }
 
     // returns true if we should stop after this collect since query result type is different than raw, false otherwise
-    boolean collect(CollectOpenResult collectOpenResult, int numWes, int chunkIndex, int numToCollect, int[] outQueryResultType)
+    boolean collect(CollectOpenResult collectOpenResult,
+            int numWes,
+            int chunkIndex,
+            int numToCollect,
+            int[] outQueryResultType)
     {
-        return collectTxService.collect(collectOpenResult.collectTxId(), numWes, chunkIndex, numToCollect, outQueryResultType);
+        return collectTxService.collect(collectOpenResult.collectTxId(),
+                numWes,
+                chunkIndex,
+                numToCollect,
+                outQueryResultType);
     }
 
     // returns indication if anything is collected in the buffer and if the buffer is full
@@ -195,7 +204,8 @@ public class StorageCollectorService
             int rowsToFill,
             int numRowsCollectedInPrevRounds,
             int[] queryResultTypes,
-            DispatcherPageSourceStats stats)
+            DispatcherPageSourceStats stats,
+            TestStats testStats)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
 
@@ -376,12 +386,17 @@ public class StorageCollectorService
         return rangeFillerService.collectRanges(collectOpenResult.rangeData(), collectOpenResult.rowsLimit());
     }
 
-    public CollectCloseResult close(QueryArgs queryArgs, CollectOpenResult collectOpenResult, StorageCollectorArgs storageCollectorArgs, int numRowsCollectedInCurRound)
+    public CollectCloseResult close(QueryArgs queryArgs,
+            CollectOpenResult collectOpenResult,
+            StorageCollectorArgs storageCollectorArgs,
+            int numRowsCollectedInCurRound,
+            TestStats testStats)
     {
         CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(queryArgs,
                 collectOpenResult,
                 storageCollectorArgs,
-                numRowsCollectedInCurRound);
+                numRowsCollectedInCurRound,
+                testStats);
 
         bufferAllocator.readerOnFreeBundle();
         return collectCloseResult;

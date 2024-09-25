@@ -16,8 +16,10 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.gen.constants.CollectStats;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
+import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.TrinoException;
@@ -158,7 +160,8 @@ public class CollectTxService
     CollectCloseResult collectStoreAndClose(QueryArgs queryArgs,
             CollectOpenResult collectOpenResult,
             StorageCollectorArgs storageCollectorArgs,
-            int numCollectedRows)
+            int numCollectedRows,
+            TestStats testStats)
     {
         Optional<StoreRowListResult> storeRowListResult = Optional.empty();
         // idiom potent case
@@ -178,12 +181,43 @@ public class CollectTxService
             chunksWithBitmapsToStoreOpt = queryArgs.chunksQueue().getChunkIndexesWithBitmap();
             storeRowListResult = Optional.of(rangeFillerService.storeRowList(queryArgs, storageCollectorArgs, collectOpenResult.rangeData()));
         }
+
         int[] chunksWithBitmaps = chunksWithBitmapsToStoreOpt.orElse(null);
         int numChunksWithBitmap = (chunksWithBitmaps != null) ? chunksWithBitmaps.length : 0;
-        long readPages = storageEngine.collectClose(collectOpenResult.collectTxId(), chunksWithBitmaps, numChunksWithBitmap, storageCollectorArgs.storageCollectorCallBack());
+        long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
+        storageEngine.collectClose(collectOpenResult.collectTxId(),
+                chunksWithBitmaps,
+                numChunksWithBitmap,
+                storageCollectorArgs.storageCollectorCallBack(),
+                collectStats);
+
+        int totalReadPages = 0;
+        testStats.addread_cache_md_chunk_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_HITS.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_HITS.ordinal()];
+        testStats.addread_cache_md_basic_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_BASIC_HITS.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_CACHE_MD_BASIC_HITS.ordinal()];
+        testStats.addread_cache_md_data_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_DATA_HITS.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_CACHE_MD_DATA_HITS.ordinal()];
+        testStats.addread_cache_md_nulls_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_NULLS_HITS.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_CACHE_MD_NULLS_HITS.ordinal()];
+        testStats.addread_cache_md_chunk_misses(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_MISSES.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_MISSES.ordinal()];
+        testStats.addread_cache_md_basic_misses(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_BASIC_MISSES.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_CACHE_MD_BASIC_MISSES.ordinal()];
+        testStats.addread_cache_md_data_misses(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_DATA_MISSES.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_CACHE_MD_DATA_MISSES.ordinal()];
+        testStats.addread_cache_md_nulls_misses(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_NULLS_MISSES.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_CACHE_MD_NULLS_MISSES.ordinal()];
+        testStats.addread_uncache_misses(collectStats[CollectStats.COLLECT_STATS_UNCACHE_MISSES.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_UNCACHE_MISSES.ordinal()];
+        testStats.addread_uncache_data_misses(collectStats[CollectStats.COLLECT_STATS_UNCACHE_DATA_MISSES.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_UNCACHE_DATA_MISSES.ordinal()];
+        testStats.addread_uncache_ext_data_misses(collectStats[CollectStats.COLLECT_STATS_UNCACHE_EXT_DATA_MISSES.ordinal()]);
+        totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_UNCACHE_EXT_DATA_MISSES.ordinal()];
+        testStats.addread_time_wait_nanos(collectStats[CollectStats.COLLECT_STATS_READ_TIME_WAIT_NANOS.ordinal()]);
+
         freeCollectOpenResources(collectOpenResult);
-        logger.debug("collectClose collectTxId %d readPages %d", collectOpenResult.collectTxId(), readPages);
-        return new CollectCloseResult(storeRowListResult, readPages);
+        return new CollectCloseResult(storeRowListResult, totalReadPages);
     }
 
     void collectAbort(Exception e, CollectOpenResult collectOpenResult)

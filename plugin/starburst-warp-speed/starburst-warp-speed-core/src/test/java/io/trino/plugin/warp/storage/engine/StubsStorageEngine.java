@@ -224,9 +224,8 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj)
+    public void collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj, long[] outCollectStats)
     {
-        return 0;
     }
 
     @Override

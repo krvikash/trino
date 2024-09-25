@@ -267,6 +267,11 @@ public class WorkerCapacityManager
 
     public void deleteLocalStorageFiles()
     {
+        if (!globalConfig.isEnableLocalStoreCleanOnShutdown()) {
+            logger.info("deleteLocalStorageFiles exiting since clean is disabled");
+            return;
+        }
+
         String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
         File localStore = new File(localStorePath);
         try {
