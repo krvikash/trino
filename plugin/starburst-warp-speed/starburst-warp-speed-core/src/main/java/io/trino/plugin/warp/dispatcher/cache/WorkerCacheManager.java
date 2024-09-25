@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher.cache;
 
+import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -44,6 +45,7 @@ import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.TupleDomain;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +77,7 @@ public class WorkerCacheManager
     private final StorageWarmerService storageWarmerService;
     private final int chunkSize;
     private final DispatcherPageSourceStats statsPageSource;
+    private final HashFunction hashFunction;
 
     @Inject
     public WorkerCacheManager(WarpCachePageSourceFactory warpCachePageSourceFactory,
@@ -108,6 +111,7 @@ public class WorkerCacheManager
         this.cacheActions = requireNonNull(cacheActions);
         this.memoryContextService = requireNonNull(memoryContextService);
         this.predicateHashCalculator = requireNonNull(predicateHashCalculator);
+        this.hashFunction = Hashing.farmHashFingerprint64();
     }
 
     @Override
@@ -241,8 +245,8 @@ public class WorkerCacheManager
             if (planSignature.getGroupByColumns().isPresent()) {
                 key = key + "_" + planSignature.getGroupByColumns().get();
             }
-            String uniqueKey = Hashing.sha256().hashUnencodedChars(key).toString();
-            String planKey = Hashing.sha256().hashUnencodedChars(planSignature.getKey().toString()).toString();
+            String uniqueKey = hashFunction.hashString(key, StandardCharsets.UTF_8).toString();
+            String planKey = hashFunction.hashString(planSignature.getKey().toString(), StandardCharsets.UTF_8).toString();
             String schema = "WarpCache";
             return new RowGroupKey(schema,
                     planKey,
