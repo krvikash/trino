@@ -23,6 +23,7 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -71,7 +72,7 @@ public class TestHiveDefaultCacheManager
     public void testSimpleWarm()
     {
         prepare();
-        DistributedQueryRunner queryRunner = (DistributedQueryRunner) getQueryRunner();
+        DistributedQueryRunner queryRunner = getDistributedQueryRunner();
 
         @Language("SQL") String query = "select int1, v1 from table1 where v1 like '%shlomi%'";
         runQueryAndValidateReadFromCache(queryRunner, query);
@@ -79,9 +80,8 @@ public class TestHiveDefaultCacheManager
         @Language("SQL") String query2 = "select int1, v1 from table2 where v1 like '%shlomi%'";
         runQueryAndValidateReadFromCache(queryRunner, query2);
 
-        DistributedQueryRunner queryRunner2 = (DistributedQueryRunner) getQueryRunner();
         @Language("SQL") String unionQuery = "select * from table1 b where b.int1 > 0 union all select * from table2";
-        runQueryAndValidateReadFromCache(queryRunner2, unionQuery);
+        runQueryAndValidateReadFromCache(queryRunner, unionQuery);
         assertExplain("explain " + unionQuery, "CacheData\\[\\]\n.*\n.*TableScan.*");
     }
 
@@ -122,6 +122,7 @@ public class TestHiveDefaultCacheManager
 
     @Override
     @Test
+    @Disabled
     public void testGoAllProxyOnlyWhenHavePushDowns()
     {
         //not relevant

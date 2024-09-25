@@ -13,29 +13,51 @@
  */
 package io.trino.plugin.warp.dispatcher.cache;
 
-import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
+import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class CacheMgrWarmupRuleServiceTest
 {
     @Test
-    public void test()
+    public void testEnabled()
     {
-        CacheMgrWarmupRuleService service = new CacheMgrWarmupRuleService(new WarpInitializedServiceRegistry());
+        CacheManagerConfig cacheManagerConfig = new CacheManagerConfig();
+        cacheManagerConfig.setRulesEnabled(true);
+        CacheMgrWarmupRuleService service = new CacheMgrWarmupRuleService(cacheManagerConfig);
         assertThat(service.getAll()).isEmpty();
 
-        List<CacheManagerRule> cacheManagerRules1 = List.of(new CacheManagerRule("key1", 1L, Duration.ofMillis(1L)));
-        service.replaceAll(cacheManagerRules1);
-        assertThat(service.getAll()).isEqualTo(cacheManagerRules1);
+        CacheManagerRule cacheManagerRule1 = new CacheManagerRule("key1", 1L, Duration.ofMillis(1L));
+        service.replaceAll(List.of(cacheManagerRule1));
+        assertThat(service.getAll())
+                .isEqualTo(Map.of(cacheManagerRule1.signatureKey(), cacheManagerRule1));
 
-        List<CacheManagerRule> cacheManagerRules2 = List.of(new CacheManagerRule("key2", 1L, Duration.ofMillis(1L)));
-        service.replaceAll(cacheManagerRules2);
-        assertThat(service.getAll()).isEqualTo(cacheManagerRules2);
+        CacheManagerRule cacheManagerRule2 = new CacheManagerRule("key2", 1L, Duration.ofMillis(1L));
+        service.replaceAll(List.of(cacheManagerRule2));
+        assertThat(service.getAll()).isEqualTo(Map.of(cacheManagerRule2.signatureKey(), cacheManagerRule2));
+    }
+
+    @Test
+    public void testDisabled()
+    {
+        CacheManagerConfig cacheManagerConfig = new CacheManagerConfig();
+        cacheManagerConfig.setRulesEnabled(false);
+
+        CacheMgrWarmupRuleService service = new CacheMgrWarmupRuleService(cacheManagerConfig);
+        assertThat(service.getAll()).isEmpty();
+
+        CacheManagerRule cacheManagerRule1 = new CacheManagerRule("key1", 1L, Duration.ofMillis(1L));
+        service.replaceAll(List.of(cacheManagerRule1));
+        assertThat(service.getAll()).isEmpty();
+
+        CacheManagerRule cacheManagerRule2 = new CacheManagerRule("key2", 1L, Duration.ofMillis(1L));
+        service.replaceAll(List.of(cacheManagerRule2));
+        assertThat(service.getAll()).isEmpty();
     }
 }

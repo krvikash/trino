@@ -13,44 +13,38 @@
  */
 package io.trino.plugin.warp.dispatcher.cache;
 
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.WarpErrorCode;
-import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
-import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
+import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 import io.trino.spi.TrinoException;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.util.Objects.requireNonNull;
+
 @Singleton
 public class CacheMgrWarmupRuleService
-        implements WarpInitializedServiceMarker
 {
-    private final Map<String, CacheManagerRule> cache;
+    private Map<String, CacheManagerRule> cache = Map.of();
+
+    private final CacheManagerConfig cacheManagerConfig;
 
     @Inject
-    public CacheMgrWarmupRuleService(WarpInitializedServiceRegistry warpInitializedServiceRegistry)
+    public CacheMgrWarmupRuleService(CacheManagerConfig cacheManagerConfig)
     {
-        cache = new ConcurrentHashMap<>();
-
-        warpInitializedServiceRegistry.addService(this);
+        this.cacheManagerConfig = requireNonNull(cacheManagerConfig);
     }
-
-    @Override
-    public void init() {}
 
     public synchronized void replaceAll(List<CacheManagerRule> newWarmupRules)
             throws TrinoException
     {
         try {
-            cache.clear();
-            cache.putAll(newWarmupRules.stream().collect(Collectors.toMap(CacheManagerRule::signatureKey, Function.identity())));
+            cache = newWarmupRules.stream().collect(Collectors.toMap(CacheManagerRule::signatureKey, Function.identity()));
         }
         catch (Exception e) {
             throw new TrinoException(
@@ -60,8 +54,11 @@ public class CacheMgrWarmupRuleService
         }
     }
 
-    public List<CacheManagerRule> getAll()
+    public Map<String, CacheManagerRule> getAll()
     {
-        return ImmutableList.copyOf(cache.values());
+        if (cacheManagerConfig.isRulesEnabled()) {
+            return cache;
+        }
+        return Map.of();
     }
 }

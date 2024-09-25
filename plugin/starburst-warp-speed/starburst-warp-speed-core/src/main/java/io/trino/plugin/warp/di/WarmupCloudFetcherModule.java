@@ -19,7 +19,6 @@ import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.cloudvendors.CloudVendorModule;
 import io.trino.plugin.warp.config.CacheManagerConfig;
-import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.CacheMgrWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.EmptyCacheMgrWarmupRuleFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.EmptyWarmupRuleFetcher;
@@ -90,7 +89,6 @@ public class WarmupCloudFetcherModule
 
                 CacheManagerConfig cacheManagerConfig = configFactory.build(CacheManagerConfig.class);
                 if (cacheManagerConfig.getIsCache()) {
-                    binder.bind(CacheMgrWarmupRuleService.class);
                     binder.bind(new TypeLiteral<WarmupRuleFetcher<CacheManagerRule>>() {}).to(CacheMgrWarmupRuleCloudFetcher.class);
                     binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(EmptyWarmupRuleFetcher.class);
                 }

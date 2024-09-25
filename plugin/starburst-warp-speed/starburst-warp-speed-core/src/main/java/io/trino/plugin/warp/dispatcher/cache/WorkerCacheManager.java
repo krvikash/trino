@@ -62,55 +62,61 @@ public class WorkerCacheManager
         implements CacheManager
 {
     private static final Logger logger = Logger.get(WorkerCacheManager.class);
-    private final ShapingLogger shapingLogger;
+
     private final GlobalConfig globalConfig;
+    private final WarpCachePageSourceFactory warpCachePageSourceFactory;
+    private final WorkerTaskExecutorService workerTaskExecutorService;
+    private final RowGroupDataService rowGroupDataService;
+    private final CacheWarmer cacheWarmer;
+    private final StorageWarmerService storageWarmerService;
     private final CatalogNameProvider catalogNameProvider;
     private final Map<CacheWarmState, CacheAction> cacheActions;
     private final MemoryContextService memoryContextService;
     private final PredicateHashCalculator predicateHashCalculator;
-    private final WarpCachePageSourceFactory warpCachePageSourceFactory;
-    private final WorkerTaskExecutorService workerTaskExecutorService;
-    private final RowGroupDataService rowGroupDataService;
-    private final WarmingServiceStats statsWarmingService;
+    private final CacheMgrWarmupRuleService warmupRuleService;
 
-    private final CacheWarmer cacheWarmer;
-    private final StorageWarmerService storageWarmerService;
+    private final ShapingLogger shapingLogger;
     private final int chunkSize;
+    private final WarmingServiceStats statsWarmingService;
     private final DispatcherPageSourceStats statsPageSource;
     private final HashFunction hashFunction;
 
     @Inject
-    public WorkerCacheManager(WarpCachePageSourceFactory warpCachePageSourceFactory,
-                              WorkerTaskExecutorService workerTaskExecutorService,
-                              RowGroupDataService rowGroupDataService,
-                              MetricsManager metricsManager,
-                              CacheWarmer cacheWarmer,
-                              StorageWarmerService storageWarmerService,
-                              StorageEngineConstants storageEngineConstants,
-                              GlobalConfig globalConfig,
-                              CatalogNameProvider catalogNameProvider,
-                              @Named("CacheActions") Map<CacheWarmState, CacheAction> cacheActions,
-                              MemoryContextService memoryContextService,
-                              PredicateHashCalculator predicateHashCalculator)
+    public WorkerCacheManager(
+            GlobalConfig globalConfig,
+            WarpCachePageSourceFactory warpCachePageSourceFactory,
+            WorkerTaskExecutorService workerTaskExecutorService,
+            RowGroupDataService rowGroupDataService,
+            MetricsManager metricsManager,
+            CacheWarmer cacheWarmer,
+            StorageWarmerService storageWarmerService,
+            StorageEngineConstants storageEngineConstants,
+            CatalogNameProvider catalogNameProvider,
+            @Named("CacheActions") Map<CacheWarmState, CacheAction> cacheActions,
+            MemoryContextService memoryContextService,
+            PredicateHashCalculator predicateHashCalculator,
+            CacheMgrWarmupRuleService warmupRuleService)
     {
+        this.globalConfig = requireNonNull(globalConfig);
         this.warpCachePageSourceFactory = requireNonNull(warpCachePageSourceFactory);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
-        this.statsPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
         this.cacheWarmer = requireNonNull(cacheWarmer);
         this.storageWarmerService = requireNonNull(storageWarmerService);
-        this.chunkSize = 1 << requireNonNull(storageEngineConstants).getChunkSizeShift();
-        this.globalConfig = requireNonNull(globalConfig);
+        this.catalogNameProvider = requireNonNull(catalogNameProvider);
+        this.cacheActions = requireNonNull(cacheActions);
+        this.memoryContextService = requireNonNull(memoryContextService);
+        this.predicateHashCalculator = requireNonNull(predicateHashCalculator);
+        this.warmupRuleService = requireNonNull(warmupRuleService);
+
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
-        this.catalogNameProvider = requireNonNull(catalogNameProvider);
-        this.cacheActions = requireNonNull(cacheActions);
-        this.memoryContextService = requireNonNull(memoryContextService);
-        this.predicateHashCalculator = requireNonNull(predicateHashCalculator);
+        this.chunkSize = 1 << requireNonNull(storageEngineConstants).getChunkSizeShift();
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
         this.hashFunction = Hashing.farmHashFingerprint64();
     }
 
@@ -148,11 +154,12 @@ public class WorkerCacheManager
         @Override
         public Optional<ConnectorPageSource> loadPages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
         {
+            if (planSignature.getColumns().isEmpty()) {
+                return Optional.empty();
+            }
+
             Optional<ConnectorPageSource> result = Optional.empty();
             try {
-                if (planSignature.getColumns().isEmpty()) {
-                    return result;
-                }
                 RowGroupKey rowGroupKey = getRowGroupKey(splitId, predicate, unenforcedPredicate);
                 Optional<UUID> queryStoreId = commonStoreIdFinder.findAndCache(rowGroupKey);
                 result = warpCachePageSourceFactory.createConnectorPageSource(rowGroupKey, planSignature, queryStoreId);
@@ -172,33 +179,38 @@ public class WorkerCacheManager
         @Override
         public Optional<ConnectorPageSink> storePages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
         {
-            Optional<ConnectorPageSink> res = Optional.empty();
-            List<WarmupElementWriteMetadata> toWarm;
+            if (planSignature.getColumns().isEmpty()) {
+                statsWarmingService.incwarm_warp_cache_skip_zero_columns();
+                return Optional.empty();
+            }
+
+            if (!warmupRuleService.getAll().isEmpty() &&
+                            !warmupRuleService.getAll().containsKey(planSignature.getKey().toString())) {
+                return Optional.empty();
+            }
+
+            if (memoryContextService.revokeIsRunning()) {
+                return Optional.empty();
+            }
+
             try {
-                if (planSignature.getColumns().isEmpty()) {
-                    statsWarmingService.incwarm_warp_cache_skip_zero_columns();
-                    return res;
-                }
-                if (memoryContextService.revokeIsRunning()) {
-                    return Optional.empty();
-                }
                 RowGroupKey rowGroupKey = getRowGroupKey(splitId, predicate, unenforcedPredicate);
                 Optional<UUID> storeId = commonStoreIdFinder.getFromCache(rowGroupKey);  // read directly from cache because we assume loadPages have already added it (if exists)
                 if (storeId.isPresent()) {
                     shapingLogger.debug("Skipping warming as they are already warmed");
-                    return res;
+                    return Optional.empty();
                 }
                 boolean txMemoryReserved = storageWarmerService.tryAllocateNativeResourceForWarmup();
                 if (!txMemoryReserved) {
                     logger.info("nativeResourceForWarmup is not available");
-                    return res;
+                    return Optional.empty();
                 }
 
-                toWarm = cacheWarmer.getWarmupElementWriteMetadatasToWarm(
+                List<WarmupElementWriteMetadata> toWarm = cacheWarmer.getWarmupElementWriteMetadatasToWarm(
                         planSignature.getColumns(), planSignature.getColumnsTypes(), rowGroupKey);
                 if (toWarm.isEmpty()) {
                     logger.debug("nothing to warm for %s", planSignature);
-                    return res;
+                    return Optional.empty();
                 }
                 List<WarmupElementBlocks> warmupElementBlocksList = new ArrayList<>(toWarm.stream().map(x -> new WarmupElementBlocks(x, chunkSize)).toList());
                 WarpCacheTask warpCacheTask = new WarpCacheTask(
@@ -214,7 +226,7 @@ public class WorkerCacheManager
                         memoryContextService);
                 boolean taskAdded = memoryContextService.add(warpCacheTask);
                 if (taskAdded) {
-                    res = Optional.of(new WarpCachePageSink(warpCacheTask, workerTaskExecutorService));
+                    return Optional.of(new WarpCachePageSink(warpCacheTask, workerTaskExecutorService));
                 }
                 else {
                     shapingLogger.debug("Skipping warming since a similar warming is already running. warpCacheTask =%s. runningSize()=%s", warpCacheTask, memoryContextService.getRunningSize());
@@ -222,9 +234,8 @@ public class WorkerCacheManager
             }
             catch (Throwable e) {
                 shapingLogger.error(e, "failed to store data from WarpCacheManager splitId=%s, planSignature=%s", splitId, planSignature);
-                res = Optional.empty();
             }
-            return res;
+            return Optional.empty();
         }
 
         @Override

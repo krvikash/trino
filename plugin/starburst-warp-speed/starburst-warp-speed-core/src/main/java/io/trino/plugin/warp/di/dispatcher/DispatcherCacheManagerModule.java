@@ -40,6 +40,7 @@ import io.trino.plugin.warp.dictionary.AttachDictionaryService;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.ReadErrorHandler;
+import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.cache.DispatcherCacheTransformer;
 import io.trino.plugin.warp.dispatcher.cache.PredicateHashCalculator;
 import io.trino.plugin.warp.dispatcher.cache.WarpCachePageSourceFactory;
@@ -185,6 +186,7 @@ public class DispatcherCacheManagerModule
         binder.bind(WorkerNodeManager.class);
         binder.bind(WorkerTaskExecutorService.class);
         binder.bind(PredicateHashCalculator.class);
+        binder.bind(CacheMgrWarmupRuleService.class);
         bindMetricsServices(binder);
     }
 
