@@ -40,7 +40,7 @@ public class HiveCacheSplitId
     private final Map<Integer, HiveTypeName> hiveColumnCoercions;
     private final Optional<BucketConversion> bucketConversion;
     private final Optional<BucketValidation> bucketValidation;
-    private final Map<String, String> schema;
+    private final Schema schema;
 
     public HiveCacheSplitId(
             String path,
@@ -55,7 +55,7 @@ public class HiveCacheSplitId
             Map<Integer, HiveTypeName> hiveColumnCoercions,
             Optional<BucketConversion> bucketConversion,
             Optional<BucketValidation> bucketValidation,
-            Map<String, String> schema)
+            Schema schema)
     {
         this.path = requireNonNull(path, "path is null");
         this.start = start;
@@ -145,7 +145,7 @@ public class HiveCacheSplitId
     }
 
     @JsonProperty
-    public Map<String, String> getSchema()
+    public Schema getSchema()
     {
         return schema;
     }

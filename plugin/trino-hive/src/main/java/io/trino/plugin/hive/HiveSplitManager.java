@@ -366,9 +366,12 @@ public class HiveSplitManager
                 hiveSplit.getBucketConversion(),
                 hiveSplit.getBucketValidation(),
                 // order schema keys to canonicalize schema map
-                hiveSplit.getSchema().entrySet().stream()
-                        .sorted(Map.Entry.comparingByKey())
-                        .collect(toImmutableMap((Map.Entry entry) -> entry.getKey().toString(), Map.Entry::getValue))))));
+                new Schema(
+                        hiveSplit.getSchema().serializationLibraryName(),
+                        hiveSplit.getSchema().isFullAcidTable(),
+                        hiveSplit.getSchema().serdeProperties().entrySet().stream()
+                                .sorted(Map.Entry.comparingByKey())
+                                .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue)))))));
     }
 
     @Managed

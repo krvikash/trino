@@ -13,13 +13,16 @@
  */
 package io.trino.plugin.warp.proxiedconnector.proxiedconnector.hive;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.metastore.HivePartition;
 import io.trino.metastore.HiveType;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HivePartitionKey;
 import io.trino.plugin.hive.HivePartitioningHandle;
 import io.trino.plugin.hive.HiveSplit;
+import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.plugin.hive.HiveTableHandle;
+import io.trino.plugin.hive.Schema;
 import io.trino.plugin.hive.acid.AcidTransaction;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
@@ -46,7 +49,6 @@ import org.junit.jupiter.api.Test;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -98,7 +100,7 @@ public class HiveProxiedConnectorTransformerTest
                 2L,
                 3L,
                 4L,
-                new HashMap<>(),
+                new Schema(HiveStorageFormat.PARQUET.getSerde(), false, ImmutableMap.of()),
                 List.of(new HivePartitionKey("name1", "key1"),
                         new HivePartitionKey("name2", "key2")),
                 List.of(HostAddress.fromString("http://host:8080")),

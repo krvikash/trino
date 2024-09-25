@@ -82,7 +82,7 @@ public class TestHivePageSourceProvider
             100,
             10,
             12,
-            ImmutableMap.of(),
+            new Schema(HiveStorageFormat.PARQUET.getSerde(), false, ImmutableMap.of()),
             ImmutableList.of(new HivePartitionKey(PARTITION_COLUMN.getName(), PARTITION_NAME)),
             ImmutableList.of(),
             OptionalInt.empty(),

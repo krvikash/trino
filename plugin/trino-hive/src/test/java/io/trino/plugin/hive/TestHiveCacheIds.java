@@ -52,7 +52,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.ScheduledExecutorService;
@@ -77,6 +76,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class TestHiveCacheIds
 {
+    public static final Schema TEST_SCHEMA = new Schema(HiveStorageFormat.PARQUET.getSerde(), false, ImmutableMap.of());
     private ScheduledExecutorService executorService;
     private HiveCacheMetadata metadata;
     private HiveSplitManager splitManager;
@@ -239,48 +239,60 @@ public class TestHiveCacheIds
     public void testSplitId()
     {
         // table name should be stripped from id
-        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", ImmutableMap.of(), OptionalInt.empty())))
-                .isEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", ImmutableMap.of(), OptionalInt.empty())));
+        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", TEST_SCHEMA, OptionalInt.empty())))
+                .isEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", TEST_SCHEMA, OptionalInt.empty())));
 
         // different properties order in schema shouldn't make ids different
-        Map<String, String> schema1 = ImmutableMap.of(
+        Schema schema1 = new Schema(HiveStorageFormat.PARQUET.getSerde(), false, ImmutableMap.of(
                 "key1", "value1",
-                "key2", "value2");
-        Map<String, String> schema2 = ImmutableMap.of(
+                "key2", "value2"));
+        Schema schema2 = new Schema(HiveStorageFormat.PARQUET.getSerde(), false, ImmutableMap.of(
                 "key2", "value2",
-                "key1", "value1");
+                "key1", "value1"));
+
         assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", schema1, OptionalInt.empty())))
                 .isEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", schema2, OptionalInt.empty())));
 
         // different path should make ids different
-        assertThat(splitManager.getCacheSplitId(createHiveSplit("path1", 10, "part", ImmutableMap.of(), OptionalInt.empty())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path2", 10, "part", ImmutableMap.of(), OptionalInt.empty())));
+        assertThat(splitManager.getCacheSplitId(createHiveSplit("path1", 10, "part", TEST_SCHEMA, OptionalInt.empty())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path2", 10, "part", TEST_SCHEMA, OptionalInt.empty())));
 
         // different length should make ids different
-        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", ImmutableMap.of(), OptionalInt.empty())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 11, "part", ImmutableMap.of(), OptionalInt.empty())));
+        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", TEST_SCHEMA, OptionalInt.empty())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 11, "part", TEST_SCHEMA, OptionalInt.empty())));
 
         // different partition name should make ids different
-        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part1", ImmutableMap.of(), OptionalInt.empty())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part2", ImmutableMap.of(), OptionalInt.empty())));
+        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part1", TEST_SCHEMA, OptionalInt.empty())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part2", TEST_SCHEMA, OptionalInt.empty())));
 
-        // different schema should make ids different
-        schema1 = ImmutableMap.of("key", "value1");
+        // different properties schema should make ids different
+        schema1 = new Schema(HiveStorageFormat.PARQUET.getSerde(), false, ImmutableMap.of("key", "value1"));
+        schema2 = new Schema(HiveStorageFormat.PARQUET.getSerde(), false, ImmutableMap.of("key", "value2"));
+        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", schema1, OptionalInt.empty())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", schema2, OptionalInt.empty())));
 
-        schema2 = ImmutableMap.of("key", "value2");
+        // different serde in schema should make ids different
+        schema1 = new Schema(HiveStorageFormat.PARQUET.getSerde(), false, ImmutableMap.of("key", "value1"));
+        schema2 = new Schema(HiveStorageFormat.AVRO.getSerde(), false, ImmutableMap.of("key", "value1"));
+        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", schema1, OptionalInt.empty())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", schema2, OptionalInt.empty())));
+
+        // different acid marker in schema should make ids different
+        schema1 = new Schema(HiveStorageFormat.PARQUET.getSerde(), false, ImmutableMap.of("key", "value1"));
+        schema2 = new Schema(HiveStorageFormat.PARQUET.getSerde(), true, ImmutableMap.of("key", "value1"));
         assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", schema1, OptionalInt.empty())))
                 .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", schema2, OptionalInt.empty())));
 
         // different read bucket number should make ids different
-        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", ImmutableMap.of(), OptionalInt.empty())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", ImmutableMap.of(), OptionalInt.of(1))));
+        assertThat(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", TEST_SCHEMA, OptionalInt.empty())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createHiveSplit("path", 10, "part", TEST_SCHEMA, OptionalInt.of(1))));
     }
 
     private static HiveSplit createHiveSplit(
             String path,
             long length,
             String partitionName,
-            Map<String, String> schema,
+            Schema schema,
             OptionalInt readBucketNumber)
     {
         return new HiveSplit(
