@@ -228,6 +228,8 @@ public class DispatcherPageSourceFactory
     {
         // HACK HACK HACK  - to make load a bit faster in POCs and tests
         if (WarpSessionProperties.isEmptyQuery(session)) {
+            logger.info("Cleaning Native's cache");
+            storageCollectorService.cleanStorageCache();
             return new EmptyPageSource();
         }
 

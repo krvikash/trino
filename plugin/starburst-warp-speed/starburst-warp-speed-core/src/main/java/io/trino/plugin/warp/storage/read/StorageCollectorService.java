@@ -412,4 +412,9 @@ public class StorageCollectorService
     {
         storageEngine.fileClose((int) queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
     }
+
+    public void cleanStorageCache()
+    {
+        storageEngine.cleanStorageCache();
+    }
 }

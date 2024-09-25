@@ -269,4 +269,9 @@ public class StubsStorageEngine
     {
         throwOnColletRuntimeExceptionList.addAll(Arrays.asList(e));
     }
+
+    @Override
+    public void cleanStorageCache()
+    {
+    }
 }

@@ -404,4 +404,7 @@ public class NativeStorageEngine
 
     @Override
     public native String executeDebugCommand(String commandName, int numParams, String[] paramNames, String[] paramValues);
+
+    @Override
+    public native void cleanStorageCache();
 }

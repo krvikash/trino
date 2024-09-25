@@ -312,4 +312,9 @@ public interface StorageEngine
     {
         return true;
     }
+
+    default void cleanStorageCache()
+    {
+        throw new UnsupportedOperationException();
+    }
 }
