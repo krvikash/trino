@@ -180,7 +180,8 @@ public class WarpProxiedWarmer
                             if (pagePositionCount > 0) {
                                 if (rowCount == 0) { //first time
                                     fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = fileOffset;
-                                    pageSink.open(fileCookieParams, currWarmUpElementWriteMetadata, outDictionariesWarmInfos);
+                                    DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, currWarmUpElementWriteMetadata);
+                                    outDictionariesWarmInfos.add(dictionaryWarmInfo);
                                 }
                                 isValidWE = pageSink.appendPage(nextPage, rowCount);
                                 rowCount += pagePositionCount;

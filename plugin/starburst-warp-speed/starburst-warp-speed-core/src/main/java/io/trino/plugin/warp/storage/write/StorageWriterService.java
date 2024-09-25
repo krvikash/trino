@@ -54,7 +54,6 @@ import io.trino.spi.type.Type;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
-import java.util.List;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE_NUM;
@@ -125,10 +124,9 @@ public class StorageWriterService
         bufferAllocator.freeLoadSegment(storageWriterSplitConfig.buff());
     }
 
-    StorageWriterContext open(long[] fileCookieParams,
+    WriteOpenResult open(long[] fileCookieParams,
             StorageWriterSplitConfig storageWriterSplitConfig,
-            WarmupElementWriteMetadata warmupElementWriteMetadata,
-            List<DictionaryWarmInfo> outDictionaryWarmInfos)
+            WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
         Optional<LuceneIndexer> luceneIndexerOpt = Optional.empty();
         Optional<WriteDictionary> writeDictionaryOpt = Optional.empty();
@@ -161,7 +159,6 @@ public class StorageWriterService
         }
         //set up dictionary
         DictionaryWarmInfo dictionaryWarmInfo = new DictionaryWarmInfo(dictionaryState, dictionaryKey);
-        outDictionaryWarmInfos.add(dictionaryWarmInfo);
 
         if (warmUpElement.getWarmUpType() == WarmUpType.WARM_UP_TYPE_LUCENE) {
             // initialize lucene
@@ -176,7 +173,7 @@ public class StorageWriterService
                 writeJuffersWarmUpElement,
                 luceneIndexerOpt);
 
-        return new StorageWriterContext(warmupElementWriteMetadata,
+        StorageWriterContext storageWriterContext = new StorageWriterContext(warmupElementWriteMetadata,
                 warmupElementBuilder,
                 writeJuffersWarmUpElement,
                 dictionaryWarmInfo,
@@ -190,6 +187,7 @@ public class StorageWriterService
                 blockAppender,
                 writeDictionaryOpt,
                 luceneIndexerOpt);
+        return new WriteOpenResult(storageWriterContext, dictionaryWarmInfo);
     }
 
     private WriteJuffersWarmUpElement getWriteJuffersWarmUpElement(StorageOpenResult storageOpenResult,

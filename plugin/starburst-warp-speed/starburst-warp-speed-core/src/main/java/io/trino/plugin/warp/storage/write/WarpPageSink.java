@@ -27,8 +27,6 @@ import io.trino.plugin.warp.warmup.exceptions.MaxRowsException;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 
-import java.util.List;
-
 public class WarpPageSink
         implements PageSink
 {
@@ -54,12 +52,14 @@ public class WarpPageSink
     }
 
     @Override
-    public void open(long[] fileCookieParams, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
+    public DictionaryWarmInfo open(long[] fileCookieParams, WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
         // now create the native tx
         try {
-            storageWriterContext = storageWriterService.open(fileCookieParams, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
+            WriteOpenResult writeOpenResult = storageWriterService.open(fileCookieParams, storageWriterSplitConfig, warmupElementWriteMetadata);
+            storageWriterContext = writeOpenResult.storageWriterContext();
             writerOpened = true;
+            return writeOpenResult.dictionaryInfo();
         }
         catch (Exception e) {
             shapingLogger.error("we create failed %s", e.getMessage());

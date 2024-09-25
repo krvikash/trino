@@ -105,7 +105,7 @@ public class FinishAction
                     logger.error(e, "failed to cleanStorage for warmingCandidate=%s", warmingCandidate);
                 }
                 finally {
-                    dictionaryCacheService.releaseActiveDictionaries(warmingCandidate.outDictionaryWarmInfos());
+                    dictionaryCacheService.releaseActiveDictionary(warmingCandidate.getDictionaryWarmInfos());
                 }
             }
 

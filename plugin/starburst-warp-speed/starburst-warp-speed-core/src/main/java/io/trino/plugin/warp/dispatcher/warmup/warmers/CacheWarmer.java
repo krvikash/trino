@@ -165,14 +165,13 @@ public class CacheWarmer
         long[] fileCookieParams = storageWarmerService.fileOpen(tmpRowGroupKey);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = getFileOffset(tmpRowGroupKey);
         fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_ADDR.ordinal()] = storageWriterSplitConfig.writeBuff().address();
-        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
 
-        pageSink.open(fileCookieParams, warmUpElementToWarm, outDictionaryWarmInfos);
+        DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, warmUpElementToWarm);
         return new WarmingCandidate(fileCookieParams,
                 pageSink,
                 (int) fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()],
                 warmUpElementToWarm,
-                outDictionaryWarmInfos,
+                dictionaryWarmInfo,
                 tmpRowGroupKey);
     }
 

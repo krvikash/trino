@@ -113,7 +113,7 @@ public class WarmingManager
             boolean skipWait)
             throws InterruptedException
     {
-        List<DictionaryWarmInfo> outDictionariesWarmInfos = new ArrayList<>();
+        List<DictionaryWarmInfo> outDictionariesWarmInfos = new ArrayList<>(columnsToWarm.size());
         RowGroupData rowGroupData = null;
         boolean locked = false;
 

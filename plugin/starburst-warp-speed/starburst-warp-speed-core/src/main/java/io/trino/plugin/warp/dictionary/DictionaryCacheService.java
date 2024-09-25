@@ -206,13 +206,18 @@ public class DictionaryCacheService
     public void releaseActiveDictionaries(List<DictionaryWarmInfo> dictionariesWarmInfos)
     {
         for (DictionaryWarmInfo dictionaryWarmInfo : dictionariesWarmInfos) {
-            if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_REJECTED) {
-                dictionaryStats.incdictionary_rejected_elements_count();
-            }
-            else if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_VALID) {
-                releaseActiveDictionary(dictionaryWarmInfo.dictionaryKey());
-                dictionaryStats.incdictionary_success_elements_count();
-            }
+            releaseActiveDictionary(dictionaryWarmInfo);
+        }
+    }
+
+    public void releaseActiveDictionary(DictionaryWarmInfo dictionaryWarmInfo)
+    {
+        if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_REJECTED) {
+            dictionaryStats.incdictionary_rejected_elements_count();
+        }
+        else if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_VALID) {
+            releaseActiveDictionary(dictionaryWarmInfo.dictionaryKey());
+            dictionaryStats.incdictionary_success_elements_count();
         }
     }
 

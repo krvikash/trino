@@ -19,11 +19,9 @@ import io.trino.plugin.warp.dispatcher.cache.WarmupElementBlocks;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmSinkResult;
 import io.trino.spi.Page;
 
-import java.util.List;
-
 public interface PageSink
 {
-    void open(long[] fileCookieParams, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos);
+    DictionaryWarmInfo open(long[] fileCookieParams, WarmupElementWriteMetadata warmupElementWriteMetadata);
 
     boolean appendPage(Page page, int totalRecords);
 

@@ -19,7 +19,6 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.storage.write.PageSink;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 
 public final class WarmingCandidate
@@ -28,7 +27,7 @@ public final class WarmingCandidate
     private final PageSink pageSink;
     private final int fileOffset;
     private final WarmupElementWriteMetadata warmupElementWriteMetadata;
-    private final List<DictionaryWarmInfo> outDictionaryWarmInfos;
+    private final DictionaryWarmInfo dictionaryWarmInfo;
     private final RowGroupKey tmpRowGroupKey;
     private boolean isFailedCandidate;
 
@@ -36,14 +35,14 @@ public final class WarmingCandidate
             PageSink pageSink,
             int fileOffset,
             WarmupElementWriteMetadata warmupElementWriteMetadata,
-            List<DictionaryWarmInfo> outDictionaryWarmInfos,
+            DictionaryWarmInfo dictionaryWarmInfo,
             RowGroupKey tmpRowGroupKey)
     {
         this.fileCookie = fileCookie;
         this.pageSink = pageSink;
         this.fileOffset = fileOffset;
         this.warmupElementWriteMetadata = warmupElementWriteMetadata;
-        this.outDictionaryWarmInfos = outDictionaryWarmInfos;
+        this.dictionaryWarmInfo = dictionaryWarmInfo;
         this.tmpRowGroupKey = tmpRowGroupKey;
         this.isFailedCandidate = false;
     }
@@ -68,9 +67,9 @@ public final class WarmingCandidate
         return warmupElementWriteMetadata;
     }
 
-    public List<DictionaryWarmInfo> outDictionaryWarmInfos()
+    public DictionaryWarmInfo getDictionaryWarmInfos()
     {
-        return outDictionaryWarmInfos;
+        return dictionaryWarmInfo;
     }
 
     public RowGroupKey tmpRowGroupKey()
@@ -103,14 +102,14 @@ public final class WarmingCandidate
                 this.fileOffset == that.fileOffset &&
                 this.isFailedCandidate == that.isFailedCandidate &&
                 Objects.equals(this.warmupElementWriteMetadata, that.warmupElementWriteMetadata) &&
-                Objects.equals(this.outDictionaryWarmInfos, that.outDictionaryWarmInfos) &&
+                Objects.equals(this.dictionaryWarmInfo, that.dictionaryWarmInfo) &&
                 Objects.equals(this.tmpRowGroupKey, that.tmpRowGroupKey);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(Arrays.hashCode(fileCookie), pageSink, fileOffset, isFailedCandidate, warmupElementWriteMetadata, outDictionaryWarmInfos, tmpRowGroupKey);
+        return Objects.hash(Arrays.hashCode(fileCookie), pageSink, fileOffset, isFailedCandidate, warmupElementWriteMetadata, dictionaryWarmInfo, tmpRowGroupKey);
     }
 
     @Override
@@ -121,7 +120,7 @@ public final class WarmingCandidate
                 "pageSink=" + pageSink + ", " +
                 "fileOffset=" + fileOffset + ", " +
                 "warmupElementWriteMetadata=" + warmupElementWriteMetadata + ", " +
-                "outDictionaryWarmInfos=" + outDictionaryWarmInfos + ", " +
+                "dictionaryWarmInfo=" + dictionaryWarmInfo + ", " +
                 "isFailedCandidate=" + isFailedCandidate + ", " +
                 "tmpRowGroupKey=" + tmpRowGroupKey + ']';
     }
