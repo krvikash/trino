@@ -297,7 +297,7 @@ public class TestArbitraryDistributionSplitAssigner
         assertThat(result.noMorePartitions()).isTrue();
         assertThat(result.partitionsAdded()).hasSize(1);
         SplitAssigner.Partition partition = getOnlyElement(result.partitionsAdded());
-        assertThat(partition.nodeRequirements().getAddresses()).containsExactly(HOST_2);
+        assertThat(partition.nodeRequirements().getAddress()).hasValue(HOST_2);
     }
 
     @Test
@@ -838,7 +838,13 @@ public class TestArbitraryDistributionSplitAssigner
             }
         }
         assertThat(taskNodeRequirements.getCatalogHandle()).isEqualTo(Optional.of(TEST_CATALOG_HANDLE));
-        assertThat(taskNodeRequirements.getAddresses()).containsAnyElementsOf(hostRequirement == null ? ImmutableSet.of() : hostRequirement);
+        if (hostRequirement != null) {
+            assertThat(taskNodeRequirements.getAddress()).isPresent();
+            assertThat(hostRequirement).contains(taskNodeRequirements.getAddress().orElseThrow());
+        }
+        else {
+            assertThat(taskNodeRequirements.getAddress()).isEmpty();
+        }
     }
 
     private static void assertSplitsEqual(ListMultimap<PlanNodeId, Split> actual, ListMultimap<PlanNodeId, Split> expected)
