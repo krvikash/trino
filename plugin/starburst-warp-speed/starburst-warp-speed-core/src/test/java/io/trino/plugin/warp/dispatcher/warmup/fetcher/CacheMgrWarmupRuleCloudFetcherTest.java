@@ -13,13 +13,10 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.fetcher;
 
-import com.google.common.eventbus.EventBus;
 import io.airlift.json.ObjectMapperProvider;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
-import io.trino.plugin.warp.dispatcher.warmup.events.CacheMgrWarmRulesChangedEvent;
-import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +29,7 @@ import java.util.Timer;
 import static io.trino.plugin.warp.dispatcher.warmup.fetcher.CacheMgrWarmupRuleCloudFetcher.WARM_FETCHER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -42,7 +40,8 @@ public class CacheMgrWarmupRuleCloudFetcherTest
 {
     private WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
     private CloudVendorService cloudVendorService;
-    private EventBus eventBus;
+    private CacheMgrWarmupRuleService warmupRuleService;
+    private WarmupRuleFetcherStats warmupRuleFetcherStats;
     private CacheMgrWarmupRuleCloudFetcher warmupRuleCloudFetcher;
 
     @BeforeEach
@@ -50,11 +49,10 @@ public class CacheMgrWarmupRuleCloudFetcherTest
     {
         warmupRuleCloudFetcherConfig = new WarmupRuleCloudFetcherConfig();
         cloudVendorService = mock(CloudVendorService.class);
-        CacheMgrWarmupRuleService warmupRuleService = mock(CacheMgrWarmupRuleService.class);
-        eventBus = mock(EventBus.class);
+        warmupRuleService = mock(CacheMgrWarmupRuleService.class);
+        warmupRuleFetcherStats = new WarmupRuleFetcherStats(WARM_FETCHER_STAT_GROUP);
         MetricsManager metricsManager = mock(MetricsManager.class);
-        when(metricsManager.registerMetric(any()))
-                .thenReturn(new WarmupRuleFetcherStats(WARM_FETCHER_STAT_GROUP));
+        when(metricsManager.registerMetric(any())).thenReturn(warmupRuleFetcherStats);
         ObjectMapperProvider objectMapperProvider = new ObjectMapperProvider();
         Timer timer = mock(Timer.class);
 
@@ -62,7 +60,6 @@ public class CacheMgrWarmupRuleCloudFetcherTest
                 warmupRuleCloudFetcherConfig,
                 cloudVendorService,
                 warmupRuleService,
-                eventBus,
                 metricsManager,
                 objectMapperProvider,
                 timer);
@@ -73,28 +70,23 @@ public class CacheMgrWarmupRuleCloudFetcherTest
             throws IOException
     {
         //nothing returned due warmupRuleCloudFetcherConfig.getStorePath == null
-        assertThat(warmupRuleCloudFetcher.getWarmupRules()).isEmpty();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(false)).isEmpty();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(true)).isEmpty();
         warmupRuleCloudFetcher.fetch();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(true)).isEmpty();
-        verify(eventBus, never()).post(any(WarmRulesChangedEvent.class));
+        assertThat(warmupRuleFetcherStats.getsuccess()).isZero();
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
 
         //nothing returned from CloudVendorService
         warmupRuleCloudFetcherConfig.setStorePath("path");
-        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         String path = warmupRuleCloudFetcherConfig.getStorePath();
+        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         when(cloudVendorService.getObjectMetadata(path)).thenReturn(storageObjectMetadata);
 
-        assertThat(warmupRuleCloudFetcher.getWarmupRules()).isEmpty();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(false)).isEmpty();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(true)).isEmpty();
         warmupRuleCloudFetcher.fetch();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(true)).isEmpty();
-        verify(eventBus, never()).post(any(WarmRulesChangedEvent.class));
+        assertThat(warmupRuleFetcherStats.getsuccess()).isZero();
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
 
         // call cloud
-        warmupRuleCloudFetcherConfig.setStorePath("path");
         storageObjectMetadata = new StorageObjectMetadata();
         storageObjectMetadata.setContentLength(1L);
         when(cloudVendorService.getObjectMetadata(path)).thenReturn(storageObjectMetadata);
@@ -104,33 +96,42 @@ public class CacheMgrWarmupRuleCloudFetcherTest
 
         warmupRuleCloudFetcher.fetch();
 
-        verify(eventBus, times(1)).post(any(CacheMgrWarmRulesChangedEvent.class));
+        assertThat(warmupRuleFetcherStats.getsuccess()).isEqualTo(1L);
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, times(1)).replaceAll(anyList());
     }
 
     @Test
     public void testNotUpdatedFlow()
     {
-        //null returned from CloudVendorService
         warmupRuleCloudFetcherConfig.setStorePath("path");
-        String path = CloudVendorService.concatenatePath(
-                warmupRuleCloudFetcherConfig.getStorePath(),
-                "starburst-cache-mgr");
+        String path = warmupRuleCloudFetcherConfig.getStorePath();
+        //null returned from CloudVendorService
         when(cloudVendorService.getObjectMetadata(path)).thenReturn(null);
 
-        assertThat(warmupRuleCloudFetcher.getWarmupRules()).isEmpty();
-        verify(eventBus, never()).post(any(CacheMgrWarmRulesChangedEvent.class));
+        warmupRuleCloudFetcher.fetch();
+
+        assertThat(warmupRuleFetcherStats.getsuccess()).isEqualTo(0L);
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
 
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         when(cloudVendorService.getObjectMetadata(path)).thenReturn(storageObjectMetadata);
 
-        assertThat(warmupRuleCloudFetcher.getWarmupRules()).isEmpty();
-        verify(eventBus, never()).post(any(CacheMgrWarmRulesChangedEvent.class));
+        warmupRuleCloudFetcher.fetch();
+
+        assertThat(warmupRuleFetcherStats.getsuccess()).isZero();
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
 
         //validate nothing returned when nothing changed
         storageObjectMetadata = new StorageObjectMetadata();
         when(cloudVendorService.getObjectMetadata(path)).thenReturn(storageObjectMetadata);
 
-        assertThat(warmupRuleCloudFetcher.getWarmupRules()).isEmpty();
-        verify(eventBus, never()).post(any(CacheMgrWarmRulesChangedEvent.class));
+        warmupRuleCloudFetcher.fetch();
+
+        assertThat(warmupRuleFetcherStats.getsuccess()).isZero();
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
     }
 }

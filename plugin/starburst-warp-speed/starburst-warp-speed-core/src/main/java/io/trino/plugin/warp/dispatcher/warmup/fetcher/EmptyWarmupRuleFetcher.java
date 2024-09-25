@@ -15,20 +15,9 @@ package io.trino.plugin.warp.dispatcher.warmup.fetcher;
 
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 
-import java.util.List;
-
 public class EmptyWarmupRuleFetcher
         implements WarmupRuleFetcher<WarmupRule>
 {
     @Override
-    public List<WarmupRule> getWarmupRules()
-    {
-        return List.of();
-    }
-
-    @Override
-    public List<WarmupRule> getWarmupRules(boolean force)
-    {
-        return List.of();
-    }
+    public void fetch() {}
 }

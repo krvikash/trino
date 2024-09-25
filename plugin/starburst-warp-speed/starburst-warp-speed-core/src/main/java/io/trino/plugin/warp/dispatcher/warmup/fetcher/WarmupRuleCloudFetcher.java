@@ -16,18 +16,14 @@ package io.trino.plugin.warp.dispatcher.warmup.fetcher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import dev.failsafe.Failsafe;
-import dev.failsafe.RetryPolicy;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
-import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -64,7 +60,6 @@ public class WarmupRuleCloudFetcher
     private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
     private final CloudVendorService cloudVendorService;
     private final WarmupRuleService warmupRuleService;
-    private final EventBus eventBus;
     private final CatalogName catalogName;
     private final ObjectMapperProvider objectMapperProvider;
     @SuppressWarnings("FieldCanBeLocal")
@@ -79,7 +74,6 @@ public class WarmupRuleCloudFetcher
             @ForWarmupRuleCloudFetcher WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig,
             @ForWarmupRuleCloudFetcher CloudVendorService cloudVendorService,
             WarmupRuleService warmupRuleService,
-            EventBus eventBus,
             CatalogName catalogName,
             MetricsManager metricsManager,
             ObjectMapperProvider objectMapperProvider)
@@ -87,7 +81,6 @@ public class WarmupRuleCloudFetcher
         this(warmupRuleCloudFetcherConfig,
                 cloudVendorService,
                 warmupRuleService,
-                eventBus,
                 catalogName,
                 metricsManager,
                 objectMapperProvider,
@@ -99,7 +92,6 @@ public class WarmupRuleCloudFetcher
             WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig,
             CloudVendorService cloudVendorService,
             WarmupRuleService warmupRuleService,
-            EventBus eventBus,
             CatalogName catalogName,
             MetricsManager metricsManager,
             ObjectMapperProvider objectMapperProvider,
@@ -108,7 +100,6 @@ public class WarmupRuleCloudFetcher
         this.warmupRuleCloudFetcherConfig = requireNonNull(warmupRuleCloudFetcherConfig);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.warmupRuleService = requireNonNull(warmupRuleService);
-        this.eventBus = requireNonNull(eventBus);
         this.catalogName = requireNonNull(catalogName);
         this.objectMapperProvider = requireNonNull(objectMapperProvider);
         this.timer = requireNonNull(timer);
@@ -131,30 +122,7 @@ public class WarmupRuleCloudFetcher
     }
 
     @Override
-    public List<WarmupRule> getWarmupRules(boolean force)
-    {
-        if (force) {
-            if (writeLock.tryLock()) {
-                try {
-                    currentStorageObjectMetadata = null;
-                }
-                finally {
-                    writeLock.unlock();
-                }
-            }
-            fetch();
-        }
-        return getWarmupRules();
-    }
-
-    @Override
-    public List<WarmupRule> getWarmupRules()
-    {
-        return warmupRuleService.getAll();
-    }
-
-    @VisibleForTesting
-    void fetch()
+    public void fetch()
     {
         if (StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             logger.debug("rules path is null, storePath %s connectorName %s", warmupRuleCloudFetcherConfig.getStorePath(), catalogName);
@@ -167,24 +135,18 @@ public class WarmupRuleCloudFetcher
 
         if (writeLock.tryLock()) {
             try {
-                StorageObjectMetadata storageObjectMetadata = Failsafe.with(RetryPolicy.builder()
-                                .withMaxRetries(warmupRuleCloudFetcherConfig.getDownloadRetries())
-                                .withDelay(warmupRuleCloudFetcherConfig.getDownloadDuration())
-                                .build())
-                        .get(() -> cloudVendorService.getObjectMetadata(path));
+                StorageObjectMetadata storageObjectMetadata = cloudVendorService.getObjectMetadata(path);
 
-                if ((currentStorageObjectMetadata != null && storageObjectMetadata != null) && currentStorageObjectMetadata.equals(storageObjectMetadata)) {
+                if ((currentStorageObjectMetadata != null && storageObjectMetadata != null) &&
+                        currentStorageObjectMetadata.equals(storageObjectMetadata)) {
                     return; // nothing changed, no need to continue
                 }
 
                 currentStorageObjectMetadata = storageObjectMetadata;
 
-                if (currentStorageObjectMetadata.getContentLength().isPresent()) {
-                    Optional<String> optionalJson = Failsafe.with(RetryPolicy.builder()
-                                    .withMaxRetries(warmupRuleCloudFetcherConfig.getDownloadRetries())
-                                    .withDelay(warmupRuleCloudFetcherConfig.getDownloadDuration())
-                                    .build())
-                            .get(() -> cloudVendorService.downloadCompressedFromCloud(path, true));
+                if ((currentStorageObjectMetadata != null) &&
+                        currentStorageObjectMetadata.getContentLength().isPresent()) {
+                    Optional<String> optionalJson = cloudVendorService.downloadCompressedFromCloud(path, true);
 
                     logger.debug("fetching from %s -> %s", path, optionalJson.orElse(""));
 
@@ -209,7 +171,6 @@ public class WarmupRuleCloudFetcher
                     }
 
                     warmupRuleFetcherStats.incsuccess();
-                    eventBus.post(new WarmRulesChangedEvent());
                 }
                 else {
                     logger.debug("rules file does not exist %s", path);

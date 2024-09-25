@@ -140,6 +140,7 @@ public class TestDispatcherRestIT
                 Duration.ofMillis(10),
                 ImmutableSet.of(new PartitionValueWarmupPredicateRule("col2", "2"),
                         new DateSlidingWindowWarmupPredicateRule("col2", 30, "XXX", "")));
+
         WarmupColRuleData warmupColRuleDataData = new WarmupColRuleData(0,
                 "s1",
                 "t1",
@@ -165,6 +166,27 @@ public class TestDispatcherRestIT
 
         assertThat(warmupColRuleDataListResult).hasSize(3);
 
+        WarmupColRuleData luceneWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_LUCENE).findFirst().orElseThrow();
+        assertThat(luceneWarmupColRuleDataResult.getId()).isGreaterThan(0);
+        assertThat(luceneWarmupColRuleDataResult.getColumn()).isEqualTo(warmupColRuleDataLucene.getColumn());
+        assertThat(luceneWarmupColRuleDataResult.getSchema()).isEqualTo(warmupColRuleDataLucene.getSchema());
+        assertThat(luceneWarmupColRuleDataResult.getTable()).isEqualTo(warmupColRuleDataLucene.getTable());
+        assertThat(luceneWarmupColRuleDataResult.getPredicates()).isEqualTo(warmupColRuleDataLucene.getPredicates());
+
+        WarmupColRuleData dataWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_DATA).findFirst().orElseThrow();
+        assertThat(dataWarmupColRuleDataResult.getId()).isGreaterThan(0);
+        assertThat(dataWarmupColRuleDataResult.getColumn()).isEqualTo(warmupColRuleDataData.getColumn());
+        assertThat(dataWarmupColRuleDataResult.getSchema()).isEqualTo(warmupColRuleDataData.getSchema());
+        assertThat(dataWarmupColRuleDataResult.getTable()).isEqualTo(warmupColRuleDataData.getTable());
+        assertThat(dataWarmupColRuleDataResult.getPredicates()).isEqualTo(warmupColRuleDataData.getPredicates());
+
+        WarmupColRuleData basicWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_BASIC).findFirst().orElseThrow();
+        assertThat(basicWarmupColRuleDataResult.getId()).isGreaterThan(0);
+        assertThat(basicWarmupColRuleDataResult.getColumn()).isEqualTo(basicWarmupColRuleDataData.getColumn());
+        assertThat(basicWarmupColRuleDataResult.getSchema()).isEqualTo(basicWarmupColRuleDataData.getSchema());
+        assertThat(basicWarmupColRuleDataResult.getTable()).isEqualTo(basicWarmupColRuleDataData.getTable());
+        assertThat(basicWarmupColRuleDataResult.getPredicates()).isEqualTo(basicWarmupColRuleDataData.getPredicates());
+
         WarmupColRuleData warmupColRuleDataError = new WarmupColRuleData(10,
                 "s1",
                 "t1",
@@ -177,23 +199,7 @@ public class TestDispatcherRestIT
         RuleResultDTO ruleResultDTO = objectMapper.readerFor(RuleResultDTO.class).readValue(restResult);
         assertThat(ruleResultDTO.appliedRules().isEmpty()).isTrue();
         assertThat(ruleResultDTO.rejectedRules().isEmpty()).isFalse();
-        warmupColRuleDataListResult = getWarmupRules();
-
-        assertThat(warmupColRuleDataListResult).hasSize(3);
-
-        WarmupColRuleData luceneWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_LUCENE).findFirst().orElseThrow();
-        assertThat(luceneWarmupColRuleDataResult.getId()).isGreaterThan(0);
-        assertThat(luceneWarmupColRuleDataResult.getColumn()).isEqualTo(warmupColRuleDataLucene.getColumn());
-        assertThat(luceneWarmupColRuleDataResult.getSchema()).isEqualTo(warmupColRuleDataLucene.getSchema());
-        assertThat(luceneWarmupColRuleDataResult.getTable()).isEqualTo(warmupColRuleDataLucene.getTable());
-        assertThat(luceneWarmupColRuleDataResult.getPredicates()).isEqualTo(warmupColRuleDataLucene.getPredicates());
-
-        WarmupColRuleData basicWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_BASIC).findFirst().orElseThrow();
-        assertThat(basicWarmupColRuleDataResult.getId()).isGreaterThan(0);
-        assertThat(basicWarmupColRuleDataResult.getColumn()).isEqualTo(warmupColRuleDataLucene.getColumn());
-        assertThat(basicWarmupColRuleDataResult.getSchema()).isEqualTo(warmupColRuleDataLucene.getSchema());
-        assertThat(basicWarmupColRuleDataResult.getTable()).isEqualTo(warmupColRuleDataLucene.getTable());
-        assertThat(basicWarmupColRuleDataResult.getPredicates()).isEqualTo(basicWarmupColRuleDataData.getPredicates());
+        assertThat(getWarmupRules()).isEqualTo(warmupColRuleDataListResult); //nothing has changed
 
         restResult = executeRestCommand(
                 WarmupRuleService.WARMUP_PATH,
@@ -203,7 +209,7 @@ public class TestDispatcherRestIT
                 HttpURLConnection.HTTP_OK);
         Map<String, List<WarmupColRuleData>> workerWarmupColRuleDatasMap = objectMapper.readerFor(new TypeReference<Map<String, List<WarmupColRuleData>>>() {})
                 .readValue(restResult);
-        assertThat(workerWarmupColRuleDatasMap).hasSize(1);
+
         final List<WarmupColRuleData> result = new ArrayList<>(warmupColRuleDataListResult);
         workerWarmupColRuleDatasMap.forEach((_, value) -> assertThat(value).isEqualTo(result));
 

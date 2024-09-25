@@ -68,7 +68,7 @@ public class DispatcherQueryRunner
                 // replace this config with the other 3 when you want to use a real thrift meta-store (E.g. local docker)
 //          .put("hive.metastore.uri", "thrift://localhost:9083").build();
 //                .put("testMode", "true")
-                .put(CONFIG_IS_SINGLE, String.valueOf(numOfNodes < 2))
+                .put(CONFIG_IS_SINGLE, String.valueOf(numOfNodes == 1))
                 .put("warp-speed.config.bundle-size-mb", "128")
                 .put(ENABLE_DEFAULT_WARMING, "false")
                 .put(CloudVendorConfig.STORE_PATH, "file:/" + localStorePath.toAbsolutePath())

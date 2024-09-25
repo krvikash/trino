@@ -642,9 +642,22 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         String statSumColNames = statColNames.stream()
                 .map(s -> "sum(" + s + ")")
                 .collect(Collectors.joining(","));
-        MaterializedResult jmx0 = computeActual(jmxSession, String.format("select %s from \"*%s*\"", statSumColNames, jmxTable));
-        logger.debug("getServiceStats::jmxTable=%s", jmxTable);
-        return jmx0.getMaterializedRows().getFirst();
+        try {
+            MaterializedResult jmx0 = computeActual(jmxSession, String.format("select %s from \"*%s*\"", statSumColNames, jmxTable));
+            logger.debug("getServiceStats::jmxTable=%s", jmxTable);
+            return jmx0.getMaterializedRows().getFirst();
+        }
+        catch (Throwable e) {
+            MaterializedResult rows = computeActual(createJmxSession(), "show tables");
+            logger.error(e,
+                    "jmx[%d] tables: %s",
+                    rows.getMaterializedRows().size(),
+                    rows.getMaterializedRows()
+                            .stream()
+                            .filter(materializedRowTmp -> ((String) materializedRowTmp.getField(0)).contains(WorkerWarmingService.WARMING_SERVICE_STAT_GROUP))
+                            .collect(Collectors.toList()));
+            throw new RuntimeException("failed");
+        }
     }
 
     protected void runWithRetries(Runnable runnable)

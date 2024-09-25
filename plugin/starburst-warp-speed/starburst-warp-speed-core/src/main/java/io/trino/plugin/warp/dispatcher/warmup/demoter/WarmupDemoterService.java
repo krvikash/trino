@@ -41,7 +41,6 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
-import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -104,7 +103,7 @@ public class WarmupDemoterService
     private final WarmupDemoterStats globalStatsDemoter;
     private final ExecutorService rowGroupExecutorService;
     private final FlowsSequencer flowsSequencer;
-    private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
+    private final WarmupRuleProvider warmupRuleProvider;
     private WarmupProperties defaultWarmupProperties;
     private AtomicDouble highestPriority = new AtomicDouble(0);
     private AtomicBoolean isExecuting = new AtomicBoolean(false);
@@ -123,7 +122,7 @@ public class WarmupDemoterService
     @Inject
     public WarmupDemoterService(WorkerCapacityManager workerCapacityManager,
             RowGroupDataService rowGroupDataService,
-            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
+            WarmupRuleProvider warmupRuleProvider,
             WarmupDemoterConfig warmupDemoterConfig,
             NativeConfig nativeConfig,
             MetricsManager metricsManager,
@@ -134,7 +133,7 @@ public class WarmupDemoterService
     {
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
+        this.warmupRuleProvider = requireNonNull(warmupRuleProvider);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.globalStatsDemoter = (WarmupDemoterStats) metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
         this.flowsSequencer = requireNonNull(flowsSequencer);
@@ -308,7 +307,7 @@ public class WarmupDemoterService
         List<TupleRank> immediateObjects = new ArrayList<>();
         List<TupleRank> failedObjects = new ArrayList<>();
         List<RowGroupData> rowGroupData = rowGroupDataService.getAll();
-        List<WarmupRule> warmupRules = warmupRuleFetcher.getWarmupRules();
+        List<WarmupRule> warmupRules = warmupRuleProvider.getAll();
         logger.debug("%s: build tupleRank", catalogNameProvider.get());
         buildTupleRank(warmupRules,
                 rowGroupData,

@@ -28,7 +28,6 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
-import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.execution.debugtools.ColumnFilter;
 import io.trino.plugin.warp.execution.debugtools.FileFilter;
 import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
@@ -43,6 +42,7 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
@@ -59,6 +59,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
@@ -104,7 +105,7 @@ public class WarmupDemoterServiceTest
     private WorkerCapacityManager workerCapacityManager;
     private RowGroupDataService rowGroupDataService;
     private WarmupDemoterService warmupDemoterService;
-    private WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
+    private WarmupRuleService warmupRuleService;
     private WarmupDemoterConfig warmupDemoterConfig;
     private ConnectorSync connectorSync;
     private CatalogNameProvider catalogNameProvider;
@@ -137,7 +138,6 @@ public class WarmupDemoterServiceTest
                 .build();
     }
 
-    @SuppressWarnings("unchecked")
     @BeforeEach
     public void before()
     {
@@ -145,21 +145,20 @@ public class WarmupDemoterServiceTest
 
         workerCapacityManager = mock(WorkerCapacityManager.class);
         rowGroupDataService = mock(RowGroupDataService.class);
-        warmupRuleFetcher = (WarmupRuleFetcher<WarmupRule>) mock(WarmupRuleFetcher.class);
+        warmupRuleService = mock(WarmupRuleService.class);
         EventBus eventBus = mock(EventBus.class);
-        when(warmupRuleFetcher.getWarmupRules()).thenReturn(warmupRules);
+        when(warmupRuleService.getAll()).thenReturn(warmupRules);
         metricsManager = TestingTxService.createMetricsManager();
 
         FlowsSequencer flowsSequencer = spy(new FlowsSequencer(metricsManager));
         connectorSync = mock(ConnectorSync.class);
         warmupDemoterConfig = new WarmupDemoterConfig();
         warmupDemoterConfig.setEnableDemote(true);
-        catalogNameProvider = mock(CatalogNameProvider.class);
-        when(catalogNameProvider.get()).thenReturn("catalogTest");
+        catalogNameProvider = new CatalogNameProvider("catalogTest");
         warmupDemoterService = spy(new WarmupDemoterService(
                 workerCapacityManager,
                 rowGroupDataService,
-                warmupRuleFetcher,
+                new WarmupRuleProvider(Optional.of(warmupRuleService)),
                 warmupDemoterConfig,
                 new NativeConfig(),
                 metricsManager,
@@ -198,7 +197,7 @@ public class WarmupDemoterServiceTest
         rowGroupDataMapTest.put(rowGroupData1.getRowGroupKey(), rowGroupData1);
         rowGroupDataMapTest.put(rowGroupData2.getRowGroupKey(), rowGroupData2);
 
-        when(warmupRuleFetcher.getWarmupRules()).thenReturn(warmupRuleList);
+        when(warmupRuleService.getAll()).thenReturn(warmupRuleList);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(10d);
         when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMapTest.values()));
         when(rowGroupDataService.get(any())).thenAnswer(i -> rowGroupDataMapTest.get(i.getArguments()[0]));
@@ -257,7 +256,7 @@ public class WarmupDemoterServiceTest
                 Map.of(), 0, false);
         when(rowGroupDataService.getAll()).thenReturn(List.of(rowGroupData));
         when(rowGroupDataService.get(eq(rowGroupData.getRowGroupKey()))).thenReturn(rowGroupData);
-        when(warmupRuleFetcher.getWarmupRules()).thenReturn(warmupRules);
+        when(warmupRuleService.getAll()).thenReturn(warmupRules);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
 
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
@@ -307,10 +306,11 @@ public class WarmupDemoterServiceTest
     public void testWarmupDemoterDecreaseMemoryUsageUntilCleanThreshold()
     {
         AtomicDouble usageCapacity = new AtomicDouble(0.92D);
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenAnswer(i -> {
-            usageCapacity.set(usageCapacity.addAndGet(-0.1));
-            return usageCapacity.get();
-        });
+        when(workerCapacityManager.getFractionCurrentUsageFromTotal())
+                .thenAnswer(_ -> {
+                    usageCapacity.set(usageCapacity.addAndGet(-0.1));
+                    return usageCapacity.get();
+                });
 
         List<WarmupRule> warmupRules = new ArrayList<>();
         List<WarmUpElement> warmUpElements = new ArrayList<>();
@@ -337,7 +337,7 @@ public class WarmupDemoterServiceTest
         when(rowGroupDataService.get(eq(rowGroupData.getRowGroupKey()))).thenReturn(rowGroupData);
         when(rowGroupDataService.get(eq(rowGroupData2.getRowGroupKey()))).thenReturn(rowGroupData2);
         when(rowGroupDataService.get(eq(rowGroupData3.getRowGroupKey()))).thenReturn(rowGroupData3);
-        when(warmupRuleFetcher.getWarmupRules()).thenReturn(warmupRules);
+        when(warmupRuleService.getAll()).thenReturn(warmupRules);
 
         setConfig(85, 80, 2, 100, List.of());
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
@@ -558,7 +558,7 @@ public class WarmupDemoterServiceTest
         nativeConfig.setTaskMaxWorkerThreads(1);
         warmupDemoterService = new WarmupDemoterService(workerCapacityManager,
                 rowGroupDataService,
-                warmupRuleFetcher,
+                new WarmupRuleProvider(Optional.of(warmupRuleService)),
                 warmupDemoterConfig,
                 nativeConfig,
                 metricsManager,

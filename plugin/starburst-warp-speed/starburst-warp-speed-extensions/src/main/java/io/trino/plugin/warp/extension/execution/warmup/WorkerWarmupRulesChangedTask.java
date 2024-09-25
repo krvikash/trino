@@ -54,6 +54,6 @@ public class WorkerWarmupRulesChangedTask
     //@ApiOperation(value = "rules changed", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public void rulesChanged()
     {
-        warmupRuleFetcher.getWarmupRules();
+        warmupRuleFetcher.fetch();
     }
 }

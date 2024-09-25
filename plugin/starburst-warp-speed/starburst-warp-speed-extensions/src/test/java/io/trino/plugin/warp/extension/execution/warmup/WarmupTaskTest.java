@@ -65,11 +65,12 @@ public class WarmupTaskTest
     private WarpClient warpClient;
     private WarmupTask task;
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     public void before()
     {
         warmupRuleService = mock(WarmupRuleService.class);
-        warmupRuleFetcher = mock(WarmupRuleFetcher.class);
+        warmupRuleFetcher = (WarmupRuleFetcher<WarmupRule>) mock(WarmupRuleFetcher.class);
         coordinatorNodeManager = mock(CoordinatorNodeManager.class);
         warpClient = mock(WarpClient.class);
 
@@ -186,6 +187,6 @@ public class WarmupTaskTest
     public void testFetch()
     {
         task.fetch();
-        verify(warmupRuleFetcher, times(1)).getWarmupRules(eq(true));
+        verify(warmupRuleFetcher, times(1)).fetch();
     }
 }

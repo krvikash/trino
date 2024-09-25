@@ -32,6 +32,7 @@ import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -49,6 +50,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonBinder.jsonBinder;
@@ -141,5 +143,12 @@ public class WarpMainModule
     public CatalogNameProvider provideCatalogName()
     {
         return new CatalogNameProvider(context.getCatalogHandle().getCatalogName() + "_" + context.getCatalogHandle().getVersion());
+    }
+
+    @Provides
+    @Singleton
+    public WarmupRuleProvider provideWarmupRuleProvider(WarmupRuleService warmupRuleService)
+    {
+        return new WarmupRuleProvider(Optional.of(warmupRuleService));
     }
 }

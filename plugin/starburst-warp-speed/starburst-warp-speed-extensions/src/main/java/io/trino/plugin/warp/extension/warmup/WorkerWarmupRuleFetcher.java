@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.extension.warmup;
 
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.http.client.HttpUriBuilder;
@@ -20,6 +22,7 @@ import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
+import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
@@ -51,22 +54,26 @@ public class WorkerWarmupRuleFetcher
     private final WorkerNodeManager workerNodeManager;
     private final WarpClient warpClient;
     private final MetricsManager metricsManager;
+    private final WarmupRuleService warmupRuleService;
 
     @Inject
     public WorkerWarmupRuleFetcher(
             WorkerNodeManager workerNodeManager,
             WarpClient warpClient,
-            MetricsManager metricsManager)
+            MetricsManager metricsManager,
+            WarmupRuleService warmupRuleService,
+            EventBus eventBus)
     {
         this.workerNodeManager = requireNonNull(workerNodeManager);
         this.warpClient = requireNonNull(warpClient);
         this.metricsManager = requireNonNull(metricsManager);
+        this.warmupRuleService = requireNonNull(warmupRuleService);
+        eventBus.register(this);
     }
 
     @Override
-    public List<WarmupRule> getWarmupRules(boolean force)
+    public void fetch()
     {
-        List<WarmupRule> ret = List.of();
         try {
             HttpUriBuilder restEndpointBuilder = warpClient.getRestEndpoint(workerNodeManager.getCoordinatorNodeHttpUri());
             URI uri = restEndpointBuilder.appendPath(WarmupRuleService.WARMUP_PATH).appendPath(WarmupRuleService.TASK_NAME_GET).build();
@@ -76,7 +83,7 @@ public class WorkerWarmupRuleFetcher
                     .build();
             List<WarmupColRuleData> rulesResult = warpClient.sendWithRetry(request, createFullJsonResponseHandler(WARMUP_RULES_CODEC));
             if (rulesResult != null) {
-                ret = rulesResult.stream().map(WarmupRuleApiMapper::toModel).collect(Collectors.toList());
+                warmupRuleService.replaceAll(rulesResult.stream().map(WarmupRuleApiMapper::toModel).collect(Collectors.toList()));
             }
             else {
                 handleFetchFailure();
@@ -85,7 +92,6 @@ public class WorkerWarmupRuleFetcher
         catch (Exception e) {
             handleFetchFailure();
         }
-        return ret;
     }
 
     private void handleFetchFailure()
@@ -96,9 +102,10 @@ public class WorkerWarmupRuleFetcher
         logger.warn("failed getting rules from coordinator");
     }
 
-    @Override
-    public List<WarmupRule> getWarmupRules()
+    @SuppressWarnings("unused")
+    @Subscribe
+    private void handleWarmRulesChangedEvent(WarmRulesChangedEvent warmRulesChangedEvent)
     {
-        return getWarmupRules(true);
+        fetch();
     }
 }

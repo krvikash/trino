@@ -13,11 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.fetcher;
 
-import java.util.List;
-
 public interface WarmupRuleFetcher<T>
 {
-    List<T> getWarmupRules();
-
-    List<T> getWarmupRules(boolean force);
+    void fetch();
 }

@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
+import com.google.common.eventbus.EventBus;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
@@ -34,7 +35,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextData;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireWarmupStatus;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
+import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
@@ -42,6 +43,7 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.tools.util.Pair;
+import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.ColumnHandle;
@@ -72,6 +74,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING;
@@ -90,6 +93,9 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class WorkerWarmingServiceTest
@@ -105,6 +111,8 @@ public class WorkerWarmingServiceTest
     private WarmupDemoterConfig warmupDemoterConfig;
     private GlobalConfig globalConfig;
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
+    private EventBus eventBus;
+
     private RowGroupKey rowGroupKey;
 
     @BeforeEach
@@ -120,8 +128,37 @@ public class WorkerWarmingServiceTest
         when(warmExecutionTaskFactory.createExecutionTask(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(WorkerTaskExecutorService.TaskExecutionType.PROXY))).thenReturn(proxyExecutionTask);
         warmupDemoterConfig = new WarmupDemoterConfig();
         globalConfig = new GlobalConfig();
-        rowGroupKey = mock(RowGroupKey.class);
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
+        eventBus = spy(new EventBus());
+
+        rowGroupKey = mock(RowGroupKey.class);
+    }
+
+    @Test
+    public void testInitialized()
+    {
+        WorkerWarmingService workerWarmingService = new WorkerWarmingService(
+                metricsManager,
+                dispatcherProxiedConnectorTransformer,
+                workerTaskExecutorService,
+                warmExecutionTaskFactory,
+                mock(WarmupDemoterService.class),
+                mock(WarmupRuleService.class),
+                mock(RowGroupDataService.class),
+                warmupDemoterConfig,
+                globalConfig,
+                mock(StorageWarmerService.class),
+                eventBus);
+
+        assertThat(workerWarmingService.getWarmupRules(new SchemaTableName("s", "t")))
+                .isEmpty();
+        verify(eventBus, times(1)).post(eq(new WarmRulesChangedEvent()));
+        //make sure the event is posted only once
+        IntStream.range(0, 4).forEach(_ -> {
+            assertThat(workerWarmingService.getWarmupRules(new SchemaTableName("s", "t")))
+                    .isEmpty();
+            verify(eventBus, times(1)).post(eq(new WarmRulesChangedEvent()));
+        });
     }
 
     /**
@@ -911,7 +948,6 @@ public class WorkerWarmingServiceTest
         return act(columns, rowGroupData, warmupDemoterService, defaultWarmingTestState, warmupRules, queryContext, batchSize);
     }
 
-    @SuppressWarnings("unchecked")
     private WarmData act(List<ColumnHandle> columns,
             RowGroupData rowGroupData,
             WarmupDemoterService warmupDemoterService,
@@ -920,8 +956,8 @@ public class WorkerWarmingServiceTest
             QueryContext queryContext,
             int batchSize)
     {
-        WarmupRuleFetcher<WarmupRule> warmupRuleFetcher = (WarmupRuleFetcher<WarmupRule>) mock(WarmupRuleFetcher.class);
-        when(warmupRuleFetcher.getWarmupRules()).thenReturn(warmupRules);
+        WarmupRuleService warmupRuleService = mock(WarmupRuleService.class);
+        when(warmupRuleService.getAll()).thenReturn(warmupRules);
         RowGroupDataService rowGroupDataService = mock(RowGroupDataService.class);
         ConnectorSession connectorSession = mock(ConnectorSession.class);
         when(connectorSession.getProperty(eq(ENABLE_DEFAULT_WARMING_INDEX), any())).thenReturn(globalConfig.isCreateIndexInDefaultWarming());
@@ -936,11 +972,12 @@ public class WorkerWarmingServiceTest
                 workerTaskExecutorService,
                 warmExecutionTaskFactory,
                 warmupDemoterService,
-                warmupRuleFetcher,
+                warmupRuleService,
                 rowGroupDataService,
                 warmupDemoterConfig,
                 globalConfig,
                 storageWarmerService,
+                eventBus,
                 batchSize);
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
         when(rowGroupDataService.get(dispatcherSplitRowGroupKeyPair.getRight())).thenReturn(rowGroupData);

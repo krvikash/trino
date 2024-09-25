@@ -15,20 +15,9 @@ package io.trino.plugin.warp.dispatcher.warmup.fetcher;
 
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 
-import java.util.List;
-
 public class EmptyCacheMgrWarmupRuleFetcher
         implements WarmupRuleFetcher<CacheManagerRule>
 {
     @Override
-    public List<CacheManagerRule> getWarmupRules()
-    {
-        return List.of();
-    }
-
-    @Override
-    public List<CacheManagerRule> getWarmupRules(boolean force)
-    {
-        return List.of();
-    }
+    public void fetch() {}
 }

@@ -13,18 +13,16 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.fetcher;
 
-import com.google.common.eventbus.EventBus;
 import io.airlift.json.ObjectMapperProvider;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
-import io.trino.plugin.warp.config.MetricsConfig;
-import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
+import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.metrics.MetricsRegistry;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.WarmupRuleResult;
 import io.trino.spi.catalog.CatalogName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -33,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 
+import static io.trino.plugin.warp.dispatcher.warmup.fetcher.CacheMgrWarmupRuleCloudFetcher.WARM_FETCHER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -44,63 +43,106 @@ import static org.mockito.Mockito.when;
 
 public class WarmupRuleCloudFetcherTest
 {
+    CatalogNameProvider catalogNameProvider = new CatalogNameProvider("testCatalog");
+    private WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
+    private CloudVendorService cloudVendorService;
+    private WarmupRuleService warmupRuleService;
+    private WarmupRuleFetcherStats warmupRuleFetcherStats;
+    private WarmupRuleCloudFetcher warmupRuleCloudFetcher;
+
+    @BeforeEach
+    public void beforeEach()
+    {
+        warmupRuleCloudFetcherConfig = new WarmupRuleCloudFetcherConfig();
+        cloudVendorService = mock(CloudVendorService.class);
+        warmupRuleService = mock(WarmupRuleService.class);
+        warmupRuleFetcherStats = new WarmupRuleFetcherStats(WARM_FETCHER_STAT_GROUP);
+        MetricsManager metricsManager = mock(MetricsManager.class);
+        when(metricsManager.registerMetric(any())).thenReturn(warmupRuleFetcherStats);
+
+        warmupRuleCloudFetcher = new WarmupRuleCloudFetcher(
+                warmupRuleCloudFetcherConfig,
+                cloudVendorService,
+                warmupRuleService,
+                new CatalogName(catalogNameProvider.get()),
+                metricsManager,
+                new ObjectMapperProvider(),
+                mock(Timer.class));
+    }
+
     @Test
     public void testFetch()
             throws IOException
     {
-        WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = new WarmupRuleCloudFetcherConfig();
-        CloudVendorService cloudVendorService = mock(CloudVendorService.class);
-        WarmupRuleService warmupRuleService = mock(WarmupRuleService.class);
-        EventBus eventBus = mock(EventBus.class);
-        CatalogNameProvider catalogNameProvider = new CatalogNameProvider("testCatalog");
-        MetricsManager metricsManager = new MetricsManager(new MetricsRegistry(catalogNameProvider, new MetricsConfig()));
-
-        ObjectMapperProvider objectMapperProvider = new ObjectMapperProvider();
-        Timer timer = new Timer();
-        WarmupRuleCloudFetcher warmupRuleCloudFetcher = new WarmupRuleCloudFetcher(
-                warmupRuleCloudFetcherConfig,
-                cloudVendorService,
-                warmupRuleService,
-                eventBus,
-                new CatalogName("testCatalog"),
-                metricsManager,
-                objectMapperProvider,
-                timer);
-
         //nothing returned due warmupRuleCloudFetcherConfig.getStorePath == null
-        assertThat(warmupRuleCloudFetcher.getWarmupRules()).isEmpty();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(false)).isEmpty();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(true)).isEmpty();
         warmupRuleCloudFetcher.fetch();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(true)).isEmpty();
-        verify(eventBus, never()).post(any(WarmRulesChangedEvent.class));
+        assertThat(warmupRuleFetcherStats.getsuccess()).isZero();
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
 
         //nothing returned from CloudVendorService
-        warmupRuleCloudFetcherConfig.setStorePath("");
-        assertThat(warmupRuleCloudFetcher.getWarmupRules()).isEmpty();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(false)).isEmpty();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(true)).isEmpty();
-        warmupRuleCloudFetcher.fetch();
-        assertThat(warmupRuleCloudFetcher.getWarmupRules(true)).isEmpty();
-        verify(eventBus, never()).post(any(WarmRulesChangedEvent.class));
-
-        // call cloud
         warmupRuleCloudFetcherConfig.setStorePath("path");
-        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
-        storageObjectMetadata.setContentLength(1L);
         String path = CloudVendorService.concatenatePath(
                 warmupRuleCloudFetcherConfig.getStorePath(),
                 catalogNameProvider.get());
+        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         when(cloudVendorService.getObjectMetadata(path)).thenReturn(storageObjectMetadata);
 
+        warmupRuleCloudFetcher.fetch();
+        assertThat(warmupRuleFetcherStats.getsuccess()).isZero();
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
+
+        // call cloud
+        storageObjectMetadata = new StorageObjectMetadata();
+        storageObjectMetadata.setContentLength(1L);
+        when(cloudVendorService.getObjectMetadata(path)).thenReturn(storageObjectMetadata);
         Optional<String> optionalJson = Optional.of("[]");
         when(cloudVendorService.downloadCompressedFromCloud(path, true))
                 .thenReturn(optionalJson);
-
         when(warmupRuleService.replaceAll(anyList())).thenReturn(new WarmupRuleResult(List.of(), Map.of()));
 
         warmupRuleCloudFetcher.fetch();
 
-        verify(eventBus, times(1)).post(any(WarmRulesChangedEvent.class));
+        assertThat(warmupRuleFetcherStats.getsuccess()).isEqualTo(1L);
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, times(1)).replaceAll(anyList());
+    }
+
+    @Test
+    public void testNotUpdatedFlow()
+    {
+        //null returned from CloudVendorService
+        warmupRuleCloudFetcherConfig.setStorePath("path");
+        String path = CloudVendorService.concatenatePath(
+                warmupRuleCloudFetcherConfig.getStorePath(),
+                catalogNameProvider.get());
+
+        when(cloudVendorService.getObjectMetadata(path)).thenReturn(null);
+
+        warmupRuleCloudFetcher.fetch();
+
+        assertThat(warmupRuleFetcherStats.getsuccess()).isEqualTo(0L);
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
+
+        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
+        when(cloudVendorService.getObjectMetadata(path)).thenReturn(storageObjectMetadata);
+
+        warmupRuleCloudFetcher.fetch();
+
+        assertThat(warmupRuleFetcherStats.getsuccess()).isZero();
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
+
+        //validate nothing returned when nothing changed
+        storageObjectMetadata = new StorageObjectMetadata();
+        when(cloudVendorService.getObjectMetadata(path)).thenReturn(storageObjectMetadata);
+
+        warmupRuleCloudFetcher.fetch();
+
+        assertThat(warmupRuleFetcherStats.getsuccess()).isZero();
+        assertThat(warmupRuleFetcherStats.getfail()).isZero();
+        verify(warmupRuleService, never()).replaceAll(anyList());
     }
 }

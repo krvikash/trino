@@ -73,16 +73,17 @@ public class WarmupRuleService
     public static final String WARMUP_PATH = "warmup";
     public static final String TASK_NAME_GET = "warmup-rule-get";
 
+    private static final AtomicInteger idGen = new AtomicInteger(1);
+
     private final Connector proxiedConnector;
     private final StorageEngineConstants storageEngineConstants;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final FakeConnectorSessionProvider fakeConnectorSessionProvider;
-
     private final GlobalConfig globalConfig;
+
     private final Map<Integer, WarmupRule> cache;
     protected final ReadWriteLock readWriteLock;
-    private static final AtomicInteger idGen = new AtomicInteger(1);
 
     @Inject
     public WarmupRuleService(@ForWarp Connector proxiedConnector,
@@ -101,6 +102,34 @@ public class WarmupRuleService
 
         cache = new HashMap<>();
         readWriteLock = new ReentrantReadWriteLock();
+    }
+
+    public List<WarmupRule> getAll()
+    {
+        readWriteLock.readLock().lock();
+        try {
+            return ImmutableList.copyOf(cache.values());
+        }
+        finally {
+            readWriteLock.readLock().unlock();
+        }
+    }
+
+    public void delete(List<Integer> ids)
+    {
+        readWriteLock.writeLock().lock();
+        try {
+            ids.forEach(cache::remove);
+        }
+        catch (Exception e) {
+            logger.error("failed to delete new rules ids=%s.", ids);
+            throw new TrinoException(WarpErrorCode.WARP_RULE_CONFIGURATION_ERROR,
+                    "failed to save new rules config",
+                    e);
+        }
+        finally {
+            readWriteLock.writeLock().unlock();
+        }
     }
 
     public WarmupRuleResult save(List<WarmupRule> newWarmupRules)
@@ -129,9 +158,10 @@ public class WarmupRuleService
     public WarmupRuleResult replaceAll(List<WarmupRule> newWarmupRules)
             throws TrinoException
     {
+        WarmupRuleResult warmupRuleResult = validate(Collections.emptyList(), newWarmupRules);
+
         readWriteLock.writeLock().lock();
         try {
-            WarmupRuleResult warmupRuleResult = validate(Collections.emptyList(), newWarmupRules);
             List<WarmupRule> appliedRules = List.of();
             if (!warmupRuleResult.appliedRules().isEmpty() || newWarmupRules.isEmpty()) {
                 cache.clear();
@@ -186,7 +216,7 @@ public class WarmupRuleService
             else {
                 uniqueIds.add(uniqueRuleId);
             }
-            if (warmupRule.getId() != 0 && !existingRuleIds.contains(warmupRule.getId())) {
+            if ((!existingRuleIds.isEmpty() && (warmupRule.getId() != 0)) && !existingRuleIds.contains(warmupRule.getId())) {
                 String error = String.format("%d: New Rule id must be 0, or override an existing rule id",
                         WarpErrorCode.WARP_WARMUP_RULE_ID_NOT_VALID.getCode());
                 rejectedRules.computeIfAbsent(warmupRule, _ -> new HashSet<>()).add(error);
@@ -287,34 +317,6 @@ public class WarmupRuleService
             errors.add(String.format("%d: creation of %s warmUpType is not supported with Local Data Storage connector",
                     WarpErrorCode.WARP_INDEX_WARMUP_RULE_IS_NOT_ALLOWED.getCode(),
                     warmupRule.getWarmUpType()));
-        }
-    }
-
-    public List<WarmupRule> getAll()
-    {
-        readWriteLock.readLock().lock();
-        try {
-            return ImmutableList.copyOf(cache.values());
-        }
-        finally {
-            readWriteLock.readLock().unlock();
-        }
-    }
-
-    public void delete(List<Integer> ids)
-    {
-        readWriteLock.writeLock().lock();
-        try {
-            ids.forEach(cache::remove);
-        }
-        catch (Exception e) {
-            logger.error("failed to delete new rules ids=%s.", ids);
-            throw new TrinoException(WarpErrorCode.WARP_RULE_CONFIGURATION_ERROR,
-                    "failed to save new rules config",
-                    e);
-        }
-        finally {
-            readWriteLock.writeLock().unlock();
         }
     }
 

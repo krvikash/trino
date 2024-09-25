@@ -26,6 +26,7 @@ public class WarmupRuleCloudFetcherConfig
     public static final String STORE_PATH = "warp-speed.objectstore.store.path";
     public static final String REGION = "warp-speed.objectstore.store.region";
     public static final String WARMUP_FETCH_DURATION = "warp-speed.objectstore.warmup.fetch.duration";
+    public static final String WARMUP_FETCH_DELAY_DURATION = "warp-speed.objectstore.warmup.fetch.delay.duration";
 
     private Duration fetchDuration = Duration.ofHours(1);
     private Duration fetchDelayDuration = Duration.ofMinutes(1);
@@ -50,7 +51,7 @@ public class WarmupRuleCloudFetcherConfig
         return fetchDelayDuration;
     }
 
-    @Config("warp-speed.objectstore.warmup.fetch.delay.duration")
+    @Config(WARMUP_FETCH_DELAY_DURATION)
     public void setFetchDelayDuration(io.airlift.units.Duration fetchDelayDuration)
     {
         this.fetchDelayDuration = fetchDelayDuration.toJavaTime();

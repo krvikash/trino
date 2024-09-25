@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
+import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
@@ -44,13 +45,14 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextData;
 import io.trino.plugin.warp.dispatcher.query.classifier.WarmedWarmupTypes;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
+import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.type.TypeUtils;
+import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -72,6 +74,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -91,19 +94,22 @@ public class WorkerWarmingService
             Comparator.comparingInt((WarmupRule o) -> o.getWarpColumn().getOrder())
                     .thenComparingInt(o -> o.getPredicates().size());
     private static final Logger logger = Logger.get(WorkerWarmingService.class);
+    private final AtomicBoolean initialized = new AtomicBoolean();
 
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final WarmingServiceStats statsWarmingService;
     private final WarmExecutionTaskFactory warmExecutionTaskFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final WarmupDemoterService warmupDemoterService;
-    private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
+    private final WarmupRuleService warmupRuleService;
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final GlobalConfig globalConfig;
+    private final StorageWarmerService storageWarmerService;
+    private final EventBus eventBus;
+
     private ImmutableMap<WarmUpType, WarmupProperties> defaultRules;
     private Map<WarmUpType, Predicate<Type>> warmupTypeValidators;
-    private final StorageWarmerService storageWarmerService;
     private final int batchSize;
 
     @Inject
@@ -112,22 +118,24 @@ public class WorkerWarmingService
             WorkerTaskExecutorService workerTaskExecutorService,
             WarmExecutionTaskFactory warmExecutionTaskFactory,
             WarmupDemoterService warmupDemoterService,
-            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
+            WarmupRuleService warmupRuleService,
             RowGroupDataService rowGroupDataService,
             WarmupDemoterConfig warmupDemoterConfig,
             GlobalConfig globalConfig,
-            StorageWarmerService storageWarmerService)
+            StorageWarmerService storageWarmerService,
+            EventBus eventBus)
     {
         this(metricsManager,
                 dispatcherProxiedConnectorTransformer,
                 workerTaskExecutorService,
                 warmExecutionTaskFactory,
                 warmupDemoterService,
-                warmupRuleFetcher,
+                warmupRuleService,
                 rowGroupDataService,
                 warmupDemoterConfig,
                 globalConfig,
                 storageWarmerService,
+                eventBus,
                 MAX_BATCH_SIZE);
     }
 
@@ -137,11 +145,12 @@ public class WorkerWarmingService
             WorkerTaskExecutorService workerTaskExecutorService,
             WarmExecutionTaskFactory warmExecutionTaskFactory,
             WarmupDemoterService warmupDemoterService,
-            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
+            WarmupRuleService warmupRuleService,
             RowGroupDataService rowGroupDataService,
             WarmupDemoterConfig warmupDemoterConfig,
             GlobalConfig globalConfig,
             StorageWarmerService storageWarmerService,
+            EventBus eventBus,
             int batchSize)
     {
         this.warmExecutionTaskFactory = warmExecutionTaskFactory;
@@ -149,11 +158,12 @@ public class WorkerWarmingService
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
-        this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
+        this.warmupRuleService = requireNonNull(warmupRuleService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.globalConfig = requireNonNull(globalConfig);
-        this.storageWarmerService = storageWarmerService;
+        this.storageWarmerService = requireNonNull(storageWarmerService);
+        this.eventBus = requireNonNull(eventBus);
         this.batchSize = batchSize;
         initDefaultRules();
         initWarmUpTypeValidators();
@@ -696,10 +706,18 @@ public class WorkerWarmingService
         return dispatcherColumnsToWarm;
     }
 
-    private List<WarmupRule> getWarmupRules(SchemaTableName schemaTableName)
+    @VisibleForTesting
+    List<WarmupRule> getWarmupRules(SchemaTableName schemaTableName)
     {
-        return warmupRuleFetcher.getWarmupRules()
-                .stream()
+        List<WarmupRule> warmupRuleList = warmupRuleService.getAll();
+        if (!initialized.get()) {
+            if (warmupRuleList.isEmpty()) {
+                eventBus.post(new WarmRulesChangedEvent());
+            }
+            initialized.set(true);
+        }
+
+        return warmupRuleList.stream()
                 .collect(Collectors.groupingBy(warmupRule -> new SchemaTableName(warmupRule.getSchema(), warmupRule.getTable())))
                 .getOrDefault(schemaTableName, Collections.emptyList());
     }

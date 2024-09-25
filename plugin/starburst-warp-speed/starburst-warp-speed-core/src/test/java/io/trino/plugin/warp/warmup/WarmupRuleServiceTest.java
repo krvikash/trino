@@ -82,17 +82,17 @@ public class WarmupRuleServiceTest
     {
         columnMap = new HashMap<>();
 
-        this.storageEngineConstants = spy(new StubsStorageEngineConstants(1000));
+        storageEngineConstants = spy(new StubsStorageEngineConstants(1000));
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
-        this.connectorMetadata = mock(ConnectorMetadata.class);
+        connectorMetadata = mock(ConnectorMetadata.class);
         ConnectorTransactionHandle connectorTransactionHandle = mock(ConnectorTransactionHandle.class);
         Connector proxiedConnector = mock(Connector.class);
         when(dispatcherProxiedConnectorTransformer.createProxiedMetadata(eq(proxiedConnector), any(ConnectorSession.class)))
                 .thenReturn(Pair.of(connectorMetadata, connectorTransactionHandle));
-        this.tableHandle = mock(ConnectorTableHandle.class);
+        tableHandle = mock(ConnectorTableHandle.class);
         when(connectorMetadata.getTableHandle(any(ConnectorSession.class), any(SchemaTableName.class), eq(Optional.empty()), eq(Optional.empty()))).thenAnswer(inv -> tableHandle);
         when(connectorMetadata.getColumnHandles(any(ConnectorSession.class), eq(tableHandle))).thenAnswer((inv) -> columnMap);
-        this.globalConfig = new GlobalConfig();
+        globalConfig = new GlobalConfig();
         warmupRuleService = new WarmupRuleService(proxiedConnector,
                 storageEngineConstants,
                 new WarmupDemoterConfig(),

@@ -51,6 +51,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.EmptyRowGroupWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
@@ -208,5 +209,12 @@ public class DispatcherCacheManagerModule
     public CatalogNameProvider provideCatalogName()
     {
         return new CatalogNameProvider(cacheManagerName);
+    }
+
+    @Provides
+    @Singleton
+    public WarmupRuleProvider provideWarmupRuleProvider()
+    {
+        return new WarmupRuleProvider(Optional.empty());
     }
 }

@@ -190,7 +190,7 @@ public class WarmupTask
     @Audit
     public Map<String, List<WarmupColRuleData>> fetch()
     {
-        warmupRuleFetcher.getWarmupRules(true);
+        warmupRuleFetcher.fetch();
         List<Node> workers = coordinatorNodeManager.getWorkerNodes();
         return workers.stream()
                 .parallel()

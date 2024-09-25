@@ -26,6 +26,7 @@ import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
@@ -66,16 +67,19 @@ public class WorkerWarmupTask
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterService warmupDemoterService;
     private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
+    private final WarmupRuleProvider warmupRuleProvider;
 
     @Inject
     public WorkerWarmupTask(
             RowGroupDataService rowGroupDataService,
             WarmupDemoterService warmupDemoterService,
-            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher)
+            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
+            WarmupRuleProvider warmupRuleProvider)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
+        this.warmupRuleProvider = requireNonNull(warmupRuleProvider);
     }
 
     @Path(TASK_NAME_GET)
@@ -83,7 +87,7 @@ public class WorkerWarmupTask
     //@ApiOperation(value = "get", nickname = "workerWarmupGet", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public WarmupRulesUsageData get()
     {
-        List<WarmupRule> warmupRules = warmupRuleFetcher.getWarmupRules();
+        List<WarmupRule> warmupRules = warmupRuleProvider.getAll();
         Map<Integer, AtomicLong> warmupIdUsageMap = new HashMap<>();
         Map<WarmUpType, AtomicLong> defaultRulesMap = new HashMap<>();
 
@@ -115,7 +119,8 @@ public class WorkerWarmupTask
     @Audit
     public List<WarmupColRuleData> fetch()
     {
-        return warmupRuleFetcher.getWarmupRules(true)
+        warmupRuleFetcher.fetch();
+        return warmupRuleProvider.getAll()
                 .stream()
                 .map(WarmupRuleApiMapper::fromModel)
                 .toList();
