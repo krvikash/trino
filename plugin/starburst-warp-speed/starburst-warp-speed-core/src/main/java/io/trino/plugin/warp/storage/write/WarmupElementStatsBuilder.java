@@ -132,14 +132,14 @@ public class WarmupElementStatsBuilder
     {
         if (initialized) {
             if (val.compareTo(((Slice) this.minValue)) < 0) {
-                this.minValue = val;
+                this.minValue = val.copy();
             }
             if (val.compareTo(((Slice) this.maxValue)) > 0) {
-                this.maxValue = val;
+                this.maxValue = val.copy();
             }
         }
         else {
-            initialize(val);
+            initialize(val.copy());
         }
     }
 
