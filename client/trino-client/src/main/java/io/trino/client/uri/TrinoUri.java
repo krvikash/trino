@@ -499,7 +499,7 @@ public class TrinoUri
                 .principal(getUser())
                 .path(getPath().orElse(ImmutableList.of()))
                 .clientRequestTimeout(getTimeout())
-                .user(getSessionUser())
+                .sessionUser(getSessionUser())
                 .clientTags(getClientTags().orElse(ImmutableSet.of()))
                 .source(getSource().orElse(null))
                 .traceToken(getTraceToken())
