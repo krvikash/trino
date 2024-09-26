@@ -496,7 +496,7 @@ public class TrinoUri
     {
         return ClientSession.builder()
                 .server(getHttpUri())
-                .principal(getUser())
+                .user(getUser())
                 .path(getPath().orElse(ImmutableList.of()))
                 .clientRequestTimeout(getTimeout())
                 .sessionUser(getSessionUser())
