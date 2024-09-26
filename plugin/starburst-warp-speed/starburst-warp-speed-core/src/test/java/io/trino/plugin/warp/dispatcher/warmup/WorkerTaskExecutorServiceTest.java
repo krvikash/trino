@@ -98,6 +98,22 @@ public class WorkerTaskExecutorServiceTest
         TestSubmittableTask task1 = new TestSubmittableTask(key1, 1);
         TestSubmittableTask task2 = new TestSubmittableTask(key1, 1);
         TestSubmittableTask task3 = new TestSubmittableTask(key1, 1);
+        taskExecutorService.submitTask(task1, true);
+        taskExecutorService.submitTask(task2, true);
+        taskExecutorService.submitTask(task3, true);
+        taskExecutorService.taskFinished(key1);
+        taskExecutorService.taskFinished(key1);
+        taskExecutorService.taskFinished(key1);
+        assertThat(this.statsWorkerTaskExecutorService.gettask_scheduled()).isEqualTo(3);
+    }
+
+    @Test
+    public void testToMuchPendingShouldGetRejeced()
+    {
+        RowGroupKey key1 = new RowGroupKey("s", "t", "fp", 0, 0, 0, "", "");
+        TestSubmittableTask task1 = new TestSubmittableTask(key1, 1);
+        TestSubmittableTask task2 = new TestSubmittableTask(key1, 1);
+        TestSubmittableTask task3 = new TestSubmittableTask(key1, 1);
         TestSubmittableTask task4 = new TestSubmittableTask(key1, 1);
         TestSubmittableTask task5 = new TestSubmittableTask(key1, 1);
         taskExecutorService.submitTask(task1, true);
@@ -110,7 +126,8 @@ public class WorkerTaskExecutorServiceTest
         taskExecutorService.taskFinished(key1);
         taskExecutorService.taskFinished(key1);
         taskExecutorService.taskFinished(key1);
-        assertThat(this.statsWorkerTaskExecutorService.gettask_scheduled()).isEqualTo(5);
+        assertThat(this.statsWorkerTaskExecutorService.gettask_scheduled()).isEqualTo(4);
+        assertThat(this.statsWorkerTaskExecutorService.gettask_skipped_due_queue_size()).isEqualTo(1);
     }
 
     @Test

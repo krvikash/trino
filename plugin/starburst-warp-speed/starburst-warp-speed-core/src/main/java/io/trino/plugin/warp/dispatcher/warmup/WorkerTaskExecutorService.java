@@ -152,7 +152,7 @@ public class WorkerTaskExecutorService
         SubmissionResult ret = SubmissionResult.SCHEDULED;
         lock.lock();
         try {
-            if (submittedRowGroups.size() < queueSize) {
+            if (submittedRowGroups.size() + pendingTasks.size() < queueSize) {
                 UUID newTaskId = task.getId();
                 try {
                     UUID savedTaskId = submittedRowGroups.computeIfAbsent(task.getRowGroupKey(), k -> {
@@ -164,8 +164,14 @@ public class WorkerTaskExecutorService
                     if (!savedTaskId.equals(newTaskId)) {
                         if (allowConflicts) {
                             statsWorkerTaskExecutorService.inctask_pended();
-                            pendingTasks.put(task.getRowGroupKey(), task);
-                            ret = SubmissionResult.CONFLICT;
+                            if (pendingTasks.get(task.getRowGroupKey()).size() < 3) { // prevent too many conflicts on the same key
+                                ret = SubmissionResult.CONFLICT;
+                                pendingTasks.put(task.getRowGroupKey(), task);
+                            }
+                            else {
+                                statsWorkerTaskExecutorService.inctask_skipped_due_queue_size();
+                                ret = SubmissionResult.REJECTED;
+                            }
                         }
                         else {
                             ret = SubmissionResult.REJECTED;
