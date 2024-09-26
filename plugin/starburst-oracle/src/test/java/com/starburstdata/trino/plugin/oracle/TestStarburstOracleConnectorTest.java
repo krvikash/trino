@@ -12,13 +12,23 @@ package com.starburstdata.trino.plugin.oracle;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
+import io.trino.plugin.jdbc.JdbcColumnHandle;
+import io.trino.plugin.jdbc.JdbcSortItem;
+import io.trino.plugin.jdbc.JdbcTableHandle;
+import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.oracle.BaseOracleConnectorTest;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.sql.planner.assertions.PlanMatchPattern;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.TableScanNode;
+import io.trino.sql.planner.plan.TopNNode;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.SharedResource;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
+import oracle.jdbc.OracleTypes;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -26,13 +36,29 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
+import java.util.function.Predicate;
 
+import static com.google.common.base.Predicates.equalTo;
 import static com.google.common.base.Strings.repeat;
 import static com.starburstdata.trino.plugin.oracle.OracleDataTypes.oracleTimestamp3TimeZoneDataType;
 import static com.starburstdata.trino.plugin.oracle.OracleDataTypes.prestoTimestampWithTimeZoneDataType;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.UNSUPPORTED_TYPE_HANDLING;
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
+import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.VarcharType.createVarcharType;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.sort;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.topN;
+import static io.trino.sql.planner.plan.TopNNode.Step.FINAL;
+import static io.trino.sql.tree.SortItem.NullOrdering.LAST;
+import static io.trino.sql.tree.SortItem.Ordering.ASCENDING;
 import static io.trino.testing.datatype.DataType.timestampDataType;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -370,6 +396,182 @@ public class TestStarburstOracleConnectorTest
                     prestoTimestampWithTimeZoneDataType().toLiteral(pacific1976))))
                     .isFullyPushedDown();
         }
+    }
+
+    @Test
+    public void testImplicitCastJoinPushdownWithTopN()
+    {
+        Session session = joinPushdownEnabled(getSession());
+        try (TestTable leftTable = new TestTable(
+                getQueryRunner()::execute,
+                "left_table_",
+                "(id int, varchar_50 varchar(50))",
+                ImmutableList.of("(1, 'India')", "(2, 'Poland')"));
+                TestTable rightTable = new TestTable(
+                        getQueryRunner()::execute,
+                        "right_table_",
+                        "(varchar_100 varchar(100), capital varchar)",
+                        ImmutableList.of("('India', 'New Delhi')", " ('France', 'Paris')"))) {
+            assertThat(query(session, "SELECT id FROM %s l LEFT JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY l.varchar_50 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .matches("VALUES (CAST(1 AS DECIMAL(10,0)))")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT id FROM %s l RIGHT JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .matches("VALUES (CAST(null AS DECIMAL(10,0)))")
+                    .isFullyPushedDown();
+
+            assertThat(query(session, "SELECT id FROM %s l LEFT JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .matches("VALUES (CAST(1 AS DECIMAL(10,0)))")
+                    .isNotFullyPushedDown(topNOverTableScans());
+            assertThat(query(session, "SELECT id FROM %s l RIGHT JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY l.varchar_50 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .matches("VALUES (CAST(1 AS DECIMAL(10,0)))")
+                    .isNotFullyPushedDown(topNOverTableScans());
+            assertThat(query(session, "SELECT id FROM %s l INNER JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY l.varchar_50 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .matches("VALUES (CAST(1 AS DECIMAL(10,0)))")
+                    .isNotFullyPushedDown(topNOverTableScans());
+            assertThat(query(session, "SELECT id FROM %s l INNER JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .matches("VALUES (CAST(1 AS DECIMAL(10,0)))")
+                    .isNotFullyPushedDown(topNOverTableScans());
+            assertThat(query(session, "SELECT id FROM %s l FULL JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY l.varchar_50 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .matches("VALUES (CAST(1 AS DECIMAL(10,0)))")
+                    .isNotFullyPushedDown(topNOverTableScans());
+            assertThat(query(session, "SELECT id FROM %s l FULL JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .matches("VALUES (CAST(null AS DECIMAL(10,0)))")
+                    .isNotFullyPushedDown(topNOverTableScans());
+        }
+    }
+
+    @Test
+    public void testPlanForImplicitCastJoinPushdownWithTopN()
+    {
+        Session session = joinPushdownEnabled(getSession());
+        try (TestTable leftTable = new TestTable(
+                getQueryRunner()::execute,
+                "left_table_",
+                "(id int, varchar_50 varchar(50))",
+                ImmutableList.of("(1, 'India')", "(2, 'Poland')"));
+                TestTable rightTable = new TestTable(
+                        getQueryRunner()::execute,
+                        "right_table_",
+                        "(varchar_100 varchar(100))",
+                        ImmutableList.of("('India')", "('France')"))) {
+            JdbcTypeHandle integerJdbcTypeHandle = new JdbcTypeHandle(OracleTypes.INTEGER, Optional.of("Number"), Optional.of(10), Optional.of(0), Optional.empty(), Optional.empty());
+            JdbcTypeHandle varchar50JdbcTypeHandle = new JdbcTypeHandle(OracleTypes.VARCHAR, Optional.of("VARCHAR2"), Optional.of(50), Optional.empty(), Optional.empty(), Optional.empty());
+            JdbcTypeHandle varchar100JdbcTypeHandle = new JdbcTypeHandle(OracleTypes.VARCHAR, Optional.of("VARCHAR2"), Optional.of(100), Optional.empty(), Optional.empty(), Optional.empty());
+
+            JdbcColumnHandle idColumnHandle = new JdbcColumnHandle("ID_1", integerJdbcTypeHandle, INTEGER);
+            JdbcColumnHandle varchar50ColumnHandle = new JdbcColumnHandle("VARCHAR_50_2", varchar50JdbcTypeHandle, createVarcharType(50));
+            JdbcSortItem leftTableJdbcSortItem = new JdbcSortItem(varchar50ColumnHandle, ASC_NULLS_LAST);
+
+            JdbcColumnHandle varchar100ColumnHandle = new JdbcColumnHandle("VARCHAR_100_3", varchar100JdbcTypeHandle, createVarcharType(100));
+            JdbcSortItem rightTableJdbcSortItem = new JdbcSortItem(varchar100ColumnHandle, ASC_NULLS_LAST);
+
+            // Left Join with Order by using left table column
+            assertThat(query(session, "SELECT id FROM %s l LEFT JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY l.varchar_50 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .hasPlan(
+                            sortOrdersMatchPattern(
+                                    leftTableJdbcSortItem,
+                                    1,
+                                    ImmutableMap.of("id", equalTo(idColumnHandle))));
+
+            // Right Join with Order by using right table column
+            assertThat(query(session, "SELECT id FROM %s l RIGHT JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .hasPlan(
+                            sortOrdersMatchPattern(
+                                    rightTableJdbcSortItem,
+                                    1,
+                                    ImmutableMap.of("id", equalTo(idColumnHandle))));
+
+            // Left Join with Order by using right table column
+            assertThat(query(session, "SELECT id FROM %s l LEFT JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .hasPlan(
+                            topNMatchPattern(
+                                    "VARCHAR_100",
+                                    1,
+                                    sortOrdersMatchPattern(
+                                            rightTableJdbcSortItem,
+                                            1,
+                                            ImmutableMap.of("id", equalTo(idColumnHandle), "VARCHAR_100", equalTo(varchar100ColumnHandle)))));
+
+            // Right Join with Order by using left table column
+            assertThat(query(session, "SELECT id FROM %s l RIGHT JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY l.varchar_50 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .hasPlan(
+                            topNMatchPattern(
+                                    "VARCHAR_50",
+                                    1,
+                                    sortOrdersMatchPattern(
+                                            leftTableJdbcSortItem,
+                                            1,
+                                            ImmutableMap.of("id", equalTo(idColumnHandle), "VARCHAR_50", equalTo(varchar50ColumnHandle)))));
+
+            // Inner Join with Order by using left table column
+            assertThat(query(session, "SELECT id FROM %s l INNER JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY l.varchar_50 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .hasPlan(
+                            topNMatchPattern(
+                                    "VARCHAR_50",
+                                    1,
+                                    sortOrdersMatchPattern(
+                                            leftTableJdbcSortItem,
+                                            1,
+                                            ImmutableMap.of("id", equalTo(idColumnHandle), "VARCHAR_50", equalTo(varchar50ColumnHandle)))));
+
+            // Inner Join with Order by using right table column
+            JdbcColumnHandle varchar100SyntheticColumnHandle = new JdbcColumnHandle("_pfgnrtd_0_2", varchar100JdbcTypeHandle, createVarcharType(100));
+            JdbcSortItem rightTableColumnSyntheticJdbcSortItem = new JdbcSortItem(varchar100SyntheticColumnHandle, ASC_NULLS_LAST);
+            assertThat(query(session, "SELECT id FROM %s l INNER JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .hasPlan(
+                            topNMatchPattern(
+                                    "_pfgnrtd_0_2",
+                                    1,
+                                    sortOrdersMatchPattern(
+                                            rightTableColumnSyntheticJdbcSortItem,
+                                            1,
+                                            ImmutableMap.of("id", equalTo(idColumnHandle), "_pfgnrtd_0_2", equalTo(varchar100SyntheticColumnHandle)))));
+
+            // Full Join with Order by using left table column
+            assertThat(query(session, "SELECT id FROM %s l FULL JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY l.varchar_50 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .hasPlan(
+                            topNMatchPattern(
+                                    "VARCHAR_50",
+                                    1,
+                                    sortOrdersMatchPattern(
+                                            leftTableJdbcSortItem,
+                                            1,
+                                            ImmutableMap.of("id", equalTo(idColumnHandle), "VARCHAR_50", equalTo(varchar50ColumnHandle)))));
+
+            // Full Join with Order by using right table column
+            assertThat(query(session, "SELECT id FROM %s l FULL JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
+                    .hasPlan(
+                            topNMatchPattern(
+                                    "_pfgnrtd_0_2",
+                                    1,
+                                    sortOrdersMatchPattern(
+                                            rightTableJdbcSortItem,
+                                            1,
+                                            ImmutableMap.of("id", equalTo(idColumnHandle), "_pfgnrtd_0_2", equalTo(varchar100ColumnHandle)))));
+        }
+    }
+
+    private static PlanMatchPattern topNOverTableScans()
+    {
+        return node(TopNNode.class, anyTree(node(TableScanNode.class)));
+    }
+
+    private static PlanMatchPattern topNMatchPattern(String field, int limit, PlanMatchPattern source)
+    {
+        return anyTree(topN(limit, ImmutableList.of(sort(field, ASCENDING, LAST)), FINAL, source));
+    }
+
+    private static PlanMatchPattern sortOrdersMatchPattern(JdbcSortItem jdbcSortItem, int limit, Map<String, Predicate<ColumnHandle>> expectedColumns)
+    {
+        return anyTree(
+                tableScan(
+                        table -> {
+                            JdbcTableHandle jdbcTableHandle = (JdbcTableHandle) table;
+                            return jdbcTableHandle.getSortOrder().equals(Optional.of(ImmutableList.of(jdbcSortItem)))
+                                    && jdbcTableHandle.getLimit().equals(OptionalLong.of(limit));
+                        },
+                        TupleDomain.all(),
+                        expectedColumns));
     }
 
     @Test
