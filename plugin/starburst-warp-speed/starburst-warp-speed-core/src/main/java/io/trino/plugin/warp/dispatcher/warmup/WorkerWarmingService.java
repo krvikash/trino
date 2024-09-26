@@ -198,6 +198,7 @@ public class WorkerWarmingService
                     iterationCount,
                     0,
                     WorkerTaskExecutorService.TaskExecutionType.CLASSIFY);
+            workerTaskExecutorService.initImportExport(session);
             WorkerTaskExecutorService.SubmissionResult submissionResult = workerTaskExecutorService.submitTask(prioritizeTask, true);
 
             if (submissionResult == WorkerTaskExecutorService.SubmissionResult.CONFLICT) {

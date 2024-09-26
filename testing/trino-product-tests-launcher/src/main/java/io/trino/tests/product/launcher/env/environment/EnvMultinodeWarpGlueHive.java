@@ -20,10 +20,6 @@ import io.trino.tests.product.launcher.env.common.StandardMultinode;
 import io.trino.tests.product.launcher.env.common.TestsEnvironment;
 import io.trino.tests.product.launcher.testcontainers.PortBinder;
 
-import java.util.Map;
-
-import static io.trino.tests.product.launcher.env.EnvironmentContainers.TESTS;
-
 @TestsEnvironment
 public final class EnvMultinodeWarpGlueHive
         extends MultinodeWarpGlueBase
@@ -41,10 +37,5 @@ public final class EnvMultinodeWarpGlueHive
     public void extendEnvironment(Environment.Builder builder)
     {
         super.extendEnvironment(builder);
-
-        String s3TestBucket = requireEnv("S3_BUCKET");
-        Map<String, String> env = Map.of("S3_BUCKET", s3TestBucket);
-
-        builder.configureContainer(TESTS, container -> container.withEnv(env));
     }
 }

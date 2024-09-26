@@ -19,7 +19,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
-import static io.trino.tests.product.TestGroups.WARP_SPEED_HIVE_2;
+import static io.trino.tests.product.TestGroups.WARP_SPEED_AWS_HIVE;
 import static io.trino.tests.product.warp.utils.TestUtils.countMethodsWithAnnotation;
 import static java.util.Objects.requireNonNull;
 
@@ -46,7 +46,7 @@ public class TestWarpSpeedAws
         return String.format("s3://%s/%s", s3TestBucket, schemaName);
     }
 
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synth_clouds")
+    @Test(groups = {WARP_SPEED_AWS_HIVE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synth_clouds")
     public void synth_clouds(TestFormat testFormat)
             throws IOException
     {

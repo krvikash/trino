@@ -19,6 +19,8 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.annotation.ForWarp;
+import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
@@ -29,6 +31,7 @@ import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
+import io.trino.spi.connector.ConnectorSession;
 
 import java.util.Comparator;
 import java.util.Iterator;
@@ -51,6 +54,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isImportExportEnabled;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -74,6 +78,8 @@ public class WorkerTaskExecutorService
     private ScheduledExecutorService scheduledCloudExecutorService;
     private final int queueSize;
     private final GlobalConfig globalConfig;
+    private final CloudVendorConfig cloudVendorConfig;
+    private boolean isImportExportInitialized;
 
     @Inject
     public WorkerTaskExecutorService(
@@ -82,6 +88,7 @@ public class WorkerTaskExecutorService
             ConnectorSync connectorSync,
             MetricsManager metricsManager,
             GlobalConfig globalConfig,
+            @ForWarp CloudVendorConfig cloudVendorConfig,
             WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         this.nativeConfig = requireNonNull(nativeConfig);
@@ -90,6 +97,7 @@ public class WorkerTaskExecutorService
         this.globalConfig = requireNonNull(globalConfig);
         requireNonNull(warmupDemoterConfig);
         this.queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
+        this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         warpInitializedServiceRegistry.addService(this);
     }
 
@@ -97,9 +105,17 @@ public class WorkerTaskExecutorService
     public void init()
     {
         prioritizeExecutorService = getPrioritizeExecutorService();
-        cloudExecutorService = getCloudExecutorService();
-        scheduledCloudExecutorService = getScheduledCloudExecutorService();
+        initImportExport(null);
         proxyExecutorService = getProxyExecutorService(connectorSync.isCatalogReducedResources() ? nativeConfig.getTaskMinWorkerThreads() : nativeConfig.getTaskMaxWorkerThreads());
+    }
+
+    public void initImportExport(ConnectorSession session)
+    {
+        if (!isImportExportInitialized && isImportExportEnabled(globalConfig, cloudVendorConfig, session)) {
+            cloudExecutorService = getCloudExecutorService();
+            scheduledCloudExecutorService = getScheduledCloudExecutorService();
+            isImportExportInitialized = true;
+        }
     }
 
     private ExecutorService getPrioritizeExecutorService()

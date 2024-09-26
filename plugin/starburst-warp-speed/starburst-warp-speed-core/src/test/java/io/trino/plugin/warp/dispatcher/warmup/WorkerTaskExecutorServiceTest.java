@@ -15,6 +15,7 @@ package io.trino.plugin.warp.dispatcher.warmup;
 
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
+import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
@@ -47,12 +48,17 @@ public class WorkerTaskExecutorServiceTest
         this.statsWorkerTaskExecutorService = new WorkerTaskExecutorServiceStats(WORKER_TASK_EXECUTOR_STAT_GROUP);
         MetricsManager metricManager = mock(MetricsManager.class);
         when(metricManager.registerMetric(any())).thenReturn(statsWorkerTaskExecutorService);
+        GlobalConfig globalConfig = new GlobalConfig();
+        globalConfig.setEnableImportExport(true);
+        CloudVendorConfig cloudVendorConfig = new CloudVendorConfig();
+        cloudVendorConfig.setStoreType("s3");
         this.taskExecutorService = new WorkerTaskExecutorService(
                 new WarmupDemoterConfig(),
                 new NativeConfig(),
                 mock(ConnectorSync.class),
                 metricManager,
-                new GlobalConfig(),
+                globalConfig,
+                cloudVendorConfig,
                 mock(WarpInitializedServiceRegistry.class));
         this.taskExecutorService.init();
     }
