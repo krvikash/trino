@@ -307,4 +307,9 @@ public interface StorageEngine
     {
         throw new UnsupportedOperationException();
     }
+
+    default boolean isLoaded()
+    {
+        return true;
+    }
 }

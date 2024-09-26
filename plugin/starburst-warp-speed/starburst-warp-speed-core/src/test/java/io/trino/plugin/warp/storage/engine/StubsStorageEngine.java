@@ -254,6 +254,12 @@ public class StubsStorageEngine
         return "";
     }
 
+    @Override
+    public boolean isLoaded()
+    {
+        return true;
+    }
+
     public synchronized void clear()
     {
         throwOnColletRuntimeExceptionList.clear();

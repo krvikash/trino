@@ -42,6 +42,8 @@ public class NativeStorageEngine
     private static final Logger logger = Logger.get(NativeStorageEngine.class);
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final ExceptionThrower exceptionThrower; // we keep a reference to hold this object for native layer ref
+    private final boolean loaded;
+
     // file API
     private final MethodHandle mFileOpen;
     private final MethodHandle mFileClose;
@@ -125,6 +127,7 @@ public class NativeStorageEngine
                     nativeConfig.getEnableCompression(),
                     nativeConfig.getExceptionalListCompression(),
                     globalConfig.getDebugWarming());
+            loaded = true;
         }
         catch (Throwable t) {
             logger.error(t, "failed loading storage engine");
@@ -316,6 +319,12 @@ public class NativeStorageEngine
             logger.error(t, "failed to clear native cache");
             throw new RuntimeException("failed to clear native cache");
         }
+    }
+
+    @Override
+    public boolean isLoaded()
+    {
+        return loaded;
     }
 
     @Override

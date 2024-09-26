@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.engine.nativeimpl;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 
 import java.lang.foreign.FunctionDescriptor;
@@ -65,10 +66,14 @@ public class NativeStorageEngineConstants
     private final int matchTxSize;
 
     @Inject
-    public NativeStorageEngineConstants()
+    public NativeStorageEngineConstants(StorageEngine storageEngine)
     {
         try {
             SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
+
+            if (!storageEngine.isLoaded()) {
+                throw new RuntimeException("storage engine not loaded");
+            }
 
             // page size
             pageSizeShift = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_page_size_shift");
