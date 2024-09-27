@@ -20,7 +20,6 @@ import io.airlift.log.LogJmxModule;
 import io.airlift.log.Logger;
 import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
-import io.airlift.tracetoken.TraceTokenModule;
 import io.starburst.stargate.buffer.BufferServiceSystemRequirements;
 import io.starburst.stargate.buffer.discovery.server.failures.FailuresTrackingManagerModule;
 import org.weakref.jmx.guice.MBeanModule;
@@ -44,7 +43,6 @@ public final class DiscoveryServer
                 new JmxModule(),
                 new JmxOpenMetricsModule(),
                 new LogJmxModule(),
-                new TraceTokenModule(),
                 DiscoveryManagerModule.withSystemTicker(),
                 FailuresTrackingManagerModule.withSystemTicker(),
                 new ServerModule());

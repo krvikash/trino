@@ -104,13 +104,9 @@
 
         <dependency>
             <groupId>io.airlift</groupId>
-            <artifactId>trace-token</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.airlift</groupId>
             <artifactId>units</artifactId>
         </dependency>
+
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
             <artifactId>galaxy-buffer-client-common</artifactId>

@@ -21,7 +21,6 @@ import io.airlift.log.LogJmxModule;
 import io.airlift.log.Logger;
 import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
-import io.airlift.tracetoken.TraceTokenModule;
 import io.airlift.tracing.TracingModule;
 import io.starburst.stargate.buffer.BufferServiceSystemRequirements;
 import io.starburst.stargate.buffer.status.StatusModule;
@@ -53,7 +52,6 @@ public final class DataServer
                 new JmxModule(),
                 new JmxOpenMetricsModule(),
                 new LogJmxModule(),
-                new TraceTokenModule(),
                 new TracingModule("buffer-data-server", version),
                 new EventModule(),
                 new StatusModule(),

@@ -23,7 +23,6 @@ import io.airlift.jmx.testing.TestingJmxModule;
 import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
-import io.airlift.tracetoken.TraceTokenModule;
 import io.starburst.stargate.buffer.discovery.server.DiscoveryManagerModule;
 import io.starburst.stargate.buffer.discovery.server.ServerModule;
 import io.starburst.stargate.buffer.discovery.server.failures.FailuresTrackingManagerModule;
@@ -60,7 +59,6 @@ public class TestingDiscoveryServer
                 new MBeanModule(),
                 new TestingJmxModule(),
                 new LogJmxModule(),
-                new TraceTokenModule(),
                 new ServerModule());
 
         modules.add(timeTicker
