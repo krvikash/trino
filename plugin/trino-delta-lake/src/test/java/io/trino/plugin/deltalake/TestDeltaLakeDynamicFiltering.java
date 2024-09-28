@@ -129,7 +129,7 @@ public class TestDeltaLakeDynamicFiltering
                 splits.addAll(splitSource.getNextBatch(1000).get().getSplits());
             }
             splitSource.close();
-            assertThat(splits.isEmpty()).isFalse();
+            assertThat(splits).isNotEmpty();
         }
         finally {
             dynamicFilterBlocked.complete(null);
