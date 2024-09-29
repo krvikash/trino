@@ -45,15 +45,20 @@ public class NativeConnectorSync
         implements ConnectorSync
 {
     private static final Logger logger = Logger.get(NativeConnectorSync.class);
+    private static final int SHARED_CONNECTOR_MEMORY_SIZE = 1024;
+    private static final int ALLOC_ALIGNMENT = Integer.BYTES;
+
     private final CatalogName catalogName;
     private final EventBus eventBus;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor(daemonThreadsNamed("warp-speed-native-connector-sync-%s"));
     private final WorkerCapacityManager workerCapacityManager;
     private WarmupDemoterService warmupDemoterService;
     private MemorySegment catalogContext;
+    private MemorySegment sharedConnectorMemory;
 
     // syncher API
     private final MethodHandle mGetContextSize;
+    private final MethodHandle mSetSharedConnectorMemory;
     private final MethodHandle mUnregister;
     private final MethodHandle mDemotePrepare;
     private final MethodHandle mDemoteStart;
@@ -70,6 +75,8 @@ public class NativeConnectorSync
 
             mGetContextSize = linker.downcallHandle(libraryHandle.find("syncher_get_context_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
+            mSetSharedConnectorMemory = linker.downcallHandle(libraryHandle.find("syncher_set_shared_connector_memory").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS));
             mUnregister = linker.downcallHandle(libraryHandle.find("syncher_unregister").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
             mDemotePrepare = linker.downcallHandle(libraryHandle.find("syncher_demote_prepare").orElseThrow(),
@@ -87,8 +94,7 @@ public class NativeConnectorSync
             if (contextSize <= 0) {
                 throw new RuntimeException("failed to get native connector context size");
             }
-            int alignment = Integer.BYTES;
-            this.catalogContext = Arena.ofAuto().allocate(contextSize + alignment, alignment);
+            this.catalogContext = Arena.ofAuto().allocate(contextSize + ALLOC_ALIGNMENT, ALLOC_ALIGNMENT);
         }
         catch (Throwable t) {
             logger.error(t, "failed loading native connector");
@@ -102,8 +108,30 @@ public class NativeConnectorSync
         this.warmupDemoterService = warmupDemoterService;
 
         try {
-            register(catalogContext.address(), catalogName.toString(), StorageCollectorCallBack.class, 1800);
-            logger.info("catalog name %s", catalogName);
+            // register and get memory address. note that the name is not passed to native. no need.
+            long sharedConnectorMemoryAddress = register(catalogContext.address(), StorageCollectorCallBack.class);
+            // in case no memory was allocated yet, allocate it
+            if (sharedConnectorMemoryAddress == 0) {
+                // allocate the memory as global so it will leave even if this connector is unregistered
+                sharedConnectorMemory = Arena.global().allocate(SHARED_CONNECTOR_MEMORY_SIZE + ALLOC_ALIGNMENT, ALLOC_ALIGNMENT);
+                // set the address and check if it was the one taken
+                sharedConnectorMemoryAddress = (long) mSetSharedConnectorMemory.invokeExact(sharedConnectorMemory);
+                logger.info("catalog %s set address %d and got %d", catalogName, sharedConnectorMemory.address(), sharedConnectorMemoryAddress);
+                if (sharedConnectorMemoryAddress != sharedConnectorMemory.address()) {
+                    sharedConnectorMemory = null; // throwing it away since another one was kept in storage engine
+                }
+            }
+
+            // create the memory segment if needed
+            if (sharedConnectorMemory == null) {
+                // can happen if we never allocated it or threw it away
+                sharedConnectorMemory = MemorySegment.ofAddress(sharedConnectorMemoryAddress).reinterpret(SHARED_CONNECTOR_MEMORY_SIZE);
+            }
+            // test we can access the memory
+            final int magic = sharedConnectorMemory.get(ValueLayout.JAVA_INT, 0);
+
+            // complete the regisgtration
+            logger.info("catalog name %s sharedConnectorMemory %s magic %x", catalogName, sharedConnectorMemory, magic);
             eventBus.post(new ConnectorSyncInitializedEvent(true));
         }
         catch (Throwable t) {
@@ -233,5 +261,5 @@ public class NativeConnectorSync
         Future<?> unused = executorService.submit(() -> warmupDemoterService.connectorSyncDemoteEnd(demoteSequence, highestPriority));
     }
 
-    private native void register(long context, String catalogName, Class<StorageCollectorCallBack> storageCollector, int timeoutSec);
+    private native long register(long context, Class<StorageCollectorCallBack> storageCollector);
 }
