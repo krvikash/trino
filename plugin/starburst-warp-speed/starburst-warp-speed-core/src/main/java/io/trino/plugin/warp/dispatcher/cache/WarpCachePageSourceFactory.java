@@ -166,7 +166,7 @@ public class WarpCachePageSourceFactory
                     readErrorHandler,
                     globalConfig);
             statsDispatcherPageSource.addwarp_collect_columns(planSignature.getColumns().size());
-            return Optional.of(dispatcherPageSource);
+            return Optional.of(new WarpCachePageSource(dispatcherPageSource, customStatsContext));
         }
         catch (Exception e) {
             RowGroupData afterLockRowGroupData = rowGroupDataService.get(rowGroupKey);
