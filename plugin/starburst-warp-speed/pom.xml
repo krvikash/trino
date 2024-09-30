@@ -21,7 +21,7 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
-        <dep.lucene.version>9.11.1</dep.lucene.version>
+        <dep.lucene.version>9.12.0</dep.lucene.version>
         <dep.warp-speed-native.version>157</dep.warp-speed-native.version>
         <air.compiler.fail-warnings>true</air.compiler.fail-warnings>
     </properties>
@@ -41,6 +41,11 @@
             <dependency>
                 <groupId>org.apache.lucene</groupId>
                 <artifactId>lucene-analysis-common</artifactId>
+                <version>${dep.lucene.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-backward-codecs</artifactId>
                 <version>${dep.lucene.version}</version>
             </dependency>
             <dependency>
