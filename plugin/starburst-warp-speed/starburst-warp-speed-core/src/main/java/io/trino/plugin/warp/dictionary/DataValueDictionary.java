@@ -86,19 +86,20 @@ public class DataValueDictionary
         if (index == null) {
             addKeyLock.lock();
             try {
-                index = writeDictionary.computeIfAbsent(key, (x) -> {
-                    int incDictionaryWeight = addedWeight(key);
+                Object value = getKeyValue(key);
+                index = writeDictionary.computeIfAbsent(value, (x) -> {
+                    int incDictionaryWeight = addedWeight(value);
                     if (writeDictionary.size() == dictionaryMaxSize || (incDictionaryWeight + dictionaryWeight > maxDictionaryCacheWeight)) {
                         throw new DictionaryMaxException("dictionary get failed", WarmUpElementState.State.FAILED_TEMPORARILY, dictionaryKey);
                     }
                     try {
                         increaseDictionaryWeight(incDictionaryWeight);
                         int newIndex = writeDictionary.size();
-                        readDictionary.add(key);
+                        readDictionary.add(value);
                         return (short) newIndex;
                     }
                     catch (Exception e) {
-                        logger.error(e, "failed to append key %s to dictionary %s", key, this);
+                        logger.error(e, "failed to append key %s to dictionary %s", value, this);
                         throw new RuntimeException(e);
                     }
                 });
@@ -108,6 +109,14 @@ public class DataValueDictionary
             }
         }
         return index;
+    }
+
+    private Object getKeyValue(Object key)
+    {
+        if (key instanceof Slice && !((Slice) key).isCompact()) {
+            return ((Slice) key).copy();
+        }
+        return key;
     }
 
     // we assume this API is called under a lock to get a dictionary reference, thus no need to take the key lock
