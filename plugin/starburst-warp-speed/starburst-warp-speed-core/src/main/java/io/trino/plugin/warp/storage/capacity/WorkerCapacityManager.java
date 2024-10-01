@@ -192,6 +192,9 @@ public class WorkerCapacityManager
 
         try {
             warpDir = new File(localStorePath);
+            if (!warpDir.exists()) {
+                warpDir = warpDir.getParentFile();
+            }
             totalCapacity = warpDir.getTotalSpace(); // As we are the sole users of the mount we can use total space
             statsWarmupDemoter.addtotalUsage(totalCapacity);
             logger.info("totalCapacity %dMB", totalCapacity >> 20);
@@ -237,6 +240,17 @@ public class WorkerCapacityManager
                 String[] fileList = localStore.list();
                 boolean cleaned = ((fileList == null) || (fileList.length == 0));
                 int iterations = 0;
+
+                try {
+                    if (!cleaned) {
+                        FileUtils.deleteDirectory(localStore);
+                        localStore.mkdirs();
+                        cleaned = true;
+                    }
+                }
+                catch (IOException io) {
+                    logger.warn(io, "Failed to delete directory %s", localStorePath);
+                }
 
                 while (!cleaned && (iterations < 3)) {
                     try {
