@@ -73,7 +73,6 @@ public final class EnvMultinodeAllConnectors
                         "pinot",
                         "postgresql",
                         "prometheus",
-                        "raptor_legacy",
                         "redis",
                         "redshift",
                         // "snowflake", excluded to avoid confusion with Starburst's connector with similar name
