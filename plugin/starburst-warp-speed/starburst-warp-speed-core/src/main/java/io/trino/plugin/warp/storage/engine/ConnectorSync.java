@@ -57,4 +57,14 @@ public interface ConnectorSync
     {
         throw new UnsupportedOperationException();
     }
+
+    default QueryMemory allocQueryMemory()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default void freeQueryMemory(QueryMemory queryMemory)
+    {
+        throw new UnsupportedOperationException();
+    }
 }

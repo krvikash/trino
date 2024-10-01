@@ -69,17 +69,17 @@ public class LazyCollectorLoader
         int chunkIndexToCollect = lazyCollectorLoaderArgs.lazyCollectStartRowIndex() / lazyCollectorLoaderArgs.chunkSize();
         int startRowIndexInChunk = lazyCollectorLoaderArgs.lazyCollectStartRowIndex() % lazyCollectorLoaderArgs.chunkSize();
         int numRowsToCollect = lazyCollectorLoaderArgs.numToCollect();
-        int collectTxId = BaseCollectTxService.INVALID_TX_ID;
+        int memoryId = BaseCollectTxService.INVALID_TX_ID;
         LazyCollectOpenResult collectOpenResult = null;
         try {
             // open
             collectOpenResult = collectTxService.collectOpen(numRowsToCollect, lazyCollectorLoaderArgs);
-            collectTxId = collectOpenResult.collectTxId();
+            memoryId = collectOpenResult.queryMemory().id();
 
             // prepare and collect
             int[] queryResultTypes = new int[1];
-            collectTxService.prepareChunkFullScan(collectTxId, chunkIndexToCollect, numRowsToCollect, startRowIndexInChunk);
-            collectTxService.collect(collectTxId, 1, chunkIndexToCollect, numRowsToCollect, queryResultTypes);
+            collectTxService.prepareChunkFullScan(memoryId, chunkIndexToCollect, numRowsToCollect, startRowIndexInChunk);
+            collectTxService.collect(memoryId, 1, chunkIndexToCollect, numRowsToCollect, queryResultTypes);
 
             // fill block
             WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
@@ -88,14 +88,14 @@ public class LazyCollectorLoader
             retBlock = lazyCollectorLoaderArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats);
 
             // close
-            collectTxService.collectClose(collectTxId, testStats);
+            collectTxService.collectClose(collectOpenResult.queryMemory(), testStats);
             dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
         }
         catch (Exception e) {
             shapingLogger.error(e, "lazy collect failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
                     lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
             dispatcherPageSourceStats.inclazy_collect_failed_load();
-            collectTxService.collectAbort(e, collectTxId);
+            collectTxService.collectAbort(e, memoryId);
             throw e;
         }
         return retBlock;

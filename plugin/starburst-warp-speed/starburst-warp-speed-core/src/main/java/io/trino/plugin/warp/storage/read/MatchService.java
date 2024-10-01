@@ -130,13 +130,13 @@ public class MatchService
             try {
                 matchTxId = (int) storageEngine.matchOpen(queryParams.getTotalNumRecords(),
                         queryArgs.txArgs().fileCookie(),
-                        collectOpenResult.collectTxId(),
+                        collectOpenResult.queryMemory().id(),
                         queryArgs.txArgs().collectStoreBuff(),
                         queryArgs.txArgs().collect2MatchParams(),
                         queryParams.getNumMatchElements(),
                         queryArgs.numChunksInRange(),
                         matchArgs.weMatchTree(),
-                        collectOpenResult.matchResultBitmaps().address(),
+                        collectOpenResult.matchBmAddr(),
                         queryParams.getMinMatchOffset(),
                         matchArgs.matchBuffIds());
             }

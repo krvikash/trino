@@ -107,7 +107,7 @@ public class StorageCollectorService
     boolean prepareChunk(QueryArgs queryArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
     {
         if (chunksQueueService.isChunkPreparationNeeded(queryArgs.chunksQueue())) {
-            boolean stopForOptimization = collectTxService.prepareChunk(collectOpenResult.collectTxId(),
+            boolean stopForOptimization = collectTxService.prepareChunk(collectOpenResult.queryMemory().id(),
                     queryArgs.chunksQueue().getCurrent(),
                     collectOpenResult.rowsLimit() - numCollectedRows,
                     queryArgs.chunksQueue().getCurrentResetPoint());
@@ -134,7 +134,7 @@ public class StorageCollectorService
             int numToCollect,
             int[] outQueryResultType)
     {
-        return collectTxService.collect(collectOpenResult.collectTxId(),
+        return collectTxService.collect(collectOpenResult.queryMemory().id(),
                 numWes,
                 chunkIndex,
                 numToCollect,
@@ -404,7 +404,7 @@ public class StorageCollectorService
 
     public void abort(CollectOpenResult collectOpenResult, Exception e)
     {
-        collectTxService.collectAbort(e, collectOpenResult);
+        collectTxService.collectAbort(collectOpenResult, e);
         bufferAllocator.readerOnFreeBundle();
     }
 

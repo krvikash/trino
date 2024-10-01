@@ -18,6 +18,7 @@ import com.google.inject.Singleton;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
 
+import java.lang.foreign.Arena;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -68,6 +69,17 @@ public class StubsConnectorSync
     public boolean isCatalogReducedResources()
     {
         return false;
+    }
+
+    @Override
+    public QueryMemory allocQueryMemory()
+    {
+        return new QueryMemory(0, Arena.ofAuto().allocate(1024 * 1024, 4));
+    }
+
+    @Override
+    public void freeQueryMemory(QueryMemory queryMemory)
+    {
     }
 
     @Override
