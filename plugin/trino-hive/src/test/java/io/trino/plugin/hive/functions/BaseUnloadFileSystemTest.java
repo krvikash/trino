@@ -59,6 +59,32 @@ public abstract class BaseUnloadFileSystemTest
         }
     }
 
+    @Test
+    public void testUnloadIgnoreExistingDirectory()
+            throws Exception
+    {
+        String tableName = "test_unload_" + randomNameSuffix();
+        String location = getLocation(tableName);
+
+        TrinoFileSystem fileSystem = getFileSystemFactory().create(getSession().toConnectorSession());
+
+        try {
+            assertQuerySucceeds("SELECT * FROM TABLE(hive.system.unload(" +
+                    "input => TABLE(tpch.tiny.region)," +
+                    "location => '" + location + "'," +
+                    "format => 'ORC'," +
+                    "existing_directory => 'ignore'))");
+
+            assertUpdate("CREATE TABLE " + tableName + "(LIKE tpch.tiny.region) WITH (external_location = '" + location + "', format = 'ORC')");
+            assertThat(query("SELECT * FROM " + tableName)).matches("SELECT * FROM tpch.tiny.region");
+
+            assertUpdate("DROP TABLE " + tableName);
+        }
+        finally {
+            fileSystem.deleteDirectory(Location.of(location));
+        }
+    }
+
     static String requireEnv(String variable)
     {
         return requireNonNull(System.getenv(variable), () -> "environment variable not set: " + variable);

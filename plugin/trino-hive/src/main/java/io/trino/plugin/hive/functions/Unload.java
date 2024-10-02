@@ -114,6 +114,13 @@ import static java.util.stream.Collectors.joining;
 public class Unload
         implements Provider<ConnectorTableFunction>
 {
+    private enum ExistingDirectory
+    {
+        CHECK,
+        IGNORE,
+        /**/
+    }
+
     private final LocationAccessControl locationAccessControl;
     private final TrinoFileSystemFactory fileSystemFactory;
 
@@ -139,6 +146,7 @@ public class Unload
         private static final String COMPRESSION_ARGUMENT_NAME = "COMPRESSION";
         private static final String SEPARATOR_ARGUMENT_NAME = "SEPARATOR";
         private static final String HEADER_ARGUMENT_NAME = "HEADER";
+        private static final String EXISTING_DIRECTORY_ARGUMENT_NAME = "EXISTING_DIRECTORY";
 
         private final LocationAccessControl locationAccessControl;
         private final TrinoFileSystemFactory fileSystemFactory;
@@ -175,6 +183,11 @@ public class Unload
                                     .name(HEADER_ARGUMENT_NAME)
                                     .type(BOOLEAN)
                                     .defaultValue(null)
+                                    .build(),
+                            ScalarArgumentSpecification.builder()
+                                    .name(EXISTING_DIRECTORY_ARGUMENT_NAME)
+                                    .type(VARCHAR)
+                                    .defaultValue(utf8Slice("CHECK"))
                                     .build()),
                     new ReturnTypeSpecification.DescribedTable(descriptor(ImmutableList.of("path", "count"), ImmutableList.of(VARCHAR, BIGINT))));
             this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
@@ -231,6 +244,12 @@ public class Unload
 
             ScalarArgument headerArgument = (ScalarArgument) arguments.get(HEADER_ARGUMENT_NAME);
             Boolean header = (Boolean) headerArgument.getValue();
+
+            ScalarArgument existingDirectoryArgument = (ScalarArgument) arguments.get(EXISTING_DIRECTORY_ARGUMENT_NAME);
+            checkFunctionArgument(existingDirectoryArgument.getValue() != null, "existing_directory cannot be null");
+            String existingDirectoryValue = ((Slice) existingDirectoryArgument.getValue()).toStringUtf8();
+            ExistingDirectory existingDirectory = Enums.getIfPresent(ExistingDirectory.class, existingDirectoryValue.toUpperCase(ENGLISH)).toJavaUtil()
+                    .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, existingDirectoryValue + " existing_directory isn't supported"));
 
             List<RowType.Field> inputSchema = tableArgument.getRowType().getFields();
             List<String> partitionColumns = tableArgument.getPartitionBy();
@@ -318,7 +337,7 @@ public class Unload
                 }
             }
 
-            if (!directoryExists(fileSystem, location).orElse(true)) {
+            if (existingDirectory == ExistingDirectory.CHECK && !directoryExists(fileSystem, location).orElse(true)) {
                 throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "Location does not exist: " + location);
             }
             try {

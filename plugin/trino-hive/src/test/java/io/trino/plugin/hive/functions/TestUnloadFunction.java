@@ -1026,6 +1026,26 @@ class TestUnloadFunction
     }
 
     @Test
+    void testUnloadIgnoreNotExistingDirectory()
+            throws Exception
+    {
+        String location = directory.resolve("test_ignore_not_existing_directory").toUri().toString();
+
+        MaterializedResult result = computeActual("SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT 1 x), location => '" + location + "', format => 'TEXTFILE', existing_directory => 'ignore'))");
+
+        assertThat(result.getRowCount()).isEqualTo(1);
+        assertThat(Files.readString(Paths.get(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
+                .isEqualTo("""
+                        1
+                        """);
+
+        // 'ignore' existing_directory should fail if the location is not empty
+        assertQueryFails(
+                "SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT 1 x), location => '" + location + "', format => 'ORC', existing_directory => 'ignore'))",
+                "Location must be empty: " + location);
+    }
+
+    @Test
     void testUnloadNonEmptyDirectory()
             throws Exception
     {
@@ -1095,11 +1115,19 @@ class TestUnloadFunction
         assertQueryFails(
                 "SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT 1 x), location => '" + location + "', format => 'ORC', compression => null))",
                 "compression cannot be null");
+        assertQueryFails(
+                "SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT 1 x), location => '" + location + "', format => 'ORC', existing_directory => null))",
+                "existing_directory cannot be null");
 
         // invalid format
         assertQueryFails(
                 "SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT 1 x), location => '" + location + "', format => 'WRONG'))",
                 "WRONG format isn't supported");
+
+        // invalid existing_directory
+        assertQueryFails(
+                "SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT 1 x), location => '" + location + "', format => 'ORC', existing_directory => 'WRONG'))",
+                "WRONG existing_directory isn't supported");
 
         // input contains only partition columns
         assertQueryFails(
