@@ -161,7 +161,7 @@ import static io.trino.SystemSessionProperties.getFaultTolerantExecutionRuntimeA
 import static io.trino.SystemSessionProperties.getFaultTolerantExecutionTaskSplitFactor;
 import static io.trino.SystemSessionProperties.getFaultTolerantExecutionTaskSplitMemoryThreshold;
 import static io.trino.SystemSessionProperties.getMaxTasksWaitingForExecutionPerQuery;
-import static io.trino.SystemSessionProperties.getMaxTasksWaitingForNodePerStage;
+import static io.trino.SystemSessionProperties.getMaxTasksWaitingForNodePerQuery;
 import static io.trino.SystemSessionProperties.getRetryDelayScaleFactor;
 import static io.trino.SystemSessionProperties.getRetryInitialDelay;
 import static io.trino.SystemSessionProperties.getRetryMaxDelay;
@@ -362,7 +362,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                     partitioningSchemeFactory,
                     exchangeManager,
                     getTaskRetryAttemptsPerTask(session) + 1,
-                    getMaxTasksWaitingForNodePerStage(session),
+                    getMaxTasksWaitingForNodePerQuery(session),
                     getMaxTasksWaitingForExecutionPerQuery(session),
                     nodeAllocator,
                     failureDetector,
