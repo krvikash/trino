@@ -35,17 +35,8 @@ public final class UpdateExpectedPlans
         List<Future<Void>> futures = ForkJoinPool.commonPool().invokeAll(
                 ImmutableList.<Callable<Void>>builder()
                         // in alphabetical order
-                        .add(runMain(TestCachingHiveTpcdsCostBasedPlan.class, noArgs))
-                        .add(runMain(TestCachingHiveTpchCostBasedPlan.class, noArgs))
-                        .add(runMain(TestHivePartitionedTpcdsCostBasedPlan.class, noArgs))
-                        .add(runMain(TestHivePartitionedTpchCostBasedPlan.class, noArgs))
-                        .add(runMain(TestHiveTpcdsCostBasedPlan.class, noArgs))
-                        .add(runMain(TestHiveTpchCostBasedPlan.class, noArgs))
-                        .add(runMain(TestIcebergPartitionedTpcdsCostBasedPlan.class, noArgs))
-                        .add(runMain(TestIcebergPartitionedTpchCostBasedPlan.class, noArgs))
-                        .add(runMain(TestIcebergTpcdsCostBasedPlan.class, noArgs))
-                        .add(runMain(TestIcebergTpchCostBasedPlan.class, noArgs))
-                        .add(runMain(TestIcebergSmallFilesTpcdsCostBasedPlan.class, noArgs))
+                        .add(runMain(TestPartitionedTpcdsCostBasedPlan.class, noArgs))
+                        .add(runMain(TestTpchCostBasedPlan.class, noArgs))
                         .build());
 
         for (Future<Void> future : futures) {
