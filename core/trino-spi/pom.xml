@@ -15,7 +15,7 @@
     <properties>
         <released-artifacts.dir>${project.build.directory}/released-artifacts</released-artifacts.dir>
         <!-- disable in Cork/Galaxy-Trino -->
-        <trino.check.skip-revapi>false</trino.check.skip-revapi>
+        <trino.check.skip-revapi>true</trino.check.skip-revapi>
     </properties>
 
     <!-- the SPI should have only minimal dependencies -->
