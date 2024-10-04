@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
@@ -22,6 +23,7 @@ import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -30,18 +32,29 @@ import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
+import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
 import io.starburst.stargate.buffer.data.spooling.s3.MinioStorage;
+import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
+import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.s3.S3Utils;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -84,6 +97,38 @@ public class TestChunkManager
     protected MinioStorage minioStorage;
     protected SpoolingStorage spoolingStorage;
     protected SpooledChunkReader spooledChunkReader;
+
+    private static class FailureInjectingS3SpoolingStorage
+            extends S3SpoolingStorage
+    {
+        private final Set<String> failureExchanges;
+
+        public FailureInjectingS3SpoolingStorage(
+                BufferNodeId bufferNodeId,
+                ChunkManagerConfig chunkManagerConfig,
+                S3AsyncClient s3AsyncClient,
+                MergedFileNameGenerator mergedFileNameGenerator,
+                DataServerStats dataServerStats,
+                CompatibilityMode compatibilityMode,
+                GcsClientConfig gcsClientConfig,
+                Set<String> failureExchanges)
+                throws IOException
+        {
+            super(bufferNodeId, chunkManagerConfig, s3AsyncClient, mergedFileNameGenerator, dataServerStats, compatibilityMode, gcsClientConfig);
+            this.failureExchanges = failureExchanges;
+        }
+
+        @Override
+        protected ListenableFuture<Map<Long, SpooledChunk>> putStorageObject(String fileName, Map<Chunk, ChunkDataLease> chunkDataLeaseMap, long contentLength)
+        {
+            String exchangeId = chunkDataLeaseMap.keySet().stream().findFirst().get().getExchangeId();
+            if (failureExchanges.contains(exchangeId)) {
+                return Futures.immediateFailedFuture(new ExecutionException("Task did not complete", new IOException("Write failed")));
+            }
+
+            return super.putStorageObject(fileName, chunkDataLeaseMap, contentLength);
+        }
+    }
 
     @BeforeAll
     public void init()
@@ -531,6 +576,157 @@ public class TestChunkManager
     }
 
     @Test
+    public void testDrainAllChunksWithFailure()
+            throws IOException
+    {
+        long maxBytes = 128L;
+        MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new MemoryAllocatorConfig()
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setAllocationRatioHighWatermark(0.9)
+                        .setAllocationRatioLowWatermark(0.6),
+                new ChunkManagerConfig(),
+                new DataServerStats());
+        SpoolingStorage failureInjectingSpoolingStorage = new FailureInjectingS3SpoolingStorage(
+                new BufferNodeId(0L),
+                new ChunkManagerConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName()),
+                S3Utils.createS3Client(new S3ClientConfig()
+                        .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
+                        .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                        .setRegion("us-east-1")
+                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
+                new MergedFileNameGenerator(),
+                new DataServerStats(),
+                S3SpoolingStorage.CompatibilityMode.AWS,
+                new GcsClientConfig(),
+                Set.of(EXCHANGE_0));
+        ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
+                memoryAllocator,
+                DataSize.of(32, BYTE),
+                DataSize.of(64, BYTE),
+                DataSize.of(32, BYTE),
+                failureInjectingSpoolingStorage,
+                1);  // Ensure no concurrency to ensure that the exception is handled before the next exchange begins writing.
+
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
+        chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
+
+        // 1 closed chunk and 1 partially filled open chunk
+        ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
+                EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("data for chunk 0"), utf8Slice("partial1"))).addDataPagesFuture();
+        awaitOneSecond().until(addDataPagesFuture1::isDone);
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(64);
+
+        // 1 closed chunk and 1 partially filled open chunk
+        ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
+                EXCHANGE_1, 1, 1, 1, 2L, ImmutableList.of(utf8Slice("data for chunk 2"), utf8Slice("partial3"))).addDataPagesFuture();
+        awaitOneSecond().until(addDataPagesFuture2::isDone);
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(0);
+
+        chunkManager.spoolIfNecessary();
+
+        ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 16);
+        ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 8);
+        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 16);
+        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 8);
+
+        verifySpooledChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
+                new DataPage(1, 1, utf8Slice("data for chunk 2")));
+        assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()))
+                .isInstanceOf(DataServerException.class)
+                .hasMessageStartingWith("No closed chunk found");
+
+        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
+                new DataPage(0, 0, utf8Slice("data for chunk 0")));
+        assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()))
+                .isInstanceOf(DataServerException.class)
+                .hasMessageStartingWith("No closed chunk found");
+
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
+        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
+                new DataPage(0, 0, utf8Slice("partial1")));
+    }
+
+    @Test
+    @Disabled
+    // Only use this when verifying the multi-failure logging in ChunkManager.spoolIfNecessary()
+    public void testDrainAllChunksWithMultipleExchangeFailure()
+            throws IOException
+    {
+        long maxBytes = 128L;
+        MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new MemoryAllocatorConfig()
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setAllocationRatioHighWatermark(0.9)
+                        .setAllocationRatioLowWatermark(0.6),
+                new ChunkManagerConfig(),
+                new DataServerStats());
+        SpoolingStorage failureInjectingSpoolingStorage = new FailureInjectingS3SpoolingStorage(
+                new BufferNodeId(0L),
+                new ChunkManagerConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName()),
+                S3Utils.createS3Client(new S3ClientConfig()
+                        .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
+                        .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                        .setRegion("us-east-1")
+                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
+                new MergedFileNameGenerator(),
+                new DataServerStats(),
+                S3SpoolingStorage.CompatibilityMode.AWS,
+                new GcsClientConfig(),
+                Set.of(EXCHANGE_0, EXCHANGE_1));
+        ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
+                memoryAllocator,
+                DataSize.of(32, BYTE),
+                DataSize.of(64, BYTE),
+                DataSize.of(32, BYTE),
+                failureInjectingSpoolingStorage,
+                1);  // Ensure no concurrency to ensure that the exception is handled before the next exchange begins writing.
+
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
+        chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
+
+        // 1 closed chunk and 1 partially filled open chunk
+        ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
+                EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("data for chunk 0"), utf8Slice("partial1"))).addDataPagesFuture();
+        awaitOneSecond().until(addDataPagesFuture1::isDone);
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(64);
+
+        // 1 closed chunk and 1 partially filled open chunk
+        ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
+                EXCHANGE_1, 1, 1, 1, 2L, ImmutableList.of(utf8Slice("data for chunk 2"), utf8Slice("partial3"))).addDataPagesFuture();
+        awaitOneSecond().until(addDataPagesFuture3::isDone);
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(0);
+
+        chunkManager.spoolIfNecessary();
+
+        ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 16);
+        ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 8);
+        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 16);
+        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 8);
+
+        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
+                new DataPage(0, 0, utf8Slice("data for chunk 0")));
+        assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()))
+                .isInstanceOf(DataServerException.class)
+                .hasMessageStartingWith("No closed chunk found");
+
+        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
+                new DataPage(1, 1, utf8Slice("data for chunk 2")));
+        assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()))
+                .isInstanceOf(DataServerException.class)
+                .hasMessageStartingWith("No closed chunk found");
+
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_1));
+        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
+                new DataPage(0, 0, utf8Slice("partial1")));
+        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()),
+                new DataPage(1, 1, utf8Slice("partial3")));
+    }
+
+    @Test
     public void testRegisterExchangeWhileDraining()
     {
         long maxBytes = 64L;
@@ -851,6 +1047,20 @@ public class TestChunkManager
         }
     }
 
+    private void verifySpooledChunkDataResult(ChunkDataResult chunkDataResult, DataPage... values)
+    {
+        assertThat(chunkDataResult.chunkDataLease()).isEmpty();
+        assertThat(chunkDataResult.spooledChunk()).isPresent();
+        List<DataPage> dataPages = getFutureValue(spooledChunkReader.getDataPages(chunkDataResult.spooledChunk().get()));
+        assertThat(dataPages).containsExactlyInAnyOrder(values);
+    }
+
+    private void verifyInMemoryChunkDataResult(ChunkDataResult chunkDataResult, DataPage... values)
+    {
+        assertThat(chunkDataResult.chunkDataLease()).isPresent();
+        verifyChunkData(chunkDataResult.chunkDataLease().get(), values);
+    }
+
     private void verifyChunkDataResult(ChunkDataResult chunkDataResult, DataPage... values)
     {
         if (chunkDataResult.chunkDataLease().isPresent()) {
@@ -875,12 +1085,25 @@ public class TestChunkManager
             DataSize chunkMaxSize,
             DataSize chunkSliceSize)
     {
+        return this.createChunkManager(bufferNodeId, memoryAllocator, chunkTargetSize, chunkMaxSize, chunkSliceSize, spoolingStorage, 8);
+    }
+
+    protected ChunkManager createChunkManager(
+            long bufferNodeId,
+            MemoryAllocator memoryAllocator,
+            DataSize chunkTargetSize,
+            DataSize chunkMaxSize,
+            DataSize chunkSliceSize,
+            SpoolingStorage spoolingStorage,
+            int chunkSpoolConcurrency)
+    {
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
                 .setChunkTargetSize(chunkTargetSize)
                 .setChunkMaxSize(chunkMaxSize)
                 .setChunkSliceSize(chunkSliceSize)
                 .setSpoolingDirectory("s3://" + minioStorage.getBucketName())
-                .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests
+                .setChunkSpoolInterval(succinctDuration(100, SECONDS))
+                .setChunkSpoolConcurrency(chunkSpoolConcurrency); // only manual triggering in tests
         DataServerConfig dataServerConfig = new DataServerConfig()
                 .setDataIntegrityVerificationEnabled(true)
                 .setMinDrainingDuration(succinctDuration(0, SECONDS)) // don't wait for extra time in tests

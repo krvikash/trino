@@ -17,7 +17,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
@@ -146,7 +145,7 @@ public class S3SpoolingStorage
                                 chunkDataLeaseMap,
                                 contentLength,
                                 spooledChunkMap))),
-                ignored -> Optional.ofNullable(spooledChunkMap.get()).orElseGet(ImmutableMap::of),
+                ignored -> Optional.ofNullable(spooledChunkMap.get()).orElseThrow(() -> new IllegalStateException("Spooled Chunk Map is empty")),
                 directExecutor());
     }
 

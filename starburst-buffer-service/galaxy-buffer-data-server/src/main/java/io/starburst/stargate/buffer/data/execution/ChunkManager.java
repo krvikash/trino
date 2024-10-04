@@ -21,11 +21,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimaps;
 import com.google.common.hash.HashFunction;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
+import io.airlift.concurrent.AsyncSemaphore;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
@@ -50,6 +52,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
@@ -60,9 +63,12 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -70,11 +76,12 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.hash.Hashing.murmur3_32_fixed;
-import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static com.google.common.util.concurrent.Futures.addCallback;
+import static com.google.common.util.concurrent.Futures.immediateCancelledFuture;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
+import static com.google.common.util.concurrent.Futures.successfulAsList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
-import static io.airlift.concurrent.AsyncSemaphore.processAll;
-import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.Duration.succinctDuration;
@@ -476,19 +483,21 @@ public class ChunkManager
                         }
                     }
                 }
-                spoolChunksSync(chunks.build());
-                break;
+                if (spoolChunksSync(chunks.build())) {
+                    break;
+                }
+                log.warn("spooling all chunks failed, retrying in %d milliseconds", backoff);
             }
-            catch (Throwable e) {
+            catch (RuntimeException e) {
                 log.warn(e, "spooling all chunks failed, retrying in %d milliseconds", backoff);
-                try {
-                    Thread.sleep(backoff);
-                }
-                catch (InterruptedException ignored) {
-                    // ignore
-                }
-                backoff = Math.min(backoff * delayScaleFactor, maxBackOff);
             }
+            try {
+                Thread.sleep(backoff);
+            }
+            catch (InterruptedException ignored) {
+                // ignore
+            }
+            backoff = Math.min(backoff * delayScaleFactor, maxBackOff);
         }
 
         verify(getOpenChunks() == 0, "open chunks exist after spooling all chunks");
@@ -594,9 +603,10 @@ public class ChunkManager
         }
 
         do {
-            Map<String, Integer> exchangeSizes = exchanges.entrySet().stream().collect(toImmutableMap(
-                    Map.Entry::getKey,
-                    entry -> entry.getValue().getClosedChunksCount()));
+            Map<String, Integer> exchangeSizes = exchanges.entrySet().stream()
+                    .collect(toImmutableMap(
+                            Map.Entry::getKey,
+                            entry -> entry.getValue().getClosedChunksCount()));
             ToIntFunction<Exchange> exchangeSizeFunction = exchange -> exchangeSizes.getOrDefault(exchange.getExchangeId(), 0);
 
             List<Exchange> exchangesSortedBySizeDesc = exchanges.values().stream()
@@ -662,7 +672,10 @@ public class ChunkManager
                 // blocking call here to make sure:
                 // 1. No duplicate spooling
                 // 2. Wait for pending writes to make progress as we release memory as a result of chunk spooling
-                spoolChunksSync(spoolCandidates);
+                if (!spoolChunksSync(spoolCandidates)) {
+                    // If any spool tasks fail break the loop and try again in the next time interval.
+                    return;
+                }
             }
         } while (memoryAllocator.aboveLowWatermark());
     }
@@ -685,7 +698,50 @@ public class ChunkManager
         spooledChunksByExchange.clear();
     }
 
-    private void spoolChunksSync(List<Chunk> chunks)
+    // TODO: Remove when method is available in airlift
+    /**
+     * Process a list of tasks as a single unit
+     * (similar to {@link com.google.common.util.concurrent.Futures#successfulAsList(ListenableFuture[])})
+     * with limiting the number of tasks running in parallel.
+     * <p>
+     * This method may be useful for limiting the number of concurrent requests sent to a remote server when
+     * trying to run multiple related entities concurrently:
+     * <p>
+     * For example:
+     * <pre>{@code
+     * List<Integer> userIds = Lists.of(1, 2, 3);
+     * ListenableFuture<List<UserInfo>> future = processAllToCompletion(ids, client::getUserInfoById, 2, executor);
+     * List<UserInfo> userInfos = future.get(...);
+     * }</pre>
+     *
+     * @param tasks tasks to process
+     * @param submitter task submitter
+     * @param maxConcurrency maximum number of tasks allowed to run in parallel
+     * @param submitExecutor task submission executor
+     * @return {@link ListenableFuture} containing a list of values returned by the {@code tasks}.
+     * The order of elements in the list matches the order of {@code tasks}.
+     * If the result future is cancelled all the remaining tasks are cancelled (submitted tasks will be cancelled, pending tasks will not be submitted).
+     * If any of the submitted tasks fails or are cancelled, the remaining tasks will continue to execute.
+     * If any of the submitted tasks fails or are cancelled, the remaining pending tasks are cancelled.
+     */
+    private static <T, R> ListenableFuture<List<R>> processAllToCompletion(List<T> tasks, Function<T, ListenableFuture<R>> submitter, int maxConcurrency, Executor submitExecutor)
+    {
+        SettableFuture<List<R>> resultFuture = SettableFuture.create();
+        AsyncSemaphore<T, R> semaphore = new AsyncSemaphore<>(maxConcurrency, submitExecutor, task -> {
+            if (resultFuture.isCancelled()) {
+                // Task cancellation tends to happen in task submission order, which can race with subsequent task submissions after previous cancellations.
+                // This eager check prevents this race from occurring, and can reduce the number of unnecessary submissions.
+                return immediateCancelledFuture();
+            }
+            return submitter.apply(task);
+        });
+        resultFuture.setFuture(successfulAsList(tasks.stream()
+                .map(semaphore::submit)
+                .collect(toImmutableList())));
+        return resultFuture;
+    }
+
+    private boolean spoolChunksSync(List<Chunk> chunks)
     {
         ImmutableList.Builder<ChunksWithExchangeId> chunksWithExchangeIdBuilder = ImmutableList.builder();
         for (Map.Entry<String, Collection<Chunk>> entry : Multimaps.index(chunks, Chunk::getExchangeId).asMap().entrySet()) {
@@ -697,8 +753,12 @@ public class ChunkManager
                 chunksWithExchangeIdBuilder.add(new ChunksWithExchangeId(exchangeId, partitionedChunkList));
             }
         }
-        getFutureValue(processAll(
-                chunksWithExchangeIdBuilder.build(),
+        List<ChunksWithExchangeId> chunksWithExchangeIds = chunksWithExchangeIdBuilder.build();
+        CountDownLatch countCompletions = new CountDownLatch(chunksWithExchangeIds.size());
+        ArrayList<Throwable> failures = new ArrayList<>();
+
+        getFutureValue(processAllToCompletion(
+                chunksWithExchangeIds,
                 chunksWithExchangeId -> {
                     String exchangeId = chunksWithExchangeId.exchangeId();
                     List<Chunk> chunkList = chunksWithExchangeId.chunks();
@@ -716,37 +776,91 @@ public class ChunkManager
 
                     if (chunkDataLeaseMap.isEmpty()) {
                         // all chunks released in the meantime
-                        return immediateVoidFuture();
+                        countCompletions.countDown();
+                        return immediateFuture(true);
                     }
 
                     Exchange exchange = exchanges.get(exchangeId);
                     if (exchange == null) {
                         // exchange gone; not spooling
-                        return immediateVoidFuture();
+                        countCompletions.countDown();
+                        return immediateFuture(true);
                     }
                     ListenableFuture<Map<Long, SpooledChunk>> spoolingFuture = spoolingStorage.writeMergedChunks(
                             bufferNodeId,
                             exchangeId,
                             chunkDataLeaseMap,
                             contentLength);
-                    exchange.markSpooled();
-                    // in case of failure we still need to decrease reference count to avoid memory leak
-                    addExceptionCallback(spoolingFuture, _ -> chunkDataLeaseMap.values().forEach(ChunkDataLease::release));
-                    return Futures.transform(
-                            spoolingFuture,
-                            spooledChunkMap -> {
-                                spooledChunksByExchange.update(exchangeId, spooledChunkMap);
-                                chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
-                                    exchange.chunkSpooled(chunk.getHandle());
-                                    chunkDataLease.release();
-                                    chunk.release();
-                                });
-                                return null;
+                    addCallback(spoolingFuture, new FutureCallback<>()
+                            {
+                                @Override
+                                public void onSuccess(Map<Long, SpooledChunk> spooledChunkMap)
+                                {
+                                    try {
+                                        exchange.markSpooled();
+                                        spooledChunksByExchange.update(exchangeId, spooledChunkMap);
+                                        chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
+                                            exchange.chunkSpooled(chunk.getHandle());
+                                            chunkDataLease.release();
+                                            chunk.release();
+                                        });
+                                    }
+                                    finally {
+                                        countCompletions.countDown();
+                                    }
+                                }
+
+                                @Override
+                                public void onFailure(Throwable t)
+                                {
+                                    try {
+                                        // in case of failure we still need to decrease reference count to avoid memory leak
+                                        chunkDataLeaseMap.values().forEach(ChunkDataLease::release);
+                                        failures.add(t);
+                                    }
+                                    finally {
+                                        countCompletions.countDown();
+                                    }
+                                }
                             },
                             executor);
+                    return null;
                 },
                 chunkSpoolConcurrency,
                 executor));
+        try {
+            countCompletions.await();
+            if (!failures.isEmpty()) {
+                printSpoolingExceptions(failures);
+                return false;
+            }
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("spoolChunksSync was interrupted. Some leases may not have been released.", e);
+        }
+        return true;
+    }
+
+    private void printSpoolingExceptions(List<Throwable> failures)
+    {
+        if (failures.size() > 1) {
+            StringBuilder sb = new StringBuilder("Spooled chunks failed with multiple exceptions.\nSubsequent exception(s):\n");
+            for (int offset = 1; offset < failures.size(); offset++) {
+                Throwable failure = failures.get(offset);
+                sb.append(failure.getClass().getName()).append(": ").append(failure.getMessage()).append("\n");
+                Throwable cause = failure.getCause();
+                while (cause != null) {
+                    sb.append("  Caused by ").append(cause.getClass().getName()).append(": ").append(cause.getMessage()).append("\n");
+                    cause = cause.getCause();
+                }
+            }
+            sb.append("\nFirst exception:");
+            log.error(failures.get(0), sb.toString());
+        }
+        else {
+            log.error(failures.get(0), "Spooling chunks failed");
+        }
     }
 
     private void eagerDeliveryModeCloseChunksIfNeeded()
