@@ -272,7 +272,7 @@ public class BufferAllocator
     @Override
     public void init()
     {
-        int minNumSegments = nativeConfig.getTaskMinWorkerThreads();
+        int minNumSegments = (connectorSync.getCatalogContext() != 0) ? nativeConfig.getTaskMinWorkerThreads() : 1;
         int numSegments = connectorSync.isCatalogReducedResources() ? minNumSegments : nativeConfig.getTaskMaxWorkerThreads();
         checkArgument(numSegments > 0, "no segments configured for warming resources");
         long predicateBundleSize = 0;
