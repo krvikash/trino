@@ -14,13 +14,21 @@
 package io.trino.plugin.hive;
 
 import io.trino.Session;
+import io.trino.connector.alternatives.MockPlanAlternativeTableHandle;
+import io.trino.sql.planner.Plan;
+import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.QueryRunner;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static io.trino.SystemSessionProperties.USE_TABLE_SCAN_NODE_PARTITIONING;
+import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
+import static java.util.stream.Collectors.toSet;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestHiveWithPlanAlternativesConnectorTest
         extends BaseHiveConnectorTest
@@ -136,5 +144,30 @@ public class TestHiveWithPlanAlternativesConnectorTest
                 "ChooseAlternativeNode",
                 "ScanFilterProject",
                 "Input: 1 row \\(9B\\), Filter");  // 9B - only one of the columns is collected
+    }
+
+    @Override
+    protected Consumer<Plan> assertNoReadPartitioning(String... columnNames)
+    {
+        return plan -> {
+            List<TableScanNode> tableScanNodes = searchFrom(plan.getRoot()).where(node -> node instanceof TableScanNode)
+                    .findAll().stream()
+                    .map(TableScanNode.class::cast)
+                    .toList();
+            for (TableScanNode tableScanNode : tableScanNodes) {
+                assertThat(tableScanNode.getUseConnectorNodePartitioning().orElseThrow()).isFalse();
+
+                HiveTableHandle tableHandle = switch (tableScanNode.getTable().connectorHandle()) {
+                    case HiveTableHandle hiveTableHandle -> hiveTableHandle;
+                    case MockPlanAlternativeTableHandle mockPlanAlternativeTableHandle -> (HiveTableHandle) mockPlanAlternativeTableHandle.delegate();
+                    default -> throw new IllegalStateException("Unexpected connector handle: " + tableScanNode.getTable().connectorHandle());
+                };
+
+                // hive table should have partitioning for the columns but should not be active
+                assertThat(tableHandle.getTablePartitioning()).isPresent();
+                assertThat(tableHandle.getTablePartitioning().orElseThrow().columns().stream().map(HiveColumnHandle::getName).collect(toSet())).containsExactlyInAnyOrder(columnNames);
+                assertThat(tableHandle.getTablePartitioning().orElseThrow().active()).isFalse();
+            }
+        };
     }
 }

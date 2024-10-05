@@ -167,17 +167,23 @@ public class DispatcherMetadata
     }
 
     @Override
-    public ConnectorTableHandle makeCompatiblePartitioning(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorPartitioningHandle partitioningHandle)
+    public Optional<ConnectorTableHandle> applyPartitioning(
+            ConnectorSession session,
+            ConnectorTableHandle tableHandle,
+            Optional<ConnectorPartitioningHandle> partitioningHandle,
+            List<ColumnHandle> columns)
     {
         DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
-        return convertTableHandle(
+        Optional<ConnectorTableHandle> partitioned = proxiedConnectorMetadata.applyPartitioning(
+                session,
+                dispatcherTableHandle.getProxyConnectorTableHandle(),
+                partitioningHandle,
+                columns);
+        return partitioned.map(handle -> convertTableHandle(
                 session,
                 dispatcherTableHandle,
-                proxiedConnectorMetadata.makeCompatiblePartitioning(
-                        session,
-                        dispatcherTableHandle.getProxyConnectorTableHandle(),
-                        partitioningHandle),
-                dispatcherTableHandle.getSchemaTableName());
+                handle,
+                dispatcherTableHandle.getSchemaTableName()));
     }
 
     @Override

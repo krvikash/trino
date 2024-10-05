@@ -183,10 +183,14 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    public ConnectorTableHandle makeCompatiblePartitioning(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorPartitioningHandle partitioningHandle)
+    public Optional<ConnectorTableHandle> applyPartitioning(
+            ConnectorSession session,
+            ConnectorTableHandle tableHandle,
+            Optional<ConnectorPartitioningHandle> partitioningHandle,
+            List<ColumnHandle> columns)
     {
-        ConnectorTableHandle delegateTable = delegate.makeCompatiblePartitioning(session, getDelegate(tableHandle), partitioningHandle);
-        return withDelegate(tableHandle, delegateTable);
+        Optional<ConnectorTableHandle> delegateTable = delegate.applyPartitioning(session, getDelegate(tableHandle), partitioningHandle, columns);
+        return delegateTable.map(t -> withDelegate(tableHandle, t));
     }
 
     @Override

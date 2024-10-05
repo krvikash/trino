@@ -55,11 +55,13 @@ public class TestHivePageSourceProvider
     private static final HiveColumnHandle BUCKET_COLUMN = createBaseColumn("bucket_col", 1, HIVE_INT, INTEGER, REGULAR, Optional.empty());
     private static final String PARTITION_NAME = "part1";
     private static final HiveTablePartitioning HIVE_TABLE_PARTITIONING = new HiveTablePartitioning(
-            ImmutableList.of(BUCKET_COLUMN),
+            true,
             BUCKETING_V1,
             10,
-            10,
-            ImmutableList.of());
+            ImmutableList.of(BUCKET_COLUMN),
+            false,
+            ImmutableList.of(),
+            true);
     private static final Domain DATA_DOMAIN = Domain.create(ValueSet.ofRanges(Range.range(INTEGER, 1L, true, 100L, true)), false);
     private static final Domain PARTITION_DOMAIN = Domain.create(ValueSet.of(VARCHAR, utf8Slice("part1")), false);
     private static final HiveTableHandle HIVE_TABLE_HANDLE = new HiveTableHandle(
