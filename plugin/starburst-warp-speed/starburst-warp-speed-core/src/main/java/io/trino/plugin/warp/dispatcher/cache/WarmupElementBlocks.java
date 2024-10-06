@@ -38,7 +38,7 @@ public class WarmupElementBlocks
     private List<Block> blocks; // from different pages
     private int startOffsetInFirstBlock;
     private int positionCount; // accumulative
-    private long logicalSizeInBytes; // accumulative
+    private long retainedSizeInBytes; // accumulative
 
     public WarmupElementBlocks(WarmupElementWriteMetadata metadata, int chunkSize)
     {
@@ -51,7 +51,7 @@ public class WarmupElementBlocks
     {
         blocks.add(block);
         positionCount += block.getPositionCount();
-        logicalSizeInBytes += block.getLoadedBlock().getLogicalSizeInBytes();
+        retainedSizeInBytes += block.getLoadedBlock().getRetainedSizeInBytes();
         return isReady();
     }
 
@@ -86,7 +86,7 @@ public class WarmupElementBlocks
 
         for (int i = 0; i < blocksToDrop; i++) {
             if (i > 0 || startOffsetInFirstBlock == 0) { // To spare calculations, the first block might already been taken into account before this call
-                logicalSizeInBytes -= blocks.get(i).getLoadedBlock().getLogicalSizeInBytes();
+                retainedSizeInBytes -= blocks.get(i).getLoadedBlock().getRetainedSizeInBytes();
                 positionCount -= blocks.get(i).getPositionCount();
             }
         }
@@ -95,7 +95,7 @@ public class WarmupElementBlocks
         // (we can't ignore it so isReady() won't return true before time)
         if (startOffsetInNextBlock > 0 &&
                 (blocksToDrop > 0 || startOffsetInFirstBlock == 0)) { // only if the block wasn't taken into account before this call
-            logicalSizeInBytes -= blocks.get(blocksToDrop).getLoadedBlock().getLogicalSizeInBytes();
+            retainedSizeInBytes -= blocks.get(blocksToDrop).getLoadedBlock().getRetainedSizeInBytes();
             positionCount -= blocks.get(blocksToDrop).getPositionCount();
         }
 
@@ -104,11 +104,11 @@ public class WarmupElementBlocks
         startOffsetInFirstBlock = startOffsetInNextBlock;
 
         if (blocks.isEmpty()) {
-            checkState(logicalSizeInBytes == 0, "logicalSizeInBytes is non-zero although there are 0 blocks after drop");
+            checkState(retainedSizeInBytes == 0, "retainedSizeInBytes is non-zero although there are 0 blocks after drop");
             checkState(positionCount == 0, "positionCount is non-zero although there are 0 blocks after drop");
         }
         else {
-            checkState(logicalSizeInBytes >= 0, "logicalSizeInBytes became negative after drop");
+            checkState(retainedSizeInBytes >= 0, "retainedSizeInBytes became negative after drop");
             checkState(positionCount >= 0, "positionCount became negative after drop");
         }
     }
@@ -120,7 +120,7 @@ public class WarmupElementBlocks
 
     public long getRetainedSizeInBytes()
     {
-        return INSTANCE_SIZE + logicalSizeInBytes;
+        return INSTANCE_SIZE + retainedSizeInBytes;
     }
 
     public int getStartOffsetInFirstBlock()
@@ -147,7 +147,7 @@ public class WarmupElementBlocks
                 ", positionCount=" + positionCount +
                 ", isReady=" + isReady() +
                 ", chunkSize=" + chunkSize +
-                ", logicalSizeInBytes=" + logicalSizeInBytes +
+                ", retainedSizeInBytes=" + retainedSizeInBytes +
                 '}';
     }
 }

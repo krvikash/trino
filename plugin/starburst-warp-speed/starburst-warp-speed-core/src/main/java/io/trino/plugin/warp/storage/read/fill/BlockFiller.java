@@ -73,7 +73,7 @@ public abstract class BlockFiller<V>
                         collectParams.isCollectNulls(),
                         collectParams.getDictionary());
                 if (logger.isDebugEnabled() && block instanceof DictionaryBlock) {
-                    dictionaryStats.adddictionary_block_saved_bytes(block.getLogicalSizeInBytes() - block.getSizeInBytes());
+                    dictionaryStats.adddictionary_block_saved_bytes(block.getRetainedSizeInBytes() - block.getSizeInBytes());
                 }
             }
             else if (collectParams.mappedMatchCollect()) {
