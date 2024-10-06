@@ -16,26 +16,36 @@ package io.trino.plugin.warp.storage.juffers;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
+import java.util.Optional;
 
 public class ReadJuffersWarmUpElement
         extends JuffersWarmUpElementBase
 {
-    public ReadJuffersWarmUpElement(BufferAllocator bufferAllocator, boolean withCollect, boolean withLucene)
+    Optional<LuceneBMResultJuffer> luceneBMResultJuffer;
+
+    // for empty element with no buffers (basic index case)
+    public ReadJuffersWarmUpElement()
+    {
+        super();
+        luceneBMResultJuffer = Optional.empty();
+    }
+
+    // can be collect or lucene
+    public ReadJuffersWarmUpElement(BufferAllocator bufferAllocator, boolean isCollect)
     {
         super();
 
-        if (withCollect) {
+        if (isCollect) {
             RecordReadJuffer recordJuffers = new RecordReadJuffer(bufferAllocator);
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
 
             NullReadJuffer nullJuffers = new NullReadJuffer(bufferAllocator);
             juffers.put(nullJuffers.getJufferType(), nullJuffers);
         }
-
-        if (withLucene) {
-            LuceneBMResultJuffer luceneBMResultJuffers = new LuceneBMResultJuffer(bufferAllocator);
-            juffers.put(luceneBMResultJuffers.getJufferType(), luceneBMResultJuffers);
+        else {
+            luceneBMResultJuffer = Optional.of(new LuceneBMResultJuffer(bufferAllocator));
         }
     }
 
@@ -47,8 +57,15 @@ public class ReadJuffersWarmUpElement
         }
     }
 
+    public void createLuceneBuffers(MemorySegment luceneBitmaps, int luceneBitmapOffset)
+    {
+        if (luceneBMResultJuffer.isPresent() && (luceneBitmaps != null)) {
+            luceneBMResultJuffer.get().createLuceneBuffer(luceneBitmaps, luceneBitmapOffset);
+        }
+    }
+
     public ByteBuffer getLuceneBMResultBuffer()
     {
-        return (ByteBuffer) getBufferByType(JuffersType.LuceneBMResult);
+        return (ByteBuffer) luceneBMResultJuffer.get().getWrappedBuffer();
     }
 }

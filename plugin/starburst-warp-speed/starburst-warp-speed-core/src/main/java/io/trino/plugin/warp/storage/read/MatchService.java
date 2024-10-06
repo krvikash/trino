@@ -31,7 +31,9 @@ import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
 import io.trino.spi.TrinoException;
 
+import java.lang.foreign.MemorySegment;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_FAILED;
@@ -78,18 +80,14 @@ public class MatchService
     {
         QueryParams queryParams = queryArgs.queryParams();
         int[] weMatchTree = queryParams.dumpMatchParams();
-        long[][] matchBuffIds = new long[queryParams.getNumMatchElements()][];
         LuceneMatcher[] luceneMatchers = new LuceneMatcher[queryParams.getNumLucene()];
 
-        for (int matchIx = 0; matchIx < matchBuffIds.length; matchIx++) {
-            matchBuffIds[matchIx] = bufferAllocator.getQueryIdsArray();
-        }
         List<ReadJuffersWarmUpElement> matchJuffersWe = queryParams.getMatchElementsParamsList()
                 .stream()
-                .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, false, we.hasLuceneParams()))
+                .map(we -> we.hasLuceneParams() ? new ReadJuffersWarmUpElement(bufferAllocator, false) : new ReadJuffersWarmUpElement())
                 .collect(Collectors.toList());
 
-        MatchArgs matchArgs = new MatchArgs(matchBuffIds, weMatchTree, matchJuffersWe, luceneMatchers);
+        MatchArgs matchArgs = new MatchArgs(weMatchTree, matchJuffersWe, luceneMatchers);
         createLuceneMatchers(queryArgs, matchArgs, customStatsContext); // this call must be after creating the matchJuffersWE
 
         return matchArgs;
@@ -127,18 +125,25 @@ public class MatchService
         int matchTxId = INVALID_TX_ID;
         QueryParams queryParams = queryArgs.queryParams();
         if (queryParams.getNumMatchElements() > 0) {
+            Optional<MemorySegment> luceneBitmaps = Optional.empty();
+            final int luceneBitmapSizePerWE = storageEngineConstants.getPageSize() * queryArgs.numChunksInRange();
             try {
+                if (queryParams.getNumLucene() > 0) {
+                    final long alignment = 32; // this is the alignment required for intel optimized bitmap operations
+                    final long allocSize = (long) luceneBitmapSizePerWE * (long) queryParams.getNumLucene();
+                    luceneBitmaps = Optional.of(collectOpenResult.queryMemoryAllocator().allocate(allocSize, alignment));
+                }
                 matchTxId = (int) storageEngine.matchOpen(queryParams.getTotalNumRecords(),
                         queryArgs.txArgs().fileCookie(),
-                        collectOpenResult.queryMemory().id(),
+                        collectOpenResult.queryMemoryId(),
                         queryArgs.txArgs().collectStoreBuff(),
                         queryArgs.txArgs().collect2MatchParams(),
                         queryParams.getNumMatchElements(),
                         queryArgs.numChunksInRange(),
                         matchArgs.weMatchTree(),
                         collectOpenResult.matchBmAddr(),
-                        queryParams.getMinMatchOffset(),
-                        matchArgs.matchBuffIds());
+                        luceneBitmaps.isPresent() ? luceneBitmaps.get().address() : 0,
+                        queryParams.getMinMatchOffset());
             }
             catch (Exception e) {
                 // will throw WARP_TX_ALLOCATION_FAILED cause matchTxId == INVALID_TX_ID
@@ -153,11 +158,8 @@ public class MatchService
             int matchIx = 0;
             for (WarmupElementMatchParams matchParams : queryParams.getMatchElementsParamsList()) {
                 // only for lucene
-                matchArgs.matchJuffersWe().get(matchIx).createBuffers(
-                        matchParams.getRecTypeCode(),
-                        matchParams.getRecTypeLength(),
-                        false,
-                        matchArgs.matchBuffIds()[matchIx]);
+                matchArgs.matchJuffersWe().get(matchIx).createLuceneBuffers(luceneBitmaps.orElse(null),
+                        matchParams.hasLuceneParams() ? luceneBitmapSizePerWE * matchParams.getLuceneIx() : 0);
                 matchIx++;
             }
         }

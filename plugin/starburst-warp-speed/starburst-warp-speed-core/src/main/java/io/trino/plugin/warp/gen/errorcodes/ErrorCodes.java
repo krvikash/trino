@@ -30,18 +30,16 @@ public enum ErrorCodes {
     ENV_EXCEPTION_STORAGE_CFG_ERROR(11, "native storage engine: error in storage layer config", false),
     ENV_EXCEPTION_NO_RESOURCES(12, "native storage engine: lack of resources", false),
     ENV_EXCEPTION_STORAGE_ERROR(13, "native storage engine: aborted tx called allocate or free storage page", false),
-    ENV_EXCEPTION_LUCENE_ERROR(14, "native storage engine: lucene match error", false),
-    ENV_EXCEPTION_INLINE_ERROR(15, "native storage engine: inline error", false),
-    ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR(17, "native storage engine: temporary error in storage layer", false),
-    ENV_EXCEPTION_STORAGE_PERMANENT_ERROR(18, "native storage engine: permanent error in storage layer", false),
-    ENV_EXCEPTION_STORAGE_TIMEOUT_ERROR(19, "native storage engine: timeout in storage layer", false),
-    ENV_EXCEPTION_STORAGE_READ_OUT_OF_BOUNDS(20, "native storage engine: read out of bounds", false),
+    ENV_EXCEPTION_INLINE_ERROR(14, "native storage engine: inline error", false),
+    ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR(15, "native storage engine: temporary error in storage layer", false),
+    ENV_EXCEPTION_STORAGE_PERMANENT_ERROR(16, "native storage engine: permanent error in storage layer", false),
+    ENV_EXCEPTION_STORAGE_TIMEOUT_ERROR(17, "native storage engine: timeout in storage layer", false),
+    ENV_EXCEPTION_STORAGE_READ_OUT_OF_BOUNDS(18, "native storage engine: read out of bounds", false),
     ENV_EXCEPTION_ALWAYS_THROW(100, "native storage engine: always throw min code, should not be used directly", false),
     ENV_EXCEPTION_OUT_OF_SPACE(101, "native storage engine: out of disk space", false),
-    ENV_EXCEPTION_LUCENE_FILE_TOO_BIG(102, "native storage engine: lucene file is too big", false),
-    ENV_EXCEPTION_WARM_FILE_TOO_MANY_ROWS(103, "native storage engine: warm file has too many rows", false),
-    ENV_EXCEPTION_FAILED_TO_INIT_LIBAIO(104, "native storage engine: aio_max_nr was not set properly", true),
-    ENV_EXCEPTION_DISK_ACCESS_PERMISSONS(105, "native storage engine: failed in file system operation (open/close/etc) probably due to disk access permissions", true);
+    ENV_EXCEPTION_WARM_FILE_TOO_MANY_ROWS(102, "native storage engine: warm file has too many rows", false),
+    ENV_EXCEPTION_FAILED_TO_INIT_LIBAIO(103, "native storage engine: aio_max_nr was not set properly", true),
+    ENV_EXCEPTION_DISK_ACCESS_PERMISSONS(104, "native storage engine: failed in file system operation (open/close/etc) probably due to disk access permissions", true);
 
     private final int code;
     private final String message;

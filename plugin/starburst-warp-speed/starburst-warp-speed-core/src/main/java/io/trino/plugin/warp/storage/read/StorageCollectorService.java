@@ -107,7 +107,7 @@ public class StorageCollectorService
     boolean prepareChunk(QueryArgs queryArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
     {
         if (chunksQueueService.isChunkPreparationNeeded(queryArgs.chunksQueue())) {
-            boolean stopForOptimization = collectTxService.prepareChunk(collectOpenResult.queryMemory().id(),
+            boolean stopForOptimization = collectTxService.prepareChunk(collectOpenResult.queryMemoryId(),
                     queryArgs.chunksQueue().getCurrent(),
                     collectOpenResult.rowsLimit() - numCollectedRows,
                     queryArgs.chunksQueue().getCurrentResetPoint());
@@ -134,7 +134,7 @@ public class StorageCollectorService
             int numToCollect,
             int[] outQueryResultType)
     {
-        return collectTxService.collect(collectOpenResult.queryMemory().id(),
+        return collectTxService.collect(collectOpenResult.queryMemoryId(),
                 numWes,
                 chunkIndex,
                 numToCollect,
@@ -342,7 +342,7 @@ public class StorageCollectorService
         }
         List<ReadJuffersWarmUpElement> collectJuffersWE = queryParams.getCollectElementsParamsList()
                 .stream()
-                .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true, false))
+                .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true))
                 .collect(Collectors.toList());
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
         byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
@@ -368,7 +368,7 @@ public class StorageCollectorService
         }
 
         int numLucene = queryParams.getNumLucene();
-        int numLuceneLimit = storageEngineConstants.getMaxLuceneColumnsInBundle();
+        int numLuceneLimit = storageEngineConstants.getMaxChunksInRange();
         while ((numChunksInRange > 1) && (numLucene > numLuceneLimit)) {
             numLuceneLimit <<= 1;
             numChunksInRange >>= 1;

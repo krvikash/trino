@@ -274,7 +274,7 @@ public class ArrayReadWriteTest
         appender = new ArrayBlockAppender(blockTransformerFactory, juffersWE,
                 new VariableLengthStringBlockAppender(juffersWE, storageEngineConstants, storageEngineConstants.getVarcharMaxLen(), arrayType, storageEngineConstants.getVarcharMaxLen()),
                 arrayType);
-        this.juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true, false);
+        this.juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true);
         this.juffersWE.createBuffers(arrayTypeCode, storageEngineConstants.getVarcharMaxLen(), false, new long[JbufType.values().length]);
     }
 

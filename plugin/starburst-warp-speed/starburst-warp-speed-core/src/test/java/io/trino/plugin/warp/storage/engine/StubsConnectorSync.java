@@ -78,7 +78,7 @@ public class StubsConnectorSync
     }
 
     @Override
-    public void freeQueryMemory(QueryMemory queryMemory)
+    public void freeQueryMemory(int queryMemoryId)
     {
     }
 

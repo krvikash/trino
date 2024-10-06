@@ -13,8 +13,6 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.storage.engine.QueryMemory;
-
-public record LazyCollectOpenResult(QueryMemory queryMemory)
+public record LazyCollectOpenResult(int queryMemoryId)
 {
 }

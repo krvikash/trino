@@ -163,7 +163,7 @@ public interface StorageEngine
     }
 
     default long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
-            int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
+            int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, long luceneBitmapAddress, int minOffset)
     {
         throw new UnsupportedOperationException();
     }

@@ -17,7 +17,6 @@ package io.trino.plugin.warp.gen.constants;
 
 public enum JbufType
 {
-    JBUF_TYPE_LUCENE_MATCH_BM,
     JBUF_TYPE_REC,
     JBUF_TYPE_NULL,
     JBUF_TYPE_QUERY_NUM_OF,

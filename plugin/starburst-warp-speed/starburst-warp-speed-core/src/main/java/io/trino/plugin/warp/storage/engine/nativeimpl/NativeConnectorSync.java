@@ -49,7 +49,7 @@ public class NativeConnectorSync
         implements ConnectorSync
 {
     private static final Logger logger = Logger.get(NativeConnectorSync.class);
-    private static final int MEMORY_SIZE_PER_WORKER = 128 * 1024; // large enough number for now, will be a configured one in the future
+    private static final int MEMORY_SIZE_PER_WORKER = 1152 * 1024; // large enough number for now, will be a configured one in the future
     private static final int ALLOC_ALIGNMENT = Integer.BYTES;
 
     private final CatalogName catalogName;
@@ -228,16 +228,14 @@ public class NativeConnectorSync
     }
 
     @Override
-    public void freeQueryMemory(QueryMemory queryMemory)
+    public void freeQueryMemory(int queryMemoryId)
     {
-        if (queryMemory != null) {
-            try {
-                mFreeQueryMemoryId.invokeExact(queryMemory.id());
-            }
-            catch (Throwable t) {
-                logger.error(t, "failed to free query memory");
-                throw new RuntimeException("failed to free query memory");
-            }
+        try {
+            mFreeQueryMemoryId.invokeExact(queryMemoryId);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to free query memory");
+            throw new RuntimeException("failed to free query memory");
         }
     }
 

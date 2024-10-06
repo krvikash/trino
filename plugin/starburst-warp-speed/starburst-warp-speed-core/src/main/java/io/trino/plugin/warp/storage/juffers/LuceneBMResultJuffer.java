@@ -13,9 +13,9 @@
  */
 package io.trino.plugin.warp.storage.juffers;
 
-import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 /**
@@ -29,10 +29,9 @@ public class LuceneBMResultJuffer
         super(bufferAllocator, JuffersType.LuceneBMResult);
     }
 
-    @Override
-    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, long[] buffIds, boolean hasDictionary)
+    public void createLuceneBuffer(MemorySegment luceneBitmaps, int luceneBitmapOffset)
     {
-        ByteBuffer luceneBMResultBuffer = bufferAllocator.ids2LuceneResultBM(buffIds);
+        ByteBuffer luceneBMResultBuffer = bufferAllocator.memorySegment2LuceneResultBM(luceneBitmaps, luceneBitmapOffset);
         this.baseBuffer = createGenericBuffer(luceneBMResultBuffer);
         this.wrappedBuffer = this.baseBuffer;
     }

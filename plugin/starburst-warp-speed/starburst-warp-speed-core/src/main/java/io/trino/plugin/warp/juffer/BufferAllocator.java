@@ -450,9 +450,9 @@ public class BufferAllocator
         return memorySegment2ByteBuffer(buff);
     }
 
-    public ByteBuffer ids2LuceneResultBM(long[] idsByType)
+    public ByteBuffer memorySegment2LuceneResultBM(MemorySegment buff, int offset)
     {
-        return id2Buff(idsByType[JbufType.JBUF_TYPE_LUCENE_MATCH_BM.ordinal()]);
+        return memorySegment2ByteBuffer(buff, offset);
     }
 
     public IntBuffer memorySegment2VarlenMdBuff(MemorySegment[] buffs)
@@ -470,6 +470,11 @@ public class BufferAllocator
     private ByteBuffer memorySegment2ByteBuffer(MemorySegment buff)
     {
         return createBuffView(buff.asByteBuffer());
+    }
+
+    private ByteBuffer memorySegment2ByteBuffer(MemorySegment buff, int offset)
+    {
+        return createBuffView(buff.asByteBuffer().position(offset).slice());
     }
 
     public ByteBuffer createBuffView(ByteBuffer buf)

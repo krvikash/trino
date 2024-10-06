@@ -13,12 +13,8 @@
  */
 package io.trino.plugin.warp.storage.lucene;
 
-import io.trino.plugin.warp.gen.constants.JbufType;
-import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
-import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import org.apache.lucene.store.IndexInput;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +29,6 @@ import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -53,15 +48,6 @@ public class WarpReadIndexInputTest
     public void before()
             throws IOException
     {
-        BufferAllocator bufferAllocator = mock(BufferAllocator.class);
-        when(bufferAllocator.ids2NullBuff(any())).thenReturn(allocateByteBuffer());
-        when(bufferAllocator.ids2RecBuff(any())).thenReturn(allocateByteBuffer());
-        when(bufferAllocator.ids2LuceneResultBM(any())).thenReturn(allocateByteBuffer());
-
-        long[] outColBuffIds = new long[JbufType.JBUF_TYPE_NUM_OF.ordinal()];
-        ReadJuffersWarmUpElement dataRecordJuffer = new ReadJuffersWarmUpElement(bufferAllocator, false, true);
-        dataRecordJuffer.createBuffers(RecTypeCode.REC_TYPE_VARCHAR, 10, false, outColBuffIds);
-
         StorageEngineConstants storageEngineConstants = mock(StorageEngineConstants.class);
         when(storageEngineConstants.getPageSize()).thenReturn(SMALL_FILE_SIZE);
 

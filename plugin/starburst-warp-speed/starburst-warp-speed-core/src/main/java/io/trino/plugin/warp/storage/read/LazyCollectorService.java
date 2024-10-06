@@ -82,7 +82,7 @@ public class LazyCollectorService
                 collect2MatchParams,
                 fileCookieParams);
 
-        ReadJuffersWarmUpElement juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true, false);
+        ReadJuffersWarmUpElement juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true);
         return new LazyCollectorLoaderArgs(
                 queryParams,
                 txArgs,

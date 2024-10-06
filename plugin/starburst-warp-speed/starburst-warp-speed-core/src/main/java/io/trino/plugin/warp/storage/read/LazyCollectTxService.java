@@ -36,9 +36,10 @@ public class LazyCollectTxService
     {
         long[] metadataBuffIds = new long[2];
         QueryMemory queryMemory = allocQueryMemory();
+        int queryMemoryId = queryMemory.id();
         collectOpen(lazyCollectorLoaderArgs.queryParams(),
                 lazyCollectorLoaderArgs.txArgs(),
-                queryMemory.id(),
+                queryMemoryId,
                 1,
                 lazyCollectorLoaderArgs.numChunksInRange(),
                 0,
@@ -50,15 +51,15 @@ public class LazyCollectTxService
                 collectParams.getRecTypeLength(),
                 collectParams.hasDictionary(),
                 lazyCollectorLoaderArgs.txArgs().collectBuffIds()[0]);
-        logger.debug("collectOpen collectTxId %d rowsLimit %d", queryMemory.id(), rowsLimit);
-        return new LazyCollectOpenResult(queryMemory);
+        logger.debug("collectOpen queryMemoryId %d rowsLimit %d", queryMemoryId, rowsLimit);
+        return new LazyCollectOpenResult(queryMemoryId);
     }
 
     // Lazy collect doesn't use store/restore mechanism, so store/restore params are not initialized
-    void collectClose(QueryMemory queryMemory, TestStats testStats)
+    void collectClose(int queryMemoryId, TestStats testStats)
     {
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
-        storageEngine.collectClose(queryMemory.id(), null, 0, null, collectStats);
+        storageEngine.collectClose(queryMemoryId, null, 0, null, collectStats);
         testStats.addread_cache_md_chunk_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_HITS.ordinal()]);
         testStats.addread_cache_md_basic_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_BASIC_HITS.ordinal()]);
         testStats.addread_cache_md_data_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_DATA_HITS.ordinal()]);
@@ -72,6 +73,6 @@ public class LazyCollectTxService
         testStats.addread_uncache_ext_data_misses(collectStats[CollectStats.COLLECT_STATS_UNCACHE_EXT_DATA_MISSES.ordinal()]);
         testStats.addread_time_wait_nanos(collectStats[CollectStats.COLLECT_STATS_READ_TIME_WAIT_NANOS.ordinal()]);
 
-        freeQueryMemory(queryMemory);
+        freeQueryMemory(queryMemoryId);
     }
 }

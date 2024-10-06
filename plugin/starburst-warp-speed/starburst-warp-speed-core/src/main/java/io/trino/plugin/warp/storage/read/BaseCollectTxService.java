@@ -59,9 +59,11 @@ public abstract class BaseCollectTxService
         return SegmentAllocator.slicingAllocator(queryMemory.memory());
     }
 
-    protected void freeQueryMemory(QueryMemory queryMemory)
+    protected void freeQueryMemory(int queryMemoryId)
     {
-        connectorSync.freeQueryMemory(queryMemory);
+        if (queryMemoryId != INVALID_TX_ID) {
+            connectorSync.freeQueryMemory(queryMemoryId);
+        }
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()

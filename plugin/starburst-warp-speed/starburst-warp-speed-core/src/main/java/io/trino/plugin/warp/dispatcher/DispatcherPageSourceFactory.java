@@ -226,9 +226,8 @@ public class DispatcherPageSourceFactory
             DynamicFilter dynamicFilter,
             CustomStatsContext customStatsContext)
     {
-        // HACK HACK HACK  - to make load a bit faster in POCs and tests
+        // nice tweak to make load a bit faster in POCs and tests (from the old varada days)
         if (WarpSessionProperties.isEmptyQuery(session)) {
-            logger.info("Cleaning Native's cache");
             storageCollectorService.cleanStorageCache();
             return new EmptyPageSource();
         }

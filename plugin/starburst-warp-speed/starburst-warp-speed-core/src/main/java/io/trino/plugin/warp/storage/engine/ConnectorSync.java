@@ -63,7 +63,7 @@ public interface ConnectorSync
         throw new UnsupportedOperationException();
     }
 
-    default void freeQueryMemory(QueryMemory queryMemory)
+    default void freeQueryMemory(int queryMemoryId)
     {
         throw new UnsupportedOperationException();
     }

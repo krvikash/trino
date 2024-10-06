@@ -191,12 +191,6 @@ public class StubsStorageEngineConstants
     }
 
     @Override
-    public int getMaxLuceneColumnsInBundle()
-    {
-        return 8;
-    }
-
-    @Override
     public int getMatchTxSize()
     {
         return 16 * 1024;

@@ -35,7 +35,6 @@ public final class TestStats
     /* This class file is auto-generated from test xml file for statistics and counters */
     private final String group;
 
-    private final LongAdder collect_time_nanos = new LongAdder();
     private final LongAdder read_cache_md_chunk_hits = new LongAdder();
     private final LongAdder read_cache_md_basic_hits = new LongAdder();
     private final LongAdder read_cache_md_data_hits = new LongAdder();
@@ -62,29 +61,6 @@ public final class TestStats
     public String getGroup()
     {
         return group;
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getcollect_time_nanos()
-    {
-        return collect_time_nanos.longValue();
-    }
-
-    public void inccollect_time_nanos()
-    {
-        collect_time_nanos.increment();
-    }
-
-    public void addcollect_time_nanos(long val)
-    {
-        collect_time_nanos.add(val);
-    }
-
-    public void setcollect_time_nanos(long val)
-    {
-        collect_time_nanos.reset();
-        addcollect_time_nanos(val);
     }
 
     @JsonIgnore
@@ -377,7 +353,6 @@ public final class TestStats
     public Map<String, LongAdder> getCounters()
     {
         Map<String, LongAdder> ret = new HashMap<>();
-        ret.put("collect_time_nanos", collect_time_nanos);
         ret.put("read_cache_md_chunk_hits", read_cache_md_chunk_hits);
         ret.put("read_cache_md_basic_hits", read_cache_md_basic_hits);
         ret.put("read_cache_md_data_hits", read_cache_md_data_hits);
@@ -401,7 +376,6 @@ public final class TestStats
             return;
         }
         TestStats other = (TestStats) warpStatsBase;
-        this.collect_time_nanos.add(other.collect_time_nanos.longValue());
         this.read_cache_md_chunk_hits.add(other.read_cache_md_chunk_hits.longValue());
         this.read_cache_md_basic_hits.add(other.read_cache_md_basic_hits.longValue());
         this.read_cache_md_data_hits.add(other.read_cache_md_data_hits.longValue());
@@ -419,7 +393,6 @@ public final class TestStats
     @Override
     public void reset()
     {
-        collect_time_nanos.reset();
         read_cache_md_chunk_hits.reset();
         read_cache_md_basic_hits.reset();
         read_cache_md_data_hits.reset();
@@ -438,7 +411,6 @@ public final class TestStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":collect_time_nanos", collect_time_nanos.longValue());
         res.put(getJmxKey() + ":read_cache_md_chunk_hits", read_cache_md_chunk_hits.longValue());
         res.put(getJmxKey() + ":read_cache_md_basic_hits", read_cache_md_basic_hits.longValue());
         res.put(getJmxKey() + ":read_cache_md_data_hits", read_cache_md_data_hits.longValue());
