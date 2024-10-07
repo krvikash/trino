@@ -15,40 +15,34 @@ package io.trino.plugin.warp.di;
 
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
-import io.airlift.units.Duration;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.node.NodeConfig;
+import io.airlift.node.NodeInfo;
 import io.trino.plugin.warp.execution.ForWarp;
 import io.trino.plugin.warp.execution.WarpClient;
+import io.trino.server.security.SecurityConfig;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
-import java.util.Map;
-
-import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
 
 public class WarpClientModule
-        implements WarpBaseModule
+        extends AbstractConfigurationAwareModule
 {
-    private static final String HTTP_CLIENT_IDLE_TIMEOUT = "http.idle-timeout";
-    private static final String HTTP_CLIENT_REQUEST_TIMEOUT = "http.request-timeout";
-    private final Map<String, String> config;
-
-    public WarpClientModule(Map<String, String> config)
+    public WarpClientModule()
     {
-        this.config = config;
     }
 
     @Override
-    public void configure(Binder binder)
+    protected void setup(Binder binder)
     {
         binder.bind(SslContextFactory.Client.class).toInstance(new SslContextFactory.Client(true));
-        int idleTimeout = Integer.parseInt(config.getOrDefault(HTTP_CLIENT_IDLE_TIMEOUT, "240"));
-        int requestTimeout = Integer.parseInt(config.getOrDefault(HTTP_CLIENT_REQUEST_TIMEOUT, "240"));
-        httpClientBinder(binder).bindHttpClient("varada", ForWarp.class)
-                .withConfigDefaults(config -> {
-                    config.setIdleTimeout(new Duration(idleTimeout, MINUTES));
-                    config.setRequestTimeout(new Duration(requestTimeout, MINUTES));
-                    config.setMaxConnectionsPerServer(250);
-                });
+        configBinder(binder).bindConfig(SecurityConfig.class);
+        configBinder(binder).bindConfig(NodeConfig.class);
+        binder.bind(NodeInfo.class);
+        install(internalHttpClientModule("varada", ForWarp.class)
+                .build());
+
         binder.bind(WarpClient.class).in(Scopes.SINGLETON);
     }
 }

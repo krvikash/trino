@@ -15,6 +15,7 @@ package io.trino.plugin.warp;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.di.DefaultFakeConnectorSessionProvider;
 import io.trino.plugin.warp.di.FakeConnectorSessionProvider;
@@ -29,6 +30,7 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 public class WarpModule
+        extends AbstractConfigurationAwareModule
         implements InitializationModule
 {
     private Map<String, String> config;
@@ -52,16 +54,16 @@ public class WarpModule
     }
 
     @Override
-    public void configure(Binder binder)
+    public void setup(Binder binder)
     {
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarpExtensionConfig warpExtensionConfig = configFactory.build(WarpExtensionConfig.class);
 
         if (warpExtensionConfig.isEnabled()) {
-            binder.install(new WarpExtensionModule(config, connectorContext, catalogName));
+            install(new WarpExtensionModule(config, connectorContext, catalogName));
         }
         else {
-            binder.install(new WarpEmptyExtensionModule(config, connectorContext, catalogName));
+            install(new WarpEmptyExtensionModule(config, connectorContext, catalogName));
         }
 
         binder.bind(FakeConnectorSessionProvider.class).to(DefaultFakeConnectorSessionProvider.class);

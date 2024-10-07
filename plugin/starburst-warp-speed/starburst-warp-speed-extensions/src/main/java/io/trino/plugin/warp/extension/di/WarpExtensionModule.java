@@ -14,9 +14,10 @@
 package io.trino.plugin.warp.extension.di;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.inject.AbstractModule;
+import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
@@ -48,7 +49,7 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.util.Objects.requireNonNull;
 
 public class WarpExtensionModule
-        extends AbstractModule
+        extends AbstractConfigurationAwareModule
         implements InitializationModule
 {
     private Map<String, String> config;
@@ -66,9 +67,9 @@ public class WarpExtensionModule
     }
 
     @Override
-    public void configure()
+    public void setup(Binder binder)
     {
-        binder().install(new WarpClientModule(config));
+        install(new WarpClientModule());
 
         ImmutableSet.Builder<Class<? extends BooleanSupplier>> booleanSuppliers = ImmutableSet.builder();
         if (connectorContext.getNodeManager().getCurrentNode().isCoordinator()) {
@@ -77,7 +78,7 @@ public class WarpExtensionModule
         else {
             booleanSuppliers.add(WorkerReadyTaskExecutionIsAllowedSupplier.class);
         }
-        binder().install(
+        install(
                 new WarpTasksModule(
                         WarpBaseModule.isCoordinator(connectorContext),
                         WarpBaseModule.isWorker(connectorContext, config),
@@ -86,9 +87,9 @@ public class WarpExtensionModule
             configureHttpServer();
         }
 
-        binder().bind(CallHomeService.class);
-        configBinder(binder()).bindConfig(WarpExtensionConfig.class);
-        configBinder(binder()).bindConfig(CallHomeConfig.class);
+        binder.bind(CallHomeService.class);
+        configBinder(binder).bindConfig(WarpExtensionConfig.class);
+        configBinder(binder).bindConfig(CallHomeConfig.class);
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
@@ -96,11 +97,11 @@ public class WarpExtensionModule
         if (WarpBaseModule.isWorker(connectorContext, config) &&
                 !cacheManagerConfig.getIsCache() &&
                 StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
-            binder().bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(WorkerWarmupRuleFetcher.class);
-            configBinder(binder()).bindConfig(WarmupRuleCloudFetcherConfig.class, ForWarmupRuleCloudFetcher.class);
+            binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(WorkerWarmupRuleFetcher.class);
+            configBinder(binder).bindConfig(WarmupRuleCloudFetcherConfig.class, ForWarmupRuleCloudFetcher.class);
         }
         else {
-            binder().install(new WarmupCloudFetcherModule(config, connectorContext, catalogName));
+            install(new WarmupCloudFetcherModule(config, connectorContext, catalogName));
         }
     }
 
@@ -117,12 +118,12 @@ public class WarpExtensionModule
         configFactory.registerConfigurationClasses(jaxrsModule);
         HttpServerModule httpServerModule = new HttpServerModule();
         configFactory.registerConfigurationClasses(httpServerModule);
-        binder().install(new NodeModule());
-        binder().install(httpServerModule);
-        binder().install(new JsonModule());
+        install(new NodeModule());
+        install(httpServerModule);
+        install(new JsonModule());
         WarpJaxrsModule module = new WarpJaxrsModule();
         module.setConfigurationFactory(configFactory);
-        binder().install(module);
-        binder().install(binder1 -> binder1.bind(HttpServerLifeCycleHandler.class));
+        install(module);
+        install(binder1 -> binder1.bind(HttpServerLifeCycleHandler.class));
     }
 }
