@@ -213,12 +213,6 @@ public class WorkerCapacityManager
             return;
         }
 
-        if (!globalConfig.isEnableLocalStoreCleanOnLoad()) {
-            logger.info("cleanLocalStorage exiting since clean is disabled");
-            calculateTotalCapacity();
-            return;
-        }
-
         String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
         File localStore = new File(localStorePath);
         String[] ls = localStore.list();
@@ -281,11 +275,6 @@ public class WorkerCapacityManager
 
     public void deleteLocalStorageFiles()
     {
-        if (!globalConfig.isEnableLocalStoreCleanOnShutdown()) {
-            logger.info("deleteLocalStorageFiles exiting since clean is disabled");
-            return;
-        }
-
         String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
         File localStore = new File(localStorePath);
         try {

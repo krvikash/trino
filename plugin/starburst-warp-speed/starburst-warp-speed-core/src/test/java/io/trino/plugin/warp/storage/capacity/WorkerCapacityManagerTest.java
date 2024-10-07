@@ -118,63 +118,6 @@ public class WorkerCapacityManagerTest
     }
 
     @Test
-    void testAvoidCleanLocalStorage()
-    {
-        Path localStorePath;
-        try {
-            localStorePath = Files.createTempDirectory("cleanLocalStorage2");
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        File localStoreDirectory = localStorePath.toFile();
-        globalConfig.setLocalStorePath(localStoreDirectory.getAbsolutePath());
-        globalConfig.setEnableLocalStoreCleanOnLoad(false);
-
-        String catalogLocalStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
-        File catalogLocalStore = new File(catalogLocalStorePath);
-        boolean unused = catalogLocalStore.mkdirs();
-
-        try {
-            String tempFileName = String.format(catalogLocalStorePath + "/test/bucket/schema/table/part-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/");
-            unused = new File(tempFileName).mkdirs();
-            File tempFile = new File(tempFileName + "1549797223000");
-
-            if (tempFile.createNewFile()) {
-                byte[] array = new byte[8192];
-                new Random().nextBytes(array);
-                String generatedString = new String(array, UTF_8);
-
-                Writer writer = Files.newBufferedWriter(tempFile.toPath(), UTF_8);
-                writer.write(generatedString);
-                writer.close();
-            }
-            else {
-                throw new RuntimeException("failed to create file");
-            }
-
-            Assertions.assertEquals(1, requireNonNull(catalogLocalStore.list()).length);
-
-            workerCapacityManager.init();
-
-            try {
-                while (workerCapacityManager.getTotalCapacity() == 0) {
-                    Thread.sleep(100);
-                }
-            }
-            catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-
-            Assertions.assertEquals(1, requireNonNull(catalogLocalStore.list()).length);
-            FileUtils.deleteDirectory(localStoreDirectory);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Test
     void testCatalogLocalStore()
     {
         RowGroupKey rowGroupKey = new RowGroupKey(

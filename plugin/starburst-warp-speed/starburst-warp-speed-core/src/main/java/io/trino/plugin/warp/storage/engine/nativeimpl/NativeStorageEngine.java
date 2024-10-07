@@ -121,7 +121,7 @@ public class NativeStorageEngine
                     nativeConfig.getSkipIndexPercent(),
                     WarpNativeStorageEngineModule.getNativeLibrariesDirectory().toString(),
                     nativeConfig.getEnableSingleChunk(),
-                    nativeConfig.getEnableQueryResultType(),
+                    false,
                     nativeConfig.getEnablePackedChunk(),
                     nativeConfig.getEnableWarmingExtraLogs(),
                     nativeConfig.getEnableCompression(),

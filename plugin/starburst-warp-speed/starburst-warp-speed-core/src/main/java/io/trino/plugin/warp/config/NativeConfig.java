@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.plugin.warp.gen.constants.CompressionUsers;
 import jakarta.validation.constraints.Max;
@@ -30,13 +29,12 @@ import java.util.stream.Collectors;
 
 public class NativeConfig
 {
-    public static final int READERS_WARMERS_RATIO = 32;
-    public static final int MIN_WARMING_THREADS = 2;
-    public static final int DEFAULT_GENERAL_RESERVED_MEMORY_IN_GB = 8;
-    public static final int DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES = 4 * 1024 * 1024;
-    public static final String EXCEPTIONAL_LIST_COMPRESSION = "enable.compression.exceptional-list";
+    private static final int READERS_WARMERS_RATIO = 32;
+    private static final int MIN_WARMING_THREADS = 2;
+    private static final int DEFAULT_GENERAL_RESERVED_MEMORY_IN_GB = 8;
+    private static final int DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES = 4 * 1024 * 1024;
+    private static final String EXCEPTIONAL_LIST_COMPRESSION = "enable.compression.exceptional-list";
     private static final int TASK_MIN_WORKER_THREADS = 4;
-    private static final Logger logger = Logger.get(NativeConfig.class);
 
     private int predicateBundleSizeInMegaBytes = 110;
     private DataSize generalReservedMemory = DataSize.of(0, DataSize.Unit.GIGABYTE);
@@ -51,6 +49,11 @@ public class NativeConfig
     private int debugPanicHaltPolicy;
     private int clusterLevel = -1;
     private int maxPageSourcesWithoutWarmingLimit = 8;
+    private Set<String> unsupportedNativeFunctions = Collections.emptySet();
+
+    private Duration storageTemporaryExceptionDuration = Duration.of(5, ChronoUnit.MINUTES);
+    private int storageTemporaryExceptionNumTries = 3;
+    private Duration storageTemporaryExceptionExpiryDuration = Duration.of(1, ChronoUnit.HOURS);
 
     //////////////////////////// Enable flags and lists ///////////////////////////////
     // Exceptional Lists of record types is optional and not used for all features
@@ -61,15 +64,10 @@ public class NativeConfig
     // Exception lists in NativeConfig are held as integer bitmaps while every bit represents each potential
     // enum value (on - in the list, off - not in the list)
     private boolean enableSingleChunk = true;
-    private boolean enableQueryResultType;
     private boolean enablePackedChunk = true;
     private boolean enableWarmingExtraLogs;
     private boolean enableCompression = true;
     private int exceptionalListCompression;
-    private Set<String> unsupportedNativeFunctions = Collections.emptySet();
-    private Duration storageTemporaryExceptionDuration = Duration.of(5, ChronoUnit.MINUTES);
-    private int storageTemporaryExceptionNumTries = 3;
-    private Duration storageTemporaryExceptionExpiryDuration = Duration.of(1, ChronoUnit.HOURS);
 
     @Min(100)
     @Max(600)
@@ -203,17 +201,6 @@ public class NativeConfig
         this.enableSingleChunk = enableSingleChunk;
     }
 
-    public boolean getEnableQueryResultType()
-    {
-        return enableQueryResultType;
-    }
-
-    @Config("warp-speed.enable.query-result-type")
-    public void setEnableQueryResultType(boolean enableQueryResultType)
-    {
-        this.enableQueryResultType = enableQueryResultType;
-    }
-
     public boolean getEnablePackedChunk()
     {
         return enablePackedChunk;
@@ -260,12 +247,7 @@ public class NativeConfig
     @Config("warp-speed." + EXCEPTIONAL_LIST_COMPRESSION)
     public void setExceptionalListCompression(String exceptionalListCompression)
     {
-        try {
-            this.exceptionalListCompression = string2CompressionUsersList(exceptionalListCompression);
-        }
-        catch (Exception e) {
-            logger.error("failed to set %s list", EXCEPTIONAL_LIST_COMPRESSION);
-        }
+        this.exceptionalListCompression = string2CompressionUsersList(exceptionalListCompression);
     }
 
     public int getExceptionalListCompression()
@@ -351,12 +333,7 @@ public class NativeConfig
     @Config("warp-speed.debug.unsupported-native-functions")
     public void setUnsupportedNativeFunctions(String unsupportedNativeFunctionsAsString)
     {
-        try {
-            unsupportedNativeFunctions = Arrays.stream(unsupportedNativeFunctionsAsString.trim().split(",")).map(String::trim).collect(Collectors.toSet());
-        }
-        catch (Exception e) {
-            logger.error("failed to set warp-speed.debug.unsupported-native-functions list");
-        }
+        unsupportedNativeFunctions = Arrays.stream(unsupportedNativeFunctionsAsString.trim().split(",")).map(String::trim).collect(Collectors.toSet());
     }
 
     public Duration getStorageTemporaryExceptionDuration()

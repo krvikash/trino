@@ -14,16 +14,12 @@
 package io.trino.plugin.warp.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.configuration.ConfigSecuritySensitive;
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.tools.certification.SwaggerExposingLevel;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,52 +27,41 @@ import java.util.stream.Collectors;
 public class GlobalConfig
 {
     public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
-    public static final String CLUSTER_UP_TIME = "warp-speed.cluster_up_time";
     public static final String ENABLE_DEFAULT_WARMING = "warp-speed.enable-default-warming";
-    public static final String DEFAULT_WARMING_INDEX = "warp-speed.default-warming-index";
     public static final String LOCAL_STORE_PATH = "warp-speed.local-store.path";
-    public static final String LOCAL_STORE_CLEAN_ON_LOAD = "warp-speed.local-store.clean-on-load";
-    public static final String LOCAL_STORE_CLEAN_ON_SHUTDOWN = "warp-speed.local-store.clean-on-shutdown";
-    public static final String MAX_COLLECT_COLUMNS_SKIP_DEFAULT_WARMING = "warp-speed.max-collect-columns-skip-default-warming";
-    public static final String CERT_LOCAL_LOCATION = "warp-speed.config.cert-local-location";
-    public static final String AZURE_CONNECTION_STRING = "warp-speed.config.azure.connection-string";
-    public static final String STATS_COLLECTION_ENABLED = "warp-speed.config.stats-collection-enabled";
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
-    public static final String DATA_ONLY_WARMING = "warp-speed.data-only-warming";
-    public static final String EMPTY_PAGE_ITERATIONS = "warp-speed.config-empty-page-iterations";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
-    private static final Logger logger = Logger.get(GlobalConfig.class);
 
-    private final Optional<String> authorization = Optional.empty();  // by default, no authorization
-    private int stripeSize = 32;
-    private String cardinalityBuckets = "1000,1000000"; // allows applying most selective predicate first when using predicate push-down
     private boolean isSingle;
     private Set<String> unsupportedFunctions = Collections.emptySet();
     private long clusterUpTime;
-    private boolean enableDefaultWarming = true;
-    private boolean createIndexInDefaultWarming;
     private int consistentSplitBucketsPerWorker = 2048;
     private int exportDelayInSeconds;
     private String localStorePath = "/opt/data/";
-    private boolean enableLocalStoreCleanOnLoad = true;
-    private boolean enableLocalStoreCleanOnShutdown = true;
-    private int maxCollectColumnsSkipDefaultWarming = 128;
     private int predicateSimplifyThreshold = 1_000_000;
     private long reservationUsageForSingleTxInBytes = 1024L * 1024 * 128;
+    private long emptyPageIterations = 5000;
+    private int cloudExecutorPoolSize = Runtime.getRuntime().availableProcessors() * 100;
+    private int prioritizeExecutorPoolSize = 1000;
+    private String cardinalityBuckets = "1000,1000000"; // allows applying most selective predicate first when using predicate push-down
+
+    private boolean enableDefaultWarming = true;
+    private boolean createIndexInDefaultWarming;
+    private boolean dataOnlyWarming;
+    private int maxCollectColumnsSkipDefaultWarming = 128;
     private int maxWarmRetries = 2;
     private int warmRetryBackoffFactorInMillis = 1000;
     private int maxWarmupIterationsPerQuery = 2000;
     private int warmDataVarcharMaxLength = 2048;
-    private String certLocalLocalLocation;
-    private String deviceIdentifier;
-    private String azureConnectionString;
-    private boolean failureGeneratorEnabled;
-    private long emptyPageIterations = 5000;
-    private SwaggerExposingLevel swaggerExposingLevel = SwaggerExposingLevel.DEBUG;
+
+    private int shapingLoggerThreshold = 1000;
+    private Duration shapingLoggerDuration = Duration.ofSeconds(60);
+    private int shapingLoggerNumberOfSamples = 3;
 
     private boolean debugWarmingSingleThreaded;
     private boolean debugWarming;
     private boolean debugNoPredicateBuffer;
+    private boolean debugFailureGenerator;
 
     private boolean enableImportExport;
     private boolean enableExportAppendOnCloud = true;
@@ -85,24 +70,7 @@ public class GlobalConfig
     private boolean enableVarcharMappedMatchCollect;
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
-    private int shapingLoggerThreshold = 1000;
-    private Duration shapingLoggerDuration = Duration.ofSeconds(60);
-    private int shapingLoggerNumberOfSamples = 3;
-    private boolean dataOnlyWarming;
     private boolean enableInverseWithNulls;
-    private int cloudExecutorPoolSize = Runtime.getRuntime().availableProcessors() * 100;
-    private int prioritizeExecutorPoolSize = 1000;
-
-    public int getStripeSize()
-    {
-        return stripeSize;
-    }
-
-    @Config("warp-speed.config.stripesize")
-    public void setStripeSize(int stripeSize)
-    {
-        this.stripeSize = stripeSize;
-    }
 
     public boolean getIsSingle()
     {
@@ -115,6 +83,11 @@ public class GlobalConfig
         this.isSingle = isSingle;
     }
 
+    public boolean getEnableImportExport()
+    {
+        return enableImportExport;
+    }
+
     public String getCardinalityBuckets()
     {
         return cardinalityBuckets;
@@ -124,11 +97,6 @@ public class GlobalConfig
     public void setCardinalityBuckets(String cardinalityBuckets)
     {
         this.cardinalityBuckets = cardinalityBuckets;
-    }
-
-    public boolean getEnableImportExport()
-    {
-        return enableImportExport;
     }
 
     @Config("warp-speed.enable.import-export")
@@ -241,7 +209,7 @@ public class GlobalConfig
         return createIndexInDefaultWarming;
     }
 
-    @Config(DEFAULT_WARMING_INDEX)
+    @Config("warp-speed.default-warming-index")
     public void setCreateIndexInDefaultWarming(boolean createIndexInDefaultWarming)
     {
         this.createIndexInDefaultWarming = createIndexInDefaultWarming;
@@ -265,7 +233,7 @@ public class GlobalConfig
         return clusterUpTime;
     }
 
-    @Config(CLUSTER_UP_TIME)
+    @Config("warp-speed.cluster_up_time")
     public void setClusterUpTime(long clusterUpTime)
     {
         this.clusterUpTime = clusterUpTime;
@@ -303,12 +271,7 @@ public class GlobalConfig
     @Config("warp-speed.debug.unsupported-functions")
     public void setUnsupportedFunctions(String unsupportedFunctionsAsString)
     {
-        try {
-            unsupportedFunctions = Arrays.stream(unsupportedFunctionsAsString.trim().split(",")).map(String::trim).collect(Collectors.toSet());
-        }
-        catch (Exception e) {
-            logger.error("failed to set warp-speed.debug.unsupported-functions list");
-        }
+        unsupportedFunctions = Arrays.stream(unsupportedFunctionsAsString.trim().split(",")).map(String::trim).collect(Collectors.toSet());
     }
 
     public String getLocalStorePath()
@@ -327,29 +290,7 @@ public class GlobalConfig
         return maxCollectColumnsSkipDefaultWarming;
     }
 
-    public boolean isEnableLocalStoreCleanOnLoad()
-    {
-        return enableLocalStoreCleanOnLoad;
-    }
-
-    @Config(LOCAL_STORE_CLEAN_ON_LOAD)
-    public void setEnableLocalStoreCleanOnLoad(boolean enableLocalStoreCleanOnLoad)
-    {
-        this.enableLocalStoreCleanOnLoad = enableLocalStoreCleanOnLoad;
-    }
-
-    public boolean isEnableLocalStoreCleanOnShutdown()
-    {
-        return enableLocalStoreCleanOnShutdown;
-    }
-
-    @Config(LOCAL_STORE_CLEAN_ON_SHUTDOWN)
-    public void setEnableLocalStoreCleanOnShutdown(boolean enableLocalStoreCleanOnShutdown)
-    {
-        this.enableLocalStoreCleanOnShutdown = enableLocalStoreCleanOnShutdown;
-    }
-
-    @Config(MAX_COLLECT_COLUMNS_SKIP_DEFAULT_WARMING)
+    @Config("warp-speed.max-collect-columns-skip-default-warming")
     public void setMaxCollectColumnsSkipDefaultWarming(int maxCollectColumnsSkipDefaultWarming)
     {
         this.maxCollectColumnsSkipDefaultWarming = maxCollectColumnsSkipDefaultWarming;
@@ -412,29 +353,6 @@ public class GlobalConfig
         this.maxWarmupIterationsPerQuery = maxWarmupIterationsPerQuery;
     }
 
-    public String getCertLocalLocalLocation()
-    {
-        return certLocalLocalLocation;
-    }
-
-    @Config(CERT_LOCAL_LOCATION)
-    public void setCertLocalLocalLocation(String certLocalLocalLocation)
-    {
-        this.certLocalLocalLocation = certLocalLocalLocation;
-    }
-
-    public String getAzureConnectionString()
-    {
-        return azureConnectionString;
-    }
-
-    @ConfigSecuritySensitive
-    @Config(AZURE_CONNECTION_STRING)
-    public void setAzureConnectionString(String azureConnectionString)
-    {
-        this.azureConnectionString = azureConnectionString;
-    }
-
     public boolean getDebugWarming()
     {
         return debugWarming;
@@ -470,24 +388,13 @@ public class GlobalConfig
 
     public boolean isFailureGeneratorEnabled()
     {
-        return failureGeneratorEnabled;
+        return debugFailureGenerator;
     }
 
     @Config(FAILURE_GENERATOR_ENABLED)
-    public void setFailureGeneratorEnabled(boolean failureGeneratorEnabled)
+    public void setFailureGeneratorEnabled(boolean debugFailureGenerator)
     {
-        this.failureGeneratorEnabled = failureGeneratorEnabled;
-    }
-
-    public SwaggerExposingLevel getSwaggerExposingLevel()
-    {
-        return swaggerExposingLevel;
-    }
-
-    @Config("warp-speed.config.swagger-exposing-level")
-    public void setSwaggerExposingLevel(SwaggerExposingLevel swaggerExposingLevel)
-    {
-        this.swaggerExposingLevel = swaggerExposingLevel;
+        this.debugFailureGenerator = debugFailureGenerator;
     }
 
     @Config("warp-speed.enable.range-filter")
@@ -539,13 +446,13 @@ public class GlobalConfig
         return dataOnlyWarming;
     }
 
-    @Config(DATA_ONLY_WARMING)
+    @Config("warp-speed.data-only-warming")
     public void setDataOnlyWarming(boolean dataOnlyWarming)
     {
         this.dataOnlyWarming = dataOnlyWarming;
     }
 
-    @Config(EMPTY_PAGE_ITERATIONS)
+    @Config("warp-speed.config-empty-page-iterations")
     public void setEmptyPageIterations(long emptyPageIterations)
     {
         this.emptyPageIterations = emptyPageIterations;
@@ -560,10 +467,8 @@ public class GlobalConfig
     public String toString()
     {
         return "GlobalConfig{" +
-                "authorization=" + authorization +
-                ", stripeSize=" + stripeSize +
+                "isSingle=" + isSingle +
                 ", cardinalityBuckets='" + cardinalityBuckets + '\'' +
-                ", isSingle=" + isSingle +
                 ", unsupportedFunctions=" + unsupportedFunctions +
                 ", clusterUpTime=" + clusterUpTime +
                 ", enableDefaultWarming=" + enableDefaultWarming +
@@ -582,11 +487,7 @@ public class GlobalConfig
                 ", prioritizeExecutorPoolSize=" + prioritizeExecutorPoolSize +
                 ", enableExportAppendOnCloud=" + enableExportAppendOnCloud +
                 ", enableMatchCollect=" + enableMatchCollect +
-                ", certLocalLocalLocation='" + certLocalLocalLocation + '\'' +
-                ", deviceIdentifier='" + deviceIdentifier + '\'' +
-                ", azureConnectionString='" + azureConnectionString + '\'' +
-                ", failureGeneratorEnabled=" + failureGeneratorEnabled +
-                ", swaggerExposingLevel=" + swaggerExposingLevel +
+                ", debugFailureGenerator=" + debugFailureGenerator +
                 ", enableRangeFilter=" + enableRangeFilter +
                 ", shapingLoggerThreshold=" + shapingLoggerThreshold +
                 ", shapingLoggerDuration=" + shapingLoggerDuration +

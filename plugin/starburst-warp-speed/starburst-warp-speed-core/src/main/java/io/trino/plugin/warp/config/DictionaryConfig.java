@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 
@@ -39,8 +38,6 @@ public class DictionaryConfig
     ///////////////////////////////////////////////////////////////////////////////////
     private boolean enableDictionary = true;
     private Set<RecTypeCode> exceptionalListDictionary;
-
-    private static final Logger logger = Logger.get(DictionaryConfig.class);
 
     public int getDictionaryMaxSize()
     {
@@ -105,12 +102,7 @@ public class DictionaryConfig
     @Config(EXCEPTIONAL_LIST_DICTIONARY)
     public void setExceptionalListDictionary(String exceptionalListDictionary)
     {
-        try {
-            this.exceptionalListDictionary = string2RecTypeCodeSet(exceptionalListDictionary);
-        }
-        catch (Exception e) {
-            logger.error("failed to set %s list", EXCEPTIONAL_LIST_DICTIONARY);
-        }
+        this.exceptionalListDictionary = string2RecTypeCodeSet(exceptionalListDictionary);
     }
 
     public Set<RecTypeCode> getExceptionalListDictionary()
