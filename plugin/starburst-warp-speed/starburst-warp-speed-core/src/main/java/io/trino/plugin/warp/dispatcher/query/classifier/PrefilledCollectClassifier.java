@@ -83,7 +83,6 @@ class PrefilledCollectClassifier
 
             Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex = new HashMap<>(queryContext.getPrefilledQueryCollectDataByBlockIndex());
             Map<Integer, ColumnHandle> remainingCollectColumnByBlockIndex = new HashMap<>(queryContext.getRemainingCollectColumnByBlockIndex());
-            ImmutableMap<WarpColumn, WarmUpElement> dataElementsMap = classifyArgs.getWarmedWarmupTypes().dataWarmedElements();
             PredicateContextData predicateContextData = queryContext.getPredicateContextData();
             Optional<MatchData> matchData = queryContext.getMatchData();
 
@@ -128,23 +127,6 @@ class PrefilledCollectClassifier
                     }
                     prefilledQueryCollectDataByBlockIndex.put(blockIndex, prefilledQueryCollectdata);
                     remainingCollectColumnByBlockIndex.remove(blockIndex);
-                }
-                else {
-                    // handle all null warmup-element as prefilled
-                    WarmUpElement dataWarmupElement = dataElementsMap.get(regularColumn);
-                    if ((dataWarmupElement != null) &&
-                            (dataWarmupElement.getWarmupElementStats().getNullsCount() > 0) &&
-                            dataWarmupElement.getWarmupElementStats().getNullsCount() == dataWarmupElement.getTotalRecords()) {
-                        SingleValue nullSingleValue = SingleValue.create(type, null);
-                        PrefilledQueryCollectData prefilledQueryCollectdata = PrefilledQueryCollectData.builder()
-                                .warpColumn(regularColumn)
-                                .type(type)
-                                .blockIndex(blockIndex)
-                                .singleValue(nullSingleValue)
-                                .build();
-                        prefilledQueryCollectDataByBlockIndex.put(blockIndex, prefilledQueryCollectdata);
-                        remainingCollectColumnByBlockIndex.remove(blockIndex);
-                    }
                 }
             }
 
@@ -289,10 +271,19 @@ class PrefilledCollectClassifier
         for (Map.Entry<Integer, ColumnHandle> entry : queryContext.getRemainingCollectColumnByBlockIndex().entrySet()) {
             RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(entry.getValue());
             WarmUpElement warmUpElement = dataWarmedElements.get(regularColumn);
-            if (warmUpElement != null && warmUpElement.getWarmupElementStats().isSingleValue()) {
+            if (warmUpElement != null) {
                 Type type = dispatcherProxiedConnectorTransformer.getColumnType(entry.getValue());
-                SingleValue singleValue = createSingleValueFromStat(warmUpElement.getWarmupElementStats().getMaxValue(), type);
-                result.put(regularColumn, singleValue);
+                if (warmUpElement.getWarmupElementStats().isSingleValue()) {
+                    // minValue = maxValue and 0 nullCount
+                    SingleValue singleValue = createSingleValueFromStat(warmUpElement.getWarmupElementStats().getMaxValue(), type);
+                    result.put(regularColumn, singleValue);
+                }
+                else if ((warmUpElement.getWarmupElementStats().getNullsCount() > 0) &&
+                        warmUpElement.getWarmupElementStats().getNullsCount() == warmUpElement.getTotalRecords()) {
+                    // all nulls
+                    SingleValue nullSingleValue = SingleValue.create(type, null);
+                    result.put(regularColumn, nullSingleValue);
+                }
             }
         }
         return result;
