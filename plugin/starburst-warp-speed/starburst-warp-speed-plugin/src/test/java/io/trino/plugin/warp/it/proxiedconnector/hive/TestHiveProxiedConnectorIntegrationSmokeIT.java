@@ -203,7 +203,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         Map<String, Long> expectedQueryStats = Map.of(
                 CACHED_TOTAL_ROWS, 3L,
                 WARP_MATCH_COLUMNS_STAT, 0L,
-                WARP_COLLECT_COLUMNS_STAT, 6L /* 2 cols * 3 rows */,
+                WARP_COLLECT_COLUMNS_STAT, 0L,
+                PREFILLED_COLUMNS_STAT, 6L /* 2 cols * 3 rows */,
                 EXTERNAL_MATCH_STAT, 0L,
                 EXTERNAL_COLLECT_STAT, 9L /* 3 cols * 3 rows */);
         validateQueryStats(query, getSession(), expectedQueryStats);
@@ -211,8 +212,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         expectedQueryStats = Map.of(
                 CACHED_TOTAL_ROWS, 1L,
                 WARP_MATCH_COLUMNS_STAT, 1L,
-                WARP_COLLECT_COLUMNS_STAT, 1L,
-                PREFILLED_COLUMNS_STAT, 1L,
+                WARP_COLLECT_COLUMNS_STAT, 0L,
+                PREFILLED_COLUMNS_STAT, 2L,
                 EXTERNAL_MATCH_STAT, 0L,
                 EXTERNAL_COLLECT_STAT, 3L);
         validateQueryStats("SELECT * FROM %s WHERE int_1 = 1".formatted(table),
@@ -443,7 +444,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testSimpleWarmWithErrorInStorage()
             throws IOException
     {
-        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi'), (2, 'shlomi2')");
 
         createWarmupRules(DEFAULT_SCHEMA,
                 "t",
@@ -564,8 +565,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 table,
                 "(int1 integer, map_column_integer map(integer, map(integer, integer))) " +
                         "WITH (format='PARQUET', partitioned_by = ARRAY[])");
-        computeActual("INSERT INTO %s ".formatted(table) +
-                "VALUES (1, MAP(ARRAY[1], ARRAY[MAP(ARRAY[(2)], ARRAY[(3)])]))");
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO %s VALUES ".formatted(table) +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj("(%1$d, MAP(ARRAY[%1$d], ARRAY[MAP(ARRAY[(2)], ARRAY[(3)])]))"::formatted).toList());
+        assertUpdate(insertSql, rowCount);
+
         @Language("SQL") String query = "select int1 from %s where element_at(map_column_integer[1], 2) = 3".formatted(table);
         warmAndValidate(query, true, 1, 1);
         Map<String, Long> expectedQueryStats = Map.of(
@@ -768,7 +773,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select int1, integer_array_not_support from maps_table where element_at(integer_array_not_support, 1) = array[1]";
         expectedQueryStats = Map.of(
                 "warp_match_columns", 0L,
-                "warp_collect_columns", 1L,
+                "warp_collect_columns", 0L,
+                "warp_prefilled_collect_columns", 1L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
@@ -795,7 +801,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select count(*) from maps_table where int1 = element_at(varchar_integer, 'key1')";
         expectedQueryStats = Map.of(
-                "warp_collect_columns", 1L,
+                "warp_collect_columns", 0L,
+                "warp_prefilled_collect_columns", 1L,
                 "warp_match_columns", 0L,
                 "external_match_columns", 0L,
                 "external_collect_columns", 1L);
@@ -806,7 +813,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     void testTransformedWarmupRule()
             throws IOException
     {
-        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi'), (2, 'shlomi2')");
 
         createWarmupRules(DEFAULT_SCHEMA,
                 "t",
@@ -958,7 +965,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testDefaultWarmingWithQueriesForVarchar()
             throws IOException
     {
-        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi'), (2, 'shlomi2')");
         List<String> valuesQueries = List.of(
                 "select v1 from t where v1 <> 'shlomi'",
                 "select v1 from t where v1 = 'shlomi'",
@@ -1154,7 +1161,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testWarmupTypes()
             throws IOException
     {
-        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO t VALUES " +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj(value -> "(%d, 'a%d')"
+                                .formatted(value, value)).toList());
+        assertUpdate(insertSql, rowCount);
         warmAndValidate("select int1, v1 from t where v1 = 'shlomi' or int1 = 1", true, 4, 1);
         List<io.trino.plugin.warp.gen.constants.WarmUpType> warmedElementTypes = getWarmedElements();
         assertThat(warmedElementTypes).containsExactlyInAnyOrder(
@@ -1603,7 +1615,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testLuceneFunctions()
             throws IOException
     {
-        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO t VALUES " +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj("(%1$d, 'shlomi%1$d')"::formatted).toList());
+        assertUpdate(insertSql, rowCount);
+
         warmAndValidate("select v1 from t where trim(v1) = 'sh'", true, 2, 1);
         List<io.trino.plugin.warp.gen.constants.WarmUpType> warmedElementTypes = getWarmedElements();
         assertThat(warmedElementTypes).containsExactlyInAnyOrder(
@@ -1670,11 +1687,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "(driver_age integer, ts timestamp(3), driver_last varchar(32), driver_first varchar(32)) " +
                         "WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
-        computeActual(getSession(), "INSERT INTO trips_data_table VALUES (" +
-                "1, " +
-                "CAST('2002-04-29' as TIMESTAMP), " +
-                "'aaaaaaaa', " +
-                "'aaaaaaaa')");
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO trips_data_table VALUES " +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj(value -> "(%d, CAST('2002-01-%d9' as TIMESTAMP), 'aaaaaaaa%d', 'aaaaaaaa%d')"
+                                .formatted(value, value, value, value)).toList());
+        assertUpdate(insertSql, rowCount);
+
         createWarmupRules(DEFAULT_SCHEMA,
                 "trips_data_table",
                 Map.ofEntries(
@@ -1721,12 +1740,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "(driver_age integer, ts timestamp(3), driver_gender char(1), driver_last varchar(32), driver_first varchar(32))" +
                         " WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
-        computeActual(getSession(), "INSERT INTO trips_data_table VALUES (" +
-                "1, " +
-                "CAST('2002-04-29' as TIMESTAMP), " +
-                "'a', " +
-                "'aaaaaaaa', " +
-                "'aaaaaaaa')");
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO trips_data_table VALUES " +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj(value -> "(%d, CAST('2002-01-%d9' as TIMESTAMP), '%d', 'aaaaaaaa%d', 'aaaaaaaa%d')"
+                                .formatted(value, value, value, value, value)).toList());
+        assertUpdate(insertSql, rowCount);
+
         createWarmupRules(DEFAULT_SCHEMA,
                 "trips_data_table",
                 Map.ofEntries(
@@ -2028,7 +2048,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select double1 from %s.%s where double2 > 5 or ceil(double1) > 9  and ceil(double1) < 4".formatted(schema, table);
         //translated to: (double2 > 5 or ceil(double1) > 9) AND (double2 > 5 or ceil(double1) < 4)
         validateQueryStats(query, session, Map.of(
-                "warp_collect_columns", 2L,
+                "warp_collect_columns", 0L,
+                "warp_prefilled_collect_columns", 2L,
                 "warp_match_columns", 2L,
                 "external_match_columns", 0L));
 
@@ -2270,7 +2291,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         createWarmupRules(DEFAULT_SCHEMA,
                 "t",
                 Map.of(C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, NEVER_PRIORITY, DEFAULT_TTL))));
-        warmAndValidate(format("select %s from t", C2), true, "all_elements_warmed_or_skipped");
+        warmAndValidate(format("select %s from t", C2), true, "all_elements_warmed_or_skipped", 1);
         ret = getRowGroupCount();
         assertThat(ret.warmupColumnCount().size()).isEqualTo(1);
     }
@@ -2661,7 +2682,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testWarmWithAlias()
             throws IOException
     {
-        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi'), (2, 'shlomi2')");
 
         createWarmupRules(DEFAULT_SCHEMA, "t", Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL)),
                 C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
@@ -2733,8 +2754,14 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         String schema = "MixedQueryWithPartitionColumn".toLowerCase(Locale.ROOT);
         String table = "partitionTable".toLowerCase(Locale.ROOT);
         createSchemaAndTable(schema, table, "(warmedColumn integer, notWarmedColumn varchar, warmedPartition varchar, notWarmedPartition varchar) WITH (format='PARQUET', partitioned_by = ARRAY['warmedPartition', 'notWarmedPartition'])");
-        assertUpdate("INSERT INTO %s.%s (warmedColumn, notWarmedColumn, warmedPartition, notWarmedPartition) VALUES(1, 'a1','partition1', 'partition2')".formatted(schema, table),
-                1);
+
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO %s.%s (warmedColumn, notWarmedColumn, warmedPartition, notWarmedPartition) VALUES ".formatted(schema, table) +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj(value -> "(%d, 'a%d','partition1', 'partition2')"
+                                .formatted(value, value)).toList());
+        assertUpdate(insertSql, rowCount);
+
         warmAndValidate("select warmedColumn, warmedPartition from %s.%s".formatted(schema, table),
                 true,
                 2,
@@ -2854,7 +2881,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testWildcardCountOnDataCol()
             throws IOException
     {
-        computeActual("INSERT INTO t VALUES (1, 'shlomi')");
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO t VALUES " +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj(value -> "(%d, 'a%d')"
+                                .formatted(value, value)).toList());
+        assertUpdate(insertSql, rowCount);
+
         createWarmupRules(DEFAULT_SCHEMA, "t", Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
         warmAndValidate("select int1 from t", false, 1, 1);
 
@@ -2867,16 +2900,16 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         //goto hive
         result = computeActual("select v1 from t");
-        assertThat(result.getRowCount()).isEqualTo(1);
-        assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo("shlomi");
+        assertThat(result.getRowCount()).isEqualTo(rowCount);
+        assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo("a0");
         result = computeActual("select count(v1) from t");
         assertThat(result.getRowCount()).isEqualTo(1);
-        assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
+        assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo((long) rowCount);
 
         //goto varada
         result = computeActual("select count(*) from t");
         assertThat(result.getRowCount()).isEqualTo(1);
-        assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
+        assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo((long) rowCount);
     }
 
     @Test
@@ -3637,7 +3670,11 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 tableName,
                 "(bingint1 bigint, var1 varchar, char1 char(5), int1 integer, shortdecimal decimal(2,1))");
 
-        computeActual(getSession(), "INSERT INTO %s VALUES (1, 'tzachi', 'bla', 2, 3)".formatted(tableName));
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO %s VALUES ".formatted(tableName) +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj("(%1$d, 'a%1$d', 'b%1$d', %1$d,  %1$d)"::formatted).toList());
+        assertUpdate(insertSql, rowCount);
 
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.toString(true))
@@ -3672,7 +3709,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         assertThat(dictionaryCountAggregatedResult.getWorkerDictionaryResultsList().size()).isEqualTo(1);
         assertThat(dictionaryResult.size()).isEqualTo(createdDictionaries);
-        assertThat(dictionaryResult.stream().allMatch(x -> x.dictionarySize() == 1)).isTrue();
+        assertThat(dictionaryResult.stream().allMatch(x -> x.dictionarySize() == 2)).isTrue();
         assertThat(dictionaryResult.stream().allMatch(x -> x.failedWriteCount() == 0)).isTrue();
         assertThat(dictionaryCountAggregatedResult.getWorkerDictionaryResultsList().getFirst().getNodeIdentifier()).isNull();
         executeRestCommand = executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_COUNT_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_OK);
@@ -3687,7 +3724,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .toList();
 
         assertThat(dictionaryResult.size()).isEqualTo(createdDictionaries);
-        assertThat(dictionaryResult.stream().allMatch(x -> x.dictionarySize() == 1)).isTrue();
+        assertThat(dictionaryResult.stream().allMatch(x -> x.dictionarySize() == 2)).isTrue();
         assertThat(dictionaryResult.stream().allMatch(x -> x.failedWriteCount() == 0)).isTrue();
         assertThat(dictionaryCountResult.getWorkerDictionaryResultsList().getFirst().getNodeIdentifier()).isNotNull();
 
@@ -3844,7 +3881,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testSharedRowGroups()
     {
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomishlomishlomi')");
-        warmAndValidate("SELECT * FROM T", true, "warm_finished");
+        warmAndValidate("SELECT * FROM T", true, "warm_finished", 1);
 
         Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
@@ -3877,7 +3914,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 //        FailureGeneratorResource.FailureGeneratorData data = new FailureGeneratorResource.FailureGeneratorData(StorageEngine.class.getName(), "txInsertCreate", FailureRepetitionMode.REP_MODE_ONCE, FailureGeneratorInvocationHandler.FailureType.JAVA_EXCEPTION, 1);
 //        failureGeneratorDataList.add(data);
         executeRestCommand(FailureGeneratorResource.TASK_NAME, "", failureGeneratorDataList, HttpMethod.POST, HttpURLConnection.HTTP_NO_CONTENT);
-        warmAndValidate("SELECT * FROM T", true, "warm_accomplished");
+        warmAndValidate("SELECT * FROM T", true, "warm_accomplished", 1);
 
         Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
@@ -3904,20 +3941,26 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         createTable(DEFAULT_SCHEMA,
                 "table_with_nulls",
                 "(c_char varchar, c_null varchar, c_partition varchar) WITH (format='PARQUET', partitioned_by = ARRAY['c_partition'])");
-        computeActual("INSERT INTO table_with_nulls values ('a', NULL, 'a_p')");
+
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO table_with_nulls VALUES " +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj("('a%d', NULL, 'a_p')"::formatted).toList());
+        assertUpdate(insertSql, rowCount);
 //        computeActual("INSERT INTO table_with_nulls values ('b', NULL, 'b_p')");
 
         warmAndValidate("SELECT * FROM table_with_nulls",
                 true,
-                "warm_finished");
+                "warm_finished",
+                rowCount);
 
         //prefill data source
         MaterializedResult materializedRows = computeActual("SELECT c_null FROM table_with_nulls");
-        assertThat(materializedRows.getRowCount()).isEqualTo(1);
+        assertThat(materializedRows.getRowCount()).isEqualTo(rowCount);
 
         //prefill data source
         materializedRows = computeActual("SELECT c_partition FROM table_with_nulls");
-        assertThat(materializedRows.getRowCount()).isEqualTo(1);
+        assertThat(materializedRows.getRowCount()).isEqualTo(rowCount);
 
         //native data source
         materializedRows = computeActual("SELECT c_char FROM table_with_nulls");
@@ -3925,7 +3968,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         //prefill data source
         materializedRows = computeActual("SELECT c_null, c_partition FROM table_with_nulls");
-        assertThat(materializedRows.getRowCount()).isEqualTo(1);
+        assertThat(materializedRows.getRowCount()).isEqualTo(rowCount);
 
         //mix data source
         materializedRows = computeActual("SELECT c_null, c_char, c_partition FROM table_with_nulls");
@@ -3939,7 +3982,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //prefill data source
         materializedRows = computeActual("SELECT count(c_partition) FROM table_with_nulls");
         assertThat(materializedRows.getRowCount()).isEqualTo(1);
-        assertThat((long) materializedRows.getMaterializedRows().getFirst().getField(0)).isEqualTo(1);
+        assertThat((long) materializedRows.getMaterializedRows().getFirst().getField(0)).isEqualTo(rowCount);
 
         //test prefill data source with specific warmup rule and lucene syntax
         createWarmupRules(DEFAULT_SCHEMA,

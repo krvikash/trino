@@ -36,6 +36,7 @@ import static io.trino.tests.product.TestGroups.WARP_SPEED_MINIO;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_COLLECT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_MATCH;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.PREFILLED_COLLECT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.WARP_COLLECT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.WARP_MATCH;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.ROW_GROUP_COUNT;
@@ -165,7 +166,8 @@ public class TestWarpSpeedMinio
                     .isEqualTo(10);
 
             Map<String, Long> expectedQueryResults = Map.of(
-                    WARP_COLLECT, 90L,
+                    WARP_COLLECT, 10L,
+                    PREFILLED_COLLECT, 80L,
                     WARP_MATCH, 10L,
                     EXTERNAL_COLLECT, 0L,
                     EXTERNAL_MATCH, 0L);

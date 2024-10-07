@@ -111,8 +111,11 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                         "    format = 'PARQUET',\n" +
                         "    partitioning = ARRAY['timestamp_col']\n" +
                         ")");
-        assertUpdate("INSERT INTO %s(id, a, timestamp_col) VALUES(1, 'bla', CAST('2024-02-13 10:15:30' AS TIMESTAMP))".formatted(table),
-                1);
+        assertUpdate(("INSERT INTO %s(id, a, timestamp_col) VALUES " +
+                        "(1, 'bla', CAST('2024-02-13 10:15:30' AS TIMESTAMP)), " +
+                        "(2, 'bla2', CAST('2024-02-13 10:15:30' AS TIMESTAMP))")
+                        .formatted(table),
+                2);
 
         Session warmSession = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
@@ -136,13 +139,16 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                         "    id INTEGER,\n" +
                         "    a VARCHAR\n" +
                         ")");
-        assertUpdate("INSERT INTO %s(id, a) VALUES(1, 'bla')".formatted(table), 1);
-        assertUpdate("INSERT INTO %s(id, a) VALUES(2, 'bla')".formatted(table), 1);
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO %s VALUES ".formatted(table) +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj("(%1$d, 'bla%1$d')"::formatted).toList());
+        assertUpdate(insertSql, rowCount);
 
         Session warmSession = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
                 .build();
-        @Language("SQL") String query = "SELECT * FROM %s WHERE id=1 AND a='bla'".formatted(table);
+        @Language("SQL") String query = "SELECT * FROM %s WHERE id=1 AND a='bla1'".formatted(table);
         warmAndValidate(query, warmSession, 4, 1, 0);
         Map<String, Long> expectedQueryStats = Map.of(
                 WARP_MATCH_COLUMNS_STAT, 2L,
@@ -164,7 +170,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         String schema = "renamewithpredicate";
         String table = "my_table3";
         createSchemaAndTable(schema, table, "(c1 integer,c2 integer) WITH (format = 'PARQUET', partitioning = ARRAY[])");
-        computeActual(getSession(), "INSERT INTO %s.%s VALUES (1, 2)".formatted(schema, table));
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (1, 2), (3, 4)".formatted(schema, table));
         createWarmupRules(schema,
                 table,
                 Map.of("c1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)),
@@ -218,13 +224,13 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 0);
 
         @Language("SQL") String query = "select * from %s.%s".formatted(schema, table);
-        Map<String, Long> expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 2L);
+        Map<String, Long> expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         computeActual("ALTER TABLE %s.%s RENAME COLUMN c1 TO tmpColumn".formatted(schema, table));
 
         query = "select tmpColumn from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 1L);
+        expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         //now create new split
@@ -237,7 +243,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 0);
 
         query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 2L);
+        expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
         warmSession = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
@@ -273,7 +279,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 1,
                 0);
         @Language("SQL") String query = "select * from %s.%s".formatted(schema, table);
-        Map<String, Long> expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 2L);
+        Map<String, Long> expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         computeActual("ALTER TABLE %s.%s RENAME COLUMN int1 TO tmpColumn".formatted(schema, table));
@@ -281,7 +287,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         computeActual("ALTER TABLE %s.%s RENAME COLUMN tmpColumn TO v1".formatted(schema, table));
 
         query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 2L);
+        expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         //now create new split
@@ -294,7 +300,8 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 0);
 
         query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 4L);
+        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 1L, // v1 ("another string")
+                PREFILLED_COLUMNS_STAT, 3L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         validateDemoter(6);
@@ -433,9 +440,13 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                         .formatted(aCol, dateIntCol, dateDateCol, dateIntCol));
         int partitionValue = 20190315;
         int notPartitionValue = 4;
-        @Language("SQL") String sql = format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', %d, CAST('2020-04-%d%d' AS date))",
-                table, aCol, dateIntCol, dateDateCol, 1, partitionValue, 1, 2);
-        assertUpdate(sql, 1);
+        int rowCount = 2;
+        @Language("SQL") String insertSql = "INSERT INTO %s(%s, %s, %s) VALUES ".formatted(table, aCol, dateIntCol, dateDateCol) +
+                String.join(", ", IntStream.range(0, rowCount)
+                        .mapToObj(value -> "('a-%d', %d, CAST('202%d-04-11' AS date))"
+                                .formatted(value, partitionValue, value))
+                        .toList());
+        assertUpdate(insertSql, rowCount);
 
         WarmupColRuleData ruleNotMatchPartition = new WarmupColRuleData(0,
                 DEFAULT_SCHEMA,

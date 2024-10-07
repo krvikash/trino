@@ -22,33 +22,36 @@ public class WarmupElementStatsBuilder
     private boolean initialized;
     private int nullsCount;
     private Object maxValue;
+    private final boolean isSingleValue;
     private Object minValue;
 
     public WarmupElementStatsBuilder(WarmupElementStats warmupElementStats)
     {
-        this(warmupElementStats.isInitialized(), warmupElementStats.getNullsCount(), warmupElementStats.getMinValue(), warmupElementStats.getMaxValue());
+        this(warmupElementStats.isInitialized(), warmupElementStats.getNullsCount(), warmupElementStats.getMinValue(), warmupElementStats.getMaxValue(), warmupElementStats.isSingleValue());
     }
 
     public WarmupElementStatsBuilder()
     {
-        this(false, 0, null, null);
+        this(false, 0, null, null, false);
     }
 
     private WarmupElementStatsBuilder(
             boolean initialized,
             int nullsCount,
             Object minValue,
-            Object maxValue)
+            Object maxValue,
+            boolean isSingleValue)
     {
         this.initialized = initialized;
         this.nullsCount = nullsCount;
         this.minValue = minValue;
         this.maxValue = maxValue;
+        this.isSingleValue = isSingleValue;
     }
 
     public WarmupElementStats build()
     {
-        return new WarmupElementStats(initialized, nullsCount, minValue, maxValue);
+        return new WarmupElementStats(initialized, nullsCount, minValue, maxValue, isSingleValue);
     }
 
     public void incNullCount(int nullsCount)

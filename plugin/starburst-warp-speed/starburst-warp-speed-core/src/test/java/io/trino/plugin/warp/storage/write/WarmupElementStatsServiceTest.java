@@ -39,7 +39,7 @@ public class WarmupElementStatsServiceTest
     @Test
     public void testInteger()
     {
-        WarmupElementStats warmupElementStats = new WarmupElementStats(true, 1, 5L, 10L);
+        WarmupElementStats warmupElementStats = new WarmupElementStats(1, 5L, 10L);
         WarmupElementStats result = warmupElementStatsService.getFinalStats(IntegerType.INTEGER,
                 warmupElementStats,
                 RecTypeCode.REC_TYPE_INTEGER,
@@ -61,11 +61,8 @@ public class WarmupElementStatsServiceTest
     @Test
     public void testVarchar()
     {
-        WarmupElementStats warmupElementStats = new WarmupElementStats(true, 1, Slices.utf8Slice("test"), Slices.utf8Slice("t"));
-        WarmupElementStats expectedResult = new WarmupElementStats(true,
-                1,
-                Slices.utf8Slice("test").toStringUtf8(),
-                Slices.utf8Slice("t").toStringUtf8());
+        WarmupElementStats warmupElementStats = new WarmupElementStats(1, Slices.utf8Slice("test"), Slices.utf8Slice("t"));
+        WarmupElementStats expectedResult = new WarmupElementStats(1, Slices.utf8Slice("test").toStringUtf8(), Slices.utf8Slice("t").toStringUtf8());
         WarmupElementStats result = warmupElementStatsService.getFinalStats(VarcharType.VARCHAR,
                 warmupElementStats,
                 RecTypeCode.REC_TYPE_VARCHAR,
@@ -76,11 +73,8 @@ public class WarmupElementStatsServiceTest
     @Test
     public void testChar()
     {
-        WarmupElementStats warmupElementStats = new WarmupElementStats(true, 1, Slices.utf8Slice("test"), Slices.utf8Slice("t"));
-        WarmupElementStats expectedResult = new WarmupElementStats(true,
-                1,
-                Slices.utf8Slice("test").toStringUtf8(),
-                Slices.utf8Slice("t").toStringUtf8());
+        WarmupElementStats warmupElementStats = new WarmupElementStats(1, Slices.utf8Slice("test"), Slices.utf8Slice("t"));
+        WarmupElementStats expectedResult = new WarmupElementStats(1, Slices.utf8Slice("test").toStringUtf8(), Slices.utf8Slice("t").toStringUtf8());
         WarmupElementStats result = warmupElementStatsService.getFinalStats(CharType.createCharType(10),
                 warmupElementStats,
                 RecTypeCode.REC_TYPE_VARCHAR,
@@ -94,13 +88,10 @@ public class WarmupElementStatsServiceTest
     @Test
     public void testCharWithMinValueAsSpace()
     {
-        WarmupElementStats warmupElementStats = new WarmupElementStats(true, 1, Slices.utf8Slice("aaaaaaa a"), Slices.utf8Slice("t"));
+        WarmupElementStats warmupElementStats = new WarmupElementStats(1, Slices.utf8Slice("aaaaaaa a"), Slices.utf8Slice("t"));
         byte[] expected = Slices.utf8Slice("aaaaaaa ").byteArray();
         expected[7]--;
-        WarmupElementStats expectedResult = new WarmupElementStats(true,
-                1,
-                Slices.wrappedBuffer(expected).toStringUtf8(),
-                Slices.utf8Slice("t").toStringUtf8());
+        WarmupElementStats expectedResult = new WarmupElementStats(1, Slices.wrappedBuffer(expected).toStringUtf8(), Slices.utf8Slice("t").toStringUtf8());
         WarmupElementStats result = warmupElementStatsService.getFinalStats(CharType.createCharType(7),
                 warmupElementStats,
                 RecTypeCode.REC_TYPE_VARCHAR,
@@ -113,13 +104,10 @@ public class WarmupElementStatsServiceTest
     {
         byte[] maxValue = Slices.utf8Slice("aaaaaaa  ").byteArray();
         maxValue[7] = 31;
-        WarmupElementStats warmupElementStats = new WarmupElementStats(true, 1, Slices.utf8Slice("t"), Slices.wrappedBuffer(maxValue));
+        WarmupElementStats warmupElementStats = new WarmupElementStats(1, Slices.utf8Slice("t"), Slices.wrappedBuffer(maxValue));
         byte[] expected = Slices.utf8Slice("aaaaaaa ").byteArray();
         expected[7]++;
-        WarmupElementStats expectedResult = new WarmupElementStats(true,
-                1,
-                Slices.utf8Slice("t").toStringUtf8(),
-                Slices.wrappedBuffer(expected).toStringUtf8());
+        WarmupElementStats expectedResult = new WarmupElementStats(1, Slices.utf8Slice("t").toStringUtf8(), Slices.wrappedBuffer(expected).toStringUtf8());
         WarmupElementStats result = warmupElementStatsService.getFinalStats(CharType.createCharType(7),
                 warmupElementStats,
                 RecTypeCode.REC_TYPE_VARCHAR,

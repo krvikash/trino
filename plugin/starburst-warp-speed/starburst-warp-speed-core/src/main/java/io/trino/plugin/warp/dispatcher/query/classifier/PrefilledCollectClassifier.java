@@ -15,7 +15,9 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Streams;
 import io.airlift.log.Logger;
+import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
@@ -44,6 +46,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static io.trino.plugin.warp.type.TypeUtils.isRealType;
+import static io.trino.plugin.warp.type.TypeUtils.isTinyIntType;
 
 class PrefilledCollectClassifier
         implements Classifier
@@ -217,10 +222,13 @@ class PrefilledCollectClassifier
                         .filter(pair -> pair.getKey().isPresent())
                         .collect(Collectors.toMap(pair -> pair.getKey().get().getWarpColumn(), Function.identity())));
 
-        // Add partition columns (tightness is irrelevant since for each partition, there is only one value in the entire split)
-        Map<WarpColumn, SingleValue> partitionColumnSingleValues = getPartitionColumnSingleValues(queryContext, classifyArgs.getRowGroupData());
-        res.putAll(partitionColumnSingleValues.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, entry -> Pair.of(Optional.empty(), entry.getValue()))));
+        // Add partition columns and columns that their WarmUpElement has a single value
+        // (tightness is irrelevant since there is only one value in the entire split)
+        Map<WarpColumn, Pair<Optional<QueryMatchData>, SingleValue>> singleValueInEntireSplit =
+                Streams.concat(getPartitionColumnSingleValues(queryContext, classifyArgs.getRowGroupData()).entrySet().stream(),
+                                getSingleValueWarmUpElements(queryContext, classifyArgs.getWarmedWarmupTypes().dataWarmedElements()).entrySet().stream())
+                        .collect(Collectors.toMap(Map.Entry::getKey, entry -> Pair.of(Optional.empty(), entry.getValue()), (v, _) -> v));
+        res.putAll(singleValueInEntireSplit);
 
         return res;
     }
@@ -273,5 +281,32 @@ class PrefilledCollectClassifier
                 .collect(Collectors.toMap(
                         pair -> dispatcherProxiedConnectorTransformer.getWarpRegularColumn(pair.getKey()),
                         pair -> SingleValue.create(dispatcherProxiedConnectorTransformer.getColumnType(pair.getKey()), pair.getValue().get())));
+    }
+
+    private Map<WarpColumn, SingleValue> getSingleValueWarmUpElements(QueryContext queryContext, ImmutableMap<WarpColumn, WarmUpElement> dataWarmedElements)
+    {
+        Map<WarpColumn, SingleValue> result = new HashMap<>();
+        for (Map.Entry<Integer, ColumnHandle> entry : queryContext.getRemainingCollectColumnByBlockIndex().entrySet()) {
+            RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(entry.getValue());
+            WarmUpElement warmUpElement = dataWarmedElements.get(regularColumn);
+            if (warmUpElement != null && warmUpElement.getWarmupElementStats().isSingleValue()) {
+                Type type = dispatcherProxiedConnectorTransformer.getColumnType(entry.getValue());
+                SingleValue singleValue = createSingleValueFromStat(warmUpElement.getWarmupElementStats().getMaxValue(), type);
+                result.put(regularColumn, singleValue);
+            }
+        }
+        return result;
+    }
+
+    private SingleValue createSingleValueFromStat(Object statValue, Type type)
+    {
+        return switch (statValue) {
+            case Integer intVal -> SingleValue.create(type, intVal.longValue());
+            case Short shortVal -> SingleValue.create(type, shortVal.longValue());
+            case String str -> SingleValue.create(type, Slices.utf8Slice(str));
+            case Float intMaxValue when isRealType(type) -> SingleValue.create(type, (long) Float.floatToIntBits(intMaxValue));
+            case Byte byteMaxValue when isTinyIntType(type) -> SingleValue.create(type, byteMaxValue.longValue());
+            case null, default -> SingleValue.create(type, statValue);
+        };
     }
 }

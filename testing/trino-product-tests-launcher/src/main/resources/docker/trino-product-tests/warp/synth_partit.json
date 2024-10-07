@@ -329,8 +329,23 @@
         ],
         "query_id": "integer_date_partition_2",
         "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_match_columns": 53,
+          "warp_collect_columns": 52,
+          "warp_prefilled_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 14,
+          "warp_collect_columns": 13,
+          "warp_prefilled_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "warp_match_columns": 14,
+          "warp_collect_columns": 13,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1590,11 +1605,11 @@
         ],
         "query_id": "phoenix_table_2",
         "expected_counters": {
-          "warp_match_columns": 2,
-          "warp_collect_columns": 4,
-          "warp_prefilled_collect_columns": 2,
-          "external_match_columns": 4,
-          "external_collect_columns": 1
+          "warp_match_columns": 18,
+          "warp_collect_columns": 27,
+          "warp_prefilled_collect_columns": 27,
+          "external_match_columns": 36,
+          "external_collect_columns": 9
         }
       },
       {
@@ -1607,11 +1622,11 @@
         ],
         "query_id": "phoenix_table_3",
         "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 3,
-          "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 3,
-          "external_collect_columns": 1
+          "warp_match_columns": 9,
+          "warp_collect_columns": 18,
+          "warp_prefilled_collect_columns": 18,
+          "external_match_columns": 27,
+          "external_collect_columns": 9
         }
       },
       {
@@ -1688,8 +1703,8 @@
         "query_id": "phoenix_table_8",
         "expected_counters": {
           "warp_match_columns": 51,
-          "warp_collect_columns": 60,
-          "warp_prefilled_collect_columns": 32,
+          "warp_collect_columns": 52,
+          "warp_prefilled_collect_columns": 40,
           "external_match_columns": 48,
           "external_collect_columns": 8
         },
@@ -1709,8 +1724,8 @@
         "query_id": "phoenix_table_9",
         "expected_counters": {
           "warp_match_columns": 36,
-          "warp_collect_columns": 54,
-          "warp_prefilled_collect_columns": 36,
+          "warp_collect_columns": 45,
+          "warp_prefilled_collect_columns": 45,
           "external_match_columns": 45,
           "external_collect_columns": 0
         }
@@ -1723,8 +1738,8 @@
         "query_id": "phoenix_table_10",
         "expected_counters": {
           "warp_match_columns": 63,
-          "warp_collect_columns": 72,
-          "warp_prefilled_collect_columns": 63,
+          "warp_collect_columns": 63,
+          "warp_prefilled_collect_columns": 72,
           "external_match_columns": 63,
           "external_collect_columns": 0
         }

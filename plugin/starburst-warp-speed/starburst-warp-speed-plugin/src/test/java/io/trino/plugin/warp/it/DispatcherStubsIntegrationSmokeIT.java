@@ -393,21 +393,21 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     }
 
     @SuppressWarnings("LanguageMismatch")
-    protected void warmAndValidate(String query, Session session, String warmValidationStat)
+    protected void warmAndValidate(String query, Session session, String warmValidationStat, int rowCount)
     {
         Session jmxSession = createJmxSession();
         int beforeStats = getWarmingServiceStats(jmxSession, warmValidationStat);
         MaterializedResult materializedRows = computeActual(session, query);
         validateLazyWarming(beforeStats, warmValidationStat);
-        assertThat(materializedRows.getRowCount()).isEqualTo(1);
+        assertThat(materializedRows.getRowCount()).isEqualTo(rowCount);
     }
 
-    protected void warmAndValidate(String query, boolean defaultWarmup, String warmValidationStat)
+    protected void warmAndValidate(String query, boolean defaultWarmup, String warmValidationStat, int rowCount)
     {
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING, Boolean.toString(defaultWarmup))
                 .build();
-        warmAndValidate(query, session, warmValidationStat);
+        warmAndValidate(query, session, warmValidationStat, rowCount);
     }
 
     @SuppressWarnings("LanguageMismatch")
@@ -555,7 +555,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         Session jmxSession = createJmxSession();
         String jmxTable = "warmupDemoter";
         MaterializedRow before = getServiceStats(jmxSession, jmxTable, DEMOTE_JMX_NAMES);
-        warmAndValidate(query, lazyWarmup, "warm_finished");
+        warmAndValidate(query, lazyWarmup, "warm_finished", 1);
 
         runWithRetries(() -> assertThat(validateStat(before, jmxTable, DEMOTE_JMX_NAMES)).isTrue());
     }

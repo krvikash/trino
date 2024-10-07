@@ -20,16 +20,22 @@ import java.util.Objects;
 
 public class WarmupElementStats
 {
-    public static final WarmupElementStats UNINITIALIZED = new WarmupElementStats(false, 0, null, null);
+    public static final WarmupElementStats UNINITIALIZED = new WarmupElementStats(false, 0, null, null, false);
 
     private final boolean initialized;
     private final int nullsCount;
     private final Object maxValue;
     private final Object minValue;
+    private final boolean isSingleValue;
 
     public WarmupElementStats(int nullsCount, Object minValue, Object maxValue)
     {
-        this(true, nullsCount, minValue, maxValue);
+        this(true, nullsCount, minValue, maxValue, false);
+    }
+
+    public WarmupElementStats(int nullsCount, Object minValue, Object maxValue, boolean isSingleValue)
+    {
+        this(true, nullsCount, minValue, maxValue, isSingleValue);
     }
 
     @JsonCreator
@@ -37,12 +43,14 @@ public class WarmupElementStats
             @JsonProperty("initialized") boolean initialized,
             @JsonProperty("nullsCount") int nullsCount,
             @JsonProperty("minValue") Object minValue,
-            @JsonProperty("maxValue") Object maxValue)
+            @JsonProperty("maxValue") Object maxValue,
+            @JsonProperty("isSingleValue") boolean isSingleValue)
     {
         this.initialized = initialized;
         this.nullsCount = nullsCount;
         this.maxValue = maxValue;
         this.minValue = minValue;
+        this.isSingleValue = isSingleValue;
     }
 
     @JsonProperty("initialized")
@@ -69,6 +77,12 @@ public class WarmupElementStats
         return maxValue;
     }
 
+    @JsonProperty("isSingleValue")
+    public boolean isSingleValue()
+    {
+        return isSingleValue;
+    }
+
     @Override
     public boolean equals(Object obj)
     {
@@ -81,6 +95,7 @@ public class WarmupElementStats
         var that = (WarmupElementStats) obj;
         return this.initialized == that.initialized &&
                 this.nullsCount == that.nullsCount &&
+                this.isSingleValue == that.isSingleValue &&
                 Objects.equals(this.maxValue, that.maxValue) &&
                 Objects.equals(this.minValue, that.minValue);
     }
@@ -88,7 +103,7 @@ public class WarmupElementStats
     @Override
     public int hashCode()
     {
-        return Objects.hash(initialized, nullsCount, maxValue, minValue);
+        return Objects.hash(initialized, nullsCount, maxValue, minValue, isSingleValue);
     }
 
     @Override
@@ -98,6 +113,7 @@ public class WarmupElementStats
                 "initialized=" + initialized + ", " +
                 "nullsCount=" + nullsCount + ", " +
                 "maxValue=" + maxValue + ", " +
+                "isSingleValue=" + isSingleValue + ", " +
                 "minValue=" + minValue + ']';
     }
 }

@@ -7090,10 +7090,11 @@
           "pripripripripriought                              "
         ],
         "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 160,
+          "warp_match_columns": 331,
+          "warp_collect_columns": 51180,
+          "warp_prefilled_collect_columns": 2797,
           "external_match_columns": 0,
-          "external_collect_columns": 15
+          "external_collect_columns": 4279
         }
       },
       {
@@ -7280,9 +7281,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 160,
+          "warp_collect_columns": 51180,
+          "warp_prefilled_collect_columns": 2797,
           "external_match_columns": 0,
-          "external_collect_columns": 15
+          "external_collect_columns": 4279
         }
       }
     ]
