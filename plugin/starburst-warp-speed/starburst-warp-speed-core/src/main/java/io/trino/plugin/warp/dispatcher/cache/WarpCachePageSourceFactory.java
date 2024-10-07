@@ -40,6 +40,7 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
+import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.QueryParams;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.WarpPageSource;
@@ -78,15 +79,15 @@ public class WarpCachePageSourceFactory
 
     @Inject
     public WarpCachePageSourceFactory(StorageEngineConstants storageEngineConstants,
-                                      RowGroupDataService rowGroupDataService,
-                                      MetricsManager metricsManager,
-                                      PredicatesCacheService predicatesCacheService,
-                                      QueryClassifier queryClassifier,
-                                      GlobalConfig globalConfig,
-                                      ReadErrorHandler readErrorHandler,
-                                      StorageCollectorService storageCollectorService,
-                                      LazyCollectorService lazyCollectorService,
-                                      MatchService matchService)
+            RowGroupDataService rowGroupDataService,
+            MetricsManager metricsManager,
+            PredicatesCacheService predicatesCacheService,
+            QueryClassifier queryClassifier,
+            GlobalConfig globalConfig,
+            ReadErrorHandler readErrorHandler,
+            StorageCollectorService storageCollectorService,
+            LazyCollectorService lazyCollectorService,
+            MatchService matchService)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
@@ -126,6 +127,19 @@ public class WarpCachePageSourceFactory
             // might happen if there is not enough memory, see NativeCollectClassifier
             logger.debug("RemainingCollectColumnByBlockIndex is not empty - exiting");
             return Optional.empty();
+        }
+        if (queryContext.isPrefilledOnly()) {
+            int size = queryContext.getPrefilledQueryCollectDataByBlockIndex().size();
+            statsDispatcherPageSource.addwarp_prefilled_collect_columns(size);
+            queryClassifier.close(queryContext);
+            logger.debug("Only Prefill %s", size);
+            PrefilledPageSource prefilledPageSource = new PrefilledPageSource(
+                    queryContext.getPrefilledQueryCollectDataByBlockIndex(),
+                    statsDispatcherPageSource,
+                    rowGroupData,
+                    queryContext.getTotalRecords(),
+                    Optional.empty());
+            return Optional.of(prefilledPageSource);
         }
         CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, List.of());
         initializeCustomStats(customStatsContext);

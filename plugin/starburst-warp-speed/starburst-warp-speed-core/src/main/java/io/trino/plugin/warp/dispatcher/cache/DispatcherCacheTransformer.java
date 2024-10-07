@@ -64,7 +64,7 @@ public class DispatcherCacheTransformer
     @Override
     public Optional<Object> getConvertedPartitionValue(RowGroupData rowGroupData, ColumnHandle columnHandle, Optional<String> nullPartitionValue)
     {
-        throw new UnsupportedOperationException();
+        return Optional.empty();
     }
 
     @Override
