@@ -35,6 +35,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -93,7 +94,9 @@ public class StarburstSqlServerMultiDatabaseClient
 
     private Collection<String> listCatalogs(Connection connection)
     {
-        try (ResultSet resultSet = connection.getMetaData().getCatalogs()) {
+        try (Statement statement = connection.createStatement();
+                // We are performing ORDER BY as DatabaseMetaData#getCatlogs returns catalog name in a ordered fashion
+                ResultSet resultSet = statement.executeQuery("SELECT name AS TABLE_CAT FROM sys.databases WHERE HAS_DBACCESS(name) = 1 ORDER BY name")) {
             ImmutableSet.Builder<String> catalogNames = ImmutableSet.builder();
             while (resultSet.next()) {
                 String catalogName = resultSet.getString("TABLE_CAT");

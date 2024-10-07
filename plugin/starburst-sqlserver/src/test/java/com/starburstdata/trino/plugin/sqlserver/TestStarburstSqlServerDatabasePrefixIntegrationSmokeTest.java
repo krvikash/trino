@@ -12,14 +12,19 @@ package com.starburstdata.trino.plugin.sqlserver;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.sqlserver.TestingSqlServer;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
+
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.trino.plugin.sqlserver.StarburstSqlServerMultiDatabaseClient.DATABASE_SEPARATOR;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.QueryAssertions.assertContains;
@@ -31,6 +36,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestStarburstSqlServerDatabasePrefixIntegrationSmokeTest
         extends AbstractTestQueryFramework
 {
+    private static final String ANOTHER_USER = "another_user";
+    private static final String ANOTHER_PASSWORD = "AnotherPassword@1234";
+
     protected TestingSqlServer sqlServer;
     protected String sqlServerDatabaseName;
 
@@ -39,9 +47,14 @@ public class TestStarburstSqlServerDatabasePrefixIntegrationSmokeTest
             throws Exception
     {
         this.sqlServer = closeAfterClass(new TestingSqlServer());
+        this.sqlServer.execute("CREATE LOGIN %s WITH PASSWORD = '%s'".formatted(ANOTHER_USER, ANOTHER_PASSWORD));
+        this.sqlServer.execute("CREATE USER %1$s FROM LOGIN %1$s".formatted(ANOTHER_USER));
+        this.sqlServer.execute("GRANT CONTROL ON DATABASE::%s TO %s".formatted(sqlServer.getDatabaseName(), ANOTHER_USER));
         sqlServerDatabaseName = sqlServer.getDatabaseName().toLowerCase(ENGLISH);
         return StarburstSqlServerQueryRunner.builder(sqlServer)
                 .withConnectorProperties(ImmutableMap.of(
+                        "connection-user", ANOTHER_USER,
+                        "connection-password", ANOTHER_PASSWORD,
                         "sqlserver.database-prefix-for-schema.enabled", "true"))
                 .build();
     }
@@ -373,8 +386,74 @@ public class TestStarburstSqlServerDatabasePrefixIntegrationSmokeTest
         }
     }
 
+    @Test
+    public void testListingSchemasOnRestrictedDatabase()
+    {
+        String testDatabase = "database_" + randomNameSuffix();
+        try {
+            sqlServer.execute("CREATE DATABASE " + testDatabase);
+
+            // database doesn't have access so it won't be listed
+            assertDatabaseNames(ImmutableSet.of("tempdb", "msdb", "master", sqlServerDatabaseName, "information_schema"));
+        }
+        finally {
+            sqlServer.execute("DROP DATABASE IF EXISTS " + testDatabase);
+        }
+    }
+
+    @Test
+    @Disabled("Running on CI causes 'another_user' is not a valid login or you do not have permission.'")
+    public void testListingSchemasOnVariousDatabaseState()
+    {
+        String testDatabase = "database_" + randomNameSuffix();
+        try {
+            // Create a new database and grant all access to a test_user
+            sqlServer.execute("CREATE DATABASE " + testDatabase);
+            sqlServer.execute(format("ALTER DATABASE %s SET ALLOW_SNAPSHOT_ISOLATION ON", testDatabase));
+            sqlServer.execute(format("ALTER DATABASE %s SET READ_COMMITTED_SNAPSHOT ON", testDatabase));
+
+            sqlServer.execute("""
+                    USE %1$s;
+                    CREATE USER %2$s;
+                    GRANT CONTROL ON DATABASE::%1$s TO %2$s;
+                    """.formatted(testDatabase, ANOTHER_USER));
+
+            assertDatabaseNames(ImmutableSet.of("tempdb", "msdb", "master", sqlServerDatabaseName, "information_schema", testDatabase));
+
+            executeExclusively(() -> {
+                // database moved to offline mode
+                sqlServer.execute("ALTER DATABASE " + testDatabase + " SET OFFLINE");
+                assertDatabaseNames(ImmutableSet.of("tempdb", "msdb", "master", sqlServerDatabaseName, "information_schema"));
+
+                // database moved to emergency mode
+                sqlServer.execute("ALTER DATABASE " + testDatabase + " SET EMERGENCY");
+                assertDatabaseNames(ImmutableSet.of("tempdb", "msdb", "master", sqlServerDatabaseName, "information_schema"));
+
+                sqlServer.execute("ALTER DATABASE " + testDatabase + " SET ONLINE");
+            });
+        }
+        finally {
+            sqlServer.execute("DROP DATABASE IF EXISTS " + testDatabase);
+        }
+    }
+
+    private void assertDatabaseNames(Set<String> databaseNames)
+    {
+        Set<String> sqlServerDatabaseName = getQueryRunner().execute("SHOW SCHEMAS").getOnlyColumnAsSet().stream()
+                .map(String.class::cast)
+                .map(TestStarburstSqlServerDatabasePrefixIntegrationSmokeTest::getSqlServerDatabaseName)
+                .collect(toImmutableSet());
+
+        assertThat(sqlServerDatabaseName).containsAll(databaseNames);
+    }
+
     private String databaseSchemaTableName(String databaseName, String schemaName, String tableName)
     {
         return format("\"%s\".%s", Joiner.on(DATABASE_SEPARATOR).join(databaseName, schemaName), tableName);
+    }
+
+    private static String getSqlServerDatabaseName(String databaseSchemaName)
+    {
+        return databaseSchemaName.split("\\.")[0];
     }
 }
