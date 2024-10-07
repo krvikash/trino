@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.engine;
 
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -203,7 +204,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
+    public int processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
     {
         return 0;
     }
@@ -215,7 +216,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outResultTypes)
+    public void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
     {
         if (!throwOnColletRuntimeExceptionList.isEmpty()) {
             throw throwOnColletRuntimeExceptionList.removeFirst();

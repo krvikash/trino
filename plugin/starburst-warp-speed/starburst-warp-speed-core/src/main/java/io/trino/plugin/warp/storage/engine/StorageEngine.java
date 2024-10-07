@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.engine;
 
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 /**
@@ -252,7 +253,7 @@ public interface StorageEngine
      *
      * @return 0 for success, -1 for error
      */
-    default long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
+    default int processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
     {
         throw new UnsupportedOperationException();
     }
@@ -279,9 +280,9 @@ public interface StorageEngine
      * @param numWes - number of WEs to collect
      * @param chunkIndex - chunk to collect from
      * @param numToCollect - how many rows to collect
-     * @param outResultTypes - array to hold updated result type for each collected WE for java to process the collect buffers
+     * @param outQueryResultTypes - array to hold updated result type for each collected WE for java to process the collect buffers
      */
-    default void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outResultTypes)
+    default void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
     {
         throw new UnsupportedOperationException();
     }

@@ -27,6 +27,7 @@ import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlock;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.IntBuffer;
 import java.util.List;
 
@@ -63,7 +64,11 @@ public class LazyCollectorService
         return queryParams.getNumMatchElements() == 0;
     }
 
-    private LazyCollectorLoaderArgs getLazyLoaderArgs(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, int weIx, int lazyCollectStartRowIndex, int numRows)
+    private LazyCollectorLoaderArgs getLazyLoaderArgs(QueryArgs queryArgs,
+            StorageCollectorArgs storageCollectorArgs,
+            int weIx,
+            int lazyCollectStartRowIndex,
+            int numRows)
     {
         QueryParams queryParams = queryArgs.queryParams();
         WarmupElementCollectParams collectParams = queryParams.getCollectElementsParamsList().get(weIx);
@@ -89,6 +94,7 @@ public class LazyCollectorService
                 collectParams,
                 juffersWE,
                 storageCollectorArgs.blockFillers().get(weIx),
+                storageCollectorArgs.queryResultTypes(),
                 lazyCollectStartRowIndex,
                 numRows,
                 queryArgs.numChunksInRange(),
@@ -96,11 +102,11 @@ public class LazyCollectorService
     }
 
     @Override
-    boolean collect(CollectOpenResult collectOpenResult,
+    boolean collectChunk(CollectOpenResult collectOpenResult,
             int numCollectElements,
             int chunkIndex,
             int numToCollect,
-            int[] outQueryResultType)
+            MemorySegment outQueryResultTypes)
     {
         // collect is done in LazyCollectorLoader
         return false; // do not stop the collect after this round for query result type

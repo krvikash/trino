@@ -25,6 +25,9 @@ import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlockLoader;
 
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
+
 import static com.google.common.base.Preconditions.checkState;
 
 public class LazyCollectorLoader
@@ -77,14 +80,14 @@ public class LazyCollectorLoader
             queryMemoryId = collectOpenResult.queryMemoryId();
 
             // prepare and collect
-            int[] queryResultTypes = new int[1];
+            MemorySegment queryResultTypeMem = lazyCollectorLoaderArgs.queryResultTypes();
             collectTxService.prepareChunkFullScan(queryMemoryId, chunkIndexToCollect, numRowsToCollect, startRowIndexInChunk);
-            collectTxService.collect(queryMemoryId, 1, chunkIndexToCollect, numRowsToCollect, queryResultTypes);
+            collectTxService.collectChunk(queryMemoryId, 1, chunkIndexToCollect, numRowsToCollect, queryResultTypeMem);
 
             // fill block
             WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
             ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorLoaderArgs.collectJufferWE();
-            QueryResultType queryResultType = QueryResultType.values()[queryResultTypes[0]];
+            QueryResultType queryResultType = QueryResultType.values()[queryResultTypeMem.get(ValueLayout.JAVA_INT, 0)];
             retBlock = lazyCollectorLoaderArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats);
 
             // close

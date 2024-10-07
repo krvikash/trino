@@ -16,12 +16,13 @@ package io.trino.plugin.warp.storage.read;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 
+import java.lang.foreign.MemorySegment;
 import java.util.List;
 
 public record StorageCollectorArgs(StorageCollectorCallBack storageCollectorCallBack,
                                    List<BlockFiller<?>> blockFillers,
                                    List<ReadJuffersWarmUpElement> collectJuffersWE,
                                    byte[] storeRowListBuff,
-                                   int[] queryResultType)
+                                   MemorySegment queryResultTypes)
 {
 }

@@ -39,6 +39,11 @@ import io.trino.plugin.warp.util.StorageUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlock;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SequenceLayout;
+import java.lang.foreign.ValueLayout;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
@@ -178,17 +183,17 @@ public class StorageCollectorService
     }
 
     // returns true if we should stop after this collect since query result type is different than raw, false otherwise
-    boolean collect(CollectOpenResult collectOpenResult,
+    boolean collectChunk(CollectOpenResult collectOpenResult,
             int numWes,
             int chunkIndex,
             int numToCollect,
-            int[] outQueryResultType)
+            MemorySegment outQueryResultTypes)
     {
-        return collectTxService.collect(collectOpenResult.queryMemoryId(),
+        return collectTxService.collectChunk(collectOpenResult.queryMemoryId(),
                 numWes,
                 chunkIndex,
                 numToCollect,
-                outQueryResultType);
+                outQueryResultTypes);
     }
 
     // returns indication if anything is collected in the buffer and if the buffer is full
@@ -217,7 +222,11 @@ public class StorageCollectorService
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, collectOpenResult.rangeData());
                 numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
                 if (numToCollect > 0) {
-                    stopForOptimization = collect(collectOpenResult, queryParams.getNumCollectElements(), chunkIndex, numToCollect, storageCollectorArgs.queryResultType());
+                    stopForOptimization = collectChunk(collectOpenResult,
+                            queryParams.getNumCollectElements(),
+                            chunkIndex,
+                            numToCollect,
+                            storageCollectorArgs.queryResultTypes());
                 }
                 numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, queryArgs, collectOpenResult, this);
             }
@@ -257,7 +266,7 @@ public class StorageCollectorService
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            QueryResultType queryResultType = QueryResultType.values()[storageCollectorArgs.queryResultType()[weIx]];
+            QueryResultType queryResultType = QueryResultType.values()[storageCollectorArgs.queryResultTypes().getAtIndex(ValueLayout.JAVA_INT, weIx)];
             BlockFiller<?> blockFiller = storageCollectorArgs.blockFillers().get(weIx);
             ReadJuffersWarmUpElement readJuffersWarmUpElement = storageCollectorArgs.collectJuffersWE().get(weIx);
             Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats);
@@ -405,13 +414,14 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
 
-        int[] queryResultType = new int[queryParams.getNumCollectElements()];
+        SequenceLayout queryResultTypesLayout = MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT);
+        MemorySegment queryResultTypes = Arena.ofAuto().allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
         return new StorageCollectorArgs(
                 storageCollectorCallBack,
                 blockFillers,
                 collectJuffersWE,
                 storeRowListBuff,
-                queryResultType);
+                queryResultTypes);
     }
 
     private int getNumChunksInRange(QueryParams queryParams)

@@ -20,6 +20,7 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.gen.stats.WarpStatsMgr;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -28,6 +29,7 @@ import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;
+import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
@@ -40,6 +42,7 @@ public class NativeStorageEngine
         implements StorageEngine
 {
     private static final Logger logger = Logger.get(NativeStorageEngine.class);
+    private final ShapingLogger shapingLogger;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final ExceptionThrower exceptionThrower; // we keep a reference to hold this object for native layer ref
     private final boolean loaded;
@@ -59,6 +62,9 @@ public class NativeStorageEngine
     private final MethodHandle mInitGetVarlenWarmupDataTxSize;
     private final MethodHandle mInitGetWarmupBasicTxSize;
     private final MethodHandle mInitGetWarmupLuceneTxSize;
+    // collect API
+    private final MethodHandle mCollectProcessMatchResult;
+    private final MethodHandle mCollectCollectChunk;
 
     public NativeStorageEngine(
             NativeConfig nativeConfig,
@@ -70,6 +76,12 @@ public class NativeStorageEngine
 
         final int taskMaxWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
         final int panicHaltPolicy = nativeConfig.getDebugPanicHaltPolicy();
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
+
         logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d bundleSize %d",
                 taskMaxWorkerThreads,
                 panicHaltPolicy,
@@ -107,6 +119,12 @@ public class NativeStorageEngine
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
             mInitGetWarmupLuceneTxSize = linker.downcallHandle(libraryHandle.find("lucene_chunk_tx_warmup_alloc_get_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
+
+            // collect API
+            mCollectProcessMatchResult = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_match_result").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mCollectCollectChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_collect_chunk").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.JAVA_INT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
 
             nativeInit(taskMaxWorkerThreads,
                     Runtime.getRuntime().maxMemory(),
@@ -162,7 +180,7 @@ public class NativeStorageEngine
             return (int) mInitGetFixedRecordBufferSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to init record buffer size");
+            shapingLogger.error(t, "failed to init record buffer size");
             throw new RuntimeException("failed to init record buffer size");
         }
     }
@@ -174,7 +192,7 @@ public class NativeStorageEngine
             return (int) mInitGetVarlenRecordBufferSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to init record buffer size");
+            shapingLogger.error(t, "failed to init record buffer size");
             throw new RuntimeException("failed to init record buffer size");
         }
     }
@@ -186,7 +204,7 @@ public class NativeStorageEngine
             return (int) mInitGetFixedCollectTxSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to init collect tx size");
+            shapingLogger.error(t, "failed to init collect tx size");
             throw new RuntimeException("failed to init collect tx size");
         }
     }
@@ -198,7 +216,7 @@ public class NativeStorageEngine
             return (int) mInitGetVarlenCollectTxSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to init collect tx size");
+            shapingLogger.error(t, "failed to init collect tx size");
             throw new RuntimeException("failed to init collect tx size");
         }
     }
@@ -210,7 +228,7 @@ public class NativeStorageEngine
             return (int) mInitGetFixedWarmupDataTxSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to init warmup tx size");
+            shapingLogger.error(t, "failed to init warmup tx size");
             throw new RuntimeException("failed to init warmup tx size");
         }
     }
@@ -222,7 +240,7 @@ public class NativeStorageEngine
             return (int) mInitGetVarlenWarmupDataTxSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to init warmup tx size");
+            shapingLogger.error(t, "failed to init warmup tx size");
             throw new RuntimeException("failed to init warmup tx size");
         }
     }
@@ -234,7 +252,7 @@ public class NativeStorageEngine
             return (int) mInitGetWarmupBasicTxSize.invokeExact();
         }
         catch (Throwable t) {
-            logger.error(t, "failed to init warmup tx size");
+            shapingLogger.error(t, "failed to init warmup tx size");
             throw new RuntimeException("failed to init warmup tx size");
         }
     }
@@ -246,7 +264,7 @@ public class NativeStorageEngine
             return (int) mInitGetWarmupLuceneTxSize.invokeExact();
         }
         catch (Throwable t) {
-            logger.error(t, "failed to init warmup tx size");
+            shapingLogger.error(t, "failed to init warmup tx size");
             throw new RuntimeException("failed to init warmup tx size");
         }
     }
@@ -262,7 +280,7 @@ public class NativeStorageEngine
             }
         }
         catch (Throwable t) {
-            logger.error(t, "failed to open file");
+            shapingLogger.error(t, "failed to open file");
         }
         throw new RuntimeException("failed to open file " + fileName);
     }
@@ -274,7 +292,7 @@ public class NativeStorageEngine
             mFileClose.invokeExact(fileDescriptor);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to close file");
+            shapingLogger.error(t, "failed to close file");
             throw new RuntimeException("failed to close file");
         }
     }
@@ -290,7 +308,7 @@ public class NativeStorageEngine
             }
         }
         catch (Throwable t) {
-            logger.error(t, "failed to truncate file");
+            shapingLogger.error(t, "failed to truncate file");
         }
         throw new RuntimeException("failed to truncate file");
     }
@@ -302,7 +320,7 @@ public class NativeStorageEngine
             mFilePunchHole.invokeExact(arena.allocateFrom(fileName), startOffset, endOffset);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to punch hole file");
+            shapingLogger.error(t, "failed to punch hole file");
             throw new RuntimeException("failed to punch hole file" + fileName);
         }
     }
@@ -314,7 +332,7 @@ public class NativeStorageEngine
             mFileAboutToBeDeleted.invokeExact(fileHash, fileModTime, fileSizeInPages);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to clear native cache");
+            shapingLogger.error(t, "failed to clear native cache");
             throw new RuntimeException("failed to clear native cache");
         }
     }
@@ -380,13 +398,34 @@ public class NativeStorageEngine
     public native long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);
 
     @Override
-    public native long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit);
+    public int processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
+    {
+        try {
+            int res = (int) mCollectProcessMatchResult.invokeExact(txId, (short) chunkIndex, bitmapResetPoint, rowsLimit);
+            if (res >= 0) {
+                return res;
+            }
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to processMatchResult");
+        }
+        return -1; // error is thrown by the caller in a trino exception with a specific code
+    }
 
     @Override
     public native long processFullScanChunk(int txId, int chunkIndex, int startRowIx, int rowsLimit);
 
     @Override
-    public native void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outResultTypes);
+    public void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
+    {
+        try {
+            mCollectCollectChunk.invokeExact(txId, (short) numWes, (short) chunkIndex, numToCollect, outQueryResultTypes);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to collectChunk");
+            throw new RuntimeException("failed to collectChunk txId " + txId + " chunkIndex " + chunkIndex);
+        }
+    }
 
     @Override
     public native void collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj, long[] outCollectStats);

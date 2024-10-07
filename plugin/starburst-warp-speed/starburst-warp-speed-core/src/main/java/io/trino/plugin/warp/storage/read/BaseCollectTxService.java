@@ -23,7 +23,9 @@ import io.trino.plugin.warp.storage.engine.QueryMemory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.spi.TrinoException;
 
+import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
+import java.lang.foreign.ValueLayout;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 
@@ -97,7 +99,7 @@ public abstract class BaseCollectTxService
     boolean prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint)
     {
         logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d matchBitmapResetPoint %d", chunkIndex, numRowsToCollect, matchBitmapResetPoint);
-        int ret = (int) storageEngine.processMatchResult(collectTxId,
+        int ret = storageEngine.processMatchResult(collectTxId,
                 chunkIndex,
                 matchBitmapResetPoint,
                 numRowsToCollect);
@@ -121,14 +123,15 @@ public abstract class BaseCollectTxService
     }
 
     // returns true if we should stop after this collect since query result type is different than raw, false otherwise
-    boolean collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outQueryResultType)
+    boolean collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
     {
         try {
-            storageEngine.collect(txId, numWes, chunkIndex, numToCollect, outQueryResultType);
-            for (int weIx = 0; weIx < outQueryResultType.length; weIx++) {
-                if ((outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_SINGLE.ordinal()) ||
-                        (outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_SINGLE_NO_NULL.ordinal()) ||
-                        (outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_ALL_NULL.ordinal())) {
+            storageEngine.collectChunk(txId, numWes, chunkIndex, numToCollect, outQueryResultTypes);
+            for (int weIx = 0; weIx < numWes; weIx++) {
+                int queryResultType = outQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx);
+                if ((queryResultType == QueryResultType.QUERY_RESULT_TYPE_SINGLE.ordinal()) ||
+                        (queryResultType == QueryResultType.QUERY_RESULT_TYPE_SINGLE_NO_NULL.ordinal()) ||
+                        (queryResultType == QueryResultType.QUERY_RESULT_TYPE_ALL_NULL.ordinal())) {
                     return true;
                 }
             }
