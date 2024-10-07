@@ -1,0 +1,65 @@
+remote exchange (GATHER, SINGLE, [])
+    local exchange (GATHER, UNKNOWN, [])
+        remote exchange (REPARTITION, ROUND_ROBIN, [])
+            final aggregation over (name_18)
+                local exchange (GATHER, SINGLE, [])
+                    remote exchange (REPARTITION, HASH, [name_18])
+                        partial aggregation over (name_18)
+                            join (INNER, REPLICATED):
+                                join (INNER, REPLICATED):
+                                    join (INNER, PARTITIONED):
+                                        remote exchange (REPARTITION, HASH, [nationkey, suppkey])
+                                            join (INNER, PARTITIONED):
+                                                remote exchange (REPARTITION, HASH, [orderkey])
+                                                    join (INNER, PARTITIONED):
+                                                        remote exchange (REPARTITION, HASH, [custkey_0])
+                                                            alternatives
+                                                                dynamic filter ([custkey_0::EQUAL, orderkey::EQUAL])
+                                                                    scan orders
+                                                                cache data
+                                                                    dynamic filter ([custkey_0::EQUAL, orderkey::EQUAL])
+                                                                        scan orders
+                                                                load from cache
+                                                        local exchange (GATHER, SINGLE, [])
+                                                            remote exchange (REPARTITION, HASH, [custkey])
+                                                                alternatives
+                                                                    dynamic filter ([nationkey::EQUAL], await [nationkey::EQUAL])
+                                                                        scan customer
+                                                                    cache data
+                                                                        dynamic filter ([nationkey::EQUAL], await [nationkey::EQUAL])
+                                                                            scan customer
+                                                                    load from cache
+                                                local exchange (GATHER, SINGLE, [])
+                                                    remote exchange (REPARTITION, HASH, [orderkey_4])
+                                                        alternatives
+                                                            dynamic filter ([suppkey::EQUAL])
+                                                                scan lineitem
+                                                            cache data
+                                                                dynamic filter ([suppkey::EQUAL])
+                                                                    scan lineitem
+                                                            load from cache
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPARTITION, HASH, [nationkey_11, suppkey_8])
+                                                alternatives
+                                                    dynamic filter (await [nationkey_11::EQUAL])
+                                                        scan supplier
+                                                    cache data
+                                                        dynamic filter (await [nationkey_11::EQUAL])
+                                                            scan supplier
+                                                    load from cache
+                                    local exchange (GATHER, SINGLE, [])
+                                        remote exchange (REPLICATE, BROADCAST, [])
+                                            alternatives
+                                                dynamic filter (await [regionkey::EQUAL])
+                                                    scan nation
+                                                cache data
+                                                    dynamic filter (await [regionkey::EQUAL])
+                                                        scan nation
+                                                load from cache
+                                local exchange (GATHER, SINGLE, [])
+                                    remote exchange (REPLICATE, BROADCAST, [])
+                                        alternatives
+                                            scan region
+                                            cache data
+                                                scan region
+                                            load from cache

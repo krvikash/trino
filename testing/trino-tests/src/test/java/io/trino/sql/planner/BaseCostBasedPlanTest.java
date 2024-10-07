@@ -28,9 +28,12 @@ import io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy;
 import io.trino.sql.planner.assertions.BasePlanTest;
 import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.CacheDataPlanNode;
+import io.trino.sql.planner.plan.ChooseAlternativeNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.JoinNode;
+import io.trino.sql.planner.plan.LoadCachedDataPlanNode;
 import io.trino.sql.planner.plan.SemiJoinNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.ValuesNode;
@@ -76,7 +79,7 @@ public abstract class BaseCostBasedPlanTest
         extends BasePlanTest
 {
     private static final Logger log = Logger.get(BaseCostBasedPlanTest.class);
-    private static final String CATALOG_NAME = "local";
+    protected static final String CATALOG_NAME = "local";
 
     protected static final List<String> TPCH_SQL_FILES = IntStream.rangeClosed(1, 22)
             .mapToObj(i -> format("q%02d", i))
@@ -90,7 +93,7 @@ public abstract class BaseCostBasedPlanTest
 
     private final String schemaName;
     private final boolean partitioned;
-    private final IcebergCostBasedPlanTestSetup planTestSetup;
+    protected final IcebergCostBasedPlanTestSetup planTestSetup;
 
     public BaseCostBasedPlanTest(String schemaName, boolean partitioned)
     {
@@ -147,7 +150,7 @@ public abstract class BaseCostBasedPlanTest
         assertThat(generateQueryPlan(readQuery(queryResourcePath))).isEqualTo(read(getQueryPlanResourcePath(queryResourcePath)));
     }
 
-    private String getQueryPlanResourcePath(String queryResourcePath)
+    protected String getQueryPlanResourcePath(String queryResourcePath)
     {
         Path queryPath = Paths.get(queryResourcePath);
         String connectorName = getPlanTester().getCatalogManager().getCatalog(new CatalogName(CATALOG_NAME)).orElseThrow().getConnectorName().toString();
@@ -276,6 +279,27 @@ public abstract class BaseCostBasedPlanTest
             }
 
             return visitPlan(node, indent + 1);
+        }
+
+        @Override
+        public Void visitChooseAlternativeNode(ChooseAlternativeNode node, Integer indent)
+        {
+            output(indent, "alternatives");
+            return visitPlan(node, indent + 1);
+        }
+
+        @Override
+        public Void visitCacheDataPlanNode(CacheDataPlanNode node, Integer indent)
+        {
+            output(indent, "cache data");
+            return visitPlan(node, indent + 1);
+        }
+
+        @Override
+        public Void visitLoadCachedDataPlanNode(LoadCachedDataPlanNode node, Integer indent)
+        {
+            output(indent, "load from cache");
+            return null;
         }
 
         @Override

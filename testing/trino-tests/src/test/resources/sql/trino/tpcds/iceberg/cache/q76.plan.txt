@@ -1,0 +1,82 @@
+local exchange (GATHER, SINGLE, [])
+    remote exchange (GATHER, SINGLE, [])
+        local exchange (GATHER, SINGLE, [])
+            local exchange (REPARTITION, ROUND_ROBIN, [])
+                final aggregation over (channel, col_name, d_qoy, d_year, i_category)
+                    local exchange (REPARTITION, HASH, [channel, col_name, d_qoy, d_year, i_category])
+                        remote exchange (REPARTITION, HASH, [d_qoy_10, d_year_9, expr_134, expr_135, i_category_6])
+                            partial aggregation over (d_qoy_10, d_year_9, expr_134, expr_135, i_category_6)
+                                join (INNER, REPLICATED):
+                                    join (INNER, REPLICATED):
+                                        alternatives
+                                            dynamic filter ([ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL])
+                                                scan store_sales
+                                            cache data
+                                                dynamic filter ([ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL])
+                                                    scan store_sales
+                                            load from cache
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPLICATE, BROADCAST, [])
+                                                alternatives
+                                                    scan item
+                                                    cache data
+                                                        scan item
+                                                    load from cache
+                                    local exchange (GATHER, SINGLE, [])
+                                        remote exchange (REPLICATE, BROADCAST, [])
+                                            alternatives
+                                                scan date_dim
+                                                cache data
+                                                    scan date_dim
+                                                load from cache
+                        remote exchange (REPARTITION, HASH, [d_qoy_51, d_year_47, expr_140, expr_141, i_category_29])
+                            partial aggregation over (d_qoy_51, d_year_47, expr_140, expr_141, i_category_29)
+                                join (INNER, REPLICATED):
+                                    join (INNER, PARTITIONED):
+                                        remote exchange (REPARTITION, HASH, [ws_item_sk])
+                                            alternatives
+                                                dynamic filter ([ws_item_sk::EQUAL], await [ws_sold_date_sk::EQUAL])
+                                                    scan web_sales
+                                                cache data
+                                                    dynamic filter ([ws_item_sk::EQUAL], await [ws_sold_date_sk::EQUAL])
+                                                        scan web_sales
+                                                load from cache
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPARTITION, HASH, [i_item_sk_17])
+                                                alternatives
+                                                    scan item
+                                                    cache data
+                                                        scan item
+                                                    load from cache
+                                    local exchange (GATHER, SINGLE, [])
+                                        remote exchange (REPLICATE, BROADCAST, [])
+                                            alternatives
+                                                scan date_dim
+                                                cache data
+                                                    scan date_dim
+                                                load from cache
+                        remote exchange (REPARTITION, HASH, [d_qoy_111, d_year_107, expr_131, expr_133, i_category_89])
+                            partial aggregation over (d_qoy_111, d_year_107, expr_131, expr_133, i_category_89)
+                                join (INNER, REPLICATED):
+                                    join (INNER, REPLICATED):
+                                        alternatives
+                                            dynamic filter ([cs_item_sk::EQUAL], await [cs_sold_date_sk::EQUAL])
+                                                scan catalog_sales
+                                            cache data
+                                                dynamic filter ([cs_item_sk::EQUAL], await [cs_sold_date_sk::EQUAL])
+                                                    scan catalog_sales
+                                            load from cache
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPLICATE, BROADCAST, [])
+                                                alternatives
+                                                    scan item
+                                                    cache data
+                                                        scan item
+                                                    load from cache
+                                    local exchange (GATHER, SINGLE, [])
+                                        remote exchange (REPLICATE, BROADCAST, [])
+                                            alternatives
+                                                scan date_dim
+                                                cache data
+                                                    scan date_dim
+                                                load from cache

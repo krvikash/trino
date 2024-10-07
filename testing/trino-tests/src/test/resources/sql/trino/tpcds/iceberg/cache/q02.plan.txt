@@ -1,0 +1,90 @@
+remote exchange (GATHER, SINGLE, [])
+    local exchange (GATHER, UNKNOWN, [])
+        remote exchange (REPARTITION, ROUND_ROBIN, [])
+            join (INNER, PARTITIONED):
+                join (INNER, PARTITIONED):
+                    final aggregation over (d_week_seq)
+                        local exchange (GATHER, SINGLE, [])
+                            remote exchange (REPARTITION, HASH, [d_week_seq])
+                                partial aggregation over (d_week_seq)
+                                    final aggregation over (d_day_name, d_week_seq)
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPARTITION, HASH, [d_day_name, d_week_seq])
+                                                partial aggregation over (d_day_name, d_week_seq)
+                                                    join (INNER, REPLICATED):
+                                                        local exchange (REPARTITION, ROUND_ROBIN, [])
+                                                            alternatives
+                                                                dynamic filter (await [ws_sold_date_sk::EQUAL])
+                                                                    scan web_sales
+                                                                cache data
+                                                                    dynamic filter (await [ws_sold_date_sk::EQUAL])
+                                                                        scan web_sales
+                                                                load from cache
+                                                            alternatives
+                                                                dynamic filter (await [cs_sold_date_sk::EQUAL])
+                                                                    scan catalog_sales
+                                                                cache data
+                                                                    dynamic filter (await [cs_sold_date_sk::EQUAL])
+                                                                        scan catalog_sales
+                                                                load from cache
+                                                        local exchange (GATHER, SINGLE, [])
+                                                            remote exchange (REPLICATE, BROADCAST, [])
+                                                                alternatives
+                                                                    dynamic filter (unestimatable [d_week_seq::EQUAL], await [d_week_seq::EQUAL])
+                                                                        scan date_dim
+                                                                    cache data
+                                                                        dynamic filter (unestimatable [d_week_seq::EQUAL], await [d_week_seq::EQUAL])
+                                                                            scan date_dim
+                                                                    load from cache
+                    local exchange (GATHER, SINGLE, [])
+                        remote exchange (REPARTITION, HASH, [d_week_seq_20])
+                            alternatives
+                                dynamic filter (unestimatable [d_week_seq_20::EQUAL])
+                                    scan date_dim
+                                cache data
+                                    dynamic filter (unestimatable [d_week_seq_20::EQUAL])
+                                        scan date_dim
+                                load from cache
+                local exchange (GATHER, SINGLE, [])
+                    remote exchange (REPARTITION, HASH, [operator_subtract])
+                        join (INNER, PARTITIONED):
+                            final aggregation over (d_week_seq_124)
+                                local exchange (GATHER, SINGLE, [])
+                                    remote exchange (REPARTITION, HASH, [d_week_seq_124])
+                                        partial aggregation over (d_week_seq_124)
+                                            final aggregation over (d_day_name_134, d_week_seq_124)
+                                                local exchange (GATHER, SINGLE, [])
+                                                    remote exchange (REPARTITION, HASH, [d_day_name_134, d_week_seq_124])
+                                                        partial aggregation over (d_day_name_134, d_week_seq_124)
+                                                            join (INNER, REPLICATED):
+                                                                local exchange (REPARTITION, ROUND_ROBIN, [])
+                                                                    alternatives
+                                                                        dynamic filter (await [ws_sold_date_sk_81::EQUAL])
+                                                                            scan web_sales
+                                                                        cache data
+                                                                            dynamic filter (await [ws_sold_date_sk_81::EQUAL])
+                                                                                scan web_sales
+                                                                        load from cache
+                                                                    alternatives
+                                                                        dynamic filter (await [cs_sold_date_sk_117::EQUAL])
+                                                                            scan catalog_sales
+                                                                        cache data
+                                                                            dynamic filter (await [cs_sold_date_sk_117::EQUAL])
+                                                                                scan catalog_sales
+                                                                        load from cache
+                                                                local exchange (GATHER, SINGLE, [])
+                                                                    remote exchange (REPLICATE, BROADCAST, [])
+                                                                        alternatives
+                                                                            dynamic filter (await [d_week_seq_124::EQUAL])
+                                                                                scan date_dim
+                                                                            cache data
+                                                                                dynamic filter (await [d_week_seq_124::EQUAL])
+                                                                                    scan date_dim
+                                                                            load from cache
+                            local exchange (GATHER, SINGLE, [])
+                                remote exchange (REPARTITION, HASH, [d_week_seq_168])
+                                    alternatives
+                                        scan date_dim
+                                        cache data
+                                            scan date_dim
+                                        load from cache
