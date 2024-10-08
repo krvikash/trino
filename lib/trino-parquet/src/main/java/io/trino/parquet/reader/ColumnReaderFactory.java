@@ -101,7 +101,7 @@ public final class ColumnReaderFactory
         PrimitiveTypeName primitiveType = field.getDescriptor().getPrimitiveType().getPrimitiveTypeName();
         LogicalTypeAnnotation annotation = field.getDescriptor().getPrimitiveType().getLogicalTypeAnnotation();
         LocalMemoryContext memoryContext = aggregatedMemoryContext.newLocalMemoryContext(ColumnReader.class.getSimpleName());
-        ValueDecoders valueDecoders = new ValueDecoders(field, vectorizedDecodingEnabled);
+        ValueDecoders valueDecoders = new ValueDecoders(field, vectorizedDecodingEnabled, timeZone);
         if (BOOLEAN.equals(type) && primitiveType == PrimitiveTypeName.BOOLEAN) {
             return createColumnReader(field, valueDecoders::getBooleanDecoder, BYTE_ADAPTER, memoryContext);
         }

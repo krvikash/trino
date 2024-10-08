@@ -77,6 +77,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import org.apache.avro.file.DataFileStream;
@@ -101,6 +102,7 @@ import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
+import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -156,6 +158,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.isOrcNestedLazy;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isParquetIgnoreStatistics;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isParquetVectorizedDecodingEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseSessionZoneForTimestampWithZoneEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.useParquetBloomFilter;
 import static io.trino.plugin.iceberg.IcebergSplitManager.ICEBERG_DOMAIN_COMPACTION_THRESHOLD;
 import static io.trino.plugin.iceberg.IcebergSplitSource.partitionMatchesPredicate;
@@ -528,6 +531,7 @@ public class IcebergPageSourceProvider
             Optional<NameMapping> nameMapping,
             Map<Integer, Optional<String>> partitionKeys)
     {
+        TimeZoneKey sessionTimeZoneKey = session.getTimeZoneKey();
         return switch (fileFormat) {
             case ORC -> createOrcPageSource(
                     inputFile,
@@ -570,7 +574,9 @@ public class IcebergPageSourceProvider
                     predicate,
                     fileFormatDataSourceStats,
                     nameMapping,
-                    partitionKeys);
+                    partitionKeys,
+                    isUseSessionZoneForTimestampWithZoneEnabled(session),
+                    sessionTimeZoneKey);
             case AVRO -> createAvroPageSource(
                     inputFile,
                     start,
@@ -905,7 +911,9 @@ public class IcebergPageSourceProvider
             TupleDomain<IcebergColumnHandle> effectivePredicate,
             FileFormatDataSourceStats fileFormatDataSourceStats,
             Optional<NameMapping> nameMapping,
-            Map<Integer, Optional<String>> partitionKeys)
+            Map<Integer, Optional<String>> partitionKeys,
+            boolean isUseSessionZoneForTimestampWithZoneEnabled,
+            TimeZoneKey sessionTimeZoneKey)
     {
         AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
 
@@ -1018,7 +1026,7 @@ public class IcebergPageSourceProvider
                     parquetColumnFieldsBuilder.build(),
                     rowGroups,
                     dataSource,
-                    UTC,
+                    isUseSessionZoneForTimestampWithZoneEnabled ? DateTimeZone.forID(sessionTimeZoneKey.getId()) : UTC,
                     memoryContext,
                     options,
                     exception -> handleException(dataSourceId, exception),

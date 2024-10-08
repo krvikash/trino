@@ -87,6 +87,7 @@ public class IcebergConfig
     private int splitManagerThreads = Runtime.getRuntime().availableProcessors() * 2;
     private boolean incrementalRefreshEnabled = true;
     private boolean metadataCacheEnabled = true;
+    private boolean useSessionZoneForTimestampWithZoneEnabled;
 
     public CatalogType getCatalogType()
     {
@@ -495,6 +496,19 @@ public class IcebergConfig
     public IcebergConfig setMetadataCacheEnabled(boolean metadataCacheEnabled)
     {
         this.metadataCacheEnabled = metadataCacheEnabled;
+        return this;
+    }
+
+    public boolean isUseSessionZoneForTimestampWithZoneEnabled()
+    {
+        return useSessionZoneForTimestampWithZoneEnabled;
+    }
+
+    @Config("iceberg.use-session-zone--timestamp-with-zone.enabled")
+    @ConfigDescription("Enables to force timestamp with zone to be displayed in session zone")
+    public IcebergConfig setUseSessionZoneForTimestampWithZoneEnabled(boolean useSessionZoneForTimestampWithZoneEnabled)
+    {
+        this.useSessionZoneForTimestampWithZoneEnabled = useSessionZoneForTimestampWithZoneEnabled;
         return this;
     }
 }

@@ -25,6 +25,7 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.TimeType;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
@@ -106,6 +107,7 @@ public final class ValueDecoders
 {
     private final PrimitiveField field;
     private final boolean vectorizedDecodingEnabled;
+    private final DateTimeZone dateTimeZone;
 
     public ValueDecoders(PrimitiveField field)
     {
@@ -114,8 +116,14 @@ public final class ValueDecoders
 
     public ValueDecoders(PrimitiveField field, boolean vectorizedDecodingEnabled)
     {
+        this(field, vectorizedDecodingEnabled, DateTimeZone.UTC);
+    }
+
+    public ValueDecoders(PrimitiveField field, boolean vectorizedDecodingEnabled, DateTimeZone dateTimeZone)
+    {
         this.field = requireNonNull(field, "field is null");
         this.vectorizedDecodingEnabled = vectorizedDecodingEnabled;
+        this.dateTimeZone = requireNonNull(dateTimeZone, "dateTimeZone is null");
     }
 
     public ValueDecoder<long[]> getDoubleDecoder(ParquetEncoding encoding)
@@ -736,7 +744,7 @@ public final class ValueDecoders
                 for (int i = 0; i < length; i++) {
                     long epochMicros = buffer[i];
                     encodeFixed12(
-                            packDateTimeWithZone(floorDiv(epochMicros, MICROSECONDS_PER_MILLISECOND), UTC_KEY),
+                            packDateTimeWithZone(floorDiv(epochMicros, MICROSECONDS_PER_MILLISECOND), TimeZoneKey.getTimeZoneKey(dateTimeZone.getID())),
                             floorMod(epochMicros, MICROSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_MICROSECOND,
                             values,
                             i + offset);

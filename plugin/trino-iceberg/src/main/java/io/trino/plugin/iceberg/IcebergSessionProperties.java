@@ -108,6 +108,7 @@ public final class IcebergSessionProperties
     private static final String QUERY_PARTITION_FILTER_REQUIRED = "query_partition_filter_required";
     private static final String QUERY_PARTITION_FILTER_REQUIRED_SCHEMAS = "query_partition_filter_required_schemas";
     private static final String INCREMENTAL_REFRESH_ENABLED = "incremental_refresh_enabled";
+    private static final String USE_SESSION_ZONE_FOR_TIMESTAMP_WITH_ZONE = "use_session_zone_for_timestamp_with_zone";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -386,6 +387,11 @@ public final class IcebergSessionProperties
                         "Enable Incremental refresh for MVs backed by Iceberg tables, when possible.",
                         icebergConfig.isIncrementalRefreshEnabled(),
                         false))
+                .add(booleanProperty(
+                        USE_SESSION_ZONE_FOR_TIMESTAMP_WITH_ZONE,
+                        "Enables to force timestamp with zone to be displayed in session zone",
+                        icebergConfig.isUseSessionZoneForTimestampWithZoneEnabled(),
+                        false))
                 .build();
     }
 
@@ -623,5 +629,10 @@ public final class IcebergSessionProperties
     public static boolean isIncrementalRefreshEnabled(ConnectorSession session)
     {
         return session.getProperty(INCREMENTAL_REFRESH_ENABLED, Boolean.class);
+    }
+
+    public static boolean isUseSessionZoneForTimestampWithZoneEnabled(ConnectorSession session)
+    {
+        return session.getProperty(USE_SESSION_ZONE_FOR_TIMESTAMP_WITH_ZONE, Boolean.class);
     }
 }
