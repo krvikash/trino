@@ -95,7 +95,7 @@ public class StarburstSqlServerMultiDatabaseClient
     private Collection<String> listCatalogs(Connection connection)
     {
         try (Statement statement = connection.createStatement();
-                // We are performing ORDER BY as DatabaseMetaData#getCatlogs returns catalog name in a ordered fashion
+                // We are performing ORDER BY as DatabaseMetaData#getCatalogs returns catalog name in a ordered fashion
                 ResultSet resultSet = statement.executeQuery("SELECT name AS TABLE_CAT FROM sys.databases WHERE HAS_DBACCESS(name) = 1 ORDER BY name")) {
             ImmutableSet.Builder<String> catalogNames = ImmutableSet.builder();
             while (resultSet.next()) {
