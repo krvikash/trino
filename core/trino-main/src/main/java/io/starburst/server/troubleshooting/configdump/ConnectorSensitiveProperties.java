@@ -57,6 +57,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("bigquery",
                     ImmutableSet.of(
@@ -80,6 +81,7 @@ public final class ConnectorSensitiveProperties
                             "internal-communication.shared-secret",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("blackhole",
                     ImmutableSet.of(
@@ -140,6 +142,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("delta_lake",
                     ImmutableSet.of(
@@ -212,6 +215,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("elasticsearch",
                     ImmutableSet.of(
@@ -234,6 +238,7 @@ public final class ConnectorSensitiveProperties
                             "internal-communication.shared-secret",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("example_http",
                     ImmutableSet.of(
@@ -274,6 +279,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("greenplum",
                     ImmutableSet.of(
@@ -296,6 +302,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("gsheets",
                     ImmutableSet.of(
@@ -363,6 +370,7 @@ public final class ConnectorSensitiveProperties
                             "internal-communication.shared-secret",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "ranger.password",
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
@@ -493,6 +501,7 @@ public final class ConnectorSensitiveProperties
                             "internal-communication.shared-secret",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("localfile",
                     ImmutableSet.of(
@@ -531,6 +540,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "maxcompute.access.id",
                             "maxcompute.access.key",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("memory",
                     ImmutableSet.of(
@@ -561,6 +571,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("mongodb",
                     ImmutableSet.of(
@@ -599,6 +610,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("neo4j",
                     ImmutableSet.of(
@@ -631,6 +643,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("opensearch",
                     ImmutableSet.of(
@@ -662,6 +675,7 @@ public final class ConnectorSensitiveProperties
                             "internal-communication.https.keystore.key",
                             "internal-communication.https.truststore.key",
                             "internal-communication.shared-secret",
+                            "protocol.spooling.shared-secret-key",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
@@ -712,6 +726,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("prometheus",
                     ImmutableSet.of(
@@ -763,6 +778,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("salesforce",
                     ImmutableSet.of(
@@ -785,6 +801,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "salesforce.oauth.pkcs12-password",
                             "salesforce.password",
                             "salesforce.security-token",
@@ -810,6 +827,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("singlestore",
                     ImmutableSet.of(
@@ -832,6 +850,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("snowflake_jdbc",
                     ImmutableSet.of(
@@ -854,6 +873,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "snowflake.client-secret",
                             "snowflake.proxy.password",
                             "web-ui.shared-secret"))
@@ -878,6 +898,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "snowflake.client-secret",
                             "snowflake.proxy.password",
                             "web-ui.shared-secret"))
@@ -902,6 +923,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "splunk.password",
                             "web-ui.shared-secret"))
             .put("sqlserver",
@@ -925,6 +947,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "sqlserver.tls.truststore-password",
                             "web-ui.shared-secret"))
             .put("stargate",
@@ -948,6 +971,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "ssl.truststore.password",
                             "web-ui.shared-secret"))
             .put("synapse",
@@ -971,6 +995,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("teradata",
                     ImmutableSet.of(
@@ -993,6 +1018,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "teradata-direct.https.keystore.password",
                             "web-ui.shared-secret"))
             .put("teradata_direct",
@@ -1016,6 +1042,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "teradata-direct.https.keystore.password",
                             "web-ui.shared-secret"))
             .put("teradata_parallel_direct",
@@ -1039,6 +1066,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "teradata-direct.https.keystore.password",
                             "web-ui.shared-secret"))
             .put("tpcds",
@@ -1086,6 +1114,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
             .put("warp_speed",
                     ImmutableSet.of(
@@ -1142,12 +1171,12 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
                             "ranger.password",
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
                             "sentry.ldap.password",
-                            "warp-speed.config.azure.connection-string",
                             "web-ui.shared-secret"))
             .buildOrThrow();
 
