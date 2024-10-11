@@ -26,6 +26,7 @@ import io.trino.plugin.hive.containers.HiveMinioDataLake;
 import io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer;
 import io.trino.plugin.iceberg.catalog.rest.TestingPolarisCatalog;
 import io.trino.plugin.iceberg.containers.NessieContainer;
+import io.trino.plugin.iceberg.containers.UnityCatalogContainer;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.server.testing.TestingTrinoServer;
 import io.trino.testing.DistributedQueryRunner;
@@ -45,7 +46,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.PASSWORD;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.USER;
@@ -85,7 +85,7 @@ public final class IcebergQueryRunner
     {
         private Optional<File> metastoreDirectory = Optional.empty();
         private ImmutableMap.Builder<String, String> icebergProperties = ImmutableMap.builder();
-        private Optional<SchemaInitializer> schemaInitializer = Optional.empty();
+        private Optional<SchemaInitializer> schemaInitializer = Optional.of(SchemaInitializer.builder().build());
 
         protected Builder()
         {
@@ -135,9 +135,14 @@ public final class IcebergQueryRunner
 
         public Builder setSchemaInitializer(SchemaInitializer schemaInitializer)
         {
-            checkState(this.schemaInitializer.isEmpty(), "schemaInitializer is already set");
             this.schemaInitializer = Optional.of(requireNonNull(schemaInitializer, "schemaInitializer is null"));
             amendSession(sessionBuilder -> sessionBuilder.setSchema(schemaInitializer.getSchemaName()));
+            return self();
+        }
+
+        public Builder disableSchemaInitializer()
+        {
+            schemaInitializer = Optional.empty();
             return self();
         }
 
@@ -160,7 +165,7 @@ public final class IcebergQueryRunner
 
                 queryRunner.getServers().forEach(TestingTrinoServer::getCacheManagerRegistry);
 
-                schemaInitializer.orElseGet(() -> SchemaInitializer.builder().build()).accept(queryRunner);
+                schemaInitializer.ifPresent(initializer -> initializer.accept(queryRunner));
 
                 return queryRunner;
             }
@@ -233,6 +238,39 @@ public final class IcebergQueryRunner
                     .build();
 
             Logger log = Logger.get(IcebergPolarisQueryRunnerMain.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static final class IcebergUnityQueryRunnerMain
+    {
+        private IcebergUnityQueryRunnerMain() {}
+
+        public static void main(String[] args)
+                throws Exception
+        {
+            File warehouseLocation = Files.newTemporaryFolder();
+            warehouseLocation.deleteOnExit();
+
+            @SuppressWarnings("resource")
+            UnityCatalogContainer unityCatalog = new UnityCatalogContainer("unity", "tpch");
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = IcebergQueryRunner.builder()
+                    .addCoordinatorProperty("http-server.http.port", "8080")
+                    .setBaseDataDir(Optional.of(warehouseLocation.toPath()))
+                    .addIcebergProperty("iceberg.security", "read_only")
+                    .addIcebergProperty("iceberg.catalog.type", "rest")
+                    .addIcebergProperty("iceberg.rest-catalog.uri", unityCatalog.uri() + "/iceberg")
+                    .addIcebergProperty("iceberg.rest-catalog.parent-namespace", "unity")
+                    .addIcebergProperty("iceberg.register-table-procedure.enabled", "true")
+                    .disableSchemaInitializer()
+                    .build();
+
+            unityCatalog.copyTpchTables(TpchTable.getTables());
+
+            Logger log = Logger.get(IcebergUnityQueryRunnerMain.class);
             log.info("======== SERVER STARTED ========");
             log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
         }
