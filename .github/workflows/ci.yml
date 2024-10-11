@@ -430,6 +430,7 @@ jobs:
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
       - name: Run Salesforce tests
+        id: tests
         if: contains(matrix.modules, 'starburst-salesforce')
         env:
           SALESFORCE_BASIC_AUTH_USER_USERNAME: ${{ vars.SALESFORCE_BASIC_AUTH_USER_USERNAME }}
@@ -460,13 +461,12 @@ jobs:
             **/*.hprof
           retention-days: 30
       - name: Annotate with test report
-        uses: starburstdata/action-surefire-report@v1
+        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
         if: failure()
         with:
-          create_check: false
+          # this workflow should never fail, as it is not a quality gateway
           fail_if_no_tests: false
-          check_name: tests (${{ matrix.modules }})
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_publishing: true
       - name: Should notify on failure
         if: always() && steps.tests.outcome == 'failure'
         run: |
@@ -483,7 +483,7 @@ jobs:
         if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
         uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
         with:
-          slack-bot-user-oauth-access-token: ${{ env.SLACK_TOKEN }}
+          slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
           slack-channel: C06RV3N6N1E # team-connectors channel ID
           slack-text: |
             :boom: Salesforce connector tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
@@ -491,7 +491,7 @@ jobs:
         if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
         uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
         with:
-          slack-bot-user-oauth-access-token: ${{ env.SLACK_TOKEN }}
+          slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
           slack-channel: C04QTKJFWKT # galaxy-data-management channel ID
           slack-text: |
             :boom: Salesforce connector tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
