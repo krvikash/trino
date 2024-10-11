@@ -939,14 +939,15 @@ public class SnowflakeClient
         RemoteTableName remoteTableName = table.getRequiredNamedRelation().getRemoteTableName();
         try (Connection connection = connectionFactory.openConnection(session);
                 Handle handle = Jdbi.open(connection)) {
+            String statsTable = remoteTableName.getCatalogName().map(catalogName -> catalogName + DATABASE_SEPARATOR).orElse("") + "information_schema.tables";
             Long rowCount = handle.createQuery("""
                             SELECT (
                               SELECT ROW_COUNT
-                              FROM information_schema.tables
+                              FROM %s
                               WHERE table_catalog = :table_catalog
                               AND table_schema = :table_schema
                               AND table_name = :table_name
-                            )""")
+                            )""".formatted(statsTable))
                     .bind("table_catalog", remoteTableName.getCatalogName().orElse(null))
                     .bind("table_schema", remoteTableName.getSchemaName().orElse(null))
                     .bind("table_name", remoteTableName.getTableName())
