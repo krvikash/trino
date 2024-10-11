@@ -11,8 +11,11 @@ package com.starburstdata.trino.plugin.snowflake;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import jakarta.annotation.PostConstruct;
 
 import java.util.Optional;
+
+import static com.google.common.base.Preconditions.checkState;
 
 public class SnowflakeConfig
 {
@@ -100,5 +103,13 @@ public class SnowflakeConfig
     {
         this.proxyEnabled = proxyEnabled;
         return this;
+    }
+
+    @PostConstruct
+    public void validate()
+    {
+        if (!getDatabasePrefixForSchemaEnabled()) {
+            checkState(getDatabase().isPresent(), "snowflake.database must be set if snowflake.database-prefix-for-schema.enabled is set to false");
+        }
     }
 }

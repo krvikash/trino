@@ -17,6 +17,7 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestSnowflakeConfig
 {
@@ -53,5 +54,15 @@ public class TestSnowflakeConfig
                 .setProxyEnabled(true);
 
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testInvalidSetting()
+    {
+        assertThatThrownBy(() -> new SnowflakeConfig()
+                .setDatabasePrefixForSchemaEnabled(false)
+                .validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("snowflake.database must be set if snowflake.database-prefix-for-schema.enabled is set to false");
     }
 }

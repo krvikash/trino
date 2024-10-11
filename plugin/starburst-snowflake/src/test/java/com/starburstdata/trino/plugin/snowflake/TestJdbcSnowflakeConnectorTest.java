@@ -9,10 +9,6 @@
  */
 package com.starburstdata.trino.plugin.snowflake;
 
-import com.google.common.collect.ImmutableList;
-import io.trino.Session;
-import io.trino.spi.security.Identity;
-import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
@@ -23,7 +19,6 @@ import java.util.Optional;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.TEST_DATABASE;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.abort;
@@ -50,29 +45,6 @@ public class TestJdbcSnowflakeConnectorTest
     {
         // Snowflake's JDBC does not correctly represent datetimes with negative year
         testTimestampWithTimezoneValues(false);
-    }
-
-    @Test
-    public void testSnowflakeUseDefaultUserWarehouseAndDatabase()
-            throws Exception
-    {
-        try (DistributedQueryRunner queryRunner = jdbcBuilder()
-                .withWarehouse(Optional.empty())
-                .withDatabase(Optional.empty())
-                .withConnectorProperties(impersonationDisabled())
-                .build()) {
-            Session session = Session.builder(queryRunner.getDefaultSession())
-                    .setIdentity(Identity.ofUser(SnowflakeServer.USER))
-                    .build();
-            String tableName = TEST_SCHEMA + ".test_insert_";
-            // this test uses the role: test_role whose default database is "TEST_DATABASE"
-            try (TestTable testTable = new TestTable(sql -> SnowflakeServer.safeExecuteOnDatabase(TEST_DATABASE, sql),
-                    tableName,
-                    "(x decimal(19, 0), y varchar(100))",
-                    ImmutableList.of("123, 'test'"))) {
-                queryRunner.execute(session, format("SELECT * FROM %s", testTable.getName()));
-            }
-        }
     }
 
     @Test
