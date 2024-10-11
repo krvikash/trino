@@ -9,10 +9,10 @@ remote exchange (GATHER, SINGLE, [])
                                 remote exchange (REPARTITION, HASH, [custkey])
                                     cross join:
                                         alternatives
-                                            dynamic filter ([acctbal::GREATER_THAN])
+                                            dynamic filter (await [acctbal::GREATER_THAN])
                                                 scan customer
                                             cache data
-                                                dynamic filter ([acctbal::GREATER_THAN])
+                                                dynamic filter (await [acctbal::GREATER_THAN])
                                                     scan customer
                                             load from cache
                                         local exchange (GATHER, SINGLE, [])
