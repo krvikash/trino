@@ -939,7 +939,6 @@ public class SnowflakeClient
         RemoteTableName remoteTableName = table.getRequiredNamedRelation().getRemoteTableName();
         try (Connection connection = connectionFactory.openConnection(session);
                 Handle handle = Jdbi.open(connection)) {
-            // Verify we do not ignore second result row, should there be any
             Long rowCount = handle.createQuery("""
                             SELECT (
                               SELECT ROW_COUNT
@@ -952,7 +951,7 @@ public class SnowflakeClient
                     .bind("table_schema", remoteTableName.getSchemaName().orElse(null))
                     .bind("table_name", remoteTableName.getTableName())
                     .mapTo(Long.class)
-                    .findOnly();
+                    .one();
 
             if (rowCount == null) {
                 return TableStatistics.empty();
