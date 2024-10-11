@@ -113,7 +113,6 @@ import io.trino.sql.tree.Update;
 import io.trino.tracing.ScopedSpan;
 import io.trino.tracing.TrinoAttributes;
 import io.trino.type.UnknownType;
-import jakarta.annotation.Nonnull;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
@@ -347,7 +346,6 @@ public class LogicalPlanner
         return new Plan(root, statsAndCosts);
     }
 
-    @Nonnull
     private PlanNode runOptimizer(PlanNode root, TableStatsProvider tableStatsProvider, PlanOptimizer optimizer)
     {
         PlanNode result;
