@@ -72,7 +72,7 @@ public final class StargateParallelQueryRunner
                     .build();
             DistributedQueryRunner.Builder<?> queryRunnerBuilder = DistributedQueryRunner.builder(session)
                     .addExtraProperty("experimental.protocol.spooling.enabled", "true")
-                    .addExtraProperty("protocol.spooling.direct-storage-access", "false") // generating pre-signed URIs takes time
+                    .addExtraProperty("protocol.spooling.retrieval-mode", "storage")
                     .addExtraProperty("protocol.spooling.shared-secret-key", random256BitsEncryptionKey())
                     .setWorkerCount(3);
 
