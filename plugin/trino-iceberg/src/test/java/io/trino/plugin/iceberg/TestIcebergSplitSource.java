@@ -168,7 +168,7 @@ public class TestIcebergSplitSource
                 new DefaultIcebergFileSystemFactory(fileSystemFactory),
                 SESSION,
                 tableHandle,
-                ImmutableMap.of(),
+                nationTable,
                 nationTable.newScan(),
                 Optional.empty(),
                 new DynamicFilter()
@@ -455,7 +455,7 @@ public class TestIcebergSplitSource
                 new DefaultIcebergFileSystemFactory(fileSystemFactory),
                 SESSION,
                 tableHandle,
-                ImmutableMap.of(),
+                nationTable,
                 nationTable.newScan(),
                 Optional.empty(),
                 dynamicFilter,
