@@ -158,7 +158,7 @@ using following benchmarks:
 - `iceberg/sf1000_parquet_part_c5`
 
 ```shell
-PR_LINK=$(gh pr list -H update/cork/trino-${NEW} --json url --jq .[].url)
+PR_LINK=$(gh pr list -H update/cork/trino-${NEW} --json url --jq '.[].url')
 gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_unpart"
 gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_part_c5"
 ```
