@@ -504,8 +504,8 @@ public class WarpCacheTask
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        WarpCacheTask rowGroupData = (WarpCacheTask) o;
-        return Objects.equals(rowGroupKey, rowGroupData.rowGroupKey);
+        WarpCacheTask warpCacheTask = (WarpCacheTask) o;
+        return Objects.equals(rowGroupKey, warpCacheTask.rowGroupKey);
     }
 
     @Override
