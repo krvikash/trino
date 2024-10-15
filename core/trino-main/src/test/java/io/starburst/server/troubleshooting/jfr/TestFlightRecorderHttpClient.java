@@ -42,21 +42,25 @@ final class TestFlightRecorderHttpClient
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         try {
-            ServiceDescriptor goodNode = worker("good node", URI.create("http://localhost:1"));
-            ServiceDescriptor badNode = worker("bad node", URI.create("http://localhost:2"));
-            WorkerNodesProvider workerNodesProvider = new WorkerNodesProvider(
-                    new StaticServiceSelector(goodNode, badNode),
-                    new InternalCommunicationConfig().setHttpsRequired(false));
+            int goodNodePort = 1;
+            int badNodePort = 2;
+            ServiceDescriptor goodNode = worker("good node", URI.create("http://localhost:" + goodNodePort));
+            ServiceDescriptor badNode = worker("bad node", URI.create("http://localhost:" + badNodePort));
+            WorkerNodesProvider workerNodesProvider = new WorkerNodesProvider(new StaticServiceSelector(goodNode, badNode));
             TestingHttpClient.Processor processor = request -> {
-                if (request.getUri().getPort() == workerNodesProvider.getWorkerURI(goodNode.getNodeId()).getPort()) {
+                if (request.getUri().getPort() == goodNodePort) {
                     return new TestingResponse(HttpStatus.fromStatusCode(200), ArrayListMultimap.create(), "good response".getBytes(UTF_8));
                 }
-                if (request.getUri().getPort() == workerNodesProvider.getWorkerURI(badNode.getNodeId()).getPort()) {
+                if (request.getUri().getPort() == badNodePort) {
                     return new TestingResponse(HttpStatus.fromStatusCode(500), ArrayListMultimap.create(), new byte[] {});
                 }
                 throw new IllegalArgumentException("request not supported " + request);
             };
-            FlightRecorderHttpClient.Factory factory = new FlightRecorderHttpClient.Factory(new TestingHttpClient(processor, executor), scheduledExecutor, workerNodesProvider);
+            FlightRecorderHttpClient.Factory factory = new FlightRecorderHttpClient.Factory(
+                    new TestingHttpClient(processor, executor),
+                    scheduledExecutor,
+                    workerNodesProvider,
+                    new InternalCommunicationConfig().setHttpsRequired(false));
             FlightRecorderHttpClient client = factory.create(new QueryId("query"));
             ImmutableSet<String> nodeIds = ImmutableSet.of(goodNode.getNodeId(), badNode.getNodeId());
 
@@ -76,6 +80,31 @@ final class TestFlightRecorderHttpClient
         finally {
             executor.shutdownNow();
             scheduledExecutor.shutdownNow();
+        }
+    }
+
+    @Test
+    void testNonExistentWorker(SoftAssertions softly)
+    {
+        try (ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor()) {
+            ServiceDescriptor node = worker("good node", URI.create("http://localhost:1"));
+            WorkerNodesProvider workerNodesProvider = new WorkerNodesProvider(new StaticServiceSelector(node));
+            TestingHttpClient.Processor processor = _ -> new TestingResponse(HttpStatus.fromStatusCode(200), ArrayListMultimap.create(), "OK".getBytes(UTF_8));
+            FlightRecorderHttpClient.Factory factory = new FlightRecorderHttpClient.Factory(
+                    new TestingHttpClient(processor),
+                    scheduledExecutor,
+                    workerNodesProvider,
+                    new InternalCommunicationConfig().setHttpsRequired(false));
+            FlightRecorderHttpClient client = factory.create(new QueryId("query"));
+
+            softly.assertThatCode(() -> client.start(ImmutableSet.of(node.getNodeId(), "non-existent-node")))
+                    .doesNotThrowAnyException();
+            softly.assertThatCode(() -> client.remove(ImmutableSet.of(node.getNodeId(), "non-existent-node")))
+                    .doesNotThrowAnyException();
+            softly.assertThatCode(() -> client.finish(ImmutableSet.of(node.getNodeId(), "non-existent-node")))
+                    .doesNotThrowAnyException();
+            softly.assertThatCode(() -> client.getInputStreams(ImmutableSet.of(node.getNodeId(), "non-existent-node")))
+                    .doesNotThrowAnyException();
         }
     }
 

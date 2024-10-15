@@ -31,6 +31,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -38,7 +39,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.Futures.addCallback;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderHttpClient.InputStreamResponseHandler.createInputStreamResponseHandler;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderHttpClient.StatusCheckingResponseHandler.createStatusCheckingHandler;
@@ -51,7 +54,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Objects.requireNonNull;
-import static java.util.function.Function.identity;
 
 class FlightRecorderHttpClient
 {
@@ -60,8 +62,14 @@ class FlightRecorderHttpClient
     private final WorkerNodesProvider workerNodesProvider;
     private final FailsafeExecutor<Object> failsafeExecutor;
     private final ScheduledExecutorService executorService;
+    private final boolean httpsRequired;
 
-    private FlightRecorderHttpClient(QueryId queryId, HttpClient client, ScheduledExecutorService executorService, WorkerNodesProvider workerNodesProvider)
+    private FlightRecorderHttpClient(
+            QueryId queryId,
+            HttpClient client,
+            ScheduledExecutorService executorService,
+            WorkerNodesProvider workerNodesProvider,
+            boolean httpsRequired)
     {
         this.queryId = requireNonNull(queryId, "queryId is null");
         this.client = requireNonNull(client, "client is null");
@@ -75,6 +83,7 @@ class FlightRecorderHttpClient
                 .handleIf(FlightRecorderHttpClient::requestCanBeRetried)
                 .build())
             .with(executorService);
+        this.httpsRequired = httpsRequired;
     }
 
     public void start(Set<String> nodeIds)
@@ -113,37 +122,37 @@ class FlightRecorderHttpClient
                 .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private Request startRequest(String nodeId)
+    private Request startRequest(URI nodeUri)
     {
         return prepareGet()
-                .setUri(baseUri(nodeId).resolve("start"))
+                .setUri(baseUri(nodeUri).resolve("start"))
                 .build();
     }
 
-    private Request removeRequest(String nodeId)
+    private Request removeRequest(URI nodeUri)
     {
         return prepareDelete()
-                .setUri(baseUri(nodeId))
+                .setUri(baseUri(nodeUri))
                 .build();
     }
 
-    private Request finishRequest(String nodeId)
+    private Request finishRequest(URI nodeUri)
     {
         return prepareGet()
-                .setUri(baseUri(nodeId).resolve("finish"))
+                .setUri(baseUri(nodeUri).resolve("finish"))
                 .build();
     }
 
-    private Request inputStreamRequest(String nodeId)
+    private Request inputStreamRequest(URI nodeUri)
     {
         return prepareGet()
-                .setUri(baseUri(nodeId).resolve("download"))
+                .setUri(baseUri(nodeUri).resolve("download"))
                 .build();
     }
 
-    private URI baseUri(String nodeId)
+    private URI baseUri(URI nodeUri)
     {
-        return workerNodesProvider.getWorkerURI(nodeId).resolve(BASE_PATH_API_V1.replace("{queryId}", queryId.getId()));
+        return nodeUri.resolve(BASE_PATH_API_V1.replace("{queryId}", queryId.getId()));
     }
 
     private static boolean requestCanBeRetried(Throwable throwable)
@@ -155,10 +164,11 @@ class FlightRecorderHttpClient
         return false;
     }
 
-    private <R> HttpResponses<R> parallelExecute(Set<String> nodeIds, Function<String, Request> requestFactory, ResponseHandler<R, ?> handler)
+    private <R> HttpResponses<R> parallelExecute(Set<String> nodeIds, Function<URI, Request> requestFactory, ResponseHandler<R, ?> handler)
     {
-        ImmutableMap<String, CompletableFuture<R>> nodeIdToFutureMap = nodeIds.stream()
-                .collect(toImmutableMap(identity(), nodeId -> callOnNode(nodeId, requestFactory, handler)));
+        ImmutableMap<String, CompletableFuture<R>> nodeIdToFutureMap = workerNodesProvider.getWorkerNodes().stream()
+                .filter(worker -> nodeIds.contains(worker.getNodeId()))
+                .collect(toImmutableMap(ServiceDescriptor::getNodeId, worker -> callOnNode(getWorkerNodeURI(worker), requestFactory, handler)));
         ImmutableMap.Builder<String, R> responses = ImmutableMap.builder();
         ImmutableMap.Builder<String, Throwable> exceptions = ImmutableMap.builder();
         for (Map.Entry<String, CompletableFuture<R>> nodeIdToFuture : nodeIdToFutureMap.entrySet()) {
@@ -180,9 +190,14 @@ class FlightRecorderHttpClient
         return new HttpResponses<>(responses.buildOrThrow(), exceptions.buildKeepingLast());
     }
 
-    private <R> CompletableFuture<R> callOnNode(String nodeId, Function<String, Request> requestFactory, ResponseHandler<R, ?> handler)
+    private URI getWorkerNodeURI(ServiceDescriptor descriptor)
     {
-        Request request = requestFactory.apply(nodeId);
+        return URI.create(descriptor.getProperties().get(httpsRequired ? "https" : "http"));
+    }
+
+    private <R> CompletableFuture<R> callOnNode(URI nodeUri, Function<URI, Request> requestFactory, ResponseHandler<R, ?> handler)
+    {
+        Request request = requestFactory.apply(nodeUri);
         return failsafeExecutor.getAsyncExecution(execution -> {
             addCallback(client.executeAsync(request, handler), new FutureCallback<>()
             {
@@ -301,59 +316,54 @@ class FlightRecorderHttpClient
         private final HttpClient client;
         private final ScheduledExecutorService executorService;
         private final WorkerNodesProvider workerNodesProvider;
+        private final boolean httpsRequired;
 
         @Inject
-        public Factory(@ForTroubleshooting HttpClient client, @ForTroubleshooting ScheduledExecutorService executorService, WorkerNodesProvider workerNodesProvider)
+        public Factory(
+                @ForTroubleshooting HttpClient client,
+                @ForTroubleshooting ScheduledExecutorService executorService,
+                WorkerNodesProvider workerNodesProvider,
+                InternalCommunicationConfig internalCommunicationConfig)
         {
             this.client = requireNonNull(client, "client is null");
             this.executorService = requireNonNull(executorService, "executorService is null");
             this.workerNodesProvider = requireNonNull(workerNodesProvider, "workerNodesProvider is null");
+            this.httpsRequired = requireNonNull(internalCommunicationConfig, "internalCommunicationConfig is null").isHttpsRequired();
         }
 
         public FlightRecorderHttpClient create(QueryId queryId)
         {
-            return new FlightRecorderHttpClient(queryId, client, executorService, workerNodesProvider);
+            return new FlightRecorderHttpClient(queryId, client, executorService, workerNodesProvider, httpsRequired);
         }
     }
 
     public static class WorkerNodesProvider
     {
         private final ServiceSelector selector;
-        private final boolean isHttpsRequired;
 
         @Inject
-        public WorkerNodesProvider(@ServiceType("trino") ServiceSelector selector, InternalCommunicationConfig internalCommunicationConfig)
+        public WorkerNodesProvider(@ServiceType("trino") ServiceSelector selector)
         {
             this.selector = requireNonNull(selector, "selector is null");
-            this.isHttpsRequired = requireNonNull(internalCommunicationConfig, "internalCommunicationConfig is null").isHttpsRequired();
         }
 
-        public Map<String, ServiceDescriptor> getWorkerNodes()
+        public List<ServiceDescriptor> getWorkerNodes()
         {
             return selector.selectAllServices().stream()
                     .filter(WorkerNodesProvider::isWorker)
-                    .map(descriptor -> Map.entry(descriptor.getNodeId(), descriptor))
-                    .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+                    .collect(toImmutableList());
         }
 
         public Set<String> getWorkerNodesIds()
         {
-            return getWorkerNodes().keySet();
-        }
-
-        public URI getWorkerURI(String nodeId)
-        {
-            return getWorkerNodeURI(getWorkerNodes().get(nodeId));
+            return getWorkerNodes().stream()
+                    .map(ServiceDescriptor::getNodeId)
+                    .collect(toImmutableSet());
         }
 
         private static boolean isWorker(ServiceDescriptor descriptor)
         {
             return !parseBoolean(descriptor.getProperties().getOrDefault("coordinator", "false"));
-        }
-
-        private URI getWorkerNodeURI(ServiceDescriptor descriptor)
-        {
-            return URI.create(descriptor.getProperties().get(isHttpsRequired ? "https" : "http"));
         }
     }
 }
