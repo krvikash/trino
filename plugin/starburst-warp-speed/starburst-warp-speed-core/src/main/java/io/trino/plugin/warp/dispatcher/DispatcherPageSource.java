@@ -596,10 +596,10 @@ public class DispatcherPageSource
         return new Page(orderedBlocks);
     }
 
-    private void fillBlock(Type type, Block block, BlockBuilder blockBuilder, int start, int end)
+    private void fillBlock(Block block, BlockBuilder blockBuilder, int start, int end)
     {
         for (int position = start; position < end; position++) {
-            type.appendTo(block, position, blockBuilder);
+            blockBuilder.append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(position));
         }
     }
 
@@ -612,7 +612,7 @@ public class DispatcherPageSource
         for (int column = 0; column < page.getChannelCount(); column++) {
             Block block = page.getBlock(column).getLoadedBlock();
             BlockBuilder blockBuilder = resultPageBuilder.getBlockBuilder(columnInBuilder);
-            fillBlock(resultPageBuilder.getType(columnInBuilder), block, blockBuilder, currentRowInPage, currentRowInPage + numberOfRowsToAdd);
+            fillBlock(block, blockBuilder, currentRowInPage, currentRowInPage + numberOfRowsToAdd);
             columnInBuilder++;
         }
     }
