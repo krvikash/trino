@@ -127,7 +127,7 @@ public class NativeStorageEngine
 
             // collect API
             mCollectProcessMatchResult = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_match_result").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.JAVA_INT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
             mCollectCollectChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_collect_chunk").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.JAVA_INT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
 
@@ -417,18 +417,15 @@ public class NativeStorageEngine
     public native long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);
 
     @Override
-    public int processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
+    public boolean processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
     {
         try {
-            int res = (int) mCollectProcessMatchResult.invokeExact(txId, (short) chunkIndex, bitmapResetPoint, rowsLimit);
-            if (res >= 0) {
-                return res;
-            }
+            return (boolean) mCollectProcessMatchResult.invokeExact(txId, (short) chunkIndex, bitmapResetPoint, rowsLimit, outQueryResultTypes);
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to processMatchResult");
         }
-        return -1; // error is thrown by the caller in a trino exception with a specific code
+        return false; // error is thrown by the caller in a trino exception with a specific code
     }
 
     @Override

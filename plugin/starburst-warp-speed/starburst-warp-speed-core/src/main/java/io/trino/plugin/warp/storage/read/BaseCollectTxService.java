@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.read;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.JbufType;
-import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
@@ -28,7 +27,6 @@ import io.trino.spi.TrinoException;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
-import java.lang.foreign.ValueLayout;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 
@@ -107,20 +105,18 @@ public abstract class BaseCollectTxService
     }
 
     // prepare chunk with match result, error throws and exception
-    // returns true if we should stop before this collect since query result type is now single, false otherwise
-    boolean prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint)
+    void prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint, MemorySegment outQueryResultTypes)
     {
         logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d matchBitmapResetPoint %d", chunkIndex, numRowsToCollect, matchBitmapResetPoint);
-        int ret = storageEngine.processMatchResult(collectTxId,
+        if (!storageEngine.processMatchResult(collectTxId,
                 chunkIndex,
                 matchBitmapResetPoint,
-                numRowsToCollect);
-        if (ret == -1) {
+                numRowsToCollect,
+                outQueryResultTypes)) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                     String.format("prepareChunk failed unexpectedly collectTxId %d chunkIndex %d matchBitmapResetPoint %d numRowsToCollect %d",
                             collectTxId, chunkIndex, matchBitmapResetPoint, numRowsToCollect));
         }
-        return (ret > 0); // if storage engine returned a positive number it means at least one element has a single chunk
     }
 
     // prepare chunk for full scan case, also used by lazy collect, throws exception if error
@@ -134,20 +130,10 @@ public abstract class BaseCollectTxService
         }
     }
 
-    // returns true if we should stop after this collect since query result type is different than raw, false otherwise
-    boolean collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
+    void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
     {
         try {
             storageEngine.collectChunk(txId, numWes, chunkIndex, numToCollect, outQueryResultTypes);
-            for (int weIx = 0; weIx < numWes; weIx++) {
-                int queryResultType = outQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx);
-                if ((queryResultType == QueryResultType.QUERY_RESULT_TYPE_SINGLE.ordinal()) ||
-                        (queryResultType == QueryResultType.QUERY_RESULT_TYPE_SINGLE_NO_NULL.ordinal()) ||
-                        (queryResultType == QueryResultType.QUERY_RESULT_TYPE_ALL_NULL.ordinal())) {
-                    return true;
-                }
-            }
-            return false;
         }
         catch (Exception e) {
             shapingLogger.error(e, "collect failed chunkIndex %d rowsLimit %d numToCollect %d", chunkIndex, numToCollect, numToCollect);

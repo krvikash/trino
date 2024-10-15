@@ -26,6 +26,7 @@ public record StorageCollectorArgs(StorageCollectorCallBack storageCollectorCall
                                    MemorySegment recordBufferStates,
                                    RecordIndexes recordIndexes,
                                    MemorySegment queryResultTypes,
+                                   MemorySegment prepareQueryResultTypes,
                                    MemorySegment warmUpElementAtts)
 {
 }

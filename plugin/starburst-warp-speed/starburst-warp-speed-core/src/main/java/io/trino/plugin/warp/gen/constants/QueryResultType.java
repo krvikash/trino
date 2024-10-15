@@ -17,6 +17,7 @@ package io.trino.plugin.warp.gen.constants;
 
 public enum QueryResultType
 {
+    QUERY_RESULT_TYPE_INVALID,
     QUERY_RESULT_TYPE_RAW,
     QUERY_RESULT_TYPE_RAW_NO_NULL,
     QUERY_RESULT_TYPE_ALL_NULL,
@@ -26,5 +27,12 @@ public enum QueryResultType
 
     QueryResultType()
     {
+    }
+
+    public static boolean isSingle(QueryResultType queryResultType)
+    {
+        return queryResultType == QUERY_RESULT_TYPE_SINGLE ||
+                queryResultType == QUERY_RESULT_TYPE_SINGLE_NO_NULL ||
+                queryResultType == QUERY_RESULT_TYPE_ALL_NULL;
     }
 }

@@ -197,9 +197,9 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
+    public boolean processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
     {
-        return 0;
+        return true;
     }
 
     @Override

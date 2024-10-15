@@ -240,9 +240,9 @@ public interface StorageEngine
      * @param bitmapResetPoint - reset point of the match bitmap
      * @param rowsLimit - optional limit on the number of rows to collect from this chunk
      *
-     * @return 0 for success, -1 for error
+     * @return TRUE for success, FALSE for error
      */
-    default int processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
+    default boolean processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
     {
         throw new UnsupportedOperationException();
     }

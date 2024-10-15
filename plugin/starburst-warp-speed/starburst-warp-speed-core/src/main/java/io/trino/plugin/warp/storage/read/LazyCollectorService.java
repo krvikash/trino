@@ -116,14 +116,13 @@ public class LazyCollectorService
     }
 
     @Override
-    boolean collectChunk(CollectOpenResult collectOpenResult,
+    void collectChunk(CollectOpenResult collectOpenResult,
             int numCollectElements,
             int chunkIndex,
             int numToCollect,
             MemorySegment outQueryResultTypes)
     {
         // collect is done in LazyCollectorLoader
-        return false; // do not stop the collect after this round for query result type
     }
 
     @Override

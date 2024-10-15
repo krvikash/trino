@@ -160,18 +160,14 @@ public class StorageCollectorService
                 storeRowListResult);
     }
 
-    // returns true if we should stop before this collect since query result type is now single, false otherwise
-    boolean prepareChunk(QueryArgs queryArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
+    void prepareChunk(QueryArgs queryArgs, CollectOpenResult collectOpenResult, int numCollectedRows, MemorySegment outQueryResultTypes)
     {
-        if (chunksQueueService.isChunkPreparationNeeded(queryArgs.chunksQueue())) {
-            boolean stopForOptimization = collectTxService.prepareChunk(collectOpenResult.queryMemoryId(),
-                    queryArgs.chunksQueue().getCurrent(),
-                    collectOpenResult.rowsLimit() - numCollectedRows,
-                    queryArgs.chunksQueue().getCurrentResetPoint());
-            chunksQueueService.setFirstChunkPrepared(queryArgs.chunksQueue());
-            return stopForOptimization && (numCollectedRows > 0);
-        }
-        return false;
+        collectTxService.prepareChunk(collectOpenResult.queryMemoryId(),
+                queryArgs.chunksQueue().getCurrent(),
+                collectOpenResult.rowsLimit() - numCollectedRows,
+                queryArgs.chunksQueue().getCurrentResetPoint(),
+                outQueryResultTypes);
+        chunksQueueService.setFirstChunkPrepared(queryArgs.chunksQueue());
     }
 
     boolean advanceChunk(QueryArgs queryArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
@@ -184,14 +180,25 @@ public class StorageCollectorService
         return false;
     }
 
-    // returns true if we should stop after this collect since query result type is different than raw, false otherwise
-    boolean collectChunk(CollectOpenResult collectOpenResult,
+    boolean stopForOptimization(int numWes, MemorySegment currQueryResultTypes, MemorySegment prevQueryResultTypes)
+    {
+        for (int weIx = 0; weIx < numWes; weIx++) {
+            QueryResultType currResultType = QueryResultType.values()[currQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
+            QueryResultType prevResultType = QueryResultType.values()[prevQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
+            if (QueryResultType.isSingle(currResultType) || QueryResultType.isSingle(prevResultType)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void collectChunk(CollectOpenResult collectOpenResult,
             int numWes,
             int chunkIndex,
             int numToCollect,
             MemorySegment outQueryResultTypes)
     {
-        return collectTxService.collectChunk(collectOpenResult.queryMemoryId(),
+        collectTxService.collectChunk(collectOpenResult.queryMemoryId(),
                 numWes,
                 chunkIndex,
                 numToCollect,
@@ -210,21 +217,23 @@ public class StorageCollectorService
         }
 
         int numToCollect = 1; // Not a real value, just making sure to enter the loop in the first iteration
-        boolean stopForOptimization = false;
+        QueryParams queryParams = queryArgs.queryParams();
+
         while (!chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue()) && numToCollect > 0) {
             // get next chunk to collect and check if its already done on buffer
             int chunkIndex = queryArgs.chunksQueue().getCurrent();
-            if (prepareChunk(queryArgs, collectOpenResult, numCollectedRows)) {
-                numToCollect = 0;
-                break;
+            if (chunksQueueService.isChunkPreparationNeeded(queryArgs.chunksQueue())) {
+                prepareChunk(queryArgs, collectOpenResult, numCollectedRows, storageCollectorArgs.prepareQueryResultTypes());
+                if ((numCollectedRows > 0) && stopForOptimization(queryParams.getNumCollectElements(), storageCollectorArgs.prepareQueryResultTypes(), storageCollectorArgs.queryResultTypes())) {
+                    numToCollect = 0;
+                    break;
+                }
             }
-
-            QueryParams queryParams = queryArgs.queryParams();
             if (queryParams.getNumCollectElements() > 0) {
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, collectOpenResult.rangeData());
                 numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
                 if (numToCollect > 0) {
-                    stopForOptimization = collectChunk(collectOpenResult,
+                    collectChunk(collectOpenResult,
                             queryParams.getNumCollectElements(),
                             chunkIndex,
                             numToCollect,
@@ -241,7 +250,7 @@ public class StorageCollectorService
                 numToCollect = 0; // We do not collect from one chunk twice in one round
             }
             // In case we are in full scan we are stopping after one chunk
-            if ((queryParams.getNumMatchElements() == 0) || stopForOptimization) {
+            if (queryParams.getNumMatchElements() == 0) {
                 numToCollect = 0;
             }
         }
@@ -426,6 +435,8 @@ public class StorageCollectorService
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT);
         MemorySegment queryResultTypes =
                 Arena.ofAuto().allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
+        MemorySegment prepareQueryResultTypes =
+                Arena.ofAuto().allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
         SequenceLayout warmUpElementAttsLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
         MemorySegment warmUpElementAtts =
@@ -438,6 +449,7 @@ public class StorageCollectorService
                 recordBufferStates,
                 new RecordIndexes(recordIndexes),
                 queryResultTypes,
+                prepareQueryResultTypes,
                 warmUpElementAtts);
     }
 

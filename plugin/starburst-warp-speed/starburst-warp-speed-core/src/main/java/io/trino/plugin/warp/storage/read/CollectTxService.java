@@ -165,7 +165,8 @@ public class CollectTxService
                 prepareChunk(collectOpenResult.queryMemoryId(),
                         queryArgs.chunksQueue().getCurrent(),
                         collectOpenResult.rowsLimit() - numCollectedRows,
-                        queryArgs.chunksQueue().getCurrentResetPoint());
+                        queryArgs.chunksQueue().getCurrentResetPoint(),
+                        storageCollectorArgs.prepareQueryResultTypes());
             }
 
             chunksWithBitmapsToStoreOpt = queryArgs.chunksQueue().getChunkIndexesWithBitmap();
