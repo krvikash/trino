@@ -24,7 +24,6 @@ import io.trino.plugin.jdbc.DefaultQueryBuilder;
 import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcMetadataConfig;
-import io.trino.plugin.jdbc.JdbcNamedRelationHandle;
 import io.trino.plugin.jdbc.JdbcSortItem;
 import io.trino.plugin.jdbc.JdbcSplit;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
@@ -42,6 +41,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
@@ -211,13 +211,10 @@ public class StarburstOracleClient
 
     @Override
     // TODO: migrate to OSS?
-    public List<JdbcColumnHandle> getColumns(ConnectorSession session, JdbcTableHandle tableHandle)
+    public List<JdbcColumnHandle> getColumns(ConnectorSession session, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
     {
-        if (tableHandle.getColumns().isPresent()) {
-            return tableHandle.getColumns().get();
-        }
         if (!synonymsEnabled) {
-            return super.getColumns(session, tableHandle);
+            return super.getColumns(session, schemaTableName, remoteTableName);
         }
         // MAJOR HACK ALERT!!!
         // We had to introduce the hack because of bug in Oracle JDBC client where
@@ -226,13 +223,11 @@ public class StarburstOracleClient
         // this method was used when setIncludeSynonym(false) is set, then openProxySession is also working as expected
         // Forcing is done by using wildcard '%' at the end of table name. And so we have to filter rows with columns from other tables.
         // Whenever you change this method make sure TestOracleIntegrationSmokeTest.testGetColumns covers your changes.
-        checkArgument(tableHandle.isNamedRelation(), "Cannot get columns for %s", tableHandle);
-        JdbcNamedRelationHandle namedRelation = tableHandle.getRequiredNamedRelation();
         try (Connection connection = connectionFactory.openConnection(session)) {
-            try (ResultSet resultSet = getColumns(tableHandle, connection.getMetaData(), "%")) {
+            try (ResultSet resultSet = getColumns(remoteTableName, connection.getMetaData(), "%")) {
                 List<JdbcColumnHandle> columns = new ArrayList<>();
                 while (resultSet.next()) {
-                    if (!resultSet.getString("TABLE_NAME").equals(namedRelation.getRemoteTableName().getTableName())) {
+                    if (!resultSet.getString("TABLE_NAME").equals(remoteTableName.getTableName())) {
                         continue;
                     }
                     JdbcTypeHandle typeHandle = new JdbcTypeHandle(resultSet.getInt("DATA_TYPE"), Optional.ofNullable(resultSet.getString("TYPE_NAME")), Optional.of(resultSet.getInt("COLUMN_SIZE")), Optional.of(resultSet.getInt("DECIMAL_DIGITS")), Optional.empty(), Optional.empty());
@@ -245,7 +240,7 @@ public class StarburstOracleClient
                 }
                 if (columns.isEmpty()) {
                     // Table has no supported columns, but such table is not supported in Presto
-                    throw new TableNotFoundException(namedRelation.getSchemaTableName());
+                    throw new TableNotFoundException(schemaTableName);
                 }
                 return ImmutableList.copyOf(columns);
             }
@@ -255,11 +250,10 @@ public class StarburstOracleClient
         }
     }
 
-    private ResultSet getColumns(JdbcTableHandle tableHandle, DatabaseMetaData metadata, String tableNameSuffix)
+    private ResultSet getColumns(RemoteTableName remoteTableName, DatabaseMetaData metadata, String tableNameSuffix)
             throws SQLException
     {
         String escape = metadata.getSearchStringEscape();
-        RemoteTableName remoteTableName = tableHandle.getRequiredNamedRelation().getRemoteTableName();
         return metadata.getColumns(
                 remoteTableName.getCatalogName().orElse(null),
                 escapeObjectNameForMetadataQuery(remoteTableName.getSchemaName(), escape).orElse(null),

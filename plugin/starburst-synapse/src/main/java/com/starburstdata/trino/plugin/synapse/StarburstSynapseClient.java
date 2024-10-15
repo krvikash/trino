@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.synapse;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.trino.plugin.base.aggregation.AggregateFunctionRewriter;
@@ -22,7 +21,6 @@ import io.trino.plugin.jdbc.ColumnMapping;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.JdbcExpression;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
-import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.LongWriteFunction;
 import io.trino.plugin.jdbc.QueryBuilder;
@@ -51,6 +49,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
@@ -314,13 +313,8 @@ public class StarburstSynapseClient
     }
 
     @Override
-    protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, JdbcTableHandle tableHandle)
+    protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
     {
-        if (tableHandle.isSynthetic()) {
-            return ImmutableMap.of();
-        }
-        RemoteTableName remoteTableName = tableHandle.asPlainTable().getRemoteTableName();
-
         return Jdbi.open(connection).createQuery("""
                         SELECT c.name AS column_name, collation_name  FROM sys.columns c
                         INNER JOIN sys.tables t on c.object_id = t.object_id

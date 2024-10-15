@@ -65,6 +65,9 @@ public interface JdbcClient
 
     JdbcProcedureHandle getProcedureHandle(ConnectorSession session, ProcedureQuery procedureQuery);
 
+    List<JdbcColumnHandle> getColumns(ConnectorSession session, SchemaTableName schemaTableName, RemoteTableName remoteTableName);
+
+    @Deprecated
     List<JdbcColumnHandle> getColumns(ConnectorSession session, JdbcTableHandle tableHandle);
 
     Iterator<RelationColumnsMetadata> getAllTableColumns(ConnectorSession session, Optional<String> schema);
@@ -261,5 +264,13 @@ public interface JdbcClient
     default OptionalInt getMaxColumnNameLength(ConnectorSession session)
     {
         return OptionalInt.empty();
+    }
+
+    default List<JdbcColumnHandle> getColumns(ConnectorSession session, JdbcTableHandle tableHandle)
+    {
+        if (tableHandle.getColumns().isPresent()) {
+            return tableHandle.getColumns().get();
+        }
+        return getColumns(session, tableHandle.getRequiredNamedRelation().getSchemaTableName(), tableHandle.getRequiredNamedRelation().getRemoteTableName());
     }
 }
