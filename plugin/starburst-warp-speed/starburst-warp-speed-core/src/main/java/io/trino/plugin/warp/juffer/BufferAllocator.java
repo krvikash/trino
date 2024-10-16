@@ -428,11 +428,6 @@ public class BufferAllocator
         return id2Buff(id).asShortBuffer();
     }
 
-    public IntBuffer ids2RecordBufferStateBuff(long id)
-    {
-        return id2Buff(id).asIntBuffer();
-    }
-
     public ByteBuffer memorySegment2CrcBuff(MemorySegment[] buffs)
     {
         return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_CRC.ordinal()]);

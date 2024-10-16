@@ -18,7 +18,6 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.CollectStats;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
@@ -34,7 +33,6 @@ import java.lang.foreign.SegmentAllocator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
@@ -76,7 +74,7 @@ public class CollectTxService
         QueryParams queryParams = queryArgs.queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
         int numCollectElements = collectParamsList.size();
-        long[] metadataBuffIds = new long[2];
+        long[] metadataBuffIds = new long[1];
 
         QueryMemory queryMemory = allocQueryMemory();
         int queryMemoryId = queryMemory.id();
@@ -102,13 +100,15 @@ public class CollectTxService
                 numCollectElements,
                 queryArgs.numChunksInRange(),
                 matchBmAddr,
+                storageCollectorArgs.recordBufferStates().address(),
                 metadataBuffIds);
 
         RangeData rangeData = new RangeData(metadataBuffIds[0]);
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = Collections.emptyList();
         if (numCollectElements > 0) {
-            warmupElementRecordBufferStates = IntStream.range(0, numCollectElements)
-                    .mapToObj(weIx -> new WarmupElementRecordBufferState(weIx * RecordBufferState.RECORD_BUFFER_STATE_NUM_OF.ordinal(), metadataBuffIds))
+            warmupElementRecordBufferStates = storageCollectorArgs.recordBufferStates()
+                    .elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT)
+                    .map(recordBufferState -> new WarmupElementRecordBufferState(recordBufferState))
                     .toList();
         }
 

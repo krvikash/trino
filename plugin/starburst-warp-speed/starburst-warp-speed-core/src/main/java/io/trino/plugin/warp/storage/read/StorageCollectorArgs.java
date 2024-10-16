@@ -23,6 +23,7 @@ public record StorageCollectorArgs(StorageCollectorCallBack storageCollectorCall
                                    List<BlockFiller<?>> blockFillers,
                                    List<ReadJuffersWarmUpElement> collectJuffersWE,
                                    byte[] storeRowListBuff,
+                                   MemorySegment recordBufferStates,
                                    MemorySegment queryResultTypes)
 {
 }

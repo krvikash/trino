@@ -20,7 +20,6 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
-import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
@@ -44,7 +43,6 @@ import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.ValueLayout;
-import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -65,12 +63,12 @@ public class StorageCollectorService
     private static final Logger logger = Logger.get(StorageCollectorService.class);
 
     // services
-    final StorageEngine storageEngine;
+    protected final StorageEngine storageEngine;
+    protected final BufferAllocator bufferAllocator;
+    protected final DictionaryStats dictionaryStats;
+    private final RangeFillerService rangeFillerService;
+    private final ChunksQueueService chunksQueueService;
     private final CollectTxService collectTxService;
-    final BufferAllocator bufferAllocator;
-    final DictionaryStats dictionaryStats;
-    final RangeFillerService rangeFillerService;
-    final ChunksQueueService chunksQueueService;
     private final StorageEngineConstants storageEngineConstants;
     private final BlockFillersFactory blockFillersFactory;
     private final DictionaryCacheService dictionaryCacheService;
@@ -305,9 +303,9 @@ public class StorageCollectorService
         return recLimit;
     }
 
-    int getFreeBytes(WarmupElementRecordBufferState warmupElementRecordBufferState, IntBuffer recordBufferStateBuff)
+    int getFreeBytes(WarmupElementRecordBufferState warmupElementRecordBufferState)
     {
-        return recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_TOTAL_BYTES.ordinal()) - recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_USED_BYTES.ordinal());
+        return warmupElementRecordBufferState.getFreeBytes();
     }
 
     int getNumToCollect(QueryArgs queryArgs,
@@ -316,25 +314,24 @@ public class StorageCollectorService
             RangeData rangeData,
             int numCollectedRows)
     {
-        IntBuffer recordBufferStateBuff = bufferAllocator.ids2RecordBufferStateBuff(warmupElementRecordBufferState.getRecordBufferStateBuffId());
         ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rangeData.getRowsBuffId());
         int maxToCollect = queryArgs.chunkSize() - numCollectedRows; // according to buffer capacity
         int numToCollect = getTotalNumToCollect(queryArgs, rowsBuff) - numCollectedFromCurrentChunk; // according to current chunk
         if (numToCollect > maxToCollect) {
-            logger.debug("getNumToCollect zero basePos %d numToCollect %d maxToCollect %d", warmupElementRecordBufferState.getBasePos(), numToCollect, maxToCollect);
+            logger.debug("getNumToCollect zero numToCollect %d maxToCollect %d", numToCollect, maxToCollect);
             return 0; // we want to avoid decompressing twice the same chunk
         }
 
-        int maxRecordLength = recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_MAX_RECORD_LENGTH.ordinal());
+        int maxRecordLength = warmupElementRecordBufferState.getMaxRecordLength();
         if (maxRecordLength <= storageEngineConstants.getFixedLengthStringLimit()) {
-            logger.debug("getNumToCollect fixed size basePos %d numToCollect %d maxToCollect %d", warmupElementRecordBufferState.getBasePos(), numToCollect, maxToCollect);
+            logger.debug("getNumToCollect fixed size numToCollect %d maxToCollect %d", numToCollect, maxToCollect);
             return numToCollect;
         }
-        int freeBytes = getFreeBytes(warmupElementRecordBufferState, recordBufferStateBuff);
+        int freeBytes = getFreeBytes(warmupElementRecordBufferState);
 
         int actualNumToCollect = Math.min(freeBytes / maxRecordLength, numToCollect);
-        logger.debug("getNumToCollect var size basePos %d actualNumToCollect %d numToCollect %d maxToCollect %d maxRecordLength %d freeBytes %d",
-                warmupElementRecordBufferState.getBasePos(), actualNumToCollect, numToCollect, maxToCollect, maxRecordLength, freeBytes);
+        logger.debug("getNumToCollect var size actualNumToCollect %d numToCollect %d maxToCollect %d maxRecordLength %d freeBytes %d",
+                actualNumToCollect, numToCollect, maxToCollect, maxRecordLength, freeBytes);
         return actualNumToCollect;
     }
 
@@ -414,13 +411,20 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
 
-        SequenceLayout queryResultTypesLayout = MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT);
-        MemorySegment queryResultTypes = Arena.ofAuto().allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
+        SequenceLayout recordBufferStatesLayout =
+                MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT);
+        MemorySegment recordBufferStates =
+                Arena.ofAuto().allocate(recordBufferStatesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
+        SequenceLayout queryResultTypesLayout =
+                MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT);
+        MemorySegment queryResultTypes =
+                Arena.ofAuto().allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
         return new StorageCollectorArgs(
                 storageCollectorCallBack,
                 blockFillers,
                 collectJuffersWE,
                 storeRowListBuff,
+                recordBufferStates,
                 queryResultTypes);
     }
 

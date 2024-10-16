@@ -162,8 +162,8 @@ public interface StorageEngine
      * @param outMetadataBuffIds - buffer id for row numbers. buffer id for record buffer state. valid id is zero of positive, -1 for invalid.
      */
     default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
-            int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, long matchBitmapAddress, int minOffset,
-            long[][] collectBuffers, long[] outMetadataBuffIds)
+            int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
+            long matchBitmapAddress, long recordBufferStatesAddress, long[][] collectBuffers, long[] outMetadataBuffIds)
     {
         throw new UnsupportedOperationException();
     }

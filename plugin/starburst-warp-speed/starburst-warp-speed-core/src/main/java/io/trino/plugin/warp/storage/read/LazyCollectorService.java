@@ -28,7 +28,6 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlock;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.IntBuffer;
 import java.util.List;
 
 @Singleton
@@ -95,6 +94,7 @@ public class LazyCollectorService
                 collectParams,
                 juffersWE,
                 storageCollectorArgs.blockFillers().get(weIx),
+                storageCollectorArgs.recordBufferStates(),
                 storageCollectorArgs.queryResultTypes(),
                 lazyCollectStartRowIndex,
                 numRows,
@@ -146,7 +146,7 @@ public class LazyCollectorService
     }
 
     @Override
-    int getFreeBytes(WarmupElementRecordBufferState warmupElementRecordBufferState, IntBuffer recordBufferStateBuff)
+    int getFreeBytes(WarmupElementRecordBufferState warmupElementRecordBufferState)
     {
         // for lazy collect we can use the whole juffer size as we are collecting only one we each cycle
         return nativeConfig.getMaxRecJufferSize();

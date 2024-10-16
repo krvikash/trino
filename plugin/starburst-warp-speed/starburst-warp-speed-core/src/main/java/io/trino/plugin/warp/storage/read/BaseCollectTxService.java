@@ -85,10 +85,10 @@ public abstract class BaseCollectTxService
             int numCollectElements,
             int numChunksInRange,
             long matchBmAddr,
+            long recordBufferStatesAddr,
             long[] metadataBuffIds)
     {
         metadataBuffIds[0] = -1;
-        metadataBuffIds[1] = -1;
         storageEngine.collectOpen(queryParams.getTotalNumRecords(),
                 txArgs.fileCookie(),
                 collectTxId,
@@ -98,8 +98,9 @@ public abstract class BaseCollectTxService
                 numChunksInRange,
                 txArgs.weCollectParams(),
                 queryParams.getCatalogContext(),
-                matchBmAddr,
                 queryParams.getMinCollectOffset(),
+                matchBmAddr,
+                recordBufferStatesAddr,
                 txArgs.collectBuffers(),
                 metadataBuffIds);
     }

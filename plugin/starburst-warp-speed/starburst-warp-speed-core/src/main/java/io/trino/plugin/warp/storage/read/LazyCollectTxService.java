@@ -50,7 +50,7 @@ public class LazyCollectTxService
 
     LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs)
     {
-        long[] metadataBuffIds = new long[2];
+        long[] metadataBuffIds = new long[1];
         QueryMemory queryMemory = allocQueryMemory();
         SegmentAllocator queryMemoryAllocator = getQueryMemoryAllocator(queryMemory);
         int queryMemoryId = queryMemory.id();
@@ -68,6 +68,7 @@ public class LazyCollectTxService
                 1,
                 lazyCollectorLoaderArgs.numChunksInRange(),
                 0,
+                lazyCollectorLoaderArgs.recordBufferStates().address(),
                 metadataBuffIds);
 
         logger.debug("collectOpen queryMemoryId %d rowsLimit %d", queryMemoryId, rowsLimit);
