@@ -12,7 +12,7 @@ package io.starburst.server.troubleshooting.configdump;
 import java.util.Collection;
 import java.util.Collections;
 
-public class EmptyConfigProvider
+public class EmptyCatalogConfigProvider
         implements CatalogConfigProvider
 {
     @Override

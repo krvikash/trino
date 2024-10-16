@@ -18,7 +18,7 @@ import io.starburst.server.troubleshooting.configdump.ConfigDumpProvider;
 import io.starburst.server.troubleshooting.configdump.ConfigDumpResource;
 import io.starburst.server.troubleshooting.configdump.ConfigDumper;
 import io.starburst.server.troubleshooting.configdump.CoordinatorDynamicCatalogConfigProvider;
-import io.starburst.server.troubleshooting.configdump.EmptyConfigProvider;
+import io.starburst.server.troubleshooting.configdump.EmptyCatalogConfigProvider;
 import io.starburst.server.troubleshooting.configdump.RemoteConfigDumpClient;
 import io.starburst.server.troubleshooting.configdump.StaticCatalogConfigProvider;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
@@ -82,7 +82,7 @@ public class TroubleshootingModule
         if (!buildConfigObject(ServerConfig.class).isCoordinator()) {
             switch (catalogMangerKind) {
                 case STATIC -> binder.bind(CatalogConfigProvider.class).to(StaticCatalogConfigProvider.class).in(Scopes.SINGLETON);
-                case DYNAMIC -> binder.bind(CatalogConfigProvider.class).to(EmptyConfigProvider.class).in(Scopes.SINGLETON);
+                case DYNAMIC -> binder.bind(CatalogConfigProvider.class).to(EmptyCatalogConfigProvider.class).in(Scopes.SINGLETON);
             }
             return;
         }
