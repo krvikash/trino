@@ -23,6 +23,7 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 
 import java.io.IOException;
@@ -40,6 +41,7 @@ public class WarpCacheFilesMerger
 {
     private static final int BUFFER_SIZE = 8192;
     private static final Logger logger = Logger.get(WarpCacheFilesMerger.class);
+    private final ShapingLogger shapingLogger;
 
     private final RowGroupDataService rowGroupDataService;
     private final StorageWarmerService storageWarmerService;
@@ -56,6 +58,12 @@ public class WarpCacheFilesMerger
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.globalConfig = requireNonNull(globalConfig);
         this.pageSizeShift = requireNonNull(storageEngineConstants).getPageSizeShift();
+
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public boolean merge(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)
@@ -93,7 +101,7 @@ public class WarpCacheFilesMerger
                         maxOffset = permanentRowGroupData.getNextOffset();
                     }
                     catch (Exception e) {
-                        logger.error(e, "failed to merge tmpRowGroupData into permanentRowGroupData. tmpRowGroupData=%s, permanentRowGroupData=%s", tmpRowGroupData, permanentRowGroupData);
+                        shapingLogger.error(e, "failed to merge tmpRowGroupData into permanentRowGroupData. tmpRowGroupData=%s, permanentRowGroupData=%s", tmpRowGroupData, permanentRowGroupData);
                         setAllWeToFailedState(tmpRowGroupDataList, permanentRowGroupKey);
                         succes = false;
                         break;
@@ -103,6 +111,7 @@ public class WarpCacheFilesMerger
             }
         }
         catch (Exception e) {
+            shapingLogger.error(e, "Failed to merge. permanentRowGroupData=%s", permanentRowGroupData);
             succes = false;
         }
         finally {
