@@ -70,6 +70,7 @@ import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getBucketName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translateFailures;
+import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.AWS;
 import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.GCP;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -85,7 +86,8 @@ public class S3SpoolingStorage
     private final Optional<Storage> gcsClient;
     private final Optional<ListeningExecutorService> gcsDeleteExecutor;
 
-    public enum CompatibilityMode {
+    public enum CompatibilityMode
+    {
         AWS,
         GCP
     }
@@ -136,14 +138,9 @@ public class S3SpoolingStorage
     @Override
     protected ListenableFuture<Map<Long, SpooledChunk>> putStorageObject(String fileName, Map<Chunk, ChunkDataLease> chunkDataLeaseMap, long contentLength)
     {
-        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(fileName)
-                .checksumAlgorithm(ChecksumAlgorithm.CRC32_C)
-                .build();
         AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference<>();
         return Futures.transform(
-                toListenableFuture(s3AsyncClient.putObject(putObjectRequest,
+                toListenableFuture(s3AsyncClient.putObject(createPutObjectRequest(fileName),
                         MergedChunkDataAsyncRequestBody.fromChunks(
                                 getLocation(fileName),
                                 chunkDataLeaseMap,
@@ -151,6 +148,19 @@ public class S3SpoolingStorage
                                 spooledChunkMap))),
                 ignored -> Optional.ofNullable(spooledChunkMap.get()).orElseGet(ImmutableMap::of),
                 directExecutor());
+    }
+
+    private PutObjectRequest createPutObjectRequest(String fileName)
+    {
+        PutObjectRequest.Builder requestBuilder = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(fileName);
+        if (compatibilityMode == AWS) {
+            // S3 compatibility on GCS does not support change in checksum algorithms
+            requestBuilder.checksumAlgorithm(ChecksumAlgorithm.CRC32_C);
+        }
+
+        return requestBuilder.build();
     }
 
     @PreDestroy
