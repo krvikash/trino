@@ -2,39 +2,37 @@ local exchange (GATHER, SINGLE, [])
     remote exchange (GATHER, SINGLE, [])
         local exchange (GATHER, SINGLE, [])
             local exchange (REPARTITION, ROUND_ROBIN, [])
-                final aggregation over (acctbal, address, comment_5, custkey, name, name_9, phone)
+                final aggregation over (acctbal, address, comment_5, custkey_4, name, name_9, phone)
                     local exchange (GATHER, SINGLE, [])
-                        partial aggregation over (acctbal, address, comment_5, custkey, name, name_9, phone)
+                        partial aggregation over (acctbal, address, comment_5, custkey_4, name, name_9, phone)
                             join (INNER, REPLICATED):
                                 join (INNER, PARTITIONED):
-                                    remote exchange (REPARTITION, HASH, [custkey])
-                                        join (INNER, PARTITIONED):
-                                            remote exchange (REPARTITION, HASH, [orderkey])
-                                                alternatives
-                                                    dynamic filter ([orderkey::EQUAL])
-                                                        scan lineitem
-                                                    cache data
+                                    remote exchange (REPARTITION, HASH, [custkey_4])
+                                        alternatives
+                                            dynamic filter ([custkey_4::EQUAL], await [nationkey::EQUAL])
+                                                scan customer
+                                            cache data
+                                                dynamic filter ([custkey_4::EQUAL], await [nationkey::EQUAL])
+                                                    scan customer
+                                            load from cache
+                                    local exchange (GATHER, SINGLE, [])
+                                        remote exchange (REPARTITION, HASH, [custkey])
+                                            join (INNER, PARTITIONED):
+                                                remote exchange (REPARTITION, HASH, [orderkey])
+                                                    alternatives
                                                         dynamic filter ([orderkey::EQUAL])
                                                             scan lineitem
-                                                    load from cache
-                                            local exchange (GATHER, SINGLE, [])
-                                                remote exchange (REPARTITION, HASH, [orderkey_0])
-                                                    alternatives
-                                                        dynamic filter ([custkey::EQUAL])
-                                                            scan orders
                                                         cache data
-                                                            dynamic filter ([custkey::EQUAL])
-                                                                scan orders
+                                                            dynamic filter ([orderkey::EQUAL])
+                                                                scan lineitem
                                                         load from cache
-                                    local exchange (GATHER, SINGLE, [])
-                                        remote exchange (REPARTITION, HASH, [custkey_4])
-                                            alternatives
-                                                dynamic filter (await [nationkey::EQUAL])
-                                                    scan customer
-                                                cache data
-                                                    dynamic filter (await [nationkey::EQUAL])
-                                                        scan customer
-                                                load from cache
+                                                local exchange (GATHER, SINGLE, [])
+                                                    remote exchange (REPARTITION, HASH, [orderkey_0])
+                                                        alternatives
+                                                            scan orders
+                                                            cache data
+                                                                scan orders
+                                                            load from cache
                                 local exchange (GATHER, SINGLE, [])
                                     remote exchange (REPLICATE, BROADCAST, [])
                                         alternatives

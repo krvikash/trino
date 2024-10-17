@@ -5,27 +5,29 @@ local exchange (GATHER, SINGLE, [])
                 final aggregation over (d_year, i_brand, i_brand_id)
                     local exchange (GATHER, SINGLE, [])
                         remote exchange (REPARTITION, HASH, [d_year, i_brand, i_brand_id])
-                            partial aggregation over (d_year, i_brand, i_brand_id)
+                            intermediate aggregation over (d_year, i_brand, i_brand_id)
                                 join (INNER, REPLICATED):
                                     join (INNER, REPLICATED):
                                         alternatives
-                                            dynamic filter ([ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL])
-                                                scan store_sales
-                                            cache data
-                                                dynamic filter ([ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL])
+                                            partial aggregation over (ss_item_sk, ss_sold_date_sk)
+                                                dynamic filter (await [ss_item_sk::EQUAL, ss_sold_date_sk::EQUAL])
                                                     scan store_sales
+                                            cache data
+                                                partial aggregation over (ss_item_sk, ss_sold_date_sk)
+                                                    dynamic filter (await [ss_item_sk::EQUAL, ss_sold_date_sk::EQUAL])
+                                                        scan store_sales
                                             load from cache
                                         local exchange (GATHER, SINGLE, [])
                                             remote exchange (REPLICATE, BROADCAST, [])
                                                 alternatives
-                                                    scan date_dim
+                                                    scan item
                                                     cache data
-                                                        scan date_dim
+                                                        scan item
                                                     load from cache
                                     local exchange (GATHER, SINGLE, [])
                                         remote exchange (REPLICATE, BROADCAST, [])
                                             alternatives
-                                                scan item
+                                                scan date_dim
                                                 cache data
-                                                    scan item
+                                                    scan date_dim
                                                 load from cache

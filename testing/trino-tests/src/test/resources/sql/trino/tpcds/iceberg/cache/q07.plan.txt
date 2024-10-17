@@ -5,43 +5,44 @@ local exchange (GATHER, SINGLE, [])
                 final aggregation over (i_item_id)
                     local exchange (GATHER, SINGLE, [])
                         remote exchange (REPARTITION, HASH, [i_item_id])
-                            partial aggregation over (i_item_id)
+                            intermediate aggregation over (i_item_id)
                                 join (INNER, REPLICATED):
-                                    join (INNER, REPLICATED):
+                                    partial aggregation over (ss_item_sk)
                                         join (INNER, REPLICATED):
                                             join (INNER, REPLICATED):
-                                                alternatives
-                                                    dynamic filter ([ss_cdemo_sk::EQUAL, ss_item_sk::EQUAL], await [ss_promo_sk::EQUAL, ss_sold_date_sk::EQUAL])
-                                                        scan store_sales
-                                                    cache data
+                                                join (INNER, REPLICATED):
+                                                    alternatives
                                                         dynamic filter ([ss_cdemo_sk::EQUAL, ss_item_sk::EQUAL], await [ss_promo_sk::EQUAL, ss_sold_date_sk::EQUAL])
                                                             scan store_sales
-                                                    load from cache
+                                                        cache data
+                                                            dynamic filter ([ss_cdemo_sk::EQUAL, ss_item_sk::EQUAL], await [ss_promo_sk::EQUAL, ss_sold_date_sk::EQUAL])
+                                                                scan store_sales
+                                                        load from cache
+                                                    local exchange (GATHER, SINGLE, [])
+                                                        remote exchange (REPLICATE, BROADCAST, [])
+                                                            alternatives
+                                                                scan customer_demographics
+                                                                cache data
+                                                                    scan customer_demographics
+                                                                load from cache
                                                 local exchange (GATHER, SINGLE, [])
                                                     remote exchange (REPLICATE, BROADCAST, [])
                                                         alternatives
-                                                            scan customer_demographics
+                                                            scan date_dim
                                                             cache data
-                                                                scan customer_demographics
+                                                                scan date_dim
                                                             load from cache
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                     alternatives
-                                                        scan date_dim
+                                                        scan promotion
                                                         cache data
-                                                            scan date_dim
+                                                            scan promotion
                                                         load from cache
-                                        local exchange (GATHER, SINGLE, [])
-                                            remote exchange (REPLICATE, BROADCAST, [])
-                                                alternatives
-                                                    scan item
-                                                    cache data
-                                                        scan item
-                                                    load from cache
                                     local exchange (GATHER, SINGLE, [])
                                         remote exchange (REPLICATE, BROADCAST, [])
                                             alternatives
-                                                scan promotion
+                                                scan item
                                                 cache data
-                                                    scan promotion
+                                                    scan item
                                                 load from cache

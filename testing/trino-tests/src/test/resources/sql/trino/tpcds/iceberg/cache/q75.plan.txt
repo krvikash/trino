@@ -22,18 +22,18 @@ local exchange (GATHER, SINGLE, [])
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 alternatives
-                                                                    dynamic filter ([i_brand_id_7::EQUAL, i_category_id_9::EQUAL, i_class_id_8::EQUAL, i_manufact_id_10::EQUAL])
-                                                                        scan item
+                                                                    scan date_dim
                                                                     cache data
-                                                                        dynamic filter ([i_brand_id_7::EQUAL, i_category_id_9::EQUAL, i_class_id_8::EQUAL, i_manufact_id_10::EQUAL])
-                                                                            scan item
+                                                                        scan date_dim
                                                                     load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             alternatives
-                                                                scan date_dim
+                                                                dynamic filter ([i_brand_id_7::EQUAL, i_category_id_9::EQUAL, i_class_id_8::EQUAL, i_manufact_id_10::EQUAL])
+                                                                    scan item
                                                                 cache data
-                                                                    scan date_dim
+                                                                    dynamic filter ([i_brand_id_7::EQUAL, i_category_id_9::EQUAL, i_class_id_8::EQUAL, i_manufact_id_10::EQUAL])
+                                                                        scan item
                                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [cr_item_sk, cr_order_number])
@@ -58,18 +58,18 @@ local exchange (GATHER, SINGLE, [])
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 alternatives
-                                                                    dynamic filter ([i_brand_id_28::EQUAL, i_category_id_32::EQUAL, i_class_id_30::EQUAL, i_manufact_id_34::EQUAL])
-                                                                        scan item
+                                                                    scan date_dim
                                                                     cache data
-                                                                        dynamic filter ([i_brand_id_28::EQUAL, i_category_id_32::EQUAL, i_class_id_30::EQUAL, i_manufact_id_34::EQUAL])
-                                                                            scan item
+                                                                        scan date_dim
                                                                     load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             alternatives
-                                                                scan date_dim
+                                                                dynamic filter ([i_brand_id_28::EQUAL, i_category_id_32::EQUAL, i_class_id_30::EQUAL, i_manufact_id_34::EQUAL])
+                                                                    scan item
                                                                 cache data
-                                                                    scan date_dim
+                                                                    dynamic filter ([i_brand_id_28::EQUAL, i_category_id_32::EQUAL, i_class_id_30::EQUAL, i_manufact_id_34::EQUAL])
+                                                                        scan item
                                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [sr_item_sk, sr_ticket_number])
@@ -94,18 +94,18 @@ local exchange (GATHER, SINGLE, [])
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 alternatives
-                                                                    dynamic filter ([i_brand_id_88::EQUAL, i_category_id_92::EQUAL, i_class_id_90::EQUAL, i_manufact_id_94::EQUAL])
-                                                                        scan item
+                                                                    scan date_dim
                                                                     cache data
-                                                                        dynamic filter ([i_brand_id_88::EQUAL, i_category_id_92::EQUAL, i_class_id_90::EQUAL, i_manufact_id_94::EQUAL])
-                                                                            scan item
+                                                                        scan date_dim
                                                                     load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             alternatives
-                                                                scan date_dim
+                                                                dynamic filter ([i_brand_id_88::EQUAL, i_category_id_92::EQUAL, i_class_id_90::EQUAL, i_manufact_id_94::EQUAL])
+                                                                    scan item
                                                                 cache data
-                                                                    scan date_dim
+                                                                    dynamic filter ([i_brand_id_88::EQUAL, i_category_id_92::EQUAL, i_class_id_90::EQUAL, i_manufact_id_94::EQUAL])
+                                                                        scan item
                                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [wr_item_sk, wr_order_number])
@@ -133,16 +133,16 @@ local exchange (GATHER, SINGLE, [])
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 alternatives
-                                                                    scan item
+                                                                    scan date_dim
                                                                     cache data
-                                                                        scan item
+                                                                        scan date_dim
                                                                     load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             alternatives
-                                                                scan date_dim
+                                                                scan item
                                                                 cache data
-                                                                    scan date_dim
+                                                                    scan item
                                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [cr_item_sk_246, cr_order_number_260])
@@ -167,16 +167,16 @@ local exchange (GATHER, SINGLE, [])
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 alternatives
-                                                                    scan item
+                                                                    scan date_dim
                                                                     cache data
-                                                                        scan item
+                                                                        scan date_dim
                                                                     load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             alternatives
-                                                                scan date_dim
+                                                                scan item
                                                                 cache data
-                                                                    scan date_dim
+                                                                    scan item
                                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [sr_item_sk_356, sr_ticket_number_363])
@@ -201,16 +201,16 @@ local exchange (GATHER, SINGLE, [])
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 alternatives
-                                                                    scan item
+                                                                    scan date_dim
                                                                     cache data
-                                                                        scan item
+                                                                        scan date_dim
                                                                     load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             alternatives
-                                                                scan date_dim
+                                                                scan item
                                                                 cache data
-                                                                    scan date_dim
+                                                                    scan item
                                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [wr_item_sk_470, wr_order_number_481])

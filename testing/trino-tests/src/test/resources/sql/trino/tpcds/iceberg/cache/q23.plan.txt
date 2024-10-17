@@ -5,59 +5,60 @@ final aggregation over ()
                 join (INNER, PARTITIONED):
                     remote exchange (REPARTITION, HASH, [cs_bill_customer_sk])
                         join (INNER, PARTITIONED):
-                            remote exchange (REPARTITION, HASH, [cs_item_sk])
-                                join (INNER, REPLICATED):
-                                    alternatives
-                                        dynamic filter (unestimatable [cs_bill_customer_sk::EQUAL, cs_item_sk::EQUAL], await [cs_sold_date_sk::EQUAL])
-                                            scan catalog_sales
-                                        cache data
-                                            dynamic filter (unestimatable [cs_bill_customer_sk::EQUAL, cs_item_sk::EQUAL], await [cs_sold_date_sk::EQUAL])
-                                                scan catalog_sales
-                                        load from cache
+                            single aggregation over (ss_item_sk)
+                                final aggregation over (d_date_6, gid, ss_item_sk)
                                     local exchange (GATHER, SINGLE, [])
-                                        remote exchange (REPLICATE, BROADCAST, [])
-                                            alternatives
-                                                scan date_dim
-                                                cache data
-                                                    scan date_dim
-                                                load from cache
-                            final aggregation over (ss_item_sk)
-                                local exchange (GATHER, SINGLE, [])
-                                    remote exchange (REPARTITION, HASH, [ss_item_sk])
-                                        partial aggregation over (ss_item_sk)
-                                            final aggregation over (d_date_6, gid, ss_item_sk)
+                                        remote exchange (REPARTITION, HASH, [ss_item_sk])
+                                            join (INNER, REPLICATED):
+                                                join (INNER, REPLICATED):
+                                                    alternatives
+                                                        partial aggregation over (ss_item_sk, ss_sold_date_sk)
+                                                            dynamic filter ([ss_item_sk::EQUAL, ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL])
+                                                                scan store_sales
+                                                        cache data
+                                                            partial aggregation over (ss_item_sk, ss_sold_date_sk)
+                                                                dynamic filter ([ss_item_sk::EQUAL, ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL])
+                                                                    scan store_sales
+                                                        load from cache
+                                                    local exchange (GATHER, SINGLE, [])
+                                                        remote exchange (REPLICATE, BROADCAST, [])
+                                                            alternatives
+                                                                scan date_dim
+                                                                cache data
+                                                                    scan date_dim
+                                                                load from cache
                                                 local exchange (GATHER, SINGLE, [])
-                                                    remote exchange (REPARTITION, HASH, [d_date_6, gid, ss_item_sk])
-                                                        partial aggregation over (d_date_6, gid, ss_item_sk)
-                                                            join (INNER, REPLICATED):
-                                                                join (INNER, REPLICATED):
-                                                                    alternatives
-                                                                        dynamic filter ([ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL])
-                                                                            scan store_sales
-                                                                        cache data
-                                                                            dynamic filter ([ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL])
-                                                                                scan store_sales
-                                                                        load from cache
-                                                                    local exchange (GATHER, SINGLE, [])
-                                                                        remote exchange (REPLICATE, BROADCAST, [])
-                                                                            alternatives
-                                                                                scan date_dim
-                                                                                cache data
-                                                                                    scan date_dim
-                                                                                load from cache
-                                                                local exchange (GATHER, SINGLE, [])
-                                                                    remote exchange (REPLICATE, BROADCAST, [])
-                                                                        alternatives
-                                                                            scan item
-                                                                            cache data
-                                                                                scan item
-                                                                            load from cache
+                                                    remote exchange (REPLICATE, BROADCAST, [])
+                                                        alternatives
+                                                            dynamic filter ([i_item_sk::EQUAL])
+                                                                scan item
+                                                            cache data
+                                                                dynamic filter ([i_item_sk::EQUAL])
+                                                                    scan item
+                                                            load from cache
+                            local exchange (GATHER, SINGLE, [])
+                                remote exchange (REPARTITION, HASH, [cs_item_sk])
+                                    join (INNER, REPLICATED):
+                                        alternatives
+                                            dynamic filter ([cs_bill_customer_sk::EQUAL], await [cs_sold_date_sk::EQUAL])
+                                                scan catalog_sales
+                                            cache data
+                                                dynamic filter ([cs_bill_customer_sk::EQUAL], await [cs_sold_date_sk::EQUAL])
+                                                    scan catalog_sales
+                                            load from cache
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPLICATE, BROADCAST, [])
+                                                alternatives
+                                                    scan date_dim
+                                                    cache data
+                                                        scan date_dim
+                                                    load from cache
                     single aggregation over (ss_customer_sk_43)
                         cross join (can skip output duplicates):
                             final aggregation over (ss_customer_sk_43)
                                 local exchange (GATHER, SINGLE, [])
-                                    partial aggregation over (ss_customer_sk_43)
-                                        join (INNER, PARTITIONED):
+                                    join (INNER, PARTITIONED):
+                                        partial aggregation over (ss_customer_sk_43)
                                             remote exchange (REPARTITION, HASH, [ss_customer_sk_43])
                                                 alternatives
                                                     dynamic filter ([ss_customer_sk_43::EQUAL])
@@ -66,13 +67,13 @@ final aggregation over ()
                                                         dynamic filter ([ss_customer_sk_43::EQUAL])
                                                             scan store_sales
                                                     load from cache
-                                            local exchange (GATHER, SINGLE, [])
-                                                remote exchange (REPARTITION, HASH, [c_customer_sk])
-                                                    alternatives
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPARTITION, HASH, [c_customer_sk])
+                                                alternatives
+                                                    scan customer
+                                                    cache data
                                                         scan customer
-                                                        cache data
-                                                            scan customer
-                                                        load from cache
+                                                    load from cache
                             local exchange (GATHER, SINGLE, [])
                                 remote exchange (REPLICATE, BROADCAST, [])
                                     final aggregation over ()
@@ -81,10 +82,10 @@ final aggregation over ()
                                                 partial aggregation over ()
                                                     final aggregation over (ss_customer_sk_71)
                                                         local exchange (GATHER, SINGLE, [])
-                                                            partial aggregation over (ss_customer_sk_71)
-                                                                join (INNER, REPLICATED):
-                                                                    join (INNER, PARTITIONED):
-                                                                        remote exchange (REPARTITION, HASH, [ss_customer_sk_71])
+                                                            join (INNER, PARTITIONED):
+                                                                partial aggregation over (ss_customer_sk_71)
+                                                                    remote exchange (REPARTITION, HASH, [ss_customer_sk_71])
+                                                                        join (INNER, REPLICATED):
                                                                             alternatives
                                                                                 dynamic filter ([ss_customer_sk_71::EQUAL], await [ss_sold_date_sk_91::EQUAL])
                                                                                     scan store_sales
@@ -92,77 +93,78 @@ final aggregation over ()
                                                                                     dynamic filter ([ss_customer_sk_71::EQUAL], await [ss_sold_date_sk_91::EQUAL])
                                                                                         scan store_sales
                                                                                 load from cache
-                                                                        local exchange (GATHER, SINGLE, [])
-                                                                            remote exchange (REPARTITION, HASH, [c_customer_sk_94])
-                                                                                alternatives
-                                                                                    scan customer
-                                                                                    cache data
-                                                                                        scan customer
-                                                                                    load from cache
-                                                                    local exchange (GATHER, SINGLE, [])
-                                                                        remote exchange (REPLICATE, BROADCAST, [])
-                                                                            alternatives
-                                                                                scan date_dim
-                                                                                cache data
-                                                                                    scan date_dim
-                                                                                load from cache
+                                                                            local exchange (GATHER, SINGLE, [])
+                                                                                remote exchange (REPLICATE, BROADCAST, [])
+                                                                                    alternatives
+                                                                                        scan date_dim
+                                                                                        cache data
+                                                                                            scan date_dim
+                                                                                        load from cache
+                                                                local exchange (GATHER, SINGLE, [])
+                                                                    remote exchange (REPARTITION, HASH, [c_customer_sk_94])
+                                                                        alternatives
+                                                                            scan customer
+                                                                            cache data
+                                                                                scan customer
+                                                                            load from cache
             partial aggregation over ()
                 join (INNER, PARTITIONED):
                     remote exchange (REPARTITION, HASH, [ws_bill_customer_sk])
                         join (INNER, PARTITIONED):
-                            remote exchange (REPARTITION, HASH, [ws_item_sk])
-                                join (INNER, REPLICATED):
-                                    alternatives
-                                        dynamic filter (unestimatable [ws_bill_customer_sk::EQUAL, ws_item_sk::EQUAL], await [ws_sold_date_sk::EQUAL])
-                                            scan web_sales
-                                        cache data
-                                            dynamic filter (unestimatable [ws_bill_customer_sk::EQUAL, ws_item_sk::EQUAL], await [ws_sold_date_sk::EQUAL])
-                                                scan web_sales
-                                        load from cache
+                            single aggregation over (ss_item_sk_184)
+                                final aggregation over (d_date_210, gid_263, ss_item_sk_184)
                                     local exchange (GATHER, SINGLE, [])
-                                        remote exchange (REPLICATE, BROADCAST, [])
-                                            alternatives
-                                                scan date_dim
-                                                cache data
-                                                    scan date_dim
-                                                load from cache
-                            final aggregation over (ss_item_sk_184)
-                                local exchange (GATHER, SINGLE, [])
-                                    remote exchange (REPARTITION, HASH, [ss_item_sk_184])
-                                        partial aggregation over (ss_item_sk_184)
-                                            final aggregation over (d_date_210, gid_263, ss_item_sk_184)
+                                        remote exchange (REPARTITION, HASH, [ss_item_sk_184])
+                                            join (INNER, REPLICATED):
+                                                join (INNER, REPLICATED):
+                                                    alternatives
+                                                        partial aggregation over (ss_item_sk_184, ss_sold_date_sk_205)
+                                                            dynamic filter ([ss_item_sk_184::EQUAL, ss_item_sk_184::EQUAL], await [ss_sold_date_sk_205::EQUAL])
+                                                                scan store_sales
+                                                        cache data
+                                                            partial aggregation over (ss_item_sk_184, ss_sold_date_sk_205)
+                                                                dynamic filter ([ss_item_sk_184::EQUAL, ss_item_sk_184::EQUAL], await [ss_sold_date_sk_205::EQUAL])
+                                                                    scan store_sales
+                                                        load from cache
+                                                    local exchange (GATHER, SINGLE, [])
+                                                        remote exchange (REPLICATE, BROADCAST, [])
+                                                            alternatives
+                                                                scan date_dim
+                                                                cache data
+                                                                    scan date_dim
+                                                                load from cache
                                                 local exchange (GATHER, SINGLE, [])
-                                                    remote exchange (REPARTITION, HASH, [d_date_210, gid_263, ss_item_sk_184])
-                                                        partial aggregation over (d_date_210, gid_263, ss_item_sk_184)
-                                                            join (INNER, REPLICATED):
-                                                                join (INNER, REPLICATED):
-                                                                    alternatives
-                                                                        dynamic filter ([ss_item_sk_184::EQUAL], await [ss_sold_date_sk_205::EQUAL])
-                                                                            scan store_sales
-                                                                        cache data
-                                                                            dynamic filter ([ss_item_sk_184::EQUAL], await [ss_sold_date_sk_205::EQUAL])
-                                                                                scan store_sales
-                                                                        load from cache
-                                                                    local exchange (GATHER, SINGLE, [])
-                                                                        remote exchange (REPLICATE, BROADCAST, [])
-                                                                            alternatives
-                                                                                scan date_dim
-                                                                                cache data
-                                                                                    scan date_dim
-                                                                                load from cache
-                                                                local exchange (GATHER, SINGLE, [])
-                                                                    remote exchange (REPLICATE, BROADCAST, [])
-                                                                        alternatives
-                                                                            scan item
-                                                                            cache data
-                                                                                scan item
-                                                                            load from cache
+                                                    remote exchange (REPLICATE, BROADCAST, [])
+                                                        alternatives
+                                                            dynamic filter ([i_item_sk_238::EQUAL])
+                                                                scan item
+                                                            cache data
+                                                                dynamic filter ([i_item_sk_238::EQUAL])
+                                                                    scan item
+                                                            load from cache
+                            local exchange (GATHER, SINGLE, [])
+                                remote exchange (REPARTITION, HASH, [ws_item_sk])
+                                    join (INNER, REPLICATED):
+                                        alternatives
+                                            dynamic filter ([ws_bill_customer_sk::EQUAL], await [ws_sold_date_sk::EQUAL])
+                                                scan web_sales
+                                            cache data
+                                                dynamic filter ([ws_bill_customer_sk::EQUAL], await [ws_sold_date_sk::EQUAL])
+                                                    scan web_sales
+                                            load from cache
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPLICATE, BROADCAST, [])
+                                                alternatives
+                                                    scan date_dim
+                                                    cache data
+                                                        scan date_dim
+                                                    load from cache
                     single aggregation over (ss_customer_sk_271)
                         cross join (can skip output duplicates):
                             final aggregation over (ss_customer_sk_271)
                                 local exchange (GATHER, SINGLE, [])
-                                    partial aggregation over (ss_customer_sk_271)
-                                        join (INNER, PARTITIONED):
+                                    join (INNER, PARTITIONED):
+                                        partial aggregation over (ss_customer_sk_271)
                                             remote exchange (REPARTITION, HASH, [ss_customer_sk_271])
                                                 alternatives
                                                     dynamic filter ([ss_customer_sk_271::EQUAL])
@@ -171,13 +173,13 @@ final aggregation over ()
                                                         dynamic filter ([ss_customer_sk_271::EQUAL])
                                                             scan store_sales
                                                     load from cache
-                                            local exchange (GATHER, SINGLE, [])
-                                                remote exchange (REPARTITION, HASH, [c_customer_sk_294])
-                                                    alternatives
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPARTITION, HASH, [c_customer_sk_294])
+                                                alternatives
+                                                    scan customer
+                                                    cache data
                                                         scan customer
-                                                        cache data
-                                                            scan customer
-                                                        load from cache
+                                                    load from cache
                             local exchange (GATHER, SINGLE, [])
                                 remote exchange (REPLICATE, BROADCAST, [])
                                     final aggregation over ()
@@ -186,10 +188,10 @@ final aggregation over ()
                                                 partial aggregation over ()
                                                     final aggregation over (ss_customer_sk_318)
                                                         local exchange (GATHER, SINGLE, [])
-                                                            partial aggregation over (ss_customer_sk_318)
-                                                                join (INNER, REPLICATED):
-                                                                    join (INNER, PARTITIONED):
-                                                                        remote exchange (REPARTITION, HASH, [ss_customer_sk_318])
+                                                            join (INNER, PARTITIONED):
+                                                                partial aggregation over (ss_customer_sk_318)
+                                                                    remote exchange (REPARTITION, HASH, [ss_customer_sk_318])
+                                                                        join (INNER, REPLICATED):
                                                                             alternatives
                                                                                 dynamic filter ([ss_customer_sk_318::EQUAL], await [ss_sold_date_sk_338::EQUAL])
                                                                                     scan store_sales
@@ -197,17 +199,17 @@ final aggregation over ()
                                                                                     dynamic filter ([ss_customer_sk_318::EQUAL], await [ss_sold_date_sk_338::EQUAL])
                                                                                         scan store_sales
                                                                                 load from cache
-                                                                        local exchange (GATHER, SINGLE, [])
-                                                                            remote exchange (REPARTITION, HASH, [c_customer_sk_341])
-                                                                                alternatives
-                                                                                    scan customer
-                                                                                    cache data
-                                                                                        scan customer
-                                                                                    load from cache
-                                                                    local exchange (GATHER, SINGLE, [])
-                                                                        remote exchange (REPLICATE, BROADCAST, [])
-                                                                            alternatives
-                                                                                scan date_dim
-                                                                                cache data
-                                                                                    scan date_dim
-                                                                                load from cache
+                                                                            local exchange (GATHER, SINGLE, [])
+                                                                                remote exchange (REPLICATE, BROADCAST, [])
+                                                                                    alternatives
+                                                                                        scan date_dim
+                                                                                        cache data
+                                                                                            scan date_dim
+                                                                                        load from cache
+                                                                local exchange (GATHER, SINGLE, [])
+                                                                    remote exchange (REPARTITION, HASH, [c_customer_sk_341])
+                                                                        alternatives
+                                                                            scan customer
+                                                                            cache data
+                                                                                scan customer
+                                                                            load from cache

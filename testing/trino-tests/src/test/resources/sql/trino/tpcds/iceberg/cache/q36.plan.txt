@@ -21,21 +21,21 @@ local exchange (GATHER, SINGLE, [])
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             alternatives
-                                                                scan date_dim
+                                                                scan store
                                                                 cache data
-                                                                    scan date_dim
+                                                                    scan store
                                                                 load from cache
                                                 local exchange (GATHER, SINGLE, [])
                                                     remote exchange (REPLICATE, BROADCAST, [])
                                                         alternatives
-                                                            scan item
+                                                            scan date_dim
                                                             cache data
-                                                                scan item
+                                                                scan date_dim
                                                             load from cache
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                     alternatives
-                                                        scan store
+                                                        scan item
                                                         cache data
-                                                            scan store
+                                                            scan item
                                                         load from cache

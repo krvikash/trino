@@ -3,24 +3,16 @@ final aggregation over ()
         remote exchange (GATHER, SINGLE, [])
             partial aggregation over ()
                 cross join:
-                    join (LEFT, PARTITIONED):
-                        remote exchange (REPARTITION, HASH, [cs_item_sk])
+                    join (LEFT, REPLICATED):
+                        join (INNER, REPLICATED):
                             join (INNER, REPLICATED):
-                                join (INNER, REPLICATED):
-                                    alternatives
-                                        dynamic filter ([cs_item_sk::EQUAL], await [cs_sold_date_sk::EQUAL])
+                                alternatives
+                                    dynamic filter (await [cs_item_sk::EQUAL, cs_sold_date_sk::EQUAL])
+                                        scan catalog_sales
+                                    cache data
+                                        dynamic filter (await [cs_item_sk::EQUAL, cs_sold_date_sk::EQUAL])
                                             scan catalog_sales
-                                        cache data
-                                            dynamic filter ([cs_item_sk::EQUAL], await [cs_sold_date_sk::EQUAL])
-                                                scan catalog_sales
-                                        load from cache
-                                    local exchange (GATHER, SINGLE, [])
-                                        remote exchange (REPLICATE, BROADCAST, [])
-                                            alternatives
-                                                scan item
-                                                cache data
-                                                    scan item
-                                                load from cache
+                                    load from cache
                                 local exchange (GATHER, SINGLE, [])
                                     remote exchange (REPLICATE, BROADCAST, [])
                                         alternatives
@@ -28,25 +20,34 @@ final aggregation over ()
                                             cache data
                                                 scan date_dim
                                             load from cache
-                        final aggregation over (cs_item_sk_18)
                             local exchange (GATHER, SINGLE, [])
-                                remote exchange (REPARTITION, HASH, [cs_item_sk_18])
-                                    partial aggregation over (cs_item_sk_18)
-                                        join (INNER, REPLICATED):
-                                            alternatives
-                                                dynamic filter (await [cs_sold_date_sk_37::EQUAL])
-                                                    scan catalog_sales
-                                                cache data
-                                                    dynamic filter (await [cs_sold_date_sk_37::EQUAL])
-                                                        scan catalog_sales
-                                                load from cache
-                                            local exchange (GATHER, SINGLE, [])
-                                                remote exchange (REPLICATE, BROADCAST, [])
+                                remote exchange (REPLICATE, BROADCAST, [])
+                                    alternatives
+                                        scan item
+                                        cache data
+                                            scan item
+                                        load from cache
+                        local exchange (GATHER, SINGLE, [])
+                            remote exchange (REPLICATE, BROADCAST, [])
+                                final aggregation over (cs_item_sk_18)
+                                    local exchange (GATHER, SINGLE, [])
+                                        remote exchange (REPARTITION, HASH, [cs_item_sk_18])
+                                            partial aggregation over (cs_item_sk_18)
+                                                join (INNER, REPLICATED):
                                                     alternatives
-                                                        scan date_dim
+                                                        dynamic filter (await [cs_sold_date_sk_37::EQUAL])
+                                                            scan catalog_sales
                                                         cache data
-                                                            scan date_dim
+                                                            dynamic filter (await [cs_sold_date_sk_37::EQUAL])
+                                                                scan catalog_sales
                                                         load from cache
+                                                    local exchange (GATHER, SINGLE, [])
+                                                        remote exchange (REPLICATE, BROADCAST, [])
+                                                            alternatives
+                                                                scan date_dim
+                                                                cache data
+                                                                    scan date_dim
+                                                                load from cache
                     local exchange (GATHER, SINGLE, [])
                         remote exchange (REPLICATE, BROADCAST, [])
                             single aggregation over ()

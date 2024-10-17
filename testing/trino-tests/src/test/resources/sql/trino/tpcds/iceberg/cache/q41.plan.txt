@@ -6,22 +6,19 @@ local exchange (GATHER, SINGLE, [])
                     local exchange (GATHER, SINGLE, [])
                         remote exchange (REPARTITION, HASH, [i_product_name])
                             partial aggregation over (i_product_name)
-                                final aggregation over (i_manufact_14, i_manufact_id, i_product_name, unique)
-                                    local exchange (GATHER, SINGLE, [])
-                                        partial aggregation over (i_manufact_14, i_manufact_id, i_product_name, unique)
-                                            join (INNER, PARTITIONED, can skip output duplicates):
-                                                remote exchange (REPARTITION, HASH, [i_manufact_14])
-                                                    alternatives
-                                                        dynamic filter ([i_manufact_14::EQUAL])
-                                                            scan item
-                                                        cache data
-                                                            dynamic filter ([i_manufact_14::EQUAL])
-                                                                scan item
-                                                        load from cache
-                                                local exchange (GATHER, SINGLE, [])
-                                                    remote exchange (REPARTITION, HASH, [i_manufact])
-                                                        alternatives
-                                                            scan item
-                                                            cache data
-                                                                scan item
-                                                            load from cache
+                                single aggregation over (i_manufact, i_manufact_id, i_product_name, unique)
+                                    join (INNER, REPLICATED, can skip output duplicates):
+                                        alternatives
+                                            dynamic filter (await [i_manufact::EQUAL])
+                                                scan item
+                                            cache data
+                                                dynamic filter (await [i_manufact::EQUAL])
+                                                    scan item
+                                            load from cache
+                                        local exchange (GATHER, SINGLE, [])
+                                            remote exchange (REPLICATE, BROADCAST, [])
+                                                alternatives
+                                                    scan item
+                                                    cache data
+                                                        scan item
+                                                    load from cache

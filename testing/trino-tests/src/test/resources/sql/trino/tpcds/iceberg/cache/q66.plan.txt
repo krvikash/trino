@@ -12,45 +12,46 @@ local exchange (GATHER, SINGLE, [])
                                             final aggregation over (d_moy, d_year, w_city_2, w_country_5, w_county_3, w_state_4, w_warehouse_name_0, w_warehouse_sq_ft_1)
                                                 local exchange (GATHER, SINGLE, [])
                                                     remote exchange (REPARTITION, HASH, [d_moy, d_year, w_city_2, w_country_5, w_county_3, w_state_4, w_warehouse_name_0, w_warehouse_sq_ft_1])
-                                                        partial aggregation over (d_moy, d_year, w_city_2, w_country_5, w_county_3, w_state_4, w_warehouse_name_0, w_warehouse_sq_ft_1)
+                                                        intermediate aggregation over (d_moy, d_year, w_city_2, w_country_5, w_county_3, w_state_4, w_warehouse_name_0, w_warehouse_sq_ft_1)
                                                             join (INNER, REPLICATED):
-                                                                join (INNER, REPLICATED):
+                                                                partial aggregation over (d_moy, d_year, ws_warehouse_sk)
                                                                     join (INNER, REPLICATED):
                                                                         join (INNER, REPLICATED):
-                                                                            alternatives
-                                                                                dynamic filter (await [ws_ship_mode_sk::EQUAL, ws_sold_date_sk::EQUAL, ws_sold_time_sk::EQUAL, ws_warehouse_sk::EQUAL])
-                                                                                    scan web_sales
-                                                                                cache data
+                                                                            join (INNER, REPLICATED):
+                                                                                alternatives
                                                                                     dynamic filter (await [ws_ship_mode_sk::EQUAL, ws_sold_date_sk::EQUAL, ws_sold_time_sk::EQUAL, ws_warehouse_sk::EQUAL])
                                                                                         scan web_sales
-                                                                                load from cache
+                                                                                    cache data
+                                                                                        dynamic filter (await [ws_ship_mode_sk::EQUAL, ws_sold_date_sk::EQUAL, ws_sold_time_sk::EQUAL, ws_warehouse_sk::EQUAL])
+                                                                                            scan web_sales
+                                                                                    load from cache
+                                                                                local exchange (GATHER, SINGLE, [])
+                                                                                    remote exchange (REPLICATE, BROADCAST, [])
+                                                                                        alternatives
+                                                                                            scan ship_mode
+                                                                                            cache data
+                                                                                                scan ship_mode
+                                                                                            load from cache
                                                                             local exchange (GATHER, SINGLE, [])
                                                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                                                     alternatives
-                                                                                        scan warehouse
+                                                                                        scan date_dim
                                                                                         cache data
-                                                                                            scan warehouse
+                                                                                            scan date_dim
                                                                                         load from cache
                                                                         local exchange (GATHER, SINGLE, [])
                                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                                 alternatives
-                                                                                    scan date_dim
-                                                                                    cache data
-                                                                                        scan date_dim
-                                                                                    load from cache
-                                                                    local exchange (GATHER, SINGLE, [])
-                                                                        remote exchange (REPLICATE, BROADCAST, [])
-                                                                            alternatives
-                                                                                scan time_dim
-                                                                                cache data
                                                                                     scan time_dim
-                                                                                load from cache
+                                                                                    cache data
+                                                                                        scan time_dim
+                                                                                    load from cache
                                                                 local exchange (GATHER, SINGLE, [])
                                                                     remote exchange (REPLICATE, BROADCAST, [])
                                                                         alternatives
-                                                                            scan ship_mode
+                                                                            scan warehouse
                                                                             cache data
-                                                                                scan ship_mode
+                                                                                scan warehouse
                                                                             load from cache
                         partial aggregation over (d_year_85, expr_331, w_city_71, w_country_75, w_county_72, w_state_73, w_warehouse_name_65, w_warehouse_sq_ft_66)
                             final aggregation over (d_year_85, w_city_71, w_country_75, w_county_72, w_state_73, w_warehouse_name_65, w_warehouse_sq_ft_66)
@@ -60,43 +61,44 @@ local exchange (GATHER, SINGLE, [])
                                             final aggregation over (d_moy_87, d_year_85, w_city_71, w_country_75, w_county_72, w_state_73, w_warehouse_name_65, w_warehouse_sq_ft_66)
                                                 local exchange (GATHER, SINGLE, [])
                                                     remote exchange (REPARTITION, HASH, [d_moy_87, d_year_85, w_city_71, w_country_75, w_county_72, w_state_73, w_warehouse_name_65, w_warehouse_sq_ft_66])
-                                                        partial aggregation over (d_moy_87, d_year_85, w_city_71, w_country_75, w_county_72, w_state_73, w_warehouse_name_65, w_warehouse_sq_ft_66)
+                                                        intermediate aggregation over (d_moy_87, d_year_85, w_city_71, w_country_75, w_county_72, w_state_73, w_warehouse_name_65, w_warehouse_sq_ft_66)
                                                             join (INNER, REPLICATED):
-                                                                join (INNER, REPLICATED):
+                                                                partial aggregation over (cs_warehouse_sk, d_moy_87, d_year_85)
                                                                     join (INNER, REPLICATED):
                                                                         join (INNER, REPLICATED):
-                                                                            alternatives
-                                                                                dynamic filter (await [cs_ship_mode_sk::EQUAL, cs_sold_date_sk::EQUAL, cs_sold_time_sk::EQUAL, cs_warehouse_sk::EQUAL])
-                                                                                    scan catalog_sales
-                                                                                cache data
+                                                                            join (INNER, REPLICATED):
+                                                                                alternatives
                                                                                     dynamic filter (await [cs_ship_mode_sk::EQUAL, cs_sold_date_sk::EQUAL, cs_sold_time_sk::EQUAL, cs_warehouse_sk::EQUAL])
                                                                                         scan catalog_sales
-                                                                                load from cache
+                                                                                    cache data
+                                                                                        dynamic filter (await [cs_ship_mode_sk::EQUAL, cs_sold_date_sk::EQUAL, cs_sold_time_sk::EQUAL, cs_warehouse_sk::EQUAL])
+                                                                                            scan catalog_sales
+                                                                                    load from cache
+                                                                                local exchange (GATHER, SINGLE, [])
+                                                                                    remote exchange (REPLICATE, BROADCAST, [])
+                                                                                        alternatives
+                                                                                            scan ship_mode
+                                                                                            cache data
+                                                                                                scan ship_mode
+                                                                                            load from cache
                                                                             local exchange (GATHER, SINGLE, [])
                                                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                                                     alternatives
-                                                                                        scan warehouse
+                                                                                        scan date_dim
                                                                                         cache data
-                                                                                            scan warehouse
+                                                                                            scan date_dim
                                                                                         load from cache
                                                                         local exchange (GATHER, SINGLE, [])
                                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                                 alternatives
-                                                                                    scan date_dim
-                                                                                    cache data
-                                                                                        scan date_dim
-                                                                                    load from cache
-                                                                    local exchange (GATHER, SINGLE, [])
-                                                                        remote exchange (REPLICATE, BROADCAST, [])
-                                                                            alternatives
-                                                                                scan time_dim
-                                                                                cache data
                                                                                     scan time_dim
-                                                                                load from cache
+                                                                                    cache data
+                                                                                        scan time_dim
+                                                                                    load from cache
                                                                 local exchange (GATHER, SINGLE, [])
                                                                     remote exchange (REPLICATE, BROADCAST, [])
                                                                         alternatives
-                                                                            scan ship_mode
+                                                                            scan warehouse
                                                                             cache data
-                                                                                scan ship_mode
+                                                                                scan warehouse
                                                                             load from cache

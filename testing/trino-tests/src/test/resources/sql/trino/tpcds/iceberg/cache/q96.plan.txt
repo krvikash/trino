@@ -15,21 +15,21 @@ final aggregation over ()
                             local exchange (GATHER, SINGLE, [])
                                 remote exchange (REPLICATE, BROADCAST, [])
                                     alternatives
-                                        scan household_demographics
+                                        scan store
                                         cache data
-                                            scan household_demographics
+                                            scan store
                                         load from cache
                         local exchange (GATHER, SINGLE, [])
                             remote exchange (REPLICATE, BROADCAST, [])
                                 alternatives
-                                    scan time_dim
+                                    scan household_demographics
                                     cache data
-                                        scan time_dim
+                                        scan household_demographics
                                     load from cache
                     local exchange (GATHER, SINGLE, [])
                         remote exchange (REPLICATE, BROADCAST, [])
                             alternatives
-                                scan store
+                                scan time_dim
                                 cache data
-                                    scan store
+                                    scan time_dim
                                 load from cache
