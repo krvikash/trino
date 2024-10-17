@@ -661,6 +661,7 @@
                             <excludes>
                                 <exclude>**/TestCachedHiveGlueMetastore.java</exclude>
                                 <exclude>**/TestGlueHiveMetastoreQueries.java</exclude>
+                                <exclude>**/TestGlueHiveMetastoreSkipArchive.java</exclude>
                                 <exclude>**/TestHiveGlueMetadataListing.java</exclude>
                                 <exclude>**/TestHiveGlueMetastoreAccessOperations.java</exclude>
                                 <exclude>**/TestHiveS3AndGlueMetastoreTest.java</exclude>
@@ -726,6 +727,7 @@
                             <includes>
                                 <include>**/TestCachedHiveGlueMetastore.java</include>
                                 <include>**/TestGlueHiveMetastoreQueries.java</include>
+                                <include>**/TestGlueHiveMetastoreSkipArchive.java</include>
                                 <include>**/TestHiveGlueMetadataListing.java</include>
                                 <include>**/TestHiveGlueMetastoreAccessOperations.java</include>
                                 <include>**/TestHiveS3AndGlueMetastoreTest.java</include>
