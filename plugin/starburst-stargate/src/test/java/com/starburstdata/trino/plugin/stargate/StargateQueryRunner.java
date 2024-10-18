@@ -14,6 +14,7 @@ import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
+import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.hive.HivePlugin;
 import io.trino.plugin.jmx.JmxPlugin;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
@@ -137,6 +138,7 @@ public final class StargateQueryRunner
             server.execute("CREATE SCHEMA tiny");
 
             queryRunner.installPlugin(new PostgreSqlPlugin());
+            queryRunner.installPlugin(new GeoPlugin());
             queryRunner.createCatalog("postgresql", "postgresql", connectorProperties);
 
             Session tpchSetupSession = testSessionBuilder()
