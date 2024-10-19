@@ -43,7 +43,6 @@ import java.lang.foreign.SegmentAllocator;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
-import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -421,11 +420,6 @@ public class BufferAllocator
     public ByteBuffer memorySegment2ChunksMapBuff(MemorySegment[] buffs)
     {
         return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()]);
-    }
-
-    public ShortBuffer ids2RowsBuff(long id)
-    {
-        return id2Buff(id).asShortBuffer();
     }
 
     public ByteBuffer memorySegment2CrcBuff(MemorySegment[] buffs)

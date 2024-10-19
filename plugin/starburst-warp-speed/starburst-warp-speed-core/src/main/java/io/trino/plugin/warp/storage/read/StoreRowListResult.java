@@ -15,6 +15,10 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 
-public record StoreRowListResult(RecordIndexListType storeRowListType, int storeRowListSize)
+import java.util.Optional;
+
+public record StoreRowListResult(RecordIndexListType storeRowListType,
+        int storeRowListSize,
+        Optional<Short> storeRowListStart)
 {
 }

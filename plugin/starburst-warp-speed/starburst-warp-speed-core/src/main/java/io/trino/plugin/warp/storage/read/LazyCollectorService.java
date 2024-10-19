@@ -95,6 +95,7 @@ public class LazyCollectorService
                 juffersWE,
                 storageCollectorArgs.blockFillers().get(weIx),
                 storageCollectorArgs.recordBufferStates(),
+                storageCollectorArgs.recordIndexes(),
                 storageCollectorArgs.queryResultTypes(),
                 lazyCollectStartRowIndex,
                 numRows,

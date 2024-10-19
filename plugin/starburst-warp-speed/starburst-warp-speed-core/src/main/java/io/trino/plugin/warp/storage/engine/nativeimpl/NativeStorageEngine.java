@@ -388,7 +388,7 @@ public class NativeStorageEngine
     @Override
     public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long[][] collectBuffers, long[] outMetadataBuffIds);
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long[][] collectBuffers);
 
     @Override
     public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,

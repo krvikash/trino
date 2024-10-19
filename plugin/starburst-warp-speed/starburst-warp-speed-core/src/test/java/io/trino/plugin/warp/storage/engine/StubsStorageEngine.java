@@ -166,9 +166,8 @@ public class StubsStorageEngine
     @Override
     public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long[][] collectBuffers, long[] outMetadataBuffIds)
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long[][] collectBuffers)
     {
-        Arrays.fill(outMetadataBuffIds, 0);
         Arrays.fill(firstBundle.array(), (byte) 0);
         firstBundle.position(0);
     }

@@ -43,7 +43,6 @@ import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.ValueLayout;
-import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -146,7 +145,11 @@ public class StorageCollectorService
         loadDictionaries(queryArgs);
     }
 
-    public CollectOpenResult open(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, int numRowsCollectedInPrevRounds, int rowsLimit, Optional<StoreRowListResult> storeRowListResult)
+    public CollectOpenResult open(QueryArgs queryArgs,
+            StorageCollectorArgs storageCollectorArgs,
+            int numRowsCollectedInPrevRounds,
+            int rowsLimit,
+            Optional<StoreRowListResult> storeRowListResult)
     {
         bufferAllocator.readerOnAllocBundle();
         return collectTxService.collectOpenAndRestore(queryArgs,
@@ -314,9 +317,8 @@ public class StorageCollectorService
             RangeData rangeData,
             int numCollectedRows)
     {
-        ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rangeData.getRowsBuffId());
         int maxToCollect = queryArgs.chunkSize() - numCollectedRows; // according to buffer capacity
-        int numToCollect = getTotalNumToCollect(queryArgs, rowsBuff) - numCollectedFromCurrentChunk; // according to current chunk
+        int numToCollect = getTotalNumToCollect(queryArgs, rangeData) - numCollectedFromCurrentChunk; // according to current chunk
         if (numToCollect > maxToCollect) {
             logger.debug("getNumToCollect zero numToCollect %d maxToCollect %d", numToCollect, maxToCollect);
             return 0; // we want to avoid decompressing twice the same chunk
@@ -336,9 +338,9 @@ public class StorageCollectorService
     }
 
     // since the size is a short, zero means a full chunk, we translate to integer here
-    private int getTotalNumToCollect(QueryArgs queryArgs, ShortBuffer rowsBuff)
+    private int getTotalNumToCollect(QueryArgs queryArgs, RangeData rangeData)
     {
-        int total = Short.toUnsignedInt(rowsBuff.get(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TOTAL_SIZE.ordinal()));
+        int total = rangeData.getRecordIndexesSize();
         return (total > 0) ? total : queryArgs.chunkSize();
     }
 
@@ -415,6 +417,8 @@ public class StorageCollectorService
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT);
         MemorySegment recordBufferStates =
                 Arena.ofAuto().allocate(recordBufferStatesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
+        MemorySegment recordIndexes =
+                Arena.ofAuto().allocate(RangeData.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
         SequenceLayout queryResultTypesLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT);
         MemorySegment queryResultTypes =
@@ -425,6 +429,7 @@ public class StorageCollectorService
                 collectJuffersWE,
                 storeRowListBuff,
                 recordBufferStates,
+                recordIndexes,
                 queryResultTypes);
     }
 

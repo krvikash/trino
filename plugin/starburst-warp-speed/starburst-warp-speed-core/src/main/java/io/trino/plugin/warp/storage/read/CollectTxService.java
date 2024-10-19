@@ -74,7 +74,6 @@ public class CollectTxService
         QueryParams queryParams = queryArgs.queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
         int numCollectElements = collectParamsList.size();
-        long[] metadataBuffIds = new long[1];
 
         QueryMemory queryMemory = allocQueryMemory();
         int queryMemoryId = queryMemory.id();
@@ -101,9 +100,9 @@ public class CollectTxService
                 queryArgs.numChunksInRange(),
                 matchBmAddr,
                 storageCollectorArgs.recordBufferStates().address(),
-                metadataBuffIds);
+                storageCollectorArgs.recordIndexes().address());
 
-        RangeData rangeData = new RangeData(metadataBuffIds[0]);
+        RangeData rangeData = new RangeData(storageCollectorArgs.recordIndexes());
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = Collections.emptyList();
         if (numCollectElements > 0) {
             warmupElementRecordBufferStates = storageCollectorArgs.recordBufferStates()
@@ -115,7 +114,7 @@ public class CollectTxService
         int restoredChunkIndex = -1;
         if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {
             checkState(storeRowListResult.isPresent(), "Restore needed but store data doesn't exists");
-            rangeFillerService.restoreRowList(rangeData.getRowsBuffId(), storeRowListResult.get(), storageCollectorArgs.storeRowListBuff());
+            rangeFillerService.restoreRowList(rangeData, storeRowListResult.get(), storageCollectorArgs.storeRowListBuff());
             restoredChunkIndex = queryArgs.chunksQueue().getCurrent();
             if (storageEngine.collectRestoreState(queryMemoryId, restoredChunkIndex, storageCollectorArgs.storageCollectorCallBack()) < 0) {
                 throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,

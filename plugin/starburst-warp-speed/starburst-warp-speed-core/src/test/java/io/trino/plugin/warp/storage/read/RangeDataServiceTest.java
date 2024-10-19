@@ -13,39 +13,35 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
-import io.trino.plugin.warp.juffer.BufferAllocator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.nio.ByteBuffer;
-import java.nio.ShortBuffer;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class RangeDataServiceTest
 {
-    private ShortBuffer rowsBuffer;
     private RangeFillerService rangeFillerService;
     private QueryArgs queryArgs;
     private CollectOpenResult collectOpenResult;
     private StorageCollectorService storageCollectorService;
+    private MemorySegment recordIndexesList;
+    private MemorySegment recordIndexes;
 
     @BeforeEach
     public void before()
     {
-        ByteBuffer rowsByteBuffer = ByteBuffer.allocate(100);
-        rowsBuffer = rowsByteBuffer.asShortBuffer();
-
-        BufferAllocator bufferAllocator = mock(BufferAllocator.class);
-        when(bufferAllocator.ids2RowsBuff(anyLong())).thenReturn(rowsBuffer);
+        recordIndexes = Arena.ofAuto().allocate(RangeData.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
+        recordIndexesList = recordIndexes.asSlice(RangeData.RECORD_INDEXES_OFFSET_LIST, RangeData.RECORD_INDEXES_LIST_LAYOUT);
 
         queryArgs = mock(QueryArgs.class);
         collectOpenResult = mock(CollectOpenResult.class);
@@ -65,14 +61,15 @@ public class RangeDataServiceTest
         when(queryParams.getCollectElementsParamsList()).thenReturn(Collections.emptyList());
         when(queryArgs.txArgs()).thenReturn(txArgs);
         when(queryArgs.queryParams()).thenReturn(queryParams);
-        rangeFillerService = new NativeRangeFillerService(bufferAllocator);
+        rangeFillerService = new NativeRangeFillerService();
     }
 
     @Test
     public void testFullRange()
     {
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL.ordinal());
-        RangeData rangeData = new RangeData(0L);
+        RangeData rangeData = new RangeData(recordIndexes);
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL);
+
         when(queryArgs.chunkSize()).thenReturn(64);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 1, queryArgs, collectOpenResult, storageCollectorService);
@@ -85,11 +82,11 @@ public class RangeDataServiceTest
     @Test
     public void testAllOneShot()
     {
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL.ordinal());
-        rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
-        rowsBuffer.put((short) 8); // first row is 3 and we add the size
+        RangeData rangeData = new RangeData(recordIndexes);
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
+        rangeData.setRecordIndexesSize(0);
+        rangeData.setRecordIndexesStart((short) 8);
 
-        RangeData rangeData = new RangeData(0L);
         when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 5, queryArgs, collectOpenResult, storageCollectorService);
@@ -102,19 +99,16 @@ public class RangeDataServiceTest
     @Test
     public void testAllTwoShots()
     {
-        rowsBuffer.position(0);
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL.ordinal());
-        rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
-        rowsBuffer.put((short) 8); // first row is 3 and we add the size
-        RangeData rangeData = new RangeData(0L);
+        RangeData rangeData = new RangeData(recordIndexes);
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
+        rangeData.setRecordIndexesStart((short) 8);
+        rangeData.setRecordIndexesSize(0);
+
         when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 5, queryArgs, collectOpenResult, storageCollectorService);
 
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL.ordinal());
-        rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
-        rowsBuffer.put((short) 18); // first row is 8 and we add the size
-        when(collectOpenResult.rangeData()).thenReturn(rangeData);
+        rangeData.setRecordIndexesStart((short) 18);
         rangeFillerService.add(0, 10, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
@@ -126,25 +120,26 @@ public class RangeDataServiceTest
     @Test
     public void testValuesOneShot()
     {
-        RangeData rangeData = new RangeData(0L);
-        when(queryArgs.chunkSize()).thenReturn(1);
+        RangeData rangeData = new RangeData(recordIndexes);
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        rangeData.setRecordIndexesSize(0);
 
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
-        rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
         // 1st range [3-6)
-        rowsBuffer.put((short) 3);
-        rowsBuffer.put((short) 4);
-        rowsBuffer.put((short) 5);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 3);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 1, (short) 4);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 2, (short) 5);
         // 2nd range [30-31)
-        rowsBuffer.put((short) 30);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 3, (short) 30);
         // 3rd range [49-54)
-        rowsBuffer.put((short) 49);
-        rowsBuffer.put((short) 50);
-        rowsBuffer.put((short) 51);
-        rowsBuffer.put((short) 52);
-        rowsBuffer.put((short) 53);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 4, (short) 49);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 5, (short) 50);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 6, (short) 51);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 7, (short) 52);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 8, (short) 53);
         // 4th range [63-64)
-        rowsBuffer.put((short) 63);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 9, (short) 63);
+
+        when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 10, queryArgs, collectOpenResult, storageCollectorService);
 
@@ -163,31 +158,28 @@ public class RangeDataServiceTest
     @Test
     public void testValuesTwoShots()
     {
-        RangeData rangeData = new RangeData(0L);
-        when(queryArgs.chunkSize()).thenReturn(1);
-        int pos;
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
-        rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
+        RangeData rangeData = new RangeData(recordIndexes);
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        rangeData.setRecordIndexesSize(0);
         // 1st range [3-6)
-        rowsBuffer.put((short) 3);
-        rowsBuffer.put((short) 4);
-        rowsBuffer.put((short) 5);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 3);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 1, (short) 4);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 2, (short) 5);
         // 2nd range [30-31)
-        rowsBuffer.put((short) 30);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 3, (short) 30);
         // 3rd range [49-54)
-        rowsBuffer.put((short) 49);
-        rowsBuffer.put((short) 50);
-        pos = rowsBuffer.position();
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 4, (short) 49);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 5, (short) 50);
+
+        when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 6, queryArgs, collectOpenResult, storageCollectorService);
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
-        rowsBuffer.position(pos);
-        rowsBuffer.put((short) 51);
-        rowsBuffer.put((short) 52);
-        rowsBuffer.put((short) 53);
+
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 6, (short) 51);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 7, (short) 52);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 8, (short) 53);
         // 4th range [63-64)
-        rowsBuffer.put((short) 63);
-        when(collectOpenResult.rangeData()).thenReturn(rangeData);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 9, (short) 63);
         rangeFillerService.add(0, 4, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
@@ -205,28 +197,23 @@ public class RangeDataServiceTest
     @Test
     public void testAllAndThenValues()
     {
-        RangeData rangeData = new RangeData(0L);
-        int pos = 5;
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL.ordinal());
-        rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
-        rowsBuffer.put((short) (3 + pos)); // first row is 3 and we add the size
-        when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, pos, queryArgs, collectOpenResult, storageCollectorService);
+        RangeData rangeData = new RangeData(recordIndexes);
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
+        rangeData.setRecordIndexesStart((short) 8);
+        rangeData.setRecordIndexesSize(0);
 
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
-        rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal() + pos);
-        rowsBuffer.put((short) 8);
-        rowsBuffer.put((short) 9);
-        pos = rowsBuffer.position();
+        when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
+        rangeFillerService.add(0, 5, queryArgs, collectOpenResult, storageCollectorService);
+
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 5, (short) 8);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 6, (short) 9);
         rangeFillerService.add(0, 2, queryArgs, collectOpenResult, storageCollectorService);
 
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
-        rowsBuffer.position(pos);
-        rowsBuffer.put((short) 13);
-        rowsBuffer.put((short) 14);
-        rowsBuffer.put((short) 15);
-        when(collectOpenResult.rangeData()).thenReturn(rangeData);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 7, (short) 13);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 8, (short) 14);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 9, (short) 15);
         rangeFillerService.add(0, 3, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
@@ -240,37 +227,25 @@ public class RangeDataServiceTest
     @Test
     public void testValuesAndThenAllAndThenValues()
     {
-        RangeData rangeData = new RangeData(0L);
+        RangeData rangeData = new RangeData(recordIndexes);
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        rangeData.setRecordIndexesSize(0);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 25);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 1, (short) 26);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 2, (short) 27);
+
         when(queryArgs.chunkSize()).thenReturn(1);
-        int pos;
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
-        rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
-        rowsBuffer.put((short) 25);
-        rowsBuffer.put((short) 26);
-        rowsBuffer.put((short) 27);
-        pos = rowsBuffer.position();
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 3, queryArgs, collectOpenResult, storageCollectorService);
 
-        short all = 22;
-        pos += all;
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL.ordinal());
-        rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
-        rowsBuffer.put((short) (28 + all)); // first row is 28 and we add the size
-        when(collectOpenResult.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, all, queryArgs, collectOpenResult, storageCollectorService);
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
+        rangeData.setRecordIndexesStart((short) 50);
+        rangeFillerService.add(0, 22, queryArgs, collectOpenResult, storageCollectorService);
 
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
-        rowsBuffer.position(pos);
-        rowsBuffer.put((short) 50);
-        pos = rowsBuffer.position();
-        when(collectOpenResult.rangeData()).thenReturn(rangeData);
+        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 25, (short) 50);
         rangeFillerService.add(0, 1, queryArgs, collectOpenResult, storageCollectorService);
-
-        rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
-        rowsBuffer.position(pos);
-        rowsBuffer.put((short) 60);
-        when(collectOpenResult.rangeData()).thenReturn(rangeData);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 26, (short) 60);
         rangeFillerService.add(0, 1, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
