@@ -18,6 +18,9 @@ import com.starburstdata.presto.biac.model.Entity;
 import com.starburstdata.presto.biac.model.Grant;
 import com.starburstdata.presto.biac.storage.BiacStorage;
 import com.starburstdata.presto.server.StarburstQueryRunner;
+import com.starburstdata.presto.server.diagnostics.BiacDiagnostics;
+import com.starburstdata.presto.server.diagnostics.BiacStoragePayload;
+import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import com.starburstdata.presto.testing.testcontainers.TestingEventLoggerPostgreSqlServer;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
@@ -33,10 +36,14 @@ import static com.starburstdata.presto.biac.model.Action.SET;
 import static com.starburstdata.presto.biac.model.Effect.ALLOW;
 import static com.starburstdata.presto.biac.storage.BuiltinBiacStorage.PUBLIC_ROLE_ID;
 import static com.starburstdata.presto.biac.storage.BuiltinBiacStorage.SYSTEM_ROLE;
+import static io.airlift.json.JsonCodec.jsonCodec;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestQueryTroubleshootingWithBiac
         extends AbstractQueryTroubleshootingTest
 {
+    private BiacDiagnostics biacDiagnostics;
+
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
@@ -53,6 +60,7 @@ public class TestQueryTroubleshootingWithBiac
         queryRunner.createCatalog("tpch", "tpch");
         queryRunner.createCatalog("postgres", "postgresql", POSTGRES_CATALOG_PROPERTIES);
 
+        biacDiagnostics = queryRunner.getCoordinator().getInstance(Key.get(BiacDiagnostics.class));
         RbacBiacService rbacBiacService = queryRunner.getCoordinator().getInstance(Key.get(RbacBiacService.class));
         BiacStorage biacStorage = queryRunner.getCoordinator().getInstance(Key.get(BiacStorage.class));
         BiacSession session = new BiacSession(rbacBiacService, Identity.ofUser(AUTHORIZED_USER));
@@ -79,5 +87,17 @@ public class TestQueryTroubleshootingWithBiac
                 Identity.ofUser(NOT_AUTHORIZED_USER),
                 // authorized, but with sysadmin role not enabled:
                 Identity.ofUser(AUTHORIZED_USER));
+    }
+
+    @Override
+    protected void assertAccessControlConfig(Unzipped coordinatorConfig)
+    {
+        BiacStoragePayload expected = biacDiagnostics.getStorage();
+        assertThat(coordinatorConfig.contents())
+                .hasEntrySatisfying(
+                        "coordinator/biac.json",
+                        value -> assertThat(jsonCodec(BiacStoragePayload.class).fromJson(value))
+                                .usingRecursiveComparison().ignoringCollectionOrder()
+                                .isEqualTo(expected));
     }
 }

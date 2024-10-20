@@ -13,12 +13,14 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.starburst.server.troubleshooting.configdump.BuiltInFeatureConfigDumper;
 import io.starburst.server.troubleshooting.configdump.CatalogConfigProvider;
 import io.starburst.server.troubleshooting.configdump.ConfigDumpProvider;
 import io.starburst.server.troubleshooting.configdump.ConfigDumpResource;
 import io.starburst.server.troubleshooting.configdump.ConfigDumper;
 import io.starburst.server.troubleshooting.configdump.CoordinatorDynamicCatalogConfigProvider;
 import io.starburst.server.troubleshooting.configdump.EmptyCatalogConfigProvider;
+import io.starburst.server.troubleshooting.configdump.ForAccessControlConfigDump;
 import io.starburst.server.troubleshooting.configdump.RemoteConfigDumpClient;
 import io.starburst.server.troubleshooting.configdump.StaticCatalogConfigProvider;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
@@ -43,9 +45,11 @@ import io.trino.connector.CatalogManagerConfig.CatalogMangerKind;
 import io.trino.server.ServerConfig;
 import jdk.jfr.FlightRecorder;
 
+import java.io.File;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
@@ -75,6 +79,15 @@ public class TroubleshootingModule
         jaxrsBinder(binder).bind(TroubleshootingTraceResource.class);
         binder.bind(ConfigDumper.class).in(Scopes.SINGLETON);
         jaxrsBinder(binder).bind(ConfigDumpResource.class);
+
+        // The purpose of injecting this file that way is to enable providing its location in tests.
+        // The TestingTrinoServer binds AccessControlConfig as a regular singleton rather than a configuration
+        // class. If this were not the case, we could leverage the 'access-control.config-files' property to
+        // pass the file's location in tests.
+        newOptionalBinder(binder, Key.get(File.class, ForAccessControlConfigDump.class))
+                .setDefault()
+                .toInstance(new File("etc/access-control.properties"));
+        newSetBinder(binder, BuiltInFeatureConfigDumper.class);
 
         CatalogManagerConfig catalogManagerConfig = buildConfigObject(CatalogManagerConfig.class);
         CatalogMangerKind catalogMangerKind = catalogManagerConfig.getCatalogMangerKind();

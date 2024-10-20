@@ -133,6 +133,8 @@ public abstract class AbstractQueryTroubleshootingTest
         return ImmutableList.of(Identity.ofUser(NOT_AUTHORIZED_USER));
     }
 
+    protected abstract void assertAccessControlConfig(Unzipped coordinatorConfig);
+
     @Test
     public void testTroubleshootingDataNotAvailableWithoutCapability()
     {
@@ -234,6 +236,7 @@ public abstract class AbstractQueryTroubleshootingTest
                     assertPropertyExists(value, "connection-user=root");
                     assertPropertyExists(value, "connection-password=[REDACTED]");
                 });
+        assertAccessControlConfig(coordinatorConfigs.getFirst());
 
         List<Unzipped> workerConfigs = findConfigZips(inputsMap, "worker-", tmpDir);
         if (!nodesProcessingQuery.isEmpty()) {

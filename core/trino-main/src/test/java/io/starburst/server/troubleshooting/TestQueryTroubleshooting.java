@@ -12,7 +12,10 @@ package io.starburst.server.troubleshooting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.inject.Key;
 import com.starburstdata.presto.server.StarburstQueryRunner;
+import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
+import io.starburst.server.troubleshooting.configdump.ForAccessControlConfigDump;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.security.GroupProvider;
@@ -20,9 +23,19 @@ import io.trino.spi.security.Identity;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
+import static com.starburstdata.presto.testing.FileUtils.createTempFileForTesting;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestQueryTroubleshooting
         extends AbstractQueryTroubleshootingTest
@@ -37,16 +50,35 @@ public class TestQueryTroubleshooting
             USER_WITHIN_AUTHORIZED_GROUP, ImmutableSet.of(AUTHORIZED_GROUP),
             USER_WITHIN_UNAUTHORIZED_GROUP, ImmutableSet.of(UNAUTHORIZED_GROUP));
 
+    private File accessControlPropertiesFile;
+    private File accessControlRulesFile;
+    private byte[] rulesFileContent;
+
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        accessControlRulesFile = new File(TestQueryTroubleshooting.class.getClassLoader().getResource("file-access/access-control-rules.json").toURI());
+        accessControlPropertiesFile = createTempFileForTesting().toFile();
+        rulesFileContent = Files.readAllBytes(accessControlRulesFile.toPath());
+        try (OutputStream outputStream = new FileOutputStream(accessControlPropertiesFile)) {
+            outputStream.write("access-control.name=file".getBytes(ISO_8859_1));
+            outputStream.write('\n');
+            outputStream.write("security.config-file".getBytes(ISO_8859_1));
+            outputStream.write('=');
+            outputStream.write(accessControlRulesFile.getPath().getBytes(ISO_8859_1));
+            outputStream.write('\n');
+        }
+
         DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(SESSION)
                 .addExtraProperty("troubleshooting.jfr.max-recording-size", "8MB")
                 .setCoordinatorProperties(Map.of(
                         "insights.authorized-users", AUTHORIZED_USER,
                         "insights.authorized-groups", String.join(",", USER_GROUPS.get(USER_WITHIN_AUTHORIZED_GROUP)),
                         "troubleshooting.max-access-duration", "20s"))
+                .setAdditionalModule(binder -> newOptionalBinder(binder, Key.get(File.class, ForAccessControlConfigDump.class))
+                        .setBinding()
+                        .toInstance(accessControlPropertiesFile))
                 .build();
 
         queryRunner.installPlugin(new TpchPlugin());
@@ -76,5 +108,17 @@ public class TestQueryTroubleshooting
                 .addAll(super.getIdentitiesOfUnauthorizedUsers())
                 .add(Identity.ofUser(USER_WITHIN_UNAUTHORIZED_GROUP))
                 .build();
+    }
+
+    @Override
+    protected void assertAccessControlConfig(Unzipped coordinatorConfig)
+    {
+        assertThat(coordinatorConfig.contents())
+                .hasEntrySatisfying(
+                        "coordinator/file_access_control.properties",
+                        value -> assertPropertyExists(value, "security.config-file=%s".formatted(accessControlRulesFile.getPath())))
+                .hasEntrySatisfying(
+                        "coordinator/file_access_control_rules.json",
+                        value -> assertThat(value).isEqualTo(rulesFileContent));
     }
 }

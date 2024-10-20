@@ -9,6 +9,8 @@
  */
 package io.starburst.server.troubleshooting.configdump;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationInspector;
@@ -16,6 +18,7 @@ import io.airlift.configuration.ConfigurationInspector.ConfigAttribute;
 import io.airlift.configuration.ConfigurationInspector.ConfigRecord;
 import io.trino.metadata.InternalNode;
 import io.trino.metadata.InternalNodeManager;
+import io.trino.security.AccessControlConfig;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -24,36 +27,61 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
+import static io.airlift.configuration.ConfigurationLoader.loadPropertiesFrom;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 public class ConfigDumper
 {
+    private static final String ACCESS_CONTROL_NAME_PROPERTY = "access-control.name";
     private static final File JVM_CONFIG_FILE = new File("etc/jvm.config");
     private static final byte[] SECURITY_SENSITIVE_PROPERTY_VALUE = "[REDACTED]".getBytes(ISO_8859_1);
 
     private final ConfigurationFactory configurationFactory;
     private final InternalNodeManager nodeManager;
     private final CatalogConfigProvider catalogConfigProvider;
+    private final List<File> accessControlConfigFiles;
+    private final Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers;
 
     @Inject
     public ConfigDumper(
             ConfigurationFactory configurationFactory,
             InternalNodeManager nodeManager,
-            CatalogConfigProvider catalogConfigProvider)
+            CatalogConfigProvider catalogConfigProvider,
+            @ForAccessControlConfigDump File defaultAccessControlConfigFile,
+            AccessControlConfig accessControlConfig,
+            Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers)
     {
         this.configurationFactory = requireNonNull(configurationFactory, "configurationFactory is null");
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.catalogConfigProvider = requireNonNull(catalogConfigProvider, "catalogConfigProvider is null");
+        requireNonNull(accessControlConfig, "accessControlConfig is null");
+        this.accessControlConfigFiles = resolveConfigFiles(accessControlConfig.getAccessControlFiles(), defaultAccessControlConfigFile);
+        this.builtInFeatureConfigDumpers = requireNonNull(builtInFeatureConfigDumpers, "builtInFeatureConfigDumpers is null");
+    }
+
+    private static List<File> resolveConfigFiles(List<File> configFiles, File defaultConfigFile)
+    {
+        requireNonNull(defaultConfigFile, "defaultConfigFile is null");
+        if (configFiles.isEmpty()) {
+            if (defaultConfigFile.exists()) {
+                return ImmutableList.of(defaultConfigFile);
+            }
+        }
+        return ImmutableList.copyOf(configFiles);
     }
 
     public InputStream dumpLocalConfig()
@@ -67,6 +95,8 @@ public class ConfigDumper
             dumpServerConfiguration(zipOutputStream, directoryName);
             dumpJvmConfig(zipOutputStream, directoryName);
             dumpCatalogConfigurations(zipOutputStream, directoryName);
+            dumpFileBasedAccessControlConfig(zipOutputStream, directoryName);
+            dumpBuiltInFeatureConfigs(zipOutputStream, directoryName);
         }
         catch (IOException e) {
             throw new UncheckedIOException("Unable to dump local configuration", e);
@@ -151,5 +181,87 @@ public class ConfigDumper
     private static boolean isSecuritySensitiveProperty(String propertyName, Set<String> sensitivePropertyNames)
     {
         return sensitivePropertyNames.stream().anyMatch(propertyName::endsWith);
+    }
+
+    private void dumpFileBasedAccessControlConfig(ZipOutputStream outputStream, String directoryName)
+    {
+        for (File configFile : accessControlConfigFiles) {
+            Map<String, String> properties = loadProperties(configFile);
+
+            String name = properties.get(ACCESS_CONTROL_NAME_PROPERTY);
+            checkState(!isNullOrEmpty(name), "Configuration file '%s' does not contain property '%s'", configFile, ACCESS_CONTROL_NAME_PROPERTY);
+
+            dumpProperties(properties, "%s_access_control.properties".formatted(name), outputStream, directoryName);
+            String configFilePath = properties.get("security.config-file");
+            if (configFilePath != null) {
+                dumpFileIfExists(new File(configFilePath), "%s_access_control_rules.json".formatted(name), outputStream, directoryName);
+            }
+        }
+    }
+
+    private void dumpBuiltInFeatureConfigs(ZipOutputStream outputStream, String directoryName)
+    {
+        for (BuiltInFeatureConfigDumper dumper : builtInFeatureConfigDumpers) {
+            BuiltInFeatureConfigDump config = dumper.dumpConfig();
+            ZipEntry zipEntry = new ZipEntry("%s/%s".formatted(directoryName, config.fileName()));
+            try {
+                outputStream.putNextEntry(zipEntry);
+                outputStream.write(config.serializedConfig());
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException("Unable to dump \"%s\".".formatted(config.fileName()), e);
+            }
+        }
+    }
+
+    private static void dumpProperties(Map<String, String> properties, String fileName, ZipOutputStream outputStream, String directoryName)
+    {
+        if (properties.isEmpty()) {
+            return;
+        }
+        ZipEntry configFile = new ZipEntry("%s/%s".formatted(directoryName, fileName));
+        try {
+            outputStream.putNextEntry(configFile);
+            for (Map.Entry<String, String> property : properties.entrySet()) {
+                String propertyName = property.getKey();
+                outputStream.write(propertyName.getBytes(ISO_8859_1));
+                outputStream.write('=');
+                String currentValue = property.getValue();
+                outputStream.write(currentValue.getBytes(ISO_8859_1));
+                outputStream.write('\n');
+            }
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Unable to dump \"%s\".".formatted(fileName), e);
+        }
+    }
+
+    private static Map<String, String> loadProperties(File file)
+    {
+        if (!file.exists()) {
+            return ImmutableMap.of();
+        }
+        try {
+            return loadPropertiesFrom(file.getPath());
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Unable to load \"%s\".".formatted(file.getPath()), e);
+        }
+    }
+
+    private static void dumpFileIfExists(File configFile, String targetFileName, ZipOutputStream outputStream, String directoryName)
+    {
+        if (!configFile.exists()) {
+            return;
+        }
+        try {
+            byte[] fileContent = Files.readAllBytes(configFile.toPath());
+            ZipEntry zipEntry = new ZipEntry("%s/%s".formatted(directoryName, targetFileName));
+            outputStream.putNextEntry(zipEntry);
+            outputStream.write(fileContent);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Unable to dump \"%s\".".formatted(configFile), e);
+        }
     }
 }
