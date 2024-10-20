@@ -53,6 +53,7 @@ public class ConfigDumper
     private final ConfigurationFactory configurationFactory;
     private final InternalNodeManager nodeManager;
     private final CatalogConfigProvider catalogConfigProvider;
+    private final File resourceGroupsConfigFile;
     private final List<File> accessControlConfigFiles;
     private final Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers;
 
@@ -61,6 +62,7 @@ public class ConfigDumper
             ConfigurationFactory configurationFactory,
             InternalNodeManager nodeManager,
             CatalogConfigProvider catalogConfigProvider,
+            @ForResourceGroupConfigDump File resourceGroupsConfigFile,
             @ForAccessControlConfigDump File defaultAccessControlConfigFile,
             AccessControlConfig accessControlConfig,
             Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers)
@@ -68,6 +70,7 @@ public class ConfigDumper
         this.configurationFactory = requireNonNull(configurationFactory, "configurationFactory is null");
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.catalogConfigProvider = requireNonNull(catalogConfigProvider, "catalogConfigProvider is null");
+        this.resourceGroupsConfigFile = requireNonNull(resourceGroupsConfigFile, "resourceGroupsConfigFile is null");
         requireNonNull(accessControlConfig, "accessControlConfig is null");
         this.accessControlConfigFiles = resolveConfigFiles(accessControlConfig.getAccessControlFiles(), defaultAccessControlConfigFile);
         this.builtInFeatureConfigDumpers = requireNonNull(builtInFeatureConfigDumpers, "builtInFeatureConfigDumpers is null");
@@ -95,6 +98,7 @@ public class ConfigDumper
             dumpServerConfiguration(zipOutputStream, directoryName);
             dumpJvmConfig(zipOutputStream, directoryName);
             dumpCatalogConfigurations(zipOutputStream, directoryName);
+            dumpFileBasedResourceGroupConfig(zipOutputStream, directoryName);
             dumpFileBasedAccessControlConfig(zipOutputStream, directoryName);
             dumpBuiltInFeatureConfigs(zipOutputStream, directoryName);
         }
@@ -181,6 +185,18 @@ public class ConfigDumper
     private static boolean isSecuritySensitiveProperty(String propertyName, Set<String> sensitivePropertyNames)
     {
         return sensitivePropertyNames.stream().anyMatch(propertyName::endsWith);
+    }
+
+    private void dumpFileBasedResourceGroupConfig(ZipOutputStream outputStream, String directoryName)
+    {
+        if (nodeManager.getCurrentNode().isCoordinator()) {
+            Map<String, String> properties = loadProperties(resourceGroupsConfigFile);
+            dumpProperties(properties, resourceGroupsConfigFile.getName(), outputStream, directoryName);
+            String configFilePath = properties.get("resource-groups.config-file");
+            if (configFilePath != null) {
+                dumpFileIfExists(new File(configFilePath), "file_resource_groups.json", outputStream, directoryName);
+            }
+        }
     }
 
     private void dumpFileBasedAccessControlConfig(ZipOutputStream outputStream, String directoryName)

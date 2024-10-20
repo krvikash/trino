@@ -21,6 +21,7 @@ import io.starburst.server.troubleshooting.configdump.ConfigDumper;
 import io.starburst.server.troubleshooting.configdump.CoordinatorDynamicCatalogConfigProvider;
 import io.starburst.server.troubleshooting.configdump.EmptyCatalogConfigProvider;
 import io.starburst.server.troubleshooting.configdump.ForAccessControlConfigDump;
+import io.starburst.server.troubleshooting.configdump.ForResourceGroupConfigDump;
 import io.starburst.server.troubleshooting.configdump.RemoteConfigDumpClient;
 import io.starburst.server.troubleshooting.configdump.StaticCatalogConfigProvider;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
@@ -87,6 +88,12 @@ public class TroubleshootingModule
         newOptionalBinder(binder, Key.get(File.class, ForAccessControlConfigDump.class))
                 .setDefault()
                 .toInstance(new File("etc/access-control.properties"));
+        // The location of this file is not configurable - it is always set to etc/resource-groups.properties
+        // in the InternalResourceGroupManager. The purpose of injecting this file that way is to enable
+        // providing its location in tests.
+        newOptionalBinder(binder, Key.get(File.class, ForResourceGroupConfigDump.class))
+                .setDefault()
+                .toInstance(new File("etc/resource-groups.properties"));
         newSetBinder(binder, BuiltInFeatureConfigDumper.class);
 
         CatalogManagerConfig catalogManagerConfig = buildConfigObject(CatalogManagerConfig.class);
