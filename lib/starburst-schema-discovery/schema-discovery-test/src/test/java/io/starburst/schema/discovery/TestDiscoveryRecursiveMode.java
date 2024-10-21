@@ -214,20 +214,20 @@ public class TestDiscoveryRecursiveMode
                 .buildKeepingLast();
 
         DiscoveredTable expectedDiscoveredTable1 = new DiscoveredTable(
-                false,
+                true,
                 ensureEndsWithSlash(directory.appendSuffix("/rtable1")),
                 new TableName(Optional.empty(), toLowerCase("rtable1")),
-                TableFormat.ERROR,
+                TableFormat.CSV,
                 expectedOptions,
                 DiscoveredColumns.EMPTY_DISCOVERED_COLUMNS,
                 DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS,
                 ImmutableList.of());
 
         DiscoveredTable expectedDiscoveredTable2 = new DiscoveredTable(
-                false,
+                true,
                 ensureEndsWithSlash(directory.appendSuffix("/rtable2")),
                 new TableName(Optional.empty(), toLowerCase("rtable2")),
-                TableFormat.ERROR,
+                TableFormat.CSV,
                 expectedOptions,
                 DiscoveredColumns.EMPTY_DISCOVERED_COLUMNS,
                 DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS,
@@ -255,10 +255,10 @@ public class TestDiscoveryRecursiveMode
                 .buildKeepingLast();
 
         DiscoveredTable expectedDiscoveredTable = new DiscoveredTable(
-                false,
+                true,
                 ensureEndsWithSlash(directory.appendSuffix("/nptable")),
                 new TableName(Optional.empty(), toLowerCase("nptable")),
-                TableFormat.ERROR,
+                TableFormat.UNKNOWN, // no file extensions
                 expectedOptions,
                 DiscoveredColumns.EMPTY_DISCOVERED_COLUMNS,
                 DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS,

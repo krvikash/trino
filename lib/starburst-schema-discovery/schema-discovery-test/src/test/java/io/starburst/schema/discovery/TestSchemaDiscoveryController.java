@@ -165,7 +165,7 @@ public class TestSchemaDiscoveryController
                 .hasSize(1)
                 .anyMatch(t -> !t.discoveredPartitions().columns().isEmpty())
                 .allMatch(t -> t.columns().columns().isEmpty())
-                .allMatch(t -> !t.valid() && t.format() == TableFormat.ERROR);
+                .allMatch(t -> t.valid() && t.format() == TableFormat.UNKNOWN);
     }
 
     @Test
@@ -184,7 +184,7 @@ public class TestSchemaDiscoveryController
                 .hasSize(2)
                 .anyMatch(t -> t.discoveredPartitions().columns().isEmpty())
                 .allMatch(t -> t.columns().columns().isEmpty())
-                .allMatch(t -> !t.valid() && t.format() == TableFormat.ERROR);
+                .allMatch(t -> t.valid() && t.format() == TableFormat.CSV);
     }
 
     @Test
@@ -201,7 +201,7 @@ public class TestSchemaDiscoveryController
                 .hasSize(1)
                 .anyMatch(t -> !t.discoveredPartitions().columns().isEmpty())
                 .allMatch(t -> t.columns().columns().isEmpty())
-                .allMatch(t -> !t.valid() && t.format() == TableFormat.ERROR);
+                .allMatch(t -> t.valid() && t.format() == TableFormat.UNKNOWN);
     }
 
     // this test was observed to be flaky, let it run multiple times as its fast anyway

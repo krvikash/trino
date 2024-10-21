@@ -10,7 +10,6 @@
 package io.starburst.schema.discovery.models;
 
 import com.google.common.collect.ImmutableSet;
-import io.trino.filesystem.Location;
 
 import java.util.Set;
 
@@ -22,25 +21,17 @@ public enum TableFormat
     PARQUET(true, FormatExtensionMatch.matchingExtension(".parquet")),
     ICEBERG(false, FormatExtensionMatch.notDeterminedByExtension()),
     DELTA_LAKE(false, FormatExtensionMatch.notDeterminedByExtension()),
-    ERROR(true, FormatExtensionMatch.notDeterminedByExtension());
+    ERROR(true, FormatExtensionMatch.notDeterminedByExtension()),
+    UNKNOWN(false, FormatExtensionMatch.notDeterminedByExtension());
 
     public boolean requiresColumnDefinitions()
     {
         return requiresColumnDefinitions;
     }
 
-    public boolean isFileMatching(Location filePath)
+    public boolean canBeDeterminedByFileExtension()
     {
-        if (!extensionMatch.canBeDeterminedByFileExtension()) {
-            return false;
-        }
-        String fileName = filePath.fileName();
-        int position = fileName.lastIndexOf(46);
-        if (position < 0) {
-            return false;
-        }
-        String extension = fileName.substring(position);
-        return extensionMatch.matchingFileExtensions().contains(extension);
+        return extensionMatch.canBeDeterminedByFileExtension();
     }
 
     private final boolean requiresColumnDefinitions;
@@ -50,6 +41,11 @@ public enum TableFormat
     {
         this.requiresColumnDefinitions = requiresColumnDefinitions;
         this.extensionMatch = extensionMatch;
+    }
+
+    public Set<String> getExtensions()
+    {
+        return extensionMatch.matchingFileExtensions();
     }
 
     private record FormatExtensionMatch(boolean canBeDeterminedByFileExtension, Set<String> matchingFileExtensions)

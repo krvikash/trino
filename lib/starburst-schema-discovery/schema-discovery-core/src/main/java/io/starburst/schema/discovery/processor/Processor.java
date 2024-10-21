@@ -17,6 +17,7 @@ import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import io.starburst.schema.discovery.ExtensionTableFormatMatcher;
 import io.starburst.schema.discovery.SchemaDiscovery;
 import io.starburst.schema.discovery.TableChanges.TableName;
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseFormat;
@@ -60,9 +61,11 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -81,7 +84,6 @@ import static io.starburst.schema.discovery.models.DiscoveredFormat.EMPTY_DISCOV
 import static io.starburst.schema.discovery.models.DiscoveredTable.EMPTY_DISCOVERED_TABLE;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
-import static java.util.Map.Entry;
 import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.reducing;
@@ -95,12 +97,17 @@ public class Processor
     private final Location rootPath;
     private final OptionsMap options;
     private final Executor executor;
+    // TODO: Next step should be splitting processor for cover only single action
+    private final AtomicBoolean isShallow = new AtomicBoolean(false);
     private final SettableFuture<DiscoveredSchema> result = SettableFuture.create();
     private final Errors errors = new Errors();
+    private final ExtensionTableFormatMatcher extensionTableFormatMatcher;
 
     // intermediate results
 
     public record ProcessorPath(Location path, Optional<LakehouseFormat> lakehouseFormat) {}
+
+    record ProcessorShallowTableGuess(TableAndPathKey tableAndPathKey, TableFormat tableFormat) {}
 
     record ProcessorDiscoveredSchemas(Location parent, List<ProcessorFormatGuessSchema> formatGuessSchemas) {}
 
@@ -121,10 +128,12 @@ public class Processor
         this.rootPath = requireNonNull(rootPath, "rootPath cannot be null");
         this.options = requireNonNull(options, "options is null");
         this.executor = requireNonNull(executor, "executor cannot be null");
+        this.extensionTableFormatMatcher = new ExtensionTableFormatMatcher(schemaDiscoveryInstances.keySet());
     }
 
     public void startShallowProcessing()
     {
+        isShallow.set(true);
         FileTracker fileTracker = FileTrackerFactory.createFileTracker(options, rootPath);
         SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(fileSystem, rootPath, options, executor, fileTracker);
         var _ = FluentFuture.from(sampleFilesCrawler.startBuildSampleFilesListAsync())
@@ -302,7 +311,7 @@ public class Processor
                 .collect(toImmutableList());
     }
 
-    private DiscoveredTable reduceRecursiveTable(Map.Entry<TablePath, List<DiscoveredTable>> entry)
+    private DiscoveredTable reduceRecursiveTable(Entry<TablePath, List<DiscoveredTable>> entry)
     {
         return entry.getValue().stream()
                 .reduce((table1, table2) -> mergeTables(entry.getKey().toString(), table1, table2))
@@ -420,12 +429,13 @@ public class Processor
                 .collect(toImmutableMap(p -> p.column().name(), InferredPartition::partitionProjection));
         ValidatedPartitions validatedPartitions = DiscoveredPartitions.createValidatedPartitions(partitionColumns, partitionValues, partitionProjections);
         List<LowerCaseString> buckets = InferredPartition.buildBuckets(guess.partitions());
-        boolean valid = isValid(guess.guessedSchema().format(), guess.guessedSchema().columns().columns()) && validatedPartitions.errorMessage().isEmpty();
         validatedPartitions.errorMessage().ifPresent(partitionsError -> errors.addTableError(tablePath, partitionsError));
+        boolean valid = isValid(guess.guessedSchema().format(), guess.guessedSchema().columns().columns()) && validatedPartitions.errorMessage().isEmpty();
         if (!valid) {
             errors.addTableError(tablePath, "Table [%s] at [%s] is invalid - no valid columns were found", tableName, tablePath);
         }
-        return new DiscoveredTable(valid,
+        return new DiscoveredTable(
+                valid,
                 ensureEndsWithSlash(tablePath),
                 new TableName(guess.guessedSchema().schemaName(), tableName),
                 guess.guessedSchema().format(),
@@ -436,9 +446,11 @@ public class Processor
                 errors.buildForPathAndChildren(tablePath));
     }
 
-    private static boolean isValid(TableFormat format, List<Column> columns)
+    private boolean isValid(TableFormat format, List<Column> columns)
     {
-        return (format != TableFormat.ERROR) && (!format.requiresColumnDefinitions() || !columns.isEmpty());
+        return (format != TableFormat.ERROR)
+                // skip as shallow discovery does not detect columns within table
+                && (isShallow.get() || (!format.requiresColumnDefinitions() || !columns.isEmpty()));
     }
 
     private DiscoveredTable mergeTables(String tablePath, DiscoveredTable table1, DiscoveredTable table2)
@@ -620,11 +632,9 @@ public class Processor
                 return new ProcessorFormatGuess(parent, paths, forcedDiscoveredFormat);
             }
 
-            Optional<TableFormat> formatMatchByFileExtension = Stream.of(TableFormat.values())
-                    .filter(format -> format.isFileMatching(firstPath))
-                    .findFirst();
-            if (!generalOptions.skipFileExtensionCheck() && formatMatchByFileExtension.isPresent()) {
-                return new ProcessorFormatGuess(parent, paths, formatMatchByFileExtension.map(f -> new DiscoveredFormat(f, optionsForTableName.unwrap())));
+            TableFormat formatMatchByFileExtension = extensionTableFormatMatcher.match(firstPath);
+            if (!generalOptions.skipFileExtensionCheck() && formatMatchByFileExtension != TableFormat.UNKNOWN) {
+                return new ProcessorFormatGuess(parent, paths, Optional.of(new DiscoveredFormat(formatMatchByFileExtension, optionsForTableName.unwrap())));
             }
 
             try (DiscoveryTrinoInput inputStream = new DiscoveryTrinoInput(fileSystem, firstPath)) {
@@ -643,33 +653,37 @@ public class Processor
         }
     }
 
-    private ListenableFuture<List<TableAndPathKey>> startShallowTableLookup(List<ProcessorPath> sampleFiles)
+    private ListenableFuture<List<ProcessorShallowTableGuess>> startShallowTableLookup(List<ProcessorPath> sampleFiles)
     {
-        Map<Location, List<ProcessorPath>> groupedByParent = sampleFiles.stream().collect(Collectors.groupingBy(processorPath -> parentOf(processorPath.path())));
-        ImmutableList<ListenableFuture<TableAndPathKey>> futures = groupedByParent.keySet().stream()
-                .map(this::buildShallowTables)
+        Map<Location, List<ProcessorPath>> groupedByParent = sampleFiles.stream()
+                .collect(Collectors.groupingBy(processorPath -> parentOf(processorPath.path())));
+        ImmutableList<ListenableFuture<ProcessorShallowTableGuess>> futures = groupedByParent.entrySet().stream()
+                .map(entry -> buildShallowTables(entry.getKey(), entry.getValue().getFirst()))
                 .collect(toImmutableList());
         return Futures.allAsList(futures);  // map of parent paths to the guessed schema/table
     }
 
-    private ListenableFuture<TableAndPathKey> buildShallowTables(Location parent)
+    private ListenableFuture<ProcessorShallowTableGuess> buildShallowTables(Location parent, ProcessorPath first)
     {
         return Futures.submit(() -> {
             TableName guessedTableName = new TableName(inferPossibleSchemaName(parent), toLowerCase(directoryOrFileName(parent)));
-            return new TableAndPathKey(guessedTableName, parent);
+            return new ProcessorShallowTableGuess(
+                    new TableAndPathKey(guessedTableName, parent),
+                    first.lakehouseFormat().map(LakehouseFormat::format).orElse(extensionTableFormatMatcher.match(first.path())));
         }, executor);
     }
 
-    private Map<TableAndPathKey, ? extends List<ProcessorGuessedSchemaAndPartition>> buildShallowTableToPartitionsMap(List<TableAndPathKey> tableAndPathKeys)
+    private Map<TableAndPathKey, ? extends List<ProcessorGuessedSchemaAndPartition>> buildShallowTableToPartitionsMap(List<ProcessorShallowTableGuess> tableAndPathKeys)
     {
         return tableAndPathKeys.stream()
-                .map(tableAndPath -> {
+                .map(tableGuess -> {
+                    TableAndPathKey tableAndPath = tableGuess.tableAndPathKey();
+                    TableFormat tableFormat = tableGuess.tableFormat();
                     OptionsMap optionsForTableName = this.options.withTableName(tableAndPath.tableName());
                     GeneralOptions generalOptions = new GeneralOptions(optionsForTableName);
-
                     InferPartitions inferredPartitions = new InferPartitions(generalOptions, rootPath, tableAndPath.path());
                     Optional<LowerCaseString> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(tableAndPath.path(), inferredPartitions);
-                    ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, TableFormat.ERROR, optionsForTableName.unwrap(), EMPTY_DISCOVERED_COLUMNS);
+                    ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, tableFormat, optionsForTableName.unwrap(), EMPTY_DISCOVERED_COLUMNS);
                     ProcessorGuessedSchemaAndPartition guessedSchemaAndPartition = new ProcessorGuessedSchemaAndPartition(guessedSchema, inferredPartitions.partitions());
 
                     return entry(new TableAndPathKey(new TableName(schemaName, inferredPartitions.tableName()), inferredPartitions.path()), guessedSchemaAndPartition);
@@ -718,12 +732,20 @@ public class Processor
         List<Column> mergedPartitionColumns = mergePartitionColumns(table1.discoveredPartitions(), table2.discoveredPartitions());
         ValidatedPartitions validatedUnionedPartitions = createDiscoveredPartitions(table1, table2, mergedPartitionColumns);
         validatedUnionedPartitions.errorMessage().ifPresent(partitionError -> errors.addTableError(tablePath, partitionError));
+        // If there is no match between table formats use UNKNOWN as fallback
+        TableFormat tableFormat = TableFormat.UNKNOWN;
+        if (table1.format() == table2.format()) {
+            tableFormat = table1.format();
+        }
+        if (validatedUnionedPartitions.errorMessage().isPresent()) {
+            tableFormat = TableFormat.ERROR;
+        }
 
         return new DiscoveredTable(
-                false,
+                tableFormat != TableFormat.ERROR,
                 ensureEndsWithSlash(tablePath),
                 table1.tableName(),
-                TableFormat.ERROR,
+                tableFormat,
                 table1.options(),
                 EMPTY_DISCOVERED_COLUMNS,
                 validatedUnionedPartitions.partitions(),

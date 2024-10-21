@@ -80,8 +80,15 @@ public class TestDiscoveryPartitionProjection
         DiscoveredSchema discoveredShallowSchema = controller.discoverTablesShallow(new GuessRequest(uriFromLocation(directory), ImmutableMap.of(DISCOVER_PARTITION_PROJECTION, "true"))).get();
 
         assertThat(discoveredShallowSchema.tables())
-                .hasSize(4)
+                .filteredOn(table -> !table.tableName().tableName().string().equals("wrong_projection"))
+                .hasSize(3)
                 .anyMatch(t -> !t.discoveredPartitions().columns().isEmpty())
+                .allMatch(t -> t.columns().columns().isEmpty())
+                .allMatch(t -> t.valid() && t.format() == TableFormat.PARQUET);
+
+        assertThat(discoveredShallowSchema.tables())
+                .filteredOn(table -> table.tableName().tableName().string().equals("wrong_projection"))
+                .hasSize(1)
                 .allMatch(t -> t.columns().columns().isEmpty())
                 .allMatch(t -> !t.valid() && t.format() == TableFormat.ERROR);
 

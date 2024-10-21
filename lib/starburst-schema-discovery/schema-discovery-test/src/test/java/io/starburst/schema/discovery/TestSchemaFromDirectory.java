@@ -580,7 +580,7 @@ public class TestSchemaFromDirectory
         DiscoveredSchema discoveredShallowSchema = shallowDiscoveryFuture.get(5, TimeUnit.SECONDS);
         assertThat(discoveredShallowSchema.tables())
                 .hasSize(1)
-                .allMatch(not(DiscoveredTable::valid));
+                .allMatch(DiscoveredTable::valid);
     }
 
     private void validateDiscoveredTables(DiscoveredSchema discoveredTableSet)
