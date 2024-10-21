@@ -29,12 +29,27 @@ import static io.starburst.schema.discovery.models.TableFormat.ERROR;
 import static java.util.Objects.requireNonNull;
 
 @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-public record DiscoveredTable(boolean valid, TablePath path, TableName tableName, TableFormat format,
-                              Map<String, String> options, DiscoveredColumns columns,
-                              DiscoveredPartitions discoveredPartitions, Collection<LowerCaseString> buckets,
-                              List<String> errors)
+public record DiscoveredTable(
+        boolean valid,
+        TablePath path,
+        TableName tableName,
+        TableFormat format,
+        Map<String, String> options,
+        DiscoveredColumns columns,
+        DiscoveredPartitions discoveredPartitions,
+        Collection<LowerCaseString> buckets,
+        List<String> errors)
 {
-    public static final DiscoveredTable EMPTY_DISCOVERED_TABLE = new DiscoveredTable(false, SlashEndedPath.SINGLE_SLASH_EMPTY, new TableName(Optional.empty(), toLowerCase("error")), ERROR, CsvOptions.standard(), EMPTY_DISCOVERED_COLUMNS, EMPTY_DISCOVERED_PARTITIONS, ImmutableList.of(), ImmutableList.of());
+    public static final DiscoveredTable EMPTY_DISCOVERED_TABLE = new DiscoveredTable(
+            false,
+            SlashEndedPath.SINGLE_SLASH_EMPTY,
+            new TableName(Optional.empty(), toLowerCase("error")),
+            ERROR,
+            CsvOptions.standard(),
+            EMPTY_DISCOVERED_COLUMNS,
+            EMPTY_DISCOVERED_PARTITIONS,
+            ImmutableList.of(),
+            ImmutableList.of());
 
     public DiscoveredTable
     {
@@ -49,14 +64,40 @@ public record DiscoveredTable(boolean valid, TablePath path, TableName tableName
     }
 
     // for backwards compatibility
-    public DiscoveredTable(boolean valid, SlashEndedPath path, TableName tableName, TableFormat tableFormat, Map<String, String> options, DiscoveredColumns columns, DiscoveredPartitions discoveredPartitions, Collection<LowerCaseString> buckets)
+    public DiscoveredTable(
+            boolean valid,
+            SlashEndedPath path,
+            TableName tableName,
+            TableFormat tableFormat,
+            Map<String, String> options,
+            DiscoveredColumns columns,
+            DiscoveredPartitions discoveredPartitions,
+            Collection<LowerCaseString> buckets)
     {
-        this(valid, path, tableName, tableFormat, options, columns, discoveredPartitions, buckets, ImmutableList.of());
+        this(
+                valid,
+                path,
+                tableName,
+                tableFormat,
+                options,
+                columns,
+                discoveredPartitions,
+                buckets,
+                ImmutableList.of());
     }
 
     public DiscoveredTable withColumns(DiscoveredColumns columns)
     {
-        return new DiscoveredTable(valid, path, tableName, format, options, columns, discoveredPartitions, buckets, errors);
+        return new DiscoveredTable(
+                valid,
+                path,
+                tableName,
+                format,
+                options,
+                columns,
+                discoveredPartitions,
+                buckets,
+                errors);
     }
 
     public DiscoveredTable asRecursiveTable(SlashEndedPath newPath, TableName tableName)
@@ -81,7 +122,16 @@ public record DiscoveredTable(boolean valid, TablePath path, TableName tableName
     @VisibleForTesting
     public DiscoveredTable skipErrors()
     {
-        return new DiscoveredTable(valid, path, tableName, format, options, columns, discoveredPartitions, buckets, ImmutableList.of());
+        return new DiscoveredTable(
+                valid,
+                path,
+                tableName,
+                format,
+                options,
+                columns,
+                discoveredPartitions,
+                buckets,
+                ImmutableList.of());
     }
 
     public DiscoveredTable withPath(TablePath path)

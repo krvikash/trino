@@ -47,13 +47,14 @@ public final class ShallowDiscoverySystemTable
         extends DiscoverySystemTableBase
         implements SystemTable
 {
-    private static final Map<String, String> DEFAULT_OPTIONS_OVERWRITE = ImmutableMap.of(
-            MAX_SAMPLE_FILES_PER_TABLE, "1");
+    private static final Map<String, String> DEFAULT_OPTIONS_OVERWRITE = ImmutableMap.of(MAX_SAMPLE_FILES_PER_TABLE, "1");
     public static final SchemaTableName SCHEMA_TABLE_NAME = new SchemaTableName("schema_discovery", "shallow_discovery");
-    private static final ConnectorTableMetadata TABLE_METADATA = new ConnectorTableMetadata(SCHEMA_TABLE_NAME, ImmutableList.of(
-            buildColumn("uri", "URI to scan"),
-            buildColumn("options", "Discovery options - only [maxSampleFilesPerTable, maxSampleTables, excludePatterns, includePatterns, discoveryMode] are used"),
-            buildColumn("shallow_metadata_json", "Discovered shallow tables as JSON")));
+    private static final ConnectorTableMetadata TABLE_METADATA = new ConnectorTableMetadata(
+            SCHEMA_TABLE_NAME,
+            ImmutableList.of(
+                    buildColumn("uri", "URI to scan"),
+                    buildColumn("options", "Discovery options - only [maxSampleFilesPerTable, maxSampleTables, excludePatterns, includePatterns, discoveryMode] are used"),
+                    buildColumn("shallow_metadata_json", "Discovered shallow tables as JSON")));
 
     private final SchemaDiscoveryController schemaDiscoveryController;
 
@@ -81,7 +82,10 @@ public final class ShallowDiscoverySystemTable
         String uriStr = tryGetSingleVarcharValue(constraint, 0).orElseThrow(() -> new TrinoException(INVALID_ARGUMENTS, "Missing URI argument"));
         validateLocationAccess(session.getIdentity(), uriStr, session.getQueryId());
         String options = tryGetSingleVarcharValue(constraint, 1).orElse("");
-        Map<String, String> finalOptions = new SchemaExplorer(schemaDiscoveryController, objectMapper(), new CommaDelimitedOptionsParser(ImmutableList.of(GeneralOptions.class)))
+        Map<String, String> finalOptions = new SchemaExplorer(
+                schemaDiscoveryController,
+                objectMapper(),
+                new CommaDelimitedOptionsParser(ImmutableList.of(GeneralOptions.class)))
                 .buildOptions(options, DEFAULT_OPTIONS_OVERWRITE);
 
         try {

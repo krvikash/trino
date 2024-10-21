@@ -56,18 +56,20 @@ public final class SchemaDiscoverySystemTable
     public static final SchemaTableName SCHEMA_TABLE_NAME = new SchemaTableName("schema_discovery", "discovery");
 
     private static final String DEFAULT_SCHEMA_NAME = "discovered";
-    private static final ConnectorTableMetadata TABLE_METADATA = new ConnectorTableMetadata(SCHEMA_TABLE_NAME, ImmutableList.of(
-            buildColumn("uri", "URI to scan"),
-            buildColumn("previous_metadata_json", "metadata_json from a previous query to use for generating updates - otherwise should be null"),
-            buildColumn("schema", "schema name to use - %s if not provided".formatted(DEFAULT_SCHEMA_NAME)),
-            buildColumn("options", buildOptionsHelp()),
-            buildColumn("sql", "Discovered schema as SQL statements"),
-            buildColumn("json", "Discovered schema as JSON"),
-            buildColumn("errors", "Any errors discovered as a JSON list of strings"),
-            buildColumn("metadata_json", "Metadata JSON for use in future update query"),
-            buildColumn("rescan_uri", "Rescan single table mode - the URI to rescan (requires rescan_type)"),
-            buildColumn("rescan_type", "Rescan single table mode - discovery type to use (requires rescan_uri). One of: " + Arrays.toString(TableFormat.values())),
-            buildColumn("rescan_metadata_json", "Rescan single table mode. Metadata from initial scan. If provided, generated output will contain initial scan combined with this rescan")));
+    private static final ConnectorTableMetadata TABLE_METADATA = new ConnectorTableMetadata(
+            SCHEMA_TABLE_NAME,
+            ImmutableList.of(
+                    buildColumn("uri", "URI to scan"),
+                    buildColumn("previous_metadata_json", "metadata_json from a previous query to use for generating updates - otherwise should be null"),
+                    buildColumn("schema", "schema name to use - %s if not provided".formatted(DEFAULT_SCHEMA_NAME)),
+                    buildColumn("options", buildOptionsHelp()),
+                    buildColumn("sql", "Discovered schema as SQL statements"),
+                    buildColumn("json", "Discovered schema as JSON"),
+                    buildColumn("errors", "Any errors discovered as a JSON list of strings"),
+                    buildColumn("metadata_json", "Metadata JSON for use in future update query"),
+                    buildColumn("rescan_uri", "Rescan single table mode - the URI to rescan (requires rescan_type)"),
+                    buildColumn("rescan_type", "Rescan single table mode - discovery type to use (requires rescan_uri). One of: " + Arrays.toString(TableFormat.values())),
+                    buildColumn("rescan_metadata_json", "Rescan single table mode. Metadata from initial scan. If provided, generated output will contain initial scan combined with this rescan")));
 
     private static final int MAX_BUCKET_QTY = 10;
 

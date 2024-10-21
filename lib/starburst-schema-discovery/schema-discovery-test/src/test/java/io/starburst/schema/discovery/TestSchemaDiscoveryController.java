@@ -61,7 +61,7 @@ public class TestSchemaDiscoveryController
             throws ExecutionException, InterruptedException
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Location directory = Util.testFilePath("csv/partitioned");
         ListenableFuture<DiscoveredSchema> future = controller.guess(new GuessRequest(uriFromLocation(directory), CsvOptions.standard()));
         DiscoveredSchema discoveredTables = future.get();
@@ -91,7 +91,7 @@ public class TestSchemaDiscoveryController
             throws ExecutionException, InterruptedException
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Location directory = Util.testFilePath("csv/nested_partitions");
         ListenableFuture<DiscoveredSchema> future = controller.guess(new GuessRequest(URI.create(directory.toString()), CsvOptions.standard()));
         DiscoveredSchema discoveredTables = future.get();
@@ -133,7 +133,7 @@ public class TestSchemaDiscoveryController
             throws ExecutionException, InterruptedException
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Location directory = Util.testFilePath("schema");
         DiscoveredSchema discoveredTables = controller.guess(new GuessRequest(uriFromLocation(directory), ImmutableMap.of())).get();
         assertThat(discoveredTables.tables()).extracting(DiscoveredTable::format).containsExactlyInAnyOrder(TableFormat.CSV, TableFormat.PARQUET);
@@ -154,7 +154,7 @@ public class TestSchemaDiscoveryController
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Map<String, String> includeOnlyNestedOptions = ImmutableMap.of(
                 INCLUDE_PATTERNS, "**/csv/*/{nptable}/*");
         Location directory = Util.testFilePath("csv/nested_partitions");
@@ -173,7 +173,7 @@ public class TestSchemaDiscoveryController
             throws ExecutionException, InterruptedException
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Map<String, String> includeOnlyNestedOptions = ImmutableMap.of(
                 INCLUDE_PATTERNS, "**/csv/top-schema/{under-top-schema-1,under-top-schema-2}/*");
         Location directory = Util.testFilePath("csv/top-schema");
@@ -192,7 +192,7 @@ public class TestSchemaDiscoveryController
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Location directory = Util.testFilePath("csv/nested_partitions");
 
         DiscoveredSchema discoveredShallowSchema = controller.discoverTablesShallow(new GuessRequest(uriFromLocation(directory), ImmutableMap.of())).get();
@@ -211,21 +211,21 @@ public class TestSchemaDiscoveryController
     {
         // make it discover correct format, but fail on processing file later (simulate corrupted data)
         DiscoveryTrinoFileSystem fileSystem = new DiscoveryTrinoFileSystem(new ErroringTrinoFileSystem("csv/partitioned", "000000_0", 9000, 3));
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Location directory = Util.testFilePath("csv/partitioned");
         ListenableFuture<DiscoveredSchema> future = controller.guess(new GuessRequest(uriFromLocation(directory), CsvOptions.standard()));
         DiscoveredSchema discoveredTables = future.get();
 
         assertThat(discoveredTables.errors()).isEmpty();
         assertThat(discoveredTables.tables()).hasSize(1);
-        assertThat(discoveredTables.tables().get(0).errors()).hasSize(4);
-        assertThat(discoveredTables.tables().get(0).errors())
+        assertThat(discoveredTables.tables().getFirst().errors()).hasSize(4);
+        assertThat(discoveredTables.tables().getFirst().errors())
                 .anyMatch(e -> e.contains("ds=2012-12-29/000000_0") && e.contains("Underlying input stream returned zero bytes"));
-        assertThat(discoveredTables.tables().get(0).errors())
+        assertThat(discoveredTables.tables().getFirst().errors())
                 .anyMatch(e -> e.contains("ds=2012-12-30/000000_0") && e.contains("Underlying input stream returned zero bytes"));
-        assertThat(discoveredTables.tables().get(0).errors())
+        assertThat(discoveredTables.tables().getFirst().errors())
                 .anyMatch(e -> e.contains("Error while discovering schema in format: [CSV]"));
-        assertThat(discoveredTables.tables().get(0).errors())
+        assertThat(discoveredTables.tables().getFirst().errors())
                 .last().matches(e -> e.contains("no valid columns were found"));
     }
 
@@ -234,7 +234,7 @@ public class TestSchemaDiscoveryController
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Map<String, String> includeOnlyNestedOptions = ImmutableMap.of(
                 INCLUDE_PATTERNS, "**/csv/{top-schema/under-top-schema-1/child-schema-1}*");
         Location directory = Util.testFilePath("csv/top-schema");
@@ -271,7 +271,7 @@ public class TestSchemaDiscoveryController
     {
         assertThat(tableQty).isEqualTo(expectedColumnQtys.length);
 
-        HashMap<String, String> options = new HashMap<String, String>();
+        HashMap<String, String> options = new HashMap<>();
         options.put(GeneralOptions.MAX_SAMPLE_TABLES, Integer.toString(tableQty));
         options.put(GeneralOptions.MAX_SAMPLE_FILES_PER_TABLE, Integer.toString(filePerTableQty));
         options.put(GeneralOptions.SAMPLE_FILES_PER_TABLE_MODULO, Integer.toString(filesPerTableModulo));

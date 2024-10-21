@@ -52,7 +52,6 @@ import io.trino.metastore.type.TypeInfo;
 import io.trino.plugin.hive.projection.ProjectionType;
 import io.trino.spi.TrinoException;
 
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -82,6 +81,8 @@ import static io.starburst.schema.discovery.models.DiscoveredFormat.EMPTY_DISCOV
 import static io.starburst.schema.discovery.models.DiscoveredTable.EMPTY_DISCOVERED_TABLE;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
+import static java.util.Map.Entry;
+import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.reducing;
 
@@ -126,7 +127,7 @@ public class Processor
     {
         FileTracker fileTracker = FileTrackerFactory.createFileTracker(options, rootPath);
         SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(fileSystem, rootPath, options, executor, fileTracker);
-        var unused = FluentFuture.from(sampleFilesCrawler.startBuildSampleFilesListAsync())
+        var _ = FluentFuture.from(sampleFilesCrawler.startBuildSampleFilesListAsync())
                 .transformAsync(this::startShallowTableLookup, executor)
                 .transform(this::buildShallowTableToPartitionsMap, executor)
                 .transform(this::buildShallowDiscoveredTables, executor)
@@ -163,7 +164,7 @@ public class Processor
 
     private void continueProcessing(FluentFuture<List<ProcessorFormatGuess>> continuation)
     {
-        var unused = continuation.transformAsync(this::startProcessFormatGuesses, executor)
+        var _ = continuation.transformAsync(this::startProcessFormatGuesses, executor)
                 .transform(this::reduceDiscoveredSchemas, executor)
                 .transform(this::groupSchemas, executor)
                 .transform(this::buildTablesAndSetResult, executor)
@@ -173,9 +174,12 @@ public class Processor
     private ListenableFuture<List<ProcessorFormatGuess>> startProcessSubPathFiles(DiscoveredFormat discoveredFormat, List<ProcessorPath> paths)
     {
         Map<Location, List<Location>> groupedByParent = paths.stream().map(ProcessorPath::path).collect(Collectors.groupingBy(Location::parentDirectory));
-        ImmutableList<ListenableFuture<ProcessorFormatGuess>> futures = groupedByParent.entrySet()
-                .stream()
-                .map(entry -> Futures.immediateFuture(new ProcessorFormatGuess(entry.getKey(), entry.getValue(), Optional.of(discoveredFormat))))
+        ImmutableList<ListenableFuture<ProcessorFormatGuess>> futures = groupedByParent.entrySet().stream()
+                .map(entry -> Futures.immediateFuture(
+                        new ProcessorFormatGuess(
+                                entry.getKey(),
+                                entry.getValue(),
+                                Optional.of(discoveredFormat))))
                 .collect(toImmutableList());
         return Futures.allAsList(futures);  // map of parent paths to the guessed format/options to use to do schema discovery
     }
@@ -183,8 +187,7 @@ public class Processor
     private ListenableFuture<List<ProcessorFormatGuess>> startProcessSampleFiles(List<ProcessorPath> samplePaths)
     {
         Map<Location, List<ProcessorPath>> groupedByParent = samplePaths.stream().collect(Collectors.groupingBy(processorPath -> parentOf(processorPath.path())));
-        ImmutableList<ListenableFuture<ProcessorFormatGuess>> futures = groupedByParent.entrySet()
-                .stream()
+        ImmutableList<ListenableFuture<ProcessorFormatGuess>> futures = groupedByParent.entrySet().stream()
                 .map(entry -> startFormatGuess(entry.getKey(), entry.getValue()))
                 .collect(toImmutableList());
         return Futures.allAsList(futures);  // map of parent paths to the guessed format/options to use to do schema discovery
@@ -202,7 +205,7 @@ public class Processor
     {
         return discoveredSchemas.stream()
                 .map(discoveredSchema -> discoveredSchema.formatGuessSchemas().stream()
-                        .reduce((f1, f2) -> mergeFormatGuessSchema(discoveredSchema.parent(), f1, f2))
+                        .reduce((formatGuessSchema1, formatGuessSchema2) -> mergeFormatGuessSchema(discoveredSchema.parent(), formatGuessSchema1, formatGuessSchema2))
                         .orElseGet(() -> new ProcessorFormatGuessSchema(discoveredSchema.parent(), EMPTY_DISCOVERED_FORMAT, EMPTY_DISCOVERED_COLUMNS)))
                 .collect(toImmutableList());
     }
@@ -216,9 +219,11 @@ public class Processor
                     Optional<LowerCaseString> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(formatGuessSchema.parent(), inferredPartitions);
                     ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, formatGuessSchema.discoveredFormat().format(), formatGuessSchema.discoveredFormat().options(), formatGuessSchema.columns());
                     ProcessorGuessedSchemaAndPartition guessedSchemaAndPartition = new ProcessorGuessedSchemaAndPartition(guessedSchema, inferredPartitions.partitions());
-                    return new SimpleEntry<>(new TableAndPathKey(new TableName(schemaName, inferredPartitions.tableName()), inferredPartitions.path()), guessedSchemaAndPartition);
+                    return entry(
+                            new TableAndPathKey(new TableName(schemaName, inferredPartitions.tableName()), inferredPartitions.path()),
+                            guessedSchemaAndPartition);
                 })
-                .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, toImmutableList()))); // grouped by table name to list of potential tables, which need to be reduced
+                .collect(Collectors.groupingBy(Entry::getKey, Collectors.mapping(Entry::getValue, toImmutableList()))); // grouped by table name to list of potential tables, which need to be reduced
     }
 
     private Optional<LowerCaseString> inferPossibleSchemaName(Location fileParentPath, InferPartitions partitions)
@@ -227,9 +232,8 @@ public class Processor
             return inferPossibleSchemaName(fileParentPath);
         }
 
-        Set<String> partitionDirectoryNames = partitions.partitions()
-                .stream()
-                .map(p -> p.partitionProjection().isEqualSignSeparatedPartition() ? p.column().name() + PARTITION_SEPARATOR + p.value() : p.value())
+        Set<String> partitionDirectoryNames = partitions.partitions().stream()
+                .map(partition -> partition.partitionProjection().isEqualSignSeparatedPartition() ? partition.column().name() + PARTITION_SEPARATOR + partition.value() : partition.value())
                 .collect(toImmutableSet());
         Location parent = parentOf(fileParentPath);
 
@@ -256,12 +260,13 @@ public class Processor
 
     private Void buildTablesAndSetResult(Map<TableAndPathKey, ? extends List<ProcessorGuessedSchemaAndPartition>> tableToGuessesAndPartitions)
     {
-        List<DiscoveredTable> tables = tableToGuessesAndPartitions.entrySet()
-                .stream()
+        List<DiscoveredTable> tables = tableToGuessesAndPartitions.entrySet().stream()
                 .map(entry -> reduceGuessedSchemasAndPartitions(entry.getKey(), entry.getValue()))
                 .collect(toImmutableList());
         tables = reduceRecursiveTables(tables);
-        tables = tables.stream().map(this::enhanceIcebergTableLocation).collect(toImmutableList());
+        tables = tables.stream()
+                .map(this::enhanceIcebergTableLocation)
+                .collect(toImmutableList());
 
         DiscoveredSchema discoveredSchema = new DiscoveredSchema(ensureEndsWithSlash(rootPath), tables, errors.build());
         result.set(discoveredSchema);
@@ -292,8 +297,7 @@ public class Processor
         return tables.stream()
                 .map(this::collapseTableToChildOfRoot)
                 .collect(Collectors.groupingBy(DiscoveredTable::path))
-                .entrySet()
-                .stream()
+                .entrySet().stream()
                 .map(this::reduceRecursiveTable)
                 .collect(toImmutableList());
     }
@@ -358,7 +362,8 @@ public class Processor
                 case ICEBERG, DELTA_LAKE -> new ProcessorFormatGuessSchema(parent, discoveredFormat, EMPTY_DISCOVERED_COLUMNS);
                 default -> {
                     try (DiscoveryInput inputStream = new DiscoveryTrinoInput(fileSystem, file)) {
-                        DiscoveredColumns columns = discoveryInstanceFromFormat(discoveredFormat.format()).discoverColumns(inputStream, discoveredFormat.options());
+                        DiscoveredColumns columns = discoveryInstanceFromFormat(discoveredFormat.format())
+                                .discoverColumns(inputStream, discoveredFormat.options());
                         yield new ProcessorFormatGuessSchema(parent, discoveredFormat, columns);
                     }
                 }
@@ -380,13 +385,16 @@ public class Processor
 
     private static String extractTrinoOrRootCauseMessage(Exception e)
     {
-        return Throwables.getCausalChain(e).stream().filter(ex -> ex instanceof TrinoException).findFirst().map(Throwable::getMessage)
+        return Throwables.getCausalChain(e).stream()
+                .filter(TrinoException.class::isInstance)
+                .findFirst()
+                .map(Throwable::getMessage)
                 .orElseGet(() -> Throwables.getRootCause(e).getMessage());
     }
 
     private SchemaDiscovery discoveryInstanceFromFormat(TableFormat format)
     {
-        return schemaDiscoveryInstances.getOrDefault(format, (__, ___) -> EMPTY_DISCOVERED_COLUMNS);
+        return schemaDiscoveryInstances.getOrDefault(format, (_, _) -> EMPTY_DISCOVERED_COLUMNS);
     }
 
     private Void setException(Throwable e)
@@ -457,7 +465,8 @@ public class Processor
         boolean isValid = (table1.valid() && table2.valid()) && isValid(table1.format(), reducedDiscoveredSchema.columns()) && validatedUnionedPartitions.errorMessage().isEmpty();
         validatedUnionedPartitions.errorMessage().ifPresent(partitionsError -> errors.addTableError(tablePath, partitionsError));
 
-        return new DiscoveredTable(isValid,
+        return new DiscoveredTable(
+                isValid,
                 ensureEndsWithSlash(tablePath),
                 table1.tableName(),
                 table1.format(),
@@ -582,7 +591,7 @@ public class Processor
         return Futures.submit(() -> {
             ProcessorFormatGuess formatGuess = guessDirectoryFormat(parent, processorPaths);
             if (formatGuess.format().isEmpty()) {
-                errors.addTableError(parent.toString(), "No format could be matched to file: [%s]", processorPaths.get(0).path());
+                errors.addTableError(parent.toString(), "No format could be matched to file: [%s]", processorPaths.getFirst().path());
             }
             return formatGuess;
         }, executor);
@@ -590,8 +599,10 @@ public class Processor
 
     private ProcessorFormatGuess guessDirectoryFormat(Location parent, List<ProcessorPath> processorPaths)
     {
-        ProcessorPath firstProcessorPath = processorPaths.get(0);   // only the first file in a directory is used to determine format/options
-        List<Location> paths = processorPaths.stream().map(ProcessorPath::path).collect(toImmutableList());
+        ProcessorPath firstProcessorPath = processorPaths.getFirst();   // only the first file in a directory is used to determine format/options
+        List<Location> paths = processorPaths.stream()
+                .map(ProcessorPath::path)
+                .collect(toImmutableList());
 
         if (firstProcessorPath.lakehouseFormat().isPresent()) {
             LakehouseFormat lakehouseFormat = firstProcessorPath.lakehouseFormat().get();
@@ -635,8 +646,7 @@ public class Processor
     private ListenableFuture<List<TableAndPathKey>> startShallowTableLookup(List<ProcessorPath> sampleFiles)
     {
         Map<Location, List<ProcessorPath>> groupedByParent = sampleFiles.stream().collect(Collectors.groupingBy(processorPath -> parentOf(processorPath.path())));
-        ImmutableList<ListenableFuture<TableAndPathKey>> futures = groupedByParent.keySet()
-                .stream()
+        ImmutableList<ListenableFuture<TableAndPathKey>> futures = groupedByParent.keySet().stream()
                 .map(this::buildShallowTables)
                 .collect(toImmutableList());
         return Futures.allAsList(futures);  // map of parent paths to the guessed schema/table
@@ -662,15 +672,14 @@ public class Processor
                     ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, TableFormat.ERROR, optionsForTableName.unwrap(), EMPTY_DISCOVERED_COLUMNS);
                     ProcessorGuessedSchemaAndPartition guessedSchemaAndPartition = new ProcessorGuessedSchemaAndPartition(guessedSchema, inferredPartitions.partitions());
 
-                    return new SimpleEntry<>(new TableAndPathKey(new TableName(schemaName, inferredPartitions.tableName()), inferredPartitions.path()), guessedSchemaAndPartition);
+                    return entry(new TableAndPathKey(new TableName(schemaName, inferredPartitions.tableName()), inferredPartitions.path()), guessedSchemaAndPartition);
                 })
-                .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, toImmutableList())));
+                .collect(Collectors.groupingBy(Entry::getKey, Collectors.mapping(Entry::getValue, toImmutableList())));
     }
 
     private List<DiscoveredTable> buildShallowDiscoveredTables(Map<TableAndPathKey, ? extends List<ProcessorGuessedSchemaAndPartition>> tablesWithPartitions)
     {
-        return tablesWithPartitions.entrySet()
-                .stream()
+        return tablesWithPartitions.entrySet().stream()
                 .map(entry -> {
                     TableAndPathKey tablePathAndKey = entry.getKey();
                     String tablePath = tablePathAndKey.path().toString();
@@ -687,8 +696,7 @@ public class Processor
 
     private Void buildShallowDiscoveryResponse(List<DiscoveredTable> shallowTables)
     {
-        List<DiscoveredTable> pathSortedTables = reduceRecursiveTables(shallowTables)
-                .stream()
+        List<DiscoveredTable> pathSortedTables = reduceRecursiveTables(shallowTables).stream()
                 .sorted(Comparator.comparing(DiscoveredTable::path))
                 .collect(toImmutableList());
 
@@ -730,9 +738,9 @@ public class Processor
                 .addAll(table2.discoveredPartitions().values())
                 .build();
         Map<LowerCaseString, InferredPartitionProjection> unionedProjectionTypes = Stream.concat(
-                table1.discoveredPartitions().columnProjections().entrySet().stream(),
-                table2.discoveredPartitions().columnProjections().entrySet().stream()
-        ).collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue, this::mergeProjectionType));
+                        table1.discoveredPartitions().columnProjections().entrySet().stream(),
+                        table2.discoveredPartitions().columnProjections().entrySet().stream())
+                .collect(toImmutableMap(Entry::getKey, Entry::getValue, this::mergeProjectionType));
         return DiscoveredPartitions.createValidatedPartitions(mergedPartitionColumns, unionedPartitionValues, unionedProjectionTypes);
     }
 

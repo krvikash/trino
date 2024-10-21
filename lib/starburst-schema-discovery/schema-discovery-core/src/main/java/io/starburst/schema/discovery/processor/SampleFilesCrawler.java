@@ -63,8 +63,8 @@ public class SampleFilesCrawler
         this.fileSystem = requireNonNull(fileSystem, "fileSystem is null");
         this.root = requireNonNull(root, "root is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.fileTracker = requireNonNull(fileTracker, "fileTracker is null");
         this.filter = new DiscoveryFilter(options);
-        this.fileTracker = fileTracker;
         GeneralOptions generalOptions = new GeneralOptions(options);
         this.discoveryMode = generalOptions.discoveryMode();
     }
@@ -207,6 +207,8 @@ public class SampleFilesCrawler
 
     private static List<ProcessorPath> getProcessorPathStream(Location root, List<List<ProcessorPath>> results)
     {
-        return results.stream().flatMap(files -> LakehouseUtil.applyDeltaLakeFormatMatch(root, files).stream()).collect(toImmutableList());
+        return results.stream()
+                .flatMap(files -> LakehouseUtil.applyDeltaLakeFormatMatch(root, files).stream())
+                .collect(toImmutableList());
     }
 }

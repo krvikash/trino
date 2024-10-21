@@ -44,7 +44,7 @@ public class TestDiscoveryPartitionProjection
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Map<String, String> includeOnlyNestedOptions = ImmutableMap.of(
                 DISCOVER_PARTITION_PROJECTION, "true");
         Location directory = Util.testFilePath("partition-projection/template/");
@@ -74,7 +74,7 @@ public class TestDiscoveryPartitionProjection
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO);
         Location directory = Util.testFilePath("partition-projection/template");
 
         DiscoveredSchema discoveredShallowSchema = controller.discoverTablesShallow(new GuessRequest(uriFromLocation(directory), ImmutableMap.of(DISCOVER_PARTITION_PROJECTION, "true"))).get();
