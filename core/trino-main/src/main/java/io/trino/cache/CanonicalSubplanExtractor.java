@@ -35,9 +35,11 @@ import io.trino.spi.connector.SortOrder;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
+import io.trino.sql.DynamicFilters;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.ExpressionFormatter;
+import io.trino.sql.ir.IrUtils;
 import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.DeterminismEvaluator;
@@ -455,19 +457,18 @@ public final class CanonicalSubplanExtractor
         @Override
         public Optional<CanonicalSubplan> visitFilter(FilterNode node, Void context)
         {
-            PlanNode source = node.getSource();
-
             if (containsLambdaExpression(node)) {
                 // lambda expressions are not supported
-                canonicalizeRecursively(source);
+                canonicalizeFilterSource(node);
                 return Optional.empty();
             }
 
             if (!isDeterministic(node.getPredicate())) {
-                canonicalizeRecursively(source);
+                canonicalizeFilterSource(node);
                 return Optional.empty();
             }
 
+            PlanNode source = node.getSource();
             Optional<CanonicalSubplan> subplanOptional;
             boolean extendSubplan;
             if (source instanceof TableScanNode) {
@@ -515,6 +516,20 @@ public final class CanonicalSubplanExtractor
                             .addAll(conjuncts.build())
                             .build())
                     .build());
+        }
+
+        private void canonicalizeFilterSource(FilterNode node)
+        {
+            if (!containsDynamicFilter(node.getPredicate())) {
+                // filter's source must be a table scan if it contains a dynamic filter
+                canonicalizeRecursively(node.getSource());
+            }
+        }
+
+        public static boolean containsDynamicFilter(Expression expression)
+        {
+            return IrUtils.preOrder(expression)
+                    .anyMatch(DynamicFilters::isDynamicFilter);
         }
 
         private boolean containsLambdaExpression(PlanNode node)

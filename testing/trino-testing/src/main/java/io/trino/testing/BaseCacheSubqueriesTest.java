@@ -375,6 +375,25 @@ public abstract class BaseCacheSubqueriesTest
     }
 
     @Test
+    public void testConjunctionOfNonDeterministicPredicateAndDynamicFilter()
+    {
+        MaterializedResultWithPlan resultWithCache = executeWithPlan(
+                withCacheEnabled(),
+                """
+                        SELECT l.partkey
+                        FROM
+                            (SELECT * FROM orders WHERE random(shippriority + 1) > 20) o
+                        JOIN
+                            (SELECT * FROM lineitem WHERE random(CAST(quantity AS INTEGER)) > 5) l
+                        ON
+                            l.ORDERKEY = o.ORDERKEY
+                        """);
+
+        // make sure only one side was cached (the one without dynamic filter)
+        assertThat(getOperatorStats(resultWithCache.queryId(), CacheDataOperator.class.getSimpleName()).count()).isEqualTo(1L);
+    }
+
+    @Test
     public void testPredicateOnPartitioningColumnThatWasNotFullyPushed()
     {
         createPartitionedTableAsSelect("orders_part", ImmutableList.of("orderkey"), "select orderdate, orderpriority, mod(orderkey, 50) as orderkey from orders");
