@@ -56,7 +56,7 @@ public class ByteBufferInputStreamTest
                 byteBufferInputStream.readInt(); // should be beyond the buffer limits
                 fail("should not get here");
             }
-            catch (Exception _) {
+            catch (Exception _) { // This comment silences the errorprone compiler.
             }
         }
     }

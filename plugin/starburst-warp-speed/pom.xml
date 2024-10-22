@@ -95,9 +95,14 @@
                             <failOnWarning>true</failOnWarning>
                             <compilerArgs>
                                 <arg>-XDcompilePolicy=simple</arg>
-                                <arg>-Xplugin:ErrorProne \
+                                <arg>
+                                    -Xplugin:ErrorProne \
                                     -Xep:EqualsGetClass:OFF \
-                                    -Xep:EnumOrdinal:OFF</arg>
+                                    -Xep:ArrayRecordComponent:OFF \
+                                    <!-- Temporary disabled due to https://github.com/google/error-prone/issues/4598 -->
+                                    -Xep:MissingOverride:OFF \
+                                    -Xep:EnumOrdinal:OFF
+                                </arg>
                             </compilerArgs>
                         </configuration>
                     </plugin>
