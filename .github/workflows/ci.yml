@@ -706,7 +706,7 @@ jobs:
             - { modules: plugin/trino-opensearch }
             - { modules: plugin/trino-oracle }
             - { modules: plugin/trino-phoenix5 }
-            - { modules: plugin/trino-pinot }
+            - { modules: plugin/trino-pinot, runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ] }
             - { modules: plugin/trino-postgresql }
             - { modules: plugin/trino-redis }
             - { modules: plugin/trino-redshift }
