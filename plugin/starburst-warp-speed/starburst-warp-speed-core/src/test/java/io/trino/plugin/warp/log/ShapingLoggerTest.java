@@ -23,7 +23,6 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -45,14 +44,14 @@ public class ShapingLoggerTest
     {
         ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 2, Duration.ZERO);
 
-        shapingLogger.debug("test");
-        verify(logger, never()).debug(eq("test"));
+        shapingLogger.info("%s", "test");
+        verify(logger, never()).info(eq("test"));
 
-        when(logger.isDebugEnabled()).thenReturn(true);
-        shapingLogger.debug("test");
-        shapingLogger.debug("test");
-        verify(logger, times(1)).debug(eq("test"));
-        verify(logger, times(1)).info(eq("test - skipped 1 times"));
+        when(logger.isInfoEnabled()).thenReturn(true);
+        shapingLogger.info("%s", "test");
+        shapingLogger.info("%s", "test");
+        verify(logger, times(1)).info(eq("%s"), eq("test"));
+        verify(logger, times(1)).info(eq("%s - skipped 1 times"));
     }
 
     @Test
@@ -60,11 +59,11 @@ public class ShapingLoggerTest
     {
         ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 5, Duration.ZERO, 3);
 
-        when(logger.isDebugEnabled()).thenReturn(true);
-        IntStream.range(0, 12).forEach((i) -> shapingLogger.debug("test"));
+        when(logger.isInfoEnabled()).thenReturn(true);
+        IntStream.range(0, 12).forEach((i) -> shapingLogger.info("%s", "test"));
 
-        verify(logger, times(8)).debug(eq("test"));
-        verify(logger, times(2)).info(eq("test - skipped 2 times"));
+        verify(logger, times(8)).info(eq("%s"), eq("test"));
+        verify(logger, times(2)).info(eq("%s - skipped 2 times"));
     }
 
     @Test
@@ -74,24 +73,35 @@ public class ShapingLoggerTest
 
         ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 5, Duration.ZERO);
 
-        shapingLogger.info("test");
-        shapingLogger.info("test");
-        shapingLogger.info("test");
-        shapingLogger.info("test");
-        shapingLogger.info("test");
+        shapingLogger.info("%s", "test");
+        shapingLogger.info("%s", "test");
+        shapingLogger.info("%s", "test");
+        shapingLogger.info("%s", "test");
+        shapingLogger.info("%s", "test");
         verify(logger, times(1))
-                .info(eq("test"));
+                .info(eq("%s"), eq("test"));
     }
 
     @Test
     public void testAfterThresholdShouldPrint()
     {
         ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 2, Duration.ZERO);
+        shapingLogger.warn("%s", "test");
+        shapingLogger.warn("%s", "test");
+        shapingLogger.warn("%s", "test");
+        verify(logger, times(2))
+                .warn(eq("%s"), eq("test"));
+    }
+
+    @Test
+    public void testPrintWithoutFormatIsShaped()
+    {
+        ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 2, Duration.ZERO);
         shapingLogger.warn("test");
         shapingLogger.warn("test");
         shapingLogger.warn("test");
         verify(logger, times(2))
-                .warn(eq("test"));
+                .warn(eq("%s"), eq("test"));
     }
 
     @Test
@@ -102,21 +112,21 @@ public class ShapingLoggerTest
                 logger,
                 0,
                 Duration.ofMillis(100));
-        shapingLogger.error("test");
+        shapingLogger.error("%s", "test");
 
         Thread.sleep(130);
 
-        shapingLogger.error("test");
+        shapingLogger.error("%s", "test");
 
-        verify(logger, times(1)).error(eq("test"));
+        verify(logger, times(1)).error(eq("%s"), eq("test"));
 
-        shapingLogger.error("test");
+        shapingLogger.error("%s", "test");
 
         Thread.sleep(130);
 
-        shapingLogger.error("test");
+        shapingLogger.error("%s", "test");
 
-        verify(logger, times(2)).error(eq("test"));
+        verify(logger, times(2)).error(eq("%s"), eq("test"));
     }
 
     @Test
@@ -128,13 +138,13 @@ public class ShapingLoggerTest
                 10,
                 Duration.ofMillis(100),
                 2);
-        IntStream.range(0, 5).forEach((i) -> shapingLogger.error("test"));
+        IntStream.range(0, 5).forEach((i) -> shapingLogger.error("%s", "test"));
 
         Thread.sleep(130);
-        IntStream.range(0, 5).forEach((i) -> shapingLogger.error("test"));
+        IntStream.range(0, 5).forEach((i) -> shapingLogger.error("%s", "test"));
 
-        verify(logger, times(4)).error(eq("test"));
-        verify(logger, times(1)).info(eq("test - skipped 4 times"));
+        verify(logger, times(4)).error(eq("%s"), eq("test"));
+        verify(logger, times(1)).info(eq("%s - skipped 4 times"));
     }
 
     @Test
@@ -143,23 +153,23 @@ public class ShapingLoggerTest
     {
         ShapingLogger shapingLogger = ShapingLogger.getInstance(
                 logger,
-                0,
+                2,
                 Duration.ofMillis(100));
-        shapingLogger.error("test");
+        shapingLogger.error("%s", "test");
 
         Thread.sleep(130);
 
-        shapingLogger.error("test");
+        shapingLogger.error("%s", "test");
 
-        verify(logger, times(1)).error(eq("test"));
+        verify(logger, times(1)).error(eq("%s"), eq("test"));
 
-        shapingLogger.error("test");
+        shapingLogger.error("%s", "test");
 
         Thread.sleep(130);
 
-        shapingLogger.error("test");
+        shapingLogger.error("%s", "test");
 
-        verify(logger, times(2)).error(eq("test"));
+        verify(logger, times(2)).error(eq("%s"), eq("test"));
     }
 
     @Test
@@ -182,11 +192,11 @@ public class ShapingLoggerTest
 
         IntStream.range(0, 120).forEach(i -> shapingLogger.warn("Message %d", i % 3));
         verify(logger, times(8))
-                .warn(nullable(Throwable.class), eq("Message %d"), eq(0));
+                .warn(eq("Message %d"), eq(0));
         verify(logger, times(8))
-                .warn(nullable(Throwable.class), eq("Message %d"), eq(1));
+                .warn(eq("Message %d"), eq(1));
         verify(logger, times(8))
-                .warn(nullable(Throwable.class), eq("Message %d"), eq(2));
+                .warn(eq("Message %d"), eq(2));
     }
 
     @Test
@@ -201,11 +211,11 @@ public class ShapingLoggerTest
 
         IntStream.range(0, 120).forEach(i -> shapingLogger.warn("Message %d", i % 3));
         verify(logger, times(4))
-                .warn(nullable(Throwable.class), eq("Message %d"), eq(0));
+                .warn(eq("Message %d"), eq(0));
         verify(logger, times(4))
-                .warn(nullable(Throwable.class), eq("Message %d"), eq(1));
+                .warn(eq("Message %d"), eq(1));
         verify(logger, times(4))
-                .warn(nullable(Throwable.class), eq("Message %d"), eq(2));
+                .warn(eq("Message %d"), eq(2));
     }
 
     @Test
@@ -229,9 +239,9 @@ public class ShapingLoggerTest
         thread2.join();
 
         verify(logger, times(12))
-                .error(nullable(Throwable.class), eq("Message %d"), eq(0));
+                .error(eq("Message %d"), eq(0));
         verify(logger, times(12))
-                .error(nullable(Throwable.class), eq("Message %d"), eq(1));
+                .error(eq("Message %d"), eq(1));
     }
 
     @Test
@@ -261,6 +271,6 @@ public class ShapingLoggerTest
         thread2.join();
 
         verify(logger, times(24))
-                .warn(nullable(Throwable.class), eq("Message %d"), anyInt());
+                .warn(eq("Message %d"), anyInt());
     }
 }

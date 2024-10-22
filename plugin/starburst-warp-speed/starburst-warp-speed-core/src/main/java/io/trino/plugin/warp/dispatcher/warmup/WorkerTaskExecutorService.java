@@ -28,6 +28,7 @@ import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.warmup.export.WeGroupCloudExporterTask;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
@@ -63,6 +64,8 @@ public class WorkerTaskExecutorService
 {
     public static final String WORKER_TASK_EXECUTOR_STAT_GROUP = "worker_task_executor";
     private static final Logger logger = Logger.get(WorkerTaskExecutorService.class);
+    private final ShapingLogger shapingLogger;
+
     private final NativeConfig nativeConfig;
     private final ConnectorSync connectorSync;
     private final WorkerTaskExecutorServiceStats statsWorkerTaskExecutorService;
@@ -91,6 +94,11 @@ public class WorkerTaskExecutorService
             @ForWarp CloudVendorConfig cloudVendorConfig,
             WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
         this.nativeConfig = requireNonNull(nativeConfig);
         this.connectorSync = requireNonNull(connectorSync);
         this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new WorkerTaskExecutorServiceStats(WORKER_TASK_EXECUTOR_STAT_GROUP));
@@ -195,7 +203,7 @@ public class WorkerTaskExecutorService
                     }
                 }
                 catch (RejectedExecutionException e) {
-                    logger.warn("too many elements in the warming queue dropping key: %s", task.getRowGroupKey());
+                    shapingLogger.warn("too many elements in the warming queue dropping key: %s", task.getRowGroupKey());
                     statsWorkerTaskExecutorService.inctask_skipped_due_queue_size();
                     ret = SubmissionResult.REJECTED;
                 }
@@ -261,7 +269,7 @@ public class WorkerTaskExecutorService
                     conflictCallback.accept(task);
                 }
                 catch (Exception e) {
-                    logger.warn("failed to call conflict callback for task %s", task.getRowGroupKey());
+                    shapingLogger.warn("failed to call conflict callback for task %s", task.getRowGroupKey());
                 }
             }
         }

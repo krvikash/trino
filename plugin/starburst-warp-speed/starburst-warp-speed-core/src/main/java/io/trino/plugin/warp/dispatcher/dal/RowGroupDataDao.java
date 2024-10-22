@@ -28,6 +28,7 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
 import io.trino.plugin.warp.util.json.SliceSerializer;
@@ -49,6 +50,7 @@ import static java.util.Objects.requireNonNull;
 public class RowGroupDataDao
 {
     private static final Logger logger = Logger.get(RowGroupDataDao.class);
+    private final ShapingLogger shapingLogger;
 
     private final GlobalConfig globalConfig;
     private final ObjectMapper objectMapper;
@@ -63,6 +65,11 @@ public class RowGroupDataDao
             ObjectMapperProvider objectMapperProvider,
             StorageEngineConstants storageEngineConstants)
     {
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
         this.globalConfig = requireNonNull(globalConfig);
 
         objectMapper = requireNonNull(objectMapperProvider).get();
@@ -87,7 +94,7 @@ public class RowGroupDataDao
                         long objectSize = randomAccessFile.readLong();
 
                         if ((objectSize <= 0) || (objectSize >= randomAccessFile.length() - offsetSize)) {
-                            logger.error("load file failed %s length %d objectSize %d",
+                            shapingLogger.error("load file failed %s length %d objectSize %d",
                                     rowGroupDataFile.getAbsolutePath(), randomAccessFile.length(), objectSize);
                             throw new RuntimeException("corrupted RowGroupData file");
                         }
@@ -101,7 +108,7 @@ public class RowGroupDataDao
                         int readBytes = randomAccessFile.read(bytes);
 
                         if (readBytes <= 0) {
-                            logger.error("load file failed %s length %d objectSize %d objectOffset %d",
+                            shapingLogger.error("load file failed %s length %d objectSize %d objectOffset %d",
                                     rowGroupDataFile.getAbsolutePath(), randomAccessFile.length(), objectSize, objectOffset);
                             throw new RuntimeException("corrupted RowGroupData file");
                         }
@@ -109,7 +116,7 @@ public class RowGroupDataDao
                         return Optional.of(objectMapper.readerFor(RowGroupData.class).readValue(str));
                     }
                     catch (IOException e) {
-                        logger.error(e, "failed reading file [%s]", rowGroupDataFile.getAbsolutePath());
+                        shapingLogger.error(e, "failed reading file [%s]", rowGroupDataFile.getAbsolutePath());
                         throw new RuntimeException("corrupted RowGroupData file");
                     }
                 }

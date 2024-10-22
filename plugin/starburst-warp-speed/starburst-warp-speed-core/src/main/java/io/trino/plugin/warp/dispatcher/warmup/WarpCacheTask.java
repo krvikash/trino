@@ -179,7 +179,7 @@ public class WarpCacheTask
                 cacheWarmer.finishWarming(storageWriterSplitConfig);
             }
             catch (Exception e) {
-                logger.error(e, "failed on finish cache warming %s. key=%s", storageWriterSplitConfig, rowGroupKey);
+                shapingLogger.error(e, "failed on finish cache warming %s. key=%s", storageWriterSplitConfig, rowGroupKey);
             }
             memoryContextService.releaseMemory(localMemoryContext);
             if (loadFromWarmingThread) {
@@ -355,8 +355,7 @@ public class WarpCacheTask
             return 0;
         }
         if (finished) {
-            String error = String.format("Received a page while in finished state. rowGroupKey=%s", rowGroupKey);
-            shapingLogger.error(error);
+            shapingLogger.error("Received a page while in finished state. rowGroupKey=%s", rowGroupKey);
             setWarpAbort();
             return 0;
         }

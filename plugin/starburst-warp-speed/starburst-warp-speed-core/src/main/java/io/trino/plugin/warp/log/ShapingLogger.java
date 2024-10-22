@@ -88,68 +88,31 @@ public class ShapingLogger
             int numberOfSamplings,
             MODE mode)
     {
-        return instances.computeIfAbsent(logger, s -> new ShapingLogger(logger, threshold, duration, numberOfSamplings, mode));
-    }
-
-    public void debug(Throwable exception, String message)
-    {
-        if (logger.isDebugEnabled()) {
-            log(getKey(message), () -> logger.debug(exception, message));
-        }
-    }
-
-    public void debug(String message)
-    {
-        if (logger.isDebugEnabled()) {
-            log(getKey(message), () -> logger.debug(message));
-        }
-    }
-
-    @FormatMethod
-    public void debug(String format, Object... args)
-    {
-        if (logger.isDebugEnabled()) {
-            log(getKey(format, args), () -> logger.debug(format, args));
-        }
-    }
-
-    @FormatMethod
-    public void debug(Throwable exception, String format, Object... args)
-    {
-        if (logger.isDebugEnabled()) {
-            log(getKey(format, args), () -> logger.debug(exception, format, args));
-        }
+        return instances.computeIfAbsent(logger, _ -> new ShapingLogger(logger, threshold, duration, numberOfSamplings, mode));
     }
 
     public void info(String message)
     {
-        if (logger.isInfoEnabled()) {
-            log(getKey(message), () -> logger.info(message));
-        }
+        info("%s", message);
     }
 
     @FormatMethod
-    public void info(String format, Object... args)
+    public void info(final String format, Object... args)
     {
         if (logger.isInfoEnabled()) {
             log(getKey(format, args), () -> logger.info(format, args));
         }
     }
 
-    public void warn(Throwable exception, String message)
-    {
-        log(getKey(message), () -> logger.warn(exception, message));
-    }
-
     public void warn(String message)
     {
-        log(getKey(message), () -> logger.warn(message));
+        warn("%s", message);
     }
 
     @FormatMethod
     public void warn(final String format, Object... args)
     {
-        warn(null, format, args);
+        log(getKey(format, args), () -> logger.warn(format, args));
     }
 
     @FormatMethod
@@ -158,20 +121,15 @@ public class ShapingLogger
         log(getKey(format, args), () -> logger.warn(exception, format, args));
     }
 
-    public void error(Throwable exception, String message)
-    {
-        log(getKey(message), () -> logger.error(exception, message));
-    }
-
     public void error(String message)
     {
-        log(getKey(message), () -> logger.error(message));
+        error("%s", message);
     }
 
     @FormatMethod
     public void error(final String format, Object... args)
     {
-        error(null, format, args);
+        log(getKey(format, args), () -> logger.error(format, args));
     }
 
     @FormatMethod
@@ -182,7 +140,7 @@ public class ShapingLogger
 
     private void log(Pair<String, List<Object>> key, Runnable runnable)
     {
-        shapingLoggerStateMap.compute(key, (k, val) -> {
+        shapingLoggerStateMap.compute(key, (_, val) -> {
             if (val == null) {
                 val = new ShapingLoggerState(1, System.currentTimeMillis());
             }

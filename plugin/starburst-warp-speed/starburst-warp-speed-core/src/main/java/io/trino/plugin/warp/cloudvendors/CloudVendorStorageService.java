@@ -282,10 +282,10 @@ public class CloudVendorStorageService
         }
         catch (IOException e) {
             if ((e instanceof FileNotFoundException) || (e.getCause() instanceof FileNotFoundException)) {
-                shapingLogger.debug(e, "getObjectMetadata failed location [%s]".formatted(location));
+                logger.debug(e, "getObjectMetadata failed location [%s]".formatted(location));
             }
             else {
-                shapingLogger.error(e, "getObjectMetadata failed location [%s]".formatted(location));
+                shapingLogger.error(e, "getObjectMetadata failed location [%s]", location);
             }
             // do nothing
 //            throw new RuntimeException(e);
@@ -305,7 +305,7 @@ public class CloudVendorStorageService
             return Optional.of(lastModified.toEpochMilli());
         }
         catch (IOException e) {
-            shapingLogger.error(e, "getLastModified failed location [%s]".formatted(location));
+            shapingLogger.error(e, "getLastModified failed location [%s]", location);
             // do nothing
 //            throw new RuntimeException(e);
         }

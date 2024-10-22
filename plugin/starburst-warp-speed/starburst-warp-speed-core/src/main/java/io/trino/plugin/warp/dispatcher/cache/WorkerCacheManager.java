@@ -197,12 +197,12 @@ public class WorkerCacheManager
                 RowGroupKey rowGroupKey = getRowGroupKey(splitId, predicate, unenforcedPredicate);
                 Optional<UUID> storeId = commonStoreIdFinder.getFromCache(rowGroupKey);  // read directly from cache because we assume loadPages have already added it (if exists)
                 if (storeId.isPresent()) {
-                    shapingLogger.debug("Skipping warming as they are already warmed");
+                    logger.debug("Skipping warming as they are already warmed");
                     return Optional.empty();
                 }
                 boolean txMemoryReserved = storageWarmerService.tryAllocateNativeResourceForWarmup();
                 if (!txMemoryReserved) {
-                    logger.info("nativeResourceForWarmup is not available");
+                    shapingLogger.info("nativeResourceForWarmup is not available");
                     return Optional.empty();
                 }
 
@@ -229,7 +229,7 @@ public class WorkerCacheManager
                     return Optional.of(new WarpCachePageSink(warpCacheTask, workerTaskExecutorService));
                 }
                 else {
-                    shapingLogger.debug("Skipping warming since a similar warming is already running. warpCacheTask =%s. runningSize()=%s", warpCacheTask, memoryContextService.getRunningSize());
+                    logger.debug("Skipping warming since a similar warming is already running. warpCacheTask =%s. runningSize()=%s", warpCacheTask, memoryContextService.getRunningSize());
                 }
             }
             catch (Throwable e) {
