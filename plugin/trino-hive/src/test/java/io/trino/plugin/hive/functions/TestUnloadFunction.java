@@ -24,6 +24,7 @@ import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.EnumSource.Mode;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -60,7 +61,9 @@ class TestUnloadFunction
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        DistributedQueryRunner queryRunner = HiveQueryRunner.builder().build();
+        DistributedQueryRunner queryRunner = HiveQueryRunner.builder()
+                .addHiveProperty("parquet.writer.validation-percentage", "100")
+                .build();
         directory = queryRunner.getCoordinator().getBaseDataDir().resolve("unload");
         Files.createDirectory(directory);
         return queryRunner;
@@ -788,14 +791,19 @@ class TestUnloadFunction
     void testUnloadTimestampMillis(HiveStorageFormat format)
             throws Exception
     {
-        if (format == PARQUET || format == AVRO || format == RCBINARY) {
+        if (format == AVRO || format == RCBINARY) {
             assertThatThrownBy(() -> testUnloadColumnType(format, "timestamp(3)", "'1970-01-01 00:00:00'"))
                     .hasMessageContaining("UNLOAD table function does not support timestamp columns");
             abort();
         }
 
-        testUnloadColumnType(format, "timestamp", "'1970-01-01 00:00:00'");
-        testUnloadColumnType(format, "timestamp(3)", "'1970-01-01 00:00:00'");
+        // The epoch is tested in testParquetEpochTimestamp
+        if (format != PARQUET) {
+            testUnloadColumnType(format, "timestamp", "'1970-01-01 00:00:00'");
+            testUnloadColumnType(format, "timestamp(3)", "'1970-01-01 00:00:00'");
+        }
+
+        testUnloadColumnType(format, "timestamp(3)", "'2024-10-17 12:34:56.123'");
         testUnloadColumnType(format, "timestamp", "NULL");
     }
 
@@ -808,13 +816,17 @@ class TestUnloadFunction
                 .setSystemProperty("hive.timestamp_precision", "MICROSECONDS")
                 .build();
 
-        if (format == PARQUET || format == AVRO || format == RCBINARY) {
+        if (format == AVRO || format == RCBINARY) {
             assertThatThrownBy(() -> testUnloadColumnType(session, format, "timestamp(6)", "'1970-01-01 00:00:00'"))
                     .hasMessageContaining("UNLOAD table function does not support timestamp columns");
             abort();
         }
 
-        testUnloadColumnType(session, format, "timestamp(6)", "'1970-01-01 00:00:00'");
+        // The epoch is tested in testParquetEpochTimestamp
+        if (format != PARQUET) {
+            testUnloadColumnType(session, format, "timestamp(6)", "'1970-01-01 00:00:00'");
+        }
+        testUnloadColumnType(session, format, "timestamp(6)", "'2024-10-17 12:34:56.123456'");
         testUnloadColumnType(session, format, "timestamp(6)", "NULL");
     }
 
@@ -827,21 +839,35 @@ class TestUnloadFunction
                 .setSystemProperty("hive.timestamp_precision", "NANOSECONDS")
                 .build();
 
-        if (format == PARQUET || format == AVRO || format == RCBINARY) {
+        if (format == AVRO || format == RCBINARY) {
             assertThatThrownBy(() -> testUnloadColumnType(session, format, "timestamp(9)", "'1970-01-01 00:00:00'"))
                     .hasMessageContaining("UNLOAD table function does not support timestamp columns");
             abort();
         }
 
-        if (format == AVRO) {
-            // TODO Failed to write timestamp values with NANOSECONDS hive.timestamp_precision on Avro files https://github.com/trinodb/trino/issues/20342
-            assertThatThrownBy(() -> testUnloadColumnType(session, format, "timestamp(9)", "'1970-01-01 00:00:00'"))
-                    .hasMessage("Failed to write data page to Avro file");
-        }
-        else {
+        // The epoch is tested in testParquetEpochTimestamp
+        if (format != PARQUET) {
             testUnloadColumnType(session, format, "timestamp(9)", "'1970-01-01 00:00:00'");
         }
+        testUnloadColumnType(session, format, "timestamp(9)", "'2024-10-17 12:34:56.123456789'");
         testUnloadColumnType(session, format, "timestamp(9)", "NULL");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"3, MILLISECONDS", "6, MICROSECONDS", "9, NANOSECONDS"})
+    void testParquetEpochTimestamp(int precision, String precisionName)
+    {
+        Session session = Session.builder(getSession())
+                .setSystemProperty("hive.timestamp_precision", precisionName)
+                .build();
+
+        String input = "CAST('1970-01-01 00:00:00' AS timestamp(" + precision + "))";
+
+        // The failure occurs during daylight savings time gap for America/Bahia_Banderas timezone because
+        // timestamps in that hour don't round trip convertLocalToUTC/convertUTCToLocal
+        assertQueryFails(session, "CREATE TABLE test_parquet_epoch WITH (format = 'PARQUET') AS SELECT " + input + " AS a", ".*Malformed Parquet file.*");
+        assertThatThrownBy(() -> testUnloadColumnType(session, PARQUET, "timestamp(" + precision + ")", input))
+                .hasMessageContaining("Malformed Parquet file");
     }
 
     @ParameterizedTest

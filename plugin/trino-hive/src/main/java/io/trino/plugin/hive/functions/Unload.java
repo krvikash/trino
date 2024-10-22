@@ -278,8 +278,8 @@ public class Unload
                     // Disable VARBINARY type with JSON format as it has a correctness issue for some data, e.g. X'0001020304050607080DF9367AA7000000'
                     throw new TrinoException(NOT_SUPPORTED, "UNLOAD table function does not support VARBINARY columns for JSON format: '%s'".formatted(canonicalColumnName));
                 }
-                if ((format == HiveStorageFormat.PARQUET || format == HiveStorageFormat.AVRO || format == HiveStorageFormat.RCBINARY) && field.getType() instanceof TimestampType) {
-                    // TODO Fix correctness issue for timestamp type in Parquet, Avro, RCBinary formats
+                if ((format == HiveStorageFormat.AVRO || format == HiveStorageFormat.RCBINARY) && field.getType() instanceof TimestampType) {
+                    // TODO Fix correctness issue for timestamp type in Avro, RCBinary formats
                     throw new TrinoException(NOT_SUPPORTED, "UNLOAD table function does not support timestamp columns for %s format: '%s'".formatted(canonicalColumnName, format));
                 }
 
