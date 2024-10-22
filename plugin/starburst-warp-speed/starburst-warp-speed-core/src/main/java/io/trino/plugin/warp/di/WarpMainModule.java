@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.di;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
@@ -20,6 +21,7 @@ import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.json.ObjectMapperProvider;
+import io.airlift.slice.Slice;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.plugin.hive.util.BlockJsonSerde;
 import io.trino.plugin.hive.util.HiveBlockEncodingSerde;
@@ -46,8 +48,12 @@ import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
+import io.trino.server.SliceSerialization;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeManager;
+import io.trino.type.TypeDeserializer;
 
 import java.util.Map;
 import java.util.Optional;
@@ -104,7 +110,6 @@ public class WarpMainModule
         binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
         jsonBinder(binder).addSerializerBinding(Block.class).to(BlockJsonSerde.Serializer.class);
         jsonBinder(binder).addDeserializerBinding(Block.class).to(BlockJsonSerde.Deserializer.class);
-        binder.bind(ObjectMapperProvider.class);
         binder.bind(WarpSessionProperties.class);
         binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
 
@@ -150,5 +155,17 @@ public class WarpMainModule
     public WarmupRuleProvider provideWarmupRuleProvider(WarmupRuleService warmupRuleService)
     {
         return new WarmupRuleProvider(Optional.of(warmupRuleService));
+    }
+
+    @Provides
+    @Singleton
+    public ObjectMapperProvider provideObjectMapperProvider(TypeManager typeManager)
+    {
+        ObjectMapperProvider provider = new ObjectMapperProvider();
+        provider.setJsonSerializers(ImmutableMap.of(
+                Slice.class, new SliceSerialization.SliceSerializer()));
+        provider.setJsonDeserializers(ImmutableMap.of(
+                Type.class, new TypeDeserializer(typeManager)));
+        return provider;
     }
 }

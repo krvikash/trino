@@ -17,8 +17,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.MoreCollectors;
 import io.airlift.json.ObjectMapperProvider;
+import io.airlift.slice.Slice;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.DictionaryInfo;
@@ -31,18 +33,26 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupDataValidation;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
+import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
+import io.trino.plugin.warp.expression.TransformFunction;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
+import io.trino.server.SliceSerialization;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.TestingTypeManager;
+import io.trino.spi.type.Type;
+import io.trino.type.TypeDeserializer;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -308,9 +318,14 @@ public class RowGroupDataDaoTest
     public void testSerializesAndDeserialize()
             throws JsonProcessingException
     {
-        ObjectMapper objectMapper = new ObjectMapperProvider().get();
+        ObjectMapperProvider provider = new ObjectMapperProvider();
+        provider.setJsonSerializers(ImmutableMap.of(
+                Slice.class, new SliceSerialization.SliceSerializer()));
+        provider.setJsonDeserializers(ImmutableMap.of(
+                Type.class, new TypeDeserializer(new TestingTypeManager())));
         SimpleModule simpleModule = new SimpleModule();
         simpleModule.addKeyDeserializer(WarpColumn.class, new WarpColumnJsonKeyDeserializer());
+        ObjectMapper objectMapper = provider.get();
         objectMapper.registerModules(simpleModule);
 
         //DictionaryKey
@@ -327,7 +342,8 @@ public class RowGroupDataDaoTest
         //WarpColumn
         List<WarpColumn> warpColumns = List.of(
                 new RegularColumn("aaa"),
-                new WildcardColumn());
+                new WildcardColumn(),
+                new TransformedColumn("aaa", "bbbb", new TransformFunction(TransformFunction.TransformType.DATE, List.of(new WarpPrimitiveConstant(1, IntegerType.INTEGER)))));
         str = objectMapper.writerFor(new TypeReference<List<WarpColumn>>() {}).writeValueAsString(warpColumns);
         assertThat(warpColumns).isEqualTo(objectMapper.readValue(str, new TypeReference<List<WarpColumn>>() {}));
 
