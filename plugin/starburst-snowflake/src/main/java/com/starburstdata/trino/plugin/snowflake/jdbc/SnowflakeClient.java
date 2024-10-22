@@ -577,8 +577,7 @@ public class SnowflakeClient
     @Override
     public WriteMapping toWriteMapping(ConnectorSession session, Type type)
     {
-        if (type instanceof DecimalType) {
-            DecimalType decimalType = (DecimalType) type;
+        if (type instanceof DecimalType decimalType) {
             String dataType = format("decimal(%s, %s)", decimalType.getPrecision(), decimalType.getScale());
             if (decimalType.isShort()) {
                 return WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalType));
@@ -591,8 +590,7 @@ public class SnowflakeClient
             return WriteMapping.sliceMapping("char(" + ((CharType) type).getLength() + ")", charWriteFunction((CharType) type));
         }
 
-        if (type instanceof VarcharType) {
-            VarcharType varcharType = (VarcharType) type;
+        if (type instanceof VarcharType varcharType) {
             String dataType;
             if (varcharType.isUnbounded()) {
                 dataType = "varchar";
@@ -607,8 +605,7 @@ public class SnowflakeClient
             return WriteMapping.longMapping("time", timeWriteFunction());
         }
 
-        if (type instanceof TimestampType) {
-            TimestampType timestampType = (TimestampType) type;
+        if (type instanceof TimestampType timestampType) {
             checkArgument(timestampType.getPrecision() <= SNOWFLAKE_MAX_TIMESTAMP_PRECISION, "The max timestamp precision in Snowflake is 9");
             if (timestampType.isShort()) {
                 return WriteMapping.longMapping(format("timestamp_ntz(%d)", timestampType.getPrecision()), timestampWriteFunction());
@@ -616,8 +613,7 @@ public class SnowflakeClient
             return WriteMapping.objectMapping(format("timestamp_ntz(%d)", timestampType.getPrecision()), longTimestampWriteFunction(timestampType.getPrecision()));
         }
 
-        if (type instanceof TimestampWithTimeZoneType) {
-            TimestampWithTimeZoneType timestampWithTimeZoneType = (TimestampWithTimeZoneType) type;
+        if (type instanceof TimestampWithTimeZoneType timestampWithTimeZoneType) {
             checkArgument(timestampWithTimeZoneType.getPrecision() <= SNOWFLAKE_MAX_TIMESTAMP_PRECISION, "The max timestamp precision in Snowflake is 9");
             if (timestampWithTimeZoneType.isShort()) {
                 return WriteMapping.longMapping(format("timestamp_tz(%d)", timestampWithTimeZoneType.getPrecision()), timestampWithTimezoneWriteFunction());

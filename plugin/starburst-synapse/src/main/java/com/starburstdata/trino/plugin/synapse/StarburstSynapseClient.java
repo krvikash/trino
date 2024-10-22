@@ -220,8 +220,7 @@ public class StarburstSynapseClient
     @Override
     public WriteMapping toWriteMapping(ConnectorSession session, Type type)
     {
-        if (type instanceof VarcharType) {
-            VarcharType varcharType = (VarcharType) type;
+        if (type instanceof VarcharType varcharType) {
             String dataType;
             if (varcharType.isUnbounded()) {
                 dataType = "nvarchar(" + MAX_NVARCHAR_LENGTH + ")";
@@ -235,8 +234,7 @@ public class StarburstSynapseClient
             return WriteMapping.sliceMapping(dataType, varcharWriteFunction());
         }
 
-        if (type instanceof CharType) {
-            CharType charType = (CharType) type;
+        if (type instanceof CharType charType) {
             String dataType;
             if (charType.getLength() > MAX_NCHAR_LENGTH) {
                 throw new TrinoException(StandardErrorCode.NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());
@@ -251,8 +249,7 @@ public class StarburstSynapseClient
             return WriteMapping.sliceMapping("varbinary(" + MAX_VARBINARY_LENGTH + ")", varbinaryWriteFunction());
         }
 
-        if (type instanceof TimeType) {
-            TimeType timeType = (TimeType) type;
+        if (type instanceof TimeType timeType) {
             int precision = min(timeType.getPrecision(), MAX_SUPPORTED_TEMPORAL_PRECISION);
             String dataType = format("time(%d)", precision);
             return WriteMapping.longMapping(dataType, synapseTimeWriteFunction(precision));

@@ -493,8 +493,7 @@ public class StargateClient
             return Optional.of(jdbcTypeHandle(Types.DOUBLE));
         }
 
-        if (type instanceof DecimalType) {
-            DecimalType decimalType = (DecimalType) type;
+        if (type instanceof DecimalType decimalType) {
             return Optional.of(new JdbcTypeHandle(Types.DECIMAL, Optional.empty(), Optional.of(decimalType.getPrecision()), Optional.of(decimalType.getScale()), Optional.empty(), Optional.empty()));
         }
 
@@ -567,8 +566,7 @@ public class StargateClient
             return WriteMapping.doubleMapping("double", doubleWriteFunction());
         }
 
-        if (type instanceof DecimalType) {
-            DecimalType decimalType = (DecimalType) type;
+        if (type instanceof DecimalType decimalType) {
             String dataType = format("decimal(%s, %s)", decimalType.getPrecision(), decimalType.getScale());
             if (decimalType.isShort()) {
                 return WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalType));
@@ -580,14 +578,12 @@ public class StargateClient
             return WriteMapping.sliceMapping(JSON, new JsonWriteFunction());
         }
 
-        if (type instanceof CharType) {
-            CharType charType = (CharType) type;
+        if (type instanceof CharType charType) {
             String dataType = format("char(%s)", charType.getLength());
             return WriteMapping.sliceMapping(dataType, charWriteFunction());
         }
 
-        if (type instanceof VarcharType) {
-            VarcharType varcharType = (VarcharType) type;
+        if (type instanceof VarcharType varcharType) {
             String dataType = varcharType.isUnbounded()
                     ? "varchar"
                     : format("varchar(%s)", varcharType.getBoundedLength());

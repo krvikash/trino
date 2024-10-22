@@ -571,8 +571,7 @@ public class SapHanaClient
             return WriteMapping.doubleMapping("double precision", new SapHanaDoubleWriteFunction());
         }
 
-        if (type instanceof DecimalType) {
-            DecimalType decimalType = (DecimalType) type;
+        if (type instanceof DecimalType decimalType) {
             String dataType = format("decimal(%s, %s)", decimalType.getPrecision(), decimalType.getScale());
             if (decimalType.isShort()) {
                 return WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalType));
@@ -580,16 +579,14 @@ public class SapHanaClient
             return WriteMapping.objectMapping(dataType, longDecimalWriteFunction(decimalType));
         }
 
-        if (type instanceof CharType) {
-            CharType charType = (CharType) type;
+        if (type instanceof CharType charType) {
             if (charType.getLength() > SAP_HANA_CHAR_LENGTH_LIMIT) {
                 return WriteMapping.sliceMapping("nclob", padSpacesWriteFunction(charType));
             }
             return WriteMapping.sliceMapping("char(" + charType.getLength() + ")", charWriteFunction());
         }
 
-        if (type instanceof VarcharType) {
-            VarcharType varcharType = (VarcharType) type;
+        if (type instanceof VarcharType varcharType) {
             String dataType;
             // 5000 is the max length for nvarchar in SAP HANA
             if (varcharType.isUnbounded() || varcharType.getBoundedLength() > SAP_HANA_VARCHAR_LENGTH_LIMIT) {
@@ -615,8 +612,7 @@ public class SapHanaClient
             return WriteMapping.longMapping("time", timeWriteFunction());
         }
 
-        if (type instanceof TimestampType) {
-            TimestampType timestampType = (TimestampType) type;
+        if (type instanceof TimestampType timestampType) {
             if (timestampType.getPrecision() == 0) {
                 return WriteMapping.longMapping("seconddate", seconddateWriteFunction());
             }
