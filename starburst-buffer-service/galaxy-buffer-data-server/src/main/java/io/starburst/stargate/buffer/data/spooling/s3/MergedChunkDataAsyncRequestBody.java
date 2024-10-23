@@ -96,6 +96,7 @@ public class MergedChunkDataAsyncRequestBody
                         private final AtomicInteger chunkOffset = new AtomicInteger(0);
                         private final AtomicInteger sliceOffset = new AtomicInteger(0);
                         private final AtomicBoolean done = new AtomicBoolean(false);
+                        private final AtomicBoolean cancelled = new AtomicBoolean(false);
                         private final ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
 
                         // As per 3.2, it should be possible to call request() from onNext(). This implies that offsets need to be advanced before calls to onNext().
@@ -110,7 +111,7 @@ public class MergedChunkDataAsyncRequestBody
                                 return;
                             }
                             int consumerCallCount = 0;
-                            while (consumerCallCount < consumerCallLimit && chunkOffset.get() < chunkDataLeaseList.size()) {
+                            while (!cancelled.get() && consumerCallCount < consumerCallLimit && chunkOffset.get() < chunkDataLeaseList.size()) {
                                 Map.Entry<Chunk, ChunkDataLease> entry = chunkDataLeaseList.get(chunkOffset.get());
                                 ChunkDataLease chunkDataLease = entry.getValue();
                                 int localSliceOffset = sliceOffset.get();
@@ -124,7 +125,7 @@ public class MergedChunkDataAsyncRequestBody
                                     consumerCallCount++;
                                 }
                                 // Since every slice has a header, chunkSliceOffset is tracked as 1 relative.
-                                while (consumerCallCount < consumerCallLimit && localSliceOffset <= chunkDataLease.getChunkSlices().size()) {
+                                while (!cancelled.get() && consumerCallCount < consumerCallLimit && localSliceOffset <= chunkDataLease.getChunkSlices().size()) {
                                     if (localSliceOffset == chunkDataLease.getChunkSlices().size()) {
                                         // This is the last slice in the chunk, all thread safe updates must be done before calling onNext() which may start a new (nested) request.
                                         int length = chunkDataLease.serializedSizeInBytes();
@@ -144,7 +145,8 @@ public class MergedChunkDataAsyncRequestBody
                                 }
                             }
                             if (chunkOffset.get() == chunkDataLeaseList.size() && done.compareAndSet(false, true)) {
-                                spooledChunkMapRef.set(spooledChunkMap.buildOrThrow());
+                                Map<Long, SpooledChunk> map = spooledChunkMap.buildOrThrow();
+                                spooledChunkMapRef.set(map);
                                 s.onComplete();
                             }
                         }
@@ -152,8 +154,7 @@ public class MergedChunkDataAsyncRequestBody
                         @Override
                         public void cancel()
                         {
-                            done.compareAndSet(false, true);
-                            log.info("Subscription canceled for spooling to %s", location);
+                            cancelled.set(true);
                         }
                     });
         }
