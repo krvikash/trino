@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher.cache;
 
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.WarpErrorCode;
@@ -20,6 +22,7 @@ import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 import io.trino.spi.TrinoException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -33,18 +36,25 @@ public class CacheMgrWarmupRuleService
     private Map<String, CacheManagerRule> cache = Map.of();
 
     private final CacheManagerConfig cacheManagerConfig;
+    private final HashFunction hashFunction;
 
     @Inject
     public CacheMgrWarmupRuleService(CacheManagerConfig cacheManagerConfig)
     {
         this.cacheManagerConfig = requireNonNull(cacheManagerConfig);
+        hashFunction = Hashing.farmHashFingerprint64();
     }
 
     public synchronized void replaceAll(List<CacheManagerRule> newWarmupRules)
             throws TrinoException
     {
         try {
-            cache = newWarmupRules.stream().collect(Collectors.toMap(CacheManagerRule::signatureKey, Function.identity()));
+            cache = newWarmupRules.stream()
+                    .map(cacheManagerRule -> new CacheManagerRule(
+                            hash(cacheManagerRule.signatureKey()),
+                            cacheManagerRule.priority(),
+                            cacheManagerRule.ttl()))
+                    .collect(Collectors.toMap(CacheManagerRule::signatureKey, Function.identity()));
         }
         catch (Exception e) {
             throw new TrinoException(
@@ -60,5 +70,10 @@ public class CacheMgrWarmupRuleService
             return cache;
         }
         return Map.of();
+    }
+
+    public final String hash(String signatureKey)
+    {
+        return hashFunction.hashString(signatureKey, StandardCharsets.UTF_8).toString();
     }
 }

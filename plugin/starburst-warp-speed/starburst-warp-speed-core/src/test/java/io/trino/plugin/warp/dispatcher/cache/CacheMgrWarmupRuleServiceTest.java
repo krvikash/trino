@@ -36,11 +36,24 @@ public class CacheMgrWarmupRuleServiceTest
         CacheManagerRule cacheManagerRule1 = new CacheManagerRule("key1", 1L, Duration.ofMillis(1L));
         service.replaceAll(List.of(cacheManagerRule1));
         assertThat(service.getAll())
-                .isEqualTo(Map.of(cacheManagerRule1.signatureKey(), cacheManagerRule1));
+                .isEqualTo(
+                        Map.of(
+                                service.hash(cacheManagerRule1.signatureKey()),
+                                new CacheManagerRule(service.hash(
+                                        cacheManagerRule1.signatureKey()),
+                                        cacheManagerRule1.priority(),
+                                        cacheManagerRule1.ttl())));
 
         CacheManagerRule cacheManagerRule2 = new CacheManagerRule("key2", 1L, Duration.ofMillis(1L));
         service.replaceAll(List.of(cacheManagerRule2));
-        assertThat(service.getAll()).isEqualTo(Map.of(cacheManagerRule2.signatureKey(), cacheManagerRule2));
+        assertThat(service.getAll())
+                .isEqualTo(
+                        Map.of(
+                                service.hash(cacheManagerRule2.signatureKey()),
+                                new CacheManagerRule(
+                                        service.hash(cacheManagerRule2.signatureKey()),
+                                        cacheManagerRule1.priority(),
+                                        cacheManagerRule1.ttl())));
     }
 
     @Test

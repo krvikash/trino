@@ -41,6 +41,7 @@ import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.cache.PlanSignature;
+import io.trino.spi.cache.SignatureKey;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.TupleDomain;
@@ -144,17 +145,24 @@ public class WorkerCacheManager
     {
         private final PlanSignature planSignature;
         private final CommonStoreIdFinder commonStoreIdFinder;
+        private final boolean isSkipped;
 
         public WarpSplitCache(PlanSignature planSignature)
         {
-            this.planSignature = planSignature;
+            //this has a smaller memory footprint
+            this.planSignature = new PlanSignature(
+                    new SignatureKey(warmupRuleService.hash(planSignature.getKey().toString())),
+                    planSignature.getGroupByColumns(),
+                    planSignature.getColumns(),
+                    planSignature.getColumnsTypes());
             commonStoreIdFinder = new CommonStoreIdFinder(rowGroupDataService, planSignature);
+            isSkipped = planSignature.getColumns().isEmpty();
         }
 
         @Override
         public Optional<ConnectorPageSource> loadPages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
         {
-            if (planSignature.getColumns().isEmpty()) {
+            if (isSkipped) {
                 return Optional.empty();
             }
 
@@ -179,13 +187,13 @@ public class WorkerCacheManager
         @Override
         public Optional<ConnectorPageSink> storePages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
         {
-            if (planSignature.getColumns().isEmpty()) {
+            if (isSkipped) {
                 statsWarmingService.incwarm_warp_cache_skip_zero_columns();
                 return Optional.empty();
             }
 
             if (!warmupRuleService.getAll().isEmpty() &&
-                            !warmupRuleService.getAll().containsKey(planSignature.getKey().toString())) {
+                    !warmupRuleService.getAll().containsKey(planSignature.getKey().toString())) {
                 return Optional.empty();
             }
 
@@ -257,10 +265,9 @@ public class WorkerCacheManager
                 key = key + "_" + planSignature.getGroupByColumns().get();
             }
             String uniqueKey = hashFunction.hashString(key, StandardCharsets.UTF_8).toString();
-            String planKey = hashFunction.hashString(planSignature.getKey().toString(), StandardCharsets.UTF_8).toString();
             String schema = "WarpCache";
             return new RowGroupKey(schema,
-                    planKey,
+                    planSignature.getKey().toString(),
                     uniqueKey,
                     0,
                     0,
