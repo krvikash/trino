@@ -15,6 +15,8 @@ package io.trino.plugin.warp;
 
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherCacheManagerFactory;
+import io.trino.plugin.warp.dispatcher.WarpCacheMgrConnectorContext;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.spi.cache.CacheManager;
@@ -27,15 +29,20 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.config.CacheManagerConfig.CONFIG_IS_CACHE;
+import static java.util.Objects.requireNonNull;
 
 public class WarpCacheManagerFactory
         implements CacheManagerFactory
 {
     private final DispatcherCacheManagerFactory dispatcherCacheManagerFactory;
+    private final DemoterSync demoterSync;
 
-    public WarpCacheManagerFactory(DispatcherCacheManagerFactory dispatcherCacheManagerFactory)
+    public WarpCacheManagerFactory(
+            DispatcherCacheManagerFactory dispatcherCacheManagerFactory,
+            DemoterSync demoterSync)
     {
-        this.dispatcherCacheManagerFactory = dispatcherCacheManagerFactory;
+        this.dispatcherCacheManagerFactory = requireNonNull(dispatcherCacheManagerFactory);
+        this.demoterSync = requireNonNull(demoterSync);
     }
 
     @Override
@@ -47,6 +54,8 @@ public class WarpCacheManagerFactory
     @Override
     public CacheManager create(Map<String, String> config, CacheManagerContext context)
     {
+        WarpCacheMgrConnectorContext warpCacheMgrConnectorContext = new WarpCacheMgrConnectorContext(context.getNodeManager(), demoterSync);
+
         Map<String, String> configMap = new HashMap<>(config);
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
@@ -63,6 +72,10 @@ public class WarpCacheManagerFactory
 
         configMap.put(CONFIG_IS_CACHE, "true");
 
-        return dispatcherCacheManagerFactory.create(configMap, context, Optional.of(List.of(WarpModule.class)));
+        return dispatcherCacheManagerFactory.create(
+                configMap,
+                context,
+                warpCacheMgrConnectorContext,
+                Optional.of(List.of(WarpModule.class)));
     }
 }

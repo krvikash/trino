@@ -16,7 +16,6 @@ package io.trino.plugin.warp.dispatcher.warmup.demoter.events;
 import java.util.Map;
 
 public record WarmupDemoterFinishEvent(
-        int demoteSequence,
         boolean success,
         Map<String, Long> runResults)
 {
@@ -24,8 +23,8 @@ public record WarmupDemoterFinishEvent(
     public String toString()
     {
         return "WarmupDemoterFinishEvent{" +
-                "demoteSequence=" + demoteSequence +
                 ", success=" + success +
+                ", runResults=" + runResults +
                 '}';
     }
 }

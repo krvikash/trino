@@ -17,5 +17,4 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record DemoterStatus(
         @JsonProperty("isRunning") boolean isRunning,
-        @JsonProperty("lastExecution") long lastExecution,
-        @JsonProperty("currentRunSequence") int currentRunSequence) {}
+        @JsonProperty("lastExecution") long lastExecution) {}

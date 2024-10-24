@@ -97,7 +97,7 @@ class WarpConnectorDeleteServiceTest
         int defaultEpsilon = 1;
         double defaultMaxThreshold = 95;
         double defaultCleanThreshold = 90;
-        demoteContext = new DemoteContext(1, defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultBatchSize, defaultEpsilon, true);
+        demoteContext = new DemoteContext(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultBatchSize, defaultEpsilon, true);
 
         initDefaultMembers();
     }

@@ -28,10 +28,11 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.plugin.warp.util.NodeUtils;
+import io.trino.spi.NodeManager;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -46,11 +47,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -61,7 +60,6 @@ public class WarmupDemoterServiceTest
 
     private final WarmUpType defaultWarmupType = WarmUpType.WARM_UP_TYPE_BASIC;
     private final int defaultPriority = 0;
-    private final int defaultEpsilon = 1;
     private final double defaultMaxThreshold = 95;
     private final double defaultCleanThreshold = 90;
     private final int defaultBatchSize = 2;
@@ -70,9 +68,10 @@ public class WarmupDemoterServiceTest
     private WorkerCapacityManager workerCapacityManager;
     private WarmupDemoterService warmupDemoterService;
     private WarmupDemoterConfig warmupDemoterConfig;
+    private DemoterSync demoterSync;
     private WarpDeleteService deleteService;
-    private ConnectorSync connectorSync;
     private MetricsManager metricsManager;
+    private long demoteKey;
 
     public static WarmUpElement buildWarmupElement(int columnId, long lastUsed)
     {
@@ -111,27 +110,33 @@ public class WarmupDemoterServiceTest
         });
         metricsManager = TestingTxService.createMetricsManager();
 
-        FlowsSequencer flowsSequencer = spy(new FlowsSequencer(metricsManager));
-        connectorSync = mock(ConnectorSync.class);
+        CatalogName catalogName = new CatalogName("catalogTest");
+        NodeManager nodeManager = NodeUtils.mockNodeManager();
+        FlowsSequencer flowsSequencer = new FlowsSequencer(metricsManager);
+
+        demoterSync = mock(DemoterSync.class);
         warmupDemoterConfig = new WarmupDemoterConfig();
-        warmupDemoterConfig.setEnableDemote(true);
-        CatalogNameProvider catalogNameProvider = new CatalogNameProvider("catalogTest");
-        warmupDemoterService = spy(new WarmupDemoterService(
+        demoteKey = 0;
+
+        warmupDemoterService = new WarmupDemoterService(
                 workerCapacityManager,
                 warmupDemoterConfig,
                 metricsManager,
-                flowsSequencer,
-                connectorSync,
-                catalogNameProvider,
+                demoterSync,
+                catalogName,
                 eventBus,
-                deleteService));
+                deleteService,
+                nodeManager,
+                flowsSequencer);
     }
 
     @Test
     public void testRunWarmupDemoterWithStatusExecuting()
     {
-        assertThat(warmupDemoterService.trySetIsExecutingToTrue()).isTrue();
-        warmupDemoterService.tryDemoteStart();
+        //initialize demote context as if one is running now
+        warmupDemoterService.initDemoteContext();
+
+        assertThat(warmupDemoterService.tryDemoteStart()).isFalse();
         WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
         assertThat(warmupDemoterStats.getnumber_of_runs()).isEqualTo(0);
         assertThat(warmupDemoterStats.getnot_executed_due_is_already_executing()).isEqualTo(1);
@@ -146,7 +151,8 @@ public class WarmupDemoterServiceTest
         assertThat(warmupDemoterStats.getnumber_of_runs()).isEqualTo(0);
         assertThat(warmupDemoterStats.getcurrentUsage()).isEqualTo(1000);
         assertThat(warmupDemoterStats.getnumber_of_runs_fail()).isEqualTo(0);
-        warmupDemoterService.tryDemoteStart();
+
+        assertThat(warmupDemoterService.tryDemoteStart()).isFalse();
         assertThat(warmupDemoterStats.getnumber_of_runs_fail()).isEqualTo(1);
         assertThat(warmupDemoterStats.getnumber_of_runs_fail()).isEqualTo(1);
         assertThat(warmupDemoterStats.getnumber_of_runs()).isEqualTo(0);
@@ -166,10 +172,18 @@ public class WarmupDemoterServiceTest
 
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         when(deleteService.buildTupleRank(anyList(), anyBoolean())).thenReturn(tupleRankResult);
-        warmupDemoterService.tryDemoteStart();
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
+        when(demoterSync.tryStartDemoteProcess(demoteKey)).thenReturn(true);
+
+        assertThat(warmupDemoterService.tryDemoteStart()).isTrue();
+
+        warmupDemoterService.connectorSyncStartDemote();
+
         assertThat(warmupDemoterService.getCurrentRunStats().getdead_objects_deleted()).isEqualTo(20);
-        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(demoterSync, times(1))
+                .finishDemoteProcess(eq(demoteKey),
+                        anyDouble(),
+                        anyDouble(),
+                        eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test
@@ -183,12 +197,20 @@ public class WarmupDemoterServiceTest
         });
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         when(deleteService.buildTupleRank(anyList(), anyBoolean())).thenReturn(tupleRankResult);
+        when(demoterSync.tryStartDemoteProcess(demoteKey)).thenReturn(true);
+
         warmupDemoterService.setForceDeleteFailedObjects(true);
-        warmupDemoterService.tryDemoteStart();
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
+
+        assertThat(warmupDemoterService.tryDemoteStart()).isTrue();
+
+        warmupDemoterService.connectorSyncStartDemote();
 
         assertThat(warmupDemoterService.getCurrentRunStats().getfailed_objects_deleted()).isEqualTo(20);
-        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(demoterSync, times(1))
+                .finishDemoteProcess(eq(demoteKey),
+                        anyDouble(),
+                        anyDouble(),
+                        eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test
@@ -203,11 +225,20 @@ public class WarmupDemoterServiceTest
         });
         setConfig(0, 0, 1, 100, List.of());
         when(deleteService.buildTupleRank(anyList(), anyBoolean())).thenReturn(tupleRankResult);
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
+        when(demoterSync.tryStartDemoteProcess(demoteKey)).thenReturn(true);
+
+        assertThat(warmupDemoterService.tryDemoteStart()).isTrue();
+
+        warmupDemoterService.connectorSyncStartDemote();
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
+
         assertThat(warmupDemoterService.getDemoterHighestPriority().get()).isEqualTo(0);
         assertThat(warmupDemoterService.getCurrentRunStats().getdeleted_by_low_priority()).isGreaterThan(1);
-        verify(connectorSync, times(1)).syncDemoteEnd(eq(warmupDemoterService.getCurrentRunSequence()), eq(0D), eq(0D), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
+        verify(demoterSync, times(1))
+                .finishDemoteProcess(eq(demoteKey),
+                        eq(Double.MIN_VALUE),
+                        eq(0D),
+                        eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test
@@ -229,10 +260,23 @@ public class WarmupDemoterServiceTest
 
         setConfig(85, 80, 2, 100, List.of());
         when(deleteService.buildTupleRank(anyList(), anyBoolean())).thenReturn(tupleRankResult);
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
+        when(demoterSync.tryStartDemoteProcess(demoteKey)).thenReturn(true);
+
+//        assertThat(warmupDemoterService.tryDemoteStart()).isTrue();
+
+        warmupDemoterService.connectorSyncStartDemote();
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED));
-        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_REACHED_THRESHOLD));
+
+        verify(demoterSync, times(1))
+                .finishDemoteProcess(eq(demoteKey),
+                        anyDouble(),
+                        anyDouble(),
+                        eq(DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED));
+        verify(demoterSync, times(1))
+                .finishDemoteProcess(eq(demoteKey),
+                        anyDouble(),
+                        anyDouble(),
+                        eq(DemoteStatus.DEMOTE_STATUS_REACHED_THRESHOLD));
         assertThat(usageCapacity.get()).isLessThan(0.88);
         assertThat(usageCapacity.get()).isGreaterThan(0.5);
         assertThat(warmupDemoterService.getCurrentRunStats().getdeleted_by_low_priority()).isEqualTo(0);
@@ -242,10 +286,12 @@ public class WarmupDemoterServiceTest
     @Test
     public void testInitiateSyncDemoteProcessRequestRejected()
     {
-        when(connectorSync.syncDemotePrepare(defaultEpsilon)).thenReturn(-1);
+        when(demoterSync.tryStartDemoteProcess(demoteKey)).thenReturn(false);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
-        warmupDemoterService.initiateDemoteProcess();
+
+        assertThat(warmupDemoterService.initiateDemoteProcess()).isFalse();
+
         WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
         assertThat(warmupDemoterStats.getnot_executed_due_sync_demote_start_rejected()).isEqualTo(1);
     }
@@ -253,12 +299,14 @@ public class WarmupDemoterServiceTest
     @Test
     public void testInitiateSyncDemoteProcessArgsNotValid()
     {
-        when(connectorSync.syncDemotePrepare(defaultEpsilon)).thenReturn(1);
+        when(demoterSync.tryStartDemoteProcess(eq(demoteKey))).thenReturn(true);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
-        int demoteProcess = warmupDemoterService.initiateDemoteProcess();
-        warmupDemoterService.initDemoteContext(demoteProcess);
-        warmupDemoterService.initiateDemoteProcess();
+
+        assertThat(warmupDemoterService.initiateDemoteProcess()).isTrue();
+        warmupDemoterService.initDemoteContext();
+        assertThat(warmupDemoterService.initiateDemoteProcess()).isFalse();
+
         WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
         assertThat(warmupDemoterStats.getnot_executed_due_is_already_executing()).isEqualTo(1);
     }
@@ -266,26 +314,34 @@ public class WarmupDemoterServiceTest
     @Test
     public void testInitiateSyncDemoteProcess()
     {
-        when(connectorSync.syncDemotePrepare(defaultEpsilon)).thenReturn(1);
+        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(100D);
+        when(demoterSync.tryStartDemoteProcess(demoteKey)).thenReturn(true);
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
-        warmupDemoterService.initiateDemoteProcess();
+
+        assertThat(warmupDemoterService.initiateDemoteProcess()).isTrue();
     }
 
     @Test
     public void testTupleRankSort()
     {
-        RowGroupKey rowGroupKey = new RowGroupKey("schema", "table", "/", 0, 0, 0, "", "");
-        WarmupProperties warmupProperties1 = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 3, 80, TransformFunction.NONE);
-        TupleRank t1 = new TupleRank(warmupProperties1, null, rowGroupKey);
-        WarmupProperties warmupProperties2 = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 1, 80, TransformFunction.NONE);
-        TupleRank t2 = new TupleRank(warmupProperties2, null, rowGroupKey);
-        WarmupProperties warmupProperties3 = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 2, 80, TransformFunction.NONE);
-        TupleRank t3 = new TupleRank(warmupProperties3, null, rowGroupKey);
+        RowGroupKey rowGroupKey = buildRowGroupKey(0);
+        TupleRank t1 = new TupleRank(
+                new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 3, 80, TransformFunction.NONE),
+                null,
+                rowGroupKey);
+        TupleRank t2 = new TupleRank(
+                new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 1, 80, TransformFunction.NONE),
+                null,
+                rowGroupKey);
+        TupleRank t3 = new TupleRank(
+                new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 2, 80, TransformFunction.NONE),
+                null,
+                rowGroupKey);
+
         List<TupleRank> list = new ArrayList<>(List.of(t1, t2, t3));
         Collections.sort(list);
-        assertThat(list.get(0)).isEqualTo(t2);
-        assertThat(list.get(1)).isEqualTo(t3);
-        assertThat(list.get(2)).isEqualTo(t1);
+
+        assertThat(list).containsExactlyElementsOf(List.of(t2, t3, t1));
     }
 
     private void setConfig(double maxUsageThresholdPercentage,

@@ -25,6 +25,7 @@ import io.trino.plugin.warp.di.CacheManagerModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.di.dispatcher.DispatcherCacheManagerModule;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.plugin.warp.node.CoordinatorInitializedEventHandler;
 import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.plugin.warp.node.WorkerNodeManager;
@@ -54,20 +55,25 @@ public class InternalDispatcherCacheManagerFactory
             Map<String, String> config,
             Optional<List<Module>> optionalWorkerModule,
             Module storageEngineModule,
-            CacheManagerContext context)
+            CacheManagerContext context,
+            WarpCacheMgrConnectorContext warpCacheMgrConnectorContext)
     {
-        boolean isWorker = WarpBaseModule.isWorker(context, config);
+        boolean isWorker = WarpBaseModule.isWorker(warpCacheMgrConnectorContext, config);
 
         List<Module> modules = new ArrayList<>(asList(
                 new MBeanServerModule(),
                 new MBeanModule(),
                 new CatalogNameModule(cacheManagerName),
-                new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, context.getNodeManager()),
+                new DispatcherCacheManagerModule(
+                        cacheManagerName,
+                        config,
+                        storageEngineModule,
+                        warpCacheMgrConnectorContext),
                 new CacheManagerModule(context, !isWorker),
                 binder -> {
                     binder.bind(Tracer.class).toInstance(OpenTelemetry.noop().getTracer("InternalDispatcherCacheManagerFactory"));
                     binder.bind(OpenTelemetry.class).toInstance(OpenTelemetry.noop());
-                    if (WarpBaseModule.isCoordinator(context, config)) {
+                    if (WarpBaseModule.isCoordinator(warpCacheMgrConnectorContext)) {
                         binder.bind(CoordinatorNodeManager.class);
                         binder.bind(CoordinatorInitializedEventHandler.class);
                     }
@@ -75,6 +81,7 @@ public class InternalDispatcherCacheManagerFactory
                         binder.bind(WorkerNodeManager.class);
                         binder.bind(WorkerCapacityManager.class);
                     }
+                    binder.bind(DemoterSync.class).toInstance(warpCacheMgrConnectorContext.getDemoterSync());
                 }));
 
         if (isWorker) {

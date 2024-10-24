@@ -48,7 +48,6 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
-import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
 import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.WarpConstant;
 import io.trino.plugin.warp.expression.WarpExpression;
@@ -62,16 +61,12 @@ import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageStateRes
 import io.trino.plugin.warp.extension.execution.debugtools.PredicateCacheTask;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
-import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
-import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterThreshold;
-import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTask;
 import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryCountResult;
 import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryTask;
 import io.trino.plugin.warp.extension.execution.health.ClusterHealthTask;
 import io.trino.plugin.warp.extension.execution.health.HealthTask;
 import io.trino.plugin.warp.extension.execution.warmup.WarmupTask;
 import io.trino.plugin.warp.gen.constants.FailureRepetitionMode;
-import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
 import io.trino.plugin.warp.juffer.PredicateBufferPoolType;
@@ -80,7 +75,6 @@ import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
-import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.expression.FunctionName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
@@ -3139,55 +3133,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testWarmupDemoteAutomatic()
-            throws IOException
-    {
-        Session jmxSession = createJmxSession();
-        MaterializedResult jmx0 = computeActual(
-                jmxSession,
-                "select sum(number_of_runs), sum(deleted_by_low_priority) from \"%s*%s\"".formatted(
-                        WarmupDemoterStats.class.getPackageName(),
-                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
-        long numOfRuns0 = (long) jmx0.getMaterializedRows().getFirst().getField(0);
-        long numberOfDeletedByLowPrio0 = (long) jmx0.getMaterializedRows().getFirst().getField(1);
-        buildAndWarmWideTable(10, true, 30, Optional.empty());
-        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                .batchSize(2)
-                .executeDemoter(false)
-                .modifyConfig(true)
-                .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.6))
-                .build();
-        demote(warmupDemoterData);
-
-        MaterializedResult jmx1 = computeActual(
-                jmxSession,
-                "select sum(number_of_runs), sum(deleted_by_low_priority), sum(number_of_calls), sum(number_of_runs_fail) from \"%s*%s\"".formatted(
-                        WarmupDemoterStats.class.getPackageName(),
-                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
-        long numOfRuns1 = (long) jmx1.getMaterializedRows().getFirst().getField(0);
-        long numberOfDeletedByLowPrio1 = (long) jmx1.getMaterializedRows().getFirst().getField(1);
-        long numberOfCalls = (long) jmx1.getMaterializedRows().getFirst().getField(2);
-        long numberOfFails = (long) jmx1.getMaterializedRows().getFirst().getField(3);
-        assertThat(numOfRuns0).isEqualTo(numOfRuns1);
-        assertThat(numberOfDeletedByLowPrio0).isEqualTo(numberOfDeletedByLowPrio1);
-        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomishlomishlomi')");
-        warmAndValidateLazyDemote("select * from t", true);
-        runWithRetries(() -> {
-            MaterializedResult jmx2 = computeActual(
-                    jmxSession,
-                    "select sum(number_of_runs), sum(deleted_by_low_priority), sum(number_of_calls), sum(number_of_runs_fail) from \"%s*%s\"".formatted(
-                            WarmupDemoterStats.class.getPackageName(),
-                            WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
-            long numOfRuns2 = (long) jmx2.getMaterializedRows().getFirst().getField(0);
-            long numberOfCalls2 = (long) jmx2.getMaterializedRows().getFirst().getField(2);
-            long numberOfFails2 = (long) jmx2.getMaterializedRows().getFirst().getField(3);
-            assertThat(numberOfFails2).isEqualTo(numberOfFails);
-            assertThat(numberOfCalls2).isGreaterThan(numberOfCalls);
-            assertThat(numOfRuns2 - 1).isEqualTo(numOfRuns1);
-        });
-    }
-
-    @Test
     public void testExport()
             throws IOException
     {
@@ -3216,86 +3161,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 expectedWarmupElements,
                 1,
                 1);
-    }
-
-    @Test
-    public void testWarmupDemoterWithFilterShouldDemoteOnlyByTable()
-            throws IOException
-    {
-        int numberOfColumns = 3;
-        int expectedElementCount = 9;
-        buildAndWarmWideTable(numberOfColumns, false, expectedElementCount, Optional.empty());
-
-        List<WarmupDemoterWarmupElementData> warmupDemoterWarmupElementDataList = new ArrayList<>(expectedElementCount);
-        IntStream.range(0, numberOfColumns).forEach(columnId -> {
-            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c0" + columnId, Collections.emptyList()));
-            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c1" + columnId, Collections.emptyList()));
-            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c2" + columnId, Collections.emptyList()));
-        });
-        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                .maxUsageThresholdInPercentage(31d)
-                .cleanupUsageThresholdInPercentage(21d)
-                .batchSize(10)
-                .executeDemoter(true)
-                .forceExecuteDeadObjects(true)
-                .schemaTableName(new SchemaTableName(DEFAULT_SCHEMA, WIDE_TABLE_NAME))
-                .warmupElementsData(warmupDemoterWarmupElementDataList)
-                .resetHighestPriority(true)
-                .build();
-        Map<String, Object> res = demote(warmupDemoterData);
-        Integer deadObjectsDeletedCount = (Integer) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().endsWith("dead_objects_deleted"))
-                .findAny()
-                .orElseThrow()
-                .getValue();
-        Integer deletedByLowPriorityCount = (Integer) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().endsWith("deleted_by_low_priority"))
-                .findAny()
-                .orElseThrow()
-                .getValue();
-        Double highestPriority = (Double) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.HIGHEST_PRIORITY_KEY))
-                .findAny()
-                .orElseThrow()
-                .getValue();
-        assertThat(highestPriority).isEqualTo(0);
-        assertThat(deadObjectsDeletedCount).isEqualTo(9);
-        assertThat(deletedByLowPriorityCount).isEqualTo(0);
-    }
-
-    @Test
-    public void testSimpleWarmupSyncDemoter()
-            throws IOException
-    {
-        buildAndWarmWideTable(3, false, 9, Optional.of(Duration.ofMinutes(0)));
-        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                .maxUsageThresholdInPercentage(31d)
-                .cleanupUsageThresholdInPercentage(21d)
-                .batchSize(10)
-                .executeDemoter(true)
-                .forceExecuteDeadObjects(true)
-                .forceDeleteFailedObjects(true)
-                .modifyConfig(true)
-                .build();
-        Map<String, Object> res = demote(warmupDemoterData);
-
-        Integer deadObjectsDeletedCount = (Integer) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().endsWith("dead_objects_deleted"))
-                .findAny()
-                .orElseThrow()
-                .getValue();
-        Integer deletedByLowPriorityCount = (Integer) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().endsWith("deleted_by_low_priority"))
-                .findAny()
-                .orElseThrow()
-                .getValue();
-        assertThat(deadObjectsDeletedCount).isEqualTo(9);
-        assertThat(deletedByLowPriorityCount).isEqualTo(0);
     }
 
     @Test
@@ -4052,6 +3917,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         assertThat(numFailed).isEqualTo(expectedNumFailedWarmupElements);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private void assertPredicate(DispatcherTableHandle table,
             String columnName,
             String functionName,

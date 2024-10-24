@@ -36,7 +36,6 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.ExtraModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
-import io.trino.plugin.warp.di.WarpCacheMgrConnectorContext;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dictionary.AttachDictionaryService;
@@ -44,6 +43,7 @@ import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.warp.dispatcher.ReadErrorHandler;
+import io.trino.plugin.warp.dispatcher.WarpCacheMgrConnectorContext;
 import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.cache.DispatcherCacheTransformer;
 import io.trino.plugin.warp.dispatcher.cache.PredicateHashCalculator;
@@ -107,17 +107,17 @@ public class DispatcherCacheManagerModule
         implements ExtraModule
 {
     private final String cacheManagerName;
-    private final NodeManager nodeManager;
+    private final WarpCacheMgrConnectorContext warpCacheMgrConnectorContext;
     private Map<String, String> config;
     private final Optional<Module> storageEngineModule;
 
     public DispatcherCacheManagerModule(String cacheManagerName,
             Map<String, String> config,
             Module storageEngineModule,
-            NodeManager nodeManager)
+            WarpCacheMgrConnectorContext warpCacheMgrConnectorContext)
     {
         this.cacheManagerName = cacheManagerName;
-        this.nodeManager = nodeManager;
+        this.warpCacheMgrConnectorContext = warpCacheMgrConnectorContext;
         withConfig(config);
         this.storageEngineModule = Optional.ofNullable(storageEngineModule);
     }
@@ -129,11 +129,10 @@ public class DispatcherCacheManagerModule
         binder.bind(MetricsManager.class);
         configBinder(binder).bindConfig(MetricsConfig.class);
         binder.bind(WarpInitializedServiceRegistry.class);
-        WarpCacheMgrConnectorContext context = new WarpCacheMgrConnectorContext(nodeManager);
-        binder.bind(NodeManager.class).toInstance(nodeManager);
+        binder.bind(NodeManager.class).toInstance(warpCacheMgrConnectorContext.getNodeManager());
         binder.bind(EventBus.class).asEagerSingleton();
         configBinder(binder).bindConfig(GlobalConfig.class);
-        if (!WarpBaseModule.isWorker(context, config)) {
+        if (!WarpBaseModule.isWorker(warpCacheMgrConnectorContext, config)) {
             return;
         }
         configBinder(binder).bindConfig(CloudVendorConfig.class, ForWarp.class);
@@ -146,8 +145,8 @@ public class DispatcherCacheManagerModule
         binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
         jsonBinder(binder).addSerializerBinding(Block.class).to(BlockJsonSerde.Serializer.class);
         jsonBinder(binder).addDeserializerBinding(Block.class).to(BlockJsonSerde.Deserializer.class);
-        binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(context, config)));
-        binder.install(CloudVendorModule.getModule(context, ForWarp.class, cacheManagerName, config));
+        binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(warpCacheMgrConnectorContext, config)));
+        binder.install(CloudVendorModule.getModule(warpCacheMgrConnectorContext, ForWarp.class, cacheManagerName, config));
 
         binder.bind(AttachDictionaryService.class);
         binder.bind(BlockAppenderFactory.class);

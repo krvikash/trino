@@ -11,20 +11,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.warp.di;
+package io.trino.plugin.warp.dispatcher;
 
 import io.opentelemetry.api.OpenTelemetry;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.spi.NodeManager;
 import io.trino.spi.connector.ConnectorContext;
 
 public class WarpCacheMgrConnectorContext
-        implements ConnectorContext
+        implements ConnectorContext, WarpContext
 {
     private final NodeManager nodeManager;
+    private final DemoterSync demoterSync;
 
-    public WarpCacheMgrConnectorContext(NodeManager nodeManager)
+    public WarpCacheMgrConnectorContext(NodeManager nodeManager, DemoterSync demoterSync)
     {
         this.nodeManager = nodeManager;
+        this.demoterSync = demoterSync;
     }
 
     @Override
@@ -37,5 +40,11 @@ public class WarpCacheMgrConnectorContext
     public NodeManager getNodeManager()
     {
         return nodeManager;
+    }
+
+    @Override
+    public DemoterSync getDemoterSync()
+    {
+        return demoterSync;
     }
 }

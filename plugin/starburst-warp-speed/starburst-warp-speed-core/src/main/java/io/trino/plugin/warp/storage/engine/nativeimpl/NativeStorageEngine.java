@@ -22,6 +22,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.gen.stats.WarpStatsMgr;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 
@@ -82,7 +83,8 @@ public class NativeStorageEngine
             NativeConfig nativeConfig,
             MetricsManager metricsManager,
             ExceptionThrower exceptionThrower,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            ConnectorSync connectorSync)
     {
         this.exceptionThrower = requireNonNull(exceptionThrower);
 
@@ -188,6 +190,8 @@ public class NativeStorageEngine
         }
         new WarpStatsMgr(metricsManager);
         logger.debug("finish initializing storage engine");
+
+        ((NativeConnectorSync) connectorSync).init();
     }
 
     private native void nativeInit(int maxWorkerThreads,

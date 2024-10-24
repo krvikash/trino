@@ -46,6 +46,7 @@ public class WorkerCapacityManagerTest
     private WorkerCapacityManager workerCapacityManager;
     private GlobalConfig globalConfig;
     private CatalogNameProvider catalogNameProvider;
+    private final Random random = new Random();
 
     @BeforeEach
     public void before()
@@ -86,7 +87,7 @@ public class WorkerCapacityManagerTest
 
                 if (tempFile.createNewFile()) {
                     byte[] array = new byte[8192];
-                    new Random().nextBytes(array);
+                    random.nextBytes(array);
                     String generatedString = new String(array, UTF_8);
 
                     Writer writer = Files.newBufferedWriter(tempFile.toPath(), UTF_8);

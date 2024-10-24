@@ -27,13 +27,13 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.BufferAllocatorStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.TrinoException;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.type.TinyintType;
 import jakarta.annotation.PreDestroy;
 
@@ -60,9 +60,10 @@ public class BufferAllocator
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
-    private final ConnectorSync connectorSync;
     private final MetricsManager metricsManager;
     private final NativeConfig nativeConfig;
+    private final CatalogName catalogName;
+
     private final int maxRecLenForWarmupRecordBuffer;
     private final int maxRecLenForDataFixed;
     private final int maxRecLenForDataVarlen;
@@ -90,16 +91,16 @@ public class BufferAllocator
     public BufferAllocator(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig,
-            ConnectorSync connectorSync,
             MetricsManager metricsManager,
-            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry,
+            CatalogName catalogName)
     {
         // services
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
-        this.connectorSync = requireNonNull(connectorSync);
         this.metricsManager = requireNonNull(metricsManager);
         this.nativeConfig = requireNonNull(nativeConfig);
+        this.catalogName = requireNonNull(catalogName);
         warpInitializedServiceRegistry.addService(this);
 
         // constants
@@ -214,7 +215,7 @@ public class BufferAllocator
 
             long predicateCacheSizeInBytes = initPredicateBundle();
             logger.info("catalog %s warmBufferSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateCacheSizeInBytes %dMB",
-                    connectorSync.getCatalogName(),
+                    catalogName,
                     warmBufferSize,
                     warmWriteBufferSize,
                     warmContextBufferSize,
@@ -224,7 +225,7 @@ public class BufferAllocator
         }
         catch (Throwable t) {
             logger.error(t, "failed to initialize buffer allocator");
-            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + connectorSync.getCatalogName() + " failed to load");
+            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + catalogName + " failed to load");
         }
     }
 

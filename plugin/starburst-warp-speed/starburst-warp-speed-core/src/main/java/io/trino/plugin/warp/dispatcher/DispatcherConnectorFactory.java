@@ -75,7 +75,7 @@ public class DispatcherConnectorFactory
                             Map.class,
                             moduleClass,
                             optionalClass,
-                            ConnectorContext.class)
+                            WarpConnectorContext.class)
                     .invoke(null,
                             catalogName,
                             config,

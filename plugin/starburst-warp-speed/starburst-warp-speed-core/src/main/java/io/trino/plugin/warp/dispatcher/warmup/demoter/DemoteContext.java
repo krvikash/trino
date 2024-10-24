@@ -17,60 +17,44 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
-import io.trino.plugin.warp.tools.util.StopWatch;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.FAILED_DEMOTE_SQUENCE;
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
-import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
 
 public class DemoteContext
 {
-    private StopWatch stopWatch;
-    private int demoterSequence = FAILED_DEMOTE_SQUENCE;
+    private final WarmupDemoterStats statsWarmupDemoter;
+    private final boolean deleteEmptyRowGroups;
+
     private List<TupleRank> tupleRankList = new ArrayList<>();
     private double maxUsageThresholdPercentage = -1;
     private double cleanupUsageThresholdPercentage = -1;
     private int batchSize = 1;
-    private WarmupDemoterStats statsWarmupDemoter;
-    private long flowId = INVALID_FLOW_ID;
     private long maxElementsToDemote = 1000;
     private double epsilon = -1;
-    private int numberOfCycles;
-    private boolean deleteEmptyRowGroups;
 
-    public DemoteContext(int demoterSequence,
-                         double maxUsageThresholdPercentage,
-                         double cleanupUsageThresholdPercentage,
-                         int batchSize,
-                         long maxElementsToDemote,
-                         double epsilon,
-                         boolean deleteEmptyRowGroups)
+    private final Set<RowGroupKey> failedRowGropDataSet;
+
+    public DemoteContext(
+            double maxUsageThresholdPercentage,
+            double cleanupUsageThresholdPercentage,
+            int batchSize,
+            long maxElementsToDemote,
+            double epsilon,
+            boolean deleteEmptyRowGroups)
     {
-        this.demoterSequence = demoterSequence;
         this.maxUsageThresholdPercentage = maxUsageThresholdPercentage;
         this.cleanupUsageThresholdPercentage = cleanupUsageThresholdPercentage;
         this.batchSize = batchSize;
         this.maxElementsToDemote = maxElementsToDemote;
         this.epsilon = epsilon;
         this.deleteEmptyRowGroups = deleteEmptyRowGroups;
-        this.statsWarmupDemoter = WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP);
-        stopWatch = new StopWatch();
-        stopWatch.start();
-    }
-
-    public StopWatch getStopWatch()
-    {
-        return stopWatch;
-    }
-
-    public int getDemoterSequence()
-    {
-        return demoterSequence;
+        statsWarmupDemoter = WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP);
+        failedRowGropDataSet = new HashSet<>();
     }
 
     public List<TupleRank> getTupleRankList()
@@ -98,29 +82,9 @@ public class DemoteContext
         return statsWarmupDemoter;
     }
 
-    public long getFlowId()
-    {
-        return flowId;
-    }
-
-    public void setFlowId(long flowId)
-    {
-        this.flowId = flowId;
-    }
-
     public long getMaxElementsToDemote()
     {
         return maxElementsToDemote;
-    }
-
-    public double getEpsilon()
-    {
-        return epsilon;
-    }
-
-    public int getNumberOfCycles()
-    {
-        return numberOfCycles;
     }
 
     public Set<RowGroupKey> getFailedRowGropDataSet()
@@ -128,16 +92,9 @@ public class DemoteContext
         return failedRowGropDataSet;
     }
 
-    Set<RowGroupKey> failedRowGropDataSet = new HashSet<>();
-
     public double getLowestPriority()
     {
-        return tupleRankList.isEmpty() ? 0 : tupleRankList.get(0).warmupProperties().priority();
-    }
-
-    public void increaseNumberOfCycles()
-    {
-        numberOfCycles++;
+        return tupleRankList.isEmpty() ? Double.MIN_VALUE : tupleRankList.getFirst().warmupProperties().priority();
     }
 
     public void addFailedRowGropData(RowGroupKey failedRowGroup)
@@ -148,22 +105,19 @@ public class DemoteContext
     @Override
     public String toString()
     {
-        String statsWarmupDemoterJson = null;
+        String statsWarmupDemoterJson;
         try {
             statsWarmupDemoterJson = new ObjectMapper().writeValueAsString(statsWarmupDemoter);
         }
         catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            statsWarmupDemoterJson = "{}";
         }
         return "DemoteContext{" +
-                "stopWatch=" + stopWatch +
-                ", demoterSequence=" + demoterSequence +
-                ", tupleRankList=" + tupleRankList.size() +
+                ", tupleRankList.size=" + tupleRankList.size() +
                 ", maxUsageThresholdPercentage=" + maxUsageThresholdPercentage +
                 ", cleanupUsageThresholdPercentage=" + cleanupUsageThresholdPercentage +
                 ", batchSize=" + batchSize +
                 ", statsWarmupDemoter=" + statsWarmupDemoterJson +
-                ", flowId=" + flowId +
                 ", maxElementsToDemote=" + maxElementsToDemote +
                 ", epsilon=" + epsilon +
                 ", deleteEmptyRowGroups=" + deleteEmptyRowGroups +

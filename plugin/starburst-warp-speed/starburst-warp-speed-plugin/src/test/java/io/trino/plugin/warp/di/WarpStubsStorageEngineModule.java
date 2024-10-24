@@ -36,8 +36,8 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 public class WarpStubsStorageEngineModule
         implements Module
 {
-    private StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants(100);
-    private StorageEngine storageEngine = new StubsStorageEngine();
+    private final StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants(100);
+    private final StorageEngine storageEngine = new StubsStorageEngine();
     private final RangeFillerService rangeFillerService = new StubsRangeFillerService();
 
     @Override
@@ -54,18 +54,6 @@ public class WarpStubsStorageEngineModule
                 new CatalogNameProvider("catalogName"),
                 new GlobalConfig());
         binder.bind(NativeStorageStateHandler.class).toInstance(nativeStorageStateHandler);
-    }
-
-    public WarpStubsStorageEngineModule withStorageEngine(StorageEngine storageEngine)
-    {
-        this.storageEngine = storageEngine;
-        return this;
-    }
-
-    public WarpStubsStorageEngineModule withStorageEngineConstants(StorageEngineConstants storageEngineConstants)
-    {
-        this.storageEngineConstants = storageEngineConstants;
-        return this;
     }
 
     public StorageEngine getStorageEngine()

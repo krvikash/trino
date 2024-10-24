@@ -20,10 +20,10 @@ import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RecordData;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,9 +64,9 @@ public class BufferAllocatorTest
         bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
                 nativeConfig,
-                mock(ConnectorSync.class),
                 mock(MetricsManager.class),
-                new WarpInitializedServiceRegistry());
+                new WarpInitializedServiceRegistry(),
+                new CatalogName("f"));
     }
 
     @AfterEach
@@ -102,9 +102,9 @@ public class BufferAllocatorTest
         BufferAllocator bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
                 nativeConfig,
-                mock(ConnectorSync.class),
                 mock(MetricsManager.class),
-                new WarpInitializedServiceRegistry());
+                new WarpInitializedServiceRegistry(),
+                new CatalogName("f"));
         // pre-alloc
         bufferAllocator.init();
         PredicateBufferInfo predicateBufferInfo = requireNonNull(bufferAllocator.allocPredicateBuffer(10));

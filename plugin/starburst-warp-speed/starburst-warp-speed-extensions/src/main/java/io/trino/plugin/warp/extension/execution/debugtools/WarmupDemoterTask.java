@@ -21,6 +21,7 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
+import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
@@ -37,6 +38,8 @@ import jakarta.ws.rs.core.MediaType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
 import static io.airlift.http.client.JsonBodyGenerator.jsonBodyGenerator;
@@ -56,6 +59,9 @@ public class WarmupDemoterTask
     public static final String WARMUP_DEMOTER_PATH = "demoter";
     public static final String WARMUP_DEMOTER_START_TASK_NAME = "warmup-demoter-start";
     public static final String WARMUP_DEMOTER_STATUS_TASK_NAME = "warmup-demoter-status";
+
+    private static final Logger logger = Logger.get(WarmupDemoterTask.class);
+
     private static final JsonCodec<WarmupDemoterData> startWarmupDemoterJsonCodec = JsonCodec.jsonCodec(WarmupDemoterData.class);
     private static final JsonCodec<Map<String, Object>> workerWarmupDemoterResult = JsonCodec.mapJsonCodec(String.class, Object.class);
     private static final JsonCodec<DemoterStatus> workerWarmupDemoterStatusResult = JsonCodec.jsonCodec(DemoterStatus.class);
@@ -76,6 +82,7 @@ public class WarmupDemoterTask
     @Audit
     public Map<String, Object> start(WarmupDemoterData warmupDemoterData)
     {
+        logger.debug("start:: %s", warmupDemoterData);
         Map<String, HttpClient.HttpResponseFuture<FullJsonResponseHandler.JsonResponse<Map<String, Object>>>> allFutures = new HashMap<>();
         coordinatorNodeManager.getWorkerNodes()
                 .forEach(node -> {
@@ -87,19 +94,30 @@ public class WarmupDemoterTask
                             .setBodyGenerator(jsonBodyGenerator(startWarmupDemoterJsonCodec, warmupDemoterData))
                             .setHeader("Content-Type", "application/json")
                             .build();
+
+                    logger.debug("call demote on worker - %s", node.getNodeIdentifier());
                     allFutures.put(node.getNodeIdentifier(), warpClient.executeAsync(request, createFullJsonResponseHandler(workerWarmupDemoterResult)));
                 });
 
-        ListenableFuture<List<FullJsonResponseHandler.JsonResponse<Map<String, Object>>>> waitingFuture = Futures.allAsList(allFutures.values());
+        logger.debug("before waiting on all workers %s", allFutures.size());
         try {
-            waitingFuture.get();
-            Map<String, Map<String, Object>> allRes = new HashMap<>();
-            for (Map.Entry<String, HttpClient.HttpResponseFuture<FullJsonResponseHandler.JsonResponse<Map<String, Object>>>> entry : allFutures.entrySet()) {
-                allRes.put(entry.getKey(), entry.getValue().get().getValue());
-            }
+            Futures.allAsList(allFutures.values()).get();
+            logger.debug("after waiting on all workers %s", allFutures.size());
+            Map<String, Map<String, Object>> allRes = allFutures.entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(Map.Entry::getKey,
+                            entry -> {
+                                try {
+                                    return entry.getValue().get().getValue();
+                                }
+                                catch (InterruptedException | ExecutionException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }));
             return mergeResults(allRes);
         }
         catch (Throwable e) {
+            logger.error(e, "failed executing warmup demoter task");
             throw new RuntimeException("failed executing warmup demoter task", e);
         }
     }
@@ -140,6 +158,8 @@ public class WarmupDemoterTask
         Map<String, Object> res = new HashMap<>();
         allRes.forEach((workerIp, workerResMap) ->
                 workerResMap.forEach((k, v) -> res.put(String.format("%s:%s", workerIp, k), v)));
+
+        logger.debug("mergeResults: %s", res);
         return res;
     }
 }

@@ -21,7 +21,6 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.node.CoordinatorInitializedEvent;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
-import io.trino.spi.catalog.CatalogName;
 import jakarta.annotation.PreDestroy;
 
 import static java.util.Objects.requireNonNull;
@@ -31,14 +30,11 @@ public class CoordinatorNativeConnectorSync
         implements ConnectorSync
 {
     private static final Logger logger = Logger.get(CoordinatorNativeConnectorSync.class);
-    private final CatalogName catalogName;
     private final EventBus eventBus;
 
     @Inject
-    public CoordinatorNativeConnectorSync(CatalogName catalogName,
-            EventBus eventBus)
+    public CoordinatorNativeConnectorSync(EventBus eventBus)
     {
-        this.catalogName = catalogName;
         this.eventBus = requireNonNull(eventBus);
         eventBus.register(this);
     }
@@ -58,12 +54,6 @@ public class CoordinatorNativeConnectorSync
             logger.error(e, "failed to register");
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public String getCatalogName()
-    {
-        return catalogName.toString();
     }
 
     @Override

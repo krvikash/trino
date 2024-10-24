@@ -17,6 +17,7 @@ import com.google.inject.Module;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.warp.dispatcher.DispatcherCacheManagerFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.spi.Plugin;
 import io.trino.spi.TrinoException;
 import io.trino.spi.cache.CacheManagerFactory;
@@ -42,6 +43,7 @@ public class WarpPlugin
         implements Plugin
 {
     private final LicenseVerifier licenseVerifier;
+    private final DemoterSync demoterSync;
 
     private com.google.inject.Module storageEngineModule;
     private Module proxyModule;
@@ -54,19 +56,26 @@ public class WarpPlugin
     public WarpPlugin(LicenseVerifier licenseVerifier)
     {
         this.licenseVerifier = requireNonNull(licenseVerifier);
+        demoterSync = new DemoterSync();
     }
 
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        WarpConnectorFactory warpConnectorFactory = new WarpConnectorFactory(this.getConnectorFactory(), licenseVerifier, Collections.emptyList());
+        WarpConnectorFactory warpConnectorFactory = new WarpConnectorFactory(
+                this.getConnectorFactory(),
+                licenseVerifier,
+                demoterSync,
+                Collections.emptyList());
         return List.of(warpConnectorFactory);
     }
 
     @Override
     public Iterable<CacheManagerFactory> getCacheManagerFactories()
     {
-        WarpCacheManagerFactory warpCacheManagerFactory = new WarpCacheManagerFactory(this.getCacheManagerFactory());
+        WarpCacheManagerFactory warpCacheManagerFactory = new WarpCacheManagerFactory(
+                this.getCacheManagerFactory(),
+                demoterSync);
         return List.of(warpCacheManagerFactory);
     }
 

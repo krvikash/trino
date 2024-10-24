@@ -15,7 +15,6 @@ package io.trino.plugin.warp.dispatcher;
 
 import com.google.inject.Module;
 import io.trino.plugin.warp.di.InitializationModule;
-import io.trino.plugin.warp.di.WarpCacheMgrConnectorContext;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
 
@@ -38,12 +37,12 @@ public class DispatcherCacheManagerFactory
 
     public CacheManager create(Map<String, String> config,
             CacheManagerContext context,
+            WarpCacheMgrConnectorContext warpCacheMgrConnectorContext,
             Optional<List<Class<? extends InitializationModule>>> optionalModules)
     {
         try {
             ClassLoader classLoader = this.getClass().getClassLoader();
             Class<?> moduleClass = classLoader.loadClass(Module.class.getName());
-            WarpCacheMgrConnectorContext connectorContext = new WarpCacheMgrConnectorContext(context.getNodeManager());
 
             Optional<List<Object>> optionalModuleInstances =
                     optionalModules.map(classes -> classes.stream()
@@ -52,7 +51,7 @@ public class DispatcherCacheManagerFactory
                                     Class<?> initModuleClass = classLoader.loadClass(aClass.getName());
                                     return InitializationModule.invokeCreateModule(initModuleClass,
                                             config,
-                                            connectorContext,
+                                            warpCacheMgrConnectorContext,
                                             DISPATCHER_CACHE_MANAGER_NAME);
                                 }
                                 catch (ClassNotFoundException e) {
@@ -66,8 +65,15 @@ public class DispatcherCacheManagerFactory
                             Map.class,
                             Optional.class,
                             moduleClass,
-                            CacheManagerContext.class)
-                    .invoke(null, DISPATCHER_CACHE_MANAGER_NAME, config, optionalModuleInstances, storageEngineModule, context);
+                            CacheManagerContext.class,
+                            WarpCacheMgrConnectorContext.class)
+                    .invoke(null,
+                            DISPATCHER_CACHE_MANAGER_NAME,
+                            config,
+                            optionalModuleInstances,
+                            storageEngineModule,
+                            context,
+                            warpCacheMgrConnectorContext);
         }
         catch (InvocationTargetException e) {
             Throwable targetException = e.getTargetException();

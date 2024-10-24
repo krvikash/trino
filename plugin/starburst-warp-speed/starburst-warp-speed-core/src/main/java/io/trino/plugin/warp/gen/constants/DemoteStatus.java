@@ -20,8 +20,4 @@ public enum DemoteStatus
     DEMOTE_STATUS_NOT_COMPLETED,
     DEMOTE_STATUS_REACHED_THRESHOLD,
     DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE;
-
-    DemoteStatus()
-    {
-    }
 }

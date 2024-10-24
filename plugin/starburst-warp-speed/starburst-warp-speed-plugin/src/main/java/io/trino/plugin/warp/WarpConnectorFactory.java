@@ -18,6 +18,8 @@ import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
+import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.plugin.warp.proxiedconnector.deltalake.DeltaLakeProxiedConnectorInitializer;
@@ -40,15 +42,18 @@ public class WarpConnectorFactory
 {
     private final DispatcherConnectorFactory dispatcherConnectorFactory;
     private final LicenseVerifier licenseVerifier;
+    private final DemoterSync demoterSync;
     private final List<Class<? extends InitializationModule>> extraModules;
 
     public WarpConnectorFactory(
             DispatcherConnectorFactory dispatcherConnectorFactory,
             LicenseVerifier licenseVerifier,
+            DemoterSync demoterSync,
             List<Class<? extends InitializationModule>> extraModules)
     {
         this.dispatcherConnectorFactory = requireNonNull(dispatcherConnectorFactory);
         this.licenseVerifier = requireNonNull(licenseVerifier, "licenseManager is null");
+        this.demoterSync = requireNonNull(demoterSync, "demoterSync is null");
         this.extraModules = requireNonNull(extraModules, "extraModules is null");
     }
 
@@ -62,6 +67,9 @@ public class WarpConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         requireNonNull(licenseVerifier, "licenseManager is null");
+
+        WarpConnectorContext warpConnectorContext = new WarpConnectorContext(context, demoterSync);
+
         Map<String, String> configMap = new HashMap<>(config);
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
@@ -70,7 +78,7 @@ public class WarpConnectorFactory
         if (!warpExtensionConfig.isUseHttpServerPort()) {
             String httpRestPortStr = WarpClient.getRestHttpPortStr(
                     warpExtensionConfig,
-                    UriUtils.getHttpUri(context.getNodeManager().getCurrentNode()).getPort());
+                    UriUtils.getHttpUri(warpConnectorContext.getNodeManager().getCurrentNode()).getPort());
 
             configMap.put("http-server.http.port", httpRestPortStr);
             if (!configMap.containsKey(WarpExtensionConfig.HTTP_REST_PORT)) {
@@ -84,7 +92,7 @@ public class WarpConnectorFactory
         return new StarburstWarpConnector(dispatcherConnectorFactory.create(
                 catalogName,
                 configMap,
-                context,
+                warpConnectorContext,
                 Optional.of(extraModules),
                 Map.of(ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME, DeltaLakeProxiedConnectorInitializer.class.getName(),
                         ProxiedConnectorConfig.HIVE_CONNECTOR_NAME, HiveProxiedConnectorInitializer.class.getName(),

@@ -44,7 +44,7 @@ public class NativeConfig
     private int storageCacheSizeInPages;
     private int skipIndexPercent = 80;
     private int taskMaxWorkerThreads = Runtime.getRuntime().availableProcessors() * 2;
-    private int taskMinWarmingThreads; // used for limiting number of warming threads running in paralle to query
+    private int taskMinWarmingThreads; // used for limiting number of warming threads running in parallel to query
     private int debugPanicHaltPolicy;
     private int clusterLevel = -1;
     private int maxPageSourcesWithoutWarmingLimit = 8;

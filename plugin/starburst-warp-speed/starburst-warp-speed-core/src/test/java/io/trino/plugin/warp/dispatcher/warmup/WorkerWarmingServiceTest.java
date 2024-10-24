@@ -312,7 +312,7 @@ public class WorkerWarmingServiceTest
 
     /**
      * Default warmup enabled!!
-     * Warm Onlu Data enabled!!
+     * Warm Only Data enabled!!
      * Required: C1,  C2
      * row group exist -> C1 (BASIC)
      * result: warm C1 (DATA), C2(DATA)
@@ -992,6 +992,7 @@ public class WorkerWarmingServiceTest
                 false);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private WarmupRule createRule(WarpColumn warpColumn, WarmupProperties validProperties)
     {
         return WarmupRule.builder()
@@ -1020,10 +1021,7 @@ public class WorkerWarmingServiceTest
     public static WarmupDemoterService mockWarmupDemoterService()
     {
         WarmupDemoterService warmupDemoterService = mock(WarmupDemoterService.class);
-        when(warmupDemoterService.isExecuting()).thenReturn(false);
         when(warmupDemoterService.canAllowWarmup(anyDouble())).thenReturn(true);
-        when(warmupDemoterService.canAllowWarmup()).thenReturn(true);
-        when(warmupDemoterService.tryAllocateNativeResourceForWarmup()).thenReturn(true);
         return warmupDemoterService;
     }
 

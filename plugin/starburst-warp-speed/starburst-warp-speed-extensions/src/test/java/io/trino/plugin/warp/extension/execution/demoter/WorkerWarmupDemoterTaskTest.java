@@ -27,7 +27,7 @@ import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.spi.catalog.CatalogName;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -69,7 +69,7 @@ public class WorkerWarmupDemoterTaskTest
         workerWarmupDemoterTask = new WorkerWarmupDemoterTask(warmupDemoterService,
                 warmupDemoterConfig,
                 workerCapacityManager,
-                Mockito.mock(CatalogNameProvider.class),
+                Mockito.mock(CatalogName.class),
                 metricsManager,
                 eventBus,
                 nativeStorageStateHandler);
@@ -81,7 +81,7 @@ public class WorkerWarmupDemoterTaskTest
         Mockito.when(workerCapacityManager.getCurrentUsage()).thenReturn(2048L);
         Mockito.when(workerCapacityManager.getTotalCapacity()).thenReturn(4096L);
         Mockito.when(warmupDemoterService.tryDemoteStart()).thenAnswer(invocation -> {
-            Future<?> unused = executorService.submit(() -> eventBus.post(new WarmupDemoterFinishEvent(1, true, new HashMap<>())));
+            Future<?> unused = executorService.submit(() -> eventBus.post(new WarmupDemoterFinishEvent(true, new HashMap<>())));
             return 1;
         });
         WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()

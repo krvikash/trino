@@ -29,10 +29,10 @@ import io.trino.plugin.warp.di.WarpModules;
 import io.trino.plugin.warp.di.dispatcher.DispatcherCoordinatorModule;
 import io.trino.plugin.warp.di.dispatcher.DispatcherMainModule;
 import io.trino.plugin.warp.dispatcher.connectors.DispatcherConnectorBase;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.spi.NodeManager;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
-import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
@@ -65,7 +65,7 @@ public class InternalDispatcherConnectorFactory
             Map<String, ProxiedConnectorInitializer> proxiedConnectorInitializerMap,
             Module storageEngineModule,
             Optional<Module> optionalProxyModule,
-            ConnectorContext context)
+            WarpConnectorContext warpConnectorContext)
     {
         config = ConfigurationUtils.replaceEnvironmentVariables(config);
         logger.debug("catalogName: %s, config:%s", catalogName, config);
@@ -83,21 +83,22 @@ public class InternalDispatcherConnectorFactory
 
         String proxiedConnectorName = warpConfig.get(ProxiedConnectorConfig.PROXIED_CONNECTOR);
         ProxiedConnectorInitializer proxiedConnectorInitializer = getProxiedConnectorInitializer(proxiedConnectorName, proxiedConnectorInitializerMap);
-        Connector proxiedConnector = proxiedConnectorInitializer.create(catalogName, config, context, optionalProxyModule);
+        Connector proxiedConnector = proxiedConnectorInitializer.create(catalogName, config, warpConnectorContext, optionalProxyModule);
         List<Module> modules = new ArrayList<>();
         modules.addAll(asList(
-                new WarpModules(catalogName, warpConfig, context)
+                new WarpModules(catalogName, warpConfig, warpConnectorContext)
                         .withStorageEngineModule(storageEngineModule),
                 new MBeanServerModule(),
                 new MBeanModule(),
-                new DispatcherMainModule(catalogName, warpConfig, context),
-                new DispatcherCoordinatorModule(warpConfig, context),
+                new DispatcherMainModule(catalogName, warpConfig, warpConnectorContext),
+                new DispatcherCoordinatorModule(warpConfig, warpConnectorContext),
                 binder -> {
-                    binder.bind(TypeManager.class).toInstance(context.getTypeManager());
-                    binder.bind(NodeManager.class).toInstance(context.getNodeManager());
-                    binder.bind(Tracer.class).toInstance(context.getTracer());
+                    binder.bind(TypeManager.class).toInstance(warpConnectorContext.getTypeManager());
+                    binder.bind(NodeManager.class).toInstance(warpConnectorContext.getNodeManager());
+                    binder.bind(Tracer.class).toInstance(warpConnectorContext.getTracer());
+                    binder.bind(DemoterSync.class).toInstance(warpConnectorContext.getDemoterSync());
                 }));
-        modules.addAll(proxiedConnectorInitializer.getModules(context));
+        modules.addAll(proxiedConnectorInitializer.getModules(warpConnectorContext));
         modules.add(proxiedConnectorModule(proxiedConnector));
         optionalModules.ifPresent(modules::addAll);
         Bootstrap app = new Bootstrap(modules);

@@ -13,36 +13,8 @@
  */
 package io.trino.plugin.warp.storage.engine;
 
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.warp.gen.constants.DemoteStatus;
-
 public interface ConnectorSync
 {
-    default void init(WarmupDemoterService warmupDemoterService)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default int syncDemotePrepare(double epsilon)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default void startDemote(int demoteSequence)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default void syncDemoteEnd(int demoteSequence, double lowestPriorityExist, double highestPriorityDemoted, DemoteStatus demoteCompleted)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default String getCatalogName()
-    {
-        throw new UnsupportedOperationException();
-    }
-
     default boolean isDefaultCatalog()
     {
         throw new UnsupportedOperationException();

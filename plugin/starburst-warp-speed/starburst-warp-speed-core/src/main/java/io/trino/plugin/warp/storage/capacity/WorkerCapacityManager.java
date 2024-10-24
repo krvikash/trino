@@ -30,6 +30,7 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.PathUtils;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
+import jakarta.annotation.PreDestroy;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -77,6 +78,12 @@ public class WorkerCapacityManager
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
         statsWarmupDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP));
+    }
+
+    @PreDestroy
+    public void shutdown()
+    {
+        FileUtils.deleteQuietly(new File(getLocalStoragePath()));
     }
 
     public synchronized void initWorker()
@@ -137,7 +144,7 @@ public class WorkerCapacityManager
 
     private boolean createCatalogLocalStore()
     {
-        String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
+        String localStorePath = getLocalStoragePath();
 
         try {
             File file = new File(localStorePath);
@@ -152,10 +159,10 @@ public class WorkerCapacityManager
 
             // verify that write is enabled
             File tempFile = new File(localStorePath + "/temp.temp");
-            Writer writer = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
-            writer.write(tempFile.getName());
-            writer.close();
-            boolean unused = tempFile.delete();
+            try (Writer writer = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8)) {
+                writer.write(tempFile.getName());
+            }
+            FileUtils.deleteQuietly(tempFile);
             return true;
         }
         catch (Exception e) {
@@ -167,10 +174,8 @@ public class WorkerCapacityManager
 
     private void calculateTotalCapacity()
     {
-        String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
-
         try {
-            warpDir = new File(localStorePath);
+            warpDir = new File(getLocalStoragePath());
             if (!warpDir.exists()) {
                 warpDir = warpDir.getParentFile();
             }
@@ -192,7 +197,7 @@ public class WorkerCapacityManager
             return;
         }
 
-        String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
+        String localStorePath = getLocalStoragePath();
         File localStore = new File(localStorePath);
 
         if (isEmptyDir(localStore)) {
@@ -257,8 +262,7 @@ public class WorkerCapacityManager
 
     public void deleteLocalStorageFiles()
     {
-        String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
-        deleteLocalStorageFiles(new File(localStorePath));
+        deleteLocalStorageFiles(new File(getLocalStoragePath()));
     }
 
     private void deleteLocalStorageFiles(File localStore)
@@ -287,6 +291,11 @@ public class WorkerCapacityManager
     {
         String[] list = directory.list();
         return (list == null) || (list.length == 0);
+    }
+
+    private String getLocalStoragePath()
+    {
+        return PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
     }
 
     public synchronized void tryAllocateResourcesForWarmupTask()

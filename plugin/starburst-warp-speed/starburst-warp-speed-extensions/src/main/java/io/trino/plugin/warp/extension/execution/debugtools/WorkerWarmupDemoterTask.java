@@ -31,7 +31,7 @@ import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.spi.catalog.CatalogName;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -47,7 +47,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
 import static io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask.WARMUP_DEMOTER_PATH;
@@ -75,31 +75,34 @@ public class WorkerWarmupDemoterTask
     public static final String MAX_ELEMENTS_TO_DEMOTE_ITERATION_KEY = String.format("%s:maxElementsDemoteInIteration", WARMUP_DEMOTER_STAT_GROUP);
     public static final String START_EXECUTION_KEY = String.format("%s:startExecution", WARMUP_DEMOTER_STAT_GROUP);
     public static final String END_EXECUTION_KEY = String.format("%s:endExecution", WARMUP_DEMOTER_STAT_GROUP);
+
     private static final Logger logger = Logger.get(WorkerWarmupDemoterTask.class);
+
     private final WarmupDemoterService warmupDemoterService;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final WorkerCapacityManager workerCapacityManager;
-    private final CatalogNameProvider catalogNameProvider;
+    private final CatalogName catalogName;
     private final WarmupDemoterStats globalStatsDemoter;
     private final NativeStorageStateHandler nativeStorageStateHandler;
-    private final Map<Integer, CompletableFuture<WarmupDemoterFinishEvent>> demoteFutures = new ConcurrentHashMap<>();
+    private final AtomicReference<CompletableFuture<WarmupDemoterFinishEvent>> demoteFuture = new AtomicReference<>();
 
     @Inject
     public WorkerWarmupDemoterTask(WarmupDemoterService warmupDemoterService,
-                                   WarmupDemoterConfig warmupDemoterConfig,
-                                   WorkerCapacityManager workerCapacityManager,
-                                   CatalogNameProvider catalogNameProvider,
-                                   MetricsManager metricsManager,
-                                   EventBus eventBus,
-                                   NativeStorageStateHandler nativeStorageStateHandler)
+            WarmupDemoterConfig warmupDemoterConfig,
+            WorkerCapacityManager workerCapacityManager,
+            CatalogName catalogName,
+            MetricsManager metricsManager,
+            EventBus eventBus,
+            NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
-        this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
-        this.workerCapacityManager = requireNonNull(workerCapacityManager);
-        this.catalogNameProvider = requireNonNull(catalogNameProvider);
+        this.warmupDemoterConfig = warmupDemoterConfig;
+        this.workerCapacityManager = workerCapacityManager;
+        this.catalogName = catalogName;
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
-        eventBus.register(this);
+
         this.globalStatsDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
+        eventBus.register(this);
     }
 
     @POST
@@ -108,34 +111,47 @@ public class WorkerWarmupDemoterTask
     //@ApiOperation(value = "start", nickname = "startDemoter", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public Map<String, Object> start(WarmupDemoterData warmupDemoterData)
     {
-        logger.debug("%s: start warmup demote task", catalogNameProvider.get());
+        logger.debug("%s: start warmup demote task", catalogName);
+
         if (!nativeStorageStateHandler.isStorageAvailable()) {
             logger.warn("storage not initiated");
             return getSkippedResult();
         }
+
+        if (demoteFuture.get() != null) {
+            logger.info("catalog[%s]: SKIPPING start warmup demote task since another is running",
+                    catalogName);
+            return Map.of();
+        }
+
+        logger.debug("catalog[%s]: start warmup demote task", catalogName);
         modifyConfigIfRequired(warmupDemoterData);
         if (!warmupDemoterData.isExecuteDemoter()) {
             return getConfigResults();
         }
         Instant start = Instant.now();
-        Map<String, Object> result = new HashMap<>();
-        int demoteSequence = WarmupDemoterService.FAILED_DEMOTE_SQUENCE;
+        Map<String, Object> result = new HashMap<>(getConfigResults());
         try {
-            demoteSequence = warmupDemoterService.tryDemoteStart();
-            if (demoteSequence > WarmupDemoterService.FAILED_DEMOTE_SQUENCE) {
-                CompletableFuture<WarmupDemoterFinishEvent> future = new CompletableFuture<>();
-                demoteFutures.put(demoteSequence, future);
-                warmupDemoterService.setDeleteEmptyRowGroups(true);
-                WarmupDemoterFinishEvent finishEvent = future.get();
-                if (finishEvent.success()) {
-                    result.putAll(finishEvent.runResults());
-                }
-                else {
-                    result.putAll(getSkippedResult());
-                }
-                result.put(DEMOTE_SEQUENCE_KEY, finishEvent.demoteSequence());
+            logger.debug("catalog[%s]: before calling warmupDemoterService.tryDemoteStart", catalogName);
+
+            demoteFuture.set(new CompletableFuture<>());
+            warmupDemoterService.setDeleteEmptyRowGroups(true);
+
+            if (!warmupDemoterService.tryDemoteStart()) {
+                warmupDemoterService.setDeleteEmptyRowGroups(false);
+                demoteFuture.get().complete(new WarmupDemoterFinishEvent(false, Map.of()));
             }
-            result.putAll(getConfigResults());
+
+            WarmupDemoterFinishEvent finishEvent = demoteFuture.get().get();
+
+            logger.debug("catalog[%s]: finishEvent %s", catalogName, finishEvent);
+            if (finishEvent.success()) {
+                result.putAll(finishEvent.runResults());
+            }
+            else {
+                result.putAll(getSkippedResult());
+            }
+
             workerCapacityManager.updateCurrentUsage();
         }
         catch (Exception e) {
@@ -143,7 +159,7 @@ public class WorkerWarmupDemoterTask
             logger.error(e);
         }
         finally {
-            CompletableFuture<WarmupDemoterFinishEvent> removed = demoteFutures.remove(demoteSequence);
+            CompletableFuture<WarmupDemoterFinishEvent> removed = demoteFuture.getAndSet(null);
             if (removed != null && !removed.isDone()) {
                 removed.cancel(true);
             }
@@ -152,6 +168,9 @@ public class WorkerWarmupDemoterTask
         result.put(START_EXECUTION_KEY, LocalTime.ofInstant(start, ZoneId.systemDefault()));
         result.put(END_EXECUTION_KEY, LocalTime.now(ZoneId.systemDefault()));
         overrideUsageValuesFromGlobalDemote(result);
+
+        logger.debug("start::result=%s", result);
+
         return result;
     }
 
@@ -159,16 +178,13 @@ public class WorkerWarmupDemoterTask
     @Path(WARMUP_DEMOTER_STATUS_TASK_NAME)
     public DemoterStatus status()
     {
-        return new DemoterStatus(warmupDemoterService.isExecuting(), warmupDemoterService.getLastExecutionTime(), warmupDemoterService.getCurrentRunSequence());
+        return new DemoterStatus(warmupDemoterService.isExecuting(), warmupDemoterService.getLastExecutionTime());
     }
 
-    @SuppressWarnings("unchecked")
     public Map<String, Object> getSkippedResult()
     {
         logger.debug("return skipped results");
-        Map<String, Object> result = getConfigResults();
-        result.putAll(globalStatsDemoter.statsCounterMapper());
-        return result;
+        return new HashMap<>(globalStatsDemoter.statsCounterMapper());
     }
 
     public Map<String, Object> getConfigResults()
@@ -229,10 +245,15 @@ public class WorkerWarmupDemoterTask
             warmupDemoterService.setTupleFilters(calculateTupleFilter(warmupDemoterData));
             warmupDemoterService.setForceDeleteDeadObjects(warmupDemoterData.isForceExecuteDeadObjects());
             warmupDemoterService.setForceDeleteFailedObjects(warmupDemoterData.isForceDeleteFailedObjects());
-            warmupDemoterService.setResetHigestPriority(warmupDemoterData.isResetHighestPriority());
+            warmupDemoterService.setResetHighestPriority(warmupDemoterData.isResetHighestPriority());
             warmupDemoterService.setEnableDemote(warmupDemoterData.isEnableDemoteFeature());
         }
-        logger.debug("%s, modifyConfigIfRequired: current config = batchSize=%d, maxUsageThresholdPercentage=%f, cleanupUsageThresholdPercentage=%f, enableDemoteFeature=%b", catalogNameProvider.get(), warmupDemoterConfig.getBatchSize(), warmupDemoterConfig.getMaxUsageThresholdPercentage(), warmupDemoterConfig.getCleanupUsageThresholdPercentage(), warmupDemoterData.isEnableDemoteFeature());
+        logger.debug("%s, modifyConfigIfRequired: current config = batchSize=%d, maxUsageThresholdPercentage=%f, cleanupUsageThresholdPercentage=%f, enableDemoteFeature=%b",
+                catalogName,
+                warmupDemoterConfig.getBatchSize(),
+                warmupDemoterConfig.getMaxUsageThresholdPercentage(),
+                warmupDemoterConfig.getCleanupUsageThresholdPercentage(),
+                warmupDemoterData.isEnableDemoteFeature());
     }
 
     private List<TupleFilter> calculateTupleFilter(WarmupDemoterData warmupDemoterData)
@@ -251,13 +272,10 @@ public class WorkerWarmupDemoterTask
     @Subscribe
     private void demoteFinished(WarmupDemoterFinishEvent demoterFinishEvent)
     {
-        int demoteSequence = demoterFinishEvent.demoteSequence();
-        if (demoteFutures.containsKey(demoteSequence)) {
-            demoteFutures.get(demoteSequence).complete(demoterFinishEvent);
+        if (demoteFuture.get() != null) {
+            demoteFuture.get().complete(demoterFinishEvent);
         }
     }
 
-    private record Thresholds(
-            @SuppressWarnings("unused") double maxUsageThreshold,
-            @SuppressWarnings("unused") double cleanupUsageThreshold) {}
+    private record Thresholds(double maxUsageThreshold, double cleanupUsageThreshold) {}
 }
