@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.engine;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 /**
  * API with the storage engine implementation
@@ -65,11 +64,6 @@ public interface StorageEngine
     }
 
     default int getWarmupLuceneTxSize()
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default ByteBuffer getBundleFromPool(int bufIx)
     {
         throw new UnsupportedOperationException();
     }
@@ -162,7 +156,7 @@ public interface StorageEngine
      */
     default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long[][] collectBuffers)
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers)
     {
         throw new UnsupportedOperationException();
     }

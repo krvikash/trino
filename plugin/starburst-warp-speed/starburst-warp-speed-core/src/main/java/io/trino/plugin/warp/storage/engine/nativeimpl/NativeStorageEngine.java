@@ -33,7 +33,6 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
-import java.nio.ByteBuffer;
 
 import static java.util.Objects.requireNonNull;
 
@@ -129,7 +128,6 @@ public class NativeStorageEngine
             nativeInit(taskMaxWorkerThreads,
                     Runtime.getRuntime().maxMemory(),
                     nativeConfig.getGeneralReservedMemory(),
-                    nativeConfig.getBundleSize(),
                     nativeConfig.getMaxRecJufferSize(),
                     nativeConfig.getCompressionLevel(),
                     panicHaltPolicy,
@@ -157,7 +155,6 @@ public class NativeStorageEngine
     private native void nativeInit(int maxWorkerThreads,
             long jvmMemory,
             long generalReservedMemory,
-            int bundleSizeInBytes,
             int maxRecJufferSize,
             int lz4HcPercent,
             int panicHaltPolicy,
@@ -388,7 +385,7 @@ public class NativeStorageEngine
     @Override
     public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long[][] collectBuffers);
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers);
 
     @Override
     public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
@@ -444,9 +441,6 @@ public class NativeStorageEngine
 
     @Override
     public native void matchClose(int txId);
-
-    @Override
-    public native ByteBuffer getBundleFromPool(int bufIx);
 
     @Override
     public native void setDebugThrowPolicy(int numElements, int[] panicID, int[] repetitionMode, int[] ratio);

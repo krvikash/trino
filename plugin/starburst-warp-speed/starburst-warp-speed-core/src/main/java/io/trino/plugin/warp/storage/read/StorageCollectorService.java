@@ -379,6 +379,7 @@ public class StorageCollectorService
         }
 
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];
+        MemorySegment collectStateBuff = Arena.ofAuto().allocate(collectStoreBuff.length, ValueLayout.JAVA_INT.byteSize());
         byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
         // file is opened at init
         long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
@@ -386,6 +387,7 @@ public class StorageCollectorService
         return new TxArgs(
                 weCollectParams,
                 collectBuffers,
+                collectStateBuff,
                 collectStoreBuff,
                 collect2MatchParams,
                 fileCookieParams);
@@ -394,7 +396,7 @@ public class StorageCollectorService
     StorageCollectorArgs getStorageCollectorArgs(QueryArgs queryArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
-        StorageCollectorCallBack storageCollectorCallBack = new StorageCollectorCallBack(queryArgs.txArgs(), bufferAllocator);
+        StorageCollectorCallBack storageCollectorCallBack = new StorageCollectorCallBack(queryArgs.txArgs());
 
         ArrayList<BlockFiller<?>> blockFillers = new ArrayList<>(queryParams.getNumCollectElements());
         for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {

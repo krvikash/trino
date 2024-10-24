@@ -50,7 +50,6 @@ public class NativeConnectorSync
         implements ConnectorSync
 {
     private static final Logger logger = Logger.get(NativeConnectorSync.class);
-    private static final long BASE_MEMORY_SIZE_PER_WORKER = 2 * 1024 * 1024; // large enough number for now, will be a configured one in the future
     private static final int ALLOC_ALIGNMENT = Integer.BYTES;
 
     private final CatalogName catalogName;
@@ -128,7 +127,7 @@ public class NativeConnectorSync
         try {
             final int numWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
             checkArgument(numWorkerThreads > 0, "no segments configured for match bitmaps");
-            final long memorySizePerWorker = BASE_MEMORY_SIZE_PER_WORKER + globalConfig.getCollectMemorySize();
+            final long memorySizePerWorker = (long) globalConfig.getMatchMemorySize() + (long) globalConfig.getCollectMemorySize();
             final long sharedConnectorMemorySize = memorySizePerWorker * (long) numWorkerThreads;
             // register and get memory address. note that the name is not passed to native. no need.
             long sharedConnectorMemoryAddress = register(catalogContext.address(), StorageCollectorCallBack.class);

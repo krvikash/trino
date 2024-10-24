@@ -53,7 +53,6 @@ public class BufferAllocatorTest
     public void before()
     {
         nativeConfig = mock(NativeConfig.class);
-        when(nativeConfig.getBundleSize()).thenReturn(1 << 18);
         when(nativeConfig.getTaskMaxWorkerThreads()).thenReturn(4);
         when(nativeConfig.getPredicateBundleSizeInMegaBytes()).thenReturn(20);
 

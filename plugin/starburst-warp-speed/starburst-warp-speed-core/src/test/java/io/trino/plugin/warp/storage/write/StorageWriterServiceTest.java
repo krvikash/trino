@@ -136,7 +136,6 @@ public class StorageWriterServiceTest
         dictionaryConfig.setDictionaryCacheConcurrencyLevel(1);
 
         NativeConfig nativeConfig = new NativeConfig();
-        nativeConfig.setBundleSize(1 << 27);
         nativeConfig.setTaskMaxWorkerThreads(4);
         nativeConfig.setPredicateBundleSizeInMegaBytes(20);
 

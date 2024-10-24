@@ -149,18 +149,6 @@ public class StubsStorageEngineConstants
     }
 
     @Override
-    public int getNumBundles()
-    {
-        return 4;
-    }
-
-    @Override
-    public int getBundleNonCollectSize()
-    {
-        return 0;
-    }
-
-    @Override
     public int getChunkSizeShift()
     {
         return 10;

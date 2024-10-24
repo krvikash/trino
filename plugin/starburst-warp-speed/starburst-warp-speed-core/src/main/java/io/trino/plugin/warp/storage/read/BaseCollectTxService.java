@@ -101,6 +101,7 @@ public abstract class BaseCollectTxService
                 matchBmAddr,
                 recordBufferStatesAddr,
                 recordIndexesAddr,
+                txArgs.collectStateBuff().address(),
                 txArgs.collectBuffers());
     }
 

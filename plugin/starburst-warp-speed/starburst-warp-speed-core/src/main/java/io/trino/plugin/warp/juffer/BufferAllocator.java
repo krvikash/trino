@@ -54,7 +54,6 @@ public class BufferAllocator
         implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(BufferAllocator.class);
-    private static final long BUF_ID_OFFSET_MASK = 0x00000000ffffffffL;
     static final String BUFFER_ALLOCATOR_METRICS_GROUP = "BufferAllocator";
 
     @VisibleForTesting
@@ -69,7 +68,6 @@ public class BufferAllocator
     private final StorageEngineConstants storageEngineConstants;
     private final ConnectorSync connectorSync;
     private final MetricsManager metricsManager;
-    private ByteBuffer[] bundles;         // pool of Buffers initialized at startup. native layer manages alloc/free
     private MemorySegment loadSegmentsMem;
     private ArrayBlockingQueue<MemorySegment> loadSegmentsQueue; // loadSegment is the bundle, we use it to allocate juffers (record/null/etc)
     private MemorySegment loadWriteBufferMem;
@@ -299,22 +297,12 @@ public class BufferAllocator
             throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + connectorSync.getCatalogName() + " failed to load");
         }
 
-        // read bundles
-        bundles = new ByteBuffer[storageEngineConstants.getNumBundles()];
-        for (int bufIx = 0; bufIx < bundles.length; bufIx++) {
-            bundles[bufIx] = storageEngine.getBundleFromPool(bufIx);
-            if (bundles[bufIx] != null) {
-                bundles[bufIx].order(ByteOrder.LITTLE_ENDIAN);
-            }
-        }
-
-        logger.info("catalog %s loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
+        logger.info("catalog %s loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateBundleSize %dMB",
                 connectorSync.getCatalogName(),
                 loadSegmentsQueue.size(),
                 warmBundleSize,
                 warmWriteBufferSize,
                 warmContextBufferSize,
-                bundles.length,
                 predicateBundleSize >> 20);
 
         metricsManager.registerMetric(this.stats);
@@ -397,11 +385,6 @@ public class BufferAllocator
         return new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()];
     }
 
-    public ByteBuffer id2ByteBuff(long bufId)
-    {
-        return id2Buff(bufId);
-    }
-
     public ByteBuffer memorySegment2RecBuff(MemorySegment[] buffs)
     {
         return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_REC.ordinal()]);
@@ -440,13 +423,6 @@ public class BufferAllocator
     public IntBuffer memorySegment2VarlenMdBuff(MemorySegment[] buffs)
     {
         return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_SKIPLIST.ordinal()]).asIntBuffer();
-    }
-
-    private ByteBuffer id2Buff(long bufId)
-    {
-        ByteBuffer buff = createBuffView(bundles[(int) (bufId >> 32)]);
-        buff.position((int) (bufId & BUF_ID_OFFSET_MASK));
-        return buff;
     }
 
     private ByteBuffer memorySegment2ByteBuffer(MemorySegment buff)

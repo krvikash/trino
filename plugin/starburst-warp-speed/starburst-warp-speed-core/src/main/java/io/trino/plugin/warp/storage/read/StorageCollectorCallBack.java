@@ -13,40 +13,34 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.juffer.BufferAllocator;
-
-import java.nio.ByteBuffer;
+import java.lang.foreign.MemorySegment;
 
 public class StorageCollectorCallBack
 {
     private final TxArgs txArgs;
-    private final BufferAllocator bufferAllocator;
     private int collectStoreCurrSize;
 
-    public StorageCollectorCallBack(TxArgs txArgs, BufferAllocator bufferAllocator)
+    public StorageCollectorCallBack(TxArgs txArgs)
     {
         this.txArgs = txArgs;
-        this.bufferAllocator = bufferAllocator;
         this.collectStoreCurrSize = 0;
     }
 
     // this method is used only as a StorageEngine callback from native code
     @SuppressWarnings("unused")
-    void collectStoreStateCB(long stateBuffId, int size)
+    void collectStoreStateCB(int size)
     {
-        ByteBuffer bufferToCopy = bufferAllocator.id2ByteBuff(stateBuffId).slice();
-        bufferToCopy.get(txArgs.collectStoreBuff(), 0, size);
+        MemorySegment.copy(txArgs.collectStateBuff(), 0, MemorySegment.ofArray(txArgs.collectStoreBuff()), 0, size);
         collectStoreCurrSize = size;
     }
 
     // this method is used only as a StorageEngine callback from native code
     // returns the size of the state restored
     @SuppressWarnings("unused")
-    int collectRestoreStateCB(long stateBuffId)
+    int collectRestoreStateCB(int dummy)
     {
         if (collectStoreCurrSize > 0) {
-            ByteBuffer targetByteBuffer = bufferAllocator.id2ByteBuff(stateBuffId);
-            targetByteBuffer.put(txArgs.collectStoreBuff(), 0, collectStoreCurrSize);
+            MemorySegment.copy(MemorySegment.ofArray(txArgs.collectStoreBuff()), 0, txArgs.collectStateBuff(), 0, collectStoreCurrSize);
         }
         return collectStoreCurrSize;
     }

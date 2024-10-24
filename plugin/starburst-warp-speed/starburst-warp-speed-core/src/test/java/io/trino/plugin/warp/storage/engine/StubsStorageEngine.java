@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.engine;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -25,7 +24,6 @@ public class StubsStorageEngine
         implements StorageEngine
 {
     private final List<RuntimeException> throwOnColletRuntimeExceptionList = new ArrayList<>();
-    ByteBuffer firstBundle;
 
     public StubsStorageEngine()
     {
@@ -166,10 +164,8 @@ public class StubsStorageEngine
     @Override
     public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long[][] collectBuffers)
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers)
     {
-        Arrays.fill(firstBundle.array(), (byte) 0);
-        firstBundle.position(0);
     }
 
     @Override
@@ -236,16 +232,6 @@ public class StubsStorageEngine
     @Override
     public void matchClose(int txId)
     {
-    }
-
-    @Override
-    public ByteBuffer getBundleFromPool(int bufIx)
-    {
-        if (bufIx == 0) {
-            firstBundle = ByteBuffer.allocate(1 << 10);
-            return firstBundle;
-        }
-        return ByteBuffer.allocate(1 << 10);
     }
 
     @Override

@@ -174,7 +174,6 @@ public class QueryClassifierTest
         when(storageEngineConstants.getMaxChunksInRange()).thenReturn(1);
         when(storageEngineConstants.getMatchCollectNumIds()).thenReturn(100);
         when(storageEngineConstants.getMaxMatchColumns()).thenReturn(128);
-        when(storageEngineConstants.getBundleNonCollectSize()).thenReturn(0);
         predicatesCacheService = mock(PredicatesCacheService.class);
         PredicateBufferInfo predicateBufferInfo = new PredicateBufferInfo(null, PredicateBufferPoolType.INVALID);
         when(predicatesCacheService.getOrCreatePredicateBufferId(isA(PredicateData.class), isA(Domain.class))).thenReturn(Optional.of(new PredicateCacheData(predicateBufferInfo, Optional.empty())));
@@ -191,7 +190,6 @@ public class QueryClassifierTest
         this.dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         when(dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(any(RowGroupData.class), any(), any())).thenReturn(Optional.empty());
         nativeConfig = mock(NativeConfig.class);
-        when(nativeConfig.getBundleSize()).thenReturn(256 * 1024);
         when(nativeConfig.getCollectTxSize()).thenReturn(8 * 1024 * 1024);
         //when(globalConfig.getEnableMatchCollect()).thenReturn(true);
         // in each test we will set the correct record data (int/varchar) as return value from getType

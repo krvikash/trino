@@ -58,10 +58,6 @@ public interface StorageEngineConstants
 
     int getVarlenMdGranularity();
 
-    int getNumBundles();
-
-    int getBundleNonCollectSize();
-
     int getChunkSizeShift();
 
     int getMatchCollectBufferSize();

@@ -53,9 +53,6 @@ public class NativeStorageEngineConstants
     private final int varlenSkiplistGranularity;
     private final int varlenExtLimit;
     private final int varlenExtRecordHeaderSize;
-    // tx and memory resources
-    private final int numBundles;
-    private final int bundleNonCollectSize;
     // chunk
     private final int chunkSizeShift;
     private final int matchCollectBufferSize;
@@ -99,10 +96,6 @@ public class NativeStorageEngineConstants
             varlenSkiplistGranularity = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_varlen_md_granularity");
             varlenExtLimit = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_varlen_ext_limit");
             varlenExtRecordHeaderSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_varlen_ext_record_header_size");
-
-            // tx and memory
-            numBundles = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_num_bundles");
-            bundleNonCollectSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_bundle_non_collect_size");
 
             // chunk
             chunkSizeShift = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_chunk_size_shift");
@@ -242,18 +235,6 @@ public class NativeStorageEngineConstants
     public int getVarlenMdGranularity()
     {
         return varlenSkiplistGranularity;
-    }
-
-    @Override
-    public int getNumBundles()
-    {
-        return numBundles;
-    }
-
-    @Override
-    public int getBundleNonCollectSize()
-    {
-        return bundleNonCollectSize;
     }
 
     @Override
