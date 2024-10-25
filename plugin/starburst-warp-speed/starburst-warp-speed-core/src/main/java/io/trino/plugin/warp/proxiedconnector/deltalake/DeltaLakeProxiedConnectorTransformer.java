@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.proxiedconnector.deltalake;
 
+import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.deltalake.CorruptedDeltaLakeTableHandle;
@@ -37,6 +38,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.type.Type;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -149,7 +151,9 @@ public class DeltaLakeProxiedConnectorTransformer
             entry.getValue().ifPresent(value -> partitionKeys.add(new PartitionKey(new RegularColumn(entry.getKey()), value)));
         }
 
-        String deletedFileHash = deltaLakeSplit.getDeletionVector().isPresent() ? deltaLakeSplit.getDeletionVector().toString() : "";
+        String deletedFileHash = deltaLakeSplit.getDeletionVector().isPresent() ?
+                Hashing.sha256().hashString(deltaLakeSplit.getDeletionVector().get().toString(), StandardCharsets.UTF_8).toString() : "";
+
         return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
                 deltaLakeSplit.getPath(),
