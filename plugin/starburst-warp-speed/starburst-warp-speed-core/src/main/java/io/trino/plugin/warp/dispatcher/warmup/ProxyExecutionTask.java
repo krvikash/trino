@@ -31,8 +31,10 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.flows.FlowIdGenerator;
 import io.trino.plugin.warp.tools.util.StopWatch;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -57,6 +59,7 @@ public class ProxyExecutionTask
     private final GlobalConfig globalConfig;
     private final int executionTaskPriority;
     private final StorageWarmerService storageWarmerService;
+    private final ShapingLogger shapingLogger;
 
     public ProxyExecutionTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
             EventBus eventBus,
@@ -82,6 +85,12 @@ public class ProxyExecutionTask
             StorageWarmerService storageWarmerService)
     {
         super(warmExecutionTaskFactory, workerTaskExecutorService, warmingServiceStats, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, iterationCount);
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
+
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.eventBus = requireNonNull(eventBus);
         this.globalConfig = requireNonNull(globalConfig);
@@ -205,7 +214,7 @@ public class ProxyExecutionTask
 
         // Just a precaution - make sure we're not stuck on an infinite loop of warmups.
         if (iterationCount >= globalConfig.getMaxWarmupIterationsPerQuery()) {
-            logger.error("Max iteration count has reached (%d), won't try to warm again. rowGroupKey=%s, warpColumns=%s, dataToWarm=%s",
+            shapingLogger.error("Max iteration count has reached (%d), won't try to warm again. rowGroupKey=%s, warpColumns=%s, dataToWarm=%s",
                     globalConfig.getMaxWarmupIterationsPerQuery(),
                     rowGroupKey,
                     columns.stream().map(dispatcherProxiedConnectorTransformer::getWarpRegularColumn).collect(Collectors.toList()),
@@ -243,5 +252,12 @@ public class ProxyExecutionTask
     protected WarmData getWarmData()
     {
         return getWarmData(false);
+    }
+
+    protected void logFailure(Exception e)
+    {
+        if (!(e instanceof TrinoException || e instanceof UnsupportedOperationException)) {
+            shapingLogger.error(e, "warm failed %s", rowGroupKey);
+        }
     }
 }

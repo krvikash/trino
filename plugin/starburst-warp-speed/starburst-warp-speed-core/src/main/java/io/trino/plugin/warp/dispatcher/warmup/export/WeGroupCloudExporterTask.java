@@ -22,6 +22,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerSubmittableTask;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.tools.util.StopWatch;
 
 import java.util.UUID;
@@ -41,6 +42,7 @@ public class WeGroupCloudExporterTask
     private final WarmupElementsCloudExporter warmupElementsCloudExporter;
     private final GlobalConfig globalConfig;
     private final WarmupExportServiceStats statsWarmupExportService;
+    private final ShapingLogger shapingLogger;
 
     public WeGroupCloudExporterTask(RowGroupKey rowGroupKey,
             String cloudImportExportPath,
@@ -50,6 +52,12 @@ public class WeGroupCloudExporterTask
             GlobalConfig globalConfig,
             WarmupExportServiceStats statsWarmupExportService)
     {
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
+
         this.rowGroupKey = requireNonNull(rowGroupKey);
         this.cloudImportExportPath = requireNonNull(cloudImportExportPath);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
@@ -143,7 +151,7 @@ public class WeGroupCloudExporterTask
             }
         }
         catch (Exception e) {
-            logger.error("export failed %s message: %s cause: %s", rowGroupKey, e.getMessage(), e.getCause());
+            shapingLogger.error("export failed %s message: %s cause: %s", rowGroupKey, e.getMessage(), e.getCause());
             if (stopWatch.isStarted()) {
                 // update row group with new export state
                 RowGroupData updated = updatedRowGroupWithExportFailedState(rowGroupData);

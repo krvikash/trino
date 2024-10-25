@@ -309,7 +309,7 @@ public class WeGroupWarmer
             }
             catch (Exception e) {
                 warmupImportServiceStats.incimport_elements_failed();
-                logger.error("failed to download warmUpElement rowGroupKey %s cloudPath '%s' message: %s",
+                shapingLogger.error("failed to download warmUpElement rowGroupKey %s cloudPath '%s' message: %s",
                         rowGroupData.getRowGroupKey(), cloudPath, e.getMessage());
             }
             finally {

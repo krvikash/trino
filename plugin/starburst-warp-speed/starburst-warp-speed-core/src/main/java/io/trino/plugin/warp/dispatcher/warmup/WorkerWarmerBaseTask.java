@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup;
 
-import io.airlift.log.Logger;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -25,7 +24,6 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
-import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -41,8 +39,6 @@ import static java.util.Objects.requireNonNull;
 public abstract class WorkerWarmerBaseTask
         implements WorkerSubmittableTask
 {
-    private static final Logger logger = Logger.get(WorkerWarmerBaseTask.class);
-
     protected final WarmExecutionTaskFactory warmExecutionTaskFactory;
     protected final WarmingManager warmingManager;
     protected final ConnectorPageSourceProvider connectorPageSourceProvider;
@@ -164,13 +160,6 @@ public abstract class WorkerWarmerBaseTask
                 session,
                 queryContext,
                 isDryRun);
-    }
-
-    protected void logFailure(Exception e)
-    {
-        if (!(e instanceof TrinoException || e instanceof UnsupportedOperationException)) {
-            logger.error(e, "warm failed %s", rowGroupKey);
-        }
     }
 
     protected WorkerSubmittableTask createProxyExecutionTask(int priority)

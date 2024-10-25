@@ -115,7 +115,7 @@ public class CloudVendorStorageService
             }
         }
         catch (Exception e) {
-            logger.error(e, "uploadFileToCloud failed");
+            shapingLogger.error(e, "uploadFileToCloud failed %s", localFile.getPath());
             throw new RuntimeException("uploadFileToCloud failed [%s] => [%s]".formatted(localFile.getPath(), outputPath), e);
         }
         return isUploadDone;

@@ -26,6 +26,7 @@ import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireWarmupStatus;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.flows.FlowType;
@@ -63,6 +64,7 @@ public class StorageWarmerService
     private final StorageEngineTxService storageEngineTxService;
     private final FlowsSequencer flowsSequencer;
     private final WarmingServiceStats statsWarmingService;
+    private final ShapingLogger shapingLogger;
 
     @Inject
     public StorageWarmerService(RowGroupDataService rowGroupDataService,
@@ -73,6 +75,12 @@ public class StorageWarmerService
             FlowsSequencer flowsSequencer,
             MetricsManager metricsManager)
     {
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
+
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageEngine = requireNonNull(storageEngine);
         this.globalConfig = requireNonNull(globalConfig);
@@ -160,14 +168,14 @@ public class StorageWarmerService
                 if (rowGroupData.isPresent()) {
                     rowGroupDataService.deleteData(rowGroupData.get(), true);
                     String rowGroupFilePath = rowGroupData.get().getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
-                    logger.error(e, String.format("failed to close file %s", rowGroupFilePath));
+                    shapingLogger.error(e, "failed to close file %s", rowGroupFilePath);
                 }
             }
         }
         else if (rowGroupData.isPresent()) { // we failed in opening the file
             rowGroupDataService.deleteData(rowGroupData.get(), true);
             String rowGroupFilePath = rowGroupData.get().getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
-            logger.error(String.format("failed to open file %s", rowGroupFilePath));
+            shapingLogger.error("failed to open file %s", rowGroupFilePath);
         }
     }
 
@@ -188,7 +196,7 @@ public class StorageWarmerService
             }
         }
         catch (Exception e) {
-            logger.error(e, "failed to verify query offsets for %s", validWarmUpElements);
+            shapingLogger.error(e, "failed to verify query offsets for %s", validWarmUpElements);
             throw new RuntimeException(e);
         }
         finally {
