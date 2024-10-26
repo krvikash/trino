@@ -20,7 +20,7 @@ public class StubsStorageEngineConstants
 
     public StubsStorageEngineConstants()
     {
-        this(57344);
+        this(1024);
     }
 
     public StubsStorageEngineConstants(int varcharMaxLen)
@@ -61,13 +61,13 @@ public class StubsStorageEngineConstants
     @Override
     public int getRecordBufferMaxSize()
     {
-        return 1 << 19;
+        return 1 << 15;
     }
 
     @Override
     public int getIndexChunkMaxSize()
     {
-        return 4 * 1024 * 1024;
+        return 1024 * 1024;
     }
 
     @Override
@@ -127,7 +127,7 @@ public class StubsStorageEngineConstants
     @Override
     public int getVarlenExtMark()
     {
-        return 630;
+        return 63;
     }
 
     @Override
@@ -151,7 +151,7 @@ public class StubsStorageEngineConstants
     @Override
     public int getNumBundles()
     {
-        return 16;
+        return 4;
     }
 
     @Override
@@ -163,7 +163,7 @@ public class StubsStorageEngineConstants
     @Override
     public int getChunkSizeShift()
     {
-        return 16;
+        return 10;
     }
 
     @Override

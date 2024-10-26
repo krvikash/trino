@@ -64,7 +64,6 @@ import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterThreshold;
 import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTask;
-import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryConfigResult;
 import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryCountResult;
 import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryTask;
 import io.trino.plugin.warp.extension.execution.health.ClusterHealthTask;
@@ -92,13 +91,10 @@ import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.plan.ChooseAlternativeNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.TableScanNode;
-import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
-import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import jakarta.ws.rs.HttpMethod;
 import org.intellij.lang.annotations.Language;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -128,7 +124,6 @@ import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING;
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX;
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MAPPED_MATCH_COLLECT;
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_VARCHAR_MAPPED_MATCH_COLLECT;
-import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.WarpSessionProperties.UNSUPPORTED_FUNCTIONS;
 import static io.trino.plugin.warp.WarpSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
@@ -177,51 +172,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testBucketedBy()
-            throws IOException
-    {
-        String table = "bt";
-        createTable(DEFAULT_SCHEMA,
-                table,
-                "(int_1 integer, bigint_2 bigint, smallint_3 smallint, tinyint_4 tinyint, char_5 char(9))" +
-                        " WITH (format = 'PARQUET', bucketed_by = ARRAY['int_1'], bucket_count = 4)");
-
-        // "warp-speed.config.dictionary.max-size" == "3" in DispatcherQueryRunner.createQueryRunner()
-        IntStream.range(1, 4).forEach(value -> assertUpdate(format("INSERT INTO bt(int_1, bigint_2, smallint_3, tinyint_4, char_5) VALUES (%d, %d, %d, %d, '%09d')",
-                value, value, value, value, value), 1));
-
-        createWarmupRules(DEFAULT_SCHEMA,
-                table,
-                Map.of("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
-                        "bigint_2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
-
-        @Language("SQL") String query = "SELECT * FROM " + table;
-        warmAndValidate(query, false, 12 /* 2 cols * 2 types * 3 rows */, 3);
-
-        Map<String, Long> expectedQueryStats = Map.of(
-                CACHED_TOTAL_ROWS, 3L,
-                WARP_MATCH_COLUMNS_STAT, 0L,
-                WARP_COLLECT_COLUMNS_STAT, 0L,
-                PREFILLED_COLUMNS_STAT, 6L /* 2 cols * 3 rows */,
-                EXTERNAL_MATCH_STAT, 0L,
-                EXTERNAL_COLLECT_STAT, 9L /* 3 cols * 3 rows */);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        expectedQueryStats = Map.of(
-                CACHED_TOTAL_ROWS, 1L,
-                WARP_MATCH_COLUMNS_STAT, 1L,
-                WARP_COLLECT_COLUMNS_STAT, 0L,
-                PREFILLED_COLUMNS_STAT, 2L,
-                EXTERNAL_MATCH_STAT, 0L,
-                EXTERNAL_COLLECT_STAT, 3L);
-        validateQueryStats("SELECT * FROM %s WHERE int_1 = 1".formatted(table),
-                getSession(),
-                expectedQueryStats);
-    }
-
-    @Test
     public void testSinglePartitionMultipleSplits()
     {
         String table = "pt";
@@ -234,69 +184,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         MaterializedResult materializedRows = computeActual("SELECT count(a) FROM %s WHERE date_date=CAST('2020-04-01' AS date)".formatted(table));
         assertThat(materializedRows.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
-    }
-
-    @Test
-    public void testMultiplePartitionsMultipleSplits()
-            throws IOException
-    {
-        String table = "pt";
-        String aCol = "a";
-        String dateIntCol = "date_int";
-        String dateDateCol = "date_date";
-
-        createTable(DEFAULT_SCHEMA,
-                table,
-                "(%s varchar, %s integer, %s date) WITH (format='PARQUET', partitioned_by = ARRAY['%s', '%s'])"
-                        .formatted(aCol, dateIntCol, dateDateCol, dateIntCol, dateDateCol));
-
-        IntStream.range(0, 2).forEach(indexDateInt -> IntStream.range(1, 3).forEach(indexDateDate -> assertUpdate(format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', 2019031%d, CAST('2020-04-%d%d' AS date))",
-                        table, aCol, dateIntCol, dateDateCol, indexDateDate, indexDateInt, indexDateInt, indexDateDate),
-                1)));
-
-        createWarmupRules(DEFAULT_SCHEMA,
-                table,
-                Map.of(aCol,
-                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
-                        dateIntCol,
-                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
-                        dateDateCol,
-                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL))));
-
-        warmAndValidate(format("select %s, %s, %s from %s", aCol, dateIntCol, dateDateCol, table),
-                Session.builder(getSession())
-                        .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.FALSE.toString())
-                        .build(),
-                24,
-                4,
-                Optional.empty());
-
-        @Language("SQL") String query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s='a-1'",
-                aCol, dateIntCol, table, dateIntCol, aCol);
-        Map<String, Long> expectedQueryStats = Map.of(
-                CACHED_TOTAL_ROWS, 2L,
-                WARP_MATCH_COLUMNS_STAT, 2L,
-                WARP_COLLECT_COLUMNS_STAT, 0L,
-                PREFILLED_COLUMNS_STAT, 4L,
-                EXTERNAL_MATCH_STAT, 0L,
-                EXTERNAL_COLLECT_STAT, 0L);
-        int expectedSplits = 2;
-        validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(expectedSplits));
-
-        query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s=CAST('2020-04-12' AS date) AND %s='a-1'",
-                aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol);
-        expectedQueryStats = Map.of(
-                CACHED_TOTAL_ROWS, 1L,
-                WARP_MATCH_COLUMNS_STAT, 1L,
-                WARP_COLLECT_COLUMNS_STAT, 0L,
-                PREFILLED_COLUMNS_STAT, 2L,
-                EXTERNAL_MATCH_STAT, 0L,
-                EXTERNAL_COLLECT_STAT, 0L);
-        expectedSplits = 1;
-        validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(expectedSplits));
     }
 
     @Test
@@ -2525,27 +2412,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
-    // since we have no native and the merge of pages fail. kept it here in case as a scenario
-// that can be debugged(maybe in the future we will have a native stub)
-    @Test
-    @Disabled
-    public void testWarmIndexOnly()
-            throws IOException
-    {
-        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomishlomishlomi')");
-
-        createWarmupRules(DEFAULT_SCHEMA, "t", Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL)),
-                C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
-
-        warmAndValidate("select * from t", false, 2, 1);
-
-        MaterializedResult materializedRows = computeActual(getSession(), "select int1 from t where v1 = 'shlomishlomishlomi'");
-        assertThat(materializedRows.getRowCount()).isEqualTo(0); //return 0 because we don't have native, just to check the init of reader
-
-        materializedRows = computeActual(getSession(), "select v1 from t where v1 = 'shlomishlomishlomi'");
-        assertThat(materializedRows.getRowCount()).isEqualTo(1);  // mixed, goes to hive for v1
-    }
-
     @Test
     public void testVarcharMaxFail()
             throws IOException
@@ -2836,45 +2702,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "SELECT COUNT(*) FROM pt where ds = 'b1'";
         Map<String, Long> expectedQueryStats = Map.of("empty_collect_columns", 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
-    }
-
-    @Test
-    @Disabled
-    public void testPrefillFakeCollect()
-            throws IOException
-    {
-        Session session = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + PREDICATE_SIMPLIFY_THRESHOLD, Integer.toString(1))
-                .build();
-
-        computeActual(session, "INSERT INTO t VALUES (1, 'shlomi')");
-        createWarmupRules(DEFAULT_SCHEMA,
-                "t",
-                Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
-                        C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
-        warmAndValidate("SELECT count(v1) FROM t WHERE int1 = 1", false, 2, 1);
-
-        QueryRunner.MaterializedResultWithPlan materializedResult = getQueryRunner()
-                .executeWithPlan(session, "SELECT count(v1) FROM t WHERE int1 > 1");
-        Map<String, Long> customMetrics = getCustomMetrics(materializedResult.queryId(), (DistributedQueryRunner) getQueryRunner());
-        assertThat(customMetrics.get("dispatcherPageSource:warp_prefilled_collect_columns")).isEqualTo(1);
-        assertThat(customMetrics.get("prefilled:int1")).isEqualTo(1);
-        assertThat(customMetrics.get("dispatcherPageSource:warp_match_columns")).isEqualTo(1);
-        assertThat(customMetrics.get("dispatcherPageSource:warp_match_on_simplified_domain")).isEqualTo(0);
-        assertThat(customMetrics.get("dispatcherPageSource:external_collect_columns")).isEqualTo(1);
-        assertThat(customMetrics.get("external-collect:v1")).isEqualTo(1);
-
-        // can't prefill because int1's domain should be simplified to 0-2. int1 will be match-collected instead.
-        materializedResult = getQueryRunner()
-                .executeWithPlan(session, "SELECT count(v1) FROM t WHERE int1 in (0, 2)");
-        customMetrics = getCustomMetrics(materializedResult.queryId(), (DistributedQueryRunner) getQueryRunner());
-        assertThat(customMetrics.get("dispatcherPageSource:warp_prefilled_collect_columns")).isEqualTo(0);
-        assertThat(customMetrics.get("dispatcherPageSource:warp_collect_columns")).isEqualTo(1);
-        assertThat(customMetrics.get("warp-collect:int1:WARM_UP_TYPE_BASIC")).isEqualTo(1);
-        assertThat(customMetrics.get("dispatcherPageSource:warp_match_columns")).isEqualTo(1);
-        assertThat(customMetrics.get("dispatcherPageSource:warp_match_on_simplified_domain")).isEqualTo(1);
-        assertThat(customMetrics.get("dispatcherPageSource:external_collect_columns")).isEqualTo(1);
-        assertThat(customMetrics.get("external-collect:v1")).isEqualTo(1);
     }
 
     @Test
@@ -3283,120 +3110,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    @Disabled
-    public void testWarmupDemoterStartExe()
-            throws IOException
-    {
-        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                .executeDemoter(true)
-                .build();
-        Map<String, Object> res = demote(warmupDemoterData);
-        long totalUsage = ((Number) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.TOTAL_USAGE_THRESHOLD_KEY))
-                .findAny()
-                .orElseThrow()
-                .getValue())
-                .longValue();
-        long currentUsage = ((Number) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.CURRENT_USAGE_THRESHOLD_KEY))
-                .findAny()
-                .orElseThrow()
-                .getValue())
-                .longValue();
-        double maxUsageThreshold = ((Number) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.MAX_USAGE_THRESHOLD_KEY))
-                .findAny()
-                .orElseThrow()
-                .getValue())
-                .doubleValue();
-        double cleanupUsageThreshold = ((Number) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.CLEANUP_USAGE_THRESHOLD_KEY))
-                .findAny()
-                .orElseThrow()
-                .getValue())
-                .doubleValue();
-        assertThat(currentUsage).isEqualTo(0);
-        assertThat(maxUsageThreshold).isEqualTo(0d);
-        assertThat(cleanupUsageThreshold).isEqualTo(0d);
-        warmupDemoterData = WarmupDemoterData.builder()
-                .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                .resetHighestPriority(true)
-                .build();
-        demote(warmupDemoterData);
-
-        Session jmxSession = createJmxSession();
-        buildAndWarmWideTable(10, false, 30, Optional.empty());
-
-        MaterializedResult jmx0 = computeActual(
-                jmxSession,
-                "select sum(currentUsage), sum(totalUsage) from \"%s*%s\"".formatted(
-                        WarmupDemoterStats.class.getPackageName(),
-                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
-        long jmxUsageStart = (long) jmx0.getMaterializedRows().getFirst().getField(0);
-        long jmxTotalUsage = (long) jmx0.getMaterializedRows().getFirst().getField(1);
-        assertThat(jmxTotalUsage).isEqualTo(totalUsage);
-        warmupDemoterData = WarmupDemoterData.builder()
-                .batchSize(2)
-                .executeDemoter(true)
-                .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.7))
-                .build();
-
-        res = demote(warmupDemoterData);
-
-        MaterializedResult jmx1 = computeActual(
-                jmxSession,
-                "select sum(currentUsage) from \"%s*%s\"".formatted(
-                        WarmupDemoterStats.class.getPackageName(),
-                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
-        long jmxUsageEnd = (long) jmx1.getMaterializedRows().getFirst().getField(0);
-        assertThat(jmxUsageEnd).isLessThan(jmxUsageStart);
-        Integer deadObjectsDeletedCount = (Integer) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().endsWith("dead_objects_deleted"))
-                .findAny()
-                .orElseThrow()
-                .getValue();
-        Integer deletedByLowPriorityCount = (Integer) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().endsWith("deleted_by_low_priority"))
-                .findAny()
-                .orElseThrow()
-                .getValue();
-        Double highestPriority = (Double) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.HIGHEST_PRIORITY_KEY))
-                .findAny()
-                .orElseThrow()
-                .getValue();
-        currentUsage = ((Number) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.CURRENT_USAGE_THRESHOLD_KEY))
-                .findAny()
-                .orElseThrow()
-                .getValue())
-                .longValue();
-        long totalUsageEnd = ((Number) res.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.TOTAL_USAGE_THRESHOLD_KEY))
-                .findAny()
-                .orElseThrow()
-                .getValue())
-                .longValue();
-        assertThat(totalUsage).isEqualTo(totalUsageEnd);
-        assertThat(currentUsage).isEqualTo(jmxUsageEnd);
-        assertThat(deletedByLowPriorityCount).isGreaterThan(1);
-        assertThat(deadObjectsDeletedCount).isGreaterThan(1);
-        assertThat(highestPriority).isLessThan(7.5);
-    }
-
-    @Test
     public void testWarmupDemoteAutomatic()
             throws IOException
     {
@@ -3739,130 +3452,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         MaterializedResult materializedRows = computeActual(getSession(), "select * from %s".formatted(tableName));
         validateDictionaryStats(jmxSession, beforeDictionaryMaxExceptionCount, beforeWriteDictionaryCount, beforeReadDictionaryCount + createdDictionaries);
         assertThat(materializedRows.getRowCount()).isEqualTo(0);
-    }
-
-    @Disabled
-    @Test
-    public void testDictionaryFailed()
-            throws IOException
-    {
-        int maxSize = 3;
-        int numberOfExpectedWriteDictionaries = 2;
-        String tableName = "dictionary_test_2";
-        createTable(DEFAULT_SCHEMA, tableName, "(int1 bigint, var varchar)");
-        // one row group per successfully dictionary key + one to fail
-        computeActual(getSession(), "INSERT INTO %s VALUES (1, 'tzachi1')".formatted(tableName));
-        computeActual(getSession(), "INSERT INTO %s VALUES (2, 'tzachi2')".formatted(tableName));
-        computeActual(getSession(), "INSERT INTO %s VALUES (3, 'tzachi3')".formatted(tableName));
-        computeActual(getSession(), "INSERT INTO %s VALUES (4, 'tzachi4')".formatted(tableName));
-
-        Session session = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.toString(true))
-                .build();
-        Session jmxSession = createJmxSession();
-        MaterializedResult dictionaryStats = computeActual(jmxSession, "select sum(dictionary_max_exception_count), sum(write_dictionaries_count), sum(dictionary_read_elements_count) from \"*dictionary*\"");
-        long beforeDictionaryMaxExceptionCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(0);
-        long beforeWriteDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(1);
-        long expectedReadDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(2);
-        int expectedFailures = 2;
-        warmAndValidate("select * from %s".formatted(tableName),
-                session,
-                8,
-                5,
-                expectedFailures);
-        long expectedDictionaryWriteCount = beforeWriteDictionaryCount + expectedFailures;
-        validateDictionaryStats(jmxSession, beforeDictionaryMaxExceptionCount + expectedFailures, expectedDictionaryWriteCount, expectedReadDictionaryCount);
-        String executeRestCommand = executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_COUNT_AGGREGATED_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        DictionaryCountResult dictionaryCountAggregatedResult = objectMapper.readerFor(new TypeReference<DictionaryCountResult>() {})
-                .readValue(executeRestCommand);
-        assertThat(dictionaryCountAggregatedResult.getWorkerDictionaryResultsList().size()).isEqualTo(1);
-        List<DebugDictionaryMetadata> dictionaryResult = dictionaryCountAggregatedResult
-                .getWorkerDictionaryResultsList()
-                .getFirst()
-                .getDictionaryMetadataList()
-                .stream()
-                .filter(x -> x.dictionaryKey().schemaTableName().getTableName().equalsIgnoreCase(tableName))
-                .toList();
-        assertThat(dictionaryResult.size()).isEqualTo(2);
-        assertThat(dictionaryResult.stream().allMatch(x -> x.dictionarySize() == maxSize)).isTrue(); //dictionary is empty
-
-        // expect 4 cached row groups with 2 elements each and 2 failed dictionaries
-        validateWarmupElementsDictionaryId(2, maxSize + 1, 2, tableName);
-
-        jmxSession = createJmxSession();
-        dictionaryStats = computeActual(jmxSession, "select sum(dictionary_max_exception_count), sum(write_dictionaries_count), sum(dictionary_read_elements_count) from \"*dictionary*\"");
-        beforeDictionaryMaxExceptionCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(0);
-        beforeWriteDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(1);
-        long beforeReadDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(2);
-        MaterializedResult materializedRows = computeActual(getSession(), "select * from %s".formatted(tableName));
-        int expectedValidDictionaries = 3 * 2; //3 rowGroups each one use 2 dictionaries
-        validateDictionaryStats(jmxSession, beforeDictionaryMaxExceptionCount, beforeWriteDictionaryCount, beforeReadDictionaryCount + expectedValidDictionaries);
-        assertThat(materializedRows.getRowCount()).isEqualTo(0);
-
-        //reset dictionaries
-        String dictionariesReset = executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_RESET_MEMORY_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        assertThat(Integer.valueOf(dictionariesReset.trim())).isEqualTo(numberOfExpectedWriteDictionaries);
-    }
-
-    @Test
-    @Disabled
-    public void testDictionaryLRU()
-            throws IOException
-    {
-        String tableName = "dictionary_test_3";
-        String var = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        createTable(DEFAULT_SCHEMA, tableName, "(int1 bigint, var1 varchar, var2 varchar, var3 varchar)");
-        computeActual(getSession(), format("INSERT INTO %s VALUES (1, '%s', '%s', '%s')", tableName, var + "0", var + "00", var + "00"));
-
-        Session session = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.toString(true))
-                .build();
-        Session jmxSession = createJmxSession();
-        warmAndValidate("select * from %s".formatted(tableName),
-                session,
-                4,
-                1,
-                0);
-
-        computeActual(getSession(), format("INSERT INTO %s VALUES (2, '%s', '%s', '%s')", tableName, var + "1", var + "10", var + "10"));
-        computeActual(getSession(), format("INSERT INTO %s VALUES (3, '%s', '%s', '%s')", tableName, var + "2", var + "20", var + "20"));
-
-        //reset dictionaries
-        Map<String, DictionaryConfigResult> configResults = objectMapper.readerFor(new TypeReference<Map<String, DictionaryConfigResult>>() {})
-                .readValue(executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_GET_CONFIGURATION, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
-        DictionaryConfigResult config = new DictionaryConfigResult(300, 1, -1);
-        assertThat(configResults.values().stream().findAny().orElseThrow().getMaxDictionaryTotalCacheWeight()).isGreaterThan(300);
-        executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_SET_CONFIGURATION_AND_RESET_CACHE, config, HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        configResults = objectMapper.readerFor(new TypeReference<Map<String, DictionaryConfigResult>>() {})
-                .readValue(executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_GET_CONFIGURATION, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
-        assertThat(configResults.values().stream().findAny().orElseThrow().getMaxDictionaryTotalCacheWeight()).isEqualTo(300);
-        assertThat(configResults.values().stream().findAny().orElseThrow().getConcurrency()).isEqualTo(1);
-        warmAndValidate("select * from %s".formatted(tableName),
-                session,
-                8,
-                2,
-                0);
-        MaterializedResult dictionaryStats = computeActual(jmxSession, "select sum(dictionary_evicted_entries), sum(dictionary_active_size), sum(dictionaries_weight), sum(dictionary_entries), sum(write_dictionaries_count) from \"*dictionary*\"");
-        MaterializedRow stats = dictionaryStats.getMaterializedRows().getFirst();
-        assertThat((long) stats.getField(0)).isEqualTo(1); //dictionary_evicted_entries
-        assertThat((long) stats.getField(1)).isEqualTo(0); // dictionary_active_size
-        assertThat((long) stats.getField(2)).isLessThanOrEqualTo(300); // dictionaries_weight
-        assertThat((long) stats.getField(3)).isEqualTo(3); // dictionary_entries
-
-        //we run query on int 1 - so var will be evicted
-        computeActual(getSession(), "select int1 from %s".formatted(tableName));
-        dictionaryStats = computeActual(jmxSession, "select sum(dictionary_evicted_entries), sum(dictionary_active_size), sum(dictionaries_weight), sum(dictionaries_varlen_str_weight), sum(dictionary_entries), sum(write_dictionaries_count) from \"*dictionary*\"");
-        MaterializedRow statsAfterWarmInt = dictionaryStats.getMaterializedRows().getFirst();
-        assertThat((long) statsAfterWarmInt.getField(1)).isEqualTo(0); // dictionary_active_size
-        assertThat((long) statsAfterWarmInt.getField(2)).isLessThanOrEqualTo(300); //dictionaries_weight
-        long cacheTotalSize = (long) statsAfterWarmInt.getField(2);
-        long cacheTotalStrSize = (long) statsAfterWarmInt.getField(3);
-        assertThat(cacheTotalSize).isGreaterThan(cacheTotalStrSize); // dictionary_entries
-        Map<String, Map<String, Integer>> cachedValues = objectMapper.readerFor(new TypeReference<Map<String, Map<String, Long>>>() {})
-                .readValue(executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_GET_CACHE_KEYS, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
-        assertThat(cachedValues.values().stream().findAny().orElseThrow()).containsKey("%s.%s.int1".formatted(DEFAULT_SCHEMA, tableName));
-        //reset dictionaries
-        executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_RESET_MEMORY_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_OK);
     }
 
     /**

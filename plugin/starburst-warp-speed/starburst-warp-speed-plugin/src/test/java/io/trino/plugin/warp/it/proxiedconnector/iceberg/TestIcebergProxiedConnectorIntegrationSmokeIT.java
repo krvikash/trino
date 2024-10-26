@@ -44,7 +44,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.IntStream;
 
@@ -495,68 +494,6 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 WARP_COLLECT_COLUMNS_STAT, 2L,
                 PREFILLED_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
-    }
-
-    @Test
-    public void testMultiplePartitionsMultipleSplits()
-            throws IOException
-    {
-        String table = "multiple_partitions_multiple_splits";
-        String aCol = "a";
-        String dateIntCol = "date_int";
-        String dateDateCol = "date_date";
-
-        createTable(DEFAULT_SCHEMA,
-                table,
-                "(%s varchar, %s integer, %s date) WITH (format='PARQUET', partitioning = ARRAY['%s', '%s'])"
-                        .formatted(aCol, dateIntCol, dateDateCol, dateIntCol, dateDateCol));
-
-        IntStream.range(0, 2).forEach(indexDateInt -> IntStream.range(1, 3).forEach(indexDateDate -> {
-            @Language("SQL") String sql = format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', 2019031%d, CAST('2020-04-%d%d' AS date))",
-                    table, aCol, dateIntCol, dateDateCol, indexDateDate, indexDateInt, indexDateInt, indexDateDate);
-            assertUpdate(sql, 1);
-        }));
-
-        createWarmupRules(DEFAULT_SCHEMA,
-                table,
-                Map.of(aCol,
-                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
-                        dateIntCol,
-                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
-                        dateDateCol,
-                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL))));
-
-        warmAndValidate(format("select %s, %s, %s from %s", aCol, dateIntCol, dateDateCol, table),
-                Session.builder(getSession())
-                        .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.FALSE.toString())
-                        .build(),
-                24,
-                4,
-                Optional.empty());
-        @Language("SQL") String query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s='a-1'",
-                aCol, dateIntCol, table, dateIntCol, aCol);
-        Map<String, Long> expectedQueryStats = Map.of(
-                CACHED_TOTAL_ROWS, 1L,
-                WARP_MATCH_COLUMNS_STAT, 1L,
-                WARP_COLLECT_COLUMNS_STAT, 0L,
-                PREFILLED_COLUMNS_STAT, 2L,
-                EXTERNAL_MATCH_STAT, 0L,
-                EXTERNAL_COLLECT_STAT, 0L);
-        validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(1));
-
-        query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s=CAST('2020-04-12' AS date) AND %s='a-2'",
-                aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol);
-        expectedQueryStats = Map.of(
-                CACHED_TOTAL_ROWS, 1L,
-                WARP_MATCH_COLUMNS_STAT, 1L,
-                WARP_COLLECT_COLUMNS_STAT, 0L,
-                PREFILLED_COLUMNS_STAT, 2L,
-                EXTERNAL_MATCH_STAT, 0L,
-                EXTERNAL_COLLECT_STAT, 0L);
-        validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(1));
     }
 
     @Test

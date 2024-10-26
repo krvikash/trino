@@ -34,13 +34,13 @@ public class StubsStorageEngine
     @Override
     public int getFixedRecordBufferSize(int recTypeLength)
     {
-        return 64 * 1024 * recTypeLength;
+        return 1024 * recTypeLength;
     }
 
     @Override
     public int getVarlenRecordBufferSize(int recTypeLength)
     {
-        return 64 * 1024 * recTypeLength;
+        return 1024 * recTypeLength;
     }
 
     @Override
@@ -237,10 +237,10 @@ public class StubsStorageEngine
     public ByteBuffer getBundleFromPool(int bufIx)
     {
         if (bufIx == 0) {
-            firstBundle = ByteBuffer.allocate(1 << 20);
+            firstBundle = ByteBuffer.allocate(1 << 10);
             return firstBundle;
         }
-        return ByteBuffer.allocate(1 << 20);
+        return ByteBuffer.allocate(1 << 10);
     }
 
     @Override
