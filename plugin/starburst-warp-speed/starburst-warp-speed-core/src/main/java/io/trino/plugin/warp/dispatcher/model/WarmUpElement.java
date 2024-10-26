@@ -21,6 +21,11 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemoryLayout.PathElement;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.StructLayout;
+import java.lang.foreign.ValueLayout;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -30,10 +35,14 @@ import static java.util.Objects.requireNonNull;
 @JsonDeserialize(builder = WarmUpElement.Builder.class)
 public class WarmUpElement
 {
+    public static final StructLayout WARM_UP_ELEMENT_ATT_LAYOUT;
+    private static final long WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_LENGTH;
+    private static final long WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_CODE;
+    private static final long WARM_UP_ELEMENT_ATT_OFFSET_WARM_UP_TYPE;
+
     public static final String WARP_COLUMN = "warpColumn";
     public static final String WARM_UP_TYPE = "warmUpType";
     public static final String STORE_ID = "storeId";
-
     public static final String REC_TYPE_CODE = "recTypeCode";
     public static final String REC_TYPE_LENGTH = "recTypeLength";
     public static final String WARM_UP_CONTEXT_SIZE = "warmUpContextSize";
@@ -54,7 +63,6 @@ public class WarmUpElement
     public static final String WARM_STATE = "warmState";
     public static final String FIRST_USED_TIMESTAMP = "firstUsedTimestamp";
     public static final String CREATION_TIME = "creationTime";
-
     public static final String TOTAL_RECORDS = "total_records";
 
     private final WarpColumn warpColumn;
@@ -86,6 +94,16 @@ public class WarmUpElement
      * unique id for cacheManager, all WE that warmed in @CacheManager::storePages will have the same storeId
      */
     private final UUID storeId;
+
+    static {
+        WARM_UP_ELEMENT_ATT_LAYOUT = MemoryLayout.structLayout(
+                ValueLayout.JAVA_SHORT.withName("recTypeLength"),
+                ValueLayout.JAVA_BYTE.withName("recTypeCode"),
+                ValueLayout.JAVA_BYTE.withName("warmUpType")).withName("we_attr_t");
+        WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_LENGTH = WARM_UP_ELEMENT_ATT_LAYOUT.byteOffset(PathElement.groupElement("recTypeLength"));
+        WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_CODE = WARM_UP_ELEMENT_ATT_LAYOUT.byteOffset(PathElement.groupElement("recTypeCode"));
+        WARM_UP_ELEMENT_ATT_OFFSET_WARM_UP_TYPE = WARM_UP_ELEMENT_ATT_LAYOUT.byteOffset(PathElement.groupElement("warmUpType"));
+    }
 
     private WarmUpElement(
             WarpColumn warpColumn,
@@ -364,6 +382,42 @@ public class WarmUpElement
     public boolean isHot()
     {
         return WarmState.HOT.equals(warmState);
+    }
+
+    @JsonIgnore
+    public static int getRecTypeLength(MemorySegment warmUpElementAtt)
+    {
+        return (int) warmUpElementAtt.get(ValueLayout.JAVA_SHORT, WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_LENGTH);
+    }
+
+    @JsonIgnore
+    public static void setRecTypeLength(MemorySegment warmUpElementAtt, int recTypeLength)
+    {
+        warmUpElementAtt.set(ValueLayout.JAVA_SHORT, WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_LENGTH, (short) recTypeLength);
+    }
+
+    @JsonIgnore
+    public static RecTypeCode getRecTypeCode(MemorySegment warmUpElementAtt)
+    {
+        return RecTypeCode.values()[warmUpElementAtt.get(ValueLayout.JAVA_BYTE, WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_CODE)];
+    }
+
+    @JsonIgnore
+    public static void setRecTypeCode(MemorySegment warmUpElementAtt, RecTypeCode recTypeCode)
+    {
+        warmUpElementAtt.set(ValueLayout.JAVA_BYTE, WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_CODE, (byte) recTypeCode.ordinal());
+    }
+
+    @JsonIgnore
+    public static WarmUpType getWarmUpType(MemorySegment warmUpElementAtt)
+    {
+        return WarmUpType.values()[warmUpElementAtt.get(ValueLayout.JAVA_BYTE, WARM_UP_ELEMENT_ATT_OFFSET_WARM_UP_TYPE)];
+    }
+
+    @JsonIgnore
+    public static void setWarmUpType(MemorySegment warmUpElementAtt, WarmUpType warmUpType)
+    {
+        warmUpElementAtt.set(ValueLayout.JAVA_BYTE, WARM_UP_ELEMENT_ATT_OFFSET_WARM_UP_TYPE, (byte) warmUpType.ordinal());
     }
 
     @Override

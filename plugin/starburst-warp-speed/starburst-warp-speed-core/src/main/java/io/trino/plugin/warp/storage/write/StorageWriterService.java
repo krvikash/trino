@@ -52,11 +52,13 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.Type;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
+import java.lang.foreign.ValueLayout;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE_NUM;
+import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WARM_EVENTS;
@@ -178,9 +180,7 @@ public class StorageWriterService
                 writeJuffersWarmUpElement,
                 dictionaryWarmInfo,
                 storageOpenResult.weCookie(),
-                storageOpenResult.recTypeCode(),
-                storageOpenResult.recTypeLength(),
-                storageOpenResult.warmUpType(),
+                storageOpenResult.warmUpElementAtt(),
                 fileCookieParams,
                 storageOpenResult.buffAddresses(),
                 compressionStats,
@@ -201,9 +201,7 @@ public class StorageWriterService
                 bufferAllocator,
                 storageOpenResult.buffs(),
                 storageOpenResult.weCookie(),
-                storageOpenResult.recTypeCode(),
-                storageOpenResult.recTypeLength(),
-                storageOpenResult.warmUpType(),
+                storageOpenResult.warmUpElementAtt(),
                 allocParams,
                 fileCookieParams,
                 storageOpenResult.buffAddresses(),
@@ -235,11 +233,6 @@ public class StorageWriterService
             long context,
             WarmUpElementAllocationParams allocParams)
     {
-        // initialize warm up element attributes
-        int recTypeCode = hasDictionary ? DICTIONARY_REC_TYPE_CODE_NUM : TypeUtils.nativeRecTypeCode(warmUpElement.getRecTypeCode());
-        int recTypeLength = hasDictionary ? DICTIONARY_REC_TYPE_LENGTH : warmUpElement.getRecTypeLength();
-        int warmUpType = warmUpElement.getWarmUpType().ordinal();
-
         MemorySegment[] buffs = bufferAllocator.getWarmBuffers(allocParams);
         long[] buffAddresses = new long[buffs.length];
         for (int i = 0; i < buffs.length; i++) {
@@ -250,11 +243,15 @@ public class StorageWriterService
         }
 
         // open storage engine WE
-        long weCookie = storageEngine.warmupElementOpen(context,
-                recTypeCode,
-                recTypeLength,
-                warmUpType);
-        return new StorageOpenResult(buffs, weCookie, recTypeCode, recTypeLength, warmUpType, buffAddresses);
+        MemorySegment warmUpElementAtt = Arena.ofAuto().allocate(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
+        WarmUpElement.setRecTypeCode(warmUpElementAtt, hasDictionary ? DICTIONARY_REC_TYPE_CODE : TypeUtils.nativeRecTypeCode(warmUpElement.getRecTypeCode()));
+        WarmUpElement.setRecTypeLength(warmUpElementAtt, hasDictionary ? DICTIONARY_REC_TYPE_LENGTH : warmUpElement.getRecTypeLength());
+        WarmUpElement.setWarmUpType(warmUpElementAtt, warmUpElement.getWarmUpType());
+        long weCookie = storageEngine.warmupElementOpen(context, warmUpElementAtt);
+        return new StorageOpenResult(buffs,
+                weCookie,
+                warmUpElementAtt,
+                buffAddresses);
     }
 
     WarmSinkResult close(int totalRecords, StorageWriterSplitConfig storageWriterSplitConfig, StorageWriterContext storageWriterContext)
@@ -541,9 +538,7 @@ public class StorageWriterService
             }
             else {
                 outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = (int) storageEngine.warmupElementClose(
-                        storageWriterContext.getRecTypeCode(),
-                        storageWriterContext.getRecTypeLength(),
-                        storageWriterContext.getWarmUpType(),
+                        storageWriterContext.getWarmUpElementAtt().address(),
                         numChunks,
                         fileCookieParams,
                         storageWriterContext.getBuffAddresses(),

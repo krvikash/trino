@@ -110,15 +110,13 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType)
+    public long warmupElementOpen(long context, MemorySegment warmUpElementAttr)
     {
         return 1;
     }
 
     @Override
-    public long warmupElementClose(int recTypeCode,
-            int recTypeLength,
-            int warmUpType,
+    public long warmupElementClose(long warmUpElementAttAddress,
             int numChunks,
             long[] fileCookie,
             long[] buffAddresses,
@@ -136,14 +134,14 @@ public class StubsStorageEngine
 
     @Override
     public long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
-            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses,
+            boolean close, long warmUpElementAttAddress, long[] fileCookieParams, long[] buffAddresses,
             byte[] inOutCompressionStats, byte[] inOutChunkHeader, int[] outWarmEvents)
     {
         return 0;
     }
 
     @Override
-    public long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType,
+    public long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpElementAttAddress,
             long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader)
     {
         return 0;
@@ -157,7 +155,7 @@ public class StubsStorageEngine
 
     @Override
     public long collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
-            int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
+            int numCollectWes, int numChunksInRange, int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
             long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers)
     {
         return 0;
@@ -165,7 +163,7 @@ public class StubsStorageEngine
 
     @Override
     public long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, long matchCollectMetadataAddresss,
-            int numMatchWes, int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, long luceneBitmapAddress, int minOffset)
+            int numMatchWes, int numChunksInRange, int[] weMatchTree, long warmUpElementAttsAddress, long matchBitmapAddress, long luceneBitmapAddress, int minOffset)
     {
         return 0;
     }

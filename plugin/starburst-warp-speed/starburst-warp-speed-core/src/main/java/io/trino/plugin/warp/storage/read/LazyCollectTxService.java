@@ -66,6 +66,7 @@ public class LazyCollectTxService
                 queryMemoryId,
                 1,
                 lazyCollectorLoaderArgs.numChunksInRange(),
+                lazyCollectorLoaderArgs.warmUpElementAtt().address(),
                 0,
                 lazyCollectorLoaderArgs.recordBufferStates().address(),
                 lazyCollectorLoaderArgs.recordIndexes().getAddress());

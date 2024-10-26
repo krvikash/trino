@@ -62,6 +62,8 @@ public class NativeStorageEngine
     private final MethodHandle mInitGetVarlenWarmupDataTxSize;
     private final MethodHandle mInitGetWarmupBasicTxSize;
     private final MethodHandle mInitGetWarmupLuceneTxSize;
+    // warmup API
+    private final MethodHandle mWarmupElementOpen;
     // collect API
     private final MethodHandle mCollectProcessMatchResult;
     private final MethodHandle mCollectCollectChunk;
@@ -118,6 +120,10 @@ public class NativeStorageEngine
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
             mInitGetWarmupLuceneTxSize = linker.downcallHandle(libraryHandle.find("lucene_chunk_tx_warmup_alloc_get_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
+
+            // warmup API
+            mWarmupElementOpen = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_element_open").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.ADDRESS));
 
             // collect API
             mCollectProcessMatchResult = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_match_result").orElseThrow(),
@@ -353,12 +359,22 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType);
+    public long warmupElementOpen(long context, MemorySegment warmUpElementAttr)
+    {
+        try {
+            long res = (long) mWarmupElementOpen.invokeExact(context, warmUpElementAttr);
+            if (res >= 0) {
+                return res;
+            }
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to warmupElementOpen");
+        }
+        throw new RuntimeException("failed to warmupElementOpen");
+    }
 
     @Override
-    public native long warmupElementClose(int recTypeCode,
-            int recTypeLength,
-            int warmUpType,
+    public native long warmupElementClose(long warmUpElementAttAddress,
             int numChunks,
             long[] fileCookie,
             long[] buffAddresses,
@@ -369,11 +385,11 @@ public class NativeStorageEngine
 
     @Override
     public native long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
-            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses,
+            boolean close, long warmUpElementAttAddress, long[] fileCookieParams, long[] buffAddresses,
             byte[] inOutCompressionStats, byte[] inOutChunkHeader, int[] outWarmEvents);
 
     @Override
-    public native long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType,
+    public native long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpElementAttAddress,
             long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader);
 
     @Override
@@ -381,12 +397,12 @@ public class NativeStorageEngine
 
     @Override
     public native long collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
-            int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
+            int numCollectWes, int numChunksInRange, int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
             long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers);
 
     @Override
     public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, long matchCollectMetadataAddresss,
-            int numMatchWes, int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, long luceneBitmapAddress, int minOffset);
+            int numMatchWes, int numChunksInRange, int[] weMatchTree, long warmUpElementAttsAddress, long matchBitmapAddress, long luceneBitmapAddress, int minOffset);
 
     @Override
     public native long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj);

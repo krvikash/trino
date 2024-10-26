@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.CollectStats;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -31,6 +32,7 @@ import jakarta.annotation.PreDestroy;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -93,15 +95,6 @@ public class CollectTxService
             }
         }
 
-        collectOpen(queryArgs.queryParams(),
-                queryArgs.txArgs(),
-                queryMemoryId,
-                numCollectElements,
-                queryArgs.numChunksInRange(),
-                matchBmAddr,
-                storageCollectorArgs.recordBufferStates().address(),
-                storageCollectorArgs.recordIndexes().getAddress());
-
         RangeData rangeData = new RangeData(storageCollectorArgs.recordIndexes());
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = Collections.emptyList();
         if (numCollectElements > 0) {
@@ -109,7 +102,27 @@ public class CollectTxService
                     .elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT)
                     .map(recordBufferState -> new WarmupElementRecordBufferState(recordBufferState))
                     .toList();
+
+            Iterator<WarmupElementCollectParams> collectParamsListItr = collectParamsList.iterator();
+            storageCollectorArgs.warmUpElementAtts()
+                    .elements(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT)
+                    .forEach(warmupElementAtt -> {
+                        WarmupElementCollectParams collectParams = collectParamsListItr.next();
+                        WarmUpElement.setRecTypeCode(warmupElementAtt, collectParams.getRecTypeCode());
+                        WarmUpElement.setRecTypeLength(warmupElementAtt, collectParams.getRecTypeLength());
+                        WarmUpElement.setWarmUpType(warmupElementAtt, collectParams.getWarmUpType());
+                    });
         }
+
+        collectOpen(queryArgs.queryParams(),
+                queryArgs.txArgs(),
+                queryMemoryId,
+                numCollectElements,
+                queryArgs.numChunksInRange(),
+                storageCollectorArgs.warmUpElementAtts().address(),
+                matchBmAddr,
+                storageCollectorArgs.recordBufferStates().address(),
+                storageCollectorArgs.recordIndexes().getAddress());
 
         int restoredChunkIndex = -1;
         if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {

@@ -18,6 +18,7 @@ import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -28,6 +29,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlock;
 
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.StructLayout;
 import java.util.List;
 
 @Singleton
@@ -52,7 +54,16 @@ public class LazyCollectorService
             NativeConfig nativeConfig,
             GlobalConfig globalConfig)
     {
-        super(storageEngine, bufferAllocator, metricsManager, chunksQueueService, rangeFillerService, collectTxService, storageEngineConstants, blockFillersFactory, dictionaryCacheService, globalConfig);
+        super(storageEngine,
+                bufferAllocator,
+                metricsManager,
+                chunksQueueService,
+                rangeFillerService,
+                collectTxService,
+                storageEngineConstants,
+                blockFillersFactory,
+                dictionaryCacheService,
+                globalConfig);
         this.globalConfig = globalConfig;
         this.lazyCollectTxService = lazyCollectTxService;
         this.nativeConfig = nativeConfig;
@@ -87,12 +98,14 @@ public class LazyCollectorService
                 queryArgs.txArgs().fileCookie());
 
         ReadJuffersWarmUpElement juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true);
+        StructLayout warmupElementAttLayout = WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT;
         return new LazyCollectorLoaderArgs(
                 queryParams,
                 txArgs,
                 collectParams,
                 juffersWE,
                 storageCollectorArgs.blockFillers().get(weIx),
+                storageCollectorArgs.warmUpElementAtts().asSlice(warmupElementAttLayout.byteSize() * weIx, warmupElementAttLayout),
                 storageCollectorArgs.recordBufferStates(),
                 storageCollectorArgs.recordIndexes(),
                 storageCollectorArgs.queryResultTypes(),

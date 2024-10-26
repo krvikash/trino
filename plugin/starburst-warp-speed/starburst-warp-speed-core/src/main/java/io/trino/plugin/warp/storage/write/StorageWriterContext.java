@@ -21,6 +21,7 @@ import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppender;
 
+import java.lang.foreign.MemorySegment;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -40,9 +41,7 @@ final class StorageWriterContext
     private final WriteJuffersWarmUpElement writeJuffersWarmUpElement;
     private final DictionaryWarmInfo dictionaryWarmInfo;
     private final long weCookie;
-    private final int recTypeCode;
-    private final int recTypeLength;
-    private final int warmUpType;
+    private final MemorySegment warmUpElementAtt;
     private final long[] fileCookieParams;
     private final long[] buffAddresses;
     private final byte[] compressionStats;
@@ -57,9 +56,7 @@ final class StorageWriterContext
             WriteJuffersWarmUpElement writeJuffersWarmUpElement,
             DictionaryWarmInfo dictionaryWarmInfo,
             long weCookie,
-            int recTypeCode,
-            int recTypeLength,
-            int warmUpType,
+            MemorySegment warmUpElementAtt,
             long[] fileCookieParams,
             long[] buffAddresses,
             byte[] compressionStats,
@@ -74,9 +71,7 @@ final class StorageWriterContext
         this.writeJuffersWarmUpElement = writeJuffersWarmUpElement;
         this.dictionaryWarmInfo = dictionaryWarmInfo;
         this.weCookie = weCookie;
-        this.recTypeCode = recTypeCode;
-        this.recTypeLength = recTypeLength;
-        this.warmUpType = warmUpType;
+        this.warmUpElementAtt = warmUpElementAtt;
         this.fileCookieParams = fileCookieParams;
         this.buffAddresses = buffAddresses;
         this.compressionStats = compressionStats;
@@ -114,19 +109,9 @@ final class StorageWriterContext
         return weCookie;
     }
 
-    public int getRecTypeCode()
+    public MemorySegment getWarmUpElementAtt()
     {
-        return recTypeCode;
-    }
-
-    public int getRecTypeLength()
-    {
-        return recTypeLength;
-    }
-
-    public int getWarmUpType()
-    {
-        return warmUpType;
+        return warmUpElementAtt;
     }
 
     public long[] getFileCookieParams()

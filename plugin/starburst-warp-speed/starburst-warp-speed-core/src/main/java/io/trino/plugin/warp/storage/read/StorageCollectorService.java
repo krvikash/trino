@@ -19,6 +19,7 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
@@ -425,6 +426,10 @@ public class StorageCollectorService
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT);
         MemorySegment queryResultTypes =
                 Arena.ofAuto().allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
+        SequenceLayout warmUpElementAttsLayout =
+                MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
+        MemorySegment warmUpElementAtts =
+                Arena.ofAuto().allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
         return new StorageCollectorArgs(
                 storageCollectorCallBack,
                 blockFillers,
@@ -432,7 +437,8 @@ public class StorageCollectorService
                 storeRowListBuff,
                 recordBufferStates,
                 new RecordIndexes(recordIndexes),
-                queryResultTypes);
+                queryResultTypes,
+                warmUpElementAtts);
     }
 
     private int getNumChunksInRange(QueryParams queryParams)

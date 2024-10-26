@@ -256,10 +256,10 @@ public class TypeUtils
         return (code.ordinal() >= RecTypeCode.REC_TYPE_VARCHAR.ordinal());
     }
 
-    public static int nativeRecTypeCode(RecTypeCode recTypeCode)
+    public static RecTypeCode nativeRecTypeCode(RecTypeCode recTypeCode)
     {
         // native supports arrays as varchar, here we switch the code for native in case of arrays
-        return isVarlenStr(recTypeCode) ? RecTypeCode.REC_TYPE_VARCHAR.ordinal() : recTypeCode.ordinal();
+        return isVarlenStr(recTypeCode) ? RecTypeCode.REC_TYPE_VARCHAR : recTypeCode;
     }
 
     public static int getTypeLength(Type type, int maxVarlenLength)

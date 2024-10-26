@@ -96,14 +96,12 @@ public interface StorageEngine
 
     //----------------------- warmup ----------------------------------------
 
-    default long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType)
+    default long warmupElementOpen(long context, MemorySegment warmUpElementAttr)
     {
         throw new UnsupportedOperationException();
     }
 
-    default long warmupElementClose(int recTypeCode,
-            int recTypeLength,
-            int warmUpType,
+    default long warmupElementClose(long warmUpElementAttAddress,
             int numChunks,
             long[] fileCookieParams,
             long[] buffAddresses,
@@ -118,13 +116,13 @@ public interface StorageEngine
     }
 
     default long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
-            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses,
+            boolean close, long warmUpElementAttAddress, long[] fileCookieParams, long[] buffAddresses,
             byte[] inOutCompressionStats, byte[] inOutChunkHeader, int[] outWarmEvents)
     {
         throw new UnsupportedOperationException();
     }
 
-    default long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType,
+    default long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpElementAttAddress,
             long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader)
     {
         throw new UnsupportedOperationException();
@@ -151,14 +149,14 @@ public interface StorageEngine
      * @return address of match collect shared metadata
      */
     default long collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
-            int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
+            int numCollectWes, int numChunksInRange, int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
             long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers)
     {
         throw new UnsupportedOperationException();
     }
 
     default long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, long matchCollectMetadataAddresss,
-            int numMatchWes, int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, long luceneBitmapAddress, int minOffset)
+            int numMatchWes, int numChunksInRange, int[] weMatchTree, long warmUpElementAttsAddress, long matchBitmapAddress, long luceneBitmapAddress, int minOffset)
     {
         throw new UnsupportedOperationException();
     }

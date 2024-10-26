@@ -33,9 +33,7 @@ public class RecordWriteJuffer
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
     private final long weCookie;
-    private final int recTypeCode;
-    private final int recTypeLength;
-    private final int warmUpType;
+    private final MemorySegment warmUpElementAtt;
     private final long[] fileCookieParams;
     private final long[] buffAddresses;
     private final byte[] compressionStats;
@@ -46,9 +44,7 @@ public class RecordWriteJuffer
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
             long weCookie,
-            int recTypeCode,
-            int recTypeLength,
-            int warmUpType,
+            MemorySegment warmUpElementAtt,
             long[] fileCookieParams,
             long[] buffAddresses,
             byte[] compressionStats)
@@ -57,9 +53,7 @@ public class RecordWriteJuffer
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
         this.weCookie = weCookie;
-        this.recTypeCode = recTypeCode;
-        this.recTypeLength = recTypeLength;
-        this.warmUpType = warmUpType;
+        this.warmUpElementAtt = warmUpElementAtt;
         this.fileCookieParams = fileCookieParams;
         this.buffAddresses = buffAddresses;
         this.compressionStats = compressionStats;
@@ -120,9 +114,7 @@ public class RecordWriteJuffer
                 max,
                 singleOffset,
                 false,
-                recTypeCode,
-                recTypeLength,
-                warmUpType,
+                warmUpElementAtt.address(),
                 fileCookieParams,
                 buffAddresses,
                 compressionStats,

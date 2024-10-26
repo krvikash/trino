@@ -36,10 +36,7 @@ import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS
 import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS_NUM_OF;
 import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS_PRED_BUF_ADDRESS_HIGH;
 import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS_PRED_BUF_ADDRESS_LOW;
-import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS_REC_TYPE_CODE;
-import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS_WARM_ID;
-import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS_WARM_UP_TYPE;
 
 public class WarmupElementMatchParams
         implements MatchNode
@@ -80,7 +77,7 @@ public class WarmupElementMatchParams
         this.fileOffset = fileOffset;
         this.fileReadSize = fileReadSize;
         this.warmUpType = warmUpType;
-        this.recTypeCode = recTypeCode;
+        this.recTypeCode = TypeUtils.nativeRecTypeCode(recTypeCode);
         this.recTypeLength = recTypeLength;
         this.warmEvents = warmEvents;
         this.isImported = isImported;
@@ -101,6 +98,11 @@ public class WarmupElementMatchParams
     public int getRecTypeLength()
     {
         return recTypeLength;
+    }
+
+    public WarmUpType getWarmUpType()
+    {
+        return warmUpType;
     }
 
     public boolean isCollectNulls()
@@ -149,9 +151,6 @@ public class WarmupElementMatchParams
         output[offset++] = getNodeType().ordinal();
         output[offset + WE_MATCH_JPARAMS_FILE_OFFSET.ordinal()] = fileOffset;
         output[offset + WE_MATCH_JPARAMS_FILE_READ_SIZE.ordinal()] = fileReadSize;
-        output[offset + WE_MATCH_JPARAMS_WARM_UP_TYPE.ordinal()] = warmUpType.ordinal();
-        output[offset + WE_MATCH_JPARAMS_REC_TYPE_CODE.ordinal()] = TypeUtils.nativeRecTypeCode(recTypeCode);
-        output[offset + WE_MATCH_JPARAMS_REC_TYPE_LENGTH.ordinal()] = recTypeLength;
         output[offset + WE_MATCH_JPARAMS_PRED_BUF_ADDRESS_HIGH.ordinal()] = (int) (predBufAddress >> PRED_BUF_ADDRESS_HIGH_SHIFT);
         output[offset + WE_MATCH_JPARAMS_PRED_BUF_ADDRESS_LOW.ordinal()] = (int) (predBufAddress & PRED_BUF_ADDRESS_LOW_MASK);
         output[offset + WE_MATCH_JPARAMS_IS_COLLECT_NULLS.ordinal()] = isCollectNulls ? 1 : 0;

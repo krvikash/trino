@@ -84,6 +84,7 @@ public abstract class BaseCollectTxService
             int collectTxId,
             int numCollectElements,
             int numChunksInRange,
+            long warmUpElementAttsAddr,
             long matchBmAddr,
             long recordBufferStatesAddr,
             long recordIndexesAddr)
@@ -95,6 +96,7 @@ public abstract class BaseCollectTxService
                 numCollectElements,
                 numChunksInRange,
                 txArgs.weCollectParams(),
+                warmUpElementAttsAddr,
                 queryParams.getCatalogContext(),
                 queryParams.getMinCollectOffset(),
                 matchBmAddr,

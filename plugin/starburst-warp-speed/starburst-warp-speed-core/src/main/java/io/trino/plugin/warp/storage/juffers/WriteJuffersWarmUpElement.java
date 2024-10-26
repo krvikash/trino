@@ -47,9 +47,7 @@ public class WriteJuffersWarmUpElement
     private final StorageEngine storageEngine;
     private final int pageOffsetMask;
     private final long weCookie;
-    private final int recTypeCode;
-    private final int recTypeLength;
-    private final int warmUpType;
+    private final MemorySegment warmUpElementAtt;
     private final long[] fileCookieParams;
     private final long[] buffAddresses;
     private final byte[] compressionStats;
@@ -74,9 +72,7 @@ public class WriteJuffersWarmUpElement
             BufferAllocator bufferAllocator,
             MemorySegment[] buffs,
             long weCookie,
-            int recTypeCode,
-            int recTypeLength,
-            int warmUpType,
+            MemorySegment warmUpElementAtt,
             WarmUpElementAllocationParams allocParams,
             long[] fileCookieParams,
             long[] buffAddresses,
@@ -90,9 +86,7 @@ public class WriteJuffersWarmUpElement
         this.buffs = buffs;
         this.allocParams = allocParams;
         this.weCookie = weCookie;
-        this.recTypeCode = recTypeCode;
-        this.recTypeLength = recTypeLength;
-        this.warmUpType = warmUpType;
+        this.warmUpElementAtt = warmUpElementAtt;
         this.fileCookieParams = fileCookieParams;
         this.buffAddresses = buffAddresses;
         this.compressionStats = compressionStats;
@@ -110,9 +104,7 @@ public class WriteJuffersWarmUpElement
                     allocParams,
                     storageEngine,
                     weCookie,
-                    recTypeCode,
-                    recTypeLength,
-                    warmUpType,
+                    warmUpElementAtt,
                     fileCookieParams,
                     buffAddresses,
                     compressionStats);
@@ -123,9 +115,7 @@ public class WriteJuffersWarmUpElement
                         allocParams,
                         storageEngine,
                         weCookie,
-                        recTypeCode,
-                        recTypeLength,
-                        warmUpType,
+                        warmUpElementAtt,
                         fileCookieParams,
                         buffAddresses);
                 juffers.put(extendedJuffers.getJufferType(), extendedJuffers);
@@ -215,9 +205,7 @@ public class WriteJuffersWarmUpElement
                 recordBufferMax,
                 recordBufferSingleOffset,
                 true,
-                recTypeCode,
-                recTypeLength,
-                warmUpType,
+                warmUpElementAtt.address(),
                 fileCookieParams,
                 buffAddresses,
                 compressionStats,

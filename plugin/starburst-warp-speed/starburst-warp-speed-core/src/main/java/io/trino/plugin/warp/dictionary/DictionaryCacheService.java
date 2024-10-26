@@ -41,7 +41,6 @@ public class DictionaryCacheService
     public static final String DICTIONARY_STAT_GROUP = "dictionary";
     public static final int MINIMUM_LEN_FOR_DICTIONARY = 4;
     public static final RecTypeCode DICTIONARY_REC_TYPE_CODE = RecTypeCode.REC_TYPE_SMALLINT;
-    public static final int DICTIONARY_REC_TYPE_CODE_NUM = DICTIONARY_REC_TYPE_CODE.ordinal();
     public static final int DICTIONARY_REC_TYPE_LENGTH = Short.BYTES;
 
     private static final Logger logger = Logger.get(DictionaryCacheService.class);

@@ -29,10 +29,7 @@ import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPA
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_IS_COLLECT_NULLS;
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_MATCH_COLLECT_ID;
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_MATCH_COLLECT_INDEX;
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_REC_TYPE_CODE;
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_WARM_ID;
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_WARM_UP_TYPE;
 
 public class WarmupElementCollectParams
 {
@@ -76,7 +73,7 @@ public class WarmupElementCollectParams
         this.fileOffset = fileOffset;
         this.fileReadSize = fileReadSize;
         this.warmUpType = warmUpType;
-        this.recTypeCode = recTypeCode;
+        this.recTypeCode = TypeUtils.nativeRecTypeCode(recTypeCode);
         this.recTypeLength = recTypeLength;
         this.blockRecTypeCode = blockRecTypeCode;
         this.blockRecTypeLength = blockRecTypeLength;
@@ -90,6 +87,11 @@ public class WarmupElementCollectParams
         this.isCollectNulls = isCollectNulls;
         this.warmId = warmId;
         this.valuesDictBlock = valuesDictBlock;
+    }
+
+    public WarmUpType getWarmUpType()
+    {
+        return warmUpType;
     }
 
     public RecTypeCode getRecTypeCode()
@@ -186,9 +188,6 @@ public class WarmupElementCollectParams
     {
         output[offset + WE_COLLECT_JPARAMS_FILE_OFFSET.ordinal()] = fileOffset;
         output[offset + WE_COLLECT_JPARAMS_FILE_READ_SIZE.ordinal()] = fileReadSize;
-        output[offset + WE_COLLECT_JPARAMS_WARM_UP_TYPE.ordinal()] = warmUpType.ordinal();
-        output[offset + WE_COLLECT_JPARAMS_REC_TYPE_CODE.ordinal()] = TypeUtils.nativeRecTypeCode(recTypeCode);
-        output[offset + WE_COLLECT_JPARAMS_REC_TYPE_LENGTH.ordinal()] = recTypeLength;
         output[offset + WE_COLLECT_JPARAMS_MATCH_COLLECT_INDEX.ordinal()] = matchCollectIndex;
         output[offset + WE_COLLECT_JPARAMS_MATCH_COLLECT_ID.ordinal()] = matchCollectId;
         output[offset + WE_COLLECT_JPARAMS_IS_COLLECT_NULLS.ordinal()] = isCollectNulls ? 1 : 0;
