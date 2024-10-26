@@ -88,11 +88,10 @@ public abstract class BaseCollectTxService
             long recordBufferStatesAddr,
             long recordIndexesAddr)
     {
-        storageEngine.collectOpen(queryParams.getTotalNumRecords(),
+        txArgs.matchCollectMetadataAddress()[0] = storageEngine.collectOpen(queryParams.getTotalNumRecords(),
                 txArgs.fileCookie(),
                 collectTxId,
                 txArgs.collectStoreBuff(),
-                txArgs.collect2MatchParams(),
                 numCollectElements,
                 numChunksInRange,
                 txArgs.weCollectParams(),

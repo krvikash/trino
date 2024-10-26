@@ -131,11 +131,6 @@ public interface StorageEngine
     }
 
     //----------------------- query ----------------------------------------
-    default int queryGetCollect2MatchSize()
-    {
-        throw new UnsupportedOperationException();
-    }
-
     default long queryGetCollectStateSize(int numMatchCollect)
     {
         throw new UnsupportedOperationException();
@@ -148,21 +143,22 @@ public interface StorageEngine
      * @param fileCookie - hot file to read from
      * @param collectTxId - transaction id
      * @param parsingBuff - buffer for native to parse the collect parameters
-     * @param collect2MatchParams - parameters to pass from collect to match
      * @param numCollectWes - number of collect warm up elements
      * @param weCollectParams - parameters for collect warmup elements dumped into an array
      * @param catalogContext - connector context used for callbacks handles
      * @param collectBuffers - buffer for data and nulls per warm up element
+     *
+     * @return address of match collect shared metadata
      */
-    default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
+    default long collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
             long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers)
     {
         throw new UnsupportedOperationException();
     }
 
-    default long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
-            int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, long luceneBitmapAddress, int minOffset)
+    default long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, long matchCollectMetadataAddresss,
+            int numMatchWes, int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, long luceneBitmapAddress, int minOffset)
     {
         throw new UnsupportedOperationException();
     }

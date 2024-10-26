@@ -380,7 +380,7 @@ public class StorageCollectorService
 
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];
         MemorySegment collectStateBuff = Arena.ofAuto().allocate(collectStoreBuff.length, ValueLayout.JAVA_INT.byteSize());
-        byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
+        long[] matchCollectMetadataAddress = new long[1];
         // file is opened at init
         long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
 
@@ -389,7 +389,7 @@ public class StorageCollectorService
                 collectBuffers,
                 collectStateBuff,
                 collectStoreBuff,
-                collect2MatchParams,
+                matchCollectMetadataAddress,
                 fileCookieParams);
     }
 

@@ -150,27 +150,22 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int queryGetCollect2MatchSize()
-    {
-        return 0;
-    }
-
-    @Override
     public long queryGetCollectStateSize(int numMatchCollect)
     {
         return 0;
     }
 
     @Override
-    public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
+    public long collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, int minOffset,
             long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers)
     {
+        return 0;
     }
 
     @Override
-    public long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
-            int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, long luceneBitmapAddress, int minOffset)
+    public long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, long matchCollectMetadataAddresss,
+            int numMatchWes, int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, long luceneBitmapAddress, int minOffset)
     {
         return 0;
     }

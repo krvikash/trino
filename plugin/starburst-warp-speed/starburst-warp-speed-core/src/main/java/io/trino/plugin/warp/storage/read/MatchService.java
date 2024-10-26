@@ -137,7 +137,7 @@ public class MatchService
                         queryArgs.txArgs().fileCookie(),
                         collectOpenResult.queryMemoryId(),
                         queryArgs.txArgs().collectStoreBuff(),
-                        queryArgs.txArgs().collect2MatchParams(),
+                        queryArgs.txArgs().matchCollectMetadataAddress()[0],
                         queryParams.getNumMatchElements(),
                         queryArgs.numChunksInRange(),
                         matchArgs.weMatchTree(),

@@ -32,7 +32,7 @@ class WarmupElementRecordBufferState
         RECORD_BUFFER_STATE_LAYOUT = MemoryLayout.structLayout(
                 ValueLayout.JAVA_INT.withName("usedBytes"),
                 ValueLayout.JAVA_INT.withName("totalBytes"),
-                ValueLayout.JAVA_INT.withName("maxRecordLength"));
+                ValueLayout.JAVA_INT.withName("maxRecordLength")).withName("collect_rec_buf_state_t");
         RECORD_BUFFER_STATE_OFFSET_USED_BYTES = RECORD_BUFFER_STATE_LAYOUT.byteOffset(PathElement.groupElement("usedBytes"));
         RECORD_BUFFER_STATE_OFFSET_TOTAL_BYTES = RECORD_BUFFER_STATE_LAYOUT.byteOffset(PathElement.groupElement("totalBytes"));
         RECORD_BUFFER_STATE_OFFSET_MAX_REC_LEN = RECORD_BUFFER_STATE_LAYOUT.byteOffset(PathElement.groupElement("maxRecordLength"));

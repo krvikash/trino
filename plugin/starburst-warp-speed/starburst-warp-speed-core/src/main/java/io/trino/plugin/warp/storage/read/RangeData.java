@@ -45,7 +45,7 @@ public class RangeData
                 ValueLayout.JAVA_INT.withName("size"),
                 ValueLayout.JAVA_SHORT.withName("type"), /* cannot be BYTE since will cause a layout exception for the following short */
                 ValueLayout.JAVA_SHORT.withName("start"),
-                RECORD_INDEXES_LIST_LAYOUT.withName("list"));
+                RECORD_INDEXES_LIST_LAYOUT.withName("list")).withName("collect_rec_ixs_t");
         RECORD_INDEXES_OFFSET_SIZE = RECORD_INDEXES_LAYOUT.byteOffset(PathElement.groupElement("size"));
         RECORD_INDEXES_OFFSET_TYPE = RECORD_INDEXES_LAYOUT.byteOffset(PathElement.groupElement("type"));
         RECORD_INDEXES_OFFSET_START = RECORD_INDEXES_LAYOUT.byteOffset(PathElement.groupElement("start"));

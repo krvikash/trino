@@ -76,14 +76,14 @@ public class LazyCollectorService
         long[][] collectBuffers = new long[1][];
         collectBuffers[0] = bufferAllocator.getCollectBuffersArray();
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(0)];
-        byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
+        long[] matchCollectMetadataAddresss = new long[1];
 
         TxArgs txArgs = new TxArgs(
                 weCollectParams,
                 collectBuffers,
                 queryArgs.txArgs().collectStateBuff(),
                 collectStoreBuff,
-                collect2MatchParams,
+                matchCollectMetadataAddresss,
                 queryArgs.txArgs().fileCookie());
 
         ReadJuffersWarmUpElement juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true);
