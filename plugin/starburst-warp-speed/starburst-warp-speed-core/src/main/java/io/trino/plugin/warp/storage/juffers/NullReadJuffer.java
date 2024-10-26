@@ -16,6 +16,8 @@ package io.trino.plugin.warp.storage.juffers;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 
+import java.lang.foreign.MemorySegment;
+
 /**
  * buffer for marking null values
  */
@@ -28,9 +30,9 @@ public class NullReadJuffer
     }
 
     @Override
-    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, long[] buffIds, boolean hasDictionary)
+    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, boolean hasDictionary, MemorySegment[] buffs)
     {
-        this.baseBuffer = createGenericBuffer(bufferAllocator.ids2NullBuff(buffIds));
+        this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2NullBuff(buffs));
         this.wrappedBuffer = this.baseBuffer;
     }
 }

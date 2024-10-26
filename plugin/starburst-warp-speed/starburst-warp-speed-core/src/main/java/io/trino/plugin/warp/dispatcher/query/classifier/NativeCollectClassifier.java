@@ -253,7 +253,7 @@ class NativeCollectClassifier
 
     private int getCollectBufferSize(WarmUpElement warmUpElement)
     {
-        return bufferAllocator.getCollectRecordBufferSize(warmUpElement.getRecTypeCode(), warmUpElement.getRecTypeLength()) +
+        return bufferAllocator.getCollectRecordBufferSizeMust(warmUpElement.getRecTypeCode(), warmUpElement.getRecTypeLength()) +
                 bufferAllocator.getQueryNullBufferSize(warmUpElement.getRecTypeCode());
     }
 

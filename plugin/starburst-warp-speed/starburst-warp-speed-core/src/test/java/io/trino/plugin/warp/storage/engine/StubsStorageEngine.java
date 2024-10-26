@@ -32,13 +32,19 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int getFixedRecordBufferSize(int recTypeLength)
+    public int getWarmupRecordBufferSize(int recTypeLength)
     {
         return 1024 * recTypeLength;
     }
 
     @Override
-    public int getVarlenRecordBufferSize(int recTypeLength)
+    public int getFixedCollectRecordBufferSize(int recTypeLength)
+    {
+        return 1024 * recTypeLength;
+    }
+
+    @Override
+    public int getVarlenCollectRecordBufferSize(int recTypeLength)
     {
         return 1024 * recTypeLength;
     }
@@ -160,7 +166,7 @@ public class StubsStorageEngine
     @Override
     public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, long matchBitmapAddress, int minOffset,
-            long[][] outCollectColBuffIds, long[] outMetadataBuffIds)
+            long[][] collectBuffers, long[] outMetadataBuffIds)
     {
         Arrays.fill(outMetadataBuffIds, 0);
         Arrays.fill(firstBundle.array(), (byte) 0);

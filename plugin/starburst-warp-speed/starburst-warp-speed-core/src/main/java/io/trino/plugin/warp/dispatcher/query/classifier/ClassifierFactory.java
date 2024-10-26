@@ -69,7 +69,7 @@ public class ClassifierFactory
         NativeCollectClassifier nativeCollectClassifier = new NativeCollectClassifier(
                 storageEngineConstants.getMatchCollectBufferSize(),
                 storageEngineConstants.getMaxChunksInRange(),
-                nativeConfig.getBundleSize() - storageEngineConstants.getBundleNonCollectSize(),
+                globalConfig.getCollectMemorySize() - nativeConfig.getBundleSize(),
                 nativeConfig.getCollectTxSize(),
                 storageEngineConstants.getMatchTxSize(),
                 storageEngineConstants.getMaxMatchColumns(),

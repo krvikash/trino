@@ -17,6 +17,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
@@ -49,13 +50,14 @@ public class NativeConnectorSync
         implements ConnectorSync
 {
     private static final Logger logger = Logger.get(NativeConnectorSync.class);
-    private static final int MEMORY_SIZE_PER_WORKER = 1152 * 1024; // large enough number for now, will be a configured one in the future
+    private static final long BASE_MEMORY_SIZE_PER_WORKER = 2 * 1024 * 1024; // large enough number for now, will be a configured one in the future
     private static final int ALLOC_ALIGNMENT = Integer.BYTES;
 
     private final CatalogName catalogName;
     private final EventBus eventBus;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor(daemonThreadsNamed("warp-speed-native-connector-sync-%s"));
     private final WorkerCapacityManager workerCapacityManager;
+    private final GlobalConfig globalConfig;
     private final NativeConfig nativeConfig;
     private WarmupDemoterService warmupDemoterService;
     private MemorySegment catalogContext;
@@ -75,6 +77,7 @@ public class NativeConnectorSync
     @Inject
     public NativeConnectorSync(CatalogName catalogName,
                                EventBus eventBus,
+                               GlobalConfig globalConfig,
                                NativeConfig nativeConfig,
                                WorkerCapacityManager workerCapacityManager)
     {
@@ -102,6 +105,7 @@ public class NativeConnectorSync
             this.catalogName = catalogName;
             this.eventBus = requireNonNull(eventBus);
             this.workerCapacityManager = requireNonNull(workerCapacityManager);
+            this.globalConfig = requireNonNull(globalConfig);
             this.nativeConfig = requireNonNull(nativeConfig);
 
             int contextSize = (int) mGetContextSize.invokeExact();
@@ -124,7 +128,8 @@ public class NativeConnectorSync
         try {
             final int numWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
             checkArgument(numWorkerThreads > 0, "no segments configured for match bitmaps");
-            final int sharedConnectorMemorySize = MEMORY_SIZE_PER_WORKER * numWorkerThreads;
+            final long memorySizePerWorker = BASE_MEMORY_SIZE_PER_WORKER + globalConfig.getCollectMemorySize();
+            final long sharedConnectorMemorySize = memorySizePerWorker * (long) numWorkerThreads;
             // register and get memory address. note that the name is not passed to native. no need.
             long sharedConnectorMemoryAddress = register(catalogContext.address(), StorageCollectorCallBack.class);
             // in case no memory was allocated yet, allocate it
@@ -148,7 +153,7 @@ public class NativeConnectorSync
             SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(sharedConnectorMemory);
             queryMemories = new MemorySegment[numWorkerThreads];
             for (int id = 0; id < queryMemories.length; id++) {
-                queryMemories[id] = nativeAllocator.allocate(MEMORY_SIZE_PER_WORKER, ALLOC_ALIGNMENT);
+                queryMemories[id] = nativeAllocator.allocate(memorySizePerWorker, ALLOC_ALIGNMENT);
             }
 
             // complete the regisgtration

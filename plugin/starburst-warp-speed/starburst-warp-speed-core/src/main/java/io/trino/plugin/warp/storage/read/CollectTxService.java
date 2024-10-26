@@ -16,16 +16,20 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.CollectStats;
+import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.stats.TestStats;
+import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.QueryMemory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.spi.TrinoException;
 import jakarta.annotation.PreDestroy;
 
+import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.util.Collections;
 import java.util.List;
@@ -40,20 +44,19 @@ public class CollectTxService
 {
     private final ChunksQueueService chunksQueueService;
     private final RangeFillerService rangeFillerService;
-    private final StorageEngineConstants storageEngineConstants;
 
     @Inject
     public CollectTxService(StorageEngine storageEngine,
+            StorageEngineConstants storageEngineConstants,
+            ConnectorSync connectorSync,
+            BufferAllocator bufferAllocator,
             ChunksQueueService chunksQueueService,
             RangeFillerService rangeFillerService,
-            ConnectorSync connectorSync,
-            StorageEngineConstants storageEngineConstants,
             GlobalConfig globalConfig)
     {
-        super(storageEngine, globalConfig, connectorSync);
+        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
         this.chunksQueueService = chunksQueueService;
         this.rangeFillerService = rangeFillerService;
-        this.storageEngineConstants = storageEngineConstants;
     }
 
     @PreDestroy
@@ -76,14 +79,23 @@ public class CollectTxService
         long[] metadataBuffIds = new long[2];
 
         QueryMemory queryMemory = allocQueryMemory();
-        SegmentAllocator queryMemoryAllocator = getQueryMemoryAllocator(queryMemory);
         int queryMemoryId = queryMemory.id();
+        SegmentAllocator queryMemoryAllocator = getQueryMemoryAllocator(queryMemory);
+
         long matchBmAddr = 0;
         if (queryParams.getNumMatchElements() > 0) {
             final long alignment = 32; // this is the alignment required for intel optimized bitmap operations
             final long allocSize = (long) storageEngineConstants.getPageSize() * (long) storageEngineConstants.getMaxChunksInRange();
             matchBmAddr = queryMemoryAllocator.allocate(allocSize, alignment).address();
+
+            if (numCollectElements > 0) {
+                allocCollectBuffers(collectParamsList,
+                        queryMemoryAllocator,
+                        queryArgs.txArgs().collectBuffers(),
+                        storageCollectorArgs.collectJuffersWE());
+            }
         }
+
         collectOpen(queryArgs.queryParams(),
                 queryArgs.txArgs(),
                 queryMemoryId,
@@ -91,16 +103,6 @@ public class CollectTxService
                 queryArgs.numChunksInRange(),
                 matchBmAddr,
                 metadataBuffIds);
-
-        int collectIx = 0;
-        for (WarmupElementCollectParams collectParams : collectParamsList) {
-            storageCollectorArgs.collectJuffersWE().get(collectIx).createBuffers(
-                    collectParams.mappedMatchCollect() ? RecTypeCode.REC_TYPE_TINYINT : collectParams.getRecTypeCode(),
-                    collectParams.mappedMatchCollect() ? 1 : collectParams.getRecTypeLength(),
-                    collectParams.hasDictionary(),
-                    queryArgs.txArgs().collectBuffIds()[collectIx]);
-            collectIx++;
-        }
 
         RangeData rangeData = new RangeData(metadataBuffIds[0]);
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = Collections.emptyList();
@@ -201,5 +203,81 @@ public class CollectTxService
     {
         collectAbort(e, collectOpenResult.queryMemoryId());
         freeQueryMemory(collectOpenResult.queryMemoryId());
+    }
+
+    private void allocCollectBuffers(List<WarmupElementCollectParams> collectParamsList,
+            SegmentAllocator queryMemoryAllocator,
+            long[][] outCollectBuffers,
+            List<ReadJuffersWarmUpElement> outCollectJuffersWE)
+    {
+        final long queryMemorySize = globalConfig.getCollectMemorySize();
+        final int numCollectElements = collectParamsList.size();
+        int collectIx = 0;
+
+        // fill allocation parameters and count total buffer sizes and how much of it is optional record buffer
+        CollectAllocPararms[] allocParams = new CollectAllocPararms[numCollectElements];
+        long totalRecordBufferSizeMust = 0;
+        long totalRecordBufferSizeOptional = 0;
+        for (WarmupElementCollectParams collectParams : collectParamsList) {
+            // consider mapped match collect when calculating rec type code and length
+            RecTypeCode recTypeCode = collectParams.mappedMatchCollect() ? RecTypeCode.REC_TYPE_TINYINT : collectParams.getRecTypeCode();
+            final int recTypeLength = collectParams.mappedMatchCollect() ? 1 : collectParams.getRecTypeLength();
+            // get maximal record buffer size for this element
+            final int recordBufferSize = bufferAllocator.getCollectRecordBufferSize(recTypeCode, recTypeLength);
+            // get how much of this size can be optional
+            final int recordBufferSizeOptional = bufferAllocator.getCollectRecordBufferSizeOptional(recTypeCode, recordBufferSize);
+            final int recordBufferSizeMust = recordBufferSize - recordBufferSizeOptional;
+            // save all parameters in a record array
+            allocParams[collectIx] = new CollectAllocPararms(recTypeCode,
+                    recTypeLength,
+                    recordBufferSizeMust,
+                    recordBufferSizeOptional,
+                    bufferAllocator.getQueryNullBufferSize(collectParams.getRecTypeCode()),
+                    collectParams.hasDictionary());
+            // update total counts
+            totalRecordBufferSizeMust += (recordBufferSizeMust + allocParams[collectIx].nullBufferSize()); // including extras inside and nulls
+            totalRecordBufferSizeOptional += recordBufferSizeOptional;
+            // advance
+            collectIx++;
+        }
+
+        // size left for optional record buffer is total memory minus the must to allocate without optional
+        // we reduce 1 byte for each element to avoid over allocation due to floating point roundings
+        long queryMemoryOptional = queryMemorySize - totalRecordBufferSizeMust - numCollectElements;
+        // make sure each juffer that needs extra will get same fair
+        double satisfyPrecentage = (queryMemoryOptional >= totalRecordBufferSizeOptional) ? 1.0 : ((double) queryMemoryOptional / (double) totalRecordBufferSizeOptional);
+
+        // perform actual allocation of record and null buffers and create the juffers
+        for (collectIx = 0; collectIx < numCollectElements; collectIx++) {
+            long[] collectBuffers = outCollectBuffers[collectIx]; // save the addresses here for native
+            MemorySegment[] collectSegments = new MemorySegment[collectBuffers.length]; // used to create the juffers below
+            // record buffer size including the optional part which is calculated using the precentage
+            final int recordBufferSizeOptional = (int) (satisfyPrecentage * allocParams[collectIx].recordBufferSizeOptional());
+            allocCollectBuffer(queryMemoryAllocator,
+                    JbufType.JBUF_TYPE_REC,
+                    allocParams[collectIx].recordBufferSizeMust() + recordBufferSizeOptional,
+                    collectSegments,
+                    collectBuffers);
+            // null buffer
+            allocCollectBuffer(queryMemoryAllocator,
+                    JbufType.JBUF_TYPE_NULL,
+                    allocParams[collectIx].nullBufferSize(),
+                    collectSegments,
+                    collectBuffers);
+            // create the juffers from the segments
+            outCollectJuffersWE.get(collectIx).createBuffers(allocParams[collectIx].recTypeCode(),
+                    allocParams[collectIx].recTypeLength(),
+                    allocParams[collectIx].hasDictionary(),
+                    collectSegments);
+        }
+    }
+
+    private record CollectAllocPararms(RecTypeCode recTypeCode,
+            int recTypeLength,
+            int recordBufferSizeMust,
+            int recordBufferSizeOptional,
+            int nullBufferSize,
+            boolean hasDictionary)
+    {
     }
 }

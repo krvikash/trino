@@ -338,16 +338,14 @@ public class WarmupTestDataUtil
             segments[i] = Arena.global().allocate(defaultSize);
         }
 
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).ids2NullBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2NullBuff(any());
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).ids2RecBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2RecBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2CrcBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2ExtRecsBuff(any());
         doReturn(allocateIntBuffer(defaultSize)).when(bufferAllocator).memorySegment2VarlenMdBuff(any());
 
         doReturn(segments).when(bufferAllocator).getWarmBuffers(any());
-        doReturn(new long[JbufType.JBUF_TYPE_NUM_OF.ordinal()]).when(bufferAllocator).getQueryIdsArray();
+        doReturn(new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()]).when(bufferAllocator).getCollectBuffersArray();
         return bufferAllocator;
     }
 

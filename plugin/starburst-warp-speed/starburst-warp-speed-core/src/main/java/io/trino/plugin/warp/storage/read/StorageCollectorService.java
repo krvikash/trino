@@ -333,7 +333,8 @@ public class StorageCollectorService
         int freeBytes = getFreeBytes(warmupElementRecordBufferState, recordBufferStateBuff);
 
         int actualNumToCollect = Math.min(freeBytes / maxRecordLength, numToCollect);
-        logger.debug("getNumToCollect var size basePos %d actualNumToCollect %d numToCollect %d maxToCollect %d", warmupElementRecordBufferState.getBasePos(), actualNumToCollect, numToCollect, maxToCollect);
+        logger.debug("getNumToCollect var size basePos %d actualNumToCollect %d numToCollect %d maxToCollect %d maxRecordLength %d freeBytes %d",
+                warmupElementRecordBufferState.getBasePos(), actualNumToCollect, numToCollect, maxToCollect, maxRecordLength, freeBytes);
         return actualNumToCollect;
     }
 
@@ -373,20 +374,19 @@ public class StorageCollectorService
     TxArgs getTxArgs(QueryParams queryParams)
     {
         int[] weCollectParams = queryParams.dumpCollectParams();
-        long[][] collectBuffIds = new long[queryParams.getNumCollectElements()][];
+        long[][] collectBuffers = new long[queryParams.getNumCollectElements()][];
         for (int collectIx = 0; collectIx < queryParams.getNumCollectElements(); collectIx++) {
-            collectBuffIds[collectIx] = bufferAllocator.getQueryIdsArray();
+            collectBuffers[collectIx] = bufferAllocator.getCollectBuffersArray();
         }
 
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];
         byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
-
         // file is opened at init
         long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
 
         return new TxArgs(
                 weCollectParams,
-                collectBuffIds,
+                collectBuffers,
                 collectStoreBuff,
                 collect2MatchParams,
                 fileCookieParams);

@@ -175,7 +175,7 @@ public class DispatcherPageSourceFactoryTest
         dictionaryConfig.setMaxDictionaryTotalCacheWeight(DataSize.of(16L, DataSize.Unit.MEGABYTE));
         dictionaryConfig.setDictionaryCacheConcurrencyLevel(1);
         NativeConfig nativeConfig = mock(NativeConfig.class);
-        when(nativeConfig.getBundleSize()).thenReturn(16 * 1024 * 1024);
+        when(nativeConfig.getBundleSize()).thenReturn(256 * 1024);
         when(nativeConfig.getCollectTxSize()).thenReturn(8 * 1024 * 1024);
         when(nativeConfig.getTaskMaxWorkerThreads()).thenReturn(1);
         workerWarmingService = mock(WorkerWarmingService.class);

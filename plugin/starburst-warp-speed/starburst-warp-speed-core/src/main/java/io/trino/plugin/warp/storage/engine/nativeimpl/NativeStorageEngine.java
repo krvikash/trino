@@ -54,8 +54,9 @@ public class NativeStorageEngine
     private final MethodHandle mFilePunchHole;
     private final MethodHandle mFileAboutToBeDeleted;
     // initialization API
-    private final MethodHandle mInitGetFixedRecordBufferSize;
-    private final MethodHandle mInitGetVarlenRecordBufferSize;
+    private final MethodHandle mInitGetWarmupRecordBufferSize;
+    private final MethodHandle mInitGetFixedCollectRecordBufferSize;
+    private final MethodHandle mInitGetVarlenCollectRecordBufferSize;
     private final MethodHandle mInitGetFixedCollectTxSize;
     private final MethodHandle mInitGetVarlenCollectTxSize;
     private final MethodHandle mInitGetFixedWarmupDataTxSize;
@@ -82,10 +83,7 @@ public class NativeStorageEngine
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
 
-        logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d bundleSize %d",
-                taskMaxWorkerThreads,
-                panicHaltPolicy,
-                nativeConfig.getBundleSize());
+        logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d", taskMaxWorkerThreads, panicHaltPolicy);
         try {
             SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
             Linker linker = Linker.nativeLinker();
@@ -103,9 +101,11 @@ public class NativeStorageEngine
                     FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_INT));
 
             // init API
-            mInitGetFixedRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_record_buffer_size").orElseThrow(),
+            mInitGetWarmupRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_warmup_record_buffer_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mInitGetVarlenRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_varlen_record_buffer_size").orElseThrow(),
+            mInitGetFixedCollectRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_collect_record_buffer_size").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mInitGetVarlenCollectRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_varlen_collect_record_buffer_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
             mInitGetFixedCollectTxSize = linker.downcallHandle(libraryHandle.find("data_chunk_get_fixed_query_tx_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
@@ -174,26 +174,38 @@ public class NativeStorageEngine
             boolean validateWarmId);
 
     @Override
-    public int getFixedRecordBufferSize(int recTypeLength)
+    public int getWarmupRecordBufferSize(int recTypeLength)
     {
         try {
-            return (int) mInitGetFixedRecordBufferSize.invokeExact(recTypeLength);
+            return (int) mInitGetWarmupRecordBufferSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
-            shapingLogger.error(t, "failed to init record buffer size");
-            throw new RuntimeException("failed to init record buffer size");
+            shapingLogger.error(t, "failed to init warmup record buffer size");
+            throw new RuntimeException("failed to init warmup record buffer size");
         }
     }
 
     @Override
-    public int getVarlenRecordBufferSize(int recTypeLength)
+    public int getFixedCollectRecordBufferSize(int recTypeLength)
     {
         try {
-            return (int) mInitGetVarlenRecordBufferSize.invokeExact(recTypeLength);
+            return (int) mInitGetFixedCollectRecordBufferSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
-            shapingLogger.error(t, "failed to init record buffer size");
-            throw new RuntimeException("failed to init record buffer size");
+            shapingLogger.error(t, "failed to init collect record buffer size");
+            throw new RuntimeException("failed to init collect record buffer size");
+        }
+    }
+
+    @Override
+    public int getVarlenCollectRecordBufferSize(int recTypeLength)
+    {
+        try {
+            return (int) mInitGetVarlenCollectRecordBufferSize.invokeExact(recTypeLength);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to init collect record buffer size");
+            throw new RuntimeException("failed to init collect record buffer size");
         }
     }
 
@@ -376,7 +388,7 @@ public class NativeStorageEngine
     @Override
     public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, long matchBitmapAddress, int minOffset,
-            long[][] outCollectColBuffIds, long[] outMetadataBuffIds);
+            long[][] collectBuffers, long[] outMetadataBuffIds);
 
     @Override
     public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,

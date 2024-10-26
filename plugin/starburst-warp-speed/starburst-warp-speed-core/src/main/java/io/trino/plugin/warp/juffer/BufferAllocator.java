@@ -78,10 +78,9 @@ public class BufferAllocator
     private MemorySegment loadConetxtMem;
     private ArrayBlockingQueue<MemorySegment> loadContextQueue; // loadContextQueue is storage engine buffer used for keeping in memory context during warmup
     private final NativeConfig nativeConfig;
-    private final int maxRecLenForVarlenRecordBuffer;
-    private final int maxRecLenForFixedRecordBuffer;
-    private final int maxRecLenForVarlenTxSize;
-    private final int maxRecLenForFixedTxSize;
+    private final int maxRecLenForWarmupRecordBuffer;
+    private final int maxRecLenForDataFixed;
+    private final int maxRecLenForDataVarlen;
     private final int queryStringNullValueSize;
     private int extRecBuffSize;
     private int dataTempBufferSize;
@@ -93,8 +92,9 @@ public class BufferAllocator
     private MemorySegment predicateBundleMem;
     private PredicateBufferPool[] predicateBufferPools;
     private int[] buffTypeSizes;
-    private int[] fixedRecordBufferSizes;
-    private int[] varlenRecordBufferSizes;
+    private int[] warmupRecordBufferSizes;
+    private int[] collectFixedRecordBufferSizes;
+    private int[] collectVarlenRecordBufferSizes;
     private int[] fixedCollectTxSizes;
     private int[] varlenCollectTxSizes;
     private int[] fixedWarmupDataTxSizes;
@@ -118,10 +118,9 @@ public class BufferAllocator
         warpInitializedServiceRegistry.addService(this);
 
         // constants
-        this.maxRecLenForVarlenRecordBuffer = storageEngineConstants.getFixedLengthStringLimit();
-        this.maxRecLenForFixedRecordBuffer = 2 * Long.BYTES; // long decimal
-        this.maxRecLenForVarlenTxSize = storageEngineConstants.getMaxRecLen();
-        this.maxRecLenForFixedTxSize = 2 * Long.BYTES; // long decimal
+        this.maxRecLenForWarmupRecordBuffer = storageEngineConstants.getFixedLengthStringLimit();
+        this.maxRecLenForDataFixed = 2 * Long.BYTES; // long decimal
+        this.maxRecLenForDataVarlen = storageEngineConstants.getMaxRecLen();
         this.queryStringNullValueSize = storageEngineConstants.getQueryStringNullValueSize();
 
         initBufferTypeSizes();
@@ -233,30 +232,34 @@ public class BufferAllocator
 
         // NOTE: all the array sizes above are with a +1 size to allow accessing them with the record length as index to the array without the need to -1
         // since 0 is not a valid length and the maximal value is
-        this.fixedRecordBufferSizes = new int[maxRecLenForFixedRecordBuffer + 1]; // largest case is long decimal
-        for (int len = 1; len <= maxRecLenForFixedRecordBuffer; len++) {
-            fixedRecordBufferSizes[len] = storageEngine.getFixedRecordBufferSize(len);
+        this.warmupRecordBufferSizes = new int[maxRecLenForWarmupRecordBuffer + 1];
+        for (int len = 1; len <= maxRecLenForWarmupRecordBuffer; len++) {
+            warmupRecordBufferSizes[len] = storageEngine.getWarmupRecordBufferSize(len);
         }
-        this.varlenRecordBufferSizes = new int[maxRecLenForVarlenRecordBuffer + 1];
-        for (int len = 1; len <= maxRecLenForVarlenRecordBuffer; len++) {
-            varlenRecordBufferSizes[len] = storageEngine.getVarlenRecordBufferSize(len);
+        this.collectFixedRecordBufferSizes = new int[maxRecLenForDataFixed + 1];
+        for (int len = 1; len <= maxRecLenForDataFixed; len++) {
+            collectFixedRecordBufferSizes[len] = storageEngine.getFixedCollectRecordBufferSize(len);
+        }
+        this.collectVarlenRecordBufferSizes = new int[maxRecLenForDataVarlen + 1];
+        for (int len = 1; len <= maxRecLenForDataVarlen; len++) {
+            collectVarlenRecordBufferSizes[len] = storageEngine.getVarlenCollectRecordBufferSize(len);
         }
 
-        this.fixedCollectTxSizes = new int[maxRecLenForFixedTxSize + 1]; // largest case is long decimal
-        for (int len = 1; len <= maxRecLenForFixedTxSize; len++) {
+        this.fixedCollectTxSizes = new int[maxRecLenForDataFixed + 1];
+        for (int len = 1; len <= maxRecLenForDataFixed; len++) {
             fixedCollectTxSizes[len] = storageEngine.getFixedCollectTxSize(len);
         }
-        this.varlenCollectTxSizes = new int[maxRecLenForVarlenTxSize + 1];
-        for (int len = 1; len <= maxRecLenForVarlenTxSize; len++) {
+        this.varlenCollectTxSizes = new int[maxRecLenForDataVarlen + 1];
+        for (int len = 1; len <= maxRecLenForDataVarlen; len++) {
             varlenCollectTxSizes[len] = storageEngine.getVarlenCollectTxSize(len);
         }
 
-        this.fixedWarmupDataTxSizes = new int[maxRecLenForFixedTxSize + 1]; // largest case is long decimal
-        for (int len = 1; len <= maxRecLenForFixedTxSize; len++) {
+        this.fixedWarmupDataTxSizes = new int[maxRecLenForDataFixed + 1]; // largest case is long decimal
+        for (int len = 1; len <= maxRecLenForDataFixed; len++) {
             fixedWarmupDataTxSizes[len] = storageEngine.getFixedWarmupDataTxSize(len);
         }
-        this.varlenWarmupDataTxSizes = new int[maxRecLenForVarlenTxSize + 1];
-        for (int len = 1; len <= maxRecLenForVarlenTxSize; len++) {
+        this.varlenWarmupDataTxSizes = new int[maxRecLenForDataVarlen + 1];
+        for (int len = 1; len <= maxRecLenForDataVarlen; len++) {
             varlenWarmupDataTxSizes[len] = storageEngine.getVarlenWarmupDataTxSize(len);
         }
         warmupIndexTxSize = Math.max((int) storageEngine.getWarmupBasicTxSize(), (int) storageEngine.getWarmupLuceneTxSize());
@@ -264,8 +267,8 @@ public class BufferAllocator
         int warmBufferSize = buffTypeSizes[JbufType.JBUF_TYPE_NULL.ordinal()] +
                 buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()] +
                 storageEngineConstants.getPageSize() * 4; /* some page for skiplist and spare */
-        int dataWarmBufferSize = warmBufferSize + fixedRecordBufferSizes[maxRecLenForVarlenRecordBuffer] + extRecBuffSize + dataTempBufferSize;
-        int basicWarmBufferSize = warmBufferSize + calculateCrcBufferSize(RecTypeCode.REC_TYPE_DECIMAL_LONG, maxRecLenForFixedTxSize) + indexTempBufferSize;
+        int dataWarmBufferSize = warmBufferSize + warmupRecordBufferSizes[maxRecLenForWarmupRecordBuffer] + extRecBuffSize + dataTempBufferSize;
+        int basicWarmBufferSize = warmBufferSize + calculateCrcBufferSize(RecTypeCode.REC_TYPE_DECIMAL_LONG, maxRecLenForDataFixed) + indexTempBufferSize;
         this.warmBundleSize = Math.max(dataWarmBufferSize, basicWarmBufferSize);
     }
 
@@ -390,7 +393,7 @@ public class BufferAllocator
         return buffs;
     }
 
-    public long[] getQueryIdsArray()
+    public long[] getCollectBuffersArray()
     {
         return new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()];
     }
@@ -398,11 +401,6 @@ public class BufferAllocator
     public ByteBuffer id2ByteBuff(long bufId)
     {
         return id2Buff(bufId);
-    }
-
-    public ByteBuffer ids2RecBuff(long[] idsByType)
-    {
-        return id2Buff(idsByType[JbufType.JBUF_TYPE_REC.ordinal()]);
     }
 
     public ByteBuffer memorySegment2RecBuff(MemorySegment[] buffs)
@@ -413,11 +411,6 @@ public class BufferAllocator
     public ByteBuffer memorySegment2ExtRecsBuff(MemorySegment[] buffs)
     {
         return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_EXT_RECS.ordinal()]);
-    }
-
-    public ByteBuffer ids2NullBuff(long[] idsByType)
-    {
-        return id2Buff(idsByType[JbufType.JBUF_TYPE_NULL.ordinal()]);
     }
 
     public ByteBuffer memorySegment2NullBuff(MemorySegment[] buffs)
@@ -584,7 +577,7 @@ public class BufferAllocator
         boolean isRecBufferNeeded = isRecordBufferNeeded(warmUpElement.getWarmUpType(), recTypeCode);
         return new WarmUpElementAllocationParams(recTypeCode,
                 recTypeLength,
-                isRecBufferNeeded ? getInsertRecordBufferSize(recTypeLength) : 0,
+                isRecBufferNeeded ? getWarmupRecordBufferSize(recTypeLength) : 0,
                 isCrcBufferNeeded(warmUpElement.getWarmUpType(), recTypeCode) ? calculateCrcBufferSize(recTypeCode, recTypeLength) : 0,
                 isRecBufferNeeded && isExtendedBufferNeeded(recTypeLength) ? extRecBuffSize : 0,
                 isRecBufferNeeded && isMdBufferNeeded(recTypeCode),
@@ -592,50 +585,65 @@ public class BufferAllocator
                 loadSegment);
     }
 
-    // NOTE: this is called only for fixed length since variable length in insert is only above maxRecLenForVarlenRecordBuffer
-    public int getInsertRecordBufferSize(int recTypeLength)
+    // NOTE: this is called only for fixed length since variable length in insert is only above maxRecLenForWarmupRecordBuffer
+    public int getWarmupRecordBufferSize(int recTypeLength)
     {
-        return getFixedLengthRecordBufferSize(recTypeLength, maxRecLenForVarlenRecordBuffer);
+        return warmupRecordBufferSizes[Math.min(recTypeLength, maxRecLenForWarmupRecordBuffer)];
+    }
+
+    public int getCollectRecordBufferSizeMust(RecTypeCode recTypeCode, int recTypeLength)
+    {
+        int recordBufferSize = getCollectRecordBufferSize(recTypeCode, recTypeLength);
+        return recordBufferSize - getCollectRecordBufferSizeOptional(recTypeCode, recordBufferSize);
     }
 
     public int getCollectRecordBufferSize(RecTypeCode recTypeCode, int recTypeLength)
     {
         if (TypeUtils.isVarlenStr(recTypeCode)) {
-            return varlenRecordBufferSizes[Math.min(recTypeLength, maxRecLenForVarlenRecordBuffer)];
+            return collectVarlenRecordBufferSizes[Math.min(recTypeLength, maxRecLenForDataVarlen)];
         }
-        return getFixedLengthRecordBufferSize(recTypeLength, maxRecLenForVarlenRecordBuffer);
+        return collectFixedRecordBufferSizes[Math.min(recTypeLength, maxRecLenForDataFixed)];
+    }
+
+    public int getCollectRecordBufferSizeOptional(RecTypeCode recTypeCode, int recordBufferSize)
+    {
+        if (TypeUtils.isVarlenStr(recTypeCode)) {
+            if (recordBufferSize <= storageEngineConstants.getRecordBufferMaxSize()) {
+                // no extra needed
+                return 0;
+            }
+            // extra is limited by max juffer size
+            return Math.min(recordBufferSize - storageEngineConstants.getRecordBufferMaxSize(),
+                    nativeConfig.getMaxRecJufferSize() - storageEngineConstants.getRecordBufferMaxSize());
+        }
+        return 0;
     }
 
     // NOTE: this is called only for fixed length since variable length does not support match collect (index is crc based)
     public int getMatchCollectRecordBufferSize(int recTypeLength)
     {
-        return getFixedLengthRecordBufferSize(recTypeLength, maxRecLenForFixedRecordBuffer);
+        return collectFixedRecordBufferSizes[recTypeLength];
     }
 
     public int getMappedMatchCollectBufferSize()
     {
-        return getFixedLengthRecordBufferSize(TinyintType.TINYINT.getFixedSize(), maxRecLenForFixedRecordBuffer);
-    }
-
-    private int getFixedLengthRecordBufferSize(int recTypeLength, int maxRecTypeLength)
-    {
-        return fixedRecordBufferSizes[Math.min(recTypeLength, maxRecTypeLength)];
+        return collectFixedRecordBufferSizes[TinyintType.TINYINT.getFixedSize()];
     }
 
     public int getCollectTxSize(RecTypeCode recTypeCode, int recTypeLength)
     {
         if (TypeUtils.isVarlenStr(recTypeCode)) {
-            return varlenCollectTxSizes[Math.min(recTypeLength, maxRecLenForVarlenTxSize)];
+            return varlenCollectTxSizes[Math.min(recTypeLength, maxRecLenForDataVarlen)];
         }
-        return fixedCollectTxSizes[Math.min(recTypeLength, maxRecLenForFixedTxSize)];
+        return fixedCollectTxSizes[Math.min(recTypeLength, maxRecLenForDataFixed)];
     }
 
     public int getWarmupDataTxSize(RecTypeCode recTypeCode, int recTypeLength)
     {
         if (TypeUtils.isVarlenStr(recTypeCode)) {
-            return varlenWarmupDataTxSizes[Math.min(recTypeLength, maxRecLenForVarlenTxSize)];
+            return varlenWarmupDataTxSizes[Math.min(recTypeLength, maxRecLenForDataVarlen)];
         }
-        return fixedWarmupDataTxSizes[Math.min(recTypeLength, maxRecLenForFixedTxSize)];
+        return fixedWarmupDataTxSizes[Math.min(recTypeLength, maxRecLenForDataFixed)];
     }
 
     public int getWarmupIndexTxSize()

@@ -24,12 +24,17 @@ import java.nio.ByteBuffer;
 public interface StorageEngine
 {
     //----------------------- initialization ----------------------------------------
-    default int getFixedRecordBufferSize(int recTypeLength)
+    default int getWarmupRecordBufferSize(int recTypeLength)
     {
         throw new UnsupportedOperationException();
     }
 
-    default int getVarlenRecordBufferSize(int recTypeLength)
+    default int getFixedCollectRecordBufferSize(int recTypeLength)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default int getVarlenCollectRecordBufferSize(int recTypeLength)
     {
         throw new UnsupportedOperationException();
     }
@@ -153,12 +158,12 @@ public interface StorageEngine
      * @param numCollectWes - number of collect warm up elements
      * @param weCollectParams - parameters for collect warmup elements dumped into an array
      * @param catalogContext - connector context used for callbacks handles
-     * @param outCollectColBuffIds - buffer ids for data and nulls per warm up element
+     * @param collectBuffers - buffer for data and nulls per warm up element
      * @param outMetadataBuffIds - buffer id for row numbers. buffer id for record buffer state. valid id is zero of positive, -1 for invalid.
      */
     default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long catalogContext, long matchBitmapAddress, int minOffset,
-            long[][] outCollectColBuffIds, long[] outMetadataBuffIds)
+            long[][] collectBuffers, long[] outMetadataBuffIds)
     {
         throw new UnsupportedOperationException();
     }

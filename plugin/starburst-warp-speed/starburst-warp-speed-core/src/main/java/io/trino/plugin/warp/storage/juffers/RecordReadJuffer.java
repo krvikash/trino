@@ -16,6 +16,8 @@ package io.trino.plugin.warp.storage.juffers;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 
+import java.lang.foreign.MemorySegment;
+
 public class RecordReadJuffer
         extends BaseReadJuffer
 {
@@ -25,9 +27,9 @@ public class RecordReadJuffer
     }
 
     @Override
-    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, long[] buffIds, boolean hasDictionary)
+    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, boolean hasDictionary, MemorySegment[] buffs)
     {
-        this.baseBuffer = bufferAllocator.ids2RecBuff(buffIds);
+        this.baseBuffer = bufferAllocator.memorySegment2RecBuff(buffs);
         this.wrappedBuffer = createWrapperBuffer(this.baseBuffer, recTypeCode, recTypeLength, false, hasDictionary);
     }
 }

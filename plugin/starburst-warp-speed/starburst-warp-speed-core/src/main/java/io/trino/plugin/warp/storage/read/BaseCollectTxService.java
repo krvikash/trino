@@ -15,12 +15,15 @@ package io.trino.plugin.warp.storage.read;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
+import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.QueryMemory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.TrinoException;
 
 import java.lang.foreign.MemorySegment;
@@ -35,17 +38,24 @@ public abstract class BaseCollectTxService
     protected static final int INVALID_TX_ID = -1;
 
     protected final StorageEngine storageEngine;
+    protected final StorageEngineConstants storageEngineConstants;
     protected final ConnectorSync connectorSync;
+    protected final BufferAllocator bufferAllocator;
+    protected final GlobalConfig globalConfig;
     protected final ShapingLogger shapingLogger;
 
     public BaseCollectTxService(StorageEngine storageEngine,
-            GlobalConfig globalConfig,
-            ConnectorSync connectorSync)
+            StorageEngineConstants storageEngineConstants,
+            ConnectorSync connectorSync,
+            BufferAllocator bufferAllocator,
+            GlobalConfig globalConfig)
     {
         this.storageEngine = storageEngine;
+        this.storageEngineConstants = storageEngineConstants;
         this.connectorSync = connectorSync;
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
+        this.bufferAllocator = bufferAllocator;
+        this.globalConfig = globalConfig;
+        this.shapingLogger = ShapingLogger.getInstance(logger,
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
@@ -90,7 +100,7 @@ public abstract class BaseCollectTxService
                 queryParams.getCatalogContext(),
                 matchBmAddr,
                 queryParams.getMinCollectOffset(),
-                txArgs.collectBuffIds(),
+                txArgs.collectBuffers(),
                 metadataBuffIds);
     }
 
@@ -154,5 +164,16 @@ public abstract class BaseCollectTxService
                 storageEngine.collectClose(collectTxId, null, 0, null, null);
             }
         }
+    }
+
+    void allocCollectBuffer(SegmentAllocator queryMemoryAllocator,
+            JbufType bufType,
+            int bufferSize,
+            MemorySegment[] outCollectSegments,
+            long[] outCollectBuffers)
+    {
+        final int alignment = storageEngineConstants.getPageSize();
+        outCollectSegments[bufType.ordinal()] = queryMemoryAllocator.allocate(bufferSize, alignment);
+        outCollectBuffers[bufType.ordinal()] = outCollectSegments[bufType.ordinal()].address();
     }
 }

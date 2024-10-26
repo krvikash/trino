@@ -14,29 +14,54 @@
 package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.constants.CollectStats;
+import io.trino.plugin.warp.gen.constants.JbufType;
+import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.TestStats;
+import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.QueryMemory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SegmentAllocator;
 
 public class LazyCollectTxService
         extends BaseCollectTxService
 {
+    private static final Logger logger = Logger.get(LazyCollectorLoader.class);
+    private final NativeConfig nativeConfig;
+
     @Inject
     public LazyCollectTxService(StorageEngine storageEngine,
+            StorageEngineConstants storageEngineConstants,
+            ConnectorSync connectorSync,
+            BufferAllocator bufferAllocator,
             GlobalConfig globalConfig,
-            ConnectorSync connectorSync)
+            NativeConfig nativeConfig)
     {
-        super(storageEngine, globalConfig, connectorSync);
+        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
+        this.nativeConfig = nativeConfig;
     }
 
     LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs)
     {
         long[] metadataBuffIds = new long[2];
         QueryMemory queryMemory = allocQueryMemory();
+        SegmentAllocator queryMemoryAllocator = getQueryMemoryAllocator(queryMemory);
         int queryMemoryId = queryMemory.id();
+        WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
+
+        long[] collectBuffers = lazyCollectorLoaderArgs.txArgs().collectBuffers()[0];
+        MemorySegment[] collectSegments = new MemorySegment[collectBuffers.length];
+        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_REC, nativeConfig.getMaxRecJufferSize(), collectSegments, collectBuffers);
+        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_NULL, bufferAllocator.getQueryNullBufferSize(RecTypeCode.REC_TYPE_VARCHAR), collectSegments, collectBuffers);
+        lazyCollectorLoaderArgs.collectJufferWE().createBuffers(collectParams.getRecTypeCode(), collectParams.getRecTypeLength(), collectParams.hasDictionary(), collectSegments);
+
         collectOpen(lazyCollectorLoaderArgs.queryParams(),
                 lazyCollectorLoaderArgs.txArgs(),
                 queryMemoryId,
@@ -45,12 +70,6 @@ public class LazyCollectTxService
                 0,
                 metadataBuffIds);
 
-        WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
-        lazyCollectorLoaderArgs.collectJufferWE().createBuffers(
-                collectParams.getRecTypeCode(),
-                collectParams.getRecTypeLength(),
-                collectParams.hasDictionary(),
-                lazyCollectorLoaderArgs.txArgs().collectBuffIds()[0]);
         logger.debug("collectOpen queryMemoryId %d rowsLimit %d", queryMemoryId, rowsLimit);
         return new LazyCollectOpenResult(queryMemoryId);
     }

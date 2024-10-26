@@ -89,9 +89,7 @@ public class ArrayReadWriteTest
         ByteBuffer chunksMapBuffer = ByteBuffer.allocate(1000);
         IntBuffer varlnmdBuffer = IntBuffer.allocate(1000);
         bufferAllocator = mock(BufferAllocator.class);
-        when(bufferAllocator.ids2NullBuff(any())).thenReturn(nullBuffer);
         when(bufferAllocator.memorySegment2NullBuff(any())).thenReturn(nullBuffer);
-        when(bufferAllocator.ids2RecBuff(any())).thenReturn(recordBuffer);
         when(bufferAllocator.memorySegment2RecBuff(any())).thenReturn(recordBuffer);
         when(bufferAllocator.memorySegment2CrcBuff(any())).thenReturn(crcBuffer);
         when(bufferAllocator.memorySegment2VarlenMdBuff(any())).thenReturn(varlnmdBuffer);
@@ -275,7 +273,7 @@ public class ArrayReadWriteTest
                 new VariableLengthStringBlockAppender(juffersWE, storageEngineConstants, storageEngineConstants.getVarcharMaxLen(), arrayType, storageEngineConstants.getVarcharMaxLen()),
                 arrayType);
         this.juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true);
-        this.juffersWE.createBuffers(arrayTypeCode, storageEngineConstants.getVarcharMaxLen(), false, new long[JbufType.values().length]);
+        this.juffersWE.createBuffers(arrayTypeCode, storageEngineConstants.getVarcharMaxLen(), false, new MemorySegment[JbufType.values().length]);
     }
 
     private void prepareBuffersForRead()

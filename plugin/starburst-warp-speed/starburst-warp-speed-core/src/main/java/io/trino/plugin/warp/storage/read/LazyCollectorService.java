@@ -74,15 +74,16 @@ public class LazyCollectorService
         WarmupElementCollectParams collectParams = queryParams.getCollectElementsParamsList().get(weIx);
 
         int[] weCollectParams = queryParams.dumpSingleCollectParams(collectParams);
-        long[][] collectBuffIds = new long[1][];
-        collectBuffIds[0] = bufferAllocator.getQueryIdsArray();
+        long[][] collectBuffers = new long[1][];
+        collectBuffers[0] = bufferAllocator.getCollectBuffersArray();
+
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(0)];
         byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
         long[] fileCookieParams = queryArgs.txArgs().fileCookie();
 
         TxArgs txArgs = new TxArgs(
                 weCollectParams,
-                collectBuffIds,
+                collectBuffers,
                 collectStoreBuff,
                 collect2MatchParams,
                 fileCookieParams);

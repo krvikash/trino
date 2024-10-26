@@ -38,7 +38,7 @@ public class NativeConfig
 
     private int predicateBundleSizeInMegaBytes = 110;
     private DataSize generalReservedMemory = DataSize.of(0, DataSize.Unit.GIGABYTE);
-    private DataSize bundleSize = DataSize.of(64, DataSize.Unit.MEGABYTE);
+    private DataSize bundleSize = DataSize.of(256, DataSize.Unit.KILOBYTE);
     private DataSize maxRecJufferSize = DataSize.of(16, DataSize.Unit.MEGABYTE);
     private int lz4HcPercent = 10;
     private DataSize collectTxSize = DataSize.of(8, DataSize.Unit.MEGABYTE);
@@ -101,17 +101,17 @@ public class NativeConfig
         this.generalReservedMemory = DataSize.of(generalReservedMemoryInGigaBytes, DataSize.Unit.GIGABYTE);
     }
 
-    @Min(16 * 1024 * 1024)
-    @Max(256 * 1024 * 1024)
+    @Min(16 * 1024)
+    @Max(512 * 1024)
     public int getBundleSize()
     {
         return (int) bundleSize.toBytes();
     }
 
-    @Config("warp-speed.config.bundle-size-mb")
-    public void setBundleSize(int bundleSizeInMegaBytes)
+    @Config("warp-speed.config.bundle-size-kb")
+    public void setBundleSize(int bundleSizeInKiloBytes)
     {
-        this.bundleSize = DataSize.of(bundleSizeInMegaBytes, DataSize.Unit.MEGABYTE);
+        this.bundleSize = DataSize.of(bundleSizeInKiloBytes, DataSize.Unit.KILOBYTE);
     }
 
     @Min(4 * 1024 * 1024)
