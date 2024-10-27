@@ -75,7 +75,7 @@ public abstract class DispatcherAbstractTestQueryFramework
                         column,
                         warmupPropertiesData.warmUpType(),
                         warmupPropertiesData.priority(),
-                        Duration.ofSeconds(warmupPropertiesData.ttl().getSeconds()),
+                        Duration.ofSeconds(warmupPropertiesData.ttl().toSeconds()),
                         predicates));
             }
         }

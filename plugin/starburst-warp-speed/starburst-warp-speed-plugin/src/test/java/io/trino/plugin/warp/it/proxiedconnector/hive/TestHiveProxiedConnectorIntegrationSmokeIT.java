@@ -3605,7 +3605,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 new WildcardColumnData(),
                 WarmUpType.WARM_UP_TYPE_DATA,
                 DEFAULT_PRIORITY,
-                Duration.ofSeconds(DEFAULT_TTL.getSeconds()),
+                Duration.ofSeconds(DEFAULT_TTL.toSeconds()),
                 ImmutableSet.of());
 
         WarmupColRuleData columnRule = new WarmupColRuleData(0,
@@ -3614,7 +3614,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 new RegularColumnData(C2),
                 WarmUpType.WARM_UP_TYPE_BASIC,
                 DEFAULT_PRIORITY,
-                Duration.ofSeconds(DEFAULT_TTL.getSeconds()),
+                Duration.ofSeconds(DEFAULT_TTL.toSeconds()),
                 ImmutableSet.of());
 
         executeRestCommand(WarmupRuleService.WARMUP_PATH,
@@ -3707,7 +3707,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 new WildcardColumnData(),
                 WarmUpType.WARM_UP_TYPE_DATA,
                 DEFAULT_PRIORITY,
-                Duration.ofSeconds(DEFAULT_TTL.getSeconds()),
+                Duration.ofSeconds(DEFAULT_TTL.toSeconds()),
                 ImmutableSet.of());
 
         WarmupColRuleData columnRule = new WarmupColRuleData(0,
@@ -3716,7 +3716,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 new RegularColumnData(C2),
                 WarmUpType.WARM_UP_TYPE_DATA,
                 tableLevelRule.getPriority() - 1,
-                Duration.ofSeconds(DEFAULT_TTL.getSeconds()),
+                Duration.ofSeconds(DEFAULT_TTL.toSeconds()),
                 ImmutableSet.of());
 
         executeRestCommand(WarmupRuleService.WARMUP_PATH,

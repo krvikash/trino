@@ -69,7 +69,7 @@ public class WarmupRuleApiMapper
                 .table(warmupColRuleData.getTable())
                 .schema(warmupColRuleData.getSchema())
                 .predicates(predicates)
-                .ttl((int) warmupColRuleData.getTtl().getSeconds())
+                .ttl((int) warmupColRuleData.getTtl().toSeconds())
                 .priority(warmupColRuleData.getPriority())
                 .warpColumn(createWarpColumn(warmupColRuleData))
                 .build();

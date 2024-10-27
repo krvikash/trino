@@ -49,11 +49,11 @@ public class ScheduledMetricsHandler
     {
         logger.debug("init metricsTimerTasks");
         metricsTimerTasks.forEach(metricsTimerTask -> {
-            long delayMillis = metricsTimerTask.getDelay().getSeconds() > 0
-                    ? TimeUnit.SECONDS.toMillis(metricsTimerTask.getDelay().getSeconds())
+            long delayMillis = metricsTimerTask.getDelay().toSeconds() > 0
+                    ? TimeUnit.SECONDS.toMillis(metricsTimerTask.getDelay().toSeconds())
                     : TimeUnit.NANOSECONDS.toMillis(metricsTimerTask.getDelay().toNanosPart());
 
-            long intervalInSeconds = metricsTimerTask.getInterval().getSeconds();
+            long intervalInSeconds = metricsTimerTask.getInterval().toSeconds();
             int intervalInNanos = metricsTimerTask.getInterval().toNanosPart();
             long intervalMillis = intervalInSeconds > 0 ? TimeUnit.SECONDS.toMillis(intervalInSeconds) : TimeUnit.NANOSECONDS.toMillis(intervalInNanos);
 
