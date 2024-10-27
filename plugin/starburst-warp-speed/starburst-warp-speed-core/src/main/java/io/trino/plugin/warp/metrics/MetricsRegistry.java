@@ -18,6 +18,7 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
+import jakarta.annotation.PreDestroy;
 import org.weakref.jmx.MBeanExporter;
 
 import java.util.Collection;
@@ -98,5 +99,16 @@ public class MetricsRegistry
     public Collection<WarpStatsBase> getRegisteredInstances()
     {
         return metricsRegistry.values();
+    }
+
+    @PreDestroy
+    public void shutdown()
+    {
+        try {
+            metricsRegistry.keySet().forEach(this::unregisterMetric);
+        }
+        catch (Exception e) {
+            logger.warn("fail to unregister metrics of removed catalog %s", catalogNameProvider.get());
+        }
     }
 }
