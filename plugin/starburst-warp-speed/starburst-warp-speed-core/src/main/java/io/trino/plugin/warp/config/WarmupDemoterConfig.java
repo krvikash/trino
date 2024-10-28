@@ -29,7 +29,7 @@ public class WarmupDemoterConfig
     private Duration delayAcquireThread = Duration.ofMillis(100);
     private Duration maxDurationAcquireThread = Duration.ofSeconds(200);
     private int maxRetriesAcquireThread = 300;
-    private int tasksExecutorQueueSize = 2_000_000;
+    private int tasksExecutorQueueSize = 200_000;
     private boolean enableDemote = true;
 
     public double getMaxUsageThresholdPercentage()

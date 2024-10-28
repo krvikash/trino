@@ -90,7 +90,7 @@ public class WeGroupWarmer
     @VisibleForTesting
     IsNeedDownloadResults isNeedDownload(RowGroupKey rowGroupKey, String cloudPath)
     {
-        RowGroupDataValidation dataValidation = new RowGroupDataValidation(0, 0);
+        RowGroupDataValidation dataValidation = RowGroupDataValidation.EMPTY_VALIDATION;
         boolean isNeedDownload;
 
         try {

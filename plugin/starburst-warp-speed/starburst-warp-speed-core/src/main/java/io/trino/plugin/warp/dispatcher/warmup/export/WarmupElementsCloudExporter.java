@@ -150,7 +150,7 @@ public class WarmupElementsCloudExporter
         }
         else {
             rowGroupDataService.deleteData(rowGroupData, true);
-            return new ExportFileResults(false, new RowGroupDataValidation(0, 0));
+            return new ExportFileResults(false, RowGroupDataValidation.EMPTY_VALIDATION);
         }
     }
 

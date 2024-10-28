@@ -24,6 +24,8 @@ public record RowGroupDataValidation(
         @JsonProperty("file_content_length") long fileContentLength)
         implements Serializable
 {
+    public static final RowGroupDataValidation EMPTY_VALIDATION = new RowGroupDataValidation(0, 0);
+
     @JsonCreator
     public RowGroupDataValidation
     {

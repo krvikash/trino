@@ -80,7 +80,7 @@ public class RowGroupData
                 nextOffset,                 // nextExportOffset = nextOffset
                 false,                      // isSparseFile = false
                 FastWarmingState.EXPORTED,  // nothing to export
-                new RowGroupDataValidation(0, 0),
+                RowGroupDataValidation.EMPTY_VALIDATION,
                 new WarpReadWriteLock());
     }
 
@@ -281,7 +281,7 @@ public class RowGroupData
         private int nextExportOffset;
         private boolean isSparseFile;
         private FastWarmingState fastWarmingState = FastWarmingState.EXPORTED;
-        private RowGroupDataValidation dataValidation = new RowGroupDataValidation(0, 0);
+        private RowGroupDataValidation dataValidation = RowGroupDataValidation.EMPTY_VALIDATION;
         private WarpReadWriteLock lock;
 
         @JsonProperty(KEY)
