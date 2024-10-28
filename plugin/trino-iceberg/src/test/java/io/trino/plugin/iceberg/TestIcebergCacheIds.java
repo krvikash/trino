@@ -68,6 +68,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
 import static io.trino.spi.predicate.Domain.singleValue;
@@ -80,6 +81,7 @@ import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static java.time.ZoneOffset.UTC;
 import static java.util.Map.entry;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -134,7 +136,8 @@ public class TestIcebergCacheIds
                 new IcebergTransactionManager(icebergMetadataFactory),
                 TESTING_TYPE_MANAGER,
                 new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
-                newSingleThreadExecutor(),
+                listeningDecorator(newSingleThreadExecutor()),
+                newSingleThreadScheduledExecutor(),
                 createJsonCodec(IcebergCacheSplitId.class),
                 new DefaultCachingHostAddressProvider());
     }
