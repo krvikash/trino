@@ -78,7 +78,8 @@ public final class EnvMultinodeAllConnectors
                         "sqlserver",
                         "stargate",
                         "trino_thrift",
-                        "tpcds")
+                        "tpcds",
+                        "vertica")
                 .forEach(connector -> builder.addConnector(
                         connector,
                         forHostPath(configDir.getPath(connector + ".properties"))));
