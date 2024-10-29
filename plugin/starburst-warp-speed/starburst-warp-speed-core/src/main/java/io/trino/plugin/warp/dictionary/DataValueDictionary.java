@@ -64,7 +64,7 @@ public class DataValueDictionary
     {
         this.dictionaryKey = dictionaryKey;
         this.addKeyLock = new ReentrantLock();
-        this.writeDictionary = new ConcurrentHashMap<>() {};
+        this.writeDictionary = new ConcurrentHashMap<>();
         this.dictionaryWeight = 0;
         this.attachedDictionarySize = 0;
         this.readDictionary = new ArrayList<>();
