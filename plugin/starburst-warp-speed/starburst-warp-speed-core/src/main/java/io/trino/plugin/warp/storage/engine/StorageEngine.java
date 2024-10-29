@@ -115,9 +115,8 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
-            boolean close, long warmUpElementAttAddress, long[] fileCookieParams, long[] buffAddresses,
-            byte[] inOutCompressionStats, byte[] inOutChunkHeader, int[] outWarmEvents)
+    default long warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpElementAttAddress, long[] fileCookieParams, long[] buffAddresses,
+            boolean close, byte[] inOutCompressionStats, byte[] inOutChunkHeader)
     {
         throw new UnsupportedOperationException();
     }
