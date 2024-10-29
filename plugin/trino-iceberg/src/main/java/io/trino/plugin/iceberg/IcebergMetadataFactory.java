@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.hive.LocationAccessControl;
@@ -24,6 +26,7 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
 
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
 
@@ -38,6 +41,7 @@ public class IcebergMetadataFactory
     private final TableStatisticsWriter tableStatisticsWriter;
     private final Optional<HiveMetastoreFactory> metastoreFactory;
     private final boolean addFilesProcedureEnabled;
+    private final Predicate<String> allowedExtraProperties;
 
     @Inject
     public IcebergMetadataFactory(
@@ -60,6 +64,12 @@ public class IcebergMetadataFactory
         this.tableStatisticsWriter = requireNonNull(tableStatisticsWriter, "tableStatisticsWriter is null");
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
         this.addFilesProcedureEnabled = config.isAddFilesProcedureEnabled();
+        if (config.getAllowedExtraProperties().equals(ImmutableList.of("*"))) {
+            this.allowedExtraProperties = _ -> true;
+        }
+        else {
+            this.allowedExtraProperties = ImmutableSet.copyOf(requireNonNull(config.getAllowedExtraProperties(), "allowedExtraProperties is null"))::contains;
+        }
     }
 
     public IcebergMetadata create(ConnectorIdentity identity)
@@ -73,6 +83,7 @@ public class IcebergMetadataFactory
                 fileSystemFactory,
                 tableStatisticsWriter,
                 metastoreFactory,
-                addFilesProcedureEnabled);
+                addFilesProcedureEnabled,
+                allowedExtraProperties);
     }
 }
