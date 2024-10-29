@@ -538,7 +538,6 @@ jobs:
             !:starburst-stargate,
             !:starburst-stargate-parallel,
             !:starburst-synapse,
-            !:trino-accumulo,
             !:trino-base-jdbc,
             !:trino-bigquery,
             !:trino-cassandra,
@@ -677,7 +676,6 @@ jobs:
             - { modules: plugin/starburst-synapse, profile: fte-tests }
             - { modules: plugin/starburst-synapse, profile: long-running-tests }
             - { modules: plugin/starburst-synapse, profile: type-mapping-tests }
-            - { modules: plugin/trino-accumulo }
             - { modules: plugin/trino-bigquery }
             - { modules: plugin/trino-bigquery, profile: cloud-tests-2 }
             - { modules: plugin/trino-cassandra }
