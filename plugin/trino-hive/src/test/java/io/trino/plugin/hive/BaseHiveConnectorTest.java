@@ -4120,9 +4120,12 @@ public abstract class BaseHiveConnectorTest
     {
         try {
             // Small table that will only have one writer
-            @Language("SQL") String createTableSql = "" +
-                            "CREATE TABLE scale_writers_small WITH (format = 'PARQUET') AS " +
-                            "SELECT * FROM tpch.tiny.orders";
+            @Language("SQL") String createTableSql =
+                    """
+                    CREATE TABLE scale_writers_small
+                    WITH (format = 'PARQUET')
+                    AS SELECT * FROM tpch.tiny.orders\
+                    """;
             assertUpdate(
                     Session.builder(getSession())
                             .setSystemProperty("task_min_writer_count", "1")
@@ -4174,9 +4177,12 @@ public abstract class BaseHiveConnectorTest
             // We need to use large table (sf1) to see the effect. Otherwise, a single writer will write the entire
             // data before ScaledWriterScheduler is able to scale it to multiple machines.
             // Skewed table that will scale writers to multiple machines.
-            String selectSql = "SELECT t1.* FROM (SELECT *, case when orderkey >= 0 then 1 else orderkey end as join_key FROM tpch.sf1.orders) t1 " +
-                               "INNER JOIN (SELECT orderkey FROM tpch.tiny.orders) t2 " +
-                               "ON t1.join_key = t2.orderkey";
+            String selectSql =
+                    """
+                    SELECT t1.* FROM (SELECT *, case when orderkey >= 0 then 1 else orderkey end as join_key FROM tpch.sf1.orders) t1
+                    INNER JOIN (SELECT orderkey FROM tpch.tiny.orders) t2
+                    ON t1.join_key = t2.orderkey
+                    """;
             @Language("SQL") String createTableSql = "CREATE TABLE scale_writers_skewed WITH (format = 'PARQUET') AS " + selectSql;
             assertUpdate(
                     Session.builder(getSession())
@@ -5162,9 +5168,11 @@ public abstract class BaseHiveConnectorTest
     {
         // Override because Hive connector can access old data after dropping and adding a column with same name
         assertThatThrownBy(super::testDropAndAddColumnWithSameName)
-                .hasMessageContaining("""
+                .hasMessageContaining(
+                        """
                         Actual rows (up to 100 of 1 extra rows shown, 1 rows in total):
-                            [1, 2]""");
+                            [1, 2]\
+                            """);
     }
 
     @Test
@@ -5342,7 +5350,7 @@ public abstract class BaseHiveConnectorTest
                 queryStats -> {
                     assertThat(queryStats.getProcessedInputDataSize().toBytes()).isGreaterThan(0);
                 },
-                results -> {});
+                results -> { });
     }
 
     @Test
@@ -5389,7 +5397,7 @@ public abstract class BaseHiveConnectorTest
                 queryStats -> {
                     assertThat(queryStats.getProcessedInputDataSize().toBytes()).isGreaterThan(0);
                 },
-                results -> {});
+                results -> { });
     }
 
     private static String formatTimestamp(LocalDateTime timestamp)
@@ -5669,7 +5677,7 @@ public abstract class BaseHiveConnectorTest
 
     private boolean isMappingByName(HiveStorageFormat format)
     {
-        return switch(format) {
+        return switch (format) {
             case PARQUET -> true;
             case AVRO -> true;
             case JSON -> true;
@@ -7911,7 +7919,8 @@ public abstract class BaseHiveConnectorTest
         TrinoFileSystem fileSystem = getTrinoFileSystem();
         Location tempDir = Location.of("local:///temp_" + UUID.randomUUID());
         fileSystem.createDirectory(tempDir);
-        String schema = """
+        String schema =
+                """
                 {
                     "namespace": "io.trino.test",
                     "name": "camelCase",
@@ -7920,7 +7929,8 @@ public abstract class BaseHiveConnectorTest
                        { "name":"stringCol", "type":"string" },
                        { "name":"a", "type":"int" }
                     ]
-                }""";
+                }\
+                """;
         Location schemaFile = tempDir.appendPath("avro_camelCamelCase_col.avsc");
         try (OutputStream out = fileSystem.newOutputFile(schemaFile).create()) {
             out.write(schema.getBytes(UTF_8));
@@ -7949,7 +7959,8 @@ public abstract class BaseHiveConnectorTest
         TrinoFileSystem fileSystem = getTrinoFileSystem();
         Location tempDir = Location.of("local:///temp_" + UUID.randomUUID());
         fileSystem.createDirectory(tempDir);
-        String schema = """
+        String schema =
+                """
                 {
                     "namespace": "io.trino.test",
                     "name": "camelCase",
@@ -7958,7 +7969,8 @@ public abstract class BaseHiveConnectorTest
                        { "name":"stringCol", "type":"string" },
                        { "name":"a", "type":"int" }
                     ]
-                }""";
+                }\
+                """;
         Location schemaFile = tempDir.appendPath("avro_camelCamelCase_col.avsc");
         try (OutputStream out = fileSystem.newOutputFile(schemaFile).create()) {
             out.write(schema.getBytes(UTF_8));
@@ -7996,7 +8008,8 @@ public abstract class BaseHiveConnectorTest
         TrinoFileSystem fileSystem = getTrinoFileSystem();
         Location tempDir = Location.of("local:///temp_" + UUID.randomUUID());
         fileSystem.createDirectory(tempDir);
-        String schema = """
+        String schema =
+                """
                 {
                     "namespace": "io.trino.test",
                     "name": "camelCaseNested",
@@ -8015,7 +8028,8 @@ public abstract class BaseHiveConnectorTest
                             }]
                         }
                     ]
-                 }""";
+                 }\
+                 """;
         Location schemaFile = tempDir.appendPath("avro_camelCamelCase_col.avsc");
         try (OutputStream out = fileSystem.newOutputFile(schemaFile).create()) {
             out.write(schema.getBytes(UTF_8));
@@ -8058,7 +8072,8 @@ public abstract class BaseHiveConnectorTest
         TrinoFileSystem fileSystem = getTrinoFileSystem();
         Location tempDir = Location.of("local:///temp_" + UUID.randomUUID());
         fileSystem.createDirectory(tempDir);
-        String schema = """
+        String schema =
+                """
                 {
                      "namespace": "io.trino.test",
                      "name": "single_column",
@@ -8066,7 +8081,8 @@ public abstract class BaseHiveConnectorTest
                      "fields": [
                         { "name": "string_col", "type":"string" }
                      ]
-                }""";
+                }\
+                """;
         Location schemaFile = tempDir.appendPath("avro_single_column.avsc");
         try (OutputStream out = fileSystem.newOutputFile(schemaFile).create()) {
             out.write(schema.getBytes(UTF_8));
@@ -9189,9 +9205,11 @@ public abstract class BaseHiveConnectorTest
                 "SELECT \"extra.property.one\", \"extra.property.two\" FROM \"%s$properties\"".formatted(tableName),
                 "SELECT 'one', 'two'");
         assertThat(computeActual("SHOW CREATE VIEW %s".formatted(tableName)).getOnlyValue())
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         CREATE VIEW hive.tpch.%s SECURITY DEFINER AS
-                        SELECT 1 colA""".formatted(tableName));
+                        SELECT 1 colA\
+                        """.formatted(tableName));
         assertUpdate("DROP VIEW %s".formatted(tableName));
     }
 
@@ -9259,7 +9277,8 @@ public abstract class BaseHiveConnectorTest
     {
         String table = "test_comment_with_partitioned_table_" + randomNameSuffix();
 
-        assertUpdate("""
+        assertUpdate(
+                """
                 CREATE TABLE hive.tpch.%s (
                    regular_column date COMMENT 'regular column comment',
                    partition_column date COMMENT 'partition column comment'
