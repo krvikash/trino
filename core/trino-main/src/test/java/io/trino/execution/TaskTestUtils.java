@@ -46,6 +46,7 @@ import io.trino.operator.PagesIndex;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.server.protocol.spooling.QueryDataEncoders;
+import io.trino.server.protocol.spooling.SpoolingEnabledConfig;
 import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.predicate.TupleDomain;
@@ -186,7 +187,7 @@ public final class TaskTestUtils
                 new GenericSpillerFactory((types, spillContext, memoryContext) -> {
                     throw new UnsupportedOperationException();
                 }),
-                new QueryDataEncoders(Set.of()),
+                new QueryDataEncoders(new SpoolingEnabledConfig(), Set.of()),
                 Optional.empty(),
                 Optional.empty(),
                 (types, spillContext, memoryContext) -> {
