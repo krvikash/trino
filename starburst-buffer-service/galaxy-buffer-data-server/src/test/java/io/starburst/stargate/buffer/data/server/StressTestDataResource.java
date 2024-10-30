@@ -131,7 +131,7 @@ public final class StressTestDataResource
                 final int threadId = mutableThreadId;
                 futures.add(executor.submit(() -> {
                     log.info("Starting WRITER %s", threadId);
-                    try (SetThreadName ignored = new SetThreadName("WRITER-%s", threadId)) {
+                    try (SetThreadName ignored = new SetThreadName("WRITER-%s" + threadId)) {
                         try {
                             ListMultimap<Integer, Slice> data = randomDataPages();
                             System.out.println("first request being sent with size " + new BigDecimal(data.values().stream().mapToInt(Slice::length).sum() / 1024d / 1024) + " mibibytes");
@@ -204,7 +204,7 @@ public final class StressTestDataResource
                     log.info("Starting READER %s", threadId);
                     int readChunksCount = 0;
                     int notFoundChunksCount = 0;
-                    try (SetThreadName ignored = new SetThreadName("READER-%s", threadId)) {
+                    try (SetThreadName ignored = new SetThreadName("READER-%s" + threadId)) {
                         while (true) {
                             if (allChunksListed.get() && chunkQueue.isEmpty()) {
                                 return null;
