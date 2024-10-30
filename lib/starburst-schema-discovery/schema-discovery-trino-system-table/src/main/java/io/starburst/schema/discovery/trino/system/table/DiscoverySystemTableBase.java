@@ -37,9 +37,9 @@ sealed class DiscoverySystemTableBase
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
     }
 
-    protected void validateLocationAccess(ConnectorIdentity identity, String location)
+    protected void validateLocationAccess(ConnectorIdentity identity, String location, String queryId)
     {
-        locationAccessControl.checkCanUseLocation(identity, location);
+        locationAccessControl.checkCanUseLocation(identity, location, queryId);
     }
 
     // copied from Trino io.trino.connector.system.jdbc.FilterUtil
