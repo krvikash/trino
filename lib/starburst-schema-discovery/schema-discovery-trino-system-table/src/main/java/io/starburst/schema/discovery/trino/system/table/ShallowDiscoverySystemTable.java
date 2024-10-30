@@ -79,6 +79,7 @@ public final class ShallowDiscoverySystemTable
     public RecordCursor cursor(ConnectorTransactionHandle transactionHandle, ConnectorSession session, TupleDomain<Integer> constraint)
     {
         String uriStr = tryGetSingleVarcharValue(constraint, 0).orElseThrow(() -> new TrinoException(INVALID_ARGUMENTS, "Missing URI argument"));
+        validateLocationAccess(session.getIdentity(), uriStr, session.getQueryId());
         String options = tryGetSingleVarcharValue(constraint, 1).orElse("");
         Map<String, String> finalOptions = new SchemaExplorer(schemaDiscoveryController, objectMapper(), new CommaDelimitedOptionsParser(ImmutableList.of(GeneralOptions.class)))
                 .buildOptions(options, DEFAULT_OPTIONS_OVERWRITE);
