@@ -137,7 +137,7 @@ public class S3CloudStorage
             output.writeTail(position, tailBuffer);
         }
         catch (IOException e) {
-            throw new IOException("copyFileReplaceTail failed", e);
+            throw new IOException("copyFileReplaceTail failed exception: %s cause: %s".formatted(e, e.getCause()), e);
         }
     }
 

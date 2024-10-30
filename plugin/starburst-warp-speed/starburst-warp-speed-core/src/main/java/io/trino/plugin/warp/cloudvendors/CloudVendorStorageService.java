@@ -74,7 +74,7 @@ public class CloudVendorStorageService
             outputStream.write(bytes);
         }
         catch (IOException e) {
-            throw new RuntimeException(message, e);
+            throw new RuntimeException("%s exception: %s cause: %s".formatted(message, e, e.getCause()), e);
         }
     }
 
@@ -92,7 +92,8 @@ public class CloudVendorStorageService
             cloudStorage.uploadFile(getLocation(localInputPath), getLocation(outputPath));
         }
         catch (Exception e) {
-            throw new RuntimeException("uploadFileToCloud failed [%s] => [%s]".formatted(localInputPath, outputPath), e);
+            throw new RuntimeException("uploadFileToCloud failed [%s] => [%s] exception: %s cause: %s"
+                    .formatted(localInputPath, outputPath, e, e.getCause()), e);
         }
     }
 
@@ -115,8 +116,9 @@ public class CloudVendorStorageService
             }
         }
         catch (Exception e) {
-            shapingLogger.error(e, "uploadFileToCloud failed %s", localFile.getPath());
-            throw new RuntimeException("uploadFileToCloud failed [%s] => [%s]".formatted(localFile.getPath(), outputPath), e);
+            shapingLogger.error(e, "uploadFileToCloud failed %s exception: %s cause: %s", localFile.getPath(), e, e.getCause());
+            throw new RuntimeException("uploadFileToCloud failed [%s] => [%s] exception: %s cause: %s"
+                    .formatted(localFile.getPath(), outputPath, e, e.getCause()), e);
         }
         return isUploadDone;
     }
@@ -144,7 +146,7 @@ public class CloudVendorStorageService
             if (allowKeyNotFound) {
                 return Optional.empty();
             }
-            throw new RuntimeException(message, e);
+            throw new RuntimeException("%s exception: %s cause: %s".formatted(message, e, e.getCause()), e);
         }
     }
 
@@ -165,7 +167,7 @@ public class CloudVendorStorageService
             return new ByteBufferInputStream(ByteBuffer.wrap(bytes), length);
         }
         catch (IOException e) {
-            throw new RuntimeException(message, e);
+            throw new RuntimeException("%s exception: %s cause: %s".formatted(message, e, e.getCause()), e);
         }
     }
 
@@ -177,7 +179,8 @@ public class CloudVendorStorageService
             cloudStorage.downloadFile(getLocation(cloudPath), getLocation(localFile.getPath()));
         }
         catch (Exception e) {
-            throw new RuntimeException("downloadFileFromCloud failed [%s] => [%s]".formatted(cloudPath, localFile.getPath()), e);
+            throw new RuntimeException("downloadFileFromCloud failed [%s] => [%s] exception: %s cause: %s"
+                    .formatted(cloudPath, localFile.getPath(), e, e.getCause()), e);
         }
     }
 
@@ -202,7 +205,8 @@ public class CloudVendorStorageService
             }
         }
         catch (IOException e) {
-            throw new RuntimeException(message, e);
+            shapingLogger.error(e, "%s exception: %s cause: %s", message, e, e.getCause());
+            throw new RuntimeException("%s exception: %s cause: %s".formatted(message, e, e.getCause()), e);
         }
 
         boolean isUploadDone = false;
@@ -217,7 +221,7 @@ public class CloudVendorStorageService
             }
         }
         catch (Exception e) {
-            throw new RuntimeException("appendOnCloud failed after copyFileReplaceTail", e);
+            throw new RuntimeException("appendOnCloud failed after copyFileReplaceTail exception: %s cause: %s".formatted(e, e.getCause()), e);
         }
         return isUploadDone;
     }
@@ -247,7 +251,7 @@ public class CloudVendorStorageService
             }
         }
         catch (IOException e) {
-            throw new RuntimeException(message, e);
+            throw new RuntimeException("%s exception: %s cause: %s".formatted(message, e, e.getCause()), e);
         }
     }
 
@@ -261,7 +265,7 @@ public class CloudVendorStorageService
             return cloudStorage.directoryExists(location).orElse(false);
         }
         catch (IOException e) {
-            throw new RuntimeException("directoryExists [%s] failed".formatted(location), e);
+            throw new RuntimeException("directoryExists [%s] failed exception: %s cause: %s".formatted(location, e, e.getCause()), e);
         }
     }
 

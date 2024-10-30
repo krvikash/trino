@@ -161,7 +161,7 @@ public class CloudVendorStorageServiceTest
             Assertions.fail();
         }
         catch (RuntimeException e) {
-            Assertions.assertEquals("directoryExists [s3://bucketName/] failed", e.getMessage());
+            Assertions.assertEquals("directoryExists [s3://bucketName/] failed exception: java.io.IOException: test cause: null", e.getMessage());
         }
     }
 

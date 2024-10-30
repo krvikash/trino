@@ -133,7 +133,8 @@ public class WeGroupWarmer
         }
         catch (Exception e) {
             warmupImportServiceStats.incimport_we_group_download_failed();
-            shapingLogger.error("failed to download weGroupFile rowGroupKey %s cloudPath '%s' message: %s", rowGroupKey, cloudPath, e.getMessage());
+            shapingLogger.error("failed to download weGroupFile rowGroupKey %s cloudPath '%s' exception: %s cause: %s",
+                    rowGroupKey, cloudPath, e, e.getCause());
             return false;
         }
         finally {
@@ -147,7 +148,8 @@ public class WeGroupWarmer
             Files.copy(Paths.get(sourceFileName), Paths.get(targetFileName));
         }
         catch (IOException e) {
-            throw new RuntimeException("Files.copy %s to %s failed".formatted(sourceFileName, targetFileName), e);
+            throw new RuntimeException("Files.copy %s to %s failed exception: %s cause: %s"
+                    .formatted(sourceFileName, targetFileName, e, e.getCause()), e);
         }
     }
 
@@ -156,6 +158,7 @@ public class WeGroupWarmer
         RowGroupData rowGroupData = null;
         boolean locked = false;
         String localSaveFileName = null;
+        boolean localSaveFileExist = false;
 
         // take writeLock
         try {
@@ -168,6 +171,7 @@ public class WeGroupWarmer
                 // save local file
                 localSaveFileName = localFileName + ".save";
                 copyFile(localFileName, localSaveFileName);
+                localSaveFileExist = true;
 
                 // delete local file and invalidate cache
                 rowGroupDataService.deleteData(rowGroupData, true);
@@ -198,18 +202,11 @@ public class WeGroupWarmer
                         .dataValidation(dataValidation)
                         .build();
                 rowGroupDataService.save(rowGroupData);
-
-                if (localSaveFileName != null) {
-                    // delete saved file
-                    File localSaveFile = new File(localSaveFileName);
-                    //noinspection ResultOfMethodCallIgnored
-                    localSaveFile.delete();
-                }
             }
             else {
                 // ToDo: import_we_group_download_corrupted_file
                 shapingLogger.error("failed to get RowGroupData for row group %s", rowGroupKey);
-                if (localSaveFileName != null) {
+                if (localSaveFileExist) {
                     // restore local file and cache
                     copyFile(localSaveFileName, localFileName);
                     rowGroupDataService.save(rowGroupData);
@@ -221,7 +218,31 @@ public class WeGroupWarmer
             shapingLogger.warn(e, "failed to acquire write lock for row group %s", rowGroupKey);
             return null;
         }
+        catch (Exception e) {
+            // ToDo: import_we_group_download_corrupted_file
+            shapingLogger.error("failed to get RowGroupData for row group %s exception: %s cause: %s", rowGroupKey, e, e.getCause());
+            if (localSaveFileExist) {
+                // delete corrupted local file
+                File localFile = new File(localFileName);
+                if (localFile.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    localFile.delete();
+                }
+                // restore local file and cache
+                copyFile(localSaveFileName, localFileName);
+                rowGroupDataService.save(rowGroupData);
+            }
+            return rowGroupData;
+        }
         finally {
+            if (localSaveFileExist) {
+                // delete saved file
+                File localSaveFile = new File(localSaveFileName);
+                if (localSaveFile.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    localSaveFile.delete();
+                }
+            }
             if (rowGroupData != null && locked) {
                 rowGroupData.getLock().writeUnlock();
             }
@@ -309,8 +330,8 @@ public class WeGroupWarmer
             }
             catch (Exception e) {
                 warmupImportServiceStats.incimport_elements_failed();
-                shapingLogger.error("failed to download warmUpElement rowGroupKey %s cloudPath '%s' message: %s",
-                        rowGroupData.getRowGroupKey(), cloudPath, e.getMessage());
+                shapingLogger.error("failed to download warmUpElement rowGroupKey %s cloudPath '%s' exception: %s cause: %s",
+                        rowGroupData.getRowGroupKey(), cloudPath, e, e.getCause());
             }
             finally {
                 warmupImportServiceStats.incimport_elements_accomplished();

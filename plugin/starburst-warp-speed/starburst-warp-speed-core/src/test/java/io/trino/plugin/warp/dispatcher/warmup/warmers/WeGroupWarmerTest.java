@@ -55,6 +55,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -190,7 +191,7 @@ public class WeGroupWarmerTest
     }
 
     @Test
-    void test_importWeGroup_Exception()
+    void test_importWeGroup_Exception1()
     {
         RowGroupKey rowGroupKey = new RowGroupKey("schema", "table", "s3://test-bucket/column_split_file", 0, 0L, 0, "", "");
 
@@ -211,6 +212,52 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_started());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_failed());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
+    }
+
+    @Test
+    void test_importWeGroup_Exception2()
+            throws IOException
+    {
+        RowGroupKey rowGroupKey = new RowGroupKey("schema", "table", "s3://test-bucket/column_split_file", 0, 0L, 0, "", "");
+        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
+        File localFile = new File(localFileName);
+        File localTmpFile = new File(localFileName + ".tmp");
+
+        FileUtils.createParentDirectories(localFile);
+        boolean unused = localFile.createNewFile();
+        unused = localTmpFile.createNewFile();
+
+        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
+        storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
+        storageObjectMetadata.setContentLength(123456789);
+        when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
+
+        RowGroupData rowGroupData = RowGroupData.builder()
+                .rowGroupKey(rowGroupKey)
+                .warmUpElements(List.of())
+                .build();
+        when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
+        doAnswer(invocation -> {
+            boolean unusedDelete = localFile.delete();
+            return null;
+        }).when(rowGroupDataService).deleteData(eq(rowGroupData), eq(true));
+
+        doThrow(new RuntimeException("test-exception")).when(rowGroupDataService).reload(eq(rowGroupKey), eq(rowGroupData));
+
+        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
+
+        Assertions.assertTrue(optionalRowGroupData.isPresent());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_started());
+        Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
+
+        String localSaveFileName = localFileName + ".save";
+        File localSaveFile = new File(localSaveFileName);
+        Assertions.assertFalse(localSaveFile.exists());
+
+        Assertions.assertTrue(localFile.exists());
+        unused = localFile.delete();
+        unused = localTmpFile.delete();
     }
 
     @Test
@@ -236,6 +283,10 @@ public class WeGroupWarmerTest
                 .warmUpElements(List.of())
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
+        doAnswer(invocation -> {
+            boolean unusedDelete = localFile.delete();
+            return null;
+        }).when(rowGroupDataService).deleteData(eq(rowGroupData), eq(true));
         when(rowGroupDataService.reload(eq(rowGroupKey), eq(rowGroupData))).thenReturn(rowGroupData);
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
@@ -245,6 +296,11 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
 
+        String localSaveFileName = localFileName + ".save";
+        File localSaveFile = new File(localSaveFileName);
+        Assertions.assertFalse(localSaveFile.exists());
+
+        Assertions.assertTrue(localFile.exists());
         unused = localFile.delete();
         unused = localTmpFile.delete();
     }
@@ -272,6 +328,10 @@ public class WeGroupWarmerTest
                 .warmUpElements(List.of())
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
+        doAnswer(invocation -> {
+            boolean unusedDelete = localFile.delete();
+            return null;
+        }).when(rowGroupDataService).deleteData(eq(rowGroupData), eq(true));
         when(rowGroupDataService.reload(eq(rowGroupKey), eq(rowGroupData))).thenAnswer(invocation -> {
             boolean unusedDelete = localFile.delete();
             return null;
@@ -284,6 +344,11 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
 
+        String localSaveFileName = localFileName + ".save";
+        File localSaveFile = new File(localSaveFileName);
+        Assertions.assertFalse(localSaveFile.exists());
+
+        Assertions.assertTrue(localFile.exists());
         unused = localFile.delete();
         unused = localTmpFile.delete();
     }

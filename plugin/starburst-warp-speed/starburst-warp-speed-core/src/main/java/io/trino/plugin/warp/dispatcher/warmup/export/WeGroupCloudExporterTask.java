@@ -151,7 +151,7 @@ public class WeGroupCloudExporterTask
             }
         }
         catch (Exception e) {
-            shapingLogger.error("export failed %s message: %s cause: %s", rowGroupKey, e.getMessage(), e.getCause());
+            shapingLogger.error("export failed rowGroupKey %s exception: %s cause: %s", rowGroupKey, e, e.getCause());
             if (stopWatch.isStarted()) {
                 // update row group with new export state
                 RowGroupData updated = updatedRowGroupWithExportFailedState(rowGroupData);
