@@ -18,28 +18,27 @@ import io.airlift.log.Logger;
 public class ReadTimeMeasurement
 {
     private static final Logger logger = Logger.get(ReadTimeMeasurement.class);
-    private static final long TIME_REPORT_INTERVAL_MILLIS = 1000 * 60; // 1 minute
+    private static final long TIME_REPORT_INTERVAL_NANOS = 1000000000L * 60; // 1 minute
 
     private long lastReportTime;
-    private long wallTime;
-    private long runTime;
+    private long totalRunTime;
     private long minRoundTime;
     private long maxRoundTime;
 
     ReadTimeMeasurement()
     {
-        this.lastReportTime = System.currentTimeMillis();
+        this.lastReportTime = System.nanoTime();
         this.minRoundTime = Long.MAX_VALUE;
     }
 
     public long getStartTime()
     {
-        return System.currentTimeMillis();
+        return System.nanoTime();
     }
 
     public void updateRuntimeMeasurements(long startTime, QueryArgs queryArgs)
     {
-        long outTime = System.currentTimeMillis();
+        long outTime = System.nanoTime();
         long roundTime = outTime - startTime;
         if (roundTime < minRoundTime) {
             minRoundTime = roundTime;
@@ -47,11 +46,10 @@ public class ReadTimeMeasurement
         if (roundTime > maxRoundTime) {
             maxRoundTime = roundTime;
         }
-        runTime += roundTime;
-        wallTime += roundTime;
-        if (outTime - lastReportTime >= TIME_REPORT_INTERVAL_MILLIS) {
-            logger.info("wallTime %d runTime %d minRoundTime %d maxRoundTime %d processed %d chunks out of %d",
-                    wallTime, runTime, minRoundTime, maxRoundTime, queryArgs.chunksQueue().getTotalNumChunks(), queryArgs.numChunks());
+        totalRunTime += roundTime;
+        if (outTime - lastReportTime >= TIME_REPORT_INTERVAL_NANOS) {
+            logger.info("totalRunTime %d minRoundTime %d maxRoundTime %d processed %d chunks out of %d",
+                    totalRunTime, minRoundTime, maxRoundTime, queryArgs.chunksQueue().getTotalNumChunks(), queryArgs.numChunks());
             lastReportTime = outTime;
         }
     }
