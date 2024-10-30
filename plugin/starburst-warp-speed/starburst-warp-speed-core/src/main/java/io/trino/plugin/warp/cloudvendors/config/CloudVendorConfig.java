@@ -19,14 +19,9 @@ public class CloudVendorConfig
 {
     public static final String STORE_TYPE = "warp-speed.config.store.type";
     public static final String STORE_PATH = "warp-speed.store.path";
-    public static final String REGION = "warp-speed.config.region";
 
     private StoreType storeType;
     private String storePath;
-    private String region;
-    private long requestRetryDelay = 500L;
-    private long requestRetryMaxDelay = 8000L;
-    private int requestRetryRetries = 5;
 
     public StoreType getStoreType()
     {
@@ -51,46 +46,5 @@ public class CloudVendorConfig
     public void setStorePath(String storePath)
     {
         this.storePath = storePath;
-    }
-
-    public String getRegion()
-    {
-        return region;
-    }
-
-    @Config(REGION)
-    public void setRegion(String region)
-    {
-        this.region = region;
-    }
-
-    public long getRequestRetryDelay()
-    {
-        return requestRetryDelay;
-    }
-
-    public void setRequestRetryDelay(long requestRetryDelay)
-    {
-        this.requestRetryDelay = requestRetryDelay;
-    }
-
-    public long getRequestRetryMaxDelay()
-    {
-        return requestRetryMaxDelay;
-    }
-
-    public void setRequestRetryMaxDelay(long requestRetryMaxDelay)
-    {
-        this.requestRetryMaxDelay = requestRetryMaxDelay;
-    }
-
-    public int getRequestRetryRetries()
-    {
-        return requestRetryRetries;
-    }
-
-    public void setRequestRetryRetries(int requestRetryRetries)
-    {
-        this.requestRetryRetries = requestRetryRetries;
     }
 }

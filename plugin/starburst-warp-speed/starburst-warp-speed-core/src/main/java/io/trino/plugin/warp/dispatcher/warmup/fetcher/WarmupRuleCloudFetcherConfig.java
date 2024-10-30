@@ -22,18 +22,68 @@ public class WarmupRuleCloudFetcherConfig
         extends CloudVendorConfig
 {
     public static final String PREFIX = "warp-speed.objectstore";
-    public static final String STORE_TYPE = "warp-speed.objectstore.store.type";
-    public static final String STORE_PATH = "warp-speed.objectstore.store.path";
-    public static final String REGION = "warp-speed.objectstore.store.region";
-    public static final String WARMUP_FETCH_DURATION = "warp-speed.objectstore.warmup.fetch.duration";
-    public static final String WARMUP_FETCH_DELAY_DURATION = "warp-speed.objectstore.warmup.fetch.delay.duration";
+    public static final String STORE_TYPE = PREFIX + ".store.type";
+    public static final String STORE_PATH = PREFIX + ".store.path";
+    public static final String HADOOP_ENABLED = PREFIX + ".fs.hadoop.enabled";
+    public static final String NATIVE_S3_ENABLED = PREFIX + ".fs.native-s3.enabled";
+    public static final String REGION = PREFIX + ".s3.region";
+    public static final String WARMUP_FETCH_DURATION = PREFIX + ".warmup.fetch.duration";
+    public static final String WARMUP_FETCH_DELAY_DURATION = PREFIX + ".warmup.fetch.delay.duration";
 
+    private boolean hadoopEnabled;
+    private boolean nativeS3Enabled;
+    private String region;
     private Duration fetchDuration = Duration.ofHours(1);
     private Duration fetchDelayDuration = Duration.ofMinutes(1);
-    private int downloadRetries = 3;
-    private Duration downloadDuration = Duration.ofSeconds(10);
 
     public WarmupRuleCloudFetcherConfig() {}
+
+    @Config(STORE_TYPE)
+    @Override
+    public void setStoreType(String storeType)
+    {
+        super.setStoreType(storeType);
+    }
+
+    @Config(STORE_PATH)
+    @Override
+    public void setStorePath(String storePath)
+    {
+        super.setStorePath(storePath);
+    }
+
+    public String getRegion()
+    {
+        return region;
+    }
+
+    @Config(REGION)
+    public void setRegion(String region)
+    {
+        this.region = region;
+    }
+
+    public boolean isHadoopEnabled()
+    {
+        return hadoopEnabled;
+    }
+
+    @Config(HADOOP_ENABLED)
+    public void setHadoopEnabled(boolean hadoopEnabled)
+    {
+        this.hadoopEnabled = hadoopEnabled;
+    }
+
+    public boolean isNativeS3Enabled()
+    {
+        return nativeS3Enabled;
+    }
+
+    @Config(NATIVE_S3_ENABLED)
+    public void setNativeS3Enabled(boolean nativeS3Enabled)
+    {
+        this.nativeS3Enabled = nativeS3Enabled;
+    }
 
     public Duration getFetchDuration()
     {
@@ -55,48 +105,5 @@ public class WarmupRuleCloudFetcherConfig
     public void setFetchDelayDuration(io.airlift.units.Duration fetchDelayDuration)
     {
         this.fetchDelayDuration = fetchDelayDuration.toJavaTime();
-    }
-
-    public int getDownloadRetries()
-    {
-        return downloadRetries;
-    }
-
-    @Config("warp-speed.objectstore.warmup.cloud.retries")
-    public void setDownloadRetries(int downloadRetries)
-    {
-        this.downloadRetries = downloadRetries;
-    }
-
-    public Duration getDownloadDuration()
-    {
-        return downloadDuration;
-    }
-
-    @Config("warp-speed.objectstore.warmup.cloud.duration")
-    public void setDownloadDuration(io.airlift.units.Duration downloadDuration)
-    {
-        this.downloadDuration = downloadDuration.toJavaTime();
-    }
-
-    @Config(STORE_TYPE)
-    @Override
-    public void setStoreType(String storeType)
-    {
-        super.setStoreType(storeType);
-    }
-
-    @Config(STORE_PATH)
-    @Override
-    public void setStorePath(String storePath)
-    {
-        super.setStorePath(storePath);
-    }
-
-    @Config(REGION)
-    @Override
-    public void setRegion(String region)
-    {
-        super.setRegion(region);
     }
 }
