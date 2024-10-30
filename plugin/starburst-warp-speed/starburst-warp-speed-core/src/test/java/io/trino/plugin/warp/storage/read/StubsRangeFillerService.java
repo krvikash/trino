@@ -69,7 +69,7 @@ public class StubsRangeFillerService
     }
 
     @Override
-    public void restoreRowList(RangeData rangeData, StoreRowListResult storeRowListResult, byte[] storeRowListBuff)
+    public void restoreRowList(RecordIndexes recordIndexes, StoreRowListResult storeRowListResult, byte[] storeRowListBuff)
     {
     }
 

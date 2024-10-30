@@ -35,13 +35,14 @@ public class RangeDataServiceTest
     private CollectOpenResult collectOpenResult;
     private StorageCollectorService storageCollectorService;
     private MemorySegment recordIndexesList;
-    private MemorySegment recordIndexes;
+    private RecordIndexes recordIndexes;
 
     @BeforeEach
     public void before()
     {
-        recordIndexes = Arena.ofAuto().allocate(RangeData.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
-        recordIndexesList = recordIndexes.asSlice(RangeData.RECORD_INDEXES_OFFSET_LIST, RangeData.RECORD_INDEXES_LIST_LAYOUT);
+        MemorySegment recordIndexesMem = Arena.ofAuto().allocate(RecordIndexes.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
+        recordIndexes = new RecordIndexes(recordIndexesMem);
+        recordIndexesList = recordIndexesMem.asSlice(RecordIndexes.RECORD_INDEXES_OFFSET_LIST, RecordIndexes.RECORD_INDEXES_LIST_LAYOUT);
 
         queryArgs = mock(QueryArgs.class);
         collectOpenResult = mock(CollectOpenResult.class);
@@ -68,7 +69,7 @@ public class RangeDataServiceTest
     public void testFullRange()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL);
 
         when(queryArgs.chunkSize()).thenReturn(64);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
@@ -83,9 +84,9 @@ public class RangeDataServiceTest
     public void testAllOneShot()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        rangeData.setRecordIndexesSize(0);
-        rangeData.setRecordIndexesStart((short) 8);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
+        recordIndexes.setSize(0);
+        recordIndexes.setStart((short) 8);
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
@@ -100,15 +101,15 @@ public class RangeDataServiceTest
     public void testAllTwoShots()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        rangeData.setRecordIndexesStart((short) 8);
-        rangeData.setRecordIndexesSize(0);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
+        recordIndexes.setStart((short) 8);
+        recordIndexes.setSize(0);
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 5, queryArgs, collectOpenResult, storageCollectorService);
 
-        rangeData.setRecordIndexesStart((short) 18);
+        recordIndexes.setStart((short) 18);
         rangeFillerService.add(0, 10, queryArgs, collectOpenResult, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
@@ -121,8 +122,8 @@ public class RangeDataServiceTest
     public void testValuesOneShot()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
-        rangeData.setRecordIndexesSize(0);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        recordIndexes.setSize(0);
 
         // 1st range [3-6)
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 3);
@@ -159,8 +160,8 @@ public class RangeDataServiceTest
     public void testValuesTwoShots()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
-        rangeData.setRecordIndexesSize(0);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        recordIndexes.setSize(0);
         // 1st range [3-6)
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 3);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 1, (short) 4);
@@ -198,15 +199,15 @@ public class RangeDataServiceTest
     public void testAllAndThenValues()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        rangeData.setRecordIndexesStart((short) 8);
-        rangeData.setRecordIndexesSize(0);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
+        recordIndexes.setStart((short) 8);
+        recordIndexes.setSize(0);
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 5, queryArgs, collectOpenResult, storageCollectorService);
 
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 5, (short) 8);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 6, (short) 9);
         rangeFillerService.add(0, 2, queryArgs, collectOpenResult, storageCollectorService);
@@ -228,8 +229,8 @@ public class RangeDataServiceTest
     public void testValuesAndThenAllAndThenValues()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
-        rangeData.setRecordIndexesSize(0);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        recordIndexes.setSize(0);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 25);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 1, (short) 26);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 2, (short) 27);
@@ -238,11 +239,11 @@ public class RangeDataServiceTest
         when(collectOpenResult.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 3, queryArgs, collectOpenResult, storageCollectorService);
 
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        rangeData.setRecordIndexesStart((short) 50);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
+        recordIndexes.setStart((short) 50);
         rangeFillerService.add(0, 22, queryArgs, collectOpenResult, storageCollectorService);
 
-        rangeData.setRecordIndexesType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
+        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 25, (short) 50);
         rangeFillerService.add(0, 1, queryArgs, collectOpenResult, storageCollectorService);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 26, (short) 60);

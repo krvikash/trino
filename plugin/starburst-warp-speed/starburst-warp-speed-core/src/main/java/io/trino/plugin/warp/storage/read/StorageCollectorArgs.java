@@ -24,7 +24,7 @@ public record StorageCollectorArgs(StorageCollectorCallBack storageCollectorCall
                                    List<ReadJuffersWarmUpElement> collectJuffersWE,
                                    byte[] storeRowListBuff,
                                    MemorySegment recordBufferStates,
-                                   MemorySegment recordIndexes,
+                                   RecordIndexes recordIndexes,
                                    MemorySegment queryResultTypes)
 {
 }

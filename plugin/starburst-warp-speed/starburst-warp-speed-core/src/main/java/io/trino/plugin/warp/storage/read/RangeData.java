@@ -13,46 +13,17 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-
-import java.lang.foreign.MemoryLayout;
-import java.lang.foreign.MemoryLayout.PathElement;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.SequenceLayout;
-import java.lang.foreign.StructLayout;
-import java.lang.foreign.ValueLayout;
 
 public class RangeData
 {
-    static final StructLayout RECORD_INDEXES_LAYOUT;
-    static final SequenceLayout RECORD_INDEXES_LIST_LAYOUT;
-    private static final long RECORD_INDEXES_OFFSET_SIZE;
-    private static final long RECORD_INDEXES_OFFSET_TYPE;
-    private static final long RECORD_INDEXES_OFFSET_START;
-    static final long RECORD_INDEXES_OFFSET_LIST; // not private for test
-
-    private final MemorySegment recordIndexes;
+    private final RecordIndexes recordIndexes;
     private int numChunkRowsCollected;
     private int lastChunkIndex;
     private final LongArrayList lowerInclusive;
     private final LongArrayList upperExclusive;
 
-    static {
-        // since chunk size is not available in static initializer, we will allocate the largest array possible for shorts
-        RECORD_INDEXES_LIST_LAYOUT = MemoryLayout.sequenceLayout(1 << Short.SIZE, ValueLayout.JAVA_SHORT);
-        RECORD_INDEXES_LAYOUT = MemoryLayout.structLayout(
-                ValueLayout.JAVA_INT.withName("size"),
-                ValueLayout.JAVA_SHORT.withName("type"), /* cannot be BYTE since will cause a layout exception for the following short */
-                ValueLayout.JAVA_SHORT.withName("start"),
-                RECORD_INDEXES_LIST_LAYOUT.withName("list")).withName("collect_rec_ixs_t");
-        RECORD_INDEXES_OFFSET_SIZE = RECORD_INDEXES_LAYOUT.byteOffset(PathElement.groupElement("size"));
-        RECORD_INDEXES_OFFSET_TYPE = RECORD_INDEXES_LAYOUT.byteOffset(PathElement.groupElement("type"));
-        RECORD_INDEXES_OFFSET_START = RECORD_INDEXES_LAYOUT.byteOffset(PathElement.groupElement("start"));
-        RECORD_INDEXES_OFFSET_LIST = RECORD_INDEXES_LAYOUT.byteOffset(PathElement.groupElement("list"));
-    }
-
-    public RangeData(MemorySegment recordIndexes)
+    public RangeData(RecordIndexes recordIndexes)
     {
         this.recordIndexes = recordIndexes;
         // ranges are gathered only if needed (mixed query)
@@ -62,44 +33,9 @@ public class RangeData
         this.lowerInclusive = new LongArrayList();
     }
 
-    public int getRecordIndexesSize()
+    public RecordIndexes getRecordIndexes()
     {
-        return recordIndexes.get(ValueLayout.JAVA_INT, RECORD_INDEXES_OFFSET_SIZE);
-    }
-
-    public void setRecordIndexesSize(int size)
-    {
-        recordIndexes.set(ValueLayout.JAVA_INT, RECORD_INDEXES_OFFSET_SIZE, size);
-    }
-
-    public RecordIndexListType getRecordIndexesType()
-    {
-        return RecordIndexListType.values()[recordIndexes.get(ValueLayout.JAVA_SHORT, RECORD_INDEXES_OFFSET_TYPE)];
-    }
-
-    public void setRecordIndexesType(RecordIndexListType type)
-    {
-        recordIndexes.set(ValueLayout.JAVA_SHORT, RECORD_INDEXES_OFFSET_TYPE, (short) type.ordinal());
-    }
-
-    public short getRecordIndexesStart()
-    {
-        return recordIndexes.get(ValueLayout.JAVA_SHORT, RECORD_INDEXES_OFFSET_START);
-    }
-
-    public void setRecordIndexesStart(short start)
-    {
-        recordIndexes.set(ValueLayout.JAVA_SHORT, RECORD_INDEXES_OFFSET_START, start);
-    }
-
-    public MemorySegment getRecordIndexesList()
-    {
-        return recordIndexes.asSlice(RECORD_INDEXES_OFFSET_LIST, RECORD_INDEXES_LIST_LAYOUT);
-    }
-
-    public int getRowFromList(MemorySegment recordIndexesList, int listIdx)
-    {
-        return Short.toUnsignedInt(recordIndexesList.getAtIndex(ValueLayout.JAVA_SHORT, listIdx));
+        return recordIndexes;
     }
 
     public int getLastChunkIndex()

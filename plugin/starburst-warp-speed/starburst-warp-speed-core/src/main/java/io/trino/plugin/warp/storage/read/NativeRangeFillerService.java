@@ -51,7 +51,7 @@ public class NativeRangeFillerService
     {
         // calculate the first row in the all list is done in short and then transfer to int
         // its the diff between the last list reached (exclustive) and the size of the list collected
-        return baseRow + Short.toUnsignedInt((short) (collectOpenResult.rangeData().getRecordIndexesStart() - currentNumCollectedRows));
+        return baseRow + Short.toUnsignedInt((short) (collectOpenResult.rangeData().getRecordIndexes().getStart() - currentNumCollectedRows));
     }
 
     // return the number of rows collected in this round
@@ -59,6 +59,7 @@ public class NativeRangeFillerService
     public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
     {
         RangeData rangeData = collectOpenResult.rangeData();
+        RecordIndexes recordIndexes = rangeData.getRecordIndexes();
         advanceChunkIfNeeded(chunkIndex, rangeData);
 
         int numRows;
@@ -66,7 +67,7 @@ public class NativeRangeFillerService
             numRows = currentNumCollectedRows;
         }
         else {
-            numRows = (rangeData.getRecordIndexesType() == RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL) ? queryArgs.chunkSize() : getTotalNumCollected(rangeData, queryArgs.chunkSize());
+            numRows = (recordIndexes.getType() == RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL) ? queryArgs.chunkSize() : getTotalNumCollected(rangeData, queryArgs.chunkSize());
         }
         // in case collected count is zero, it means nothing was collected regardless of the type
         if (numRows == 0) {
@@ -74,7 +75,7 @@ public class NativeRangeFillerService
         }
 
         // if we are here we have at least one row that was collected
-        RecordIndexListType listType = rangeData.getRecordIndexesType();
+        RecordIndexListType listType = recordIndexes.getType();
         int baseRow = chunkIndex * queryArgs.chunkSize();
         boolean rangesRequired = queryArgs.queryParams().isRangesRequired();
         switch (listType) {
@@ -96,18 +97,18 @@ public class NativeRangeFillerService
             case RECORD_INDEX_LIST_TYPE_VALUES -> {
                 if (rangesRequired) {
                     // we take the rows from where we stopped last time
-                    MemorySegment recordIndexesList = rangeData.getRecordIndexesList();
+                    MemorySegment recordIndexesList = recordIndexes.getList();
                     int listIdx = rangeData.getNumChunkRowsCollected();
 
                     // handle the first row and check if it extends that last range we already have
-                    int min = baseRow + rangeData.getRowFromList(recordIndexesList, listIdx);
+                    int min = baseRow + recordIndexes.getRowFromList(recordIndexesList, listIdx);
                     listIdx++;
                     int max = min + 1;
                     min = (int) mergeRanges(min, rangeData);
 
                     // handle all the rest of the rows
                     for (int i = 1; i < numRows; i++) {
-                        int row = baseRow + rangeData.getRowFromList(recordIndexesList, listIdx);
+                        int row = baseRow + recordIndexes.getRowFromList(recordIndexesList, listIdx);
                         listIdx++;
                         // if we are consectuive - we are in the same range
                         if (row == max) {
@@ -161,7 +162,8 @@ public class NativeRangeFillerService
         int currChunkIndex = queryArgs.chunksQueue().getCurrent();
         advanceChunkIfNeeded(currChunkIndex, rangeData);
 
-        RecordIndexListType storeRowListType = rangeData.getRecordIndexesType();
+        RecordIndexes recordIndexes = rangeData.getRecordIndexes();
+        RecordIndexListType storeRowListType = recordIndexes.getType();
         byte[] storeRowListBuff = storageCollectorArgs.storeRowListBuff();
         int storeRowListSize;
         Optional<Short> storeRowListStart = Optional.empty(); // only for type ALL
@@ -176,7 +178,7 @@ public class NativeRangeFillerService
                     storeRowListType = RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL;
                     break;
                 }
-                storeRowListStart = Optional.of(rangeData.getRecordIndexesStart());
+                storeRowListStart = Optional.of(recordIndexes.getStart());
                 break;
             case RECORD_INDEX_LIST_TYPE_VALUES:
                 int totalNumCollectedTypeValues = getTotalNumCollected(rangeData, queryArgs.chunkSize());
@@ -185,7 +187,7 @@ public class NativeRangeFillerService
                     storeRowListType = RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL;
                     break;
                 }
-                MemorySegment.copy(rangeData.getRecordIndexesList(),
+                MemorySegment.copy(recordIndexes.getList(),
                         rangeData.getNumChunkRowsCollected() * ValueLayout.JAVA_SHORT.byteSize(),
                         MemorySegment.ofArray(storeRowListBuff),
                         0,
@@ -199,19 +201,19 @@ public class NativeRangeFillerService
     }
 
     @Override
-    public void restoreRowList(RangeData rangeData, StoreRowListResult storeRowListResult, byte[] storeRowListBuff)
+    public void restoreRowList(RecordIndexes recordIndexes, StoreRowListResult storeRowListResult, byte[] storeRowListBuff)
     {
         RecordIndexListType storeRowListType = storeRowListResult.storeRowListType();
-        rangeData.setRecordIndexesType(storeRowListType);
-        rangeData.setRecordIndexesSize(storeRowListResult.storeRowListSize());
+        recordIndexes.setType(storeRowListType);
+        recordIndexes.setSize(storeRowListResult.storeRowListSize());
         switch (storeRowListType) {
             case RECORD_INDEX_LIST_TYPE_FULL:
                 break;
             case RECORD_INDEX_LIST_TYPE_ALL:
-                rangeData.setRecordIndexesStart(storeRowListResult.storeRowListStart().get());
+                recordIndexes.setStart(storeRowListResult.storeRowListStart().get());
                 break;
             case RECORD_INDEX_LIST_TYPE_VALUES:
-                MemorySegment dstSegment = rangeData.getRecordIndexesList();
+                MemorySegment dstSegment = recordIndexes.getList();
                 MemorySegment.copy(MemorySegment.ofArray(storeRowListBuff), 0, dstSegment, 0, storeRowListResult.storeRowListSize() * ValueLayout.JAVA_SHORT.byteSize());
                 break;
             default:
@@ -222,7 +224,7 @@ public class NativeRangeFillerService
     // since the size is a short, zero means a full chunk, we translate to integer here
     private int getTotalNumCollected(RangeData rangeData, int chunkSize)
     {
-        int total = rangeData.getRecordIndexesSize();
+        int total = rangeData.getRecordIndexes().getSize();
         return (total > 0) ? total : chunkSize;
     }
 

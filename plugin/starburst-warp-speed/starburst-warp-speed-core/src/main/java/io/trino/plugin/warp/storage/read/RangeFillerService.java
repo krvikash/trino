@@ -32,7 +32,7 @@ public interface RangeFillerService
     // in type all we store the part of the list we have not collected yet in the byte array
     StoreRowListResult storeRowList(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, RangeData rangeData);
 
-    void restoreRowList(RangeData rangeData, StoreRowListResult storeRowListResult, byte[] storeRowListBuff);
+    void restoreRowList(RecordIndexes recordIndexes, StoreRowListResult storeRowListResult, byte[] storeRowListBuff);
 
     WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit);
 }

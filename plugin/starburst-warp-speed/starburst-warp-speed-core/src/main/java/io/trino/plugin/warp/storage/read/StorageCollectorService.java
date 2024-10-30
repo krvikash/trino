@@ -340,7 +340,7 @@ public class StorageCollectorService
     // since the size is a short, zero means a full chunk, we translate to integer here
     private int getTotalNumToCollect(QueryArgs queryArgs, RangeData rangeData)
     {
-        int total = rangeData.getRecordIndexesSize();
+        int total = rangeData.getRecordIndexes().getSize();
         return (total > 0) ? total : queryArgs.chunkSize();
     }
 
@@ -420,7 +420,7 @@ public class StorageCollectorService
         MemorySegment recordBufferStates =
                 Arena.ofAuto().allocate(recordBufferStatesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
         MemorySegment recordIndexes =
-                Arena.ofAuto().allocate(RangeData.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
+                Arena.ofAuto().allocate(RecordIndexes.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
         SequenceLayout queryResultTypesLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT);
         MemorySegment queryResultTypes =
@@ -431,7 +431,7 @@ public class StorageCollectorService
                 collectJuffersWE,
                 storeRowListBuff,
                 recordBufferStates,
-                recordIndexes,
+                new RecordIndexes(recordIndexes),
                 queryResultTypes);
     }
 

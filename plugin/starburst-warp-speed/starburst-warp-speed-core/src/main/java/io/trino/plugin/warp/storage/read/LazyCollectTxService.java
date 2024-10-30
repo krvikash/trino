@@ -68,7 +68,7 @@ public class LazyCollectTxService
                 lazyCollectorLoaderArgs.numChunksInRange(),
                 0,
                 lazyCollectorLoaderArgs.recordBufferStates().address(),
-                lazyCollectorLoaderArgs.recordIndexes().address());
+                lazyCollectorLoaderArgs.recordIndexes().getAddress());
 
         logger.debug("collectOpen queryMemoryId %d rowsLimit %d", queryMemoryId, rowsLimit);
         return new LazyCollectOpenResult(queryMemoryId);
