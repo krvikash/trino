@@ -770,9 +770,7 @@ public class TestTimeSharingTaskExecutor
         }
 
         @Override
-        public void close()
-        {
-        }
+        public void close() {}
 
         public Future<Void> getCompletedFuture()
         {

@@ -731,9 +731,7 @@ public class TestSourcePartitionedScheduler
             }
 
             @Override
-            public void close()
-            {
-            }
+            public void close() {}
 
             @Override
             public boolean isFinished()

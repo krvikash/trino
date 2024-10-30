@@ -106,9 +106,7 @@ abstract class SimulationSplit
     }
 
     @Override
-    public void close()
-    {
-    }
+    public void close() {}
 
     abstract boolean process();
 
