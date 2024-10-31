@@ -21,7 +21,6 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
-import io.trino.cache.SafeCaches;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
@@ -33,6 +32,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.VariableWidthBlock;
+import org.gaul.modernizer_maven_annotations.SuppressModernizer;
 
 import java.time.Instant;
 import java.util.Map;
@@ -84,6 +84,7 @@ public class DictionariesCache
         this.executorService = Executors.newFixedThreadPool(1, daemonThreadsNamed("warp-speed-dictionaries-cache-%s"));
     }
 
+    @SuppressModernizer // CacheBuilder.build(CacheLoader) is forbidden, advising to use this class as a safety-adding wrapper.
     private void initCache(DictionaryCacheConfig dictionaryConfig)
     {
         Weigher<DictionaryKey, DataValueDictionary> weighByLength =
@@ -117,11 +118,12 @@ public class DictionariesCache
                 }
             }
         };
-        this.cache = SafeCaches.buildNonEvictableCache(CacheBuilder.newBuilder()
+
+        this.cache = CacheBuilder.newBuilder()
                 .maximumWeight(activeConfig.totalWeight())
                 .weigher(weighByLength)
                 .removalListener(listener)
-                .concurrencyLevel(activeConfig.concurrency()));
+                .concurrencyLevel(activeConfig.concurrency()).build();
         activeDataValuesDictionaries = new ConcurrentHashMap<>();
     }
 
