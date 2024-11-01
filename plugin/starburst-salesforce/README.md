@@ -134,11 +134,16 @@ Salesforce has a max length of 255 characters for `varchar` types and requires t
 Tests using expired password will fail with an `INVALID_OPERATION_WITH_EXPIRED_PASSWORD` error.
 A new password will need to be created upon expiration, which generates a new security token as well.
 
-1. Login to https://starburstdata--partial.sandbox.my.salesforce.com/ as `sep.salesforcedl.test2@starburstdata.com` and the current (expired) password
+1. Login to https://starburstdata--partial.sandbox.my.salesforce.com/ as `sep.salesforcedl.test2@starburstdata.com.partial` and the current (expired) password
 2. Security question/answer is stored in https://keepersecurity.com/vault/#detail/-Fj2Nqar9cayZsuQc8gGkA (`Salesforce Sandbox with basic authentication`) keeper vault
 3. You will be prompted to create a new password. Once created, an email is sent to `sep.salesforcedl.test2@starburstdata.com` containing the new security token
    * Following associates are part of the DL.  
    Wojciech Biela, Piotr Findeisen, Mateusz Gajewski, Ashhar Hasan, Grzegorz Kokosinski, Anu Sudarsan, Mayank Vadariya
-4. Update the secret value for `SALESFORCE_USER2_PASSWORD` and `SALESFORCE_USER2_SECURITY_TOKEN` to the new values through script located 
-   in [sep-ci-infra](https://github.com/starburstdata/sep-ci-infra/tree/main/secrets) repo.
-5. Let the CI build run; the tests should no longer fail with an expired password error
+4. Update the GH secret `SALESFORCE_BASIC_AUTH_USER_PASSWORD` and `SALESFORCE_BASIC_AUTH_USER_SECURITY_TOKEN` in `cork`, `galaxy-trino` and `starburst-enterprise-trino`.
+   Additionally, update GH variable `SALESFORCE_BASIC_AUTH_USER_USERNAME` if it has changed.
+5. Update `SALESFORCE_BASIC_AUTH_USER_PASSWORD`, `SALESFORCE_BASIC_AUTH_USER_SECURITY_TOKEN` and `SALESFORCE_BASIC_AUTH_USER_USERNAME`(if applicable) with new values
+   through script located in [sep-ci-infra](https://github.com/starburstdata/sep-ci-infra/tree/main/secrets) repo. **Note that the purpose of updating 
+   [sep-ci-infra](https://github.com/starburstdata/sep-ci-infra/tree/main/secrets) is to keep track of latest secret values but secrets from `sep-ci-infra` is not used by CI.
+   [starburst-enterprise-trino](https://github.com/starburstdata/starburst-enterprise-trino) sources secret from 
+   [sep-ci-infra](https://github.com/starburstdata/sep-ci-infra/tree/main/secrets), however it uses different Salesforce account for CI meaning it uses different secrets.**   
+6. Let the CI build run; the tests should no longer fail with an expired password error
