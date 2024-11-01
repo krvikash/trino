@@ -316,7 +316,7 @@ public class TestStageStateMachine
         assertThat(stageInfo.getState()).isEqualTo(PLANNED);
         assertThat(stageInfo.isCoordinatorOnly()).isFalse();
         assertThat(stageInfo.getSubStages()).isEmpty();
-        assertThat(stageInfo.getTasks().size()).isEqualTo(taskInfos.size());
+        assertThat(stageInfo.getTasks()).hasSize(taskInfos.size());
 
         BasicStageStats stats = stageInfo.getStageStats();
 
