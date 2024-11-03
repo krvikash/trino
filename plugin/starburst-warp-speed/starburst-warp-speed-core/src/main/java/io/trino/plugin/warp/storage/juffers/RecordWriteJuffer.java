@@ -23,8 +23,6 @@ import java.lang.foreign.MemorySegment;
 
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
 
 public class RecordWriteJuffer
         extends BaseWriteJuffer
@@ -32,8 +30,7 @@ public class RecordWriteJuffer
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
     private final long weCookie;
-    private final MemorySegment warmUpElementAtt;
-    private final long[] fileCookieParams;
+    private final long warmUpStateAddress;
     private final long[] buffAddresses;
     private final byte[] compressionStats;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
@@ -43,8 +40,7 @@ public class RecordWriteJuffer
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
             long weCookie,
-            MemorySegment warmUpElementAtt,
-            long[] fileCookieParams,
+            long warmUpStateAddress,
             long[] buffAddresses,
             byte[] compressionStats)
     {
@@ -52,8 +48,7 @@ public class RecordWriteJuffer
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
         this.weCookie = weCookie;
-        this.warmUpElementAtt = warmUpElementAtt;
-        this.fileCookieParams = fileCookieParams;
+        this.warmUpStateAddress = warmUpStateAddress;
         this.buffAddresses = buffAddresses;
         this.compressionStats = compressionStats;
     }
@@ -95,19 +90,15 @@ public class RecordWriteJuffer
         return 1;
     }
 
-    public void commitAndResetWE(byte[] chunkHeader, MemorySegment recordBufferParams)
+    public void commitAndResetWE(byte[] chunkHeader, long recordBufferParamsAddress)
     {
         // no need to add to chunk map as we are not closing the chunk
-        long res = storageEngine.warmupChunk(weCookie,
-                recordBufferParams.address(),
-                warmUpElementAtt.address(),
-                fileCookieParams,
+        storageEngine.warmupChunk(weCookie,
+                recordBufferParamsAddress,
+                warmUpStateAddress,
                 buffAddresses,
-                false,
                 compressionStats,
                 chunkHeader);
-        fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
-        fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         resetSingleRecordBufferPos();
     }
 

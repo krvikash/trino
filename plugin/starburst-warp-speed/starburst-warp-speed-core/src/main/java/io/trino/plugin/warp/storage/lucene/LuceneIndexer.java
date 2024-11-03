@@ -47,7 +47,6 @@ import java.util.Optional;
 import static com.google.common.io.BaseEncoding.base64;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_FAILURE;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_WRITER_ERROR;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
 import static io.trino.plugin.warp.util.SliceUtils.serializeSlice;
 
 public class LuceneIndexer
@@ -159,10 +158,10 @@ public class LuceneIndexer
         }
     }
 
-    public void closeLuceneIndex(long[] fileCookieParams)
+    public int closeLuceneIndex(int startOffset)
     {
         if (indexWriter == null) {
-            return;
+            return startOffset;
         }
         try {
             stopWatch.reset();
@@ -180,10 +179,12 @@ public class LuceneIndexer
                     throw new TrinoException(WARP_LUCENE_FAILURE, "lucene index failed before closing");
                 }
             }
-            if (!saveLuceneIndex(fileCookieParams)) {
+            int endOffset = saveLuceneIndex(startOffset);
+            if (endOffset < 0) {
                 logger.warn("lucene index failed on file too big rowGroupFilePath %s", rowGroupFilePath);
                 throw new TrinoException(WARP_LUCENE_FAILURE, "lucene index failed on file too big");
             }
+            return endOffset;
         }
         catch (Exception e) {
             throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "Got exception when closing the indexWriter", e);
@@ -193,18 +194,16 @@ public class LuceneIndexer
         }
     }
 
-    private boolean saveLuceneIndex(long[] fileCookieParams)
+    private int saveLuceneIndex(int startOffset)
     {
-        int startOffset = (int) fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()];
         Optional<ChunkState> chunkState = luceneIndexWriter.saveLuceneIndex(startOffset);
 
-        if (chunkState.isPresent()) {
-            ChunkState state = chunkState.get();
-            fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = state.endOffset();
-            chunkStates.add(state);
-            return true;
+        if (!chunkState.isPresent()) {
+            return -1;
         }
-        return false;
+        ChunkState state = chunkState.get();
+        chunkStates.add(state);
+        return state.endOffset();
     }
 
     public int saveLuceneIndexState(int startOffset)

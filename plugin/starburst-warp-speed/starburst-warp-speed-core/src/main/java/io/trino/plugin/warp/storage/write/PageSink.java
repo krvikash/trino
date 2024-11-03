@@ -21,7 +21,7 @@ import io.trino.spi.Page;
 
 public interface PageSink
 {
-    DictionaryWarmInfo open(long[] fileCookieParams, WarmupElementWriteMetadata warmupElementWriteMetadata);
+    DictionaryWarmInfo open(long[] fileCookieParams, int startOffset, WarmupElementWriteMetadata warmupElementWriteMetadata);
 
     boolean appendPage(Page page, int totalRecords);
 

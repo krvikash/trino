@@ -256,8 +256,7 @@ public class WarpCacheTask
     public void warmAsEmptyPageSource()
     {
         statsWarmingService.incwarm_started();
-        warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD,
-                0}, null, 0, x, null, null)).collect(Collectors.toList());
+        warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD, 0, 0}, null, 0, x, null, null)).collect(Collectors.toList());
         CacheWarmState cacheWarmState = CacheWarmState.EMPTY_PAGE;
         closeAndSave(cacheWarmState);
         memoryContextService.remove(this);

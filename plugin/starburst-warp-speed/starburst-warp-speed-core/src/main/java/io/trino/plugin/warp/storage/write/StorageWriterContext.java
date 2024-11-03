@@ -21,13 +21,9 @@ import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppender;
 
-import java.lang.foreign.MemorySegment;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.getCurrentThreadWarmId;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WARM_ID;
 
 final class StorageWriterContext
 {
@@ -41,8 +37,7 @@ final class StorageWriterContext
     private final WriteJuffersWarmUpElement writeJuffersWarmUpElement;
     private final DictionaryWarmInfo dictionaryWarmInfo;
     private final long weCookie;
-    private final MemorySegment warmUpElementAtt;
-    private final long[] fileCookieParams;
+    private final WarmUpState warmUpState;
     private final long[] buffAddresses;
     private final byte[] compressionStats;
     private final BlockAppender blockAppender;
@@ -56,8 +51,7 @@ final class StorageWriterContext
             WriteJuffersWarmUpElement writeJuffersWarmUpElement,
             DictionaryWarmInfo dictionaryWarmInfo,
             long weCookie,
-            MemorySegment warmUpElementAtt,
-            long[] fileCookieParams,
+            WarmUpState warmUpState,
             long[] buffAddresses,
             byte[] compressionStats,
             BlockAppender blockAppender,
@@ -71,8 +65,7 @@ final class StorageWriterContext
         this.writeJuffersWarmUpElement = writeJuffersWarmUpElement;
         this.dictionaryWarmInfo = dictionaryWarmInfo;
         this.weCookie = weCookie;
-        this.warmUpElementAtt = warmUpElementAtt;
-        this.fileCookieParams = fileCookieParams;
+        this.warmUpState = warmUpState;
         this.buffAddresses = buffAddresses;
         this.compressionStats = compressionStats;
         this.blockAppender = blockAppender;
@@ -81,7 +74,6 @@ final class StorageWriterContext
         this.luceneIndexer = luceneIndexer;
         this.isCleanupDone = new AtomicReference<>(null);
         this.warmupElementStatsBuilder = new WarmupElementStatsBuilder(warmupElementWriteMetadata.warmUpElement().getWarmupElementStats());
-        this.fileCookieParams[FILE_COOKIE_PARAMS_WARM_ID.ordinal()] = getCurrentThreadWarmId();
     }
 
     int getRecordBufferPos()
@@ -109,14 +101,9 @@ final class StorageWriterContext
         return weCookie;
     }
 
-    public MemorySegment getWarmUpElementAtt()
+    public WarmUpState getWarmUpState()
     {
-        return warmUpElementAtt;
-    }
-
-    public long[] getFileCookieParams()
-    {
-        return fileCookieParams;
+        return warmUpState;
     }
 
     public long[] getBuffAddresses()

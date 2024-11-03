@@ -75,8 +75,6 @@ import java.util.function.Function;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_ADDR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -150,9 +148,6 @@ public class WarpProxiedWarmer
             storageWriterSplitConfig = storageWriterService.startWarming(nodeIdentifier,
                     rowGroupFilePath,
                     WarpSessionProperties.getEnableDictionary(session));
-            if (storageWriterSplitConfig != null) {
-                fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_ADDR.ordinal()] = storageWriterSplitConfig.writeBuff().address();
-            }
             try {
                 int fileOffset = firstOffset;
                 ConnectorSplit nonFilterSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
@@ -165,8 +160,7 @@ public class WarpProxiedWarmer
                             nonFilterTableHandle,
                             List.of(pair.getValue()),
                             DynamicFilter.EMPTY);
-                    logger.debug("create connectorPageSource for element %s offset %d connector %s",
-                            pair.getValue(), fileOffset, catalogNameProvider.get());
+                    logger.debug("create connectorPageSource for element %s offset %d connector %s", pair.getValue(), fileOffset, catalogNameProvider.get());
 
                     PageSink pageSink = null;
                     try {
@@ -179,8 +173,7 @@ public class WarpProxiedWarmer
                             int pagePositionCount = (nextPage != null) ? nextPage.getPositionCount() : 0;
                             if (pagePositionCount > 0) {
                                 if (rowCount == 0) { //first time
-                                    fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = fileOffset;
-                                    DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, currWarmUpElementWriteMetadata);
+                                    DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, fileOffset, currWarmUpElementWriteMetadata);
                                     outDictionariesWarmInfos.add(dictionaryWarmInfo);
                                 }
                                 isValidWE = pageSink.appendPage(nextPage, rowCount);

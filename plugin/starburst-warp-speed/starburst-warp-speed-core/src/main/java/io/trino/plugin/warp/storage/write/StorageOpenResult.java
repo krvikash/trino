@@ -17,7 +17,7 @@ import java.lang.foreign.MemorySegment;
 
 record StorageOpenResult(MemorySegment[] buffs,
         long weCookie,
-        MemorySegment warmUpElementAtt,
+        WarmUpState warmUpState,
         long[] buffAddresses)
 {
 }

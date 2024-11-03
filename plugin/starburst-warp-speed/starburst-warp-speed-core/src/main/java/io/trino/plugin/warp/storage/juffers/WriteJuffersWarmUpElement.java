@@ -18,15 +18,13 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.WarmUpElementAllocationParams;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.type.Int128;
 
 import java.lang.foreign.Arena;
-import java.lang.foreign.MemoryLayout;
-import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -35,9 +33,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WARM_EVENTS;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
 import static java.lang.Double.doubleToLongBits;
 import static java.lang.Double.longBitsToDouble;
 import static java.lang.Float.floatToIntBits;
@@ -48,21 +43,12 @@ public class WriteJuffersWarmUpElement
 {
     private static final byte INVALID_MAX = 0;
     private static final byte INVALID_MIN = 1;
-    private static final StructLayout RECORD_BUFFER_PARAMS_LAYOUT;
-    private static final long RECORD_BUFFER_PARAMS_OFFSET_MIN;
-    private static final long RECORD_BUFFER_PARAMS_OFFSET_MAX;
-    private static final long RECORD_BUFFER_PARAMS_OFFSET_NRECS;
-    private static final long RECORD_BUFFER_PARAMS_OFFSET_NVS;
-    private static final long RECORD_BUFFER_PARAMS_OFFSET_SIZE;
-    private static final long RECORD_BUFFER_PARAMS_OFFSET_SINGLE_VAL_OFFSET;
-    private static final long RECORD_BUFFER_PARAMS_OFFSET_OUT_WARM_EVENTS;
 
     private final StorageEngine storageEngine;
     private final int pageOffsetMask;
     private final long weCookie;
-    private final MemorySegment warmUpElementAtt;
-    private final MemorySegment recordBufferParams;
-    private final long[] fileCookieParams;
+    private final WarmUpState warmUpState;
+    private final RecordBufferParams recordBufferParams;
     private final long[] buffAddresses;
     private final byte[] compressionStats;
     private final int chunkHeaderSize;
@@ -81,32 +67,13 @@ public class WriteJuffersWarmUpElement
     private Int128 recordBufferSingleLongDec;
     private int actualRecTypeLength; // largest record encountered
 
-    static {
-        RECORD_BUFFER_PARAMS_LAYOUT = MemoryLayout.structLayout(
-                ValueLayout.JAVA_LONG.withName("min"),
-                ValueLayout.JAVA_LONG.withName("max"),
-                ValueLayout.JAVA_INT.withName("nrecs"),
-                ValueLayout.JAVA_INT.withName("nvs"),
-                ValueLayout.JAVA_INT.withName("size"),
-                ValueLayout.JAVA_INT.withName("singleValOffset"),
-                ValueLayout.JAVA_INT.withName("outWarmEvents")).withName("rec_buf_t");
-        RECORD_BUFFER_PARAMS_OFFSET_MIN = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("min"));
-        RECORD_BUFFER_PARAMS_OFFSET_MAX = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("max"));
-        RECORD_BUFFER_PARAMS_OFFSET_NRECS = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("nrecs"));
-        RECORD_BUFFER_PARAMS_OFFSET_NVS = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("nvs"));
-        RECORD_BUFFER_PARAMS_OFFSET_SIZE = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("size"));
-        RECORD_BUFFER_PARAMS_OFFSET_SINGLE_VAL_OFFSET = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("singleValOffset"));
-        RECORD_BUFFER_PARAMS_OFFSET_OUT_WARM_EVENTS = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("outWarmEvents"));
-    }
-
     public WriteJuffersWarmUpElement(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
             MemorySegment[] buffs,
             long weCookie,
-            MemorySegment warmUpElementAtt,
+            WarmUpState warmUpState,
             WarmUpElementAllocationParams allocParams,
-            long[] fileCookieParams,
             long[] buffAddresses,
             byte[] compressionStats)
     {
@@ -118,8 +85,7 @@ public class WriteJuffersWarmUpElement
         this.buffs = buffs;
         this.allocParams = allocParams;
         this.weCookie = weCookie;
-        this.warmUpElementAtt = warmUpElementAtt;
-        this.fileCookieParams = fileCookieParams;
+        this.warmUpState = warmUpState;
         this.buffAddresses = buffAddresses;
         this.compressionStats = compressionStats;
         this.chunkHeaderSize = storageEngineConstants.getChunkHeaderMaxSize();
@@ -131,15 +97,14 @@ public class WriteJuffersWarmUpElement
         this.chunkMapList.add(new ChunkMap(defaultChunkCookies));
         this.chunkHeader = new byte[chunkHeaderSize];
 
-        this.recordBufferParams = Arena.ofAuto().allocate(RECORD_BUFFER_PARAMS_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
+        this.recordBufferParams = new RecordBufferParams(Arena.ofAuto().allocate(RecordBufferParams.RECORD_BUFFER_PARAMS_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
 
         if (allocParams.isRecBufferNeeded()) {
             RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator,
                     allocParams,
                     storageEngine,
                     weCookie,
-                    warmUpElementAtt,
-                    fileCookieParams,
+                    warmUpState.getAddress(),
                     buffAddresses,
                     compressionStats);
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
@@ -149,8 +114,7 @@ public class WriteJuffersWarmUpElement
                         allocParams,
                         storageEngine,
                         weCookie,
-                        warmUpElementAtt,
-                        fileCookieParams,
+                        warmUpState.getAddress(),
                         buffAddresses);
                 juffers.put(extendedJuffers.getJufferType(), extendedJuffers);
             }
@@ -230,23 +194,18 @@ public class WriteJuffersWarmUpElement
             }
         }
 
-        setMin(recordBufferMin);
-        setMax(recordBufferMax);
-        setNumRecords(recordBufferPos);
-        setNumNulls(getNullJuffer().getNullsCount());
-        setNumBytes(numBytesWritten);
-        setSingleValOffset(recordBufferSingleOffset);
-        long res = storageEngine.warmupChunk(weCookie,
-                recordBufferParams.address(),
-                warmUpElementAtt.address(),
-                fileCookieParams,
+        recordBufferParams.setParams(recordBufferMin,
+                recordBufferMax,
+                recordBufferPos,
+                getNullJuffer().getNullsCount(),
+                numBytesWritten,
+                recordBufferSingleOffset);
+        storageEngine.warmupChunk(weCookie,
+                recordBufferParams.getAddress(),
+                warmUpState.getAddress(),
                 buffAddresses,
-                true,
                 compressionStats,
                 chunkHeader);
-        fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
-        fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
-        fileCookieParams[FILE_COOKIE_PARAMS_WARM_EVENTS.ordinal()] |= getWarmEvents();
         chunkMapList.add(chunkMapList.size() - 1, new ChunkMap(chunkHeader));
         chunkHeader = new byte[chunkHeaderSize];
         closeCurrentChunk();
@@ -273,14 +232,13 @@ public class WriteJuffersWarmUpElement
             getExtRecordJuffer().commitAndResetExtRecordBuffer(chunkHeader, numExtBytes);
         }
 
-        setMin(recordBufferMin);
-        setMax(recordBufferMax);
-        setNumRecords(numRecs);
-        setNumNulls(getNullJuffer().getNullsCount() + addedNV);
-        setNumBytes(numBytes);
-        setSingleValOffset(recordBufferSingleOffset);
-        getRecordJuffer().commitAndResetWE(chunkHeader, recordBufferParams);
-        fileCookieParams[FILE_COOKIE_PARAMS_WARM_EVENTS.ordinal()] |= getWarmEvents();
+        recordBufferParams.setParams(recordBufferMin,
+                recordBufferMax,
+                numRecs,
+                getNullJuffer().getNullsCount() + addedNV,
+                numBytes,
+                recordBufferSingleOffset);
+        getRecordJuffer().commitAndResetWE(chunkHeader, recordBufferParams.getAddress());
     }
 
     public void increaseNullsCount(int nullsCount)
@@ -562,43 +520,5 @@ public class WriteJuffersWarmUpElement
     public int getChunkHeaderSize()
     {
         return chunkHeaderSize;
-    }
-
-    private void setMin(long min)
-    {
-        recordBufferParams.set(ValueLayout.JAVA_LONG, RECORD_BUFFER_PARAMS_OFFSET_MIN, min);
-    }
-
-    private void setMax(long max)
-    {
-        recordBufferParams.set(ValueLayout.JAVA_LONG, RECORD_BUFFER_PARAMS_OFFSET_MAX, max);
-    }
-
-    private void setNumRecords(int numRecords)
-    {
-        if (numRecords <= 0) {
-            throw new RuntimeException("warmup chunk called with illegal number of rows " + numRecords);
-        }
-        recordBufferParams.set(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_NRECS, numRecords);
-    }
-
-    private void setNumNulls(int numNulls)
-    {
-        recordBufferParams.set(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_NVS, numNulls);
-    }
-
-    private void setNumBytes(int numBytes)
-    {
-        recordBufferParams.set(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_SIZE, numBytes);
-    }
-
-    private void setSingleValOffset(int singleValOffset)
-    {
-        recordBufferParams.set(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_SINGLE_VAL_OFFSET, singleValOffset);
-    }
-
-    private int getWarmEvents()
-    {
-        return (int) recordBufferParams.get(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_OUT_WARM_EVENTS);
     }
 }

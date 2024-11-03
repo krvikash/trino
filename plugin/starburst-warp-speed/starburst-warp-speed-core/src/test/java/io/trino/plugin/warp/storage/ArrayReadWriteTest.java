@@ -31,6 +31,7 @@ import io.trino.plugin.warp.storage.read.fill.BigIntArrayBlockFiller;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 import io.trino.plugin.warp.storage.read.fill.BooleanArrayBlockFiller;
 import io.trino.plugin.warp.storage.read.fill.IntArrayBlockFiller;
+import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
 import io.trino.plugin.warp.storage.write.appenders.ArrayBlockAppender;
 import io.trino.plugin.warp.storage.write.appenders.VariableLengthStringBlockAppender;
@@ -260,9 +261,8 @@ public class ArrayReadWriteTest
                 bufferAllocator,
                 new MemorySegment[JbufType.values().length],
                 0,
-                MemorySegment.ofArray(new byte[4]),
+                new WarmUpState(MemorySegment.ofArray(new byte[100])),
                 warmUpElementAllocationParams,
-                new long[] {0, 0, 0, 0, 0},
                 new long[] {0},
                 new byte[] {0});
         juffersWE.createBuffers(false);

@@ -14,8 +14,10 @@
 package io.trino.plugin.warp.storage.engine;
 
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
+import io.trino.plugin.warp.storage.write.WarmUpState;
 
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -116,15 +118,15 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupElementClose(long warmUpElementAttAddress,
-            int numChunks,
-            long[] fileCookie,
+    public void warmupElementClose(long warmUpStateAddress,
             long[] buffAddresses,
             int[] outQueryFileParams)
     {
         outQueryFileParams[0] = 0;
         outQueryFileParams[1] = 1;
-        return 1;
+
+        MemorySegment warmUpState = MemorySegment.ofAddress(warmUpStateAddress).reinterpret(WarmUpState.WARMUP_STATE_LAYOUT.byteSize());
+        warmUpState.set(ValueLayout.JAVA_INT, WarmUpState.WARMUP_STATE_OFFSET_START_OFFSET, 1);
     }
 
     @Override
@@ -133,17 +135,15 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpElementAttAddress, long[] fileCookieParams, long[] buffAddresses,
-            boolean close, byte[] inOutCompressionStats, byte[] inOutChunkHeader)
+    public void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, long[] buffAddresses,
+            byte[] inOutCompressionStats, byte[] inOutChunkHeader)
     {
-        return 0;
     }
 
     @Override
-    public long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpElementAttAddress,
-            long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader)
+    public void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress,
+            long[] buffAddresses, byte[] inOutChunkHeader)
     {
-        return 0;
     }
 
     @Override

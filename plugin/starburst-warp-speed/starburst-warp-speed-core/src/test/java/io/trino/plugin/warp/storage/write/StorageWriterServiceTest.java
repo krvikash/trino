@@ -511,7 +511,7 @@ public class StorageWriterServiceTest
 
     private WriteOpenResult txCreate(StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
-        return storageWriterService.open(new long[] {INVALID_FILE_COOKIE_FD, 0, 0, 0, 0, 0, 0, 0}, storageWriterSplitConfig, warmupElementWriteMetadata);
+        return storageWriterService.open(new long[] {INVALID_FILE_COOKIE_FD, 0, 0}, 0, storageWriterSplitConfig, warmupElementWriteMetadata);
     }
 
     private WriteOpenResult runTest(Page page, WarmupElementWriteMetadata warmupElementWriteMetadata)

@@ -52,11 +52,11 @@ public class WarpPageSink
     }
 
     @Override
-    public DictionaryWarmInfo open(long[] fileCookieParams, WarmupElementWriteMetadata warmupElementWriteMetadata)
+    public DictionaryWarmInfo open(long[] fileCookieParams, int startOffset, WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
         // now create the native tx
         try {
-            WriteOpenResult writeOpenResult = storageWriterService.open(fileCookieParams, storageWriterSplitConfig, warmupElementWriteMetadata);
+            WriteOpenResult writeOpenResult = storageWriterService.open(fileCookieParams, startOffset, storageWriterSplitConfig, warmupElementWriteMetadata);
             storageWriterContext = writeOpenResult.storageWriterContext();
             writerOpened = true;
             return writeOpenResult.dictionaryInfo();
