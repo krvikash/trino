@@ -30,6 +30,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.type.Type;
 
+import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -133,7 +134,15 @@ public class UnloadWriterFactory
                 fileName,
                 location.toString(),
                 location.appendPath(fileName).toString(),
-                onCommit,
-                hiveWriterStats);
+                hiveWriterStats)
+        {
+            @Override
+            public Closeable commit()
+            {
+                Closeable rollbackAction = super.commit();
+                onCommit.accept(this);
+                return rollbackAction;
+            }
+        };
     }
 }
