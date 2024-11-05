@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.storage.read.predicates;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
 import io.trino.plugin.warp.gen.constants.FunctionType;
@@ -75,12 +76,14 @@ class InverseValuesPredicateFillerTest
     @Test
     public void testSimple()
     {
+        GlobalConfig globalConfig = new GlobalConfig();
         MetricsManager metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any())).thenReturn(cachePredicatesStats);
         PredicatesCacheService predicatesCacheService = new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
                 metricsManager,
-                domainToMapBlockConvertor);
+                domainToMapBlockConvertor,
+                globalConfig);
 
         Range range1 = Range.range(IntegerType.INTEGER, (long) Integer.MIN_VALUE, false, 8L, false);
         Range range2 = Range.range(IntegerType.INTEGER, 8L, false, (long) Integer.MAX_VALUE, false);

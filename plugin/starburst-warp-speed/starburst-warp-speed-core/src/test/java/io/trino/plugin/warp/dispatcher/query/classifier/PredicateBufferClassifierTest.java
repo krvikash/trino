@@ -79,12 +79,13 @@ class PredicateBufferClassifierTest
         StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
         DomainToMapBlockConvertor domainToMapBlockConvertor = new DomainToMapBlockConvertor(storageEngineConstants);
         MetricsManager metricsManager = mock(MetricsManager.class);
+        GlobalConfig globalConfig = new GlobalConfig();
         predicatesCacheService = spy(new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
                 metricsManager,
-                domainToMapBlockConvertor));
+                domainToMapBlockConvertor,
+                globalConfig));
         doReturn(Optional.of(mock(PredicateCacheData.class))).when(predicatesCacheService).predicateDataToBuffer(any(), any());
-        GlobalConfig globalConfig = new GlobalConfig();
         predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService, globalConfig);
 
         rowGroupData = mock(RowGroupData.class);

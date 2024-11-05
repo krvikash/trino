@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.juffer;
 
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
 import io.trino.plugin.warp.gen.constants.FunctionType;
@@ -23,6 +24,7 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.IntegerType;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -33,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,6 +73,7 @@ public class PredicatesCacheServiceTest
     public void before()
     {
         storageEngineConstants = new StubsStorageEngineConstants();
+        GlobalConfig globalConfig = new GlobalConfig();
         cachePredicatesStats = CachePredicatesStats.create(PredicatesCacheService.STATS_CACHE_PREDICATE_KEY);
         bufferAllocator = mock(BufferAllocator.class);
         domainToMapBlockConvertor = new DomainToMapBlockConvertor(storageEngineConstants);
@@ -83,7 +87,8 @@ public class PredicatesCacheServiceTest
         predicatesCacheService = new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
                 metricsManager,
-                domainToMapBlockConvertor);
+                domainToMapBlockConvertor,
+                globalConfig);
     }
 
     @ParameterizedTest
@@ -127,6 +132,16 @@ public class PredicatesCacheServiceTest
         predicatesCacheService.markFinished(List.of(actualBufferHandle));
         verify(bufferAllocator, never()).freePredicateBuffer(argument.capture());
         assertThat(actualBufferHandle.isUsed()).isFalse();
+    }
+
+    @Test
+    public void testNoFreeEntriesPoolMedium()
+    {
+        PredicateData predicateData = buildMockedPredicateData(MemorySegment.NULL, PredicateBufferPoolType.MEDIUM, 1);
+        Domain domain = Domain.singleValue(IntegerType.INTEGER, (long) 1);
+        when(bufferAllocator.getPoolSize(PredicateBufferPoolType.MEDIUM)).thenReturn(0);
+        Optional<PredicateCacheData> actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData, domain);
+        assertThat(actualBufferHandle).isEmpty();
     }
 
     private PredicateData buildMockedPredicateData(MemorySegment buff, PredicateBufferPoolType predicateBufferPoolType, int size)

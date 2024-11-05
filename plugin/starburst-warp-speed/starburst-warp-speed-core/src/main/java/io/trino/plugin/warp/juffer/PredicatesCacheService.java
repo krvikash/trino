@@ -19,11 +19,13 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.plugin.warp.WarpErrorCode;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.read.predicates.AllPredicateFiller;
@@ -49,7 +51,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static io.trino.plugin.warp.WarpErrorCode.WARP_PREDICATE_CACHE_ERROR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -57,6 +58,7 @@ public class PredicatesCacheService
 {
     public static final String STATS_CACHE_PREDICATE_KEY = "cachePredicates";
     private static final Logger logger = Logger.get(PredicatesCacheService.class);
+    private final ShapingLogger shapingLogger;
     private final Map<PredicateBufferPoolType, Map<Integer, PredicateCacheData>> predicateCachePool;
     private final Map<PredicateType, PredicateFiller> predicateTypeToFiller;
     private final BufferAllocator bufferAllocator;
@@ -82,7 +84,8 @@ public class PredicatesCacheService
     public PredicatesCacheService(BufferAllocator bufferAllocator,
             StorageEngineConstants storageEngineConstants,
             MetricsManager metricsManager,
-            DomainToMapBlockConvertor domainToMapBlockConvertor)
+            DomainToMapBlockConvertor domainToMapBlockConvertor,
+            GlobalConfig globalConfig)
     {
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -98,6 +101,11 @@ public class PredicatesCacheService
         this.activePredicatesSmall = new AtomicInteger(0);
         this.activePredicatesMedium = new AtomicInteger(0);
         this.activePredicatesLarge = new AtomicInteger(0);
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     private void initPredicateCachePoll()
@@ -221,7 +229,7 @@ public class PredicatesCacheService
             }
         }
         catch (Exception e) {
-            logger.error(e, "failed to get predicate buffer for queryMatchData=%s", predicateData);
+            shapingLogger.error(e, "failed to get predicate buffer for queryMatchData=%s", predicateData);
             throw e;
         }
         finally {
@@ -384,9 +392,11 @@ public class PredicatesCacheService
             if (predicateCacheData == null) {
                 // free cache if needed
                 if (predicateCachePool.get(predicateBufferPoolType).size() == bufferAllocator.getPoolSize(predicateBufferPoolType)) {
-                    logger.warn("predicate cache for %s is full. maxSize=%d. clean old predicates",
+                    shapingLogger.warn("predicate cache for %s is full. maxSize=%d. clean old predicates",
                             predicateBufferPoolType, bufferAllocator.getPoolSize(predicateBufferPoolType));
-                    freeCache(predicateCachePool.get(predicateBufferPoolType), predicateBufferPoolType);
+                    if (!freeCache(predicateCachePool.get(predicateBufferPoolType), predicateBufferPoolType)) {
+                        return Optional.empty();
+                    }
                 }
                 // allocate and fill the buffer
                 predicateCacheDataOpt = predicateDataToBuffer(predicateData, domain);
@@ -408,7 +418,7 @@ public class PredicatesCacheService
             }
         }
         catch (Exception e) {
-            logger.error(e, "failed to add new predicate to cache");
+            shapingLogger.error(e, "failed to add new predicate to cache");
             throw e;
         }
         finally {
@@ -418,7 +428,7 @@ public class PredicatesCacheService
         return predicateCacheDataOpt;
     }
 
-    private void freeCache(Map<Integer, PredicateCacheData> integerPredicateBufferMap, PredicateBufferPoolType predicateBufferPoolType)
+    private boolean freeCache(Map<Integer, PredicateCacheData> integerPredicateBufferMap, PredicateBufferPoolType predicateBufferPoolType)
     {
         int poolSize = bufferAllocator.getPoolSize(predicateBufferPoolType);
         int removeCount = poolSize < 10 ? 1 : poolSize / 10;
@@ -430,12 +440,14 @@ public class PredicatesCacheService
                 .limit(removeCount)
                 .map(Map.Entry::getKey).toList();
         if (toRemove.isEmpty()) {
-            throw new TrinoException(WARP_PREDICATE_CACHE_ERROR, String.format("all predicates for type=%s are in use, SHOULD NOT HAPPEN", predicateBufferPoolType));
+            shapingLogger.warn("all predicates for type=%s are in use", predicateBufferPoolType);
+            return false;
         }
         toRemove.forEach(key -> {
             PredicateCacheData removed = integerPredicateBufferMap.remove(key);
             bufferAllocator.freePredicateBuffer(removed);
         });
+        return true;
     }
 
     private enum MetricsType
