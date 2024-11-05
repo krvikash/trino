@@ -16,7 +16,6 @@ package io.trino.plugin.warp.dispatcher;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
-import io.airlift.event.client.EventModule;
 import io.airlift.log.Logger;
 import io.trino.plugin.base.CatalogNameModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
@@ -54,7 +53,6 @@ public class InternalDispatcherCacheManagerFactory
         List<Module> modules;
         boolean isCoordinator = context.isCoordinator() && !WarpBaseModule.isSingle(config);
         modules = new ArrayList<>(asList(
-                new EventModule(),
                 new MBeanServerModule(),
                 new MBeanModule(),
                 new CatalogNameModule(cacheManagerName),

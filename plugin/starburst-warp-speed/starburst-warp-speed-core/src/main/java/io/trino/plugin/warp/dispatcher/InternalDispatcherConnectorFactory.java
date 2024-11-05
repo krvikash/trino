@@ -17,7 +17,6 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.ConfigurationUtils;
-import io.airlift.event.client.EventModule;
 import io.airlift.log.Logger;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.annotation.ForWarp;
@@ -86,7 +85,6 @@ public class InternalDispatcherConnectorFactory
         modules.addAll(asList(
                 new WarpModules(catalogName, warpConfig, context)
                         .withStorageEngineModule(storageEngineModule),
-                new EventModule(),
                 new MBeanServerModule(),
                 new MBeanModule(),
                 new DispatcherMainModule(catalogName, warpConfig, context),
