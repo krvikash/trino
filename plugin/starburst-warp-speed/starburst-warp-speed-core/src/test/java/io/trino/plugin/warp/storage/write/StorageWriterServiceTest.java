@@ -128,6 +128,7 @@ public class StorageWriterServiceTest
 
     private void initiate(StorageEngine storageEngineToSpy, StubsStorageEngineConstants storageEngineConstants)
     {
+        GlobalConfig globalConfig = new GlobalConfig();
         StorageEngine storageEngine = spy(storageEngineToSpy);
         //when(storageEngine.warmupElementOpen(anyInt(), new long[] {anyLong(), anyLong()}, anyInt(), anyInt(), anyInt(), anyInt(), anyLong(), any())).thenReturn(1L);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
@@ -142,8 +143,8 @@ public class StorageWriterServiceTest
         this.bufferAllocator = mockBufferAllocator(storageEngine, storageEngineConstants, nativeConfig, metricsManager);
         dictionaryCacheService = mock(DictionaryCacheService.class);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
-        BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, new GlobalConfig(), blockTransformerFactory);
-        WarmupElementStatsService warmupElementStatsService = new WarmupElementStatsService(new GlobalConfig());
+        BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, globalConfig, blockTransformerFactory);
+        WarmupElementStatsService warmupElementStatsService = new WarmupElementStatsService(globalConfig);
         storageWriterService = new StorageWriterService(storageEngine,
                 storageEngineConstants,
                 bufferAllocator,
@@ -151,7 +152,8 @@ public class StorageWriterServiceTest
                 metricsManager,
                 mock(PrintMetricsTimerTask.class),
                 blockAppenderFactory,
-                warmupElementStatsService);
+                warmupElementStatsService,
+                globalConfig);
     }
 
     @Test

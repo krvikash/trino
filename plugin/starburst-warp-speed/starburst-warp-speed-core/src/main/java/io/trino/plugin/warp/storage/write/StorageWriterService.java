@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.write;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dictionary.DictionaryMaxException;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
@@ -70,7 +71,7 @@ import static java.util.Objects.requireNonNull;
 public class StorageWriterService
 {
     private static final Logger logger = Logger.get(StorageWriterService.class);
-    private static final String LUCENE_STATS_GROUP_NAME = "lucene_index";
+    public static final String LUCENE_STATS_GROUP_NAME = "lucene_index";
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
@@ -80,6 +81,7 @@ public class StorageWriterService
     private final WarmupElementStatsService warmupElementStatsService;
     private final PrintMetricsTimerTask metricsTimerTask;
     private final LuceneIndexerStats statsLuceneIndexer;
+    private final GlobalConfig globalConfig;
 
     enum WeProperties
     {
@@ -96,7 +98,8 @@ public class StorageWriterService
             MetricsManager metricsManager,
             PrintMetricsTimerTask metricsTimerTask,
             BlockAppenderFactory blockAppenderFactory,
-            WarmupElementStatsService warmupElementStatsService)
+            WarmupElementStatsService warmupElementStatsService,
+            GlobalConfig globalConfig)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -107,6 +110,7 @@ public class StorageWriterService
         LuceneIndexerStats luceneIndexerStats = new LuceneIndexerStats(LUCENE_STATS_GROUP_NAME, "0");
         this.statsLuceneIndexer = metricsManager.registerMetric(luceneIndexerStats);
         this.metricsTimerTask = requireNonNull(metricsTimerTask);
+        this.globalConfig = requireNonNull(globalConfig);
     }
 
     public StorageWriterSplitConfig startWarming(String nodeIdentifier,
@@ -171,7 +175,8 @@ public class StorageWriterService
             // initialize lucene
             LuceneIndexer luceneIndexer = new LuceneIndexer(storageEngineConstants,
                     storageWriterSplitConfig.rowGroupFilePath(),
-                    statsLuceneIndexer);
+                    statsLuceneIndexer,
+                    globalConfig);
             luceneIndexerOpt = Optional.of(luceneIndexer);
         }
 
@@ -529,7 +534,7 @@ public class StorageWriterService
         WriteJuffersWarmUpElement writeJuffersWarmUpElement = storageWriterContext.getWriteJuffersWarmUpElement();
         if (storageWriterContext.getLuceneIndexer().isPresent()) {
             final int startOffset = storageWriterContext.getWarmUpState().getStartOffset();
-            final int endOffset = storageWriterContext.getLuceneIndexer().get().closeLuceneIndex(startOffset);
+            final int endOffset = storageWriterContext.getLuceneIndexer().get().closeAndSaveLuceneIndex(startOffset);
             storageWriterContext.getWarmUpState().setStartOffset(endOffset);
         }
 

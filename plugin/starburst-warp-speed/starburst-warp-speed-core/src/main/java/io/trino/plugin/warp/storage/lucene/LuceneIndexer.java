@@ -18,8 +18,10 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.WarpErrorCode;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
@@ -58,6 +60,7 @@ public class LuceneIndexer
     static final String VALUE_FIELD_NAME = "value";
 
     private static final Logger logger = Logger.get(LuceneIndexer.class);
+    private final ShapingLogger shapingLogger;
 
     private final Analyzer analyzer = new KeywordAnalyzer();
     private final Document doc = new Document();
@@ -75,7 +78,7 @@ public class LuceneIndexer
     private boolean failedCommit;
     private int countDocsForSizeLimit;
 
-    public LuceneIndexer(StorageEngineConstants storageEngineConstants, String rowGroupFilePath, LuceneIndexerStats stats)
+    public LuceneIndexer(StorageEngineConstants storageEngineConstants, String rowGroupFilePath, LuceneIndexerStats stats, GlobalConfig globalConfig)
     {
         this.storageEngineConstants = storageEngineConstants;
         this.rowGroupFilePath = rowGroupFilePath;
@@ -91,10 +94,14 @@ public class LuceneIndexer
 
         this.stats = stats;
         this.stopWatch = new StopWatch();
+
+        this.shapingLogger = ShapingLogger.getInstance(logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public void addDoc(Slice... values)
-            throws IOException
     {
         if (failedCommit) {
             return;
@@ -122,11 +129,11 @@ public class LuceneIndexer
             stats.addaddDoc(stopWatch.getNanoTime());
         }
         catch (Exception e) {
-            logger.error("got exception from addDocument - %s", e);
+            shapingLogger.error("Got exception from addDocument (path %s) - %s", path, e);
             failedDocumentError = e.getMessage();
             failedCommit = true;
             stats.incfailedAddDoc();
-            throw e;
+            closeLuceneIndex(); // will throw an exception
         }
     }
 
@@ -158,18 +165,21 @@ public class LuceneIndexer
         }
     }
 
-    public int closeLuceneIndex(int startOffset)
+    private void closeLuceneIndexUnsafe()
+            throws IOException
     {
-        if (indexWriter == null) {
-            return startOffset;
-        }
+        stopWatch.reset();
+        stopWatch.start();
+        indexWriter.forceMerge(1);
+        stopWatch.stop();
+        stats.addmerge(stopWatch.getTime());
+        indexWriter.close();
+    }
+
+    private void closeLuceneIndex()
+    {
         try {
-            stopWatch.reset();
-            stopWatch.start();
-            indexWriter.forceMerge(1);
-            stopWatch.stop();
-            stats.addmerge(stopWatch.getTime());
-            indexWriter.close();
+            closeLuceneIndexUnsafe();
 
             if (failedCommit) {
                 if (failedDocumentError != null) {
@@ -179,6 +189,32 @@ public class LuceneIndexer
                     throw new TrinoException(WARP_LUCENE_FAILURE, "lucene index failed before closing");
                 }
             }
+        }
+        catch (Exception e) {
+            throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "Got exception when closing the indexWriter", e);
+        }
+        finally {
+            closeDirectory(indexWriter.getDirectory());
+        }
+    }
+
+    public int closeAndSaveLuceneIndex(int startOffset)
+    {
+        if (indexWriter == null) {
+            return startOffset;
+        }
+        try {
+            closeLuceneIndexUnsafe();
+
+            if (failedCommit) {
+                if (failedDocumentError != null) {
+                    throw new TrinoException(WARP_LUCENE_FAILURE, "lucene index failed on at least one document " + failedDocumentError);
+                }
+                else {
+                    throw new TrinoException(WARP_LUCENE_FAILURE, "lucene index failed before closing");
+                }
+            }
+
             int endOffset = saveLuceneIndex(startOffset);
             if (endOffset < 0) {
                 logger.warn("lucene index failed on file too big rowGroupFilePath %s", rowGroupFilePath);
@@ -198,7 +234,7 @@ public class LuceneIndexer
     {
         Optional<ChunkState> chunkState = luceneIndexWriter.saveLuceneIndex(startOffset);
 
-        if (!chunkState.isPresent()) {
+        if (chunkState.isEmpty()) {
             return -1;
         }
         ChunkState state = chunkState.get();
