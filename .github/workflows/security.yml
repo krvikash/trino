@@ -20,14 +20,16 @@ defaults:
     shell: bash
 env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-  ENDORCTL_CHECKSUM: "97034c2a49170522ac7f0c01fcf346d1c50443cd2fe9e07b0ad1165349cc834a"
+  ENDOR_BYPASS_HOST_CHECK: true
   ENDOR_MVN_USE_WRAPPER: true
-  ENDORCTL_NAMESPACE: "starburst"
-  ENDORCTL_VERSION: "v1.6.518"
   ENDOR_SCAN_CALLGRAPH_LANGUAGES: "[java, python]"
-  JAVA_VERSION: "22"
-  JAVA_DISTRO: "temurin"
+  ENDOR_SCAN_EXCLUDE_PATH: "testing/**"
   ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
+  ENDORCTL_CHECKSUM: "89af4c78d0ecea56b228843c5a6a88a51a8c40fae72f48acef2a62bea34e477b"
+  ENDORCTL_NAMESPACE: "starburst"
+  ENDORCTL_VERSION: "v1.6.626"
+  JAVA_DISTRO: "temurin"
+  JAVA_VERSION: "23"
   MAVEN_OPTS: "-Xmx3G -XX:+ExitOnOutOfMemoryError"
   mavenReleaseUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
   mavenReleasePassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
@@ -63,9 +65,9 @@ jobs:
         env:
           MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
           ENDOR_SCAN_PR_INCREMENTAL: true
-        uses: endorlabs/github-action@802fa65ba7c140405ee52d1c806cfdb647f8f743 # v1.1.4
+          ENDOR_SCAN_QUICK_SCAN: true
+        uses: endorlabs/github-action@a8ad74e765949855c4508590cf5e84258f9524d1 # v1.1.4
         with:
-          additional_args: '--exclude-path="testing/**" --bypass-host-check --quick-scan'
           enable_pr_comments: false
           endorctl_checksum: ${{ env.ENDORCTL_CHECKSUM }}
           endorctl_version: ${{ env.ENDORCTL_VERSION }}
@@ -95,9 +97,8 @@ jobs:
       - name: Endor Labs Full Scan
         env:
           MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
-        uses: endorlabs/github-action@802fa65ba7c140405ee52d1c806cfdb647f8f743 # v1.1.4
+        uses: endorlabs/github-action@a8ad74e765949855c4508590cf5e84258f9524d1 # v1.1.4
         with:
-          additional_args: '--exclude-path="testing/**" --bypass-host-check'
           endorctl_checksum: ${{ env.ENDORCTL_CHECKSUM }}
           endorctl_version: ${{ env.ENDORCTL_VERSION }}
           namespace: ${{ env.ENDORCTL_NAMESPACE }}
