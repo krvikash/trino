@@ -15,7 +15,6 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
-import io.airlift.event.client.EventModule;
 import io.airlift.http.server.HttpServerInfo;
 import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
@@ -76,7 +75,6 @@ public class TestingDataServer
                 new TestingJmxModule(),
                 new LogJmxModule(),
                 new TracingModule("buffer-data-server", "testing"),
-                new EventModule(),
                 new StatusModule(),
                 new MainModule(nodeId, discoveryApiModule.isPresent(), Ticker.systemTicker()),
                 useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule()));

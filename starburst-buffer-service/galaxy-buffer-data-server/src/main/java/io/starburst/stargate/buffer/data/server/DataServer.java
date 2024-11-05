@@ -12,7 +12,6 @@ package io.starburst.stargate.buffer.data.server;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.airlift.bootstrap.Bootstrap;
-import io.airlift.event.client.EventModule;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.jmx.JmxModule;
@@ -53,7 +52,6 @@ public final class DataServer
                 new JmxOpenMetricsModule(),
                 new LogJmxModule(),
                 new TracingModule("buffer-data-server", version),
-                new EventModule(),
                 new StatusModule(),
                 new DiscoveryApiModule(),
                 new MainModule(),
