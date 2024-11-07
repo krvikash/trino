@@ -153,8 +153,11 @@ public abstract class BlockFiller<V>
                 mappingKey = Short.toUnsignedInt(shortBuff.get());
                 yield createSingleWithNullBlockWithDictionary(juffersWE, mappingKey, rowsToFill, readDictionary);
             }
-            case QUERY_RESULT_TYPE_SINGLE_NO_NULL ->
-                    fillSingleNoNullWithDictionary(juffersWE, rowsToFill, recTypeCode, recLength, readDictionary);
+            case QUERY_RESULT_TYPE_SINGLE_NO_NULL -> {
+                shortBuff = (ShortBuffer) juffersWE.getRecordBuffer();
+                mappingKey = Short.toUnsignedInt(shortBuff.get());
+                yield createSingleValueBlock(spiBuilderType, getSingleValueWithDictionary(mappingKey, readDictionary), rowsToFill);
+            }
             default -> throw new UnsupportedOperationException();
         };
     }
@@ -220,17 +223,6 @@ public abstract class BlockFiller<V>
             }
         }
         return DictionaryBlock.create(ids.length, mapBlock, ids);
-    }
-
-    protected Block fillSingleNoNullWithDictionary(ReadJuffersWarmUpElement juffersWE,
-            int rowsToFill,
-            RecTypeCode recTypeCode,
-            int recTypeLength,
-            ReadDictionary readDictionary)
-    {
-        ShortBuffer shortBuff = (ShortBuffer) juffersWE.getRecordBuffer();
-        int mappingKey = Short.toUnsignedInt(shortBuff.get());
-        return createSingleValueBlock(spiBuilderType, getSingleValueWithDictionary(mappingKey, readDictionary), rowsToFill);
     }
 
     protected Block fillRawBlockWithDictionary(ReadJuffersWarmUpElement juffersWE,

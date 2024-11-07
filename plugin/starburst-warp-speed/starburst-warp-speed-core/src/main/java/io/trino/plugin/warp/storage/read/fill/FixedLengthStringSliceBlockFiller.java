@@ -17,16 +17,15 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.ReadDictionary;
-import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.type.CharType;
+import io.trino.spi.type.Type;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -92,21 +91,15 @@ public class FixedLengthStringSliceBlockFiller
     }
 
     @Override
-    protected Block fillSingleNoNullWithDictionary(ReadJuffersWarmUpElement juffersWE,
-            int rowsToFill,
-            RecTypeCode recTypeCode,
-            int recTypeLength,
-            ReadDictionary readDictionary)
+    protected Block createSingleValueBlock(Type spiType, Slice slice, int rowsToFill)
     {
-        ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
-        Slice slice = (Slice) readDictionary.get(Short.toUnsignedInt(buff.get(0)));
         Block res;
         int trimmedRecLength = SliceUtils.trimSlice(slice.toByteBuffer(), slice.length(), 0);
-        Slice outputSlice = Slices.wrappedBuffer(slice.byteArray(), 0, trimmedRecLength);
+        Slice outputSlice = Slices.wrappedBuffer(slice.byteArray(), slice.byteArrayOffset(), trimmedRecLength);
         if (outputSlice.getByte(outputSlice.length() - 1) == ' ') {
-            int[] offsets = new int[2];
-            offsets[1] = trimmedRecLength;
-            Block dictionary = new VariableWidthBlock(1, outputSlice, offsets, Optional.empty());
+            int[] dictOffsets = SliceUtils.allocateOffsetsArray(1);
+            dictOffsets[1] = trimmedRecLength;
+            Block dictionary = new VariableWidthBlock(1, outputSlice, dictOffsets, Optional.empty());
             int[] ids = new int[rowsToFill];
             res = DictionaryBlock.create(ids.length, dictionary, ids);
         }

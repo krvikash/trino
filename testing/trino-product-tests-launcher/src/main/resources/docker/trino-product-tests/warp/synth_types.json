@@ -9110,5 +9110,908 @@
         ]
       }
     ]
+  },
+  {
+    "name": "trailing_spaces_133k",
+    "pt_enable": true,
+    "overriding": {
+      "warp_iceberg": {
+        "skip" : true
+      },
+      "warp_delta_lake": {
+        "skip" : true
+      }
+    },
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
+    "structure": [
+      {
+        "name": "shortchar",
+        "type": "char",
+        "args": [
+          6
+        ]
+      },
+      {
+        "name": "longchar",
+        "type": "char",
+        "args": [
+          15
+        ]
+      },
+      {
+        "name": "shortvar",
+        "type": "varchar",
+        "args": [
+          6
+        ]
+      },
+      {
+        "name": "longvar",
+        "type": "varchar",
+        "args": [
+          15
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "case_name": "trailing_spaces_133k_without_dict",
+        "warmup_rules": [
+          {
+            "colNameId": "shortchar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "longchar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "shortvar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "longvar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          }
+        ],
+        "warm_query": "select * from trailing_spaces_133k where longchar = 'longChar'",
+        "session_properties": {
+          "enable_dictionary": false
+        },
+        "expected_dictionary_counters": {
+          "dictionary_failed_elements_count": 0,
+          "dictionary_rejected_elements_count": 0,
+          "write_dictionaries_count": 0
+        },
+        "queries_data": [
+          {
+            "query": "select distinct length(shortchar) from trailing_spaces_133k",
+            "query_id": "trailing_spaces_133k_without_dict_1",
+            "expected_result": [
+              6
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct length(longchar) from trailing_spaces_133k",
+            "query_id": "trailing_spaces_133k_without_dict_2",
+            "expected_result": [
+              15
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct length(shortvar) from trailing_spaces_133k",
+            "query_id": "trailing_spaces_133k_without_dict_3",
+            "expected_result": [
+              6
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct length(longvar) from trailing_spaces_133k",
+            "query_id": "trailing_spaces_133k_without_dict_4",
+            "expected_result": [
+              15
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct shortchar from trailing_spaces_133k order by shortchar",
+            "query_id": "trailing_spaces_133k_without_dict_5",
+            "expected_result": [
+              "sc    ",
+              "xy    "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct longchar from trailing_spaces_133k order by longchar",
+            "query_id": "trailing_spaces_133k_without_dict_6",
+            "expected_result": [
+              "longChar       ",
+              "otherChar      "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct shortvar from trailing_spaces_133k  order by shortvar",
+            "query_id": "trailing_spaces_133k_without_dict_7",
+            "expected_result": [
+              "svc  ",
+              "zzz  "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct longvar from trailing_spaces_133k  order by longvar",
+            "query_id": "trailing_spaces_133k_without_dict_8",
+            "expected_result": [
+              "longVarchar    ",
+              "otherVarchar   "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortchar) from trailing_spaces_133k where longchar = 'longChar'",
+            "query_id": "trailing_spaces_133k_without_dict_9",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortchar) from trailing_spaces_133k where longchar = 'longChar      '",
+            "query_id": "trailing_spaces_133k_without_dict_10",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longchar) from trailing_spaces_133k where shortchar = 'sc'",
+            "query_id": "trailing_spaces_133k_without_dict_11",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longchar) from trailing_spaces_133k where shortchar = 'sc    '",
+            "query_id": "trailing_spaces_133k_without_dict_12",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortvar) from trailing_spaces_133k where longvar = 'longVarchar'",
+            "query_id": "trailing_spaces_133k_without_dict_13",
+            "expected_result": [
+              0
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortvar) from trailing_spaces_133k where longvar = 'longVarchar    '",
+            "query_id": "trailing_spaces_133k_without_dict_14",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longvar) from trailing_spaces_133k where shortvar = 'svc'",
+            "query_id": "trailing_spaces_133k_without_dict_15",
+            "expected_result": [
+              0
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longvar) from trailing_spaces_133k where shortvar = 'svc   '",
+            "query_id": "trailing_spaces_133k_without_dict_16",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      },
+      {
+        "case_name": "trailing_spaces_mapped_match_collect",
+        "warmup_rules": [
+          {
+            "colNameId": "shortchar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "longchar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "shortvar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "longvar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          }
+        ],
+        "warm_query": "select * from trailing_spaces_133k where longchar = 'longChar'",
+        "session_properties": {
+          "enable_varchar_mapped_match_collect": true,
+          "enable_dictionary": false
+        },
+        "expected_dictionary_counters": {
+          "dictionary_failed_elements_count": 0,
+          "dictionary_rejected_elements_count": 0,
+          "write_dictionaries_count": 0
+        },
+        "queries_data": [
+          {
+            "query": "select distinct length(shortchar) from trailing_spaces_133k where shortchar = 'sc' or shortchar = 'aaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_1",
+            "expected_result": [
+              6
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct length(longchar) from trailing_spaces_133k where longchar = 'longChar      ' or longchar = 'aaaaaaaaaaaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_2",
+            "expected_result": [
+              15
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct length(shortvar) from trailing_spaces_133k where shortvar = 'svc   ' or shortvar = 'aaaaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_3",
+            "expected_result": [
+              6
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct length(longvar) from trailing_spaces_133k where longvar = 'longVarchar    ' or longvar = 'aaaaaaaaaaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_4",
+            "expected_result": [
+              15
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct shortchar from trailing_spaces_133k where shortchar = 'sc    ' or shortchar = 'aaaa' order by shortchar",
+            "query_id": "trailing_spaces_mapped_match_collect_5",
+            "expected_result": [
+              "sc    "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct longchar from trailing_spaces_133k where longchar = 'longChar      ' or longchar = 'aaaaaaaaaaaa' order by longchar",
+            "query_id": "trailing_spaces_mapped_match_collect_6",
+            "expected_result": [
+              "longChar       "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct shortvar from trailing_spaces_133k where shortvar = 'svc   ' or shortvar = 'aaaaa' order by shortvar",
+            "query_id": "trailing_spaces_mapped_match_collect_7",
+            "expected_result": [
+              "svc  "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct longvar from trailing_spaces_133k where longvar = 'longVarchar    ' or longvar = 'aaaaaaaaaaa' order by longvar",
+            "query_id": "trailing_spaces_mapped_match_collect_8",
+            "expected_result": [
+              "longVarchar    "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortchar) from trailing_spaces_133k where shortchar = 'sc' or shortchar = 'aaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_9",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortchar) from trailing_spaces_133k where shortchar = 'sc    ' or shortchar = 'aaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_10",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longchar) from trailing_spaces_133k where longchar = 'longChar' or longchar = 'aaaaaaaaaaaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_11",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longchar) from trailing_spaces_133k where longchar = 'longChar      ' or longchar = 'aaaaaaaaaaaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_12",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortvar) from trailing_spaces_133k where shortvar = 'svc' or shortvar = 'aaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_13",
+            "expected_result": [
+              0
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortvar) from trailing_spaces_133k where shortvar = 'svc   ' or shortvar = 'aaaaaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_14",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longvar) from trailing_spaces_133k where longvar = 'longVarchar' or longvar = 'aaaaaaaaaaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_15",
+            "expected_result": [
+              0
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longvar) from trailing_spaces_133k where longvar = 'longVarchar    ' or longvar = 'aaaaaaaaaaa'",
+            "query_id": "trailing_spaces_mapped_match_collect_16",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      },
+      {
+        "case_name": "trailing_spaces_133k_with_dict",
+        "warmup_rules": [
+          {
+            "colNameId": "shortchar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "longchar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "shortvar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "longvar",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          }
+        ],
+        "warm_query": "select * from trailing_spaces_133k where longchar = 'longChar'",
+        "session_properties": {
+          "enable_dictionary": true
+        },
+        "expected_dictionary_counters": {
+          "dictionary_failed_elements_count": 0,
+          "dictionary_rejected_elements_count": 0,
+          "write_dictionaries_count": 4
+        },
+        "queries_data": [
+          {
+            "query": "select distinct length(shortchar) from trailing_spaces_133k",
+            "query_id": "trailing_spaces_133k_with_dict_1",
+            "expected_result": [
+              6
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct length(longchar) from trailing_spaces_133k",
+            "query_id": "trailing_spaces_133k_with_dict_2",
+            "expected_result": [
+              15
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct length(shortvar) from trailing_spaces_133k",
+            "query_id": "trailing_spaces_133k_with_dict_3",
+            "expected_result": [
+              6
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct length(longvar) from trailing_spaces_133k",
+            "query_id": "trailing_spaces_133k_with_dict_4",
+            "expected_result": [
+              15
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct shortchar from trailing_spaces_133k order by shortchar",
+            "query_id": "trailing_spaces_133k_with_dict_5",
+            "expected_result": [
+              "sc    ",
+              "xy    "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct longchar from trailing_spaces_133k order by longchar",
+            "query_id": "trailing_spaces_133k_with_dict_6",
+            "expected_result": [
+              "longChar       ",
+              "otherChar      "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct shortvar from trailing_spaces_133k  order by shortvar",
+            "query_id": "trailing_spaces_133k_with_dict_7",
+            "expected_result": [
+              "svc  ",
+              "zzz  "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select distinct longvar from trailing_spaces_133k  order by longvar",
+            "query_id": "trailing_spaces_133k_with_dict_8",
+            "expected_result": [
+              "longVarchar    ",
+              "otherVarchar   "
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortchar) from trailing_spaces_133k where longchar = 'longChar'",
+            "query_id": "trailing_spaces_133k_with_dict_9",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortchar) from trailing_spaces_133k where longchar = 'longChar      '",
+            "query_id": "trailing_spaces_133k_with_dict_10",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longchar) from trailing_spaces_133k where shortchar = 'sc'",
+            "query_id": "trailing_spaces_133k_with_dict_11",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longchar) from trailing_spaces_133k where shortchar = 'sc    '",
+            "query_id": "trailing_spaces_133k_with_dict_12",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortvar) from trailing_spaces_133k where longvar = 'longVarchar'",
+            "query_id": "trailing_spaces_133k_with_dict_13",
+            "expected_result": [
+              0
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(shortvar) from trailing_spaces_133k where longvar = 'longVarchar    '",
+            "query_id": "trailing_spaces_133k_with_dict_14",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longvar) from trailing_spaces_133k where shortvar = 'svc'",
+            "query_id": "trailing_spaces_133k_with_dict_15",
+            "expected_result": [
+              0
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(longvar) from trailing_spaces_133k where shortvar = 'svc   '",
+            "query_id": "trailing_spaces_133k_with_dict_16",
+            "expected_result": [
+              65536
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      }
+    ]
   }
 ]
