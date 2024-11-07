@@ -27,6 +27,7 @@ import oracle.ucp.jdbc.PoolDataSourceFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -127,8 +128,14 @@ public class OraclePoolingConnectionFactory
     public void close()
     {
         try {
-            log.debug("Closing Oracle UCP %s", dataSource.getConnectionPoolName());
-            poolManager.destroyConnectionPool(dataSource.getConnectionPoolName());
+            boolean poolExists = Arrays.asList(poolManager.getConnectionPoolNames()).contains(dataSource.getConnectionPoolName());
+            if (poolExists) {
+                log.debug("Closing Oracle UCP %s", dataSource.getConnectionPoolName());
+                poolManager.destroyConnectionPool(dataSource.getConnectionPoolName());
+            }
+            else {
+                log.debug("Oracle UCP %s already closed", dataSource.getConnectionPoolName());
+            }
         }
         catch (UniversalConnectionPoolException e) {
             log.error(e, "Failed to destroy UCP pool %s", dataSource.getDataSourceName());
