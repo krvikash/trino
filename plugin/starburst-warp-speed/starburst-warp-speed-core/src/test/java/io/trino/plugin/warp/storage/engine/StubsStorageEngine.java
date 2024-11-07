@@ -118,9 +118,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void warmupElementClose(long warmUpStateAddress,
-            long[] buffAddresses,
-            int[] outQueryFileParams)
+    public void warmupElementClose(long warmUpStateAddress, int[] outQueryFileParams)
     {
         outQueryFileParams[0] = 0;
         outQueryFileParams[1] = 1;
@@ -135,14 +133,12 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, long[] buffAddresses,
-            byte[] inOutCompressionStats, byte[] inOutChunkHeader)
+    public void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader)
     {
     }
 
     @Override
-    public void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress,
-            long[] buffAddresses, byte[] inOutChunkHeader)
+    public void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress, byte[] inOutChunkHeader)
     {
     }
 

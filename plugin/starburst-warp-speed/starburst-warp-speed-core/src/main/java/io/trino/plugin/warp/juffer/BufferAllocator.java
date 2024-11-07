@@ -31,6 +31,7 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.TrinoException;
@@ -342,42 +343,40 @@ public class BufferAllocator
         return predicateBufferPools[predicateBufferPoolType.ordinal()].getBufSize();
     }
 
-    // return array of pointers and array of sizes
-    public MemorySegment[] getWarmBuffers(WarmUpElementAllocationParams weAllocParams)
+    // return array of memory segments for java and sets the addresses inside the warm up state for storage engine
+    public void setWarmBuffers(WarmUpElementAllocationParams weAllocParams, WarmUpState warmUpState)
     {
         if (weAllocParams.memorySegment() == null) {
             throw new RuntimeException("memory segment is null");
         }
         SegmentAllocator slicer = SegmentAllocator.slicingAllocator(weAllocParams.memorySegment());
         final long alignment = storageEngineConstants.getPageSize();
-        MemorySegment[] buffs = new MemorySegment[JbufType.JBUF_TYPE_NUM_OF.ordinal()];
 
+        MemorySegment jbufList = warmUpState.getJbufList();
         if (weAllocParams.isRecBufferNeeded()) {
-            buffs[JbufType.JBUF_TYPE_REC.ordinal()] = slicer.allocate(weAllocParams.recBuffSize(), alignment);
+            warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_REC, slicer.allocate(weAllocParams.recBuffSize(), alignment));
             if (weAllocParams.extRecBuffSize() > 0) {
-                buffs[JbufType.JBUF_TYPE_EXT_RECS.ordinal()] = slicer.allocate(weAllocParams.extRecBuffSize(), alignment);
+                warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_EXT_RECS, slicer.allocate(weAllocParams.extRecBuffSize(), alignment));
             }
             // data type
-            buffs[JbufType.JBUF_TYPE_TEMP.ordinal()] = slicer.allocate(dataTempBufferSize, alignment);
+            warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_TEMP, slicer.allocate(dataTempBufferSize, alignment));
         }
         else {
             // for all index types
-            buffs[JbufType.JBUF_TYPE_TEMP.ordinal()] = slicer.allocate(indexTempBufferSize, alignment);
+            warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_TEMP, slicer.allocate(indexTempBufferSize, alignment));
         }
 
         if (weAllocParams.isCrcBufferNeeded()) {
-            buffs[JbufType.JBUF_TYPE_CRC.ordinal()] = slicer.allocate(weAllocParams.crcBuffSize(), alignment);
+            warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_CRC, slicer.allocate(weAllocParams.crcBuffSize(), alignment));
         }
 
-        buffs[JbufType.JBUF_TYPE_NULL.ordinal()] = slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_NULL.ordinal()], alignment);
+        warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_NULL, slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_NULL.ordinal()], alignment));
 
         if (weAllocParams.isMdBufferNeeded()) {
-            buffs[JbufType.JBUF_TYPE_SKIPLIST.ordinal()] = slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_SKIPLIST.ordinal()], alignment);
+            warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_SKIPLIST, slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_SKIPLIST.ordinal()], alignment));
         }
 
-        buffs[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()] = slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()], alignment);
-
-        return buffs;
+        warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_CHUNKS_MAP, slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()], alignment));
     }
 
     public long[] getCollectBuffersArray()

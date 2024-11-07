@@ -31,7 +31,6 @@ public class RecordWriteJuffer
     private final StorageEngine storageEngine;
     private final long weCookie;
     private final long warmUpStateAddress;
-    private final long[] buffAddresses;
     private final byte[] compressionStats;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
     private boolean isDictionaryValid;
@@ -41,7 +40,6 @@ public class RecordWriteJuffer
             StorageEngine storageEngine,
             long weCookie,
             long warmUpStateAddress,
-            long[] buffAddresses,
             byte[] compressionStats)
     {
         super(bufferAllocator, JuffersType.RECORD);
@@ -49,7 +47,6 @@ public class RecordWriteJuffer
         this.storageEngine = storageEngine;
         this.weCookie = weCookie;
         this.warmUpStateAddress = warmUpStateAddress;
-        this.buffAddresses = buffAddresses;
         this.compressionStats = compressionStats;
     }
 
@@ -96,7 +93,6 @@ public class RecordWriteJuffer
         storageEngine.warmupChunk(weCookie,
                 recordBufferParamsAddress,
                 warmUpStateAddress,
-                buffAddresses,
                 compressionStats,
                 chunkHeader);
         resetSingleRecordBufferPos();

@@ -259,11 +259,9 @@ public class ArrayReadWriteTest
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(mock(StorageEngine.class),
                 storageEngineConstants,
                 bufferAllocator,
-                new MemorySegment[JbufType.values().length],
                 0,
                 new WarmUpState(MemorySegment.ofArray(new byte[100])),
                 warmUpElementAllocationParams,
-                new long[] {0},
                 new byte[] {0});
         juffersWE.createBuffers(false);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();

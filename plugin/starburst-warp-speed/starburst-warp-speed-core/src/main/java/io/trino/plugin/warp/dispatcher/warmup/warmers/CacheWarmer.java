@@ -163,7 +163,7 @@ public class CacheWarmer
         long[] fileCookieParams = storageWarmerService.fileOpen(tmpRowGroupKey);
         int startOffset = getFileOffset(tmpRowGroupKey);
         DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, startOffset, warmUpElementToWarm);
-        return new WarmingCandidate(fileCookieParams, // @TODO-KOBI check if needed
+        return new WarmingCandidate(fileCookieParams,
                 pageSink,
                 startOffset,
                 warmUpElementToWarm,

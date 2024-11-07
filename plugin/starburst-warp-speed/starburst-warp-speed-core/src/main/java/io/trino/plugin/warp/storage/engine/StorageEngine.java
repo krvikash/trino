@@ -101,9 +101,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void warmupElementClose(long warmUpStateAddress,
-            long[] buffAddresses,
-            int[] outQueryFileParams)
+    default void warmupElementClose(long warmUpStateAddress, int[] outQueryFileParams)
     {
         throw new UnsupportedOperationException();
     }
@@ -113,14 +111,12 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, long[] buffAddresses,
-            byte[] inOutCompressionStats, byte[] inOutChunkHeader)
+    default void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress,
-            long[] buffAddresses, byte[] inOutChunkHeader)
+    default void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress, byte[] inOutChunkHeader)
     {
         throw new UnsupportedOperationException();
     }

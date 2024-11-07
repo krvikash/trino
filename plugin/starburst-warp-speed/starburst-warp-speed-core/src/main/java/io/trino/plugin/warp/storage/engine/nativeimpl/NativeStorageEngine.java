@@ -374,20 +374,16 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native void warmupElementClose(long warmUpStateAddress,
-            long[] buffAddresses,
-            int[] outQueryFileParams);
+    public native void warmupElementClose(long warmUpStateAddress, int[] outQueryFileParams);
 
     @Override
     public native void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie);
 
     @Override
-    public native void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, long[] buffAddresses,
-            byte[] inOutCompressionStats, byte[] inOutChunkHeader);
+    public native void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader);
 
     @Override
-    public native void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress,
-            long[] buffAddresses, byte[] inOutChunkHeader);
+    public native void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress, byte[] inOutChunkHeader);
 
     @Override
     public native long queryGetCollectStateSize(int numMatchCollect);

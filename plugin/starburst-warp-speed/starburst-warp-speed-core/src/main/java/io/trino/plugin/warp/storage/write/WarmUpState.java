@@ -14,12 +14,14 @@
 package io.trino.plugin.warp.storage.write;
 
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
 
@@ -31,8 +33,12 @@ public class WarmUpState
     private static final long FILE_COOKIE_OFFSET_FILE_MOD_TIME;
     private static final long FILE_COOKIE_OFFSET_FILE_DECSRIPTOR;
 
-    // warm up parameters layout
+    // jbuffers array
+    private static final SequenceLayout JBUFS_LIST_LAYOUT;
+
+    // warm up state layout
     public static final StructLayout WARMUP_STATE_LAYOUT;
+    private static final long WARMUP_STATE_OFFSET_JBUF_LIST;
     private static final long WARMUP_STATE_OFFSET_WRITE_BUF;
     private static final long WARMUP_STATE_OFFSET_FILE_COOKIE;
     public static final long WARMUP_STATE_OFFSET_START_OFFSET; // public for testing
@@ -43,6 +49,7 @@ public class WarmUpState
     private static final long WARMUP_STATE_OFFSET_CLOSE_CHUNK;
 
     private final MemorySegment warmUpState;
+    private final MemorySegment[] jbufs;
 
     static {
         FILE_COOKIE_LAYOUT = MemoryLayout.structLayout(
@@ -53,8 +60,10 @@ public class WarmUpState
         FILE_COOKIE_OFFSET_FILE_MOD_TIME = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_mod_time"));
         FILE_COOKIE_OFFSET_FILE_DECSRIPTOR = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_fd"));
 
+        JBUFS_LIST_LAYOUT = MemoryLayout.sequenceLayout(JbufType.JBUF_TYPE_NUM_OF.ordinal(), ValueLayout.JAVA_LONG);
+
         WARMUP_STATE_LAYOUT = MemoryLayout.structLayout(
-                ValueLayout.JAVA_LONG.withName("pjbuf_ptrs"),
+                JBUFS_LIST_LAYOUT.withName("pjbuf_ptrs"),
                 ValueLayout.JAVA_LONG.withName("pwrite_buf"),
                 ValueLayout.JAVA_LONG.withName("pcmprs_stats"),
                 ValueLayout.JAVA_LONG.withName("pchunk_pers"),
@@ -66,6 +75,7 @@ public class WarmUpState
                 ValueLayout.JAVA_SHORT.withName("nchunks"),
                 ValueLayout.JAVA_BYTE.withName("warm_id"),
                 ValueLayout.JAVA_BYTE.withName("close_chunk")).withName("we_commit_state_t");
+        WARMUP_STATE_OFFSET_JBUF_LIST = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pjbuf_ptrs"));
         WARMUP_STATE_OFFSET_WRITE_BUF = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pwrite_buf"));
         WARMUP_STATE_OFFSET_FILE_COOKIE = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("file_cookie"));
         WARMUP_STATE_OFFSET_START_OFFSET = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("start_offset"));
@@ -79,6 +89,7 @@ public class WarmUpState
     public WarmUpState(MemorySegment warmUpState)
     {
         this.warmUpState = warmUpState;
+        this.jbufs = new MemorySegment[JbufType.JBUF_TYPE_NUM_OF.ordinal()];
     }
 
     public long getAddress()
@@ -105,6 +116,22 @@ public class WarmUpState
         fileCookie.set(ValueLayout.JAVA_INT, FILE_COOKIE_OFFSET_FILE_DECSRIPTOR, fileDescriptor);
         fileCookie.set(ValueLayout.JAVA_LONG, FILE_COOKIE_OFFSET_FILE_HASH, fileHash);
         fileCookie.set(ValueLayout.JAVA_LONG, FILE_COOKIE_OFFSET_FILE_MOD_TIME, fileModTime);
+    }
+
+    public MemorySegment[] getJbufs()
+    {
+        return jbufs;
+    }
+
+    public MemorySegment getJbufList()
+    {
+        return warmUpState.asSlice(WARMUP_STATE_OFFSET_JBUF_LIST, JBUFS_LIST_LAYOUT);
+    }
+
+    public void setJbufInList(MemorySegment jbufList, JbufType jbufType, MemorySegment jbuf)
+    {
+        jbufs[jbufType.ordinal()] = jbuf;
+        jbufList.setAtIndex(ValueLayout.JAVA_LONG, jbufType.ordinal(), jbuf.address());
     }
 
     public void setWriteBuff(long writeBuffer)

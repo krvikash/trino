@@ -13,11 +13,6 @@
  */
 package io.trino.plugin.warp.storage.write;
 
-import java.lang.foreign.MemorySegment;
-
-record StorageOpenResult(MemorySegment[] buffs,
-        long weCookie,
-        WarmUpState warmUpState,
-        long[] buffAddresses)
+record StorageOpenResult(long weCookie, WarmUpState warmUpState)
 {
 }

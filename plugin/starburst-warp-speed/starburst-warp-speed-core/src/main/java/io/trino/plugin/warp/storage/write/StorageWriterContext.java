@@ -38,7 +38,6 @@ final class StorageWriterContext
     private final DictionaryWarmInfo dictionaryWarmInfo;
     private final long weCookie;
     private final WarmUpState warmUpState;
-    private final long[] buffAddresses;
     private final byte[] compressionStats;
     private final BlockAppender blockAppender;
     private boolean weSuccess;
@@ -52,7 +51,6 @@ final class StorageWriterContext
             DictionaryWarmInfo dictionaryWarmInfo,
             long weCookie,
             WarmUpState warmUpState,
-            long[] buffAddresses,
             byte[] compressionStats,
             BlockAppender blockAppender,
             Optional<WriteDictionary> writeDictionary,
@@ -66,7 +64,6 @@ final class StorageWriterContext
         this.dictionaryWarmInfo = dictionaryWarmInfo;
         this.weCookie = weCookie;
         this.warmUpState = warmUpState;
-        this.buffAddresses = buffAddresses;
         this.compressionStats = compressionStats;
         this.blockAppender = blockAppender;
         this.weSuccess = true;
@@ -104,11 +101,6 @@ final class StorageWriterContext
     public WarmUpState getWarmUpState()
     {
         return warmUpState;
-    }
-
-    public long[] getBuffAddresses()
-    {
-        return buffAddresses;
     }
 
     public byte[] getCompressionStats()

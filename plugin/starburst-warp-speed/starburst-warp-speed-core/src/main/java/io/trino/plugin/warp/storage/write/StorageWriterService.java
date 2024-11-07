@@ -191,7 +191,6 @@ public class StorageWriterService
                 dictionaryWarmInfo,
                 storageOpenResult.weCookie(),
                 storageOpenResult.warmUpState(),
-                storageOpenResult.buffAddresses(),
                 compressionStats,
                 blockAppender,
                 writeDictionaryOpt,
@@ -207,11 +206,9 @@ public class StorageWriterService
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(storageEngine,
                 storageEngineConstants,
                 bufferAllocator,
-                storageOpenResult.buffs(),
                 storageOpenResult.weCookie(),
                 storageOpenResult.warmUpState(),
                 allocParams,
-                storageOpenResult.buffAddresses(),
                 compressionStats);
         juffersWE.createBuffers(dictionaryValid);
         return juffersWE;
@@ -243,35 +240,27 @@ public class StorageWriterService
             long writeBufAddr,
             WarmUpElementAllocationParams allocParams)
     {
-        MemorySegment[] buffs = bufferAllocator.getWarmBuffers(allocParams);
-        long[] buffAddresses = new long[buffs.length];
-        for (int i = 0; i < buffs.length; i++) {
-            MemorySegment buff = buffs[i];
-            if (buff != null) {
-                buffAddresses[i] = buffs[i].address();
-            }
-        }
-
-        // open storage engine WE
         WarmUpState warmUpState = new WarmUpState(Arena.ofAuto().allocate(WarmUpState.WARMUP_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
+        // file
         warmUpState.setFileCookie(
                 (int) fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()],
                 (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
                 (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
+        // warm up element attributes
         warmUpState.setWarmUpElemetAtt(
                 hasDictionary ? DICTIONARY_REC_TYPE_CODE : TypeUtils.nativeRecTypeCode(warmUpElement.getRecTypeCode()),
                 hasDictionary ? DICTIONARY_REC_TYPE_LENGTH : warmUpElement.getRecTypeLength(),
                 warmUpElement.getWarmUpType());
+        // juffers
+        bufferAllocator.setWarmBuffers(allocParams, warmUpState);
+        // other properties
         warmUpState.setStartOffset(startOffset);
         warmUpState.setWriteBuff(writeBufAddr);
         warmUpState.resetWarmEvents();
         warmUpState.setWarmId(getCurrentThreadWarmId());
         warmUpState.setCloseChunk(false); // keep it false as default
         long weCookie = storageEngine.warmupElementOpen(context, warmUpState.getWarmUpElemetAtt());
-        return new StorageOpenResult(buffs,
-                weCookie,
-                warmUpState,
-                buffAddresses);
+        return new StorageOpenResult(weCookie, warmUpState);
     }
 
     WarmSinkResult close(int totalRecords, StorageWriterSplitConfig storageWriterSplitConfig, StorageWriterContext storageWriterContext)
@@ -560,7 +549,6 @@ public class StorageWriterService
                 storageWriterContext.getWarmUpState().setNumChunks((short) numChunks);
                 storageEngine.warmupElementClose(
                         storageWriterContext.getWarmUpState().getAddress(),
-                        storageWriterContext.getBuffAddresses(),
                         outFileParams);
                 outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = storageWriterContext.getWarmUpState().getStartOffset();
             }

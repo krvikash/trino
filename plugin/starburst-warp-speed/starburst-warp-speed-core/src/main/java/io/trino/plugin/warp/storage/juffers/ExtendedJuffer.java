@@ -29,7 +29,6 @@ public class ExtendedJuffer
     private final StorageEngine storageEngine;
     private final long weCookie;
     private final long warmUpStateAddress;
-    private final long[] buffAddresses;
     private int extWESize;                          // extended recs buffer size
     private int extRecordFirstOffset;               // offset of the first extended entry we encountered
     private int extRecordLastPos;                   // extended records last entry address
@@ -38,15 +37,13 @@ public class ExtendedJuffer
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
             long weCookie,
-            long warmUpStateAddress,
-            long[] buffAddresses)
+            long warmUpStateAddress)
     {
         super(bufferAllocator, JuffersType.EXTENDED_REC);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
         this.weCookie = weCookie;
         this.warmUpStateAddress = warmUpStateAddress;
-        this.buffAddresses = buffAddresses;
         extRecordFirstOffset = -1;
     }
 
@@ -65,7 +62,6 @@ public class ExtendedJuffer
                     extRecordFirstOffset,
                     numExtBytes,
                     warmUpStateAddress,
-                    buffAddresses,
                     chunkHeader);
             resetExtBuf();
         }
@@ -78,7 +74,6 @@ public class ExtendedJuffer
                     extRecordFirstOffset,
                     wrappedBuffer.position(),
                     warmUpStateAddress,
-                    buffAddresses,
                     chunkHeader);
         }
         resetExtBuf();

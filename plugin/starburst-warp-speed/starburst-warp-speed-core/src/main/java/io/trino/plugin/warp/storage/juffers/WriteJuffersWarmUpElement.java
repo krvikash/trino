@@ -24,7 +24,6 @@ import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.type.Int128;
 
 import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -49,11 +48,9 @@ public class WriteJuffersWarmUpElement
     private final long weCookie;
     private final WarmUpState warmUpState;
     private final RecordBufferParams recordBufferParams;
-    private final long[] buffAddresses;
     private final byte[] compressionStats;
     private final int chunkHeaderSize;
     private final List<ChunkMap> chunkMapList;
-    private final MemorySegment[] buffs;
     private final WarmUpElementAllocationParams allocParams;
 
     // min/max and single value per chunk
@@ -70,11 +67,9 @@ public class WriteJuffersWarmUpElement
     public WriteJuffersWarmUpElement(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
-            MemorySegment[] buffs,
             long weCookie,
             WarmUpState warmUpState,
             WarmUpElementAllocationParams allocParams,
-            long[] buffAddresses,
             byte[] compressionStats)
     {
         super();
@@ -82,11 +77,9 @@ public class WriteJuffersWarmUpElement
         this.storageEngine = storageEngine;
         this.pageOffsetMask = storageEngineConstants.getPageOffsetMask();
         this.chunkMapList = new ArrayList<>();
-        this.buffs = buffs;
         this.allocParams = allocParams;
         this.weCookie = weCookie;
         this.warmUpState = warmUpState;
-        this.buffAddresses = buffAddresses;
         this.compressionStats = compressionStats;
         this.chunkHeaderSize = storageEngineConstants.getChunkHeaderMaxSize();
 
@@ -105,7 +98,6 @@ public class WriteJuffersWarmUpElement
                     storageEngine,
                     weCookie,
                     warmUpState.getAddress(),
-                    buffAddresses,
                     compressionStats);
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
 
@@ -114,8 +106,7 @@ public class WriteJuffersWarmUpElement
                         allocParams,
                         storageEngine,
                         weCookie,
-                        warmUpState.getAddress(),
-                        buffAddresses);
+                        warmUpState.getAddress());
                 juffers.put(extendedJuffers.getJufferType(), extendedJuffers);
             }
         }
@@ -149,7 +140,7 @@ public class WriteJuffersWarmUpElement
     {
         for (BaseJuffer juffer : juffers.values()) {
             BaseWriteJuffer writeJuffer = (BaseWriteJuffer) juffer;
-            writeJuffer.createBuffer(buffs, isDictionaryValid);
+            writeJuffer.createBuffer(warmUpState.getJbufs(), isDictionaryValid);
         }
 
         if (allocParams.isRecBufferNeeded() && TypeUtils.isVarlenStr(allocParams.recTypeCode())) {
@@ -203,7 +194,6 @@ public class WriteJuffersWarmUpElement
         storageEngine.warmupChunk(weCookie,
                 recordBufferParams.getAddress(),
                 warmUpState.getAddress(),
-                buffAddresses,
                 compressionStats,
                 chunkHeader);
         chunkMapList.add(chunkMapList.size() - 1, new ChunkMap(chunkHeader));

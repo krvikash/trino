@@ -58,8 +58,6 @@ import io.trino.spi.type.VarcharType;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.Collections;
@@ -332,19 +330,12 @@ public class WarmupTestDataUtil
                 new WarpInitializedServiceRegistry()));
         bufferAllocator.init();
 
-        int numSegments = JbufType.JBUF_TYPE_NUM_OF.ordinal();
-        MemorySegment[] segments = new MemorySegment[numSegments];
-        for (int i = 0; i < numSegments; i++) {
-            segments[i] = Arena.global().allocate(defaultSize);
-        }
-
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2NullBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2RecBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2CrcBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2ExtRecsBuff(any());
         doReturn(allocateIntBuffer(defaultSize)).when(bufferAllocator).memorySegment2VarlenMdBuff(any());
 
-        doReturn(segments).when(bufferAllocator).getWarmBuffers(any());
         doReturn(new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()]).when(bufferAllocator).getCollectBuffersArray();
         return bufferAllocator;
     }
