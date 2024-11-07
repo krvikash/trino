@@ -20,12 +20,12 @@ public class StarburstSynapsePlugin
 {
     public StarburstSynapsePlugin()
     {
-        super("synapse", new StarburstSynapseModule());
+        super("synapse", StarburstSynapseModule::new);
     }
 
     @VisibleForTesting
     StarburstSynapsePlugin(Module testingExtensions)
     {
-        super("synapse", combine(new StarburstSynapseModule(), testingExtensions));
+        super("synapse", () -> combine(new StarburstSynapseModule(), testingExtensions));
     }
 }

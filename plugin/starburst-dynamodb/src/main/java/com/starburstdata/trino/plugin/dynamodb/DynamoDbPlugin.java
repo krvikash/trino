@@ -41,7 +41,7 @@ public class DynamoDbPlugin
         requireNonNull(licenseVerifier, "licenseManager is null");
         return new JdbcConnectorFactory(
                 "dynamodb",
-                combine(
+                () -> combine(
                         binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(enableWrites),
                         new DynamoDbModule(licenseVerifier)));

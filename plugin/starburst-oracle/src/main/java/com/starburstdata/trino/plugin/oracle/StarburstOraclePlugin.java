@@ -22,6 +22,6 @@ public class StarburstOraclePlugin
 
     public StarburstOraclePlugin(LicenseVerifier licenseVerifier)
     {
-        super("oracle", new StarburstOracleClientModule(licenseVerifier));
+        super("oracle", () -> new StarburstOracleClientModule(licenseVerifier));
     }
 }

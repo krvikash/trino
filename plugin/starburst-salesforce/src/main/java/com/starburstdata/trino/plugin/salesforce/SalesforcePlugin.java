@@ -41,7 +41,7 @@ public class SalesforcePlugin
         requireNonNull(licenseVerifier, "licenseManager is null");
         return new JdbcConnectorFactory(
                 "salesforce",
-                combine(
+                () -> combine(
                         binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(enableWrites),
                         new SalesforceModule(licenseVerifier)));

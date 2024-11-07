@@ -40,7 +40,7 @@ public class SapHanaPlugin
     {
         return ImmutableList.of(new JdbcConnectorFactory(
                 CONNECTOR_NAME,
-                combine(
+                () -> combine(
                         binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         new SapHanaClientModule())));
     }

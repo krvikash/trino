@@ -44,7 +44,7 @@ public class StargatePlugin
         return new JdbcConnectorFactory(
                 // "stargate" will be used also for the parallel variant, with implementation chosen by a configuration property
                 "stargate",
-                combine(
+                () -> combine(
                         binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(enableWrites),
                         binder -> binder.install(new ExtraCredentialsBasedIdentityCacheMappingModule()),

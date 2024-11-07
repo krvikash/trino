@@ -28,7 +28,7 @@ public class SnowflakePlugin
         return ImmutableList.of(
                 new JdbcConnectorFactory(
                         JDBC.getName(),
-                        new SnowflakeJdbcClientModule(JDBC)),
+                        () -> new SnowflakeJdbcClientModule(JDBC)),
                 new SnowflakeParallelConnectorFactory(PARALLEL.getName()));
     }
 }

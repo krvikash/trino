@@ -41,7 +41,7 @@ public class StarburstSqlServerPlugin
         requireNonNull(licenseVerifier, "licenseManager is null");
         return new JdbcConnectorFactory(
                 "sqlserver",
-                combine(
+                () -> combine(
                         binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         new StarburstSqlServerClientModule(licenseVerifier)));
     }
