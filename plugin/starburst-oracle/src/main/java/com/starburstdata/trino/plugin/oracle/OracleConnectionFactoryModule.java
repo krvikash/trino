@@ -37,7 +37,7 @@ import static oracle.jdbc.OracleConnection.CONNECTION_PROPERTY_INCLUDE_SYNONYMS;
 import static oracle.jdbc.OracleConnection.CONNECTION_PROPERTY_REPORT_REMARKS;
 import static oracle.jdbc.OracleConnection.CONNECTION_PROPERTY_RESTRICT_GETTABLES;
 
-public class UserPasswordModule
+public class OracleConnectionFactoryModule
         extends AbstractConfigurationAwareModule
 {
     @Override
@@ -52,7 +52,7 @@ public class UserPasswordModule
     @Provides
     @Singleton
     @DefaultOracleBinding
-    public static ConnectionFactory connectionFactory(BaseJdbcConfig config, CredentialProvider credentialProvider, StarburstOracleConfig starburstOracleConfig, OracleConfig oracleConfig, CatalogName catalogName)
+    public static ConnectionFactory connectionFactory(BaseJdbcConfig config, CredentialProvider credentialProvider, OracleConnectionProvider oracleConnectionProvider, StarburstOracleConfig starburstOracleConfig, OracleConfig oracleConfig, CatalogName catalogName)
     {
         ConnectionFactory connectionFactory = oracleConfig.isConnectionPoolEnabled() ?
                 new OraclePoolingConnectionFactory(
@@ -60,7 +60,7 @@ public class UserPasswordModule
                         config,
                         getConnectionProperties(oracleConfig),
                         Optional.of(credentialProvider),
-                        new PasswordAuthenticationConnectionProvider(),
+                        oracleConnectionProvider,
                         oracleConfig) :
                 DriverConnectionFactory.builder(new OracleDriver(), config.getConnectionUrl(), credentialProvider)
                         .setConnectionProperties(getConnectionProperties(oracleConfig))

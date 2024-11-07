@@ -35,6 +35,7 @@ import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.starburstdata.trino.plugin.oracle.StarburstOracleConfig.PASSWORD;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.configuration.ConfigurationAwareModule.combine;
 import static io.trino.plugin.jdbc.JdbcModule.bindProcedure;
 import static io.trino.plugin.jdbc.JdbcModule.bindSessionPropertiesProvider;
 import static io.trino.plugin.oracle.OracleClient.ORACLE_MAX_LIST_EXPRESSIONS;
@@ -78,7 +79,7 @@ public class StarburstOracleClientModule
         install(conditionalModule(
                 StarburstOracleConfig.class,
                 config -> PASSWORD.equalsIgnoreCase(config.getAuthenticationType()),
-                new UserPasswordModule()));
+                combine(new UserPasswordConnectionProviderModule(), new OracleConnectionFactoryModule())));
 
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, RetryStrategy.class).setBinding().to(OracleRetryStrategy.class).in(Scopes.SINGLETON);
