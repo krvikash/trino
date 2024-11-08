@@ -116,7 +116,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress, byte[] inOutChunkHeader)
+    default void warmupChunkExtRec(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader)
     {
         throw new UnsupportedOperationException();
     }

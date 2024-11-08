@@ -138,7 +138,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress, byte[] inOutChunkHeader)
+    public void warmupChunkExtRec(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader)
     {
     }
 

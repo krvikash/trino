@@ -199,14 +199,14 @@ public class VariableLengthStringBlockAppender
                     juffersWE.updateRecordBufferProps(SliceUtils.str2int(value, true), att.extLen);
 
                     // first check if we have space in the buffer, if not commit and reset
-                    if (extendedBuff.position() + att.extLen >= extendedJuffers.getExtWESize()) {
+                    if (extendedBuff.position() + att.extLen >= extendedJuffers.getExtSize()) {
                         extendedJuffers.commitAndResetExtRecordBuffer(chunkHeader);
                     }
                     // remember the first one
                     extendedJuffers.updateExtRecordFirstOffset(varlenMdBaseOffset + recStartPos);
                     // update the linked list
-                    if (extendedJuffers.getExtRecordLastPos() != 0) {
-                        recordBuff.putInt(extendedJuffers.getExtRecordLastPos(), varlenMdBaseOffset + recStartPos);
+                    if (extendedJuffers.getExtRecLastPos() != 0) {
+                        recordBuff.putInt(extendedJuffers.getExtRecLastPos(), varlenMdBaseOffset + recStartPos);
                         extendedJuffers.advancedExtRecordLastPos(0);
                     }
 

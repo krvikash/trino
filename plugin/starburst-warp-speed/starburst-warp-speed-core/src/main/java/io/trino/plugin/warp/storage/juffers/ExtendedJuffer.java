@@ -29,22 +29,25 @@ public class ExtendedJuffer
     private final StorageEngine storageEngine;
     private final long weCookie;
     private final long warmUpStateAddress;
-    private int extWESize;                          // extended recs buffer size
-    private int extRecordFirstOffset;               // offset of the first extended entry we encountered
-    private int extRecordLastPos;                   // extended records last entry address
+    private final RecordBufferParams recordBufferParams;
+    private int extSize;                            // extended recs buffer size
+    private int extRecFirstOffset;                  // offset of the first extended entry we encountered
+    private int extRecLastPos;                      // extended records last entry address
 
     public ExtendedJuffer(BufferAllocator bufferAllocator,
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
             long weCookie,
-            long warmUpStateAddress)
+            long warmUpStateAddress,
+            RecordBufferParams recordBufferParams)
     {
         super(bufferAllocator, JuffersType.EXTENDED_REC);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
         this.weCookie = weCookie;
         this.warmUpStateAddress = warmUpStateAddress;
-        extRecordFirstOffset = -1;
+        this.recordBufferParams = recordBufferParams;
+        extRecFirstOffset = -1;
     }
 
     @Override
@@ -52,15 +55,15 @@ public class ExtendedJuffer
     {
         this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2ExtRecsBuff(buffs));
         this.wrappedBuffer = this.baseBuffer;
-        this.extWESize = allocParams.extRecBuffSize();
+        this.extSize = allocParams.extRecBuffSize();
     }
 
     protected void commitAndResetExtRecordBuffer(byte[] chunkHeader, int numExtBytes)
     {
         if (numExtBytes > 0) {
+            recordBufferParams.setExtParams(numExtBytes, extRecFirstOffset);
             storageEngine.warmupChunkExtRec(weCookie,
-                    extRecordFirstOffset,
-                    numExtBytes,
+                    recordBufferParams.getAddress(),
                     warmUpStateAddress,
                     chunkHeader);
             resetExtBuf();
@@ -70,9 +73,9 @@ public class ExtendedJuffer
     public void commitAndResetExtRecordBuffer(byte[] chunkHeader)
     {
         if (wrappedBuffer.position() > 0) {
+            recordBufferParams.setExtParams(wrappedBuffer.position(), extRecFirstOffset);
             storageEngine.warmupChunkExtRec(weCookie,
-                    extRecordFirstOffset,
-                    wrappedBuffer.position(),
+                    recordBufferParams.getAddress(),
                     warmUpStateAddress,
                     chunkHeader);
         }
@@ -82,29 +85,29 @@ public class ExtendedJuffer
     public void resetExtBuf()
     {
         wrappedBuffer.position(0);
-        extRecordFirstOffset = -1;
-        extRecordLastPos = 0; // native layer will start looking from the next commit buffer after the invalid
+        extRecFirstOffset = -1;
+        extRecLastPos = 0; // native layer will start looking from the next commit buffer after the invalid
     }
 
-    public int getExtWESize()
+    public int getExtSize()
     {
-        return extWESize;
+        return extSize;
     }
 
     public void advancedExtRecordLastPos(int newPosition)
     {
-        extRecordLastPos = newPosition;
+        extRecLastPos = newPosition;
     }
 
     public void updateExtRecordFirstOffset(int value)
     {
-        if (extRecordFirstOffset == -1) {
-            extRecordFirstOffset = value;
+        if (extRecFirstOffset == -1) {
+            extRecFirstOffset = value;
         }
     }
 
-    public int getExtRecordLastPos()
+    public int getExtRecLastPos()
     {
-        return extRecordLastPos;
+        return extRecLastPos;
     }
 }

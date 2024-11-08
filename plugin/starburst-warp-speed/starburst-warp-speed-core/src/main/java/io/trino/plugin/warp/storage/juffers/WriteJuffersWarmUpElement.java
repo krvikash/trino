@@ -106,7 +106,8 @@ public class WriteJuffersWarmUpElement
                         allocParams,
                         storageEngine,
                         weCookie,
-                        warmUpState.getAddress());
+                        warmUpState.getAddress(),
+                        recordBufferParams);
                 juffers.put(extendedJuffers.getJufferType(), extendedJuffers);
             }
         }

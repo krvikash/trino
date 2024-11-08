@@ -383,7 +383,7 @@ public class NativeStorageEngine
     public native void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader);
 
     @Override
-    public native void warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long warmUpStateAddress, byte[] inOutChunkHeader);
+    public native void warmupChunkExtRec(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader);
 
     @Override
     public native long queryGetCollectStateSize(int numMatchCollect);
