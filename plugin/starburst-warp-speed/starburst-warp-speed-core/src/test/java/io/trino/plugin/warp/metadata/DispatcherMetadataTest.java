@@ -135,7 +135,8 @@ public class DispatcherMetadataTest
                         ConnectorMetadata.class.getMethod("applyJoin", ConnectorSession.class, JoinType.class, ConnectorTableHandle.class, ConnectorTableHandle.class, List.class, Map.class, Map.class, JoinStatistics.class),
                         ConnectorMetadata.class.getMethod("streamTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
                         ConnectorMetadata.class.getMethod("listTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
-                        ConnectorMetadata.class.getMethod("getTableHandleForExecute", ConnectorSession.class, ConnectorTableHandle.class, String.class, Map.class, RetryMode.class)));
+                        ConnectorMetadata.class.getMethod("getTableHandleForExecute", ConnectorSession.class, ConnectorTableHandle.class, String.class, Map.class, RetryMode.class),
+                        ConnectorMetadata.class.getMethod("beginMerge", ConnectorSession.class, ConnectorTableHandle.class, RetryMode.class)));
     }
 
     @Test

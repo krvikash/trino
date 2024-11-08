@@ -548,9 +548,13 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    public ConnectorMergeTableHandle beginMerge(ConnectorSession session, ConnectorTableHandle tableHandle, RetryMode retryMode)
+    public ConnectorMergeTableHandle beginMerge(
+            ConnectorSession session,
+            ConnectorTableHandle tableHandle,
+            Map<Integer, Collection<ColumnHandle>> updateCaseColumns,
+            RetryMode retryMode)
     {
-        return delegate.beginMerge(session, getDelegate(tableHandle), retryMode);
+        return delegate.beginMerge(session, getDelegate(tableHandle), updateCaseColumns, retryMode);
     }
 
     @Override
