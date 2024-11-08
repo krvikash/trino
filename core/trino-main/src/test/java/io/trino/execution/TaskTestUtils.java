@@ -104,11 +104,13 @@ public final class TaskTestUtils
 
     public static final PlanFragment PLAN_FRAGMENT = new PlanFragment(
             new PlanFragmentId("fragment"),
-            TableScanNode.newInstance(
+            new TableScanNode(
                     TABLE_SCAN_NODE_ID,
                     TEST_TABLE_HANDLE,
                     ImmutableList.of(SYMBOL),
                     ImmutableMap.of(SYMBOL, new TestingColumnHandle("column", 0, BIGINT)),
+                    TupleDomain.all(),
+                    Optional.empty(),
                     false,
                     Optional.empty()),
             ImmutableSet.of(SYMBOL),
@@ -128,11 +130,13 @@ public final class TaskTestUtils
             new PlanFragmentId("fragment"),
             new DynamicFilterSourceNode(
                     new PlanNodeId("dynamicFilterSource"),
-                    TableScanNode.newInstance(
+                    new TableScanNode(
                             TABLE_SCAN_NODE_ID,
                             TEST_TABLE_HANDLE,
                             ImmutableList.of(SYMBOL),
                             ImmutableMap.of(SYMBOL, new TestingColumnHandle("column", 0, BIGINT)),
+                            TupleDomain.all(),
+                            Optional.empty(),
                             false,
                             Optional.empty()),
                     ImmutableMap.of(DYNAMIC_FILTER_SOURCE_ID, SYMBOL)),
