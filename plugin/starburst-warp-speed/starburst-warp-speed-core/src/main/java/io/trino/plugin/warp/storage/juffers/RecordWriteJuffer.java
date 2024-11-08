@@ -29,7 +29,6 @@ public class RecordWriteJuffer
 {
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
-    private final long weCookie;
     private final long warmUpStateAddress;
     private final byte[] compressionStats;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
@@ -38,14 +37,12 @@ public class RecordWriteJuffer
     public RecordWriteJuffer(BufferAllocator bufferAllocator,
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
-            long weCookie,
             long warmUpStateAddress,
             byte[] compressionStats)
     {
         super(bufferAllocator, JuffersType.RECORD);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
-        this.weCookie = weCookie;
         this.warmUpStateAddress = warmUpStateAddress;
         this.compressionStats = compressionStats;
     }
@@ -90,11 +87,7 @@ public class RecordWriteJuffer
     public void commitAndResetWE(byte[] chunkHeader, long recordBufferParamsAddress)
     {
         // no need to add to chunk map as we are not closing the chunk
-        storageEngine.warmupChunk(weCookie,
-                recordBufferParamsAddress,
-                warmUpStateAddress,
-                compressionStats,
-                chunkHeader);
+        storageEngine.warmupChunk(recordBufferParamsAddress, warmUpStateAddress, compressionStats, chunkHeader);
         resetSingleRecordBufferPos();
     }
 

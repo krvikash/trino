@@ -64,6 +64,8 @@ public class NativeStorageEngine
     private final MethodHandle mInitGetWarmupLuceneTxSize;
     // warmup API
     private final MethodHandle mWarmupElementOpen;
+    private final MethodHandle mWarmupElementClose;
+    private final MethodHandle mWarmupVerifyQueryOffset;
     // collect API
     private final MethodHandle mCollectProcessMatchResult;
     private final MethodHandle mCollectCollectChunk;
@@ -123,7 +125,11 @@ public class NativeStorageEngine
 
             // warmup API
             mWarmupElementOpen = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_element_open").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.ADDRESS));
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+            mWarmupElementClose = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_element_close").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+            mWarmupVerifyQueryOffset = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_verify_query_offset").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
             // collect API
             mCollectProcessMatchResult = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_match_result").orElseThrow(),
@@ -359,31 +365,46 @@ public class NativeStorageEngine
     }
 
     @Override
-    public long warmupElementOpen(long context, MemorySegment warmUpElementAttr)
+    public void warmupElementOpen(MemorySegment warmUpState, MemorySegment context)
     {
         try {
-            long res = (long) mWarmupElementOpen.invokeExact(context, warmUpElementAttr);
-            if (res >= 0) {
-                return res;
-            }
+            mWarmupElementOpen.invokeExact(warmUpState, context);
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to warmupElementOpen");
+            throw new RuntimeException("failed to open warm up element");
         }
-        throw new RuntimeException("failed to warmupElementOpen");
     }
 
     @Override
-    public native void warmupElementClose(long warmUpStateAddress, int[] outQueryFileParams);
+    public void warmupElementClose(MemorySegment warmUpState)
+    {
+        try {
+            mWarmupElementClose.invokeExact(warmUpState);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to warmupElementClose");
+            throw new RuntimeException("failed to close warm up element");
+        }
+    }
 
     @Override
-    public native void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie);
+    public void warmupVerifyQueryOffset(MemorySegment warmUpState)
+    {
+        try {
+            mWarmupVerifyQueryOffset.invokeExact(warmUpState);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to warmupVerifyQueryOffset");
+            throw new RuntimeException("failed to warmup verify query offset");
+        }
+    }
 
     @Override
-    public native void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader);
+    public native void warmupChunk(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader);
 
     @Override
-    public native void warmupChunkExtRec(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader);
+    public native void warmupChunkExtRec(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader);
 
     @Override
     public native long queryGetCollectStateSize(int numMatchCollect);

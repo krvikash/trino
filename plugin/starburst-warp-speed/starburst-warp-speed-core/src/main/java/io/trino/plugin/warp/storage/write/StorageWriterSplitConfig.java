@@ -13,15 +13,21 @@
  */
 package io.trino.plugin.warp.storage.write;
 
+import io.trino.plugin.warp.storage.juffers.RecordBufferParams;
+
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
+import java.util.Optional;
 
+/* all memory resources are allocated once and are held in this record for all elements to use */
 public record StorageWriterSplitConfig(String nodeIdentifier,
-                                              String rowGroupFilePath,
-                                              MemorySegment buff,           /* segment buffer to allocate different juffers             */
-                                              MemorySegment writeBuff,      /* native buffer to use for compression and write to disk   */
-                                              MemorySegment contextBuff,    /* native buffer for holding warmup element context         */
-                                              SegmentAllocator contextAllocator, /* allocator for slicing the context buffer            */
-                                              Boolean dictionaryEnabled)
+        String rowGroupFilePath,
+        MemorySegment buff,                     // segment buffer to allocate different juffers
+        MemorySegment writeBuff,                // native buffer to use for compression and write to disk
+        MemorySegment contextBuff,              // native buffer for holding warmup element context
+        SegmentAllocator contextAllocator,      // allocator for slicing the context buffer
+        Optional<WarmUpState> warmUpStateOpt,   // warm state used during a single element warming, if not configured will be allocated per WE
+        RecordBufferParams recordBufferParams,  // record buffer parameters used for every commit call
+        Boolean dictionaryEnabled)
 {
 }

@@ -130,7 +130,6 @@ public class StorageWriterServiceTest
     {
         GlobalConfig globalConfig = new GlobalConfig();
         StorageEngine storageEngine = spy(storageEngineToSpy);
-        //when(storageEngine.warmupElementOpen(anyInt(), new long[] {anyLong(), anyLong()}, anyInt(), anyInt(), anyInt(), anyInt(), anyLong(), any())).thenReturn(1L);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
 
         DictionaryConfig dictionaryConfig = new DictionaryConfig();
@@ -395,7 +394,7 @@ public class StorageWriterServiceTest
 
         String[] values = new String[] {"a", "b"};
         Page page = buildVarcharPage(values);
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "writeVarcharWithLucene", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = startWarming("writeVarcharWithLucene");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
         StorageWriterContext storageWriterContext = writeOpenResult.storageWriterContext();
         storageWriterService.appendPage(page, storageWriterContext);
@@ -418,7 +417,7 @@ public class StorageWriterServiceTest
 
         String[] values = new String[] {"a"};
         Page page = buildVarcharPage(values);
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "abortVarcharWithLucene", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = startWarming("abortVarcharWithLucene");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
         StorageWriterContext storageWriterContext = writeOpenResult.storageWriterContext();
         storageWriterService.appendPage(page, storageWriterContext);
@@ -442,7 +441,7 @@ public class StorageWriterServiceTest
                 WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
                 WarmUpType.WARM_UP_TYPE_DATA);
 
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "testAppendWarmupElementBlocksNotReady", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = startWarming("testAppendWarmupElementBlocksNotReady");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
         StorageWriterContext storageWriterContex = writeOpenResult.storageWriterContext();
         storageWriterContex.setRecordBufferSize(chunkSize);
@@ -470,7 +469,7 @@ public class StorageWriterServiceTest
                 WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
                 WarmUpType.WARM_UP_TYPE_DATA);
 
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "testAppendWarmupElementBlocksReadyOnChunkSize", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = startWarming("testAppendWarmupElementBlocksReadyOnChunkSize");
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata).storageWriterContext();
         storageWriterContext.setRecordBufferSize(chunkSize);
 
@@ -496,7 +495,7 @@ public class StorageWriterServiceTest
                 WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
                 WarmUpType.WARM_UP_TYPE_DATA);
 
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "testAppendWarmupElementBlocksNumberOfRecordsEqualsChunkSize", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = startWarming("testAppendWarmupElementBlocksNumberOfRecordsEqualsChunkSize");
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata).storageWriterContext();
         storageWriterContext.setRecordBufferSize(chunkSize);
 
@@ -518,10 +517,18 @@ public class StorageWriterServiceTest
 
     private WriteOpenResult runTest(Page page, WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "runTest", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = startWarming("runTest");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
         storageWriterService.appendPage(page, writeOpenResult.storageWriterContext());
         return writeOpenResult;
+    }
+
+    private StorageWriterSplitConfig startWarming(String suffix)
+    {
+        return storageWriterService.startWarming("nodeIdentifier",
+                rowGroupFilePath + suffix,
+                true,
+                true);
     }
 
     private Page buildArrayType_VarcharPage(String[][] values)

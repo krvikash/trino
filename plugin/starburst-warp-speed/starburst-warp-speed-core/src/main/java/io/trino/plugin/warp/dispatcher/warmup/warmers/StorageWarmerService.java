@@ -32,6 +32,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.PageSink;
+import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.util.StorageUtils;
 import org.apache.commons.io.FileUtils;
 
@@ -179,18 +180,23 @@ public class StorageWarmerService
         }
     }
 
-    public void verifyQueryOffsets(RowGroupKey rowGroupKey, List<WarmUpElement> validWarmUpElements)
+    public void verifyQueryOffsets(RowGroupKey rowGroupKey, List<WarmUpElement> validWarmUpElements, WarmUpState warmUpState)
     {
-        long[] fileCookie = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
-        fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
+        long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
+        fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
         try {
             if (!validWarmUpElements.isEmpty() && (validWarmUpElements.getFirst().getTotalRecords() < 32 * 1024)) {
-                fileCookie = fileOpen(rowGroupKey);
+                fileCookieParams = fileOpen(rowGroupKey);
+                warmUpState.setFileCookie(
+                        (int) fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()],
+                        (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
+                        (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
                 for (WarmUpElement warmUpElement : validWarmUpElements) {
                     int queryOffset = warmUpElement.getQueryOffset();
                     if (queryOffset > 0) { // @TODO there are issues with offset zero should be investigated
                         logger.debug("verifying offset %d WE %s", queryOffset, warmUpElement);
-                        storageEngine.warmupVerifyQueryOffset(queryOffset, fileCookie);
+                        warmUpState.setQueryOffset(queryOffset);
+                        storageEngine.warmupVerifyQueryOffset(warmUpState.getState());
                     }
                 }
             }
@@ -200,7 +206,7 @@ public class StorageWarmerService
             throw new RuntimeException(e);
         }
         finally {
-            fileClose(fileCookie, Optional.empty());
+            fileClose(fileCookieParams, Optional.empty());
         }
     }
 

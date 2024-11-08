@@ -27,7 +27,6 @@ public class ExtendedJuffer
 {
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
-    private final long weCookie;
     private final long warmUpStateAddress;
     private final RecordBufferParams recordBufferParams;
     private int extSize;                            // extended recs buffer size
@@ -37,14 +36,12 @@ public class ExtendedJuffer
     public ExtendedJuffer(BufferAllocator bufferAllocator,
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
-            long weCookie,
             long warmUpStateAddress,
             RecordBufferParams recordBufferParams)
     {
         super(bufferAllocator, JuffersType.EXTENDED_REC);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
-        this.weCookie = weCookie;
         this.warmUpStateAddress = warmUpStateAddress;
         this.recordBufferParams = recordBufferParams;
         extRecFirstOffset = -1;
@@ -62,10 +59,7 @@ public class ExtendedJuffer
     {
         if (numExtBytes > 0) {
             recordBufferParams.setExtParams(numExtBytes, extRecFirstOffset);
-            storageEngine.warmupChunkExtRec(weCookie,
-                    recordBufferParams.getAddress(),
-                    warmUpStateAddress,
-                    chunkHeader);
+            storageEngine.warmupChunkExtRec(recordBufferParams.getAddress(), warmUpStateAddress, chunkHeader);
             resetExtBuf();
         }
     }
@@ -74,10 +68,7 @@ public class ExtendedJuffer
     {
         if (wrappedBuffer.position() > 0) {
             recordBufferParams.setExtParams(wrappedBuffer.position(), extRecFirstOffset);
-            storageEngine.warmupChunkExtRec(weCookie,
-                    recordBufferParams.getAddress(),
-                    warmUpStateAddress,
-                    chunkHeader);
+            storageEngine.warmupChunkExtRec(recordBufferParams.getAddress(), warmUpStateAddress, chunkHeader);
         }
         resetExtBuf();
     }

@@ -112,33 +112,31 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupElementOpen(long context, MemorySegment warmUpElementAttr)
+    public void warmupElementOpen(MemorySegment warmUpState, MemorySegment context)
     {
-        return 1;
+        warmUpState.set(ValueLayout.JAVA_LONG, WarmUpState.WARMUP_STATE_OFFSET_CHUNK, 1); /* cannot be zero to simulate something was allocated */
     }
 
     @Override
-    public void warmupElementClose(long warmUpStateAddress, int[] outQueryFileParams)
+    public void warmupElementClose(MemorySegment warmUpState)
     {
-        outQueryFileParams[0] = 0;
-        outQueryFileParams[1] = 1;
-
-        MemorySegment warmUpState = MemorySegment.ofAddress(warmUpStateAddress).reinterpret(WarmUpState.WARMUP_STATE_LAYOUT.byteSize());
+        warmUpState.set(ValueLayout.JAVA_INT, WarmUpState.WARMUP_STATE_OFFSET_QUERY_OFFSET, 0);
+        warmUpState.set(ValueLayout.JAVA_SHORT, WarmUpState.WARMUP_STATE_OFFSET_QUERY_SIZE, (short) 1);
         warmUpState.set(ValueLayout.JAVA_INT, WarmUpState.WARMUP_STATE_OFFSET_START_OFFSET, 1);
     }
 
     @Override
-    public void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie)
+    public void warmupVerifyQueryOffset(MemorySegment warmUpState)
     {
     }
 
     @Override
-    public void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader)
+    public void warmupChunk(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader)
     {
     }
 
     @Override
-    public void warmupChunkExtRec(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader)
+    public void warmupChunkExtRec(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader)
     {
     }
 

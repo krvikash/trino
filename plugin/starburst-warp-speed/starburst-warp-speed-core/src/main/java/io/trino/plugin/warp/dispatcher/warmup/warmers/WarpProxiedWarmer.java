@@ -41,6 +41,7 @@ import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.write.PageSink;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
+import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
@@ -147,7 +148,8 @@ public class WarpProxiedWarmer
             fileCookieParams = storageWarmerService.fileOpen(rowGroupKey);
             storageWriterSplitConfig = storageWriterService.startWarming(nodeIdentifier,
                     rowGroupFilePath,
-                    WarpSessionProperties.getEnableDictionary(session));
+                    WarpSessionProperties.getEnableDictionary(session),
+                    true);
             try {
                 int fileOffset = firstOffset;
                 ConnectorSplit nonFilterSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
@@ -226,8 +228,9 @@ public class WarpProxiedWarmer
             storageWarmerService.fileClose(fileCookieParams, Optional.of(rowGroupData));
         }
 
-        if (extraDebug) {
-            storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements());
+        if (extraDebug && (storageWriterSplitConfig != null)) {
+            WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().get();
+            storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements(), warmUpState);
         }
         return rowGroupData;
     }

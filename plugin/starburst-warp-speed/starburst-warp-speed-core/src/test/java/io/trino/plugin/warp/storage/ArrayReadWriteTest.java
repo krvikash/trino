@@ -26,6 +26,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.plugin.warp.storage.juffers.RecordBufferParams;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.fill.BigIntArrayBlockFiller;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
@@ -259,7 +260,7 @@ public class ArrayReadWriteTest
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(mock(StorageEngine.class),
                 storageEngineConstants,
                 bufferAllocator,
-                0,
+                new RecordBufferParams(MemorySegment.ofArray(new byte[100])),
                 new WarmUpState(MemorySegment.ofArray(new byte[100])),
                 warmUpElementAllocationParams,
                 new byte[] {0});

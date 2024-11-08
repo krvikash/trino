@@ -36,7 +36,6 @@ final class StorageWriterContext
     private WarmUpElement.Builder warmupElementBuilder;
     private final WriteJuffersWarmUpElement writeJuffersWarmUpElement;
     private final DictionaryWarmInfo dictionaryWarmInfo;
-    private final long weCookie;
     private final WarmUpState warmUpState;
     private final byte[] compressionStats;
     private final BlockAppender blockAppender;
@@ -49,7 +48,6 @@ final class StorageWriterContext
             WarmUpElement.Builder warmupElementBuilder,
             WriteJuffersWarmUpElement writeJuffersWarmUpElement,
             DictionaryWarmInfo dictionaryWarmInfo,
-            long weCookie,
             WarmUpState warmUpState,
             byte[] compressionStats,
             BlockAppender blockAppender,
@@ -62,7 +60,6 @@ final class StorageWriterContext
         this.warmupElementBuilder = warmupElementBuilder;
         this.writeJuffersWarmUpElement = writeJuffersWarmUpElement;
         this.dictionaryWarmInfo = dictionaryWarmInfo;
-        this.weCookie = weCookie;
         this.warmUpState = warmUpState;
         this.compressionStats = compressionStats;
         this.blockAppender = blockAppender;
@@ -91,11 +88,6 @@ final class StorageWriterContext
     DictionaryWarmInfo getDictionaryWarmInfo()
     {
         return dictionaryWarmInfo;
-    }
-
-    public long getWeCookie()
-    {
-        return weCookie;
     }
 
     public WarmUpState getWarmUpState()
@@ -213,7 +205,6 @@ final class StorageWriterContext
                 recordBufferSize == that.recordBufferSize &&
                 recordBufferPos == that.recordBufferPos &&
                 weSuccess == that.weSuccess &&
-                weCookie == that.weCookie &&
                 Objects.equals(warmupElementWriteMetadata, that.warmupElementWriteMetadata) &&
                 Objects.equals(warmupElementBuilder, that.warmupElementBuilder) &&
                 Objects.equals(writeJuffersWarmUpElement, that.writeJuffersWarmUpElement) &&
@@ -234,7 +225,6 @@ final class StorageWriterContext
                 warmupElementBuilder,
                 writeJuffersWarmUpElement,
                 dictionaryWarmInfo,
-                weCookie,
                 blockAppender,
                 weSuccess,
                 writeDictionary,
@@ -253,7 +243,6 @@ final class StorageWriterContext
                 ", warmupElementBuilder=" + warmupElementBuilder +
                 ", writeJuffersWarmUpElement=" + writeJuffersWarmUpElement +
                 ", dictionaryWarmInfo=" + dictionaryWarmInfo +
-                ", weCookie=" + weCookie +
                 ", blockAppender=" + blockAppender +
                 ", weSuccess=" + weSuccess +
                 ", writeDictionary=" + writeDictionary +

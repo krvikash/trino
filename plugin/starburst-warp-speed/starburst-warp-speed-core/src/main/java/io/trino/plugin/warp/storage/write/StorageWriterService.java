@@ -40,6 +40,7 @@ import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.juffers.RecordBufferParams;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
 import io.trino.plugin.warp.storage.write.appenders.AppendResult;
@@ -83,13 +84,6 @@ public class StorageWriterService
     private final LuceneIndexerStats statsLuceneIndexer;
     private final GlobalConfig globalConfig;
 
-    enum WeProperties
-    {
-        WE_PROPERTIES_QUERY_OFFSET,
-        WE_PROPERTIES_QUERY_READ_SIZE,
-        WE_PROPERTIES_END_OFFSET // MUST BE LAST
-    }
-
     @Inject
     public StorageWriterService(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
@@ -115,13 +109,21 @@ public class StorageWriterService
 
     public StorageWriterSplitConfig startWarming(String nodeIdentifier,
             String rowGroupFilePath,
-            Boolean dictionaryEnabled)
+            Boolean dictionaryEnabled,
+            boolean allocateCommonWarmUpState)
     {
-        MemorySegment buff = bufferAllocator.allocateLoadSegment();
-        MemorySegment writeBuff = bufferAllocator.allocateLoadWriteBuffer();
+        /* allocate memory resources */
         MemorySegment contextBuff = bufferAllocator.allocateLoadContextBuffer();
-        SegmentAllocator contextAllocator = SegmentAllocator.slicingAllocator(contextBuff);
-        return new StorageWriterSplitConfig(nodeIdentifier, rowGroupFilePath, buff, writeBuff, contextBuff, contextAllocator, dictionaryEnabled);
+        Optional<WarmUpState> warmUpStateOpt = allocateCommonWarmUpState ? Optional.of(allocateWarmUpState()) : Optional.empty();
+        return new StorageWriterSplitConfig(nodeIdentifier,
+                rowGroupFilePath,
+                bufferAllocator.allocateLoadSegment(),
+                bufferAllocator.allocateLoadWriteBuffer(),
+                contextBuff,
+                SegmentAllocator.slicingAllocator(contextBuff),
+                warmUpStateOpt,
+                new RecordBufferParams(Arena.ofAuto().allocate(RecordBufferParams.RECORD_BUFFER_PARAMS_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize())),
+                dictionaryEnabled);
     }
 
     public void finishWarming(StorageWriterSplitConfig storageWriterSplitConfig)
@@ -129,6 +131,7 @@ public class StorageWriterService
         bufferAllocator.freeLoadContextBuffer(storageWriterSplitConfig.contextBuff());
         bufferAllocator.freeLoadWriteBuffer(storageWriterSplitConfig.writeBuff());
         bufferAllocator.freeLoadSegment(storageWriterSplitConfig.buff());
+        /* warm state and record buffer state are freed automatically by the GC once the object is not referenced */
     }
 
     WriteOpenResult open(long[] fileCookieParams,
@@ -147,22 +150,29 @@ public class StorageWriterService
         WarmUpElement warmUpElement = warmupElementWriteMetadata.warmUpElement();
         WarmUpElement.Builder warmupElementBuilder = WarmUpElement.builder(warmUpElement);
         warmupElementBuilder.startOffset(startOffset);
-        // open storage engine WE
+        // dictionary
         boolean hasDictionary = dictionaryState == DictionaryState.DICTIONARY_VALID;
         if (dictionaryState == DictionaryState.DICTIONARY_REJECTED) {
             warmupElementBuilder.dictionaryInfo(new DictionaryInfo(dictionaryKey, dictionaryState, 0, 0));
         }
-        StorageOpenResult storageOpenResult = storageWeOpen(warmUpElement,
+        // initialize warm up state and file if needed
+        WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().orElseGet(() -> allocateWarmUpState());
+        storageWeOpen(warmUpElement,
                 hasDictionary,
+                warmUpState,
                 fileCookieParams,
-                storageWriterSplitConfig.contextAllocator().allocate(warmUpElement.getWarmUpContextSize(), Integer.BYTES).address(),
+                storageWriterSplitConfig.contextAllocator().allocate(warmUpElement.getWarmUpContextSize(), Integer.BYTES),
                 startOffset,
                 storageWriterSplitConfig.writeBuff().address(),
                 allocParams);
 
         // set up buffers
         byte[] compressionStats = new byte[35];
-        WriteJuffersWarmUpElement writeJuffersWarmUpElement = getWriteJuffersWarmUpElement(storageOpenResult, hasDictionary, allocParams, compressionStats);
+        WriteJuffersWarmUpElement writeJuffersWarmUpElement = createWriteJuffers(storageWriterSplitConfig.recordBufferParams(),
+                warmUpState,
+                hasDictionary,
+                allocParams,
+                compressionStats);
         if (hasDictionary) {
             WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, warmUpElement.getRecTypeCode());
             dictionaryKey = writeDictionary.getDictionaryKey(); //in order to be aligned with createdTimestamp
@@ -189,8 +199,7 @@ public class StorageWriterService
                 warmupElementBuilder,
                 writeJuffersWarmUpElement,
                 dictionaryWarmInfo,
-                storageOpenResult.weCookie(),
-                storageOpenResult.warmUpState(),
+                warmUpState,
                 compressionStats,
                 blockAppender,
                 writeDictionaryOpt,
@@ -198,7 +207,13 @@ public class StorageWriterService
         return new WriteOpenResult(storageWriterContext, dictionaryWarmInfo);
     }
 
-    private WriteJuffersWarmUpElement getWriteJuffersWarmUpElement(StorageOpenResult storageOpenResult,
+    private WarmUpState allocateWarmUpState()
+    {
+        return new WarmUpState(Arena.ofAuto().allocate(WarmUpState.WARMUP_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
+    }
+
+    private WriteJuffersWarmUpElement createWriteJuffers(RecordBufferParams recordBufferParams,
+            WarmUpState warmUpState,
             boolean dictionaryValid,
             WarmUpElementAllocationParams allocParams,
             byte[] compressionStats)
@@ -206,8 +221,8 @@ public class StorageWriterService
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(storageEngine,
                 storageEngineConstants,
                 bufferAllocator,
-                storageOpenResult.weCookie(),
-                storageOpenResult.warmUpState(),
+                recordBufferParams,
+                warmUpState,
                 allocParams,
                 compressionStats);
         juffersWE.createBuffers(dictionaryValid);
@@ -232,16 +247,16 @@ public class StorageWriterService
         return Pair.of(dictionaryKey, dictionaryState);
     }
 
-    private StorageOpenResult storageWeOpen(WarmUpElement warmUpElement,
+    private void storageWeOpen(WarmUpElement warmUpElement,
             boolean hasDictionary,
+            WarmUpState warmUpState,
             long[] fileCookieParams,
-            long context,
+            MemorySegment context,
             int startOffset,
             long writeBufAddr,
             WarmUpElementAllocationParams allocParams)
     {
-        WarmUpState warmUpState = new WarmUpState(Arena.ofAuto().allocate(WarmUpState.WARMUP_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
-        // file
+        // file set parameters. since in cache manager case we need to set different values per WE, we do this here for all cases for simplicity
         warmUpState.setFileCookie(
                 (int) fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()],
                 (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
@@ -259,16 +274,16 @@ public class StorageWriterService
         warmUpState.resetWarmEvents();
         warmUpState.setWarmId(getCurrentThreadWarmId());
         warmUpState.setCloseChunk(false); // keep it false as default
-        long weCookie = storageEngine.warmupElementOpen(context, warmUpState.getWarmUpElemetAtt());
-        return new StorageOpenResult(weCookie, warmUpState);
+        storageEngine.warmupElementOpen(warmUpState.getState(), context);
+        warmUpState.verifyChunk();
     }
 
     WarmSinkResult close(int totalRecords, StorageWriterSplitConfig storageWriterSplitConfig, StorageWriterContext storageWriterContext)
     {
-        int[] outFileParams = cleanup(false, false, storageWriterContext);
+        Optional<WarmUpCloseResult> warmUpCloseResultOpt = cleanup(false, false, storageWriterContext);
 
         WarmUpElement.Builder warmupElementBuilder = storageWriterContext.getWarmupElementBuilder();
-        if (!storageWriterContext.weSuccess() || outFileParams == null) {
+        if (!storageWriterContext.weSuccess() || !warmUpCloseResultOpt.isPresent()) {
             return new WarmSinkResult(warmupElementBuilder.build(), 0);
         }
 
@@ -279,10 +294,11 @@ public class StorageWriterService
                 warmupElementWriteMetadata.warmUpElement().getRecTypeCode(),
                 warmupElementWriteMetadata.warmUpElement().getWarmUpType());
 
+        WarmUpCloseResult warmUpCloseResult = warmUpCloseResultOpt.get();
         warmupElementBuilder.state(WarmUpElementState.VALID)
                 .warmState(WarmState.HOT)
-                .queryOffset(outFileParams[WeProperties.WE_PROPERTIES_QUERY_OFFSET.ordinal()])
-                .queryReadSize(outFileParams[WeProperties.WE_PROPERTIES_QUERY_READ_SIZE.ordinal()])
+                .queryOffset(warmUpCloseResult.queryOffset())
+                .queryReadSize(warmUpCloseResult.querySize())
                 .warmEvents(storageWriterContext.getWarmUpState().getWarmEvents())
                 .warmId((int) storageWriterContext.getWarmUpState().getWarmId())
                 .totalRecords(totalRecords)
@@ -297,8 +313,8 @@ public class StorageWriterService
             }
         }
 
-        int offset = outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()];
-        if (offset == 0) {
+        int offset = warmUpCloseResult.endOffset();
+        if (offset <= 0) {
             logger.error("offset is zero warmupElementWriteMetadata %s storageWriterSplitConfig %s", warmupElementWriteMetadata, storageWriterSplitConfig);
             // Native failed to write
             updateToFailedState(warmupElementBuilder, warmupElementWriteMetadata);
@@ -465,9 +481,9 @@ public class StorageWriterService
         throw new RuntimeException("CacheManager expected to flush, but it didn't happen");
     }
 
-    private int[] cleanup(boolean aborted, boolean nativeThrowed, StorageWriterContext storageWriterContext)
+    private Optional<WarmUpCloseResult> cleanup(boolean aborted, boolean nativeThrowed, StorageWriterContext storageWriterContext)
     {
-        int[] outFileParams = null;
+        Optional<WarmUpCloseResult> warmUpCloseResultOpt = Optional.empty();
         if (storageWriterContext.getIsCleanupDone().compareAndSet(null, aborted)) {
             try {
                 if (!aborted) {
@@ -482,8 +498,8 @@ public class StorageWriterService
                     }
                 }
                 if (!nativeThrowed) {
-                    outFileParams = weClose(storageWriterContext);
-                    if (outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] == -1) {
+                    warmUpCloseResultOpt = weClose(storageWriterContext);
+                    if (!warmUpCloseResultOpt.isPresent()) {
                         aborted = true;
                     }
                 }
@@ -500,7 +516,7 @@ public class StorageWriterService
                 storageWriterContext.getIsCleanupDone().getAndSet(true);
             }
         }
-        return outFileParams;
+        return warmUpCloseResultOpt;
     }
 
     void updateToFailedState(WarmUpElement.Builder warmupElementBuilder, WarmupElementWriteMetadata warmupElementWriteMetadata)
@@ -535,26 +551,27 @@ public class StorageWriterService
         storageWriterContext.resetRecords();
     }
 
-    private int[] weClose(StorageWriterContext storageWriterContext)
+    private Optional<WarmUpCloseResult> weClose(StorageWriterContext storageWriterContext)
     {
-        int[] outFileParams = new int[WeProperties.values().length];
+        Optional<WarmUpCloseResult> warmUpCloseResultOpt = Optional.empty();
+
         if (!storageWriterContext.isWeClosed()) {
             storageWriterContext.getBlockAppender().writeChunkMapValuesIntoChunkMapJuffer(storageWriterContext.getWriteJuffersWarmUpElement().getChunkMapList());
             // if current chunk is still opened it means there was an exception and we warm up element is aborted
             WriteJuffersWarmUpElement writeJuffersWarmUpElement = storageWriterContext.getWriteJuffersWarmUpElement();
             boolean currentChunkIsOpened = writeJuffersWarmUpElement.closeCurrentChunk();
             int numChunks = writeJuffersWarmUpElement.getNumChunks();
-            outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = -1;
             if (!currentChunkIsOpened && (numChunks > 0)) { // if current chunk is opened it means we got a native exception in the middle
                 storageWriterContext.getWarmUpState().setNumChunks((short) numChunks);
-                storageEngine.warmupElementClose(
-                        storageWriterContext.getWarmUpState().getAddress(),
-                        outFileParams);
-                outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = storageWriterContext.getWarmUpState().getStartOffset();
+                storageEngine.warmupElementClose(storageWriterContext.getWarmUpState().getState());
+                warmUpCloseResultOpt = Optional.of(new WarmUpCloseResult(
+                        storageWriterContext.getWarmUpState().getQueryOffset(),
+                        storageWriterContext.getWarmUpState().getQuerySize(),
+                        storageWriterContext.getWarmUpState().getStartOffset()));
             }
             storageWriterContext.setWeClosed();
         }
-        return outFileParams;
+        return warmUpCloseResultOpt;
     }
 
     /**
@@ -623,5 +640,9 @@ public class StorageWriterService
             updateToFailedState(storageWriterContext.getWarmupElementBuilder(), warmupElementWriteMetadata);
             throw e;
         }
+    }
+
+    private record WarmUpCloseResult(int queryOffset, int querySize, int endOffset)
+    {
     }
 }

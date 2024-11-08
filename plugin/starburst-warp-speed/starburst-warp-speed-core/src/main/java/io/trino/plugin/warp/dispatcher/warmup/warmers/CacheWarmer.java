@@ -174,7 +174,10 @@ public class CacheWarmer
     public StorageWriterSplitConfig startWarming(RowGroupKey permanentRowGroupKey)
     {
         rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
-        return storageWriterService.startWarming("WarpCacheManager", permanentRowGroupKey.filePath(), dictionaryConfig.getEnableDictionary());
+        return storageWriterService.startWarming("WarpCacheManager",
+                permanentRowGroupKey.filePath(),
+                dictionaryConfig.getEnableDictionary(),
+                false);
     }
 
     public void finishWarming(StorageWriterSplitConfig storageWriterSplitConfig)

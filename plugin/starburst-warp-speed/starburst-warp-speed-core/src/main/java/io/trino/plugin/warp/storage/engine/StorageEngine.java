@@ -96,27 +96,27 @@ public interface StorageEngine
 
     //----------------------- warmup ----------------------------------------
 
-    default long warmupElementOpen(long context, MemorySegment warmUpElementAttr)
+    default void warmupElementOpen(MemorySegment warmUpState, MemorySegment context)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void warmupElementClose(long warmUpStateAddress, int[] outQueryFileParams)
+    default void warmupElementClose(MemorySegment warmUpState)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie)
+    default void warmupVerifyQueryOffset(MemorySegment warmUpState)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void warmupChunk(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader)
+    default void warmupChunk(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void warmupChunkExtRec(long weCookie, long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader)
+    default void warmupChunkExtRec(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader)
     {
         throw new UnsupportedOperationException();
     }
