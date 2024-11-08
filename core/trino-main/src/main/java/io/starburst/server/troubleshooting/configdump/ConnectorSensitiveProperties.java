@@ -27,14 +27,6 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password"))
-            .put("atop",
-                    ImmutableSet.of(
-                            "http-client.http-proxy.password",
-                            "http-client.https.automatic-shared-secret",
-                            "http-client.key-store-password",
-                            "http-client.trust-store-password",
-                            "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
             .put("azure_data_explorer",
                     ImmutableSet.of(
                             "adx.azure.active-directory-application.secret-key",
@@ -509,14 +501,6 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
-            .put("localfile",
-                    ImmutableSet.of(
-                            "http-client.http-proxy.password",
-                            "http-client.https.automatic-shared-secret",
-                            "http-client.key-store-password",
-                            "http-client.trust-store-password",
-                            "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
             .put("mariadb",
                     ImmutableSet.of(
                             "connection-password",
@@ -743,14 +727,6 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "prometheus.auth.password"))
-            .put("raptor_legacy",
-                    ImmutableSet.of(
-                            "http-client.http-proxy.password",
-                            "http-client.https.automatic-shared-secret",
-                            "http-client.key-store-password",
-                            "http-client.trust-store-password",
-                            "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
             .put("redis",
                     ImmutableSet.of(
                             "http-client.http-proxy.password",
