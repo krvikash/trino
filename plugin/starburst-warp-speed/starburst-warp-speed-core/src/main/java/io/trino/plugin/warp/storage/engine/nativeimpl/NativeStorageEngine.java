@@ -401,7 +401,7 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native void warmupChunk(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader);
+    public native void warmupChunk(long recordBufferParamsAddress, long warmUpStateAddress, long compressionStateAddresss, byte[] inOutChunkHeader);
 
     @Override
     public native void warmupChunkExtRec(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader);

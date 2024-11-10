@@ -111,7 +111,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void warmupChunk(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutCompressionStats, byte[] inOutChunkHeader)
+    default void warmupChunk(long recordBufferParamsAddress, long warmUpStateAddress, long compressionStateAddresss, byte[] inOutChunkHeader)
     {
         throw new UnsupportedOperationException();
     }

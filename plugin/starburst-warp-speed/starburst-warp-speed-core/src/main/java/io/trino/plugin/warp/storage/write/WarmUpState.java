@@ -68,7 +68,6 @@ public class WarmUpState
         WARMUP_STATE_LAYOUT = MemoryLayout.structLayout(
                 JBUFS_LIST_LAYOUT.withName("pjbuf_ptrs"),
                 ValueLayout.JAVA_LONG.withName("pwrite_buf"),
-                ValueLayout.JAVA_LONG.withName("pcmprs_stats"),
                 ValueLayout.JAVA_LONG.withName("pchunk"),
                 ValueLayout.JAVA_LONG.withName("pchunk_pers"),
                 FILE_COOKIE_LAYOUT.withName("file_cookie"),

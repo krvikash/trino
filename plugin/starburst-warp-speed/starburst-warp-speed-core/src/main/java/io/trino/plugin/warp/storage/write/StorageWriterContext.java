@@ -37,7 +37,6 @@ final class StorageWriterContext
     private final WriteJuffersWarmUpElement writeJuffersWarmUpElement;
     private final DictionaryWarmInfo dictionaryWarmInfo;
     private final WarmUpState warmUpState;
-    private final byte[] compressionStats;
     private final BlockAppender blockAppender;
     private boolean weSuccess;
     private final Optional<WriteDictionary> writeDictionary;
@@ -49,7 +48,6 @@ final class StorageWriterContext
             WriteJuffersWarmUpElement writeJuffersWarmUpElement,
             DictionaryWarmInfo dictionaryWarmInfo,
             WarmUpState warmUpState,
-            byte[] compressionStats,
             BlockAppender blockAppender,
             Optional<WriteDictionary> writeDictionary,
             Optional<LuceneIndexer> luceneIndexer)
@@ -61,7 +59,6 @@ final class StorageWriterContext
         this.writeJuffersWarmUpElement = writeJuffersWarmUpElement;
         this.dictionaryWarmInfo = dictionaryWarmInfo;
         this.warmUpState = warmUpState;
-        this.compressionStats = compressionStats;
         this.blockAppender = blockAppender;
         this.weSuccess = true;
         this.writeDictionary = writeDictionary;
@@ -93,11 +90,6 @@ final class StorageWriterContext
     public WarmUpState getWarmUpState()
     {
         return warmUpState;
-    }
-
-    public byte[] getCompressionStats()
-    {
-        return compressionStats;
     }
 
     int getRecordBufferSize()

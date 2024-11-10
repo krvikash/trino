@@ -18,6 +18,7 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.WarmUpElementAllocationParams;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.write.CompressionState;
 import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
@@ -45,7 +46,7 @@ public class WriteJuffersWarmUpElement
     private final int pageOffsetMask;
     private final WarmUpState warmUpState;
     private final RecordBufferParams recordBufferParams;
-    private final byte[] compressionStats;
+    private final CompressionState compressionState;
     private final int chunkHeaderSize;
     private final List<ChunkMap> chunkMapList;
     private final WarmUpElementAllocationParams allocParams;
@@ -67,7 +68,7 @@ public class WriteJuffersWarmUpElement
             RecordBufferParams recordBufferParams,
             WarmUpState warmUpState,
             WarmUpElementAllocationParams allocParams,
-            byte[] compressionStats)
+            CompressionState compressionState)
     {
         super();
 
@@ -76,9 +77,11 @@ public class WriteJuffersWarmUpElement
         this.chunkMapList = new ArrayList<>();
         this.allocParams = allocParams;
         this.warmUpState = warmUpState;
-        this.compressionStats = compressionStats;
+        this.compressionState = compressionState;
         this.chunkHeaderSize = storageEngineConstants.getChunkHeaderMaxSize();
         this.recordBufferParams = recordBufferParams;
+
+        compressionState.reset();
 
         // we always have an invalid cookie at the end of the list for a case we aborted the last chunk in the middle
         // in that case native might read this cookie and we prefer to have it initialized with invalid values
@@ -92,7 +95,7 @@ public class WriteJuffersWarmUpElement
                     allocParams,
                     storageEngine,
                     warmUpState.getAddress(),
-                    compressionStats);
+                    compressionState.getAddress());
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
 
             if (allocParams.isExtBufferNeeded()) {
@@ -185,7 +188,7 @@ public class WriteJuffersWarmUpElement
                 getNullJuffer().getNullsCount(),
                 numBytesWritten,
                 recordBufferSingleOffset);
-        storageEngine.warmupChunk(recordBufferParams.getAddress(), warmUpState.getAddress(), compressionStats, chunkHeader);
+        storageEngine.warmupChunk(recordBufferParams.getAddress(), warmUpState.getAddress(), compressionState.getAddress(), chunkHeader);
         chunkMapList.add(chunkMapList.size() - 1, new ChunkMap(chunkHeader));
         chunkHeader = new byte[chunkHeaderSize];
         closeCurrentChunk();

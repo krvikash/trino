@@ -26,8 +26,9 @@ public record StorageWriterSplitConfig(String nodeIdentifier,
         MemorySegment writeBuff,                // native buffer to use for compression and write to disk
         MemorySegment contextBuff,              // native buffer for holding warmup element context
         SegmentAllocator contextAllocator,      // allocator for slicing the context buffer
-        Optional<WarmUpState> warmUpStateOpt,   // warm state used during a single element warming, if not configured will be allocated per WE
+        Optional<WarmUpState> warmUpStateOpt,   // warm state used during a single element warming, if not present will be allocated per WE
         RecordBufferParams recordBufferParams,  // record buffer parameters used for every commit call
+        Optional<CompressionState> compressionStateOpt, // compression state used during a single element warming, if not present will be allocated per WE
         Boolean dictionaryEnabled)
 {
 }

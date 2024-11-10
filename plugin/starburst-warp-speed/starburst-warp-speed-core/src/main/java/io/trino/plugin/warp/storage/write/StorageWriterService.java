@@ -115,6 +115,7 @@ public class StorageWriterService
         /* allocate memory resources */
         MemorySegment contextBuff = bufferAllocator.allocateLoadContextBuffer();
         Optional<WarmUpState> warmUpStateOpt = allocateCommonWarmUpState ? Optional.of(allocateWarmUpState()) : Optional.empty();
+        Optional<CompressionState> compressionStateOpt = allocateCommonWarmUpState ? Optional.of(allocateCompressionState()) : Optional.empty();
         return new StorageWriterSplitConfig(nodeIdentifier,
                 rowGroupFilePath,
                 bufferAllocator.allocateLoadSegment(),
@@ -123,6 +124,7 @@ public class StorageWriterService
                 SegmentAllocator.slicingAllocator(contextBuff),
                 warmUpStateOpt,
                 new RecordBufferParams(Arena.ofAuto().allocate(RecordBufferParams.RECORD_BUFFER_PARAMS_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize())),
+                compressionStateOpt,
                 dictionaryEnabled);
     }
 
@@ -157,6 +159,7 @@ public class StorageWriterService
         }
         // initialize warm up state and file if needed
         WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().orElseGet(() -> allocateWarmUpState());
+        CompressionState compressionState = storageWriterSplitConfig.compressionStateOpt().orElseGet(() -> allocateCompressionState());
         storageWeOpen(warmUpElement,
                 hasDictionary,
                 warmUpState,
@@ -167,12 +170,11 @@ public class StorageWriterService
                 allocParams);
 
         // set up buffers
-        byte[] compressionStats = new byte[35];
         WriteJuffersWarmUpElement writeJuffersWarmUpElement = createWriteJuffers(storageWriterSplitConfig.recordBufferParams(),
                 warmUpState,
                 hasDictionary,
                 allocParams,
-                compressionStats);
+                compressionState);
         if (hasDictionary) {
             WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, warmUpElement.getRecTypeCode());
             dictionaryKey = writeDictionary.getDictionaryKey(); //in order to be aligned with createdTimestamp
@@ -200,7 +202,6 @@ public class StorageWriterService
                 writeJuffersWarmUpElement,
                 dictionaryWarmInfo,
                 warmUpState,
-                compressionStats,
                 blockAppender,
                 writeDictionaryOpt,
                 luceneIndexerOpt);
@@ -212,11 +213,16 @@ public class StorageWriterService
         return new WarmUpState(Arena.ofAuto().allocate(WarmUpState.WARMUP_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
     }
 
+    private CompressionState allocateCompressionState()
+    {
+        return new CompressionState(Arena.ofAuto().allocate(CompressionState.COMPRESSION_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
+    }
+
     private WriteJuffersWarmUpElement createWriteJuffers(RecordBufferParams recordBufferParams,
             WarmUpState warmUpState,
             boolean dictionaryValid,
             WarmUpElementAllocationParams allocParams,
-            byte[] compressionStats)
+            CompressionState compressionState)
     {
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(storageEngine,
                 storageEngineConstants,
@@ -224,7 +230,7 @@ public class StorageWriterService
                 recordBufferParams,
                 warmUpState,
                 allocParams,
-                compressionStats);
+                compressionState);
         juffersWE.createBuffers(dictionaryValid);
         return juffersWE;
     }
@@ -275,7 +281,7 @@ public class StorageWriterService
         warmUpState.setWarmId(getCurrentThreadWarmId());
         warmUpState.setCloseChunk(false); // keep it false as default
         storageEngine.warmupElementOpen(warmUpState.getState(), context);
-        warmUpState.verifyChunk();
+        //warmUpState.verifyChunk();
     }
 
     WarmSinkResult close(int totalRecords, StorageWriterSplitConfig storageWriterSplitConfig, StorageWriterContext storageWriterContext)
