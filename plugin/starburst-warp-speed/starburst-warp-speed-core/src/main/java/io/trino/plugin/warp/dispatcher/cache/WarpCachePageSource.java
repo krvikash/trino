@@ -16,8 +16,8 @@ package io.trino.plugin.warp.dispatcher.cache;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
-import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.metrics.Metric;
 import io.trino.spi.metrics.Metrics;
 
@@ -58,9 +58,9 @@ record WarpCachePageSource(StorageEngineTxService txService, ConnectorPageSource
     }
 
     @Override
-    public Page getNextPage()
+    public SourcePage getNextSourcePage()
     {
-        return pageSource.getNextPage();
+        return pageSource.getNextSourcePage();
     }
 
     @Override

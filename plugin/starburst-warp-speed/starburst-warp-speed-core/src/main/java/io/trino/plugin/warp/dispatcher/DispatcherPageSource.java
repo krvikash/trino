@@ -37,6 +37,7 @@ import io.trino.spi.block.PageBuilderStatus;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
 
 import java.io.IOException;
@@ -80,7 +81,7 @@ public class DispatcherPageSource
     private final long startTime;
     private final List<Type> warpWithoutPrefilledAndProxiedCollectTypes;
     private ConnectorPageSource proxiedConnectorPageSource;
-    private Page currentProxiedPage;
+    private SourcePage currentProxiedPage;
     private int currentProxiedPagePosition; // Position upto which currentProxiedPage has been consumed
     private final Deque<RowRange> proxiedPageRanges;
     private long proxiedPagePositionsRead;
@@ -135,7 +136,7 @@ public class DispatcherPageSource
     }
 
     @Override
-    public Page getNextPage()
+    public SourcePage getNextSourcePage()
     {
         boolean finishedOnPractice = warpPageRanges.isEmpty() && warpPageSource.isFinished();
 
@@ -170,7 +171,7 @@ public class DispatcherPageSource
             //  This is due to a bug in SubqueryCache. After fixing the bug- please revert the commit that introduced this change
             //  (see https://github.com/trinodb/trino/pull/22827#discussion_r1716813795).
             emptyPagesCounter++;
-            return new Page(0);
+            return SourcePage.create(0);
         }
 
         Page dispatcherPage = getDispatcherPage();
@@ -180,7 +181,7 @@ public class DispatcherPageSource
         else {
             emptyPagesCounter = 0;
         }
-        return dispatcherPage;
+        return SourcePage.create(dispatcherPage);
     }
 
     private Page getDispatcherPage()
@@ -348,7 +349,7 @@ public class DispatcherPageSource
         int startPointWarp = 0;
         int startPointProxied = START_INDEX_OF_PROXIED_CONNECTOR_COLUMNS;
         int positionCount = Math.min(currentProxiedPage.getPositionCount() - currentProxiedPagePosition, overlapRowCount);
-        Page overlapPoxiedPage = currentProxiedPage.getRegion(currentProxiedPagePosition, positionCount);
+        Page overlapPoxiedPage = currentProxiedPage.getPage().getRegion(currentProxiedPagePosition, positionCount);
         recordProxiedPageLoad(); // Technically the proxied page is not "loaded" here, but we track it for metrics anyway
         Page overlapWarpPage = currentWarpPage.getRegion(currentWarpPagePosition, positionCount);
         for (int i = 0; i < queryContext.getTotalCollectCount(); i++) {
@@ -381,7 +382,7 @@ public class DispatcherPageSource
         int pagePositionsLeft = currentProxiedPage.getPositionCount() - currentProxiedPagePosition;
         int overlapRowsRemaining = numberOfRowsToAdd;
         while (overlapRowsRemaining >= pagePositionsLeft && overlapRowsRemaining > 0) {
-            addColumnsToBuilder(resultPageBuilder, pagePositionsLeft, currentProxiedPage, currentProxiedPagePosition, 0);
+            addColumnsToBuilder(resultPageBuilder, pagePositionsLeft, currentProxiedPage.getPage(), currentProxiedPagePosition, 0);
             recordProxiedPageLoad();
             overlapRowsRemaining -= pagePositionsLeft;
             getNextProxiedPage();
@@ -396,7 +397,7 @@ public class DispatcherPageSource
             }
         }
         if (overlapRowsRemaining > 0) {
-            addColumnsToBuilder(resultPageBuilder, overlapRowsRemaining, currentProxiedPage, currentProxiedPagePosition, 0);
+            addColumnsToBuilder(resultPageBuilder, overlapRowsRemaining, currentProxiedPage.getPage(), currentProxiedPagePosition, 0);
             recordProxiedPageLoad();
             currentProxiedPagePosition += overlapRowsRemaining;
         }
@@ -547,7 +548,7 @@ public class DispatcherPageSource
         currentProxiedPage = null;
         wasProxiedPagedLoaded = false;
         while (currentProxiedPage == null && !proxiedConnectorPageSource.isFinished()) {
-            currentProxiedPage = proxiedConnectorPageSource.getNextPage();
+            currentProxiedPage = proxiedConnectorPageSource.getNextSourcePage();
             if (currentProxiedPage != null && currentProxiedPage.getPositionCount() > 0) {
                 proxiedPageRanges.add(new RowRange(proxiedPagePositionsRead, proxiedPagePositionsRead + currentProxiedPage.getPositionCount()));
             }
@@ -558,7 +559,7 @@ public class DispatcherPageSource
                 logger.info("queryId=%s, currentProxiedPage is null and pageSource isFinished? %s", queryContext.getQueryId(), proxiedConnectorPageSource.isFinished());
             }
             // proxiedConnectorPageSource is finished, return an empty page
-            currentProxiedPage = new Page(0);
+            currentProxiedPage = SourcePage.create(0);
         }
         else {
             if (forceFinish) {

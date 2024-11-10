@@ -132,7 +132,7 @@ public class TestMemoryCacheManager
         // ensure cached pages are correct
         ConnectorPageSource source = sourceOptional.get();
         assertThat(source.getMemoryUsage()).isEqualTo(block.getRetainedSizeInBytes());
-        assertBlockEquals(source.getNextPage().getBlock(0), block);
+        assertBlockEquals(source.getNextSourcePage().getBlock(0), block);
         assertThat(source.isFinished()).isTrue();
 
         // make sure no data is available for other signatures
@@ -406,7 +406,7 @@ public class TestMemoryCacheManager
     {
         assertThat(sourceOptional).isPresent();
         ConnectorPageSource source = sourceOptional.get();
-        Page actualPage = source.getNextPage();
+        Page actualPage = source.getNextSourcePage().getPage();
         assertThat(source.isFinished()).isTrue();
         assertThat(actualPage.getChannelCount()).isEqualTo(expectedBlocks.length);
         for (int i = 0; i < actualPage.getChannelCount(); i++) {

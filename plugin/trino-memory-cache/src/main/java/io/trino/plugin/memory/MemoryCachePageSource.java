@@ -17,6 +17,7 @@ import io.trino.plugin.memory.MemoryCacheManager.Channel;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.SourcePage;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -75,7 +76,7 @@ public class MemoryCachePageSource
     }
 
     @Override
-    public Page getNextPage()
+    public SourcePage getNextSourcePage()
     {
         if (isFinished()) {
             return null;
@@ -91,7 +92,7 @@ public class MemoryCachePageSource
         // extract next page position count
         currentBlock++;
         currentPosition += blocks[0].getPositionCount();
-        return new Page(blocks);
+        return SourcePage.create(new Page(blocks));
     }
 
     @Override

@@ -47,6 +47,7 @@ import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.FixedPageSource;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
@@ -117,7 +118,7 @@ public class DispatcherPageSourceTest
 
         DispatcherPageSource mixQueryWithPredicate = getDispatcherPageSource(2, Map.of(0, IntegerType.INTEGER));
 
-        assertThatThrownBy(mixQueryWithPredicate::getNextPage)
+        assertThatThrownBy(mixQueryWithPredicate::getNextSourcePage)
                 .isInstanceOf(TrinoException.class)
                 .hasMessage("message");
         verify(readErrorHandler, times(1))
@@ -141,7 +142,7 @@ public class DispatcherPageSourceTest
                 Lists.newArrayList(firstProxiedPage));
 
         DispatcherPageSource mixQueryWithPredicate = getDispatcherPageSource(2, Map.of(1, BIGINT));
-        Page resultPage = mixQueryWithPredicate.getNextPage(); //act
+        SourcePage resultPage = mixQueryWithPredicate.getNextSourcePage(); //act
         int positionCount = resultPage.getPositionCount();
         assertThat(positionCount).isEqualTo(warpMatches.length);
         assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), 0)).isEqualTo(warpMatches[0]);
@@ -742,10 +743,10 @@ public class DispatcherPageSourceTest
                 List.of(buildLongPage(1, 2)));
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
         for (int i = 0; i < globalConfig.getEmptyPageIterations() + 1; i++) {
-            dispatcherPageSource.getNextPage();
+            dispatcherPageSource.getNextSourcePage();
             assertThat(dispatcherPageSource.isFinished()).isFalse();
         }
-        dispatcherPageSource.getNextPage();
+        dispatcherPageSource.getNextSourcePage();
         assertThat(dispatcherPageSource.isFinished()).isTrue();
     }
 
@@ -841,7 +842,7 @@ public class DispatcherPageSourceTest
     {
         int totalMatchesPosition = 0;
         while (!dispatcherPageSource.isFinished() && totalMatchesPosition < warpMatches.length) {
-            Page resultPage = dispatcherPageSource.getNextPage(); //act
+            SourcePage resultPage = dispatcherPageSource.getNextSourcePage(); //act
             int positionCount = resultPage.getPositionCount();
             for (int i = 0; i < positionCount; i++) {
                 assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), i)).isEqualTo(warpMatches[totalMatchesPosition + i]);

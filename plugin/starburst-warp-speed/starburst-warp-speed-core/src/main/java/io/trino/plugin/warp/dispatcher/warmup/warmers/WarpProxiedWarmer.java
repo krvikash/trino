@@ -50,7 +50,6 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.util.ExceptionUtils;
 import io.trino.spi.NodeManager;
-import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -61,6 +60,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
 
 import java.io.FileNotFoundException;
@@ -180,7 +180,7 @@ public class WarpProxiedWarmer
                             boolean isValidWE = true;
                             int rowCount = 0;
                             while (isValidWE && !connectorPageSource.isFinished()) {
-                                Page nextPage = connectorPageSource.getNextPage();
+                                SourcePage nextPage = connectorPageSource.getNextSourcePage();
                                 int pagePositionCount = (nextPage != null) ? nextPage.getPositionCount() : 0;
                                 if (pagePositionCount > 0) {
                                     if (rowCount == 0) { //first time

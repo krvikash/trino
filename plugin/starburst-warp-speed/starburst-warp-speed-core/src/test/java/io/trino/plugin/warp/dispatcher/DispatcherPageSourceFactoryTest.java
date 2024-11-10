@@ -585,7 +585,7 @@ public class DispatcherPageSourceFactoryTest
         assertThat(stats.getexternal_collect_columns()).isEqualTo(0);
         assertThat(stats.getwarp_collect_columns()).isEqualTo(0);
         assertThat(stats.getempty_collect_columns()).isEqualTo(0);
-        assertThat(pageSource.getNextPage()).isNotNull();
+        assertThat(pageSource.getNextSourcePage()).isNotNull();
     }
 
     /**
@@ -619,7 +619,7 @@ public class DispatcherPageSourceFactoryTest
                 dynamicFilter,
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
-        assertThat(pageSource.getNextPage()).isNotNull();
+        assertThat(pageSource.getNextSourcePage()).isNotNull();
     }
 
     @Test

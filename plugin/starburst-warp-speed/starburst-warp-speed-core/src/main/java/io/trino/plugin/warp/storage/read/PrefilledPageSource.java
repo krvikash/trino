@@ -23,6 +23,7 @@ import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.SourcePage;
 
 import java.util.Collections;
 import java.util.Map;
@@ -97,7 +98,7 @@ public class PrefilledPageSource
     }
 
     @Override
-    public Page getNextPage()
+    public SourcePage getNextSourcePage()
     {
         Page page;
         if (prefilledQueryCollectDataByBlockIndex.isEmpty()) {
@@ -113,7 +114,7 @@ public class PrefilledPageSource
                     .toArray(Block[]::new));
         }
         finished = true;
-        return page;
+        return SourcePage.create(page);
     }
 
     @Override

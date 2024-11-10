@@ -43,7 +43,7 @@ public class TestMemoryCachePageSource
         assertThat(pageSource.getMemoryUsage()).isEqualTo(firstChannel.getBlocksRetainedSizeInBytes() + secondChannel.getBlocksRetainedSizeInBytes());
         assertThat(pageSource.getCompletedBytes()).isEqualTo(0L);
 
-        Page page = pageSource.getNextPage();
+        Page page = pageSource.getNextSourcePage().getPage();
         assertThat(page.getChannelCount()).isEqualTo(2);
         assertThat(page.getPositionCount()).isEqualTo(4);
         assertBlockEquals(page.getBlock(0), firstChannel.getBlocks()[0]);
@@ -51,7 +51,7 @@ public class TestMemoryCachePageSource
         assertThat(pageSource.getCompletedBytes()).isEqualTo(56);
         assertThat(pageSource.isFinished()).isFalse();
 
-        page = pageSource.getNextPage();
+        page = pageSource.getNextSourcePage().getPage();
         assertThat(page.getChannelCount()).isEqualTo(2);
         assertThat(page.getPositionCount()).isEqualTo(2);
         assertBlockEquals(page.getBlock(0), firstChannel.getBlocks()[1]);

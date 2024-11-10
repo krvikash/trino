@@ -24,6 +24,7 @@ import io.trino.operator.SourceOperatorFactory;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.metrics.Metrics;
 import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.Nullable;
@@ -150,10 +151,11 @@ public class LoadCachedDataOperator
             return null;
         }
 
-        Page page = pageSource.getNextPage();
-        if (page == null) {
+        SourcePage sourcePage = pageSource.getNextSourcePage();
+        if (sourcePage == null) {
             return null;
         }
+        Page page = sourcePage.getPage();
 
         cacheStats.recordReadFromCacheData(page.getSizeInBytes());
         operatorContext.recordProcessedInput(page.getSizeInBytes(), page.getPositionCount());

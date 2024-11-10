@@ -46,6 +46,7 @@ import io.trino.spi.block.LazyBlock;
 import io.trino.spi.block.LongArrayBlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
@@ -407,7 +408,7 @@ public class StorageWriterServiceTest
         StorageWriterSplitConfig storageWriterSplitConfig = startWarming("writeVarcharWithLucene");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
         StorageWriterContext storageWriterContext = writeOpenResult.storageWriterContext();
-        storageWriterService.appendPage(page, storageWriterContext);
+        storageWriterService.appendPage(SourcePage.create(page), storageWriterContext);
 
         LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().orElseThrow();
         Directory directory = luceneIndexer.getLuceneDirectory();
@@ -430,7 +431,7 @@ public class StorageWriterServiceTest
         StorageWriterSplitConfig storageWriterSplitConfig = startWarming("abortVarcharWithLucene");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
         StorageWriterContext storageWriterContext = writeOpenResult.storageWriterContext();
-        storageWriterService.appendPage(page, storageWriterContext);
+        storageWriterService.appendPage(SourcePage.create(page), storageWriterContext);
 
         LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().orElseThrow();
         Directory directory = luceneIndexer.getLuceneDirectory();
@@ -532,7 +533,7 @@ public class StorageWriterServiceTest
     {
         StorageWriterSplitConfig storageWriterSplitConfig = startWarming("runTest");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
-        storageWriterService.appendPage(page, writeOpenResult.storageWriterContext());
+        storageWriterService.appendPage(SourcePage.create(page), writeOpenResult.storageWriterContext());
         return writeOpenResult;
     }
 

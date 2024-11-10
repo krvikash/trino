@@ -52,9 +52,9 @@ import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
-import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
 
 import java.lang.foreign.MemorySegment;
@@ -434,7 +434,7 @@ public class StorageWriterService
         return abortedWarmupElement;
     }
 
-    boolean appendPage(Page page, StorageWriterContext storageWriterContext)
+    boolean appendPage(SourcePage page, StorageWriterContext storageWriterContext)
     {
         WarmupElementWriteMetadata warmupElementWriteMetadata = storageWriterContext.getWarmupElementWriteMetadata();
         Block block = page.getBlock(warmupElementWriteMetadata.connectorBlockIndex());

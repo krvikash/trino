@@ -24,8 +24,8 @@ import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.util.ExceptionUtils;
 import io.trino.plugin.warp.warmup.exceptions.MaxRowsException;
-import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.SourcePage;
 
 import static java.util.Objects.requireNonNull;
 
@@ -67,7 +67,7 @@ public class WarpPageSink
     }
 
     @Override
-    public boolean appendPage(Page page, int totalRecords)
+    public boolean appendPage(SourcePage page, int totalRecords)
     {
         try {
             if ((long) totalRecords + (long) page.getPositionCount() >= Integer.MAX_VALUE) {

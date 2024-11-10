@@ -314,6 +314,7 @@ public class WarpProxiedWarmerTest
     }
 
     @Test
+    @SuppressWarnings("removal")
     public void testWarpWarmerWarmFailedDuringWarm()
     {
         Assertions.assertThrows(RuntimeException.class, () -> {
@@ -341,6 +342,7 @@ public class WarpProxiedWarmerTest
     }
 
     @Test
+    @SuppressWarnings("removal")
     void testUnsupportedTrinoColumnType()
     {
         WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();

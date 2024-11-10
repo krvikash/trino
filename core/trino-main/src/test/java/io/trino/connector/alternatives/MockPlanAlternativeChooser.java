@@ -16,7 +16,6 @@ package io.trino.connector.alternatives;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.plugin.base.metrics.LongCount;
-import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
@@ -27,6 +26,7 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.metrics.Metric;
 import io.trino.spi.metrics.Metrics;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -114,20 +114,20 @@ public class MockPlanAlternativeChooser
         }
 
         @Override
-        public Page getNextPage()
+        public SourcePage getNextSourcePage()
         {
-            Page page = delegate.getNextPage();
-            if (page == null) {
+            SourcePage sourcePage = delegate.getNextSourcePage();
+            if (sourcePage == null) {
                 return null;
             }
 
-            if (page.getPositionCount() == 0) {
-                return page;
+            if (sourcePage.getPositionCount() == 0) {
+                return sourcePage;
             }
 
-            Block filterBlock = page.getBlock(filterColumnIndex);
-            IntArrayList filteredPositions = new IntArrayList(page.getPositionCount());
-            for (int i = 0; i < page.getPositionCount(); i++) {
+            Block filterBlock = sourcePage.getBlock(filterColumnIndex);
+            IntArrayList filteredPositions = new IntArrayList(sourcePage.getPositionCount());
+            for (int i = 0; i < sourcePage.getPositionCount(); i++) {
                 if (filter.test(filterBlock, i)) {
                     filteredPositions.add(i);
                 }
@@ -136,14 +136,14 @@ public class MockPlanAlternativeChooser
                 }
             }
 
-            Page newPage = page.copyPositions(filteredPositions.elements(), 0, filteredPositions.size());
+            sourcePage.selectPositions(filteredPositions.elements(), 0, filteredPositions.size());
             if (returnFilterColumn) {
-                return newPage;
+                return sourcePage;
             }
-            int[] columns = IntStream.range(0, newPage.getChannelCount())
+            int[] columns = IntStream.range(0, sourcePage.getChannelCount())
                     .filter(i -> i != filterColumnIndex)
                     .toArray();
-            return newPage.getColumns(columns);
+            return SourcePage.create(sourcePage.getColumns(columns));
         }
 
         // just delegation below

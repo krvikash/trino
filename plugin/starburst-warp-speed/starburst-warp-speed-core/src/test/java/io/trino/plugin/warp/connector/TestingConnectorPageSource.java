@@ -15,6 +15,7 @@ package io.trino.plugin.warp.connector;
 
 import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.SourcePage;
 
 public class TestingConnectorPageSource
         implements ConnectorPageSource
@@ -38,7 +39,14 @@ public class TestingConnectorPageSource
     }
 
     @Override
+    @SuppressWarnings("removal")
     public Page getNextPage()
+    {
+        return null;
+    }
+
+    @Override
+    public SourcePage getNextSourcePage()
     {
         return null;
     }
