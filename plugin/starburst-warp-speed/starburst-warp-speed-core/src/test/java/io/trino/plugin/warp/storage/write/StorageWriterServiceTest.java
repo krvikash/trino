@@ -42,7 +42,6 @@ import io.trino.spi.block.ArrayBlockBuilder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.IntArrayBlockBuilder;
-import io.trino.spi.block.LazyBlock;
 import io.trino.spi.block.LongArrayBlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.catalog.CatalogName;
@@ -101,8 +100,7 @@ public class StorageWriterServiceTest
     {
         LongArrayBlockBuilder block = new LongArrayBlockBuilder(null, values.length);
         IntStream.range(0, values.length).forEach((i) -> block.writeLong(values[i]));
-        LazyBlock lazyBlock = new LazyBlock(values.length, block::build);
-        return new Page(lazyBlock);
+        return new Page(block.build());
     }
 
     public static Page buildVarcharPage(String... values)
@@ -627,8 +625,7 @@ public class StorageWriterServiceTest
         for (int i = 0; i < numberOfBlocks; i++) {
             LongArrayBlockBuilder block = new LongArrayBlockBuilder(null, valuesOnEachBlock);
             IntStream.range(0, valuesOnEachBlock).forEach(block::writeLong);
-            LazyBlock lazyBlock = new LazyBlock(valuesOnEachBlock, block::build);
-            blocks.add(lazyBlock);
+            blocks.add(block.build());
         }
         return blocks;
     }

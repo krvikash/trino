@@ -160,7 +160,7 @@ public class LoadCachedDataOperator
         cacheStats.recordReadFromCacheData(page.getSizeInBytes());
         operatorContext.recordProcessedInput(page.getSizeInBytes(), page.getPositionCount());
         memoryContext.setBytes(pageSource.getMemoryUsage());
-        return page.getLoadedPage();
+        return page;
     }
 
     @Override

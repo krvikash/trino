@@ -48,7 +48,7 @@ public class WarmupElementBlocks
     {
         blocks.add(block);
         positionCount += block.getPositionCount();
-        retainedSizeInBytes += block.getLoadedBlock().getRetainedSizeInBytes();
+        retainedSizeInBytes += block.getRetainedSizeInBytes();
     }
 
     public synchronized boolean isReady()
@@ -82,7 +82,7 @@ public class WarmupElementBlocks
 
         for (int i = 0; i < blocksToDrop; i++) {
             if (i > 0 || startOffsetInFirstBlock == 0) { // To spare calculations, the first block might already been taken into account before this call
-                retainedSizeInBytes -= blocks.get(i).getLoadedBlock().getRetainedSizeInBytes();
+                retainedSizeInBytes -= blocks.get(i).getRetainedSizeInBytes();
                 positionCount -= blocks.get(i).getPositionCount();
             }
         }
@@ -91,7 +91,7 @@ public class WarmupElementBlocks
         // (we can't ignore it so isReady() won't return true before time)
         if (startOffsetInNextBlock > 0 &&
                 (blocksToDrop > 0 || startOffsetInFirstBlock == 0)) { // only if the block wasn't taken into account before this call
-            retainedSizeInBytes -= blocks.get(blocksToDrop).getLoadedBlock().getRetainedSizeInBytes();
+            retainedSizeInBytes -= blocks.get(blocksToDrop).getRetainedSizeInBytes();
             positionCount -= blocks.get(blocksToDrop).getPositionCount();
         }
 

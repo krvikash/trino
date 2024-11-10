@@ -14,13 +14,11 @@
 package io.trino.operator;
 
 import com.google.common.base.Throwables;
-import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import io.airlift.units.DataSize;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
-import io.trino.spi.block.LazyBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.predicate.Domain;
@@ -171,7 +169,6 @@ public class JoinDomainBuilder
 
     public void add(Block block)
     {
-        block = block.getLoadedBlock();
         if (collectDistinctValues) {
             switch (block) {
                 case ValueBlock valueBlock -> {
@@ -186,7 +183,6 @@ public class JoinDomainBuilder
                         add(dictionary, dictionaryBlock.getId(i));
                     }
                 }
-                case LazyBlock _ -> throw new VerifyException("Did not expect LazyBlock after loading " + block.getClass().getSimpleName());
             }
 
             // if the distinct size is too large, fall back to bloom filter, and drop the distinct values

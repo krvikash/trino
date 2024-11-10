@@ -290,8 +290,6 @@ public class TableScanOperator
         Page page = null;
         if (sourcePage != null) {
             page = sourcePage.getPage();
-            // assure the page is in memory before handing to another operator
-            page = page.getLoadedPage();
 
             // update operator stats
             long endCompletedBytes = source.getCompletedBytes();

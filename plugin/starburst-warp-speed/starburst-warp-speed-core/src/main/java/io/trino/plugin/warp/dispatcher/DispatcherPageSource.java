@@ -32,7 +32,6 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.DictionaryBlock;
-import io.trino.spi.block.LazyBlock;
 import io.trino.spi.block.PageBuilderStatus;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
@@ -358,7 +357,7 @@ public class DispatcherPageSource
         Page overlapWarpPage = currentWarpSourcePage.getPage().getRegion(currentWarpPagePosition, positionCount);
         for (int i = 0; i < queryContext.getTotalCollectCount(); i++) {
             if (queryContext.getRemainingCollectColumnByBlockIndex().containsKey(i)) {
-                orderedBlocks[i] = overlapPoxiedPage.getBlock(startPointProxied).getLoadedBlock();
+                orderedBlocks[i] = overlapPoxiedPage.getBlock(startPointProxied);
                 startPointProxied++;
             }
             else {
@@ -609,13 +608,11 @@ public class DispatcherPageSource
 
     private static void appendBlockRange(Block block, int offset, int length, BlockBuilder blockBuilder)
     {
-        Block rawBlock = block.getLoadedBlock();
-        switch (rawBlock) {
+        switch (block) {
             case RunLengthEncodedBlock rleBlock -> blockBuilder.appendRepeated(rleBlock.getValue(), 0, length);
             case DictionaryBlock dictionaryBlock ->
                     blockBuilder.appendPositions(dictionaryBlock.getDictionary(), dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset() + offset, length);
             case ValueBlock valueBlock -> blockBuilder.appendRange(valueBlock, offset, length);
-            case LazyBlock _ -> throw new UnsupportedOperationException("getLoadedBlock should not return LazyBlock");
         }
     }
 

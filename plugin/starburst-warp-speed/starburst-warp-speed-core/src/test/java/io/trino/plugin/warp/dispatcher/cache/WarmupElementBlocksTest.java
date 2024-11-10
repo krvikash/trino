@@ -153,7 +153,6 @@ class WarmupElementBlocksTest
     private Block mockBlock(int positionCount)
     {
         Block block = mock(IntArrayBlock.class);
-        when(block.getLoadedBlock()).thenReturn(block);
         when(block.getPositionCount()).thenReturn(positionCount);
         return block;
     }
