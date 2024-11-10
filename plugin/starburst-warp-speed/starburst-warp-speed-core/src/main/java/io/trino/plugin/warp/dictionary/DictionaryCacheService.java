@@ -123,18 +123,23 @@ public class DictionaryCacheService
                 // add keys lock is different from synchronized lock, so we must get a copy of the dictionary before we write it
                 DictionaryToWrite dictionaryToWrite = dataValueDictionary.createDictionaryToWrite();
                 int dictionarySize = attachDictionaryService.save(dictionaryToWrite, recTypeCode, dictionaryOffset, rowGroupFilePath);
-                try {
-                    dictionariesCache.loadPreBlock(recTypeCode, dataValueDictionary);
-                }
-                catch (Exception e) {
-                    throw new TrinoException(WarpErrorCode.WARP_DICTIONARY_ERROR, e);
-                }
                 dataValueDictionary.dictionaryAttached();
                 return dictionarySize;
             }
             catch (Exception e) {
                 throw new TrinoException(WarpErrorCode.WARP_DICTIONARY_ERROR, e);
             }
+        }
+    }
+
+    // called under synchronized
+    void loadPreBlock(RecTypeCode recTypeCode, DataValueDictionary dataValueDictionary)
+    {
+        try {
+            dictionariesCache.loadPreBlock(recTypeCode, dataValueDictionary);
+        }
+        catch (Exception e) {
+            throw new TrinoException(WarpErrorCode.WARP_DICTIONARY_ERROR, e);
         }
     }
 

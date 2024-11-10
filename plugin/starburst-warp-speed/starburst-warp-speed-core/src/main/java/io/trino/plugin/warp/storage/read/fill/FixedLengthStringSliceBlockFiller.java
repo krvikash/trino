@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read.fill;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -35,10 +36,12 @@ import java.util.Optional;
 public class FixedLengthStringSliceBlockFiller
         extends SliceBlockFiller
 {
-    public FixedLengthStringSliceBlockFiller(StorageEngineConstants storageEngineConstants,
+    public FixedLengthStringSliceBlockFiller(
+            DictionaryCacheService dictionaryCacheService,
+            StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig)
     {
-        super(CharType.createCharType(10), storageEngineConstants, nativeConfig); // need to check if length 10 is ok for all
+        super(dictionaryCacheService, CharType.createCharType(10), storageEngineConstants, nativeConfig); // need to check if length 10 is ok for all
     }
 
     @Override

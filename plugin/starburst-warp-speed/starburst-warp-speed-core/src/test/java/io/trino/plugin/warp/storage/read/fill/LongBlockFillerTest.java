@@ -37,7 +37,7 @@ public class LongBlockFillerTest
     @Override
     BlockFiller<Long> createBlockFiller()
     {
-        return new LongBlockFiller();
+        return new LongBlockFiller(dictionaryCacheService);
     }
 
     @Override

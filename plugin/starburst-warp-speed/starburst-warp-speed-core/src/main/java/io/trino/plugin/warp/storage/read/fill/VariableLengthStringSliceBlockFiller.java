@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read.fill;
 
 import io.airlift.slice.Slice;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -28,10 +29,11 @@ public class VariableLengthStringSliceBlockFiller
         extends SliceBlockFiller
 {
     public VariableLengthStringSliceBlockFiller(
+            DictionaryCacheService dictionaryCacheService,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig)
     {
-        super(VarcharType.createVarcharType(20), storageEngineConstants, nativeConfig); // using is size 20 is arbitrary since this type is used only for creating a block in RLE
+        super(dictionaryCacheService, VarcharType.createVarcharType(20), storageEngineConstants, nativeConfig); // using is size 20 is arbitrary since this type is used only for creating a block in RLE
     }
 
     @Override

@@ -73,7 +73,7 @@ public abstract class BaseDictionaryBlockTest
     protected NativeConfig nativeConfig;
     protected StubsStorageEngineConstants storageEngineConstants;
     private DictionaryKey dictionaryKey;
-    private DictionaryCacheService dictionaryCacheService;
+    protected DictionaryCacheService dictionaryCacheService;
     private BlockFiller blockFiller;
 
     /**
@@ -162,7 +162,7 @@ public abstract class BaseDictionaryBlockTest
                 queryResultTypeRaw == QueryResultType.QUERY_RESULT_TYPE_SINGLE ||
                 queryResultTypeRaw == QueryResultType.QUERY_RESULT_TYPE_SINGLE_NO_NULL ||
                 queryResultTypeRaw == QueryResultType.QUERY_RESULT_TYPE_RAW_NO_NULL) {
-            maxIndexValue = buildReadWriteDictionary(dictionarySize, writeDictionary);
+            maxIndexValue = buildReadWriteDictionary(dictionarySize, writeDictionary, recTypeCode);
         }
 
         ReadJuffersWarmUpElement juffersWE = mock(ReadJuffersWarmUpElement.class);
@@ -197,7 +197,7 @@ public abstract class BaseDictionaryBlockTest
         else if (queryResultTypeRaw == QueryResultType.QUERY_RESULT_TYPE_SINGLE) {
             assertThat(block).isInstanceOf(DictionaryBlock.class);
         }
-        else if (readDictionary.getPreBlockDictionaryIfExists(rowsToFill) != null) {
+        else if (readDictionary.getPreBlockDictionaryIfExists(rowsToFill, dictionaryCacheService, recTypeCode) != null) {
             assertThat(block).isInstanceOf(DictionaryBlock.class);
         }
         else {
@@ -220,7 +220,7 @@ public abstract class BaseDictionaryBlockTest
             verify(juffersWE, times(1)).getNullBuffer();
         }
         if (readDictionary.getReadSize() > 0) {
-            assertThat(readDictionary.getPreBlockDictionaryIfExists(rowsToFill)).isNotNull();
+            assertThat(readDictionary.getPreBlockDictionaryIfExists(rowsToFill, dictionaryCacheService, recTypeCode)).isNotNull();
         }
     }
 
@@ -307,7 +307,8 @@ public abstract class BaseDictionaryBlockTest
     }
 
     private <T> int buildReadWriteDictionary(int dictionarySize,
-            WriteDictionary writeDictionary)
+            WriteDictionary writeDictionary,
+            RecTypeCode recTypeCode)
     {
         List<T> dictionaryAsList = generateDictionaryValues(dictionarySize);
         Set<Integer> indexes = new HashSet<>();
@@ -325,9 +326,10 @@ public abstract class BaseDictionaryBlockTest
         Block prePrepareDictionaryBlock = generateDictionaryBlock(dictionaryAsList);
         dictionary.setDictionaryPreBlock(prePrepareDictionaryBlock);
 
+        Block block = dictionary.getPreBlockDictionaryIfExists(prePrepareDictionaryBlock.getPositionCount(), dictionaryCacheService, recTypeCode);
         logger.info("created dictionary of size=%s, prePrepareDictionaryBlock=%s ,maxIndexValue=%s",
                 dictionary.getReadSize(),
-                dictionary.getPreBlockDictionaryIfExists(prePrepareDictionaryBlock.getPositionCount()) == null ? null : dictionary.getPreBlockDictionaryIfExists(prePrepareDictionaryBlock.getPositionCount()).getPositionCount(),
+                block == null ? null : block.getPositionCount(),
                 maxIndexValue);
         return maxIndexValue;
     }

@@ -289,7 +289,7 @@ public class DictionaryCacheServiceTest
         assertThat(readDictionary.getReadSize()).isEqualTo(dictionarySize);
         expectedValues.forEach((key, value) -> assertThat(readDictionary.get(Short.toUnsignedInt(key))).isEqualTo(value));
 
-        Block preBlock = readDictionary.getPreBlockDictionaryIfExists(expectedValues.size());
+        Block preBlock = readDictionary.getPreBlockDictionaryIfExists(expectedValues.size(), dictionaryCacheService, recTypeCode);
         for (short position = 0; position < preBlock.getPositionCount() - 1; position++) {
             logger.debug("verify values of pre block, null value at the end of the block");
             Object expected = expectedValues.get(position);

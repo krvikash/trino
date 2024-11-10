@@ -47,6 +47,9 @@ public final class DictionaryStats
     private final LongAdder dictionary_entries = new LongAdder();
     private final LongAdder dictionary_active_size = new LongAdder();
     private final LongAdder dictionary_evicted_entries = new LongAdder();
+    private final LongAdder dictionary_pre_block_not_used = new LongAdder();
+    private final LongAdder dictionary_pre_block_created = new LongAdder();
+    private final LongAdder dictionary_pre_block_used = new LongAdder();
 
     @JsonCreator
     public DictionaryStats(@JsonProperty("group") String group)
@@ -339,6 +342,75 @@ public final class DictionaryStats
         adddictionary_evicted_entries(val);
     }
 
+    @JsonIgnore
+    @Managed
+    public long getdictionary_pre_block_not_used()
+    {
+        return dictionary_pre_block_not_used.longValue();
+    }
+
+    public void incdictionary_pre_block_not_used()
+    {
+        dictionary_pre_block_not_used.increment();
+    }
+
+    public void adddictionary_pre_block_not_used(long val)
+    {
+        dictionary_pre_block_not_used.add(val);
+    }
+
+    public void setdictionary_pre_block_not_used(long val)
+    {
+        dictionary_pre_block_not_used.reset();
+        adddictionary_pre_block_not_used(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getdictionary_pre_block_created()
+    {
+        return dictionary_pre_block_created.longValue();
+    }
+
+    public void incdictionary_pre_block_created()
+    {
+        dictionary_pre_block_created.increment();
+    }
+
+    public void adddictionary_pre_block_created(long val)
+    {
+        dictionary_pre_block_created.add(val);
+    }
+
+    public void setdictionary_pre_block_created(long val)
+    {
+        dictionary_pre_block_created.reset();
+        adddictionary_pre_block_created(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getdictionary_pre_block_used()
+    {
+        return dictionary_pre_block_used.longValue();
+    }
+
+    public void incdictionary_pre_block_used()
+    {
+        dictionary_pre_block_used.increment();
+    }
+
+    public void adddictionary_pre_block_used(long val)
+    {
+        dictionary_pre_block_used.add(val);
+    }
+
+    public void setdictionary_pre_block_used(long val)
+    {
+        dictionary_pre_block_used.reset();
+        adddictionary_pre_block_used(val);
+    }
+
     public static DictionaryStats create(String group)
     {
         return new DictionaryStats(group);
@@ -365,6 +437,9 @@ public final class DictionaryStats
         ret.put("dictionary_entries", dictionary_entries);
         ret.put("dictionary_active_size", dictionary_active_size);
         ret.put("dictionary_evicted_entries", dictionary_evicted_entries);
+        ret.put("dictionary_pre_block_not_used", dictionary_pre_block_not_used);
+        ret.put("dictionary_pre_block_created", dictionary_pre_block_created);
+        ret.put("dictionary_pre_block_used", dictionary_pre_block_used);
 
         return ret;
     }
@@ -388,6 +463,9 @@ public final class DictionaryStats
         this.dictionary_entries.add(other.dictionary_entries.longValue());
         this.dictionary_active_size.add(other.dictionary_active_size.longValue());
         this.dictionary_evicted_entries.add(other.dictionary_evicted_entries.longValue());
+        this.dictionary_pre_block_not_used.add(other.dictionary_pre_block_not_used.longValue());
+        this.dictionary_pre_block_created.add(other.dictionary_pre_block_created.longValue());
+        this.dictionary_pre_block_used.add(other.dictionary_pre_block_used.longValue());
     }
 
     @Override
@@ -405,6 +483,9 @@ public final class DictionaryStats
         dictionary_entries.reset();
         dictionary_active_size.reset();
         dictionary_evicted_entries.reset();
+        dictionary_pre_block_not_used.reset();
+        dictionary_pre_block_created.reset();
+        dictionary_pre_block_used.reset();
     }
 
     @Override
@@ -434,6 +515,9 @@ public final class DictionaryStats
         res.put("dictionary_entries", getdictionary_entries());
         res.put("dictionary_active_size", getdictionary_active_size());
         res.put("dictionary_evicted_entries", getdictionary_evicted_entries());
+        res.put("dictionary_pre_block_not_used", getdictionary_pre_block_not_used());
+        res.put("dictionary_pre_block_created", getdictionary_pre_block_created());
+        res.put("dictionary_pre_block_used", getdictionary_pre_block_used());
         return res;
     }
 

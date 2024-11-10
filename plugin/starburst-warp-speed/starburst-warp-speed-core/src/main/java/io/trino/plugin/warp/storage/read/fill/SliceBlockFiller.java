@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read.fill;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -35,15 +36,18 @@ import java.util.Optional;
 public abstract class SliceBlockFiller
         extends BlockFiller<Slice>
 {
+    private final DictionaryCacheService dictionaryCacheService;
     protected final NativeConfig nativeConfig;
     protected final int queryStringNullValueSize;
 
     public SliceBlockFiller(
+            DictionaryCacheService dictionaryCacheService,
             Type spiBuilderType,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig)
     {
         super(spiBuilderType, BlockFillerType.SLICE);
+        this.dictionaryCacheService = dictionaryCacheService;
         this.nativeConfig = nativeConfig;
         this.queryStringNullValueSize = storageEngineConstants.getQueryStringNullValueSize();
     }
@@ -186,7 +190,7 @@ public abstract class SliceBlockFiller
         int[] ids = new int[rowsToFill];
         Block resultBlock;
 
-        Block dictionaryAsBlock = readDictionary.getPreBlockDictionaryIfExists(rowsToFill);
+        Block dictionaryAsBlock = readDictionary.getPreBlockDictionaryIfExists(rowsToFill, dictionaryCacheService, recTypeCode);
         if (dictionaryAsBlock != null) {
             if (collectNulls) {
                 int nullPosition = dictionaryAsBlock.getPositionCount() - 1;

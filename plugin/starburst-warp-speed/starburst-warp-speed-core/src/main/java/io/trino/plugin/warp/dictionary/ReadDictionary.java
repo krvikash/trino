@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.dictionary;
 
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
+import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.spi.block.Block;
 
 public interface ReadDictionary
@@ -24,7 +25,7 @@ public interface ReadDictionary
 
     int getReadAvailableSize();
 
-    Block getPreBlockDictionaryIfExists(int rowsToFill);
+    Block getPreBlockDictionaryIfExists(int rowsToFill, DictionaryCacheService dictionaryCacheService, RecTypeCode recTypeCode);
 
     DictionaryKey getDictionaryKey();
 }

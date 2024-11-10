@@ -18,6 +18,7 @@ import io.airlift.slice.Slice;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.spi.block.Block;
 
@@ -183,13 +184,23 @@ public class DataValueDictionary
     }
 
     @Override
-    public Block getPreBlockDictionaryIfExists(int rowsToFill)
+    public Block getPreBlockDictionaryIfExists(int rowsToFill, DictionaryCacheService dictionaryCacheService, RecTypeCode recTypeCode)
     {
-        if (preBlock == null) {
+        if (rowsToFill < (getReadSize() / 2)) {
+            dictionaryStats.incdictionary_pre_block_not_used();
             return null;
         }
-        if (rowsToFill < (getReadSize() / 2)) {
-            return null;
+        // extra if statement before the synchronize so we won't lock all if not needed
+        if (preBlock != null) {
+            dictionaryStats.incdictionary_pre_block_used();
+        }
+        else {
+            synchronized (this) {
+                if (preBlock == null) {
+                    dictionaryCacheService.loadPreBlock(recTypeCode, this);
+                    dictionaryStats.incdictionary_pre_block_created();
+                }
+            }
         }
         return preBlock;
     }
@@ -214,6 +225,7 @@ public class DataValueDictionary
     // called under synchronized
     void dictionaryAttached()
     {
+        preBlock = null;
         shouldExport = true;
     }
 

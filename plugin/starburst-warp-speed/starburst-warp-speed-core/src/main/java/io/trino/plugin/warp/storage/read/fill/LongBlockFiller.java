@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.storage.read.fill;
 
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
@@ -29,9 +30,12 @@ import java.util.Optional;
 public class LongBlockFiller
         extends BlockFiller<Long>
 {
-    public LongBlockFiller()
+    private final DictionaryCacheService dictionaryCacheService;
+
+    public LongBlockFiller(DictionaryCacheService dictionaryCacheService)
     {
         super(BigintType.BIGINT, BlockFillerType.LONG);
+        this.dictionaryCacheService = dictionaryCacheService;
     }
 
     @Override
@@ -107,7 +111,7 @@ public class LongBlockFiller
         int[] ids = new int[rowsToFill];
         Block resultBlock;
 
-        Block dictionaryAsBlock = readDictionary.getPreBlockDictionaryIfExists(rowsToFill);
+        Block dictionaryAsBlock = readDictionary.getPreBlockDictionaryIfExists(rowsToFill, dictionaryCacheService, recTypeCode);
         if (dictionaryAsBlock != null) {
             if (collectNulls) {
                 int nullPosition = dictionaryAsBlock.getPositionCount() - 1;

@@ -191,7 +191,6 @@ public class DictionariesCache
         synchronized (loadSynchronized) {
             if ((dataValueDictionary == null) || (dataValueDictionary.getReadAvailableSize() < usedDictionarySize)) {
                 dataValueDictionary = attachDictionaryService.load(dictionaryKey, recTypeCode, recTypeLength, dictionaryOffset, rowGroupFilePath);
-                loadPreBlock(recTypeCode, dataValueDictionary);
                 globalDictionaryStats.incdictionary_loaded_elements_count();
 
                 cache.put(dictionaryKey, dataValueDictionary);
@@ -382,10 +381,10 @@ public class DictionariesCache
         return cleanedDictionaries;
     }
 
-    void loadPreBlock(RecTypeCode recTypeCode, DataValueDictionary dataValuesDictionary)
+    void loadPreBlock(RecTypeCode recTypeCode, DataValueDictionary dataValueDictionary)
     {
-        Block block = convertDictionaryToBlock(dataValuesDictionary.createDictionaryToWrite(), recTypeCode);
-        dataValuesDictionary.setDictionaryPreBlock(block);
+        Block block = convertDictionaryToBlock(dataValueDictionary.createDictionaryToWrite(), recTypeCode);
+        dataValueDictionary.setDictionaryPreBlock(block);
         logger.debug("create preBlock of size=%s, recTypeCode=%s", block.getPositionCount(), recTypeCode);
     }
 
