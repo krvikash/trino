@@ -92,20 +92,19 @@ public class LongDecimalBlockFiller
             Block mapBlock, RecTypeCode recTypeCode, boolean collectNulls)
     {
         if (!collectNulls) {
-            Int128 value = ((Int128ArrayBlock) mapBlock).getInt128(0);
+            Int128 value = ((Int128ArrayBlock) mapBlock).getInt128(mapKey);
             return createSingleValueBlock(spiBuilderType, value, rowsToFill);
         }
 
-        Block singleMapBlock = createSingleMapWithNullFromMapBlock(mapBlock);
-
+        Block singleMapBlock = createSingleMapWithNullFromMapBlock(mapBlock, mapKey);
         return wrapSingleWithNulls(juffersWE, rowsToFill, singleMapBlock, 1);
     }
 
-    private Block createSingleMapWithNullFromMapBlock(Block mapBlock)
+    private Block createSingleMapWithNullFromMapBlock(Block mapBlock, int mapKey)
     {
         long[] mappingValues = new long[4]; // including null
-        mappingValues[0] = ((Int128ArrayBlock) mapBlock).getInt128High(0);
-        mappingValues[1] = ((Int128ArrayBlock) mapBlock).getInt128Low(0);
+        mappingValues[0] = ((Int128ArrayBlock) mapBlock).getInt128High(mapKey);
+        mappingValues[1] = ((Int128ArrayBlock) mapBlock).getInt128Low(mapKey);
         boolean[] nulls = new boolean[2];
         nulls[1] = true;
 

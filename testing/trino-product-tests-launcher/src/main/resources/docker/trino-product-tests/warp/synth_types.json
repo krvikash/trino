@@ -8738,6 +8738,132 @@
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
+      },
+      {
+        "query": "select distinct(single_short) from single_chunks_table where single_short=1 or single_short=2 or single_short is null order by 1",
+        "query_id": "single_chunks_table_16",
+        "expected_result": [
+          [1],
+          [2],
+          [null]
+        ],
+        "expected_counters": {
+          "warp_match_columns": 3,
+          "warp_collect_columns": 3,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
+          "filtered_by_predicate": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select distinct(single_short) from single_chunks_table where single_short=-28525 or single_short=-19117 or single_short is NULL order by 1",
+        "query_id": "single_chunks_table_17",
+        "expected_result": [
+          [-28525],
+          [-19117],
+          [null]
+        ],
+        "expected_counters": {
+          "warp_match_columns": 3,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 1,
+          "warp_match_collect_columns": 2,
+          "warp_mapped_match_collect_columns": 2,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select distinct(single_long) from single_chunks_table where single_long=7761308209197128495 or single_long=7761308209197128501 or single_long is NULL order by 1",
+        "query_id": "single_chunks_table_18",
+        "expected_result": [
+          [7761308209197128495],
+          [7761308209197128501],
+          [null]
+        ],
+        "expected_counters": {
+          "warp_match_columns": 3,
+          "warp_collect_columns": 3,
+          "warp_match_collect_columns": 2,
+          "warp_mapped_match_collect_columns": 2,
+          "filtered_by_predicate": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select distinct(single_long_dec) from single_chunks_table where single_long_dec=3757825518217793400000000000.1234567891 or single_long_dec=4283625318878608300000000000.1234567891 or single_long_dec is NULL order by 1",
+        "query_id": "single_chunks_table_19",
+        "expected_result": [
+          [3757825518217793400000000000.1234567891],
+          [4283625318878608300000000000.1234567891],
+          [null]
+        ],
+        "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
       }
     ]
   },
