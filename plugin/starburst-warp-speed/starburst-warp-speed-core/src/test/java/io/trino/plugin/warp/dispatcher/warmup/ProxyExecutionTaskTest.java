@@ -33,6 +33,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.ClassificationType;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmingFinishedEvent;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
@@ -78,6 +79,7 @@ import static org.mockito.Mockito.when;
 public class ProxyExecutionTaskTest
 {
     private WarmupDemoterService warmupDemoterService;
+    private WarpDeleteService deleteService;
     private ConnectorPageSourceProvider connectorPageSourceProvider;
     private ConnectorTransactionHandle connectorTransactionHandle;
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
@@ -102,6 +104,7 @@ public class ProxyExecutionTaskTest
     public void before()
     {
         warmupDemoterService = mock(WarmupDemoterService.class);
+        deleteService = mock(WarpDeleteService.class);
         connectorPageSourceProvider = mock(ConnectorPageSourceProvider.class);
         connectorSession = mock(ConnectorSession.class);
         when(connectorSession.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), eq(Integer.class))).thenReturn(1_000_000);
@@ -187,7 +190,7 @@ public class ProxyExecutionTaskTest
         when(queryClassifier.getBasicQueryContext(eq(columnHandleList), eq(dispatcherTableHandle), eq(DynamicFilter.EMPTY), any())).thenReturn(queryContext);
         when(queryClassifier.classify(eq(queryContext), eq(rowGroupData), eq(dispatcherTableHandle), eq(Optional.of(connectorSession)), eq(Optional.empty()), eq(ClassificationType.QUERY))).thenReturn(queryContext);
         proxyExecutionTask.run();
-        verify(warmupDemoterService, times(1)).releaseTx();
+        verify(deleteService, times(1)).releaseTx();
         verify(workerWarmingService, times(1)).removeRowGroupFromSubmittedRowGroup(any());
     }
 
@@ -279,7 +282,7 @@ public class ProxyExecutionTaskTest
 
         proxyExecutionTask.run();
         verify(eventBus, times(1)).post(isA(WarmingFinishedEvent.class));
-        verify(warmupDemoterService, times(1)).releaseTx();
+        verify(deleteService, times(1)).releaseTx();
         assertThat(warmingServiceStats.getwarm_finished()).isEqualTo(1);
         assertThat(warmingServiceStats.getwarm_started()).isEqualTo(1);
         verify(flowsSequencer, times(1)).flowFinished(eq(FlowType.WARMUP), anyLong(), eq(true));
@@ -290,7 +293,7 @@ public class ProxyExecutionTaskTest
 
     private ProxyExecutionTask createWarmExecutionTask(WarmingServiceStats warmingServiceStats, EventBus eventBus)
     {
-        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, new StubsStorageEngine(), globalConfig, warmupDemoterService, storageEngineTxService, flowsSequencer, TestingTxService.createMetricsManager());
+        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, new StubsStorageEngine(), globalConfig, warmupDemoterService, storageEngineTxService, flowsSequencer, TestingTxService.createMetricsManager(), deleteService);
         return new ProxyExecutionTask(mock(WarmExecutionTaskFactory.class),
                 eventBus,
                 dispatcherProxiedConnectorTransformer,

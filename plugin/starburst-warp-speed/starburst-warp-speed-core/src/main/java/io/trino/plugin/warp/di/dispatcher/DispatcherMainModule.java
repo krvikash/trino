@@ -37,6 +37,8 @@ import io.trino.plugin.warp.dispatcher.warmup.WarmExecutionTaskFactory;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpConnectorDeleteService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.export.WarmupElementsCloudExporter;
 import io.trino.plugin.warp.dispatcher.warmup.export.WarmupExportingService;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
@@ -93,6 +95,7 @@ public class DispatcherMainModule
             binder.bind(DispatcherAlternativeChooser.class);
             binder.bind(DispatcherPageSinkProvider.class);
             binder.bind(StorageWarmerService.class);
+            binder.bind(WarpDeleteService.class).to(WarpConnectorDeleteService.class);
             binder.bind(WarmupDemoterService.class);
             binder.bind(WorkerWarmingService.class);
             binder.bind(PredicatesCacheService.class);

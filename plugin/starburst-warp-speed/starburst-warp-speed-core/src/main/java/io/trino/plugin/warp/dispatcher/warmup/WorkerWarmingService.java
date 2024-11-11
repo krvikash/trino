@@ -45,6 +45,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextData;
 import io.trino.plugin.warp.dispatcher.query.classifier.WarmedWarmupTypes;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.expression.TransformFunction;
@@ -101,6 +102,8 @@ public class WorkerWarmingService
     private final WarmExecutionTaskFactory warmExecutionTaskFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final WarmupDemoterService warmupDemoterService;
+    private final WarpDeleteService warpDeleteService;
+
     private final WarmupRuleService warmupRuleService;
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterConfig warmupDemoterConfig;
@@ -114,22 +117,24 @@ public class WorkerWarmingService
 
     @Inject
     public WorkerWarmingService(MetricsManager metricsManager,
-            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            WorkerTaskExecutorService workerTaskExecutorService,
-            WarmExecutionTaskFactory warmExecutionTaskFactory,
-            WarmupDemoterService warmupDemoterService,
-            WarmupRuleService warmupRuleService,
-            RowGroupDataService rowGroupDataService,
-            WarmupDemoterConfig warmupDemoterConfig,
-            GlobalConfig globalConfig,
-            StorageWarmerService storageWarmerService,
-            EventBus eventBus)
+                                DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
+                                WorkerTaskExecutorService workerTaskExecutorService,
+                                WarmExecutionTaskFactory warmExecutionTaskFactory,
+                                WarmupDemoterService warmupDemoterService,
+                                WarmupRuleService warmupRuleService,
+                                RowGroupDataService rowGroupDataService,
+                                WarmupDemoterConfig warmupDemoterConfig,
+                                GlobalConfig globalConfig,
+                                StorageWarmerService storageWarmerService,
+                                EventBus eventBus,
+                                WarpDeleteService warpDeleteService)
     {
         this(metricsManager,
                 dispatcherProxiedConnectorTransformer,
                 workerTaskExecutorService,
                 warmExecutionTaskFactory,
                 warmupDemoterService,
+                warpDeleteService,
                 warmupRuleService,
                 rowGroupDataService,
                 warmupDemoterConfig,
@@ -141,23 +146,25 @@ public class WorkerWarmingService
 
     @VisibleForTesting
     public WorkerWarmingService(MetricsManager metricsManager,
-            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            WorkerTaskExecutorService workerTaskExecutorService,
-            WarmExecutionTaskFactory warmExecutionTaskFactory,
-            WarmupDemoterService warmupDemoterService,
-            WarmupRuleService warmupRuleService,
-            RowGroupDataService rowGroupDataService,
-            WarmupDemoterConfig warmupDemoterConfig,
-            GlobalConfig globalConfig,
-            StorageWarmerService storageWarmerService,
-            EventBus eventBus,
-            int batchSize)
+                                DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
+                                WorkerTaskExecutorService workerTaskExecutorService,
+                                WarmExecutionTaskFactory warmExecutionTaskFactory,
+                                WarmupDemoterService warmupDemoterService,
+                                WarpDeleteService warpDeleteService,
+                                WarmupRuleService warmupRuleService,
+                                RowGroupDataService rowGroupDataService,
+                                WarmupDemoterConfig warmupDemoterConfig,
+                                GlobalConfig globalConfig,
+                                StorageWarmerService storageWarmerService,
+                                EventBus eventBus,
+                                int batchSize)
     {
         this.warmExecutionTaskFactory = warmExecutionTaskFactory;
         this.dispatcherProxiedConnectorTransformer = dispatcherProxiedConnectorTransformer;
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
+        this.warpDeleteService = requireNonNull(warpDeleteService);
         this.warmupRuleService = requireNonNull(warmupRuleService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
@@ -213,12 +220,12 @@ public class WorkerWarmingService
 
     protected void warmTaskStarted()
     {
-        warmupDemoterService.incremenetActiveWarmingTasks();
+        warpDeleteService.incremenetActiveWarmingTasks();
     }
 
     protected void warmTaskFinished()
     {
-        warmupDemoterService.decremenetActiveWarmingTasks();
+        warpDeleteService.decremenetActiveWarmingTasks();
     }
 
     protected void removeRowGroupFromSubmittedRowGroup(RowGroupKey rowGroupKey)

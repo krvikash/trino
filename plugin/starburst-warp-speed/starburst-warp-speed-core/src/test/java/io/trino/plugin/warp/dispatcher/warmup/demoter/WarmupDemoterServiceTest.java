@@ -13,24 +13,14 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AtomicDouble;
 import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.WarpErrorCode;
-import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
-import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
-import io.trino.plugin.warp.dispatcher.model.WarpColumn;
-import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
-import io.trino.plugin.warp.execution.debugtools.ColumnFilter;
-import io.trino.plugin.warp.execution.debugtools.FileFilter;
-import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -42,76 +32,46 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
-import io.trino.plugin.warp.warmup.WarmupRuleService;
-import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
-import io.trino.plugin.warp.warmup.model.WarmupPredicateRule;
-import io.trino.plugin.warp.warmup.model.WarmupRule;
-import io.trino.spi.TrinoException;
-import io.trino.spi.connector.SchemaTableName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@SuppressWarnings("SuspiciousMethodCalls")
 public class WarmupDemoterServiceTest
 {
     private static final String DEFAULT_FILE_PATH = "file_path";
 
-    private final Map<RowGroupKey, RowGroupData> rowGroupDataMap = new HashMap<>();
-    private final List<WarmupRule> warmupRules = new ArrayList<>();
-    private final List<WarmUpElement> warmUpElements = new ArrayList<>();
-    private final String defaultSchemaName = "schema1";
-    private final String defaultTableName = "table1";
     private final WarmUpType defaultWarmupType = WarmUpType.WARM_UP_TYPE_BASIC;
     private final int defaultPriority = 0;
-    private final double highPriority = 8.5;
-    private final int notEmptyTTL = 100;
     private final int defaultEpsilon = 1;
     private final double defaultMaxThreshold = 95;
     private final double defaultCleanThreshold = 90;
     private final int defaultBatchSize = 2;
     private final long defaultMaxElementsToDemote = 100;
 
-    private final Set<WarmupPredicateRule> defaultPredicates = Set.of();
     private WorkerCapacityManager workerCapacityManager;
-    private RowGroupDataService rowGroupDataService;
     private WarmupDemoterService warmupDemoterService;
-    private WarmupRuleService warmupRuleService;
     private WarmupDemoterConfig warmupDemoterConfig;
+    private WarpDeleteService deleteService;
     private ConnectorSync connectorSync;
-    private CatalogNameProvider catalogNameProvider;
-    private List<TupleRank> failedObjects;
-    private List<TupleRank> deadObjects;
-    private List<TupleRank> tupleRanks;
     private MetricsManager metricsManager;
 
     public static WarmUpElement buildWarmupElement(int columnId, long lastUsed)
@@ -140,79 +100,31 @@ public class WarmupDemoterServiceTest
 
     @BeforeEach
     public void before()
+            throws ExecutionException, InterruptedException
     {
-        initDefaultMembers();
-
         workerCapacityManager = mock(WorkerCapacityManager.class);
-        rowGroupDataService = mock(RowGroupDataService.class);
-        warmupRuleService = mock(WarmupRuleService.class);
         EventBus eventBus = mock(EventBus.class);
-        when(warmupRuleService.getAll()).thenReturn(warmupRules);
+        deleteService = mock(WarpDeleteService.class);
+        when(deleteService.delete(anyList(), any(), anyBoolean())).thenAnswer(invocation -> {
+            List<TupleRank> arg = invocation.getArgument(0); // Get the argument passed
+            return (long) arg.size();
+        });
         metricsManager = TestingTxService.createMetricsManager();
 
         FlowsSequencer flowsSequencer = spy(new FlowsSequencer(metricsManager));
         connectorSync = mock(ConnectorSync.class);
         warmupDemoterConfig = new WarmupDemoterConfig();
         warmupDemoterConfig.setEnableDemote(true);
-        catalogNameProvider = new CatalogNameProvider("catalogTest");
+        CatalogNameProvider catalogNameProvider = new CatalogNameProvider("catalogTest");
         warmupDemoterService = spy(new WarmupDemoterService(
                 workerCapacityManager,
-                rowGroupDataService,
-                new WarmupRuleProvider(Optional.of(warmupRuleService)),
                 warmupDemoterConfig,
-                new NativeConfig(),
                 metricsManager,
                 flowsSequencer,
                 connectorSync,
                 catalogNameProvider,
-                eventBus));
-        deadObjects = new ArrayList<>();
-        failedObjects = new ArrayList<>();
-        tupleRanks = new ArrayList<>();
-    }
-
-    private void initDefaultMembers()
-    {
-        IntStream.range(0, 20).forEach(index -> {
-            warmupRules.add(buildWarmupRule(defaultSchemaName, defaultTableName, index, defaultWarmupType, defaultPriority, notEmptyTTL, defaultPredicates));
-            warmUpElements.add(buildWarmupElement(index, Instant.now().toEpochMilli()));
-        });
-        RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, Map.of(), 0, false);
-        rowGroupDataMap.put(rowGroupData.getRowGroupKey(), rowGroupData);
-    }
-
-    @Test
-    public void testDeleteNativeFailure()
-    {
-        List<WarmupRule> warmupRuleList = new ArrayList<>();
-        List<WarmUpElement> warmUpElementList = new ArrayList<>();
-        IntStream.range(0, 4).forEach(index -> {
-            warmupRuleList.add(buildWarmupRule(defaultSchemaName, "aaa", index, defaultWarmupType, defaultPriority, notEmptyTTL, defaultPredicates));
-            warmupRuleList.add(buildWarmupRule(defaultSchemaName, "bbb", index, defaultWarmupType, defaultPriority, notEmptyTTL, defaultPredicates));
-            warmUpElementList.add(buildWarmupElement(index, Instant.now().toEpochMilli()));
-        });
-        RowGroupData rowGroupData1 = buildRowGroupData(defaultSchemaName, "aaa", warmUpElementList, Map.of(), 1, false);
-        RowGroupData rowGroupData2 = buildRowGroupData(defaultSchemaName, "bbb", warmUpElementList, Map.of(), 2, false);
-        Map<RowGroupKey, RowGroupData> rowGroupDataMapTest = new HashMap<>();
-        rowGroupDataMapTest.put(rowGroupData1.getRowGroupKey(), rowGroupData1);
-        rowGroupDataMapTest.put(rowGroupData2.getRowGroupKey(), rowGroupData2);
-
-        when(warmupRuleService.getAll()).thenReturn(warmupRuleList);
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(10d);
-        when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMapTest.values()));
-        when(rowGroupDataService.get(any())).thenAnswer(i -> rowGroupDataMapTest.get(i.getArguments()[0]));
-        setConfig(0, 0, 1, 1, List.of());
-        doThrow(new TrinoException(WarpErrorCode.WARP_NATIVE_ERROR, "test"))
-                .doNothing()
-                .when(rowGroupDataService).removeElements(eq(rowGroupData1), anyCollection());
-
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
-        warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
-        assertThat(warmupDemoterService.getCurrentRunStats().getfailed_row_group_data()).isEqualTo(1);
-        assertThat(warmupDemoterService.getCurrentRunStats().getdeleted_by_low_priority()).isEqualTo(4);
-        verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData1), anyCollection());
-        verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData1));
+                eventBus,
+                deleteService));
     }
 
     @Test
@@ -243,48 +155,39 @@ public class WarmupDemoterServiceTest
     @Test
     public void testDeadObject()
     {
-        String schemaName = "newSchema";
-        List<WarmUpElement> elements = new ArrayList<>();
-        long lastUsed = Instant.now().minus(2, ChronoUnit.SECONDS).toEpochMilli();
+        TupleRankResult tupleRankResult = new TupleRankResult();
         IntStream.range(0, 20).forEach(index -> {
-            warmupRules.add(buildWarmupRule(schemaName, defaultTableName, index, defaultWarmupType, defaultPriority, 1, defaultPredicates));
-            elements.add(buildWarmupElement(index, lastUsed));
+            WarmupProperties warmupProperties = new WarmupProperties(defaultWarmupType, defaultPriority, 1, TransformFunction.NONE);
+            RowGroupKey rowGroupKey = buildRowGroupKey(index);
+            tupleRankResult.immediateObjects().add(new TupleRank(warmupProperties, buildWarmupElement(index, 0), rowGroupKey));
         });
-        RowGroupData rowGroupData = buildRowGroupData(schemaName,
-                defaultTableName,
-                elements,
-                Map.of(), 0, false);
-        when(rowGroupDataService.getAll()).thenReturn(List.of(rowGroupData));
-        when(rowGroupDataService.get(eq(rowGroupData.getRowGroupKey()))).thenReturn(rowGroupData);
-        when(warmupRuleService.getAll()).thenReturn(warmupRules);
+
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
 
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
+        when(deleteService.buildTupleRank(anyList(), anyBoolean())).thenReturn(tupleRankResult);
         warmupDemoterService.tryDemoteStart();
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
-        assertThat(warmupDemoterService.getCurrentRunStats().getdead_objects_deleted()).isEqualTo(elements.size());
+        assertThat(warmupDemoterService.getCurrentRunStats().getdead_objects_deleted()).isEqualTo(20);
         verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test
     public void testFailedObjects()
     {
-        List<WarmUpElement> elements = IntStream.range(0, 20)
-                .mapToObj(index -> buildWarmupElement(index, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA, false))
-                .collect(Collectors.toList());
-
-        RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName,
-                defaultTableName,
-                elements,
-                Map.of(), 0, false);
-        when(rowGroupDataService.getAll()).thenReturn(List.of(rowGroupData));
-        when(rowGroupDataService.get(eq(rowGroupData.getRowGroupKey()))).thenReturn(rowGroupData);
-
+        TupleRankResult tupleRankResult = new TupleRankResult();
+        IntStream.range(0, 20).forEach(index -> {
+            WarmupProperties warmupProperties = new WarmupProperties(defaultWarmupType, defaultPriority, 1, TransformFunction.NONE);
+            RowGroupKey rowGroupKey = buildRowGroupKey(index);
+            tupleRankResult.failedObjects().add(new TupleRank(warmupProperties, buildWarmupElement(index, 0), rowGroupKey));
+        });
+        setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
+        when(deleteService.buildTupleRank(anyList(), anyBoolean())).thenReturn(tupleRankResult);
         warmupDemoterService.setForceDeleteFailedObjects(true);
         warmupDemoterService.tryDemoteStart();
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
 
-        assertThat(warmupDemoterService.getCurrentRunStats().getfailed_objects_deleted()).isEqualTo(elements.size());
+        assertThat(warmupDemoterService.getCurrentRunStats().getfailed_objects_deleted()).isEqualTo(20);
         verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
     }
 
@@ -292,9 +195,14 @@ public class WarmupDemoterServiceTest
     public void testDemoteAll()
     {
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(10d);
-        when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMap.values()));
-        when(rowGroupDataService.get(any())).thenAnswer(i -> rowGroupDataMap.get(i.getArguments()[0]));
+        TupleRankResult tupleRankResult = new TupleRankResult();
+        IntStream.range(0, 20).forEach(index -> {
+            WarmupProperties warmupProperties = new WarmupProperties(defaultWarmupType, defaultPriority, 1, TransformFunction.NONE);
+            RowGroupKey rowGroupKey = buildRowGroupKey(index);
+            tupleRankResult.tupleRankList().add(new TupleRank(warmupProperties, buildWarmupElement(index, 0), rowGroupKey));
+        });
         setConfig(0, 0, 1, 100, List.of());
+        when(deleteService.buildTupleRank(anyList(), anyBoolean())).thenReturn(tupleRankResult);
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
         assertThat(warmupDemoterService.getDemoterHighestPriority().get()).isEqualTo(0);
@@ -312,34 +220,15 @@ public class WarmupDemoterServiceTest
                     return usageCapacity.get();
                 });
 
-        List<WarmupRule> warmupRules = new ArrayList<>();
-        List<WarmUpElement> warmUpElements = new ArrayList<>();
+        TupleRankResult tupleRankResult = new TupleRankResult();
         IntStream.range(0, 100).forEach(index -> {
-            warmupRules.add(buildWarmupRule(defaultSchemaName, defaultTableName, index, defaultWarmupType, defaultPriority, notEmptyTTL, defaultPredicates));
-            warmUpElements.add(buildWarmupElement(index, Instant.now().toEpochMilli()));
+            WarmupProperties warmupProperties = new WarmupProperties(defaultWarmupType, defaultPriority, 1, TransformFunction.NONE);
+            RowGroupKey rowGroupKey = buildRowGroupKey(index);
+            tupleRankResult.tupleRankList().add(new TupleRank(warmupProperties, buildWarmupElement(index, 0), rowGroupKey));
         });
-        RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName,
-                defaultTableName,
-                warmUpElements,
-                Map.of(),
-                0, false);
-        RowGroupData rowGroupData2 = buildRowGroupData(defaultSchemaName,
-                defaultTableName,
-                warmUpElements,
-                Map.of(),
-                1, false);
-        RowGroupData rowGroupData3 = buildRowGroupData(defaultSchemaName,
-                defaultTableName,
-                warmUpElements,
-                Map.of(),
-                2, false);
-        when(rowGroupDataService.getAll()).thenReturn(List.of(rowGroupData, rowGroupData2, rowGroupData3));
-        when(rowGroupDataService.get(eq(rowGroupData.getRowGroupKey()))).thenReturn(rowGroupData);
-        when(rowGroupDataService.get(eq(rowGroupData2.getRowGroupKey()))).thenReturn(rowGroupData2);
-        when(rowGroupDataService.get(eq(rowGroupData3.getRowGroupKey()))).thenReturn(rowGroupData3);
-        when(warmupRuleService.getAll()).thenReturn(warmupRules);
 
         setConfig(85, 80, 2, 100, List.of());
+        when(deleteService.buildTupleRank(anyList(), anyBoolean())).thenReturn(tupleRankResult);
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
         verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED));
@@ -348,331 +237,6 @@ public class WarmupDemoterServiceTest
         assertThat(usageCapacity.get()).isGreaterThan(0.5);
         assertThat(warmupDemoterService.getCurrentRunStats().getdeleted_by_low_priority()).isEqualTo(0);
         assertThat(warmupDemoterService.getCurrentRunStats().getdead_objects_deleted()).isEqualTo(0);
-    }
-
-    @Test
-    public void testBuildTupleRank()
-    {
-        List<WarmupRule> warmupRules = new ArrayList<>();
-        List<WarmUpElement> warmUpElements = new ArrayList<>();
-        IntStream.range(0, 10).forEach(index -> {
-            warmupRules.add(buildWarmupRule(defaultSchemaName, defaultTableName, index, defaultWarmupType, 10 - index, index, defaultPredicates));
-            warmUpElements.add(buildWarmupElement(index, Instant.now().toEpochMilli()));
-        });
-        warmupRules.add(buildWarmupRule(defaultSchemaName, defaultTableName, 10, defaultWarmupType, defaultPriority, notEmptyTTL, defaultPredicates));
-        warmUpElements.add(buildWarmupElement(10, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_BASIC, false));
-
-        warmupDemoterService.setForceDeleteFailedObjects(true);
-        RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName,
-                defaultTableName,
-                warmUpElements,
-                Map.of(), 0, false);
-        warmupDemoterService.buildTupleRank(warmupRules, List.of(rowGroupData), deadObjects, failedObjects, tupleRanks, List.of());
-        warmupDemoterService.sortTupleRankCollection(tupleRanks);
-        assertThat(tupleRanks.size()).isEqualTo(9);
-        assertThat(tupleRanks.get(0).warmupProperties().priority()).isLessThan(tupleRanks.get(5).warmupProperties().priority());
-    }
-
-    @Test
-    public void testTwoWarmupsOnSameColumn()
-    {
-        WarmupProperties propBasic = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 1, 0, TransformFunction.NONE);
-        WarmupProperties propData = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 10, 1000, TransformFunction.NONE);
-
-        List<WarmupRule> warmupRules = buildWarmupRule(
-                Set.of(propBasic, propData),
-                defaultPredicates);
-
-        List<WarmUpElement> warmUpElements = List.of(
-                buildWarmupElement(0, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_BASIC),
-                buildWarmupElement(0, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA));
-
-        List<RowGroupData> rowGroupDataList = List.of(
-                buildRowGroupData(defaultSchemaName,
-                        defaultTableName,
-                        warmUpElements,
-                        Map.of(), 0, false));
-
-        warmupDemoterService.buildTupleRank(warmupRules, rowGroupDataList, deadObjects, failedObjects, tupleRanks, List.of());
-
-        assertThat(tupleRanks.size()).isEqualTo(1);
-        assertThat(deadObjects.size()).isEqualTo(1);
-    }
-
-    @Test
-    public void testTwoWarmupsOnSameRowGroup()
-    {
-        List<WarmupRule> warmupRules = List.of(
-                buildWarmupRule(
-                        defaultSchemaName,
-                        defaultTableName,
-                        0,
-                        WarmUpType.WARM_UP_TYPE_BASIC,
-                        1,
-                        0,
-                        defaultPredicates),
-                buildWarmupRule(
-                        defaultSchemaName,
-                        defaultTableName,
-                        1,
-                        WarmUpType.WARM_UP_TYPE_DATA,
-                        10,
-                        1000,
-                        defaultPredicates));
-
-        List<WarmUpElement> warmUpElements = List.of(
-                buildWarmupElement(0, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_BASIC),
-                buildWarmupElement(1, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA));
-
-        RowGroupData rowGroupData = buildRowGroupData(
-                defaultSchemaName,
-                defaultTableName,
-                warmUpElements,
-                Map.of(), 0, false);
-
-        warmupDemoterService.buildTupleRank(
-                warmupRules,
-                List.of(rowGroupData),
-                deadObjects,
-                failedObjects,
-                tupleRanks,
-                List.of(new ColumnFilter(
-                        new SchemaTableName(rowGroupData.getRowGroupKey().schema(),
-                                rowGroupData.getRowGroupKey().table()),
-                        List.of(
-                                new WarmupDemoterWarmupElementData(
-                                        warmUpElements.get(1).getWarpColumn().getName(),
-                                        List.of(warmUpElements.get(1).getWarmUpType()))))));
-
-        assertThat(deadObjects.size()).isEqualTo(1);
-    }
-
-    @Test
-    public void testMatchPredicates()
-    {
-        WarpColumn partitionKey = new RegularColumn("p1");
-        String partitionValue = "v1";
-        String partitionValue2 = "v2";
-        int priority2 = 5;
-        String schemaName2 = "schema2";
-
-        int ttlInTheFuture = 1;
-        int weId = 1;
-
-        Map<WarpColumn, String> hivePartitionKeys = Map.of(partitionKey, partitionValue);
-        Map<WarpColumn, String> hivePartitionKeys2 = Map.of(partitionKey, partitionValue2);
-        Set<WarmupPredicateRule> predicates = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue));
-        Set<WarmupPredicateRule> predicates2 = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue2));
-        List<WarmupRule> warmupRules = List.of(buildWarmupRule(defaultSchemaName, defaultTableName, weId, defaultWarmupType, defaultPriority, ttlInTheFuture, predicates),
-                buildWarmupRule(schemaName2, defaultTableName, weId, defaultWarmupType, priority2, ttlInTheFuture, predicates2));
-        List<WarmUpElement> warmUpElements = List.of(buildWarmupElement(weId, Instant.now().toEpochMilli()));
-        List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, hivePartitionKeys, 0, false),
-                buildRowGroupData(schemaName2, defaultTableName, warmUpElements, hivePartitionKeys2, 1, false));
-        warmupDemoterService.buildTupleRank(warmupRules, rowGroupDataList, deadObjects, failedObjects, tupleRanks, List.of());
-
-        warmupDemoterService.sortTupleRankCollection(tupleRanks);
-        assertThat(tupleRanks).isNotEmpty();
-    }
-
-    @Test
-    public void testBestMatchOverlappingPredicates()
-    {
-        WarpColumn partitionKey = new RegularColumn("p1");
-        String partitionValue = "v1";
-        int priorityHigh = 10;
-        int ttlInTheFuture = 1;
-        int weId = 1;
-
-        Map<WarpColumn, String> hivePartitionKeys = Map.of(partitionKey, partitionValue);
-        Set<WarmupPredicateRule> predicates = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue));
-        List<WarmupRule> warmupRules = List.of(
-                buildWarmupRule(defaultSchemaName, defaultTableName, weId, defaultWarmupType, defaultPriority, ttlInTheFuture, predicates),
-                buildWarmupRule(defaultSchemaName, defaultTableName, weId, defaultWarmupType, priorityHigh, ttlInTheFuture, Set.of()));
-        List<WarmUpElement> warmUpElements = List.of(buildWarmupElement(weId, Instant.now().toEpochMilli() + 10000));
-        List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, hivePartitionKeys, 0, false));
-        warmupDemoterService.buildTupleRank(warmupRules, rowGroupDataList, deadObjects, failedObjects, tupleRanks, List.of());
-
-        assertThat(tupleRanks).isNotEmpty();
-    }
-
-    @Test
-    public void testBestMatchPredicatesNotMatch()
-    {
-        WarpColumn partitionKey = new RegularColumn("p1");
-        String partitionValue = "v1";
-        String partitionKey2 = "p2";
-        String partitionValue2 = "v2";
-        int priorityHigh = 10;
-        int ttlInTheFuture = 1;
-        int weId = 1;
-
-        Map<WarpColumn, String> hivePartitionKeys = Map.of(partitionKey, partitionValue);
-
-        Set<WarmupPredicateRule> predicates1 = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue));
-        Set<WarmupPredicateRule> predicates2 = new HashSet<>(List.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue), new PartitionValueWarmupPredicateRule(partitionKey2, partitionValue2)));
-        List<WarmupRule> warmupRules = List.of(buildWarmupRule(defaultSchemaName, defaultTableName, weId, defaultWarmupType, defaultPriority, ttlInTheFuture, predicates1),
-                buildWarmupRule(defaultSchemaName, defaultTableName, weId, defaultWarmupType, priorityHigh, ttlInTheFuture, predicates2));
-        List<WarmUpElement> warmUpElements = List.of(buildWarmupElement(weId, Instant.now().toEpochMilli()));
-        List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, hivePartitionKeys, 0, false));
-        warmupDemoterService.buildTupleRank(warmupRules, rowGroupDataList, deadObjects, failedObjects, tupleRanks, List.of());
-
-        assertThat(tupleRanks).isNotEmpty();
-    }
-
-    @Test
-    public void testForceDeleteFailedObjectsWithColumnFilter()
-    {
-        ColumnFilter columnFilterMatch = createColumnFilter(List.of(WarmUpType.WARM_UP_TYPE_BASIC));
-        List<WarmupRule> warmupRules = ImmutableList.of(buildWarmupRule(defaultSchemaName, defaultTableName, 0, WarmUpType.WARM_UP_TYPE_BASIC, defaultPriority, notEmptyTTL, defaultPredicates),
-                buildWarmupRule(defaultSchemaName, defaultTableName, 0, WarmUpType.WARM_UP_TYPE_DATA, defaultPriority, notEmptyTTL, defaultPredicates));
-        WarmUpElement warmUpElementToDelete = buildWarmupElement(0, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_BASIC, false);
-        WarmUpElement warmUpElementNotToDelete = buildWarmupElement(0, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA, false);
-        List<WarmUpElement> warmUpElements = ImmutableList.of(warmUpElementToDelete, warmUpElementNotToDelete);
-
-        warmupDemoterService.setForceDeleteFailedObjects(true);
-        List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, Map.of(), 0, false));
-        warmupDemoterService.buildTupleRank(warmupRules, rowGroupDataList, deadObjects, failedObjects, tupleRanks, ImmutableList.of(columnFilterMatch));
-        assertThat(deadObjects.size()).isEqualTo(0);
-        assertThat(failedObjects.size()).isEqualTo(1);
-        assertThat(tupleRanks.size()).isEqualTo(0);
-    }
-
-    @Test
-    public void testRetryDeleteRejectedObjects()
-            throws ExecutionException, InterruptedException
-    {
-        String schemaName = "newSchema";
-        long lastUsed = Instant.now().minus(2, ChronoUnit.SECONDS).toEpochMilli();
-        List<RowGroupData> rowGroupDataList = new ArrayList<>();
-        warmupRules.clear();
-        IntStream.range(0, 20).forEach(index -> {
-            String tableName = "tableName" + index;
-            warmupRules.add(buildWarmupRule(schemaName, tableName, index, defaultWarmupType, defaultPriority, 0, defaultPredicates));
-            List<WarmUpElement> elements = List.of(buildWarmupElement(index, lastUsed));
-            rowGroupDataList.add(buildRowGroupData(schemaName, tableName, elements, Map.of(), index, false));
-        });
-
-        warmupDemoterConfig.setTasksExecutorQueueSize(5);
-        warmupDemoterConfig.setEnableDemote(true);
-        NativeConfig nativeConfig = new NativeConfig();
-        nativeConfig.setTaskMaxWorkerThreads(1);
-        warmupDemoterService = new WarmupDemoterService(workerCapacityManager,
-                rowGroupDataService,
-                new WarmupRuleProvider(Optional.of(warmupRuleService)),
-                warmupDemoterConfig,
-                nativeConfig,
-                metricsManager,
-                mock(FlowsSequencer.class),
-                connectorSync,
-                catalogNameProvider,
-                mock(EventBus.class));
-
-        warmupDemoterService.initDemoteArguments(1);
-        warmupDemoterService.buildTupleRank(warmupRules, rowGroupDataList, deadObjects, failedObjects, tupleRanks, List.of());
-        Map<RowGroupKey, RowGroupData> map = rowGroupDataList.stream().collect(Collectors.toMap(RowGroupData::getRowGroupKey, Function.identity()));
-        doAnswer(invocation -> {
-            RowGroupKey rowGroupKey = (RowGroupKey) invocation.getArguments()[0];
-            return map.get(rowGroupKey);
-        }).when(rowGroupDataService).get(any());
-
-        long deleted = warmupDemoterService.delete(deadObjects);
-        assertThat(deleted).isEqualTo(20);
-    }
-
-    @Test
-    public void testDemoteAllEmptyRowGroup()
-    {
-        setConfig(0, 0, 100, 100, List.of());
-        List<WarmUpElement> elements = IntStream.range(0, 20)
-                .mapToObj(index -> buildWarmupElement(index, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA, false))
-                .collect(Collectors.toList());
-
-        List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, elements, Map.of(), 0, true));
-        when(rowGroupDataService.getAll()).thenReturn(rowGroupDataList);
-        when(rowGroupDataService.get(eq(rowGroupDataList.getFirst().getRowGroupKey()))).thenReturn(rowGroupDataList.getFirst());
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(10d);
-
-        warmupDemoterService.tryDemoteStart();
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
-        warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-        verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupDataList.getFirst()), eq(true));
-        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
-    }
-
-    @Test
-    public void testDemotePartialEmptyRowGroup()
-    {
-        ColumnFilter columnFilterNonMatch = createColumnFilter(List.of(WarmUpType.WARM_UP_TYPE_DATA));
-        setConfig(0, 0, 100, 100, List.of(columnFilterNonMatch));
-        List<WarmUpElement> elements = IntStream.range(0, 20)
-                .mapToObj(index -> buildWarmupElement(index, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA, false))
-                .collect(Collectors.toList());
-
-        RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName, defaultTableName, elements, Map.of(), 0, true);
-        when(rowGroupDataService.getAll()).thenReturn(List.of(rowGroupData));
-        when(rowGroupDataService.get(eq(rowGroupData.getRowGroupKey()))).thenReturn(rowGroupData);
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(10d);
-
-        warmupDemoterService.setDeleteEmptyRowGroups(true);
-        warmupDemoterService.tryDemoteStart();
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
-
-        //first delete old objects due to columnFilterNonMatch
-        verify(connectorSync, times(1)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
-
-        warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-        verify(rowGroupDataService, times(1))
-                .updateEmptyRowGroup(eq(rowGroupData),
-                        eq(List.of()),
-                        eq(List.of(elements.getFirst())));
-
-        verify(connectorSync, times(2)).syncDemoteEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
-    }
-
-    @Test
-    public void testWarmupDemoterFilterByColumn()
-    {
-        ColumnFilter columnFilter = createColumnFilter(List.of());
-        executeFilterTest(List.of(columnFilter), 1);
-        assertThat(warmupDemoterService.getDemoterHighestPriority().get()).isEqualTo(0);
-    }
-
-    @Test
-    public void testWarmupDemoterFilterByWarmupElement()
-    {
-        ColumnFilter columnFilterMatch = createColumnFilter(ImmutableList.of(WarmUpType.WARM_UP_TYPE_BASIC));
-
-        executeFilterTest(List.of(columnFilterMatch), 1);
-        assertThat(warmupDemoterService.getDemoterHighestPriority().get()).isLessThan(highPriority);
-    }
-
-    @Test
-    public void testWarmupDemoterFilterByWarmupElementNonMatch()
-    {
-        ColumnFilter columnFilterNonMatch = createColumnFilter(ImmutableList.of(WarmUpType.WARM_UP_TYPE_DATA));
-        executeFilterTest(List.of(columnFilterNonMatch), 0);
-    }
-
-    @Test
-    public void testWarmupDemoterFilterByFilePaths()
-    {
-        FileFilter fileFilter = new FileFilter(Set.of(DEFAULT_FILE_PATH + "_" + 0));
-        executeFilterTest(List.of(fileFilter), 20);
-    }
-
-    @Test
-    public void testWarmupDemoterFilterByFilePathsNonMatch()
-    {
-        FileFilter fileFilterNonMatch = new FileFilter(Set.of("non existing file path"));
-        executeFilterTest(List.of(fileFilterNonMatch), 0);
-    }
-
-    @Test
-    public void testWarmupDemoterTwoFilters()
-    {
-        ColumnFilter columnFilterMatch = createColumnFilter(List.of(WarmUpType.WARM_UP_TYPE_BASIC));
-        FileFilter fileFilter = new FileFilter(Set.of(DEFAULT_FILE_PATH + "_" + 0));
-        executeFilterTest(List.of(columnFilterMatch, fileFilter), 1);
     }
 
     @Test
@@ -693,7 +257,7 @@ public class WarmupDemoterServiceTest
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         int demoteProcess = warmupDemoterService.initiateDemoteProcess();
-        warmupDemoterService.initDemoteArguments(demoteProcess);
+        warmupDemoterService.initDemoteContext(demoteProcess);
         warmupDemoterService.initiateDemoteProcess();
         WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
         assertThat(warmupDemoterStats.getnot_executed_due_is_already_executing()).isEqualTo(1);
@@ -724,25 +288,6 @@ public class WarmupDemoterServiceTest
         assertThat(list.get(2)).isEqualTo(t1);
     }
 
-    @Test
-    public void testTupleRanksToDemote()
-            throws ExecutionException, InterruptedException
-    {
-        when(rowGroupDataService.get(any())).thenAnswer(i -> rowGroupDataMap.get(i.getArguments()[0]));
-
-        List<TupleRank> tupleRanksToDemote = rowGroupDataMap.keySet()
-                .stream()
-                .limit(rowGroupDataMap.keySet().size() / 2)
-                .map(rowGroupKey -> {
-                    WarmupProperties warmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 1, 80, TransformFunction.NONE);
-                    return new TupleRank(warmupProperties, null, rowGroupKey);
-                }).collect(Collectors.toList());
-
-        setConfig(0, 0, 1, 100, List.of());
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
-        assertThat(warmupDemoterService.delete(tupleRanksToDemote)).isEqualTo(tupleRanksToDemote.size());
-    }
-
     private void setConfig(double maxUsageThresholdPercentage,
             double cleanupUsageThresholdPercentage,
             int batchSize,
@@ -758,75 +303,8 @@ public class WarmupDemoterServiceTest
         warmupDemoterService.setForceDeleteDeadObjects(false);
     }
 
-    private ColumnFilter createColumnFilter(List<WarmUpType> warmupTypes)
+    private RowGroupKey buildRowGroupKey(int fileIndex)
     {
-        return new ColumnFilter(new SchemaTableName(defaultSchemaName, defaultTableName),
-                ImmutableList.of(new WarmupDemoterWarmupElementData("c0", warmupTypes)));
-    }
-
-    private void executeFilterTest(List<TupleFilter> tupleFilters,
-            int expectedDeletedByTupleFilter)
-    {
-        warmupRules.add(buildWarmupRule(defaultSchemaName, defaultTableName, 30, WarmUpType.WARM_UP_TYPE_BASIC, highPriority, notEmptyTTL, defaultPredicates));
-        warmUpElements.add(buildWarmupElement(30, Instant.now().toEpochMilli()));
-        List<TupleRank> deadObjects = new ArrayList<>();
-        List<TupleRank> failedObjects = new ArrayList<>();
-        List<TupleRank> tupleRankList = new ArrayList<>();
-        warmupDemoterService.buildTupleRank(warmupRules,
-                new ArrayList<>(rowGroupDataMap.values()),
-                deadObjects,
-                failedObjects,
-                tupleRankList,
-                tupleFilters);
-
-        assertThat(deadObjects.size()).isEqualTo(expectedDeletedByTupleFilter);
-        assertThat(failedObjects.size()).isEqualTo(0);
-        assertThat(tupleRankList.size()).isEqualTo(0);
-    }
-
-    private RowGroupData buildRowGroupData(String schemaName, String tableName, List<WarmUpElement> warmUpElements, Map<WarpColumn, String> hivePartitionKeys, int fileIndex, boolean isEmpty)
-    {
-        return RowGroupData.builder()
-                .rowGroupKey(new RowGroupKey(schemaName, tableName, DEFAULT_FILE_PATH + "_" + fileIndex, 0, 1L, 0, "", ""))
-                .warmUpElements(warmUpElements)
-                .partitionKeys(hivePartitionKeys)
-                .isEmpty(isEmpty)
-                .build();
-    }
-
-    private WarmupRule buildWarmupRule(String schema,
-            String table,
-            int weId,
-            WarmUpType warmUpType,
-            double priority,
-            int ttl,
-            Set<WarmupPredicateRule> predicates)
-    {
-        return WarmupRule.builder()
-                .schema(schema)
-                .table(table)
-                .warpColumn(new RegularColumn("c" + weId))
-                .warmUpType(warmUpType)
-                .priority(priority)
-                .ttl(ttl)
-                .predicates(predicates)
-                .build();
-    }
-
-    private List<WarmupRule> buildWarmupRule(
-            Set<WarmupProperties> warmupProperties,
-            Set<WarmupPredicateRule> predicates)
-    {
-        return warmupProperties.stream()
-                .map((prop) -> WarmupRule.builder()
-                        .schema("schema1")
-                        .table("table1")
-                        .warpColumn(new RegularColumn("c" + 0))
-                        .warmUpType(prop.warmUpType())
-                        .priority(prop.priority())
-                        .ttl(prop.ttl())
-                        .predicates(predicates)
-                        .build())
-                .toList();
+        return new RowGroupKey("schema1", "table1", DEFAULT_FILE_PATH + "_" + fileIndex, 0, 1L, 0, "", "");
     }
 }

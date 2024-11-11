@@ -21,8 +21,8 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -54,7 +54,7 @@ import static org.mockito.Mockito.when;
 public class WorkerWarmupTaskTest
 {
     private RowGroupDataService rowGroupDataService;
-    private WarmupDemoterService warmupDemoterService;
+    private WarpDeleteService deleteService;
     private WarmupRuleService warmupRuleService;
     private WorkerWarmupTask task;
 
@@ -63,11 +63,11 @@ public class WorkerWarmupTaskTest
     public void before()
     {
         rowGroupDataService = mock(RowGroupDataService.class);
-        warmupDemoterService = mock(WarmupDemoterService.class);
+        deleteService = mock(WarpDeleteService.class);
         warmupRuleService = mock(WarmupRuleService.class);
         task = new WorkerWarmupTask(
                 rowGroupDataService,
-                warmupDemoterService,
+                deleteService,
                 (WarmupRuleFetcher<WarmupRule>) mock(WarmupRuleFetcher.class),
                 new WarmupRuleProvider(Optional.of(warmupRuleService)));
     }
@@ -130,12 +130,12 @@ public class WorkerWarmupTaskTest
             WarmupRule warmupRule = warmupRulesMap.get(key.getLeft());
             Optional<WarmupRule> result = warmupRule.getWarmUpType().equals(warmUpElement.getWarmUpType())
                     ? Optional.of(warmupRule) : Optional.empty();
-            when(warmupDemoterService.findMostRelevantRuleForWarmupElement(rowGroupData,
+            when(deleteService.findMostRelevantRuleForWarmupElement(rowGroupData,
                     warmUpElement,
                     Collections.singletonList(warmupRule)))
                     .thenReturn(result);
         });
-        when(warmupDemoterService.findMostRelevantRuleForWarmupElement(any(), any(), eq(Collections.emptyList()))).thenReturn(Optional.empty());
+        when(deleteService.findMostRelevantRuleForWarmupElement(any(), any(), eq(Collections.emptyList()))).thenReturn(Optional.empty());
         WarmupRulesUsageData warmupRulesUsageData = task.get();
 
         Collection<WarmupDefaultRuleUsageData> defaultRules = warmupRulesUsageData.warmupDefaultRuleUsageDataList();

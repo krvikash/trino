@@ -53,6 +53,8 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpConnectorDeleteService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.EmptyRowGroupWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
@@ -175,6 +177,7 @@ public class DispatcherCacheManagerModule
         binder.bind(StorageCollectorService.class);
         binder.bind(StorageEngineTxService.class);
         binder.bind(StorageWarmerService.class);
+        binder.bind(WarpDeleteService.class).to(WarpConnectorDeleteService.class);
         binder.bind(StorageWriterService.class);
         binder.bind(WarmupDemoterService.class);
         binder.bind(WarmupElementStatsService.class);
