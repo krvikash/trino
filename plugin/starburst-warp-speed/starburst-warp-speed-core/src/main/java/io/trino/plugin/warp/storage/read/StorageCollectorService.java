@@ -149,14 +149,15 @@ public class StorageCollectorService
 
     public CollectOpenResult open(QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
-            int numRowsCollectedInPrevRounds,
+            WarpQueryState queryState,
             int rowsLimit,
             Optional<StoreRowListResult> storeRowListResult)
     {
         bufferAllocator.readerOnAllocBundle();
+        queryState.resetNumRecordsInCurPage();
         return collectTxService.collectOpenAndRestore(queryArgs,
                 rowsLimit,
-                numRowsCollectedInPrevRounds,
+                queryState.getTotalNumReadRecords(),
                 storageCollectorArgs,
                 storeRowListResult);
     }
@@ -221,8 +222,10 @@ public class StorageCollectorService
     CollectFromStorageResult collectFromStorage(QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
             CollectOpenResult collectOpenResult,
-            int numCollectedRows)
+            WarpQueryState queryState)
     {
+        int numCollectedRows = queryState.getNumRecordsInCurPage();
+
         if (chunksQueueService.isCompletelyFinished(queryArgs.chunksQueue(), queryArgs.numChunks())) {
             return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, numCollectedRows);
         }
@@ -277,16 +280,17 @@ public class StorageCollectorService
             collectBufferState = (numCollectedRows > 0) ? CollectBufferState.COLLECT_BUFFER_STATE_PARTIAL : CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
         }
 
+        queryState.setNumRecordsInCurPage(numCollectedRows);
         return new CollectFromStorageResult(collectBufferState, numCollectedRows);
     }
 
     void fillBlocks(Block[] blocks,
             QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
-            int rowsToFill,
-            int numRowsCollectedInPrevRounds)
+            WarpQueryState queryState)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
+        int rowsToFill = queryState.getNumRecordsInCurPage();
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);

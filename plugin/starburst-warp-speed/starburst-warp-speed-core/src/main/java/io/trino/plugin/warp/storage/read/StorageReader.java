@@ -45,8 +45,7 @@ public class StorageReader
     private final StorageCollectorService storageCollectorService;
     private final MatchService matchService;
 
-    private int numRowsCollectedInCurRound; // num rows collected in this getNextPage
-    private int numRowsCollectedInPrevRounds; // num rows collected in all previous getNextPages
+    private final WarpQueryState queryState;
     private Optional<StoreRowListResult> storeRowListResult;
     private CollectOpenResult collectOpenResult;
     private MatchOpenResult matchOpenResult;
@@ -65,6 +64,7 @@ public class StorageReader
         this.storeRowListResult = Optional.empty();
         storageCollectorService.init(queryArgs);
         this.matchArgs = matchService.init(queryArgs, customStatsContext);
+        queryState = new WarpQueryState();
 
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -104,15 +104,13 @@ public class StorageReader
     @NativeInterrupt
     private void queryOpen(int rowsLimit)
     {
-        collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, numRowsCollectedInPrevRounds, rowsLimit, storeRowListResult);
+        collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, queryState, rowsLimit, storeRowListResult);
         try {
             matchOpenResult = matchService.open(queryArgs, matchArgs, collectOpenResult);
         }
         catch (Exception e) {
             throw new TrinoException(WARP_MATCH_FAILED, "failed to open match");
         }
-
-        numRowsCollectedInCurRound = 0;
     }
 
     /**
@@ -132,43 +130,39 @@ public class StorageReader
             CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(queryArgs,
                     storageCollectorArgs,
                     collectOpenResult,
-                    numRowsCollectedInCurRound);
+                    queryState);
             collectBufferState = collectFromStorageResult.collectBufferState();
-            numRowsCollectedInCurRound = collectFromStorageResult.numCollectedRows();
         }
 
         readTimeMeasurement.updateRuntimeMeasurements(startTime, queryArgs);
         return collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
     }
 
-    private int fillBlocks(Block[] blocks)
+    private void fillBlocks(Block[] blocks)
     {
-        int rowsToFill = Math.min(numRowsCollectedInCurRound, collectOpenResult.rowsLimit());
+        queryState.setNumRecordsInCurPage(Math.min(queryState.getNumRecordsInCurPage(), collectOpenResult.rowsLimit()));
 
         storageCollectorService.fillBlocks(blocks,
                 queryArgs,
                 storageCollectorArgs,
-                rowsToFill,
-                numRowsCollectedInPrevRounds);
-        return rowsToFill;
+                queryState);
     }
 
     ReadResult getPage(Block[] blocks, int limit)
     {
         try {
-            int numCollectedRows = 0;
             WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
 
             queryOpen(limit);
             if (matchAndCollect()) {
-                numCollectedRows = fillBlocks(blocks);
+                fillBlocks(blocks);
                 if (queryArgs.queryParams().isRangesRequired()) {
                     ranges = storageCollectorService.collectRanges(collectOpenResult);
                 }
             }
             long numReadPages = queryClose();
 
-            return new ReadResult(numCollectedRows, ranges, numReadPages);
+            return new ReadResult(queryState.getNumRecordsInCurPage(), ranges, numReadPages);
         }
         catch (Exception e) {
             queryAbort(e);
@@ -188,7 +182,7 @@ public class StorageReader
             return 0;
         }
 
-        numRowsCollectedInPrevRounds += numRowsCollectedInCurRound;
+        queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
         CollectCloseResult collectCloseResult = storageCollectorService.close(queryArgs,
                 collectOpenResult,
                 storageCollectorArgs);

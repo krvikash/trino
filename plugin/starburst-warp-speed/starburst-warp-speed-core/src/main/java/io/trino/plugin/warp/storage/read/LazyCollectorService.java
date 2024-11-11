@@ -139,14 +139,14 @@ public class LazyCollectorService
     void fillBlocks(Block[] blocks,
             QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
-            int rowsToFill,
-            int numRowsCollectedInPrevRounds)
+            WarpQueryState queryState)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
+        int rowsToFill = queryState.getNumRecordsInCurPage();
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(queryArgs, storageCollectorArgs, weIx, numRowsCollectedInPrevRounds, rowsToFill);
+            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(queryArgs, storageCollectorArgs, weIx, queryState.getTotalNumReadRecords(), rowsToFill);
             blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, new LazyCollectorLoader(
                     lazyCollectTxService,
                     lazyCollectorLoaderArgs,
