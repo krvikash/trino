@@ -69,6 +69,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
+import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
 import static io.trino.spi.predicate.Domain.singleValue;
@@ -124,7 +125,8 @@ public class TestIcebergCacheIds
                         TESTING_TYPE_MANAGER,
                         tableOperationsProvider,
                         new NodeVersion("test_version"),
-                        new IcebergSecurityConfig()),
+                        new IcebergSecurityConfig(),
+                        newDirectExecutorService()),
                 new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
                 new TableStatisticsWriter(new NodeVersion("test-version")),
                 Optional.of(metastoreFactory),

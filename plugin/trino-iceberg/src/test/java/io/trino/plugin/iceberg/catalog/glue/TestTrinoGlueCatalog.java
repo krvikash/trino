@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
@@ -97,7 +98,8 @@ public class TestTrinoGlueCatalog
                 useSystemSecurity,
                 Optional.empty(),
                 useUniqueTableLocations,
-                new IcebergConfig().isHideMaterializedViewStorageTable());
+                new IcebergConfig().isHideMaterializedViewStorageTable(),
+                directExecutor());
     }
 
     /**
@@ -233,7 +235,8 @@ public class TestTrinoGlueCatalog
                 false,
                 Optional.of(tmpDirectory.toAbsolutePath().toString()),
                 false,
-                new IcebergConfig().isHideMaterializedViewStorageTable());
+                new IcebergConfig().isHideMaterializedViewStorageTable(),
+                directExecutor());
 
         String namespace = "test_default_location_" + randomNameSuffix();
         String table = "tableName";
