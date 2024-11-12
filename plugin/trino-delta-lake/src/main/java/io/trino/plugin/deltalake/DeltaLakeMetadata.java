@@ -40,6 +40,7 @@ import io.trino.metastore.HivePrincipal;
 import io.trino.metastore.PrincipalPrivileges;
 import io.trino.metastore.StorageFormat;
 import io.trino.metastore.Table;
+import io.trino.metastore.TableInfo;
 import io.trino.plugin.base.classloader.ClassLoaderSafeSystemTable;
 import io.trino.plugin.base.filter.UtcConstraintExtractor;
 import io.trino.plugin.base.projection.ApplyProjectionUtil;
@@ -114,6 +115,7 @@ import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationCommentMetadata;
+import io.trino.spi.connector.RelationType;
 import io.trino.spi.connector.RetryMode;
 import io.trino.spi.connector.RowChangeParadigm;
 import io.trino.spi.connector.SaveMode;
@@ -174,7 +176,10 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -205,6 +210,7 @@ import static io.trino.plugin.base.filter.UtcConstraintExtractor.extractTupleDom
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.ProjectedColumnRepresentation;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
+import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
 import static io.trino.plugin.deltalake.DataFileInfo.DataFileType.DATA;
 import static io.trino.plugin.deltalake.DeltaLakeAnalyzeProperties.AnalyzeMode.FULL_REFRESH;
 import static io.trino.plugin.deltalake.DeltaLakeAnalyzeProperties.AnalyzeMode.INCREMENTAL;
@@ -450,6 +456,7 @@ public class DeltaLakeMetadata
     private final Map<SchemaTableName, TableUpdateInfo> tableUpdateInfos = new ConcurrentHashMap<>();
     private final Map<SchemaTableName, Long> latestTableVersions = new ConcurrentHashMap<>();
     private final Map<QueriedTable, TableSnapshot> queriedSnapshots = new ConcurrentHashMap<>();
+    private final Executor metadataFetchingExecutor;
 
     private record QueriedTable(SchemaTableName schemaTableName, long version)
     {
@@ -481,7 +488,8 @@ public class DeltaLakeMetadata
             CachingExtendedStatisticsAccess statisticsAccess,
             DeltaLakeTableMetadataScheduler metadataScheduler,
             boolean useUniqueTableLocation,
-            boolean allowManagedTableRename)
+            boolean allowManagedTableRename,
+            Executor metadataFetchingExecutor)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.metastore = requireNonNull(metastore, "metastore is null");
@@ -506,6 +514,7 @@ public class DeltaLakeMetadata
         this.metadataScheduler = requireNonNull(metadataScheduler, "metadataScheduler is null");
         this.useUniqueTableLocation = useUniqueTableLocation;
         this.allowManagedTableRename = allowManagedTableRename;
+        this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
     }
 
     public TableSnapshot getSnapshot(ConnectorSession session, SchemaTableName table, String tableLocation, Optional<Long> atVersion)
@@ -803,12 +812,40 @@ public class DeltaLakeMetadata
     @Override
     public List<SchemaTableName> listTables(ConnectorSession session, Optional<String> schemaName)
     {
-        return schemaName.map(Collections::singletonList)
+        return streamTables(session, schemaName)
+                .map(TableInfo::tableName)
+                .collect(toImmutableList());
+    }
+
+    @Override
+    public Map<SchemaTableName, RelationType> getRelationTypes(ConnectorSession session, Optional<String> schemaName)
+    {
+        return streamTables(session, schemaName)
+                .collect(toImmutableMap(TableInfo::tableName, this::resolveRelationType, (ignore, second) -> second));
+    }
+
+    private Stream<TableInfo> streamTables(ConnectorSession session, Optional<String> optionalSchemaName)
+    {
+        List<Callable<List<TableInfo>>> tasks = optionalSchemaName.map(Collections::singletonList)
                 .orElseGet(() -> listSchemaNames(session))
                 .stream()
-                .flatMap(schema -> metastore.getAllTables(schema).stream()
-                        .map(table -> new SchemaTableName(schema, table)))
+                .map(schemaName -> (Callable<List<TableInfo>>) () -> metastore.getAllTables(schemaName))
                 .collect(toImmutableList());
+        try {
+            return processWithAdditionalThreads(tasks, metadataFetchingExecutor).stream()
+                    .flatMap(Collection::stream);
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+    }
+
+    private RelationType resolveRelationType(TableInfo tableInfo)
+    {
+        if (tableInfo.extendedRelationType() == TableInfo.ExtendedRelationType.TRINO_VIEW) {
+            return RelationType.VIEW;
+        }
+        return RelationType.TABLE;
     }
 
     @Override

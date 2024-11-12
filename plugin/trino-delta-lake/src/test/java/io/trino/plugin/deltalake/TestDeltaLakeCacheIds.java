@@ -142,7 +142,8 @@ public class TestDeltaLakeCacheIds
                 new CachingExtendedStatisticsAccess(new MetaDirStatisticsAccess(HDFS_FILE_SYSTEM_FACTORY, new JsonCodecFactory().jsonCodec(ExtendedStatistics.class))),
                 true,
                 new NodeVersion("test_version"),
-                new DeltaLakeTableMetadataScheduler(nodeManager, TESTING_TYPE_MANAGER, new DeltaLakeFileMetastoreTableOperationsProvider(hiveMetastoreFactory), Integer.MAX_VALUE, config));
+                new DeltaLakeTableMetadataScheduler(nodeManager, TESTING_TYPE_MANAGER, new DeltaLakeFileMetastoreTableOperationsProvider(hiveMetastoreFactory), Integer.MAX_VALUE, config),
+                newDirectExecutorService());
         metadata = new DeltaLakeCacheMetadata(
                 createJsonCodec(DeltaLakeCacheTableId.class),
                 createJsonCodec(DeltaLakeColumnHandle.class));
