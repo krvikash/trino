@@ -27,7 +27,7 @@ public class ExtendedJuffer
 {
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
-    private final long warmUpStateAddress;
+    private final MemorySegment warmUpState;
     private final RecordBufferParams recordBufferParams;
     private int extSize;                            // extended recs buffer size
     private int extRecFirstOffset;                  // offset of the first extended entry we encountered
@@ -36,13 +36,13 @@ public class ExtendedJuffer
     public ExtendedJuffer(BufferAllocator bufferAllocator,
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
-            long warmUpStateAddress,
+            MemorySegment warmUpState,
             RecordBufferParams recordBufferParams)
     {
         super(bufferAllocator, JuffersType.EXTENDED_REC);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
-        this.warmUpStateAddress = warmUpStateAddress;
+        this.warmUpState = warmUpState;
         this.recordBufferParams = recordBufferParams;
         extRecFirstOffset = -1;
     }
@@ -55,20 +55,20 @@ public class ExtendedJuffer
         this.extSize = allocParams.extRecBuffSize();
     }
 
-    protected void commitAndResetExtRecordBuffer(byte[] chunkHeader, int numExtBytes)
+    protected void commitAndResetExtRecordBuffer(int numExtBytes)
     {
         if (numExtBytes > 0) {
             recordBufferParams.setExtParams(numExtBytes, extRecFirstOffset);
-            storageEngine.warmupChunkExtRec(recordBufferParams.getAddress(), warmUpStateAddress, chunkHeader);
+            storageEngine.warmupChunkExtRec(warmUpState, recordBufferParams.getMemory());
             resetExtBuf();
         }
     }
 
-    public void commitAndResetExtRecordBuffer(byte[] chunkHeader)
+    public void commitAndResetExtRecordBuffer()
     {
         if (wrappedBuffer.position() > 0) {
             recordBufferParams.setExtParams(wrappedBuffer.position(), extRecFirstOffset);
-            storageEngine.warmupChunkExtRec(recordBufferParams.getAddress(), warmUpStateAddress, chunkHeader);
+            storageEngine.warmupChunkExtRec(warmUpState, recordBufferParams.getMemory());
         }
         resetExtBuf();
     }

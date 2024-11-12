@@ -66,6 +66,8 @@ public class NativeStorageEngine
     private final MethodHandle mWarmupElementOpen;
     private final MethodHandle mWarmupElementClose;
     private final MethodHandle mWarmupVerifyQueryOffset;
+    private final MethodHandle mWarmupChunk;
+    private final MethodHandle mWarmupChunkExtRec;
     // collect API
     private final MethodHandle mCollectProcessMatchResult;
     private final MethodHandle mCollectCollectChunk;
@@ -130,6 +132,10 @@ public class NativeStorageEngine
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
             mWarmupVerifyQueryOffset = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_verify_query_offset").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+            mWarmupChunk = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_chunk").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+            mWarmupChunkExtRec = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_chunk_ext_rec").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
 
             // collect API
             mCollectProcessMatchResult = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_match_result").orElseThrow(),
@@ -401,10 +407,28 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native void warmupChunk(long recordBufferParamsAddress, long warmUpStateAddress, long compressionStateAddresss, byte[] inOutChunkHeader);
+    public void warmupChunk(MemorySegment warmUpState, MemorySegment recordBufferParams, MemorySegment compressionState)
+    {
+        try {
+            mWarmupChunk.invokeExact(warmUpState, recordBufferParams, compressionState);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to warmupChunk");
+            throw new RuntimeException("failed to warmup chunk");
+        }
+    }
 
     @Override
-    public native void warmupChunkExtRec(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader);
+    public void warmupChunkExtRec(MemorySegment warmUpState, MemorySegment recordBufferParams)
+    {
+        try {
+            mWarmupChunkExtRec.invokeExact(warmUpState, recordBufferParams);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to warmupChunkExtRec");
+            throw new RuntimeException("failed to warmup extended records");
+        }
+    }
 
     @Override
     public native long queryGetCollectStateSize(int numMatchCollect);

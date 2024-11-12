@@ -57,9 +57,9 @@ public class CompressionState
         this.compressionState = compressionState;
     }
 
-    public long getAddress()
+    public MemorySegment getMemory()
     {
-        return compressionState.address();
+        return compressionState;
     }
 
     // storage engine assumes the state is zeroed when starting to warm a new element

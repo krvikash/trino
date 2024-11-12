@@ -56,7 +56,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
@@ -124,7 +126,7 @@ public class ArrayReadWriteTest
         WarmUpElement warmUpElement = mock(WarmUpElement.class);
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_ARRAY_BOOLEAN);
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
-        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder, null);
+        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder);
 
         prepareBuffersForRead();
 
@@ -164,7 +166,7 @@ public class ArrayReadWriteTest
         WarmUpElement warmUpElement = mock(WarmUpElement.class);
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_ARRAY_TIMESTAMP);
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
-        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder, null);
+        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder);
 
         prepareBuffersForRead();
 
@@ -203,7 +205,7 @@ public class ArrayReadWriteTest
         WarmUpElement warmUpElement = mock(WarmUpElement.class);
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_ARRAY_DATE);
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
-        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder, null);
+        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder);
 
         prepareBuffersForRead();
 
@@ -241,7 +243,7 @@ public class ArrayReadWriteTest
         WarmUpElement warmUpElement = mock(WarmUpElement.class);
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_ARRAY_INT);
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
-        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder, null);
+        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder);
 
         prepareBuffersForRead();
 
@@ -261,10 +263,10 @@ public class ArrayReadWriteTest
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(mock(StorageEngine.class),
                 storageEngineConstants,
                 bufferAllocator,
-                new RecordBufferParams(MemorySegment.ofArray(new byte[100])),
-                new WarmUpState(MemorySegment.ofArray(new byte[100])),
+                new RecordBufferParams(Arena.ofAuto().allocate(100, ValueLayout.JAVA_INT.byteSize())),
+                new WarmUpState(Arena.ofAuto().allocate(100, ValueLayout.JAVA_INT.byteSize())),
                 warmUpElementAllocationParams,
-                new CompressionState(MemorySegment.ofArray(new byte[100])));
+                new CompressionState(Arena.ofAuto().allocate(100, ValueLayout.JAVA_INT.byteSize())));
         juffersWE.createBuffers(false);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         appender = new ArrayBlockAppender(blockTransformerFactory, juffersWE,

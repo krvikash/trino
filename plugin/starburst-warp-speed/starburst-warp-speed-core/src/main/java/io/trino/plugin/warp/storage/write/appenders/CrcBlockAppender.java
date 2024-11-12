@@ -20,6 +20,6 @@ public abstract class CrcBlockAppender
 {
     public CrcBlockAppender(WriteJuffersWarmUpElement juffersWE)
     {
-        super(juffersWE, juffersWE.getChunkHeaderSize());
+        super(juffersWE);
     }
 }

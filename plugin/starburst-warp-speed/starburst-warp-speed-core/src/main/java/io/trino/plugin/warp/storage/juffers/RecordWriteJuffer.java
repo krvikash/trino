@@ -29,22 +29,22 @@ public class RecordWriteJuffer
 {
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
-    private final long warmUpStateAddress;
-    private final long compressionStateAddresss;
+    private final MemorySegment warmUpState;
+    private final MemorySegment compressionState;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
     private boolean isDictionaryValid;
 
     public RecordWriteJuffer(BufferAllocator bufferAllocator,
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
-            long warmUpStateAddress,
-            long compressionStateAddresss)
+            MemorySegment warmUpState,
+            MemorySegment compressionState)
     {
         super(bufferAllocator, JuffersType.RECORD);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
-        this.warmUpStateAddress = warmUpStateAddress;
-        this.compressionStateAddresss = compressionStateAddresss;
+        this.warmUpState = warmUpState;
+        this.compressionState = compressionState;
     }
 
     @Override
@@ -84,10 +84,10 @@ public class RecordWriteJuffer
         return 1;
     }
 
-    public void commitAndResetWE(byte[] chunkHeader, long recordBufferParamsAddress)
+    public void commitAndResetWE(MemorySegment recordBufferParams)
     {
         // no need to add to chunk map as we are not closing the chunk
-        storageEngine.warmupChunk(recordBufferParamsAddress, warmUpStateAddress, compressionStateAddresss, chunkHeader);
+        storageEngine.warmupChunk(warmUpState, recordBufferParams, compressionState);
         resetSingleRecordBufferPos();
     }
 

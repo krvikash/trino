@@ -24,11 +24,11 @@ import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.type.Int128;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static java.lang.Double.doubleToLongBits;
@@ -47,12 +47,11 @@ public class WriteJuffersWarmUpElement
     private final WarmUpState warmUpState;
     private final RecordBufferParams recordBufferParams;
     private final CompressionState compressionState;
-    private final int chunkHeaderSize;
-    private final List<ChunkMap> chunkMapList;
+    private final ChunkHeader chunkHeader;
+    private final List<MemorySegment> chunksList;
     private final WarmUpElementAllocationParams allocParams;
 
     // min/max and single value per chunk
-    private byte[] chunkHeader;
     private boolean chunkOpened;
     private int numChunks;
     private long recordBufferMin;
@@ -74,35 +73,34 @@ public class WriteJuffersWarmUpElement
 
         this.storageEngine = storageEngine;
         this.pageOffsetMask = storageEngineConstants.getPageOffsetMask();
-        this.chunkMapList = new ArrayList<>();
+        this.chunksList = new ArrayList<>();
         this.allocParams = allocParams;
         this.warmUpState = warmUpState;
         this.compressionState = compressionState;
-        this.chunkHeaderSize = storageEngineConstants.getChunkHeaderMaxSize();
         this.recordBufferParams = recordBufferParams;
 
         compressionState.reset();
 
         // we always have an invalid cookie at the end of the list for a case we aborted the last chunk in the middle
         // in that case native might read this cookie and we prefer to have it initialized with invalid values
-        byte[] defaultChunkCookies = new byte[chunkHeaderSize];
-        Arrays.fill(defaultChunkCookies, (byte) -1);
-        this.chunkMapList.add(new ChunkMap(defaultChunkCookies));
-        this.chunkHeader = new byte[chunkHeaderSize];
+        this.chunkHeader = new ChunkHeader(allocParams.isCrcBufferNeeded());
+        warmUpState.setChunkHeader(chunkHeader.getAddress());
+        this.chunksList.add(chunkHeader.getInvalidChunkHeader());
+        this.chunkHeader.resetHeader();
 
         if (allocParams.isRecBufferNeeded()) {
             RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator,
                     allocParams,
                     storageEngine,
-                    warmUpState.getAddress(),
-                    compressionState.getAddress());
+                    warmUpState.getMemory(),
+                    compressionState.getMemory());
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
 
             if (allocParams.isExtBufferNeeded()) {
                 ExtendedJuffer extendedJuffers = new ExtendedJuffer(bufferAllocator,
                         allocParams,
                         storageEngine,
-                        warmUpState.getAddress(),
+                        warmUpState.getMemory(),
                         recordBufferParams);
                 juffers.put(extendedJuffers.getJufferType(), extendedJuffers);
             }
@@ -178,7 +176,7 @@ public class WriteJuffersWarmUpElement
             boolean prepareMdBuffer = allocParams.isMdBufferNeeded() && !recordJuffer.isDictionaryValid();
             numBytesWritten = calcNumBytesWritten(recordJuffer.getRecordBufferEntrySize(), recordJuffer.getWrappedBuffer(), prepareMdBuffer ? getVarlenMdBuffer() : null);
             if (allocParams.isExtBufferNeeded()) {
-                getExtRecordJuffer().commitAndResetExtRecordBuffer(chunkHeader);
+                getExtRecordJuffer().commitAndResetExtRecordBuffer();
             }
         }
 
@@ -188,9 +186,12 @@ public class WriteJuffersWarmUpElement
                 getNullJuffer().getNullsCount(),
                 numBytesWritten,
                 recordBufferSingleOffset);
-        storageEngine.warmupChunk(recordBufferParams.getAddress(), warmUpState.getAddress(), compressionState.getAddress(), chunkHeader);
-        chunkMapList.add(chunkMapList.size() - 1, new ChunkMap(chunkHeader));
-        chunkHeader = new byte[chunkHeaderSize];
+
+        storageEngine.warmupChunk(warmUpState.getMemory(), recordBufferParams.getMemory(), compressionState.getMemory());
+
+        chunksList.add(chunksList.size() - 1, chunkHeader.copyChunkHeader());
+        chunkHeader.resetHeader();
+
         closeCurrentChunk();
     }
 
@@ -212,7 +213,7 @@ public class WriteJuffersWarmUpElement
     {
         chunkOpened = true;
         if (allocParams.isExtBufferNeeded()) {
-            getExtRecordJuffer().commitAndResetExtRecordBuffer(chunkHeader, numExtBytes);
+            getExtRecordJuffer().commitAndResetExtRecordBuffer(numExtBytes);
         }
 
         recordBufferParams.setParams(recordBufferMin,
@@ -221,7 +222,8 @@ public class WriteJuffersWarmUpElement
                 getNullJuffer().getNullsCount() + addedNV,
                 numBytes,
                 recordBufferSingleOffset);
-        getRecordJuffer().commitAndResetWE(chunkHeader, recordBufferParams.getAddress());
+
+        getRecordJuffer().commitAndResetWE(recordBufferParams.getMemory());
     }
 
     public void increaseNullsCount(int nullsCount)
@@ -238,12 +240,6 @@ public class WriteJuffersWarmUpElement
     public void updateLuceneProps(Slice val)
     {
         getLuceneJuffer().updateLuceneProps(val);
-    }
-
-    public byte[] getCurrentChunkHeader()
-    {
-        chunkOpened = true;
-        return chunkHeader;
     }
 
     // updates the current opened/closed state of current chunk to closed and returns the previous state
@@ -490,18 +486,13 @@ public class WriteJuffersWarmUpElement
         return (ByteBuffer) getBufferByType(JuffersType.CRC);
     }
 
-    public List<ChunkMap> getChunkMapList()
+    public List<MemorySegment> getChunksList()
     {
-        return chunkMapList;
+        return chunksList;
     }
 
     public ByteBuffer getChunkMapBuffer()
     {
         return (ByteBuffer) getBufferByType(JuffersType.CHUNKS_MAP);
-    }
-
-    public int getChunkHeaderSize()
-    {
-        return chunkHeaderSize;
     }
 }

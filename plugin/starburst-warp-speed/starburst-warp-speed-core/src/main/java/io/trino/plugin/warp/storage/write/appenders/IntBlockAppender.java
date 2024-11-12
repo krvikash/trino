@@ -34,8 +34,7 @@ public class IntBlockAppender
     public AppendResult appendWithoutDictionary(int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
-            WarmupElementStatsBuilder warmupElementStatsBuilder,
-            byte[] chunkHeader)
+            WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         IntBuffer buff = (IntBuffer) juffersWE.getRecordBuffer();
         int nullsCount = 0;

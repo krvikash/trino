@@ -36,8 +36,7 @@ public class CrcMapBlockAppender
     AppendResult appendWithoutDictionary(int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
-            WarmupElementStatsBuilder warmupElementStatsBuilder,
-            byte[] chunkHeader)
+            WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         TransformedColumn transformedColumn = (TransformedColumn) warmUpElement.getWarpColumn();
         WarpConstant key = transformedColumn.getTransformFunction().transformParams().getFirst();

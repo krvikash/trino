@@ -58,9 +58,9 @@ public class RecordBufferParams
         this.recordBufferParams = recordBufferParams;
     }
 
-    public long getAddress()
+    public MemorySegment getMemory()
     {
-        return recordBufferParams.address();
+        return recordBufferParams;
     }
 
     public void setParams(long min,

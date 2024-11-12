@@ -130,12 +130,12 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void warmupChunk(long recordBufferParamsAddress, long warmUpStateAddress, long compressionStateAddresss, byte[] inOutChunkHeader)
+    public void warmupChunk(MemorySegment warmUpState, MemorySegment recordBufferParams, MemorySegment compressionState)
     {
     }
 
     @Override
-    public void warmupChunkExtRec(long recordBufferParamsAddress, long warmUpStateAddress, byte[] inOutChunkHeader)
+    public void warmupChunkExtRec(MemorySegment warmUpState, MemorySegment recordBufferParams)
     {
     }
 

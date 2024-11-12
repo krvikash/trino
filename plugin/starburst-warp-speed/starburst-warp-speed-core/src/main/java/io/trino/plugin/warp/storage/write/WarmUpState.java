@@ -40,7 +40,7 @@ public class WarmUpState
     public static final StructLayout WARMUP_STATE_LAYOUT;
     private static final long WARMUP_STATE_OFFSET_JBUF_LIST;
     private static final long WARMUP_STATE_OFFSET_WRITE_BUF;
-    public static final long WARMUP_STATE_OFFSET_CHUNK;        // public for testing
+    private static final long WARMUP_STATE_OFFSET_CHUNK_HEADER;
     private static final long WARMUP_STATE_OFFSET_FILE_COOKIE;
     public static final long WARMUP_STATE_OFFSET_START_OFFSET; // public for testing
     public static final long WARMUP_STATE_OFFSET_QUERY_OFFSET; // public for testing
@@ -84,7 +84,7 @@ public class WarmUpState
                 ValueLayout.JAVA_BYTE.withName("warmup_failed")).withName("we_commit_state_t");
         WARMUP_STATE_OFFSET_JBUF_LIST = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pjbuf_ptrs"));
         WARMUP_STATE_OFFSET_WRITE_BUF = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pwrite_buf"));
-        WARMUP_STATE_OFFSET_CHUNK = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pchunk"));
+        WARMUP_STATE_OFFSET_CHUNK_HEADER = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pchunk_pers"));
         WARMUP_STATE_OFFSET_FILE_COOKIE = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("file_cookie"));
         WARMUP_STATE_OFFSET_START_OFFSET = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("start_offset"));
         WARMUP_STATE_OFFSET_QUERY_OFFSET = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("query_offset"));
@@ -103,14 +103,22 @@ public class WarmUpState
         this.jbufs = new MemorySegment[JbufType.JBUF_TYPE_NUM_OF.ordinal()];
     }
 
-    public long getAddress()
+    public MemorySegment getMemory()
     {
-        return warmUpState.address();
+        return warmUpState;
     }
 
     public MemorySegment getState()
     {
         return warmUpState;
+    }
+
+    // currently called only after open but we can extend this in the future to avoid throwing exceptions from native
+    public void verifyWarmUpSuccess()
+    {
+        if (warmUpState.get(ValueLayout.JAVA_BYTE, WARMUP_STATE_OFFSET_WARMUP_FAILED) != 0) {
+            throw new RuntimeException("storage engione failed to warm up element");
+        }
     }
 
     public MemorySegment getWarmUpElemetAtt()
@@ -155,12 +163,9 @@ public class WarmUpState
         warmUpState.set(ValueLayout.JAVA_LONG, WARMUP_STATE_OFFSET_WRITE_BUF, writeBuffer);
     }
 
-    // currently called only after open but we can extend this in the future to avoid throwing exceptions from native
-    public void verifyWarmUpSuccess()
+    public void setChunkHeader(long chunkHeaderAddress)
     {
-        if (warmUpState.get(ValueLayout.JAVA_BYTE, WARMUP_STATE_OFFSET_WARMUP_FAILED) != 0) {
-            throw new RuntimeException("storage engione failed to warm up element");
-        }
+        warmUpState.set(ValueLayout.JAVA_LONG, WARMUP_STATE_OFFSET_CHUNK_HEADER, chunkHeaderAddress);
     }
 
     public int getStartOffset()

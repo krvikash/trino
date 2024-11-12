@@ -21,6 +21,6 @@ public abstract class DataBlockAppender
     public DataBlockAppender(WriteJuffersWarmUpElement juffersWE)
     {
         // For Data we don't need the Aggs so we reduce the size of two aggs from info
-        super(juffersWE, juffersWE.getChunkHeaderSize() - (Long.BYTES * 2));
+        super(juffersWE);
     }
 }

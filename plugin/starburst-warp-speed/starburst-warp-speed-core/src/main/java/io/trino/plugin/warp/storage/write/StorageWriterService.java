@@ -562,7 +562,7 @@ public class StorageWriterService
         Optional<WarmUpCloseResult> warmUpCloseResultOpt = Optional.empty();
 
         if (!storageWriterContext.isWeClosed()) {
-            storageWriterContext.getBlockAppender().writeChunkMapValuesIntoChunkMapJuffer(storageWriterContext.getWriteJuffersWarmUpElement().getChunkMapList());
+            storageWriterContext.getBlockAppender().writeChunkMapValuesIntoChunkMapJuffer(storageWriterContext.getWriteJuffersWarmUpElement().getChunksList());
             // if current chunk is still opened it means there was an exception and we warm up element is aborted
             WriteJuffersWarmUpElement writeJuffersWarmUpElement = storageWriterContext.getWriteJuffersWarmUpElement();
             boolean currentChunkIsOpened = writeJuffersWarmUpElement.closeCurrentChunk();
@@ -620,8 +620,7 @@ public class StorageWriterService
                     blockPos,
                     storageWriterContext.getWriteDictionary(),
                     warmUpElement,
-                    storageWriterContext.getWarmupElementStatsBuilder(),
-                    storageWriterContext.getWriteJuffersWarmUpElement().getCurrentChunkHeader());
+                    storageWriterContext.getWarmupElementStatsBuilder());
             storageWriterContext.getWriteJuffersWarmUpElement().increaseNullsCount(appendResult.nullsCount());
         }
         catch (WarmupException e) {

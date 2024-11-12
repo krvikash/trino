@@ -17,12 +17,12 @@ import io.trino.plugin.warp.dictionary.WriteDictionary;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
-import io.trino.plugin.warp.storage.juffers.ChunkMap;
 import io.trino.plugin.warp.storage.juffers.CrcJuffer;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import java.util.List;
@@ -37,14 +37,12 @@ public abstract class BlockAppender
     protected final WriteJuffersWarmUpElement juffersWE;
     protected final ByteBuffer nullBuff;
     protected final CrcJuffer crcJuffers;
-    private final int copySize;
 
-    public BlockAppender(WriteJuffersWarmUpElement juffersWE, int copySize)
+    public BlockAppender(WriteJuffersWarmUpElement juffersWE)
     {
         this.juffersWE = juffersWE;
         this.nullBuff = juffersWE.getNullBuffer();
         this.crcJuffers = juffersWE.getCrcJuffer();
-        this.copySize = copySize;
     }
 
     public final AppendResult append(
@@ -52,12 +50,11 @@ public abstract class BlockAppender
             BlockPosHolder blockPos,
             Optional<WriteDictionary> writeDictionary,
             WarmUpElement warmUpElement,
-            WarmupElementStatsBuilder warmupElementStatsBuilder,
-            byte[] chunkHeader)
+            WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         AppendResult result;
         if (writeDictionary.isEmpty()) {
-            result = appendWithoutDictionary(jufferPos, blockPos, warmUpElement, warmupElementStatsBuilder, chunkHeader);
+            result = appendWithoutDictionary(jufferPos, blockPos, warmUpElement, warmupElementStatsBuilder);
         }
         else {
             result = appendWithDictionary(blockPos, writeDictionary.get(), warmupElementStatsBuilder);
@@ -69,15 +66,14 @@ public abstract class BlockAppender
     abstract AppendResult appendWithoutDictionary(int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
-            WarmupElementStatsBuilder warmupElementStatsBuilder,
-            byte[] chunkHeader);
+            WarmupElementStatsBuilder warmupElementStatsBuilder);
 
-    public void writeChunkMapValuesIntoChunkMapJuffer(List<ChunkMap> chunkMapList)
+    public void writeChunkMapValuesIntoChunkMapJuffer(List<MemorySegment> chunksList)
     {
-        ByteBuffer chunkBuffer = juffersWE.getChunkMapBuffer();
-        chunkBuffer.position(0); // to be on the safe side
-        for (ChunkMap chunkMap : chunkMapList) {
-            chunkBuffer.put(chunkMap.chunkValues(), 0, copySize);
+        ByteBuffer chunkMapBuffer = juffersWE.getChunkMapBuffer();
+        chunkMapBuffer.position(0); // to be on the safe side
+        for (MemorySegment chunkHeader : chunksList) {
+            chunkMapBuffer.put(chunkHeader.asByteBuffer());
         }
     }
 
