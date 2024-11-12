@@ -19,8 +19,6 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
-import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
@@ -87,15 +85,17 @@ public class MatchService
     public MatchArgs init(QueryArgs queryArgs, CustomStatsContext customStatsContext)
     {
         QueryParams queryParams = queryArgs.queryParams();
-        int[] weMatchTree = queryParams.dumpMatchParams();
-        LuceneMatcher[] luceneMatchers = new LuceneMatcher[queryParams.getNumLucene()];
 
         List<ReadJuffersWarmUpElement> matchJuffersWe = queryParams.getMatchElementsParamsList()
                 .stream()
                 .map(we -> we.hasLuceneParams() ? new ReadJuffersWarmUpElement(bufferAllocator, false) : new ReadJuffersWarmUpElement())
                 .collect(Collectors.toList());
 
-        MatchArgs matchArgs = new MatchArgs(weMatchTree, matchJuffersWe, luceneMatchers);
+        SequenceLayout warmUpElementAttsLayout = MemoryLayout.sequenceLayout(queryParams.getNumMatchElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
+        MatchArgs matchArgs = new MatchArgs(queryParams.dumpMatchParams(),
+                Arena.ofAuto().allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_SHORT.byteSize()),
+                matchJuffersWe,
+                new LuceneMatcher[queryParams.getNumLucene()]);
         createLuceneMatchers(queryArgs, matchArgs, customStatsContext); // this call must be after creating the matchJuffersWE
 
         return matchArgs;
@@ -136,23 +136,13 @@ public class MatchService
             Optional<MemorySegment> luceneBitmaps = Optional.empty();
             final int luceneBitmapSizePerWE = storageEngineConstants.getPageSize() * queryArgs.numChunksInRange();
             try {
-                // we llocate one more and fill it with invalid values for safety check that storage layer does not continue over the boundaries of the array
-                SequenceLayout warmUpElementAttsLayout = MemoryLayout.sequenceLayout(queryParams.getNumMatchElements() + 1, WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
-                MemorySegment warmUpElementAtts = Arena.ofAuto().allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
                 Iterator<WarmupElementMatchParams> matchParamsListItr = queryParams.getMatchElementsParamsList().iterator();
-                warmUpElementAtts.elements(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT)
+                matchArgs.warmUpElementAtts().elements(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT)
                         .forEach(warmupElementAtt -> {
-                            if (matchParamsListItr.hasNext()) {
-                                WarmupElementMatchParams matchParams = matchParamsListItr.next();
-                                WarmUpElement.setRecTypeCode(warmupElementAtt, matchParams.getRecTypeCode());
-                                WarmUpElement.setRecTypeLength(warmupElementAtt, matchParams.getRecTypeLength());
-                                WarmUpElement.setWarmUpType(warmupElementAtt, matchParams.getWarmUpType());
-                            }
-                            else {
-                                WarmUpElement.setRecTypeCode(warmupElementAtt, RecTypeCode.REC_TYPE_INVALID);
-                                WarmUpElement.setRecTypeLength(warmupElementAtt, 0);
-                                WarmUpElement.setWarmUpType(warmupElementAtt, WarmUpType.WARM_UP_TYPE_NUM_OF);
-                            }
+                            WarmupElementMatchParams matchParams = matchParamsListItr.next();
+                            WarmUpElement.setRecTypeCode(warmupElementAtt, matchParams.getRecTypeCode());
+                            WarmUpElement.setRecTypeLength(warmupElementAtt, matchParams.getRecTypeLength());
+                            WarmUpElement.setWarmUpType(warmupElementAtt, matchParams.getWarmUpType());
                         });
 
                 if (queryParams.getNumLucene() > 0) {
@@ -168,7 +158,7 @@ public class MatchService
                         queryParams.getNumMatchElements(),
                         queryArgs.numChunksInRange(),
                         matchArgs.weMatchTree(),
-                        warmUpElementAtts.address(),
+                        matchArgs.warmUpElementAtts().address(),
                         collectOpenResult.matchBmAddr(),
                         luceneBitmaps.isPresent() ? luceneBitmaps.get().address() : 0,
                         queryParams.getMinMatchOffset());
