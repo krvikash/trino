@@ -50,6 +50,7 @@ public class WarmUpState
     private static final long WARMUP_STATE_OFFSET_NUM_CHUNKS;
     private static final long WARMUP_STATE_OFFSET_WARM_ID;
     private static final long WARMUP_STATE_OFFSET_CLOSE_CHUNK;
+    private static final long WARMUP_STATE_OFFSET_WARMUP_FAILED;
 
     private final MemorySegment warmUpState;
     private final MemorySegment[] jbufs;
@@ -79,7 +80,8 @@ public class WarmUpState
                 ValueLayout.JAVA_SHORT.withName("query_size"),
                 ValueLayout.JAVA_SHORT.withName("nchunks"),
                 ValueLayout.JAVA_BYTE.withName("warm_id"),
-                ValueLayout.JAVA_BYTE.withName("close_chunk")).withName("we_commit_state_t");
+                ValueLayout.JAVA_BYTE.withName("close_chunk"),
+                ValueLayout.JAVA_BYTE.withName("warmup_failed")).withName("we_commit_state_t");
         WARMUP_STATE_OFFSET_JBUF_LIST = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pjbuf_ptrs"));
         WARMUP_STATE_OFFSET_WRITE_BUF = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pwrite_buf"));
         WARMUP_STATE_OFFSET_CHUNK = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pchunk"));
@@ -92,6 +94,7 @@ public class WarmUpState
         WARMUP_STATE_OFFSET_NUM_CHUNKS = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("nchunks"));
         WARMUP_STATE_OFFSET_WARM_ID = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("warm_id"));
         WARMUP_STATE_OFFSET_CLOSE_CHUNK = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("close_chunk"));
+        WARMUP_STATE_OFFSET_WARMUP_FAILED = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("warmup_failed"));
     }
 
     public WarmUpState(MemorySegment warmUpState)
@@ -152,10 +155,11 @@ public class WarmUpState
         warmUpState.set(ValueLayout.JAVA_LONG, WARMUP_STATE_OFFSET_WRITE_BUF, writeBuffer);
     }
 
-    public void verifyChunk()
+    // currently called only after open but we can extend this in the future to avoid throwing exceptions from native
+    public void verifyWarmUpSuccess()
     {
-        if (warmUpState.get(ValueLayout.JAVA_LONG, WARMUP_STATE_OFFSET_CHUNK) == 0) {
-            throw new RuntimeException("failed to allocate chunk context");
+        if (warmUpState.get(ValueLayout.JAVA_BYTE, WARMUP_STATE_OFFSET_WARMUP_FAILED) != 0) {
+            throw new RuntimeException("storage engione failed to warm up element");
         }
     }
 

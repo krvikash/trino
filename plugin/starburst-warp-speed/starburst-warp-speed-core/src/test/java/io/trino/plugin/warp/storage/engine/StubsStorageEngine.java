@@ -114,7 +114,6 @@ public class StubsStorageEngine
     @Override
     public void warmupElementOpen(MemorySegment warmUpState, MemorySegment context)
     {
-        warmUpState.set(ValueLayout.JAVA_LONG, WarmUpState.WARMUP_STATE_OFFSET_CHUNK, 1); /* cannot be zero to simulate something was allocated */
     }
 
     @Override

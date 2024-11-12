@@ -281,7 +281,7 @@ public class StorageWriterService
         warmUpState.setWarmId(getCurrentThreadWarmId());
         warmUpState.setCloseChunk(false); // keep it false as default
         storageEngine.warmupElementOpen(warmUpState.getState(), context);
-        //warmUpState.verifyChunk();
+        warmUpState.verifyWarmUpSuccess();
     }
 
     WarmSinkResult close(int totalRecords, StorageWriterSplitConfig storageWriterSplitConfig, StorageWriterContext storageWriterContext)
