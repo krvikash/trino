@@ -312,10 +312,10 @@ public class StorageCollectorService
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = collectOpenResult.warmupElementRecordBufferStates();
         if (warmupElementRecordBufferStates.isEmpty()) {
             logger.debug("getNumToCollect no wes %d", queryArgs.chunkSize() - numCollectedRows);
-            return queryArgs.chunkSize() - numCollectedRows;
+            return Math.min(queryArgs.chunkSize() - numCollectedRows, collectOpenResult.rowsLimit() - numCollectedRows);
         }
 
-        int recLimit = Integer.MAX_VALUE;
+        int recLimit = collectOpenResult.rowsLimit() - numCollectedRows;
         for (WarmupElementRecordBufferState warmupElementRecordBufferState : warmupElementRecordBufferStates) {
             int limit = getNumToCollect(queryArgs,
                     numCollectedFromCurrentChunk,

@@ -49,15 +49,18 @@ public class StorageReader
     private Optional<StoreRowListResult> storeRowListResult;
     private CollectOpenResult collectOpenResult;
     private MatchOpenResult matchOpenResult;
+    private final long rowsLimit;
 
     StorageReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
             StorageCollectorService storageCollectorService,
             MatchService matchService,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            long rowsLimit)
     {
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.matchService = requireNonNull(matchService);
+        this.rowsLimit = rowsLimit;
 
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams, customStatsContext);
         this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryArgs);
@@ -74,6 +77,11 @@ public class StorageReader
 
         checkOffHeapMemoryUsage();
         readTimeMeasurement = new ReadTimeMeasurement();
+    }
+
+    public boolean isRowsLimitReached()
+    {
+        return rowsLimit <= queryState.getTotalNumReadRecords();
     }
 
     void close()
@@ -102,9 +110,10 @@ public class StorageReader
      * prepare buffers for filling
      */
     @NativeInterrupt
-    private void queryOpen(int rowsLimit)
+    private void queryOpen()
     {
-        collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, queryState, rowsLimit, storeRowListResult);
+        int pageLimit = (int) Math.min(rowsLimit - queryState.getTotalNumReadRecords(), Integer.MAX_VALUE);
+        collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, queryState, pageLimit, storeRowListResult);
         try {
             matchOpenResult = matchService.open(queryArgs, matchArgs, collectOpenResult);
         }
@@ -138,24 +147,24 @@ public class StorageReader
         return queryState.getNumRecordsInCurPage() > 0;
     }
 
-    private void fillBlocks(Block[] blocks)
-    {
-        queryState.setNumRecordsInCurPage(Math.min(queryState.getNumRecordsInCurPage(), collectOpenResult.rowsLimit()));
-
-        storageCollectorService.fillBlocks(blocks,
-                queryArgs,
-                storageCollectorArgs,
-                queryState);
-    }
-
-    ReadResult getPage(Block[] blocks, int limit)
+    ReadResult getPage(Block[] blocks)
     {
         try {
             WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
 
-            queryOpen(limit);
+            queryOpen();
             if (matchAndCollect()) {
-                fillBlocks(blocks);
+                if (queryState.getNumRecordsInCurPage() > rowsLimit - queryState.getTotalNumReadRecords()) {
+                    shapingLogger.warn("numRecordsInCurPage is exceeding the limit. numRecordsInCurPage %d totalNumReadRecords %d rowsLimit %d page limit %d",
+                            queryState.getNumRecordsInCurPage(),
+                            queryState.getTotalNumReadRecords(),
+                            rowsLimit,
+                            rowsLimit - queryState.getTotalNumReadRecords());
+                }
+                storageCollectorService.fillBlocks(blocks,
+                        queryArgs,
+                        storageCollectorArgs,
+                        queryState);
                 if (queryArgs.queryParams().isRangesRequired()) {
                     ranges = storageCollectorService.collectRanges(collectOpenResult);
                 }

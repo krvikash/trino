@@ -38,7 +38,6 @@ public class WarpPageSource
     private final PredicatesCacheService predicatesCacheService;
     private final QueryParams queryParams;
     private final StorageReader reader;
-    private long rowsLimit;
     private boolean finished;
     private boolean closed; // set explicitly by someone calling {@link #close()}
     private RowRanges sortedRowRanges;
@@ -58,7 +57,6 @@ public class WarpPageSource
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.predicatesCacheService = predicatesCacheService;
         this.sortedRowRanges = RowRanges.EMPTY;
-        this.rowsLimit = rowsLimit;
         this.queryParams = queryParams;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -72,7 +70,8 @@ public class WarpPageSource
                 customStatsContext,
                 collectorService,
                 matchService,
-                globalConfig);
+                globalConfig,
+                rowsLimit);
     }
 
     @Override
@@ -134,9 +133,8 @@ public class WarpPageSource
         return ((blocks.length > 0) && blocks[0] != null) ? new Page(currentPositionsCount, blocks) : new Page(currentPositionsCount);
     }
 
-    private void updateRowsLimit(int collectedRows)
+    private void updateRowsLimit()
     {
-        rowsLimit -= collectedRows;
         if (isRowsLimitReached()) {
             finished = true;
         }
@@ -144,16 +142,15 @@ public class WarpPageSource
 
     private int fillPage(Block[] blocks)
     {
-        int limit = (int) Math.min(rowsLimit, Integer.MAX_VALUE);
         ReadResult readResult;
 
-        readResult = reader.getPage(blocks, limit);
+        readResult = reader.getPage(blocks);
 
         if (readResult.numCollectedRows() == 0) {
             finished = true;
         }
 
-        updateRowsLimit(readResult.numCollectedRows());
+        updateRowsLimit();
         sortedRowRanges = readResult.ranges();
         completedBytes += (readResult.numReadPages() << storageEngineConstants.getPageSizeShift());
         completedPositions += readResult.numCollectedRows();
@@ -169,6 +166,6 @@ public class WarpPageSource
     @Override
     public boolean isRowsLimitReached()
     {
-        return rowsLimit <= 0;
+        return reader.isRowsLimitReached();
     }
 }
