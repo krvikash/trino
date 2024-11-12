@@ -217,9 +217,9 @@ public class StorageCollectorService
                 dispatcherPageSourceStats);
     }
 
-    // returns indication if anything is collected in the buffer and if the buffer is full
+    // returns indication if we can continue preparing more records, or we reached some limit by the storage collector
     @NativeInterrupt
-    CollectFromStorageResult collectFromStorage(QueryArgs queryArgs,
+    boolean prepareBlocks(QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
             CollectOpenResult collectOpenResult,
             WarpQueryState queryState)
@@ -227,25 +227,25 @@ public class StorageCollectorService
         int numCollectedRows = queryState.getNumRecordsInCurPage();
 
         if (chunksQueueService.isCompletelyFinished(queryArgs.chunksQueue(), queryArgs.numChunks())) {
-            return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, numCollectedRows);
+            return false;
         }
 
-        int numToCollect = 1; // Not a real value, just making sure to enter the loop in the first iteration
+        boolean canPrepareMore = true;
         QueryParams queryParams = queryArgs.queryParams();
 
-        while (!chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue()) && numToCollect > 0) {
+        while (!chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue()) && canPrepareMore) {
             // get next chunk to collect and check if its already done on buffer
             int chunkIndex = queryArgs.chunksQueue().getCurrent();
             if (chunksQueueService.isChunkPreparationNeeded(queryArgs.chunksQueue())) {
                 prepareChunk(queryArgs, collectOpenResult, numCollectedRows, storageCollectorArgs.prepareQueryResultTypes());
                 if ((numCollectedRows > 0) && stopForOptimization(queryParams.getNumCollectElements(), storageCollectorArgs.prepareQueryResultTypes(), storageCollectorArgs.queryResultTypes())) {
-                    numToCollect = 0;
+                    canPrepareMore = false;
                     break;
                 }
             }
             if (queryParams.getNumCollectElements() > 0) {
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, collectOpenResult.rangeData());
-                numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
+                int numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
                 if (numToCollect > 0) {
                     collectChunk(
                             collectOpenResult,
@@ -255,33 +255,30 @@ public class StorageCollectorService
                             storageCollectorArgs.queryResultTypes(),
                             queryArgs.dispatcherPageSourceStats());
                 }
+                else {
+                    canPrepareMore = false;
+                }
                 numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, queryArgs, collectOpenResult, this);
             }
             else {
                 numCollectedRows += rangeFillerService.add(chunkIndex, 0, queryArgs, collectOpenResult, this);
             }
-            logger.debug("collectFromStorage after native collect chunkIndex %d numToCollect %d numCollectedRows %d", chunkIndex, numToCollect, numCollectedRows);
+            logger.debug("collectFromStorage after native collect chunkIndex %d canPrepareMore %b numCollectedRows %d", chunkIndex, canPrepareMore, numCollectedRows);
 
             if (!advanceChunk(queryArgs, collectOpenResult, numCollectedRows)) {
-                numToCollect = 0; // We do not collect from one chunk twice in one round
+                canPrepareMore = false; // We do not collect from one chunk twice in one round
             }
+
             // In case we are in full scan we are stopping after one chunk
             if (queryParams.getNumMatchElements() == 0) {
-                numToCollect = 0;
+                canPrepareMore = false;
             }
         }
 
-        logger.debug("collectFromStorage end numCollectedRows %d numToCollect %d", numCollectedRows, numToCollect);
-        CollectBufferState collectBufferState;
-        if (numToCollect == 0) {
-            collectBufferState = CollectBufferState.COLLECT_BUFFER_STATE_FULL;
-        }
-        else {
-            collectBufferState = (numCollectedRows > 0) ? CollectBufferState.COLLECT_BUFFER_STATE_PARTIAL : CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
-        }
+        logger.debug("collectFromStorage end numCollectedRows %d canPrepareMore %b", numCollectedRows, canPrepareMore);
 
         queryState.setNumRecordsInCurPage(numCollectedRows);
-        return new CollectFromStorageResult(collectBufferState, numCollectedRows);
+        return canPrepareMore;
     }
 
     void fillBlocks(Block[] blocks,

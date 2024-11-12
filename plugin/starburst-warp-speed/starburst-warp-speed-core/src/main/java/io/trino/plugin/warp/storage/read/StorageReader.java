@@ -123,19 +123,19 @@ public class StorageReader
         if (collectOpenResult == null) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
         }
-        CollectBufferState collectBufferState = CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
 
-        // we continue as long as buffer is not full and we have more chunks to match and collect
-        while ((collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_FULL) && matchService.match(queryArgs, matchArgs, matchOpenResult)) {
-            CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(queryArgs,
+        // we continue as long as we didn't reach a limit from the match nor prepare
+        while (matchService.match(queryArgs, matchArgs, matchOpenResult)) {
+            if (!storageCollectorService.prepareBlocks(queryArgs,
                     storageCollectorArgs,
                     collectOpenResult,
-                    queryState);
-            collectBufferState = collectFromStorageResult.collectBufferState();
+                    queryState)) {
+                break;
+            }
         }
 
         readTimeMeasurement.updateRuntimeMeasurements(startTime, queryArgs);
-        return collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
+        return queryState.getNumRecordsInCurPage() > 0;
     }
 
     private void fillBlocks(Block[] blocks)
