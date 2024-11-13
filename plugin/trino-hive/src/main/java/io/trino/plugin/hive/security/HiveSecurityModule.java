@@ -34,6 +34,7 @@ public class HiveSecurityModule
         SQL_STANDARD,
         SYSTEM,
         RANGER,
+        DEPRECATED_RANGER,
         LAKE_FORMATION,
         SENTRY,
         STARBURST,
@@ -51,7 +52,7 @@ public class HiveSecurityModule
             // do not bind a ConnectorAccessControl so the engine will use system security with system roles
             case SYSTEM -> combine(new StaticAccessControlMetadataModule(), usingSystemSecurity(true));
             // these are not handled by Trino:
-            case RANGER, LAKE_FORMATION, SENTRY, STARBURST -> usingSystemSecurity(false);
+            case RANGER, DEPRECATED_RANGER, LAKE_FORMATION, SENTRY, STARBURST -> usingSystemSecurity(false);
         });
     }
 
