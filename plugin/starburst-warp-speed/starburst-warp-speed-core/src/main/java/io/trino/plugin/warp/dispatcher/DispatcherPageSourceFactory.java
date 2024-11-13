@@ -164,16 +164,17 @@ public class DispatcherPageSourceFactory
             DynamicFilter dynamicFilter,
             CustomStatsContext customStatsContext)
     {
+        initializeCustomStats(customStatsContext);
+        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+
         if ((!nativeStorageStateHandler.isStorageAvailable() && dispatcherTableHandle.isSubsumedPredicates())) {
             throw new TrinoException(WarpErrorCode.WARP_NATIVE_ERROR,
                     "storage is not available");
         }
 
-        initializeCustomStats(customStatsContext);
         if (!nativeStorageStateHandler.isStorageAvailable() ||
                 !dispatcherProxiedConnectorTransformer.isValidForAcceleration(dispatcherTableHandle)) {
             logger.debug("Query is not valid for acceleration, reading from proxy connector without warmup. dispatcherTableHandle=%s", dispatcherTableHandle);
-            DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
             QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(columns,
                     dispatcherTableHandle,
                     dynamicFilter,

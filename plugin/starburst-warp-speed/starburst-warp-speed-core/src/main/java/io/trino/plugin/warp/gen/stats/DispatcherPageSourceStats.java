@@ -69,6 +69,8 @@ public final class DispatcherPageSourceStats
     private final LongAdder lazy_collect_failed_load = new LongAdder();
     private final LongAdder wrapped_collect_total_lazy_blocks = new LongAdder();
     private final LongAdder wrapped_collect_loaded_lazy_blocks = new LongAdder();
+    private final LongAdder native_read_time = new LongAdder();
+    private final LongAdder block_fillers_time = new LongAdder();
     private final LongAdder lucene_execution_time_Count = new LongAdder();
     private final LongAdder lucene_execution_time = new LongAdder();
     private final LongAdder execution_time_Count = new LongAdder();
@@ -873,6 +875,52 @@ public final class DispatcherPageSourceStats
 
     @JsonIgnore
     @Managed
+    public long getnative_read_time()
+    {
+        return native_read_time.longValue();
+    }
+
+    public void incnative_read_time()
+    {
+        native_read_time.increment();
+    }
+
+    public void addnative_read_time(long val)
+    {
+        native_read_time.add(val);
+    }
+
+    public void setnative_read_time(long val)
+    {
+        native_read_time.reset();
+        addnative_read_time(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getblock_fillers_time()
+    {
+        return block_fillers_time.longValue();
+    }
+
+    public void incblock_fillers_time()
+    {
+        block_fillers_time.increment();
+    }
+
+    public void addblock_fillers_time(long val)
+    {
+        block_fillers_time.add(val);
+    }
+
+    public void setblock_fillers_time(long val)
+    {
+        block_fillers_time.reset();
+        addblock_fillers_time(val);
+    }
+
+    @JsonIgnore
+    @Managed
     public long getlucene_execution_time_Count()
     {
         return lucene_execution_time_Count.longValue();
@@ -977,6 +1025,8 @@ public final class DispatcherPageSourceStats
         ret.put("lazy_collect_failed_load", lazy_collect_failed_load);
         ret.put("wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks);
         ret.put("wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks);
+        ret.put("native_read_time", native_read_time);
+        ret.put("block_fillers_time", block_fillers_time);
 
         return ret;
     }
@@ -1022,6 +1072,8 @@ public final class DispatcherPageSourceStats
         this.lazy_collect_failed_load.add(other.lazy_collect_failed_load.longValue());
         this.wrapped_collect_total_lazy_blocks.add(other.wrapped_collect_total_lazy_blocks.longValue());
         this.wrapped_collect_loaded_lazy_blocks.add(other.wrapped_collect_loaded_lazy_blocks.longValue());
+        this.native_read_time.add(other.native_read_time.longValue());
+        this.block_fillers_time.add(other.block_fillers_time.longValue());
         this.lucene_execution_time.add(other.lucene_execution_time.longValue());
         this.lucene_execution_time_Count.add(other.lucene_execution_time_Count.longValue());
         this.execution_time.add(other.execution_time.longValue());
@@ -1065,6 +1117,8 @@ public final class DispatcherPageSourceStats
         lazy_collect_failed_load.reset();
         wrapped_collect_total_lazy_blocks.reset();
         wrapped_collect_loaded_lazy_blocks.reset();
+        native_read_time.reset();
+        block_fillers_time.reset();
         lucene_execution_time.reset();
         lucene_execution_time_Count.reset();
         execution_time.reset();
@@ -1108,6 +1162,8 @@ public final class DispatcherPageSourceStats
         res.put(getJmxKey() + ":lazy_collect_loaded_blocks", lazy_collect_loaded_blocks.longValue());
         res.put(getJmxKey() + ":wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks.longValue());
         res.put(getJmxKey() + ":wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks.longValue());
+        res.put(getJmxKey() + ":native_read_time", native_read_time.longValue());
+        res.put(getJmxKey() + ":block_fillers_time", block_fillers_time.longValue());
         res.put(getJmxKey() + ":lucene_execution_time", lucene_execution_time.longValue());
         res.put(getJmxKey() + ":lucene_execution_time_Count", lucene_execution_time_Count.longValue());
         res.put(getJmxKey() + ":execution_time", execution_time.longValue());

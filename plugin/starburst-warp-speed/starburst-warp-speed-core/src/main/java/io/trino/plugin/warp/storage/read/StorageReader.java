@@ -149,7 +149,7 @@ public class StorageReader
     private long queryClose()
     {
         if (matchOpenResult != null) {
-            matchService.close(matchOpenResult);
+            matchService.close(matchOpenResult, queryArgs.dispatcherPageSourceStats());
             matchOpenResult = null;
         }
 
@@ -169,11 +169,11 @@ public class StorageReader
     private void queryAbort(Exception e)
     {
         if (matchOpenResult != null) {
-            matchService.abort(matchOpenResult, e);
+            matchService.abort(matchOpenResult, e, queryArgs.dispatcherPageSourceStats());
             matchOpenResult = null;
         }
         if (collectOpenResult != null) {
-            storageCollectorService.abort(collectOpenResult, e);
+            storageCollectorService.abort(collectOpenResult, e, queryArgs.dispatcherPageSourceStats());
             collectOpenResult = null;
         }
     }

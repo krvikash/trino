@@ -86,10 +86,13 @@ public class LuceneMatcher
         logger.debug("lucene matcher for luceneQueryMatchData %s", luceneQueryMatchData);
     }
 
-    public boolean match(int matchTxId, int startChunkIndex, int numChunks)
+    public boolean match(int matchTxId, int startChunkIndex, int numChunks, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         // call storage engine to prepare the match and get the parameters
-        if (storageEngine.matchLucenePrepare(matchTxId, matchWeIx, startChunkIndex, numChunks, matchParams) < 0) {
+        long startTime = System.nanoTime();
+        long result = storageEngine.matchLucenePrepare(matchTxId, matchWeIx, startChunkIndex, numChunks, matchParams);
+        dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
+        if (result < 0) {
             return false;
         }
 
@@ -117,7 +120,9 @@ public class LuceneMatcher
         }
 
         // pass storage engine the match result and free resources
+        startTime = System.nanoTime();
         storageEngine.matchLuceneCompleted(matchTxId, matchWeIx, startChunkIndex, numChunks, matchResult);
+        dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         return true;
     }
 

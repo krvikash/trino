@@ -19,6 +19,7 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -120,7 +121,8 @@ public class LazyCollectorService
             int numCollectElements,
             int chunkIndex,
             int numToCollect,
-            MemorySegment outQueryResultTypes)
+            MemorySegment outQueryResultTypes,
+            DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         // collect is done in LazyCollectorLoader
     }

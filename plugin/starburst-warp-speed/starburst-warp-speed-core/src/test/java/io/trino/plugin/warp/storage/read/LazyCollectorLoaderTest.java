@@ -66,7 +66,7 @@ class LazyCollectorLoaderTest
                 dispatcherPageSourceStats,
                 globalConfig,
                 mock(TestStats.class));
-        when(lazyCollectTxService.collectOpen(anyInt(), any())).thenThrow(new RuntimeException());
+        when(lazyCollectTxService.collectOpen(anyInt(), any(), any())).thenThrow(new RuntimeException());
 
         Assertions.assertThrows(RuntimeException.class, lazyCollectorLoader::load);
         assertThat(dispatcherPageSourceStats.getlazy_collect_failed_load()).isEqualTo(1);

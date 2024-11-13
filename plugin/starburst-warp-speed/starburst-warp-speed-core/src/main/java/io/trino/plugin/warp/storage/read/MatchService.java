@@ -30,6 +30,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
+import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
 
 import java.lang.foreign.Arena;
@@ -150,6 +151,7 @@ public class MatchService
                     final long allocSize = (long) luceneBitmapSizePerWE * (long) queryParams.getNumLucene();
                     luceneBitmaps = Optional.of(collectOpenResult.queryMemoryAllocator().allocate(allocSize, alignment));
                 }
+                long startTime = System.nanoTime();
                 matchTxId = (int) storageEngine.matchOpen(queryParams.getTotalNumRecords(),
                         queryArgs.txArgs().fileCookie(),
                         collectOpenResult.queryMemoryId(),
@@ -162,6 +164,7 @@ public class MatchService
                         collectOpenResult.matchBmAddr(),
                         luceneBitmaps.isPresent() ? luceneBitmaps.get().address() : 0,
                         queryParams.getMinMatchOffset());
+                queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
             }
             catch (Exception e) {
                 // will throw WARP_TX_ALLOCATION_FAILED cause matchTxId == INVALID_TX_ID
@@ -204,12 +207,15 @@ public class MatchService
                 boolean luceneSuccess = true;
                 int numMatchedChunks = 0;
                 int chunkIndex = chunksQueueService.getChunkIndexForMatch(chunksQueue);
+                StopWatch readStopWatch = new StopWatch();
                 // we loop until either agg result returnes 0 which  means no more chunks (break under if inside the loop)
                 // or if numMatchedChunks returned positive from match call which means at least one chunk has a match
                 // in addition, on every call to storage engine we check for error
                 try {
                     while (numMatchedChunks == 0) { // no match so far
+                        readStopWatch.start();
                         numChunks = storageEngine.matchAgg(matchOpenResult.matchTxId(), chunkIndex);
+                        readStopWatch.stop();
                         if (numChunks < 0) {
                             break;
                         }
@@ -220,7 +226,7 @@ public class MatchService
 
                         if (queryArgs.queryParams().getNumLucene() > 0) {
                             for (int luceneMatcherIx = 0; luceneMatcherIx < matchArgs.luceneMatchers().length; luceneMatcherIx++) {
-                                if (!matchArgs.luceneMatchers()[luceneMatcherIx].match(matchOpenResult.matchTxId(), chunkIndex, (int) numChunks)) {
+                                if (!matchArgs.luceneMatchers()[luceneMatcherIx].match(matchOpenResult.matchTxId(), chunkIndex, (int) numChunks, queryArgs.dispatcherPageSourceStats())) {
                                     luceneSuccess = false;
                                     break;
                                 }
@@ -230,7 +236,10 @@ public class MatchService
                             }
                         }
 
+                        readStopWatch.start();
                         matchResult = storageEngine.match(matchOpenResult.matchTxId(), chunkIndex, (int) numChunks, matchOpenResult.matchedChunksIndexes(), matchOpenResult.matchBitmapResetPoints());
+                        readStopWatch.stop();
+
                         if (matchResult < 0) {
                             break;
                         }
@@ -251,6 +260,9 @@ public class MatchService
                     else {
                         throw new TrinoException(WARP_MATCH_FAILED, "failed to match: " + e.getMessage());
                     }
+                }
+                finally {
+                    queryArgs.dispatcherPageSourceStats().addnative_read_time(readStopWatch.getNanoTime());
                 }
 
                 if ((numChunks < 0) || !luceneSuccess || (matchResult < 0)) {
@@ -274,20 +286,24 @@ public class MatchService
                 (trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode()) || trinoException.getErrorCode().equals(WARP_NATIVE_MATCH_ERROR.toErrorCode()));
     }
 
-    public void abort(MatchOpenResult matchOpenResult, Exception e)
+    public void abort(MatchOpenResult matchOpenResult, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         if (matchOpenResult.matchTxId() != INVALID_TX_ID) {
             // In case of native match exception match tx already closed
             if (!isNativeMatchException(e)) {
+                long startTime = System.nanoTime();
                 storageEngine.matchClose(matchOpenResult.matchTxId());
+                dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
             }
         }
     }
 
-    public void close(MatchOpenResult matchOpenResult)
+    public void close(MatchOpenResult matchOpenResult, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         if (matchOpenResult.matchTxId() != INVALID_TX_ID) {
+            long startTime = System.nanoTime();
             storageEngine.matchClose(matchOpenResult.matchTxId());
+            dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         }
     }
 }

@@ -19,6 +19,7 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.CollectStats;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
@@ -122,14 +123,19 @@ public class CollectTxService
                 storageCollectorArgs.warmUpElementAtts().address(),
                 matchBmAddr,
                 storageCollectorArgs.recordBufferStates().address(),
-                storageCollectorArgs.recordIndexes().getAddress());
+                storageCollectorArgs.recordIndexes().getAddress(),
+                queryArgs.dispatcherPageSourceStats());
 
         int restoredChunkIndex = -1;
         if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {
             checkState(storeRowListResult.isPresent(), "Restore needed but store data doesn't exists");
             rangeFillerService.restoreRowList(rangeData.getRecordIndexes(), storeRowListResult.get(), storageCollectorArgs.storeRowListBuff());
             restoredChunkIndex = queryArgs.chunksQueue().getCurrent();
-            if (storageEngine.collectRestoreState(queryMemoryId, restoredChunkIndex, storageCollectorArgs.storageCollectorCallBack()) < 0) {
+            long startTime = System.nanoTime();
+            long result = storageEngine.collectRestoreState(queryMemoryId, restoredChunkIndex, storageCollectorArgs.storageCollectorCallBack());
+            queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
+
+            if (result < 0) {
                 throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                         String.format("failed to restore collect state restoredChunkIndex %d numChunks %d",
                         restoredChunkIndex,
@@ -167,11 +173,13 @@ public class CollectTxService
         int[] chunksWithBitmaps = chunksWithBitmapsToStoreOpt.orElse(null);
         int numChunksWithBitmap = (chunksWithBitmaps != null) ? chunksWithBitmaps.length : 0;
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
+        long startTime = System.nanoTime();
         storageEngine.collectClose(collectOpenResult.queryMemoryId(),
                 chunksWithBitmaps,
                 numChunksWithBitmap,
                 storageCollectorArgs.storageCollectorCallBack(),
                 collectStats);
+        queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
 
         int totalReadPages = 0;
         TestStats testStats = queryArgs.testStats();
@@ -203,9 +211,9 @@ public class CollectTxService
         return new CollectCloseResult(storeRowListResult, totalReadPages);
     }
 
-    void collectAbort(CollectOpenResult collectOpenResult, Exception e)
+    void collectAbort(CollectOpenResult collectOpenResult, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        collectAbort(e, collectOpenResult.queryMemoryId());
+        collectAbort(e, collectOpenResult.queryMemoryId(), dispatcherPageSourceStats);
         freeQueryMemory(collectOpenResult.queryMemoryId());
     }
 

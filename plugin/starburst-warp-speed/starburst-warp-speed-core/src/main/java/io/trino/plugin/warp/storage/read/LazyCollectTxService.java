@@ -20,6 +20,7 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.constants.CollectStats;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.TestStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
@@ -48,7 +49,7 @@ public class LazyCollectTxService
         this.nativeConfig = nativeConfig;
     }
 
-    LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs)
+    LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         QueryMemory queryMemory = allocQueryMemory();
         SegmentAllocator queryMemoryAllocator = getQueryMemoryAllocator(queryMemory);
@@ -69,17 +70,21 @@ public class LazyCollectTxService
                 lazyCollectorLoaderArgs.warmUpElementAtt().address(),
                 0,
                 lazyCollectorLoaderArgs.recordBufferStates().address(),
-                lazyCollectorLoaderArgs.recordIndexes().getAddress());
+                lazyCollectorLoaderArgs.recordIndexes().getAddress(),
+                dispatcherPageSourceStats);
 
         logger.debug("collectOpen queryMemoryId %d rowsLimit %d", queryMemoryId, rowsLimit);
         return new LazyCollectOpenResult(queryMemoryId);
     }
 
     // Lazy collect doesn't use store/restore mechanism, so store/restore params are not initialized
-    void collectClose(int queryMemoryId, TestStats testStats)
+    void collectClose(int queryMemoryId, TestStats testStats, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
+        long startTime = System.nanoTime();
         storageEngine.collectClose(queryMemoryId, null, 0, null, collectStats);
+        dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
+
         testStats.addread_cache_md_chunk_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_HITS.ordinal()]);
         testStats.addread_cache_md_basic_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_BASIC_HITS.ordinal()]);
         testStats.addread_cache_md_data_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_DATA_HITS.ordinal()]);

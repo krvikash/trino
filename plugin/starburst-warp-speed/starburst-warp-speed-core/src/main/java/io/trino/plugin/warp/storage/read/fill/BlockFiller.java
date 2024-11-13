@@ -18,6 +18,7 @@ import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.WarmupElementCollectParams;
 import io.trino.spi.block.Block;
@@ -59,9 +60,15 @@ public abstract class BlockFiller<V>
         return true;
     }
 
-    public Block fillBlockWithRecords(WarmupElementCollectParams collectParams, ReadJuffersWarmUpElement readJuffersWarmUpElement,
-            int rowsToFill, QueryResultType queryResultType, DictionaryStats dictionaryStats)
+    public Block fillBlockWithRecords(
+            WarmupElementCollectParams collectParams,
+            ReadJuffersWarmUpElement readJuffersWarmUpElement,
+            int rowsToFill,
+            QueryResultType queryResultType,
+            DictionaryStats dictionaryStats,
+            DispatcherPageSourceStats dispatcherPageSourceStats)
     {
+        long startTime = System.nanoTime();
         Block block;
         try {
             if (collectParams.hasDictionary()) {
@@ -98,6 +105,9 @@ public abstract class BlockFiller<V>
             logger.error(e, "fill block failed queryResultType=%s, rowsToFill=%d, blockFiller=%s, collectParams=%s",
                     queryResultType, rowsToFill, this, collectParams);
             throw new RuntimeException(e);
+        }
+        finally {
+            dispatcherPageSourceStats.addblock_fillers_time(System.nanoTime() - startTime);
         }
         return block;
     }

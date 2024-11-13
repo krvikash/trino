@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.JbufType;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
@@ -85,8 +86,10 @@ public abstract class BaseCollectTxService
             long warmUpElementAttsAddr,
             long matchBmAddr,
             long recordBufferStatesAddr,
-            long recordIndexesAddr)
+            long recordIndexesAddr,
+            DispatcherPageSourceStats dispatcherPageSourceStats)
     {
+        long startTime = System.nanoTime();
         txArgs.matchCollectMetadataAddress()[0] = storageEngine.collectOpen(queryParams.getTotalNumRecords(),
                 txArgs.fileCookie(),
                 collectTxId,
@@ -102,17 +105,21 @@ public abstract class BaseCollectTxService
                 recordIndexesAddr,
                 txArgs.collectStateBuff().address(),
                 txArgs.collectBuffers());
+        dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
     }
 
     // prepare chunk with match result, error throws and exception
-    void prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint, MemorySegment outQueryResultTypes)
+    void prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint, MemorySegment outQueryResultTypes, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d matchBitmapResetPoint %d", chunkIndex, numRowsToCollect, matchBitmapResetPoint);
-        if (!storageEngine.processMatchResult(collectTxId,
+        long startTime = System.nanoTime();
+        boolean success = storageEngine.processMatchResult(collectTxId,
                 chunkIndex,
                 matchBitmapResetPoint,
                 numRowsToCollect,
-                outQueryResultTypes)) {
+                outQueryResultTypes);
+        dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
+        if (!success) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                     String.format("prepareChunk failed unexpectedly collectTxId %d chunkIndex %d matchBitmapResetPoint %d numRowsToCollect %d",
                             collectTxId, chunkIndex, matchBitmapResetPoint, numRowsToCollect));
@@ -120,20 +127,25 @@ public abstract class BaseCollectTxService
     }
 
     // prepare chunk for full scan case, also used by lazy collect, throws exception if error
-    void prepareChunkFullScan(int collectTxId, int chunkIndex, int numRowsToCollect, int startRowIndex)
+    void prepareChunkFullScan(int collectTxId, int chunkIndex, int numRowsToCollect, int startRowIndex, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d startRowIndex %d", chunkIndex, numRowsToCollect, startRowIndex);
-        if (storageEngine.processFullScanChunk(collectTxId, chunkIndex, startRowIndex, numRowsToCollect) < 0) {
+        long startTime = System.nanoTime();
+        long result = storageEngine.processFullScanChunk(collectTxId, chunkIndex, startRowIndex, numRowsToCollect);
+        dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
+        if (result < 0) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                     String.format("prepareChunk failed unexpectedly collectTxId %d chunkIndex %d startRowIndex %d numRowsToCollect %d",
                             collectTxId, chunkIndex, startRowIndex, numRowsToCollect));
         }
     }
 
-    void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
+    void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         try {
+            long startTime = System.nanoTime();
             storageEngine.collectChunk(txId, numWes, chunkIndex, numToCollect, outQueryResultTypes);
+            dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         }
         catch (Exception e) {
             shapingLogger.error(e, "collect failed chunkIndex %d rowsLimit %d numToCollect %d", chunkIndex, numToCollect, numToCollect);
@@ -141,7 +153,7 @@ public abstract class BaseCollectTxService
         }
     }
 
-    void collectAbort(Exception e, int collectTxId)
+    void collectAbort(Exception e, int collectTxId, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         if (collectTxId != BaseCollectTxService.INVALID_TX_ID) {
             boolean nativeThrowed = false;
@@ -149,7 +161,9 @@ public abstract class BaseCollectTxService
                 nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e);
             }
             if (!nativeThrowed) {
+                long startTime = System.nanoTime();
                 storageEngine.collectClose(collectTxId, null, 0, null, null);
+                dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
             }
         }
     }

@@ -47,7 +47,5 @@ public final class WarpStatsMgr
         metricsManager.registerMetric(new MemoryStats());
         metricsManager.registerMetric(new StoragecacheStats());
         metricsManager.registerMetric(new StorageioStats());
-        metricsManager.registerMetric(new QueryresultStats());
-        metricsManager.registerMetric(new RowgroupStats());
     }
 }
