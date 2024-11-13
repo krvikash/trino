@@ -197,13 +197,15 @@ public class CallHomeJob
                 Optional<File> tempFile = Optional.empty();
                 try {
                     File srcFile = fileToUpload.getLeft().toFile();
-                    tempFile = tempDirectory.flatMap(directory -> tryToCopyFile(srcFile, directory));
-                    File file = tempFile.orElse(srcFile);
-                    String key = String.join("/", uploadPath, fileToUpload.getRight());
-                    cloudVendorService.uploadFileToCloud(file.getPath(), key);
-                    traceLogBuilder.append(String.format("uploading file %s to %s", file.getPath(), key));
-                    numberOfUploaded++;
-                    logger.debug("uploaded file %s to %s", file.getPath(), key);
+                    if (srcFile.exists()) {
+                        tempFile = tempDirectory.flatMap(directory -> tryToCopyFile(srcFile, directory));
+                        File file = tempFile.orElse(srcFile);
+                        String key = String.join("/", uploadPath, fileToUpload.getRight());
+                        cloudVendorService.uploadFileToCloud(file.getPath(), key);
+                        traceLogBuilder.append(String.format("uploading file %s to %s", file.getPath(), key));
+                        numberOfUploaded++;
+                        logger.debug("uploaded file %s to %s", file.getPath(), key);
+                    }
                 }
                 catch (Exception e) {
                     logger.warn(e, "failed to upload file %s", fileToUpload);
