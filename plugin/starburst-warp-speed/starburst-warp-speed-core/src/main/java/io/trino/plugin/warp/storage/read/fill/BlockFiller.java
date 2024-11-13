@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.storage.read.fill;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
@@ -112,6 +113,7 @@ public abstract class BlockFiller<V>
         return block;
     }
 
+    @VisibleForTesting
     public Block fillBlock(ReadJuffersWarmUpElement juffersWE,
             QueryResultType queryResultType,
             int rowsToFill,
