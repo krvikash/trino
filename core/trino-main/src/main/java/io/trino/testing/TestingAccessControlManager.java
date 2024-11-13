@@ -31,6 +31,8 @@ import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnSchema;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.security.AccessDeniedException;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.ViewExpression;
@@ -131,6 +133,7 @@ import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.TRUNCATE_TABLE;
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.UPDATE_TABLE;
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.VIEW_QUERY;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class TestingAccessControlManager
@@ -138,6 +141,7 @@ public class TestingAccessControlManager
 {
     private static final BiPredicate<Identity, String> IDENTITY_TABLE_TRUE = (_, _) -> true;
     private static final BiPredicate<Identity, String> IDENTITY_FUNCTION_TRUE = (_, _) -> true;
+    private static final BiPredicate<ConnectorIdentity, String> LOCATION_ALLOW_ALL = (_, _) -> true;
 
     private final Set<TestingPrivilege> denyPrivileges = new HashSet<>();
     private final Map<RowFilterKey, List<ViewExpression>> rowFilters = new HashMap<>();
@@ -147,6 +151,7 @@ public class TestingAccessControlManager
     private Predicate<SchemaTableName> deniedTables = _ -> true;
     private BiPredicate<Identity, String> denyIdentityTable = IDENTITY_TABLE_TRUE;
     private BiPredicate<Identity, String> denyIdentityFunction = IDENTITY_FUNCTION_TRUE;
+    private BiPredicate<ConnectorIdentity, String> deniedLocations = LOCATION_ALLOW_ALL;
     private BiPredicate<Identity, String> denyImpersonationFunction = IDENTITY_FUNCTION_TRUE;
 
     @Inject
@@ -217,9 +222,15 @@ public class TestingAccessControlManager
         deniedSchemas = _ -> true;
         deniedTables = _ -> true;
         denyIdentityTable = IDENTITY_TABLE_TRUE;
+        deniedLocations = LOCATION_ALLOW_ALL;
         rowFilters.clear();
         columnMasks.clear();
         denyImpersonationFunction = IDENTITY_FUNCTION_TRUE;
+    }
+
+    public void denyLocations(BiPredicate<ConnectorIdentity, String> deniedLocations)
+    {
+        this.deniedLocations = this.deniedLocations.and(deniedLocations);
     }
 
     public void denyCatalogs(Predicate<String> deniedCatalogs)
@@ -785,6 +796,15 @@ public class TestingAccessControlManager
         if (denyPrivileges.isEmpty()) {
             super.checkCanExecuteTableProcedure(context, table, procedure);
         }
+    }
+
+    @Override
+    public void checkCanUseLocation(ConnectorIdentity identity, String location, String queryId)
+    {
+        if (!deniedLocations.test(identity, location)) {
+            throw new AccessDeniedException(format("Cannot access location %s", location));
+        }
+        super.checkCanUseLocation(identity, location, queryId);
     }
 
     @Override
