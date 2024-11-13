@@ -160,8 +160,7 @@ public class StorageReader
         numRowsCollectedInPrevRounds += numRowsCollectedInCurRound;
         CollectCloseResult collectCloseResult = storageCollectorService.close(queryArgs,
                 collectOpenResult,
-                storageCollectorArgs,
-                numRowsCollectedInCurRound);
+                storageCollectorArgs);
         collectOpenResult = null;
         storeRowListResult = collectCloseResult.storeRowListResult();
         return collectCloseResult.readPages();

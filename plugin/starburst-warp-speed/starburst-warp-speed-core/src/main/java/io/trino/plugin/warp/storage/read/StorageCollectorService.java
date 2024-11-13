@@ -481,13 +481,11 @@ public class StorageCollectorService
 
     public CollectCloseResult close(QueryArgs queryArgs,
             CollectOpenResult collectOpenResult,
-            StorageCollectorArgs storageCollectorArgs,
-            int numRowsCollectedInCurRound)
+            StorageCollectorArgs storageCollectorArgs)
     {
         CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(queryArgs,
                 collectOpenResult,
-                storageCollectorArgs,
-                numRowsCollectedInCurRound);
+                storageCollectorArgs);
 
         bufferAllocator.readerOnFreeBundle();
         return collectCloseResult;

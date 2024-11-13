@@ -150,8 +150,7 @@ public class CollectTxService
 
     CollectCloseResult collectStoreAndClose(QueryArgs queryArgs,
             CollectOpenResult collectOpenResult,
-            StorageCollectorArgs storageCollectorArgs,
-            int numCollectedRows)
+            StorageCollectorArgs storageCollectorArgs)
     {
         Optional<StoreRowListResult> storeRowListResult = Optional.empty();
         // idiom potent case
@@ -161,14 +160,6 @@ public class CollectTxService
 
         Optional<int[]> chunksWithBitmapsToStoreOpt = Optional.empty();
         if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {
-            if (chunksQueueService.isChunkPreparationNeeded(queryArgs.chunksQueue())) {
-                prepareChunk(collectOpenResult.queryMemoryId(),
-                        queryArgs.chunksQueue().getCurrent(),
-                        collectOpenResult.rowsLimit() - numCollectedRows,
-                        queryArgs.chunksQueue().getCurrentResetPoint(),
-                        storageCollectorArgs.prepareQueryResultTypes());
-            }
-
             chunksWithBitmapsToStoreOpt = queryArgs.chunksQueue().getChunkIndexesWithBitmap();
             storeRowListResult = Optional.of(rangeFillerService.storeRowList(queryArgs, storageCollectorArgs, collectOpenResult.rangeData()));
         }
