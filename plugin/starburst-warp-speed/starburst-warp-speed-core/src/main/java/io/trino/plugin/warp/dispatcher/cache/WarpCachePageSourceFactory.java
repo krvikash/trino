@@ -73,7 +73,6 @@ public class WarpCachePageSourceFactory
     private final QueryClassifier queryClassifier;
 
     private final GlobalConfig globalConfig;
-    private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final LazyCollectorService lazyCollectorService;
     private final MatchService matchService;
 
@@ -99,17 +98,20 @@ public class WarpCachePageSourceFactory
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
         this.matchService = requireNonNull(matchService);
-        this.statsDispatcherPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
     }
 
     public Optional<ConnectorPageSource> createConnectorPageSource(RowGroupKey rowGroupKey, PlanSignature planSignature, Optional<UUID> queryStoreId)
     {
+        CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, List.of());
+        initializeCustomStats(customStatsContext);
+        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         if (rowGroupData == null) {
             return Optional.empty();
         }
         if (rowGroupData.isEmpty()) {
-            statsDispatcherPageSource.incempty_page_source();
+            dispatcherPageSourceStats.incempty_page_source();
             return Optional.of(new EmptyPageSource());
         }
 
@@ -130,19 +132,17 @@ public class WarpCachePageSourceFactory
         }
         if (queryContext.isPrefilledOnly()) {
             int size = queryContext.getPrefilledQueryCollectDataByBlockIndex().size();
-            statsDispatcherPageSource.addwarp_prefilled_collect_columns(size);
+            dispatcherPageSourceStats.addwarp_prefilled_collect_columns(size);
             queryClassifier.close(queryContext);
             logger.debug("Only Prefill %s", size);
             PrefilledPageSource prefilledPageSource = new PrefilledPageSource(
                     queryContext.getPrefilledQueryCollectDataByBlockIndex(),
-                    statsDispatcherPageSource,
+                    dispatcherPageSourceStats,
                     rowGroupData,
                     queryContext.getTotalRecords(),
                     Optional.empty());
             return Optional.of(prefilledPageSource);
         }
-        CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, List.of());
-        initializeCustomStats(customStatsContext);
 
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
@@ -167,14 +167,14 @@ public class WarpCachePageSourceFactory
                     queryContext,
                     rowGroupData,
                     pageSourceDecision,
-                    statsDispatcherPageSource,
+                    dispatcherPageSourceStats,
                     closeHandler,
                     null, //used for debug for mixed case, unused in CM
                     null,
                     0, // no proxied in case of cache
                     readErrorHandler,
                     globalConfig);
-            statsDispatcherPageSource.addwarp_collect_columns(planSignature.getColumns().size());
+            dispatcherPageSourceStats.addwarp_collect_columns(planSignature.getColumns().size());
             return Optional.of(new WarpCachePageSource(dispatcherPageSource, customStatsContext));
         }
         catch (Exception e) {
