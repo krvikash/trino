@@ -34,6 +34,7 @@ public class DeltaLakeSecurityModule
         SYSTEM,
         SQL_STANDARD,
         RANGER,
+        DEPRECATED_RANGER,
         STARBURST,
         UNITY,
     }
@@ -48,7 +49,7 @@ public class DeltaLakeSecurityModule
             // do not bind a ConnectorAccessControl so the engine will use system security with system roles
             case SYSTEM -> usingSystemSecurity(true);
             // these are not handled by Trino:
-            case RANGER, SQL_STANDARD, STARBURST, UNITY -> usingSystemSecurity(false);
+            case RANGER, DEPRECATED_RANGER, SQL_STANDARD, STARBURST, UNITY -> usingSystemSecurity(false);
         });
     }
 
