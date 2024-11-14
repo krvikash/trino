@@ -153,7 +153,7 @@ public class LazyCollectorService
                     dictionaryStats,
                     queryArgs.dispatcherPageSourceStats(),
                     globalConfig,
-                    queryArgs.testStats()));
+                    queryArgs.nativeStats()));
         }
         queryArgs.dispatcherPageSourceStats().addlazy_collect_total_blocks(collectElementsParamsList.size());
         queryArgs.dispatcherPageSourceStats().addcached_read_rows(rowsToFill);

@@ -19,7 +19,7 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.gen.stats.TestStats;
+import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.spi.block.Block;
@@ -39,7 +39,7 @@ public class LazyCollectorLoader
     private final DispatcherPageSourceStats dispatcherPageSourceStats;
     private final DictionaryStats dictionaryStats;
     private final ShapingLogger shapingLogger;
-    private final TestStats testStats;
+    private final NativeStats nativeStats;
     private boolean loaded;
 
     public LazyCollectorLoader(
@@ -48,7 +48,7 @@ public class LazyCollectorLoader
             DictionaryStats varadaStatsDictionary,
             DispatcherPageSourceStats dispatcherPageSourceStats,
             GlobalConfig globalConfig,
-            TestStats testStats)
+            NativeStats nativeStats)
     {
         this.collectTxService = collectTxService;
         this.dispatcherPageSourceStats = dispatcherPageSourceStats;
@@ -59,7 +59,7 @@ public class LazyCollectorLoader
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
-        this.testStats = testStats;
+        this.nativeStats = nativeStats;
     }
 
     @Override
@@ -91,7 +91,7 @@ public class LazyCollectorLoader
             retBlock = lazyCollectorLoaderArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats, dispatcherPageSourceStats);
 
             // close
-            collectTxService.collectClose(collectOpenResult.queryMemoryId(), testStats, dispatcherPageSourceStats);
+            collectTxService.collectClose(collectOpenResult.queryMemoryId(), nativeStats, dispatcherPageSourceStats);
             dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
         }
         catch (Exception e) {

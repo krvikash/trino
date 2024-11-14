@@ -29,10 +29,10 @@ import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
 @SuppressWarnings({"checkstyle:MemberName", "checkstyle:ParameterName", "unused"})
-public final class TestStats
+public final class NativeStats
         extends WarpStatsBase
 {
-    /* This class file is auto-generated from test xml file for statistics and counters */
+    /* This class file is auto-generated from native xml file for statistics and counters */
     private final String group;
 
     private final LongAdder read_cache_md_chunk_hits = new LongAdder();
@@ -49,7 +49,7 @@ public final class TestStats
     private final LongAdder read_time_wait_nanos = new LongAdder();
 
     @JsonCreator
-    public TestStats(@JsonProperty("group") String group)
+    public NativeStats(@JsonProperty("group") String group)
     {
         super(createKey(group), WarpStatType.Worker);
 
@@ -339,9 +339,9 @@ public final class TestStats
         addread_time_wait_nanos(val);
     }
 
-    public static TestStats create(String group)
+    public static NativeStats create(String group)
     {
-        return new TestStats(group);
+        return new NativeStats(group);
     }
 
     public static String createKey(String group)
@@ -375,7 +375,7 @@ public final class TestStats
         if (warpStatsBase == null) {
             return;
         }
-        TestStats other = (TestStats) warpStatsBase;
+        NativeStats other = (NativeStats) warpStatsBase;
         this.read_cache_md_chunk_hits.add(other.read_cache_md_chunk_hits.longValue());
         this.read_cache_md_basic_hits.add(other.read_cache_md_basic_hits.longValue());
         this.read_cache_md_data_hits.add(other.read_cache_md_data_hits.longValue());

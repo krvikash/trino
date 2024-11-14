@@ -14,11 +14,11 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.gen.stats.TestStats;
+import io.trino.plugin.warp.gen.stats.NativeStats;
 
 public record QueryArgs(QueryParams queryParams,
                         DispatcherPageSourceStats dispatcherPageSourceStats,
-                        TestStats testStats,
+                        NativeStats nativeStats,
                         TxArgs txArgs,
                         int chunkSize,
                         int numChunks,

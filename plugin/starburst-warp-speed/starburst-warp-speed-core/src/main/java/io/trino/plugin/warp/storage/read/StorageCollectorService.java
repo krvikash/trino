@@ -24,7 +24,7 @@ import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.gen.stats.TestStats;
+import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
@@ -50,6 +50,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
+import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_NATIVE_KEY;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
@@ -363,7 +364,7 @@ public class StorageCollectorService
     {
         TxArgs txArgs = getTxArgs(queryParams);
         DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        TestStats testStats = (TestStats) customStatsContext.getStat("test");
+        NativeStats nativeStats = (NativeStats) customStatsContext.getStat(STATS_NATIVE_KEY);
 
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
         // number of chunks is number of records divided by the chunk size which is fixed. we round it up in case the last chunk is not full.
@@ -377,7 +378,7 @@ public class StorageCollectorService
 
         return new QueryArgs(queryParams,
                 dispatcherPageSourceStats,
-                testStats,
+                nativeStats,
                 txArgs,
                 chunkSize,
                 numChunks,

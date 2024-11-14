@@ -19,7 +19,7 @@ import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.gen.stats.TestStats;
+import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import org.junit.jupiter.api.Assertions;
@@ -65,7 +65,7 @@ class LazyCollectorLoaderTest
                 dictionaryStats,
                 dispatcherPageSourceStats,
                 globalConfig,
-                mock(TestStats.class));
+                mock(NativeStats.class));
         when(lazyCollectTxService.collectOpen(anyInt(), any(), any())).thenThrow(new RuntimeException());
 
         Assertions.assertThrows(RuntimeException.class, lazyCollectorLoader::load);

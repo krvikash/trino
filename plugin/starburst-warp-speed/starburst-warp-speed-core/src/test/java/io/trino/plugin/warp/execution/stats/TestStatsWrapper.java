@@ -17,7 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.json.ObjectMapperProvider;
-import io.trino.plugin.warp.gen.stats.TestStats;
+import io.trino.plugin.warp.gen.stats.NativeStats;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -39,13 +39,13 @@ public class TestStatsWrapper
     public void testSerializedStatObject()
             throws JsonProcessingException
     {
-        TestStats dummyNotInNode = new TestStats("group2");
+        NativeStats dummyNotInNode = new NativeStats("group2");
         dummyNotInNode.addread_time_wait_nanos(9); //not persist
         dummyNotInNode.addread_cache_md_chunk_hits(9); //not persist
         JsonNode jsonNode = objectMapper.readerFor(List.class).readTree(objectMapper.writeValueAsString(dummyNotInNode));
         String res = objectMapper.writeValueAsString(dummyNotInNode);
         assertThat(jsonNode.get("read_time_wait_nanos")).isEqualTo(null);
-        TestStats deserializeObject = objectMapper.readerFor(TestStats.class).readValue(res);
+        NativeStats deserializeObject = objectMapper.readerFor(NativeStats.class).readValue(res);
         assertThat(deserializeObject.getread_time_wait_nanos()).isEqualTo(0);
         assertThat(deserializeObject.getread_cache_md_chunk_hits()).isEqualTo(0);
     }
