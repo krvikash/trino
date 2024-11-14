@@ -77,7 +77,7 @@ public class WarpPageSink
             return storageWriterService.appendPage(page, storageWriterContext);
         }
         catch (TrinoException te) {
-            shapingLogger.error(te, "appendWarmupElementBlocks thrown a TrinoException - aborting");
+            shapingLogger.error(te, "appendPage thrown a TrinoException - aborting. storageWriterContext=%s", storageWriterContext);
             abort(ExceptionThrower.isNativeException(te));
             return false;
         }
@@ -87,7 +87,7 @@ public class WarpPageSink
             return false;
         }
         catch (Exception e) { // in case of exception the writer has aborted the tx internally already, we need to release it now
-            shapingLogger.error(e, "appendWarmupElementBlocks thrown an exception - aborting");
+            shapingLogger.error(e, "appendPage thrown an exception - aborting. storageWriterContext=%s", storageWriterContext);
             abort(false);
             return false;
         }
@@ -100,12 +100,12 @@ public class WarpPageSink
             return storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
         }
         catch (TrinoException te) {
-            shapingLogger.error(te, "appendWarmupElementBlocks thrown a TrinoException - aborting");
+            shapingLogger.error(te, "appendWarmupElementBlocks thrown a TrinoException - aborting. storageWriterContext=%s", storageWriterContext);
             abort(ExceptionThrower.isNativeException(te));
             return new WarmResult(false, 0, warmupElementBlocks.getStartOffsetInFirstBlock());
         }
         catch (Exception e) { // in case of exception the writer has aborted the tx internally already, we need to release it now
-            shapingLogger.error(e, "appendWarmupElementBlocks thrown an exception - aborting");
+            shapingLogger.error(e, "appendWarmupElementBlocks thrown an exception - aborting. storageWriterContext=%s", storageWriterContext);
             abort(false);
             return new WarmResult(false, 0, warmupElementBlocks.getStartOffsetInFirstBlock());
         }
