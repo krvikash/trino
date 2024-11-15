@@ -14,6 +14,7 @@ import com.google.inject.Key;
 import com.google.inject.Scopes;
 import com.starburstdata.trino.plugin.stargate.StargateAuthenticationModule;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.trino.client.OkHttpSegmentLoader;
 import io.trino.client.spooling.SegmentLoader;
 import io.trino.plugin.jdbc.ForJdbcDynamicFiltering;
 import io.trino.plugin.jdbc.JdbcSplitManager;
@@ -35,7 +36,7 @@ public class StargateParallelModule
                 .setBinding().to(StargateParallelSplitManager.class).in(SINGLETON);
         binder.bind(StargateParallelConnector.class).in(Scopes.SINGLETON);
         binder.bind(JdbcSplitManager.class).in(Scopes.SINGLETON);
-        binder.bind(SegmentLoader.class).in(Scopes.SINGLETON);
+        binder.bind(SegmentLoader.class).to(OkHttpSegmentLoader.class).in(Scopes.SINGLETON);
 
         configBinder(binder).bindConfig(StargateParallelConfig.class);
         binder.bind(StargateClientFactory.class).in(Scopes.SINGLETON);
