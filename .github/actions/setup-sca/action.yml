@@ -7,6 +7,8 @@ inputs:
     description: AWS secret ID
   secret-id:
     description: CodeArtifact secret
+  login-maven:
+    description: "Should we login to codeartifact?"
 
 runs:
   using: composite
@@ -28,9 +30,9 @@ runs:
         distribution: ${{ env.JAVA_DISTRO }}
         java-version: ${{ env.JAVA_VERSION }}
     - name: Setup Python
-      uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+      uses: actions/setup-python@55aad42e4674b58b2b2fb7d8e7552402d922b4e7 #5.3.0
       with:
-        python-version: "3.12"
+        python-version: "3.13"
     - name: Maven Build
       shell: bash
       run: ./mvnw clean install -s .github/settings.xml -V -B --quiet -T 1C -DskipTests -Dmaven.source.skip=true -Dair.check.skip-all

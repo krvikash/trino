@@ -25,9 +25,7 @@ env:
   ENDOR_SCAN_CALLGRAPH_LANGUAGES: "[java, python]"
   ENDOR_SCAN_EXCLUDE_PATH: "testing/**"
   ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
-  ENDORCTL_CHECKSUM: "89af4c78d0ecea56b228843c5a6a88a51a8c40fae72f48acef2a62bea34e477b"
   ENDORCTL_NAMESPACE: "starburst"
-  ENDORCTL_VERSION: "v1.6.626"
   JAVA_DISTRO: "temurin"
   JAVA_VERSION: "23"
   MAVEN_OPTS: "-Xmx3G -XX:+ExitOnOutOfMemoryError"
@@ -44,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sca-pr-scan:
+  sca-scan:
     if: github.event_name == 'pull_request'
     permissions:
       contents: read # Used to check out a private repository with actions/checkout.
@@ -60,25 +58,59 @@ jobs:
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
           login-maven: true
-      - name: Endor Labs Pull Request Scan
+      - name: Endor Labs SCA Scan
         if: github.event_name == 'pull_request'
         env:
           MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
           ENDOR_SCAN_PR_INCREMENTAL: true
           ENDOR_SCAN_QUICK_SCAN: true
-        uses: endorlabs/github-action@a8ad74e765949855c4508590cf5e84258f9524d1 # v1.1.4
+        uses: endorlabs/github-action@a976557f19ca26ac1dd024ae8fdebc9ff0b6ef66 # v1.1.5
         with:
           enable_pr_comments: false
-          endorctl_checksum: ${{ env.ENDORCTL_CHECKSUM }}
-          endorctl_version: ${{ env.ENDORCTL_VERSION }}
           namespace: ${{ env.ENDORCTL_NAMESPACE }}
           pr: true
-          pr_baseline: "master"
+          pr_baseline: ${{ github.event.pull_request.base.ref }}
           scan_dependencies: true
-          scan_secrets: true
+          scan_sast: false
+          scan_secrets: false
+          scan_tools: false
           tags: "actor=${{ github.actor }},branch=${{ env.BRANCH_NAME }},pr=${{ github.event.number }},run-id=${{ github.run_id }}"
 
-  sca-full-scan:
+  sast-scan:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read # Used to check out a private repository with actions/checkout.
+      id-token: write # Used for keyless authentication to Endor Labs.'
+    runs-on: [self-hosted, gha-fleet-ec2-2CPU-8GB-amd64-on-demand, latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8459bc0c7e3759cdf591f513d9f141a95fef0a8f # v4.1.4
+
+        # Remove once semgrep is bundled in the endorlabs/github-action action
+      - name: Setup Python
+        uses: actions/setup-python@55aad42e4674b58b2b2fb7d8e7552402d922b4e7 #5.3.0
+        with:
+          python-version: "3.13"
+
+        # Remove once bundled in the endorlabs/github-action action
+      - name: Install Semgrep
+        shell: bash
+        run: python3 -m pip install semgrep
+
+      - name: Endor Labs SAST Scan
+        uses: endorlabs/github-action@a976557f19ca26ac1dd024ae8fdebc9ff0b6ef66 # v1.1.5
+        with:
+          enable_pr_comments: false
+          namespace: ${{ env.ENDORCTL_NAMESPACE }}
+          pr: true
+          pr_baseline: ${{ github.event.pull_request.base.ref }}
+          scan_dependencies: false
+          scan_sast: true
+          scan_secrets: true
+          scan_tools: false
+          tags: "actor=${{ github.actor }},branch=${{ env.BRANCH_NAME }},pr=${{ github.event.number }},run-id=${{ github.run_id }}"
+
+  scheduled-scan:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read # Used to check out a private repository with actions/checkout.
@@ -94,16 +126,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
           login-maven: true
+
+        # Remove once bundled in the endorlabs/github-action action
+      - name: Install Semgrep
+        shell: bash
+        run: python3 -m pip install semgrep
+
       - name: Endor Labs Full Scan
         env:
           MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
-        uses: endorlabs/github-action@a8ad74e765949855c4508590cf5e84258f9524d1 # v1.1.4
+        uses: endorlabs/github-action@a976557f19ca26ac1dd024ae8fdebc9ff0b6ef66 # v1.1.5
         with:
           endorctl_checksum: ${{ env.ENDORCTL_CHECKSUM }}
           endorctl_version: ${{ env.ENDORCTL_VERSION }}
           namespace: ${{ env.ENDORCTL_NAMESPACE }}
           pr: false
           scan_dependencies: true
+          scan_sast: true
           scan_secrets: true
           scan_tools: true
           tags: "actor=${{ github.actor }},branch=${{ env.BRANCH_NAME }},run-id=${{ github.run_id }}"
