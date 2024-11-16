@@ -76,7 +76,7 @@ public class BufferAllocator
     private int extRecBuffSize;
     private int dataTempBufferSize;
     private int indexTempBufferSize;
-    private int warmBundleSize;
+    private int warmBufferSize;
     private int warmWriteBufferSize;
     private int warmContextBufferSize;
     private final BufferAllocatorStats stats;
@@ -207,7 +207,7 @@ public class BufferAllocator
                 storageEngineConstants.getPageSize() * 4; /* some page for skiplist and spare */
         int dataWarmBufferSize = warmBufferSize + warmupRecordBufferSizes[maxRecLenForWarmupRecordBuffer] + extRecBuffSize + dataTempBufferSize;
         int basicWarmBufferSize = warmBufferSize + calculateCrcBufferSize(RecTypeCode.REC_TYPE_DECIMAL_LONG, maxRecLenForDataFixed) + indexTempBufferSize;
-        this.warmBundleSize = Math.max(dataWarmBufferSize, basicWarmBufferSize);
+        this.warmBufferSize = Math.max(dataWarmBufferSize, basicWarmBufferSize);
     }
 
     @Override
@@ -230,9 +230,9 @@ public class BufferAllocator
             throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + connectorSync.getCatalogName() + " failed to load");
         }
 
-        logger.info("catalog %s warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateBundleSize %dMB",
+        logger.info("catalog %s warmBufferSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateBundleSize %dMB",
                 connectorSync.getCatalogName(),
-                warmBundleSize,
+                warmBufferSize,
                 warmWriteBufferSize,
                 warmContextBufferSize,
                 predicateBundleSize >> 20);
@@ -269,7 +269,7 @@ public class BufferAllocator
         try {
             final long alignment = storageEngineConstants.getPageSize();
             final long contextSize = allocateCommonWarmUpState ? (long) storageEngineConstants.getMaxWeContextSize() : (long) warmContextBufferSize;
-            final long allocSize = (long) warmBundleSize + (long) warmWriteBufferSize + contextSize + alignment;
+            final long allocSize = (long) warmBufferSize + (long) warmWriteBufferSize + contextSize + alignment;
             return Optional.of(SegmentAllocator.slicingAllocator(arena.allocate(allocSize, alignment)));
         }
         catch (Throwable t) {
@@ -279,7 +279,7 @@ public class BufferAllocator
 
     public MemorySegment allocateLoadSegment(SegmentAllocator warmMemoryAllocator)
     {
-        return warmMemoryAllocator.allocate((long) warmBundleSize, storageEngineConstants.getPageSize());
+        return warmMemoryAllocator.allocate((long) warmBufferSize, storageEngineConstants.getPageSize());
     }
 
     public MemorySegment allocateLoadWriteBuffer(SegmentAllocator warmMemoryAllocator)
