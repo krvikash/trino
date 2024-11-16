@@ -52,37 +52,37 @@ public class StubsStorageEngine
     @Override
     public int getFixedCollectTxSize(int recTypeLength)
     {
-        return 1024 * recTypeLength;
+        return 16 * recTypeLength;
     }
 
     @Override
     public int getVarlenCollectTxSize(int recTypeLength)
     {
-        return 1024 * recTypeLength;
+        return 16 * recTypeLength;
     }
 
     @Override
     public int getFixedWarmupDataTxSize(int recTypeLength)
     {
-        return 1024 * recTypeLength;
+        return 16 * recTypeLength;
     }
 
     @Override
     public int getVarlenWarmupDataTxSize(int recTypeLength)
     {
-        return 1024 * recTypeLength;
+        return 16 * recTypeLength;
     }
 
     @Override
     public int getWarmupBasicTxSize()
     {
-        return 1024;
+        return 16;
     }
 
     @Override
     public int getWarmupLuceneTxSize()
     {
-        return 1024;
+        return 16;
     }
 
     @Override

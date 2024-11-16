@@ -113,15 +113,19 @@ public class StorageWriterService
             boolean allocateCommonWarmUpState)
     {
         /* allocate memory resources */
-        MemorySegment contextBuff = bufferAllocator.allocateLoadContextBuffer();
+        Optional<SegmentAllocator> warmMemoryAllocatorOpt = bufferAllocator.createWarmMemoryAllocator(allocateCommonWarmUpState);
+        if (!warmMemoryAllocatorOpt.isPresent()) {
+            throw new RuntimeException("no memory available for warming");
+        }
+        SegmentAllocator warmMemoryAllocator = warmMemoryAllocatorOpt.get();
         Optional<WarmUpState> warmUpStateOpt = allocateCommonWarmUpState ? Optional.of(allocateWarmUpState()) : Optional.empty();
         Optional<CompressionState> compressionStateOpt = allocateCommonWarmUpState ? Optional.of(allocateCompressionState()) : Optional.empty();
         return new StorageWriterSplitConfig(nodeIdentifier,
                 rowGroupFilePath,
-                bufferAllocator.allocateLoadSegment(),
-                bufferAllocator.allocateLoadWriteBuffer(),
-                contextBuff,
-                SegmentAllocator.slicingAllocator(contextBuff),
+                warmMemoryAllocator,
+                bufferAllocator.allocateLoadSegment(warmMemoryAllocator),
+                bufferAllocator.allocateLoadWriteBuffer(warmMemoryAllocator),
+                bufferAllocator.allocateLoadContextAllocator(warmMemoryAllocator, allocateCommonWarmUpState),
                 warmUpStateOpt,
                 new RecordBufferParams(Arena.ofAuto().allocate(RecordBufferParams.RECORD_BUFFER_PARAMS_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize())),
                 compressionStateOpt,
@@ -130,10 +134,7 @@ public class StorageWriterService
 
     public void finishWarming(StorageWriterSplitConfig storageWriterSplitConfig)
     {
-        bufferAllocator.freeLoadContextBuffer(storageWriterSplitConfig.contextBuff());
-        bufferAllocator.freeLoadWriteBuffer(storageWriterSplitConfig.writeBuff());
-        bufferAllocator.freeLoadSegment(storageWriterSplitConfig.buff());
-        /* warm state and record buffer state are freed automatically by the GC once the object is not referenced */
+        /* all memory is freed automatically by the GC once the object is not referenced */
     }
 
     WriteOpenResult open(long[] fileCookieParams,

@@ -41,13 +41,12 @@ import jakarta.annotation.PreDestroy;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
-import java.util.ArrayList;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.Optional;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -69,12 +68,6 @@ public class BufferAllocator
     private final StorageEngineConstants storageEngineConstants;
     private final ConnectorSync connectorSync;
     private final MetricsManager metricsManager;
-    private MemorySegment loadSegmentsMem;
-    private ArrayBlockingQueue<MemorySegment> loadSegmentsQueue; // loadSegment is the bundle, we use it to allocate juffers (record/null/etc)
-    private MemorySegment loadWriteBufferMem;
-    private ArrayBlockingQueue<MemorySegment> loadWriteBufferQueue; // loadWriteBuffer is storage engine buffer used to write to disk
-    private MemorySegment loadConetxtMem;
-    private ArrayBlockingQueue<MemorySegment> loadContextQueue; // loadContextQueue is storage engine buffer used for keeping in memory context during warmup
     private final NativeConfig nativeConfig;
     private final int maxRecLenForWarmupRecordBuffer;
     private final int maxRecLenForDataFixed;
@@ -128,63 +121,7 @@ public class BufferAllocator
     @PreDestroy
     public void shutdown()
     {
-        loadSegmentsMem = null;
-        loadWriteBufferMem = null;
-        loadConetxtMem = null;
         predicateBundleMem = null;
-    }
-
-    private void initWarmBundles(int numSegments)
-    {
-        final long alignment = storageEngineConstants.getPageSize();
-        final long allocSize = (long) warmBundleSize * numSegments + alignment;
-
-        loadSegmentsMem = Arena.ofAuto().allocate(allocSize, alignment);
-        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(loadSegmentsMem);
-        ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
-        for (int i = 0; i < numSegments; i++) {
-            segmentList.add(nativeAllocator.allocate(warmBundleSize, alignment));
-        }
-
-        loadSegmentsQueue = new ArrayBlockingQueue<>(segmentList.size(), true, segmentList);
-    }
-
-    private void initWarmWriteBuffer(int numSegments)
-    {
-        // 3 for records, extended records and metadata (we take spare for metadata)
-        int dataWriteBufferSize = storageEngineConstants.getRecordBufferMaxSize() * 3;
-        int basicWriteBufferSize = storageEngineConstants.getIndexChunkMaxSize();
-        this.warmWriteBufferSize = Math.max(dataWriteBufferSize, basicWriteBufferSize);
-
-        final long alignment = storageEngineConstants.getPageSize();
-        final long allocSize = (long) warmWriteBufferSize * numSegments + alignment;
-
-        loadWriteBufferMem = Arena.ofAuto().allocate(allocSize, alignment);
-        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(loadWriteBufferMem);
-        ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
-        for (int i = 0; i < numSegments; i++) {
-            segmentList.add(nativeAllocator.allocate(warmWriteBufferSize, alignment));
-        }
-
-        loadWriteBufferQueue = new ArrayBlockingQueue<>(segmentList.size(), true, segmentList);
-    }
-
-    private void initWarmContextBuffer(int numSegments)
-    {
-        // we take the maximal size limit and multiply by 1024, in practice since not all WEs are in maximal size we can warm at once more
-        this.warmContextBufferSize = storageEngineConstants.getMaxWeContextSize() * 1024;
-        final long alignment = Integer.BYTES;
-        final long allocSize = ((long) warmContextBufferSize) * numSegments + alignment;
-
-        loadConetxtMem = Arena.ofAuto().allocate(allocSize, alignment);
-        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(loadConetxtMem);
-
-        ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
-        for (int i = 0; i < numSegments; i++) {
-            segmentList.add(nativeAllocator.allocate(warmContextBufferSize, alignment));
-        }
-
-        loadContextQueue = new ArrayBlockingQueue<>(segmentList.size(), true, segmentList);
     }
 
     private long initPredicateBundle(boolean isReducedSize)
@@ -273,56 +210,38 @@ public class BufferAllocator
     @Override
     public void init()
     {
-        int minNumSegments = (connectorSync.getCatalogContext() != 0) ? nativeConfig.getTaskMinWorkerThreads() : 1;
-        int numSegments = connectorSync.isCatalogReducedResources() ? minNumSegments : nativeConfig.getTaskMaxWorkerThreads();
-        checkArgument(numSegments > 0, "no segments configured for warming resources");
         long predicateBundleSize = 0;
-        boolean success = false;
 
-        while (!success && (numSegments >= minNumSegments)) {
-            try {
-                initWarmBundles(numSegments);
-                initWarmWriteBuffer(numSegments);
-                initWarmContextBuffer(numSegments);
-                predicateBundleSize = initPredicateBundle(connectorSync.isCatalogReducedResources());
-                success = true;
-            }
-            catch (Throwable t) {
-                logger.warn("catalog %s failed to load with numSegments %d", connectorSync.getCatalogName(), numSegments);
-                clear();
-                numSegments /= 2;
-            }
+        // 3 for records, extended records and metadata (we take spare for metadata)
+        int dataWriteBufferSize = storageEngineConstants.getRecordBufferMaxSize() * 3;
+        int basicWriteBufferSize = storageEngineConstants.getIndexChunkMaxSize();
+        this.warmWriteBufferSize = Math.max(dataWriteBufferSize, basicWriteBufferSize);
+
+        // we take the maximal size limit and multiply by 1024, in practice since not all WEs are in maximal size we can warm at once more
+        this.warmContextBufferSize = storageEngineConstants.getMaxWeContextSize() * 1024;
+
+        try {
+            predicateBundleSize = initPredicateBundle(connectorSync.isCatalogReducedResources());
         }
-
-        if (numSegments < minNumSegments) {
+        catch (Throwable t) {
             throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + connectorSync.getCatalogName() + " failed to load");
         }
 
-        logger.info("catalog %s loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateBundleSize %dMB",
+        logger.info("catalog %s warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateBundleSize %dMB",
                 connectorSync.getCatalogName(),
-                loadSegmentsQueue.size(),
                 warmBundleSize,
                 warmWriteBufferSize,
                 warmContextBufferSize,
                 predicateBundleSize >> 20);
 
         metricsManager.registerMetric(this.stats);
-        updateStats(loadSegmentsQueue.size());
-        stats.addallowed_loaders(loadSegmentsQueue.size());
+        updateStats(nativeConfig.getTaskMaxWorkerThreads());
+        stats.addallowed_loaders(nativeConfig.getTaskMaxWorkerThreads());
     }
 
     @VisibleForTesting
     public void clear()
     {
-        if (loadContextQueue != null) {
-            loadContextQueue.clear();
-        }
-        if (loadSegmentsQueue != null) {
-            loadSegmentsQueue.clear();
-        }
-        if (loadWriteBufferQueue != null) {
-            loadWriteBufferQueue.clear();
-        }
         if (predicateBufferPools != null) {
             for (PredicateBufferPool predicateBufferPool : predicateBufferPools) {
                 if (predicateBufferPool != null) {
@@ -330,7 +249,6 @@ public class BufferAllocator
                 }
             }
         }
-        System.gc();
     }
 
     public int getPoolSize(PredicateBufferPoolType predicateBufferPoolType)
@@ -341,6 +259,37 @@ public class BufferAllocator
     public int getBufferSize(PredicateBufferPoolType predicateBufferPoolType)
     {
         return predicateBufferPools[predicateBufferPoolType.ordinal()].getBufSize();
+    }
+
+    public Optional<SegmentAllocator> createWarmMemoryAllocator(boolean allocateCommonWarmUpState)
+    {
+        try {
+            final long alignment = storageEngineConstants.getPageSize();
+            final long contextSize = allocateCommonWarmUpState ? (long) storageEngineConstants.getMaxWeContextSize() : (long) warmContextBufferSize;
+            final long allocSize = (long) warmBundleSize + (long) warmWriteBufferSize + contextSize + alignment;
+            return Optional.of(SegmentAllocator.slicingAllocator(Arena.ofAuto().allocate(allocSize, alignment)));
+        }
+        catch (Throwable t) {
+            return Optional.empty();
+        }
+    }
+
+    public MemorySegment allocateLoadSegment(SegmentAllocator warmMemoryAllocator)
+    {
+        return warmMemoryAllocator.allocate((long) warmBundleSize, storageEngineConstants.getPageSize());
+    }
+
+    public MemorySegment allocateLoadWriteBuffer(SegmentAllocator warmMemoryAllocator)
+    {
+        return warmMemoryAllocator.allocate((long) warmWriteBufferSize, storageEngineConstants.getPageSize());
+    }
+
+    public SegmentAllocator allocateLoadContextAllocator(SegmentAllocator warmMemoryAllocator, boolean allocateCommonWarmUpState)
+    {
+        if (allocateCommonWarmUpState) {
+            return SegmentAllocator.prefixAllocator(warmMemoryAllocator.allocate((long) storageEngineConstants.getMaxWeContextSize(), ValueLayout.JAVA_INT.byteSize()));
+        }
+        return SegmentAllocator.slicingAllocator(warmMemoryAllocator.allocate((long) warmContextBufferSize, ValueLayout.JAVA_INT.byteSize()));
     }
 
     // return array of memory segments for java and sets the addresses inside the warm up state for storage engine
@@ -497,39 +446,6 @@ public class BufferAllocator
     private void updateStats(long bundles)
     {
         stats.addavailable_load_bundles(bundles);
-    }
-
-    public MemorySegment allocateLoadSegment()
-    {
-        return loadSegmentsQueue.remove();
-    }
-
-    public void freeLoadSegment(MemorySegment loadSegment)
-    {
-        checkArgument(loadSegment != null, "loadSegment must be set");
-        loadSegmentsQueue.add(loadSegment);
-    }
-
-    public MemorySegment allocateLoadWriteBuffer()
-    {
-        return loadWriteBufferQueue.remove();
-    }
-
-    public void freeLoadWriteBuffer(MemorySegment loadWriteBuffer)
-    {
-        checkArgument(loadWriteBuffer != null, "loadWriteBuffer must be set");
-        loadWriteBufferQueue.add(loadWriteBuffer);
-    }
-
-    public MemorySegment allocateLoadContextBuffer()
-    {
-        return loadContextQueue.remove();
-    }
-
-    public void freeLoadContextBuffer(MemorySegment loadContext)
-    {
-        checkArgument(loadContext != null, "warmingCacheData must be set");
-        loadContextQueue.add(loadContext);
     }
 
     public WarmUpElementAllocationParams calculateAllocationParams(WarmupElementWriteMetadata warmupElementWriteMetadata, MemorySegment loadSegment)
