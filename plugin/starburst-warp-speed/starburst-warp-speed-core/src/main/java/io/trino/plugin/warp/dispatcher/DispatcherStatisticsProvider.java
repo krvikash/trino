@@ -17,13 +17,19 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.WarpErrorCode;
+import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
 
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static java.util.Objects.requireNonNull;
 
@@ -31,12 +37,21 @@ import static java.util.Objects.requireNonNull;
 public class DispatcherStatisticsProvider
 {
     private final Map<Integer, Integer> cardinalityMap;
+    private final Map<SchemaTableName, Set<String>> notFitForDictionary;
+    private final DispatcherProxiedConnectorTransformer transformer;
+    private final int dictionaryMaxSize;
 
     @Inject
-    public DispatcherStatisticsProvider(GlobalConfig globalConfig)
+    public DispatcherStatisticsProvider(DispatcherProxiedConnectorTransformer transformer,
+                                        GlobalConfig globalConfig,
+                                        DictionaryConfig dictionaryConfig)
     {
         String cardinalityBucketConfig = requireNonNull(globalConfig).getCardinalityBuckets();
         cardinalityMap = parseCardinalityConfig(cardinalityBucketConfig);
+        this.notFitForDictionary = new ConcurrentHashMap<>();
+        this.transformer = requireNonNull(transformer);
+        requireNonNull(dictionaryConfig);
+        this.dictionaryMaxSize = dictionaryConfig.getDictionaryMaxSize() * 2;
     }
 
     public int getColumnCardinalityBucket(Estimate estimate)
@@ -65,5 +80,25 @@ public class DispatcherStatisticsProvider
             previousBucket = currentBucket;
         }
         return ImmutableMap.copyOf(cardinalityMap.descendingMap());
+    }
+
+    public Set<String> getColumnsNotFitForDictionary(SchemaTableName schemaTableName)
+    {
+        if (schemaTableName != null) {
+            Set<String> columnsNotFitForDictionary = notFitForDictionary.get(schemaTableName);
+
+            if (columnsNotFitForDictionary != null) {
+                return columnsNotFitForDictionary;
+            }
+        }
+        return Set.of();
+    }
+
+    public void putColumnsNotFitForDictionary(SchemaTableName schemaTableName,
+                                              Map<ColumnHandle, ColumnStatistics> columnStatistics)
+    {
+        Set<String> columnsNotFitForDictionary = transformer.calculateColumnsNotFitForDictionary(columnStatistics, dictionaryMaxSize);
+
+        notFitForDictionary.put(schemaTableName, columnsNotFitForDictionary);
     }
 }

@@ -96,7 +96,8 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false);
+                false,
+                Set.of());
 
         IcebergTableHandle expectedTableHandleForWarming = new IcebergTableHandle(
                 icebergTableHandle.getCatalog(),
@@ -158,7 +159,8 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false);
+                false,
+                Set.of());
 
         IcebergTableHandle expectedTableHandleMixedQuery = new IcebergTableHandle(
                 icebergTableHandle.getCatalog(),

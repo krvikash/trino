@@ -21,6 +21,7 @@ import io.trino.plugin.hive.HiveMetadata;
 import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.plugin.hive.HiveTableProperties;
 import io.trino.plugin.warp.TestingTxService;
+import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
@@ -28,6 +29,7 @@ import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransforme
 import io.trino.plugin.warp.connector.TestingConnectorTableHandle;
 import io.trino.plugin.warp.dispatcher.DispatcherMetadata;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
+import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
@@ -63,6 +65,7 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
+import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.testing.InterfaceTestUtils;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.BeforeEach;
@@ -98,7 +101,9 @@ public class DispatcherMetadataTest
     private ConnectorSession session;
     DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private ExpressionService expressionService;
+    private DispatcherStatisticsProvider dispatcherStatisticsProvider;
     private DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
+    private final GlobalConfig globalConfig = new GlobalConfig();
 
     @BeforeEach
     public void before()
@@ -106,7 +111,6 @@ public class DispatcherMetadataTest
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         session = mock(ConnectorSession.class);
         when(session.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), eq(Integer.class))).thenReturn(5);
-        GlobalConfig globalConfig = new GlobalConfig();
         dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
         dispatcherTableHandleBuilderProvider = new DispatcherTableHandleBuilderProvider(dispatcherProxiedConnectorTransformer);
         NativeExpressionRulesHandler nativeExpressionRulesHandler = new NativeExpressionRulesHandler(new StubsStorageEngineConstants(), metricsManager);
@@ -116,6 +120,7 @@ public class DispatcherMetadataTest
                 new NativeConfig(),
                 metricsManager,
                 nativeExpressionRulesHandler);
+        dispatcherStatisticsProvider = new DispatcherStatisticsProvider(dispatcherProxiedConnectorTransformer, globalConfig, new DictionaryConfig());
     }
 
     @Test
@@ -150,8 +155,9 @@ public class DispatcherMetadataTest
         DispatcherMetadata dispatcherMetadata = new DispatcherMetadata(
                 hiveMetadata,
                 expressionService,
+                dispatcherStatisticsProvider,
                 dispatcherTableHandleBuilderProvider,
-                new GlobalConfig());
+                globalConfig);
 
         // Apply predicate pushdown on the first column.
         DispatcherTableHandle dispatcherTableHandle = createDispatcherTableHandle();
@@ -404,8 +410,9 @@ public class DispatcherMetadataTest
         DispatcherMetadata dispatcherMetadata = new DispatcherMetadata(
                 proxyMetadata,
                 expressionService,
+                dispatcherStatisticsProvider,
                 dispatcherTableHandleBuilderProvider,
-                new GlobalConfig());
+                globalConfig);
         when(session.getProperty(ENABLE_OR_PUSHDOWN, Boolean.class)).thenReturn(true);
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> result = dispatcherMetadata.applyFilter(
                 session, dispatcherTableHandle, constraint);
@@ -431,8 +438,9 @@ public class DispatcherMetadataTest
         DispatcherMetadata dispatcherMetadata = new DispatcherMetadata(
                 hiveMetadata,
                 expressionService,
+                dispatcherStatisticsProvider,
                 dispatcherTableHandleBuilderProvider,
-                new GlobalConfig());
+                globalConfig);
         Optional<LimitApplicationResult<ConnectorTableHandle>> result = dispatcherMetadata.applyLimit(session, dispatcherTableHandle, 1);
         assertThat(result.isPresent()).isTrue();
         DispatcherTableHandle dispatcherTableHandle1 = (DispatcherTableHandle) result.orElseThrow().getHandle();
@@ -456,7 +464,8 @@ public class DispatcherMetadataTest
                         Optional.empty()),
                 Optional.empty(),
                 Collections.emptyList(),
-                false);
+                false,
+                Set.of());
     }
 
     private ConnectorMetadata mockHiveMetadata()
@@ -467,6 +476,7 @@ public class DispatcherMetadataTest
                 HiveTableProperties.STORAGE_FORMAT_PROPERTY, HiveStorageFormat.ORC));
         when(hiveMetadata.getTableMetadata(any(), any())).thenReturn(connectorTableMetadata);
         when(hiveMetadata.applyLimit(any(), any(), anyLong())).thenReturn(Optional.empty());
+        when(hiveMetadata.getTableStatistics(any(), any())).thenReturn(TableStatistics.empty());
         return hiveMetadata;
     }
 

@@ -100,7 +100,8 @@ public class DispatcherProxiedConnectorTransformerTest
                 connectorTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false);
+                false,
+                Set.of());
 
         DispatcherProxiedConnectorTransformer transformer = new TestingConnectorProxiedConnectorTransformer();
         assertThat(transformer.getSimplifiedColumns(

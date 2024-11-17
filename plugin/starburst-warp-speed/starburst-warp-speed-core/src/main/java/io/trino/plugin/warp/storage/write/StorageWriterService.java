@@ -267,7 +267,13 @@ public class StorageWriterService
             long createdTimestamp = dictionaryCacheService.getLastCreatedTimestamp(warmupElementWriteMetadata.schemaTableColumn(), nodeIdentifier);
             dictionaryKey = new DictionaryKey(warmupElementWriteMetadata.schemaTableColumn(), nodeIdentifier, createdTimestamp);
         }
-        DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, dictionaryEnabled);
+        DictionaryState dictionaryState;
+        if (!warmupElementWriteMetadata.fitForDictionary()) {
+            dictionaryState = DictionaryState.DICTIONARY_NOT_EXIST;
+        }
+        else {
+            dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, dictionaryEnabled);
+        }
         return Pair.of(dictionaryKey, dictionaryState);
     }
 

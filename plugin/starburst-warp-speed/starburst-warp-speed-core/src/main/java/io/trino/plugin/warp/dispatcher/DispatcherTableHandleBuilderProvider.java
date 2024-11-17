@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -48,7 +49,8 @@ public class DispatcherTableHandleBuilderProvider
                 .fullPredicate(dispatcherTableHandle.getFullPredicate())
                 .warpExpression(dispatcherTableHandle.getWarpExpression())
                 .customStats(dispatcherTableHandle.getCustomStats())
-                .subsumedPredicates(dispatcherTableHandle.isSubsumedPredicates());
+                .subsumedPredicates(dispatcherTableHandle.isSubsumedPredicates())
+                .columnsNotFitForDictionary(dispatcherTableHandle.getColumnsNotFitForDictionary());
         dispatcherTableHandle.getLimit().ifPresent(builder::limit);
         return builder;
     }
@@ -75,6 +77,7 @@ public class DispatcherTableHandleBuilderProvider
         protected Optional<WarpExpression> warpExpression = Optional.empty();
         protected boolean subsumedPredicates;
         private List<CustomStat> customStats = Collections.emptyList();
+        private Set<String> columnsNotFitForDictionary = Set.of();
 
         private Builder(DispatcherProxiedConnectorTransformer transformer, int predicateThreshold)
         {
@@ -130,6 +133,12 @@ public class DispatcherTableHandleBuilderProvider
             return this;
         }
 
+        public Builder columnsNotFitForDictionary(Set<String> columnsNotFitForDictionary)
+        {
+            this.columnsNotFitForDictionary = columnsNotFitForDictionary;
+            return this;
+        }
+
         public DispatcherTableHandle build()
         {
             return new DispatcherTableHandle(schemaName,
@@ -140,7 +149,8 @@ public class DispatcherTableHandleBuilderProvider
                     proxiedConnectorTableHandle,
                     warpExpression,
                     customStats,
-                    subsumedPredicates);
+                    subsumedPredicates,
+                    columnsNotFitForDictionary);
         }
     }
 }
