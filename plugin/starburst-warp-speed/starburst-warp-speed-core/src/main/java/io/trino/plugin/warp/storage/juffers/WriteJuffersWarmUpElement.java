@@ -88,7 +88,7 @@ public class WriteJuffersWarmUpElement
         this.chunkHeader = new ChunkHeader(arena, allocParams.isCrcBufferNeeded());
         warmUpState.setChunkHeader(chunkHeader.getAddress());
         this.chunksList.add(chunkHeader.getInvalidChunkHeader());
-        this.chunkHeader.resetHeader();
+        newChunk();
 
         if (allocParams.isRecBufferNeeded()) {
             RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator,
@@ -192,9 +192,14 @@ public class WriteJuffersWarmUpElement
         storageEngine.warmupChunk(warmUpState.getMemory(), recordBufferParams.getMemory(), compressionState.getMemory());
 
         chunksList.add(chunksList.size() - 1, chunkHeader.copyChunkHeader());
-        chunkHeader.resetHeader();
-
         closeCurrentChunk();
+        newChunk();
+    }
+
+    private void newChunk()
+    {
+        chunkHeader.resetHeader();
+        compressionState.setAlgorithm(numChunks);
     }
 
     private int calcNumBytesWritten(int bufferEntrySize, Buffer recordJuffer, IntBuffer mdBuffer)
