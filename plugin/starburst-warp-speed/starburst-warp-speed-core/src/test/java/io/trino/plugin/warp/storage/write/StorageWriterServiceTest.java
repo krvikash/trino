@@ -443,15 +443,16 @@ public class StorageWriterServiceTest
 
         StorageWriterSplitConfig storageWriterSplitConfig = startWarming("testAppendWarmupElementBlocksNotReady");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
-        StorageWriterContext storageWriterContex = writeOpenResult.storageWriterContext();
-        storageWriterContex.setRecordBufferSize(chunkSize);
+        StorageWriterContext storageWriterContext = writeOpenResult.storageWriterContext();
+        storageWriterContext.setRecordBufferSize(chunkSize);
+        storageWriterContext.getWriteJuffersWarmUpElement().setChunkTypeAsValid();
 
         WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, chunkSize);
         buildLongBlocks(numberOfBlocks, recordsPerBlock)
                 .forEach(warmupElementBlocks::add);
 
         assertThat(warmupElementBlocks.isReady()).isFalse();
-        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContex);
+        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
         assertThat(warmResult.success()).isTrue();
         assertThat(warmResult.columnBlockIndex()).isEqualTo(numberOfBlocks);
         assertThat(warmResult.offset()).isEqualTo(0);
@@ -472,6 +473,7 @@ public class StorageWriterServiceTest
         StorageWriterSplitConfig storageWriterSplitConfig = startWarming("testAppendWarmupElementBlocksReadyOnChunkSize");
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata).storageWriterContext();
         storageWriterContext.setRecordBufferSize(chunkSize);
+        storageWriterContext.getWriteJuffersWarmUpElement().setChunkTypeAsValid();
 
         WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, chunkSize);
         buildLongBlocks(expectedBlockIndex + 1, recordsPerBlock)
@@ -498,6 +500,7 @@ public class StorageWriterServiceTest
         StorageWriterSplitConfig storageWriterSplitConfig = startWarming("testAppendWarmupElementBlocksNumberOfRecordsEqualsChunkSize");
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata).storageWriterContext();
         storageWriterContext.setRecordBufferSize(chunkSize);
+        storageWriterContext.getWriteJuffersWarmUpElement().setChunkTypeAsValid();
 
         WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, chunkSize);
         buildLongBlocks(blocksNumber, recordsPerBlock)

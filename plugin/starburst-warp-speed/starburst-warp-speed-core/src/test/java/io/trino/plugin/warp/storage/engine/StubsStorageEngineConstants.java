@@ -77,7 +77,7 @@ public class StubsStorageEngineConstants
     }
 
     @Override
-    public int getChunksMapSize()
+    public int getChunksBufferMaxSize()
     {
         return 1 << 19;
     }

@@ -34,7 +34,7 @@ public interface StorageEngineConstants
 
     int getQueryStringNullValueSize();
 
-    int getChunksMapSize();
+    int getChunksBufferMaxSize();
 
     int getChunkHeaderMaxSize();
 

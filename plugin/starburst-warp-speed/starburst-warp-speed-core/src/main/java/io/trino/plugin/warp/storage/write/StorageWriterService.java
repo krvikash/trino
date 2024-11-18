@@ -180,11 +180,13 @@ public class StorageWriterService
                 allocParams);
 
         // set up buffers
+        byte warmId = getCurrentThreadWarmId();
         WriteJuffersWarmUpElement writeJuffersWarmUpElement = createWriteJuffers(storageWriterSplitConfig.recordBufferParams(),
                 warmUpState,
                 hasDictionary,
                 allocParams,
                 compressionState,
+                warmId,
                 storageWriterSplitConfig.arena());
         if (hasDictionary) {
             WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, warmUpElement.getRecTypeCode());
@@ -215,7 +217,8 @@ public class StorageWriterService
                 warmUpState,
                 blockAppender,
                 writeDictionaryOpt,
-                luceneIndexerOpt);
+                luceneIndexerOpt,
+                warmId);
         return new WriteOpenResult(storageWriterContext, dictionaryWarmInfo);
     }
 
@@ -234,6 +237,7 @@ public class StorageWriterService
             boolean dictionaryValid,
             WarmUpElementAllocationParams allocParams,
             CompressionState compressionState,
+            byte warmId,
             Arena arena)
     {
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(storageEngine,
@@ -243,6 +247,7 @@ public class StorageWriterService
                 warmUpState,
                 allocParams,
                 compressionState,
+                warmId,
                 arena);
         juffersWE.createBuffers(dictionaryValid);
         return juffersWE;
@@ -291,9 +296,8 @@ public class StorageWriterService
         warmUpState.setStartOffset(startOffset);
         warmUpState.setWriteBuff(writeBufAddr);
         warmUpState.resetWarmEvents();
-        warmUpState.setWarmId(getCurrentThreadWarmId());
         warmUpState.setCloseChunk(false); // keep it false as default
-        storageEngine.warmupElementOpen(warmUpState.getState(), context);
+        storageEngine.warmupElementOpen(warmUpState.getMemory(), context);
         warmUpState.verifyWarmUpSuccess();
     }
 
@@ -319,7 +323,7 @@ public class StorageWriterService
                 .queryOffset(warmUpCloseResult.queryOffset())
                 .queryReadSize(warmUpCloseResult.querySize())
                 .warmEvents(storageWriterContext.getWarmUpState().getWarmEvents())
-                .warmId((int) storageWriterContext.getWarmUpState().getWarmId())
+                .warmId((int) storageWriterContext.getWarmId())
                 .totalRecords(totalRecords)
                 .warmupElementStats(closedStats);
 
@@ -575,18 +579,19 @@ public class StorageWriterService
         Optional<WarmUpCloseResult> warmUpCloseResultOpt = Optional.empty();
 
         if (!storageWriterContext.isWeClosed()) {
-            storageWriterContext.getBlockAppender().writeChunkMapValuesIntoChunkMapJuffer(storageWriterContext.getWriteJuffersWarmUpElement().getChunksList());
+            WarmUpState warmUpState = storageWriterContext.getWarmUpState();
+            int queryOffset = warmUpState.getStartOffset();
+            storageWriterContext.getWriteJuffersWarmUpElement().writeChunkListToJuffer(queryOffset);
+
             // if current chunk is still opened it means there was an exception and we warm up element is aborted
             WriteJuffersWarmUpElement writeJuffersWarmUpElement = storageWriterContext.getWriteJuffersWarmUpElement();
             boolean currentChunkIsOpened = writeJuffersWarmUpElement.closeCurrentChunk();
             int numChunks = writeJuffersWarmUpElement.getNumChunks();
             if (!currentChunkIsOpened && (numChunks > 0)) { // if current chunk is opened it means we got a native exception in the middle
-                storageWriterContext.getWarmUpState().setNumChunks((short) numChunks);
-                storageEngine.warmupElementClose(storageWriterContext.getWarmUpState().getState());
-                warmUpCloseResultOpt = Optional.of(new WarmUpCloseResult(
-                        storageWriterContext.getWarmUpState().getQueryOffset(),
-                        storageWriterContext.getWarmUpState().getQuerySize(),
-                        storageWriterContext.getWarmUpState().getStartOffset()));
+                warmUpState.setNumChunks((short) numChunks);
+                writeJuffersWarmUpElement.getAndVerifyNumChunkPages();
+                int querySize = storageEngine.warmupElementClose(warmUpState.getMemory());
+                warmUpCloseResultOpt = Optional.of(new WarmUpCloseResult(queryOffset, querySize, warmUpState.getStartOffset()));
             }
             storageWriterContext.setWeClosed();
         }

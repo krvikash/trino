@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.storage.engine;
 
+import io.trino.plugin.warp.storage.juffers.ChunkHeader;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 import io.trino.plugin.warp.storage.write.WarmUpState;
 
@@ -114,14 +115,14 @@ public class StubsStorageEngine
     @Override
     public void warmupElementOpen(MemorySegment warmUpState, MemorySegment context)
     {
+        warmUpState.set(ValueLayout.JAVA_INT, WarmUpState.WARMUP_STATE_OFFSET_START_OFFSET, 0);
     }
 
     @Override
-    public void warmupElementClose(MemorySegment warmUpState)
+    public int warmupElementClose(MemorySegment warmUpState)
     {
-        warmUpState.set(ValueLayout.JAVA_INT, WarmUpState.WARMUP_STATE_OFFSET_QUERY_OFFSET, 0);
-        warmUpState.set(ValueLayout.JAVA_SHORT, WarmUpState.WARMUP_STATE_OFFSET_QUERY_SIZE, (short) 1);
         warmUpState.set(ValueLayout.JAVA_INT, WarmUpState.WARMUP_STATE_OFFSET_START_OFFSET, 1);
+        return 1;
     }
 
     @Override
@@ -132,11 +133,17 @@ public class StubsStorageEngine
     @Override
     public void warmupChunk(MemorySegment warmUpState, MemorySegment recordBufferParams, MemorySegment compressionState)
     {
+        long chunkHeaderAddress = warmUpState.get(ValueLayout.JAVA_LONG, WarmUpState.WARMUP_STATE_OFFSET_CHUNK_HEADER);
+        MemorySegment chunkHeader = MemorySegment.ofAddress(chunkHeaderAddress).reinterpret(ChunkHeader.CHUNK_HEADER_LAYOUT.byteSize());
+        chunkHeader.set(ValueLayout.JAVA_BYTE, ChunkHeader.CHUNK_HEADER_OFFSET_TYPE_AND_WARM_ID, (byte) 0x66);
     }
 
     @Override
     public void warmupChunkExtRec(MemorySegment warmUpState, MemorySegment recordBufferParams)
     {
+        long chunkHeaderAddress = warmUpState.get(ValueLayout.JAVA_LONG, WarmUpState.WARMUP_STATE_OFFSET_CHUNK_HEADER);
+        MemorySegment chunkHeader = MemorySegment.ofAddress(chunkHeaderAddress).reinterpret(ChunkHeader.CHUNK_HEADER_LAYOUT.byteSize());
+        chunkHeader.set(ValueLayout.JAVA_BYTE, ChunkHeader.CHUNK_HEADER_OFFSET_TYPE_AND_WARM_ID, (byte) 0x22);
     }
 
     @Override

@@ -20,18 +20,18 @@ import java.lang.foreign.MemorySegment;
 /**
  * buffer for marking null values
  */
-public class ChunksMapJuffer
+public class ChunksJuffer
         extends BaseWriteJuffer
 {
-    public ChunksMapJuffer(BufferAllocator bufferAllocator)
+    public ChunksJuffer(BufferAllocator bufferAllocator)
     {
-        super(bufferAllocator, JuffersType.CHUNKS_MAP);
+        super(bufferAllocator, JuffersType.CHUNKS);
     }
 
     @Override
     public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
     {
-        this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2ChunksMapBuff(buffs));
+        this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2ChunksBuff(buffs));
         this.wrappedBuffer = this.baseBuffer;
     }
 }

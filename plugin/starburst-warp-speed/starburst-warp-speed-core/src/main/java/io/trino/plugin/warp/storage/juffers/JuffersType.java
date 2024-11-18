@@ -22,7 +22,7 @@ public enum JuffersType
     CRC(4),
     VARLENMD(5),
     EXTENDED_REC(6),
-    CHUNKS_MAP(7),
+    CHUNKS(7),
     NUM_TYPES(8);
 
     private final int warpBufferTypes;

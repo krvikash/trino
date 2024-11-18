@@ -41,6 +41,7 @@ final class StorageWriterContext
     private boolean weSuccess;
     private final Optional<WriteDictionary> writeDictionary;
     private final Optional<LuceneIndexer> luceneIndexer;
+    private final byte warmId;
 
     StorageWriterContext(
             WarmupElementWriteMetadata warmupElementWriteMetadata,
@@ -50,7 +51,8 @@ final class StorageWriterContext
             WarmUpState warmUpState,
             BlockAppender blockAppender,
             Optional<WriteDictionary> writeDictionary,
-            Optional<LuceneIndexer> luceneIndexer)
+            Optional<LuceneIndexer> luceneIndexer,
+            byte warmId)
     {
         this.warmupElementWriteMetadata = warmupElementWriteMetadata;
         this.recordBufferSize = 0;
@@ -63,6 +65,7 @@ final class StorageWriterContext
         this.weSuccess = true;
         this.writeDictionary = writeDictionary;
         this.luceneIndexer = luceneIndexer;
+        this.warmId = warmId;
         this.isCleanupDone = new AtomicReference<>(null);
         this.warmupElementStatsBuilder = new WarmupElementStatsBuilder(warmupElementWriteMetadata.warmUpElement().getWarmupElementStats());
     }
@@ -181,6 +184,11 @@ final class StorageWriterContext
     AtomicReference<Object> getIsCleanupDone()
     {
         return isCleanupDone;
+    }
+
+    byte getWarmId()
+    {
+        return warmId;
     }
 
     @Override

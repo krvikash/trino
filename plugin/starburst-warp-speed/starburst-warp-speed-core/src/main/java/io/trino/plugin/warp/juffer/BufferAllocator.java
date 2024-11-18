@@ -161,7 +161,7 @@ public class BufferAllocator
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
         buffTypeSizes = new int[JbufType.JBUF_TYPE_NUM_OF.ordinal()];
         buffTypeSizes[JbufType.JBUF_TYPE_NULL.ordinal()] = chunkSize;
-        buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()] = storageEngineConstants.getChunksMapSize();
+        buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS.ordinal()] = storageEngineConstants.getChunksBufferMaxSize();
         buffTypeSizes[JbufType.JBUF_TYPE_SKIPLIST.ordinal()] = roundToPageSize(((chunkSize / storageEngineConstants.getVarlenMdGranularity()) + 1) * Integer.BYTES);
 
         this.dataTempBufferSize = storageEngineConstants.getWarmupDataTempBufferSize();
@@ -203,7 +203,7 @@ public class BufferAllocator
         warmupIndexTxSize = Math.max((int) storageEngine.getWarmupBasicTxSize(), (int) storageEngine.getWarmupLuceneTxSize());
 
         int warmBufferSize = buffTypeSizes[JbufType.JBUF_TYPE_NULL.ordinal()] +
-                buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()] +
+                buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS.ordinal()] +
                 storageEngineConstants.getPageSize() * 4; /* some page for skiplist and spare */
         int dataWarmBufferSize = warmBufferSize + warmupRecordBufferSizes[maxRecLenForWarmupRecordBuffer] + extRecBuffSize + dataTempBufferSize;
         int basicWarmBufferSize = warmBufferSize + calculateCrcBufferSize(RecTypeCode.REC_TYPE_DECIMAL_LONG, maxRecLenForDataFixed) + indexTempBufferSize;
@@ -328,7 +328,7 @@ public class BufferAllocator
             warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_SKIPLIST, slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_SKIPLIST.ordinal()], alignment));
         }
 
-        warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_CHUNKS_MAP, slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()], alignment));
+        warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_CHUNKS, slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS.ordinal()], alignment));
     }
 
     public long[] getCollectBuffersArray()
@@ -351,9 +351,9 @@ public class BufferAllocator
         return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_NULL.ordinal()]);
     }
 
-    public ByteBuffer memorySegment2ChunksMapBuff(MemorySegment[] buffs)
+    public ByteBuffer memorySegment2ChunksBuff(MemorySegment[] buffs)
     {
-        return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()]);
+        return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_CHUNKS.ordinal()]);
     }
 
     public ByteBuffer memorySegment2CrcBuff(MemorySegment[] buffs)

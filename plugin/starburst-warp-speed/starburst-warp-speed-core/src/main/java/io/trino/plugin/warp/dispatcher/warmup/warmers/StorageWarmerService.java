@@ -198,8 +198,8 @@ public class StorageWarmerService
                     int queryOffset = warmUpElement.getQueryOffset();
                     if (queryOffset > 0) { // @TODO there are issues with offset zero should be investigated
                         logger.debug("verifying offset %d WE %s", queryOffset, warmUpElement);
-                        warmUpState.setQueryOffset(queryOffset);
-                        storageEngine.warmupVerifyQueryOffset(warmUpState.getState());
+                        warmUpState.setStartOffset(queryOffset);
+                        storageEngine.warmupVerifyQueryOffset(warmUpState.getMemory());
                     }
                 }
             }

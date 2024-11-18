@@ -101,7 +101,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void warmupElementClose(MemorySegment warmUpState)
+    default int warmupElementClose(MemorySegment warmUpState)
     {
         throw new UnsupportedOperationException();
     }

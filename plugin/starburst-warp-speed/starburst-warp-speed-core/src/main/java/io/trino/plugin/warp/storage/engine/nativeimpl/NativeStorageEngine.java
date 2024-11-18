@@ -129,7 +129,7 @@ public class NativeStorageEngine
             mWarmupElementOpen = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_element_open").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
             mWarmupElementClose = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_element_close").orElseThrow(),
-                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
             mWarmupVerifyQueryOffset = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_verify_query_offset").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
             mWarmupChunk = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_chunk").orElseThrow(),
@@ -383,10 +383,10 @@ public class NativeStorageEngine
     }
 
     @Override
-    public void warmupElementClose(MemorySegment warmUpState)
+    public int warmupElementClose(MemorySegment warmUpState)
     {
         try {
-            mWarmupElementClose.invokeExact(warmUpState);
+            return (int) mWarmupElementClose.invokeExact(warmUpState);
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to warmupElementClose");

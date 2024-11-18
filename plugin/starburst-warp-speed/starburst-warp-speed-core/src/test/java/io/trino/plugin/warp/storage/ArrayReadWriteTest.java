@@ -102,7 +102,7 @@ public class ArrayReadWriteTest
         when(bufferAllocator.memorySegment2CrcBuff(any())).thenReturn(crcBuffer);
         when(bufferAllocator.memorySegment2VarlenMdBuff(any())).thenReturn(varlnmdBuffer);
         when(bufferAllocator.memorySegment2ExtRecsBuff(any())).thenReturn(extendedBuffer);
-        when(bufferAllocator.memorySegment2ChunksMapBuff(any())).thenReturn(chunksMapBuffer);
+        when(bufferAllocator.memorySegment2ChunksBuff(any())).thenReturn(chunksMapBuffer);
     }
 
     @AfterEach
@@ -281,6 +281,7 @@ public class ArrayReadWriteTest
                 new WarmUpState(arena.allocate(100, ValueLayout.JAVA_INT.byteSize())),
                 warmUpElementAllocationParams,
                 new CompressionState(arena.allocate(100, ValueLayout.JAVA_INT.byteSize())),
+                (byte) 0,
                 arena);
         juffersWE.createBuffers(false);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();

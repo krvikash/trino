@@ -22,10 +22,8 @@ import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 
-import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
-import java.util.List;
 import java.util.Optional;
 
 public abstract class BlockAppender
@@ -67,15 +65,6 @@ public abstract class BlockAppender
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder);
-
-    public void writeChunkMapValuesIntoChunkMapJuffer(List<MemorySegment> chunksList)
-    {
-        ByteBuffer chunkMapBuffer = juffersWE.getChunkMapBuffer();
-        chunkMapBuffer.position(0); // to be on the safe side
-        for (MemorySegment chunkHeader : chunksList) {
-            chunkMapBuffer.put(chunkHeader.asByteBuffer());
-        }
-    }
 
     protected void padBuffer(ByteBuffer buff, int len)
     {

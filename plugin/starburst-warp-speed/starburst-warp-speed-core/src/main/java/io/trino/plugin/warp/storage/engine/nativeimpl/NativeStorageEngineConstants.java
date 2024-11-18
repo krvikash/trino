@@ -39,7 +39,7 @@ public class NativeStorageEngineConstants
     private final int recordBufferMaxSize;
     private final int indexChunkMaxSize;
     private final int queryStringNullValueSize;
-    private final int chunksMapSize;
+    private final int chunksBufferMaxSize;
     private final int chunkHeaderMaxSize;
     private final int warmupDataTempBufferSize;
     private final int warmupIndexTempBufferSize;
@@ -81,7 +81,7 @@ public class NativeStorageEngineConstants
             recordBufferMaxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_record_buffer_max_size");
             indexChunkMaxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_index_chunk_max_size");
             queryStringNullValueSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_query_string_null_value_size");
-            chunksMapSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_chunks_map_size");
+            chunksBufferMaxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_chunks_buffer_max_size");
             chunkHeaderMaxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_chunk_header_max_size");
             warmupDataTempBufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_warmup_data_temp_buffer_size");
             warmupIndexTempBufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_warmup_index_temp_buffer_size");
@@ -166,9 +166,9 @@ public class NativeStorageEngineConstants
     }
 
     @Override
-    public int getChunksMapSize()
+    public int getChunksBufferMaxSize()
     {
-        return chunksMapSize;
+        return chunksBufferMaxSize;
     }
 
     @Override

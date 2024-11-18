@@ -40,15 +40,12 @@ public class WarmUpState
     public static final StructLayout WARMUP_STATE_LAYOUT;
     private static final long WARMUP_STATE_OFFSET_JBUF_LIST;
     private static final long WARMUP_STATE_OFFSET_WRITE_BUF;
-    private static final long WARMUP_STATE_OFFSET_CHUNK_HEADER;
+    public static final long WARMUP_STATE_OFFSET_CHUNK_HEADER; // public for testing
     private static final long WARMUP_STATE_OFFSET_FILE_COOKIE;
     public static final long WARMUP_STATE_OFFSET_START_OFFSET; // public for testing
-    public static final long WARMUP_STATE_OFFSET_QUERY_OFFSET; // public for testing
     private static final long WARMUP_STATE_OFFSET_WARM_EVENTS;
-    public static final long WARMUP_STATE_OFFSET_QUERY_SIZE;   // public for testing
     private static final long WARMUP_STATE_OFFSET_ELEMENT_ATT;
     private static final long WARMUP_STATE_OFFSET_NUM_CHUNKS;
-    private static final long WARMUP_STATE_OFFSET_WARM_ID;
     private static final long WARMUP_STATE_OFFSET_CLOSE_CHUNK;
     private static final long WARMUP_STATE_OFFSET_WARMUP_FAILED;
 
@@ -73,13 +70,10 @@ public class WarmUpState
                 ValueLayout.JAVA_LONG.withName("pchunk_pers"),
                 FILE_COOKIE_LAYOUT.withName("file_cookie"),
                 ValueLayout.JAVA_INT.withName("start_offset"),
-                ValueLayout.JAVA_INT.withName("query_offset"),
                 ValueLayout.JAVA_INT.withName("warm_events"),
                 WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.withName("we_attr"),
                 ValueLayout.JAVA_SHORT.withName("write_buf_page_ix"),
-                ValueLayout.JAVA_SHORT.withName("query_size"),
                 ValueLayout.JAVA_SHORT.withName("nchunks"),
-                ValueLayout.JAVA_BYTE.withName("warm_id"),
                 ValueLayout.JAVA_BYTE.withName("close_chunk"),
                 ValueLayout.JAVA_BYTE.withName("warmup_failed")).withName("we_commit_state_t");
         WARMUP_STATE_OFFSET_JBUF_LIST = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pjbuf_ptrs"));
@@ -87,12 +81,9 @@ public class WarmUpState
         WARMUP_STATE_OFFSET_CHUNK_HEADER = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("pchunk_pers"));
         WARMUP_STATE_OFFSET_FILE_COOKIE = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("file_cookie"));
         WARMUP_STATE_OFFSET_START_OFFSET = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("start_offset"));
-        WARMUP_STATE_OFFSET_QUERY_OFFSET = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("query_offset"));
         WARMUP_STATE_OFFSET_WARM_EVENTS = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("warm_events"));
         WARMUP_STATE_OFFSET_ELEMENT_ATT = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("we_attr"));
-        WARMUP_STATE_OFFSET_QUERY_SIZE = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("query_size"));
         WARMUP_STATE_OFFSET_NUM_CHUNKS = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("nchunks"));
-        WARMUP_STATE_OFFSET_WARM_ID = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("warm_id"));
         WARMUP_STATE_OFFSET_CLOSE_CHUNK = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("close_chunk"));
         WARMUP_STATE_OFFSET_WARMUP_FAILED = WARMUP_STATE_LAYOUT.byteOffset(PathElement.groupElement("warmup_failed"));
     }
@@ -104,11 +95,6 @@ public class WarmUpState
     }
 
     public MemorySegment getMemory()
-    {
-        return warmUpState;
-    }
-
-    public MemorySegment getState()
     {
         return warmUpState;
     }
@@ -188,16 +174,6 @@ public class WarmUpState
         warmUpState.set(ValueLayout.JAVA_INT, WARMUP_STATE_OFFSET_WARM_EVENTS, 0);
     }
 
-    public byte getWarmId()
-    {
-        return warmUpState.get(ValueLayout.JAVA_BYTE, WARMUP_STATE_OFFSET_WARM_ID);
-    }
-
-    public void setWarmId(byte warmId)
-    {
-        warmUpState.set(ValueLayout.JAVA_BYTE, WARMUP_STATE_OFFSET_WARM_ID, warmId);
-    }
-
     public void setCloseChunk(boolean closeChunk)
     {
         warmUpState.set(ValueLayout.JAVA_BYTE, WARMUP_STATE_OFFSET_CLOSE_CHUNK, closeChunk ? (byte) 1 : (byte) 0);
@@ -206,20 +182,5 @@ public class WarmUpState
     public void setNumChunks(short numChunks)
     {
         warmUpState.set(ValueLayout.JAVA_SHORT, WARMUP_STATE_OFFSET_NUM_CHUNKS, numChunks);
-    }
-
-    public int getQueryOffset()
-    {
-        return warmUpState.get(ValueLayout.JAVA_INT, WARMUP_STATE_OFFSET_QUERY_OFFSET);
-    }
-
-    public void setQueryOffset(int queryOffset)
-    {
-        warmUpState.set(ValueLayout.JAVA_INT, WARMUP_STATE_OFFSET_QUERY_OFFSET, queryOffset);
-    }
-
-    public int getQuerySize()
-    {
-        return (int) warmUpState.get(ValueLayout.JAVA_SHORT, WARMUP_STATE_OFFSET_QUERY_SIZE);
     }
 }
