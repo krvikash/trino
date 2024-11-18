@@ -35,6 +35,7 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
+import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -69,6 +70,7 @@ public class WarpCachePageSourceFactory
     private final ReadErrorHandler readErrorHandler;
     private final StorageCollectorService storageCollectorService;
     private final StorageEngineConstants storageEngineConstants;
+    private final StorageEngineTxService txService;
     private final RowGroupDataService rowGroupDataService;
     private final MetricsManager metricsManager;
     private final PredicatesCacheService predicatesCacheService;
@@ -80,6 +82,7 @@ public class WarpCachePageSourceFactory
 
     @Inject
     public WarpCachePageSourceFactory(StorageEngineConstants storageEngineConstants,
+            StorageEngineTxService txService,
             RowGroupDataService rowGroupDataService,
             MetricsManager metricsManager,
             PredicatesCacheService predicatesCacheService,
@@ -91,6 +94,7 @@ public class WarpCachePageSourceFactory
             MatchService matchService)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
+        this.txService = requireNonNull(txService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.metricsManager = requireNonNull(metricsManager);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
@@ -178,7 +182,7 @@ public class WarpCachePageSourceFactory
                     readErrorHandler,
                     globalConfig);
             dispatcherPageSourceStats.addwarp_collect_columns(planSignature.getColumns().size());
-            return Optional.of(new WarpCachePageSource(dispatcherPageSource, customStatsContext));
+            return Optional.of(new WarpCachePageSource(txService, dispatcherPageSource, customStatsContext));
         }
         catch (Exception e) {
             RowGroupData afterLockRowGroupData = rowGroupDataService.get(rowGroupKey);
