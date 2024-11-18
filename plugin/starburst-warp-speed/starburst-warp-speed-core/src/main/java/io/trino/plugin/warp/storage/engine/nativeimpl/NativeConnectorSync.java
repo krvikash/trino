@@ -201,7 +201,7 @@ public class NativeConnectorSync
     @Override
     public boolean isCatalogReducedResources()
     {
-        return (readCatalogId() >= 4);
+        return (readCatalogId() >= 8);
     }
 
     @Override

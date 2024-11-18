@@ -126,6 +126,9 @@ public class BufferAllocator
 
     private long initPredicateBundle(boolean isReducedSize)
     {
+        if (isReducedSize) {
+            logger.warn("Init predicate bundle with reduced size");
+        }
         this.predicateBufferPools = new PredicateBufferPool[PredicateBufferPoolType.values().length];
 
         final long alignment = storageEngineConstants.getPageSize();
