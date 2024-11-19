@@ -254,7 +254,7 @@ public class TestDataApiFacade
         ListenableFuture<Void> addDataPagesFuture1 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1, 1L, ImmutableListMultimap.of());
         sleepUninterruptibly(java.time.Duration.ofMillis(500));
         addDataPagesFuture1.cancel(true);
-        sleepUninterruptibly(java.time.Duration.ofMillis(1000));
+        sleepUninterruptibly(java.time.Duration.ofSeconds(1));
         assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 1, 1, 1L)).isEqualTo(1);
         assertThatThrownBy(() -> getFutureValue(addDataPagesFuture1)).isInstanceOf(CancellationException.class);
     }
