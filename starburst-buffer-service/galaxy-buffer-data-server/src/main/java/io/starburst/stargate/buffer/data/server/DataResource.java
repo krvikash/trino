@@ -333,7 +333,7 @@ public class DataResource
         try {
             if (bufferNodeStateManager.isDrainingStarted()) {
                 inProgressLatch.decrement();
-                logger.info("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
+                logger.debug("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
                 consumeRequestAndCompleteAsyncResponse(clientId, asyncResponse, inputStream, processingStart, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
                 return;
             }
@@ -342,7 +342,7 @@ public class DataResource
                 inProgressLatch.decrement();
                 stats.getOverloadedAddDataPagesCount().update(1);
                 addDataPagesThrottlingCalculator.recordThrottlingEvent();
-                logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
+                logger.debug("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
                         exchangeId, taskId, attemptId, dataPagesId, inProgressLatch, maxInProgressAddDataPagesRequests);
                 consumeRequestAndCompleteAsyncResponse(
                         clientId,
