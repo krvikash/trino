@@ -233,11 +233,6 @@ public class TestWarpCache
         List<String> excludeTests = configuration.get(TEST_NAME);
         List<String> excludeQueries = configuration.get(QUERY_ID);
 
-        // These queries fail on "appendVarlenBlock found a string length %d longer than max %d" - so it's OK to skip them
-        // It doesn't happen without caching manager because caching manager doesn't support dictionary
-        excludeQueries.add("wide_40k_3");
-        excludeQueries.add("varchar_rectlength_1");
-        excludeTests.add("wide_varchar_chunks"); //failed on max length varchar
         ExcludeStrategy excludeStrategy = new ExcludeStrategy();
         configuration.put(QUERY_ID, excludeQueries);
         configuration.put(TEST_NAME, excludeTests);
