@@ -1072,7 +1072,7 @@ public class DataResource
         private Optional<ReadListener> getDelegate()
         {
             if (state.get() == State.DELEGATE_RELEASED) {
-                logger.warn("Delegate already release");
+                logger.warn("Delegate already released");
             }
             return delegate;
         }
@@ -1080,7 +1080,7 @@ public class DataResource
         public void releaseDelegate()
         {
             if (state.get() == State.DELEGATE_RELEASED) {
-                logger.warn("Cannote release delegate; delegate already released");
+                logger.warn("Cannot release delegate; delegate already released");
             }
             delegate = Optional.empty();
         }
