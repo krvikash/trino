@@ -264,13 +264,13 @@ public class BufferAllocator
         return predicateBufferPools[predicateBufferPoolType.ordinal()].getBufSize();
     }
 
-    public Optional<SegmentAllocator> createWarmMemoryAllocator(boolean allocateCommonWarmUpState)
+    public Optional<SegmentAllocator> createWarmMemoryAllocator(Arena arena, boolean allocateCommonWarmUpState)
     {
         try {
             final long alignment = storageEngineConstants.getPageSize();
             final long contextSize = allocateCommonWarmUpState ? (long) storageEngineConstants.getMaxWeContextSize() : (long) warmContextBufferSize;
             final long allocSize = (long) warmBundleSize + (long) warmWriteBufferSize + contextSize + alignment;
-            return Optional.of(SegmentAllocator.slicingAllocator(Arena.ofAuto().allocate(allocSize, alignment)));
+            return Optional.of(SegmentAllocator.slicingAllocator(arena.allocate(allocSize, alignment)));
         }
         catch (Throwable t) {
             return Optional.empty();

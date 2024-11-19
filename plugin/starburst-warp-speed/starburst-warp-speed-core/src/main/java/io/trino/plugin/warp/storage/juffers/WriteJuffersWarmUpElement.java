@@ -24,6 +24,7 @@ import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.type.Int128;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -67,7 +68,8 @@ public class WriteJuffersWarmUpElement
             RecordBufferParams recordBufferParams,
             WarmUpState warmUpState,
             WarmUpElementAllocationParams allocParams,
-            CompressionState compressionState)
+            CompressionState compressionState,
+            Arena arena)
     {
         super();
 
@@ -83,7 +85,7 @@ public class WriteJuffersWarmUpElement
 
         // we always have an invalid cookie at the end of the list for a case we aborted the last chunk in the middle
         // in that case native might read this cookie and we prefer to have it initialized with invalid values
-        this.chunkHeader = new ChunkHeader(allocParams.isCrcBufferNeeded());
+        this.chunkHeader = new ChunkHeader(arena, allocParams.isCrcBufferNeeded());
         warmUpState.setChunkHeader(chunkHeader.getAddress());
         this.chunksList.add(chunkHeader.getInvalidChunkHeader());
         this.chunkHeader.resetHeader();

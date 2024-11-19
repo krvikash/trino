@@ -113,13 +113,14 @@ public class StorageWriterService
             boolean allocateCommonWarmUpState)
     {
         /* allocate memory resources */
-        Optional<SegmentAllocator> warmMemoryAllocatorOpt = bufferAllocator.createWarmMemoryAllocator(allocateCommonWarmUpState);
+        Arena arena = Arena.ofConfined();
+        Optional<SegmentAllocator> warmMemoryAllocatorOpt = bufferAllocator.createWarmMemoryAllocator(arena, allocateCommonWarmUpState);
         if (!warmMemoryAllocatorOpt.isPresent()) {
             throw new RuntimeException("no memory available for warming");
         }
         SegmentAllocator warmMemoryAllocator = warmMemoryAllocatorOpt.get();
-        Optional<WarmUpState> warmUpStateOpt = allocateCommonWarmUpState ? Optional.of(allocateWarmUpState()) : Optional.empty();
-        Optional<CompressionState> compressionStateOpt = allocateCommonWarmUpState ? Optional.of(allocateCompressionState()) : Optional.empty();
+        Optional<WarmUpState> warmUpStateOpt = allocateCommonWarmUpState ? Optional.of(allocateWarmUpState(arena)) : Optional.empty();
+        Optional<CompressionState> compressionStateOpt = allocateCommonWarmUpState ? Optional.of(allocateCompressionState(arena)) : Optional.empty();
         return new StorageWriterSplitConfig(nodeIdentifier,
                 rowGroupFilePath,
                 warmMemoryAllocator,
@@ -127,14 +128,22 @@ public class StorageWriterService
                 bufferAllocator.allocateLoadWriteBuffer(warmMemoryAllocator),
                 bufferAllocator.allocateLoadContextAllocator(warmMemoryAllocator, allocateCommonWarmUpState),
                 warmUpStateOpt,
-                new RecordBufferParams(Arena.ofAuto().allocate(RecordBufferParams.RECORD_BUFFER_PARAMS_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize())),
+                new RecordBufferParams(arena.allocate(RecordBufferParams.RECORD_BUFFER_PARAMS_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize())),
                 compressionStateOpt,
-                dictionaryEnabled);
+                dictionaryEnabled,
+                arena);
     }
 
     public void finishWarming(StorageWriterSplitConfig storageWriterSplitConfig)
     {
-        /* all memory is freed automatically by the GC once the object is not referenced */
+        /* all off-heap memory is freed by the aren once the object is closed */
+        try {
+            storageWriterSplitConfig.arena().close();
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to close warming memory arena");
+            throw new RuntimeException("ailed to close warming memory arena");
+        }
     }
 
     WriteOpenResult open(long[] fileCookieParams,
@@ -159,8 +168,8 @@ public class StorageWriterService
             warmupElementBuilder.dictionaryInfo(new DictionaryInfo(dictionaryKey, dictionaryState, 0, 0));
         }
         // initialize warm up state and file if needed
-        WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().orElseGet(() -> allocateWarmUpState());
-        CompressionState compressionState = storageWriterSplitConfig.compressionStateOpt().orElseGet(() -> allocateCompressionState());
+        WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().orElseGet(() -> allocateWarmUpState(storageWriterSplitConfig.arena()));
+        CompressionState compressionState = storageWriterSplitConfig.compressionStateOpt().orElseGet(() -> allocateCompressionState(storageWriterSplitConfig.arena()));
         storageWeOpen(warmUpElement,
                 hasDictionary,
                 warmUpState,
@@ -175,7 +184,8 @@ public class StorageWriterService
                 warmUpState,
                 hasDictionary,
                 allocParams,
-                compressionState);
+                compressionState,
+                storageWriterSplitConfig.arena());
         if (hasDictionary) {
             WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, warmUpElement.getRecTypeCode());
             dictionaryKey = writeDictionary.getDictionaryKey(); //in order to be aligned with createdTimestamp
@@ -209,21 +219,22 @@ public class StorageWriterService
         return new WriteOpenResult(storageWriterContext, dictionaryWarmInfo);
     }
 
-    private WarmUpState allocateWarmUpState()
+    private WarmUpState allocateWarmUpState(Arena arena)
     {
-        return new WarmUpState(Arena.ofAuto().allocate(WarmUpState.WARMUP_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
+        return new WarmUpState(arena.allocate(WarmUpState.WARMUP_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
     }
 
-    private CompressionState allocateCompressionState()
+    private CompressionState allocateCompressionState(Arena arena)
     {
-        return new CompressionState(Arena.ofAuto().allocate(CompressionState.COMPRESSION_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
+        return new CompressionState(arena.allocate(CompressionState.COMPRESSION_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
     }
 
     private WriteJuffersWarmUpElement createWriteJuffers(RecordBufferParams recordBufferParams,
             WarmUpState warmUpState,
             boolean dictionaryValid,
             WarmUpElementAllocationParams allocParams,
-            CompressionState compressionState)
+            CompressionState compressionState,
+            Arena arena)
     {
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(storageEngine,
                 storageEngineConstants,
@@ -231,7 +242,8 @@ public class StorageWriterService
                 recordBufferParams,
                 warmUpState,
                 allocParams,
-                compressionState);
+                compressionState,
+                arena);
         juffersWE.createBuffers(dictionaryValid);
         return juffersWE;
     }

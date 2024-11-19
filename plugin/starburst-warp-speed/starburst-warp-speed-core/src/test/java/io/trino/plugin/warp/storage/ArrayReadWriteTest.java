@@ -50,6 +50,7 @@ import io.trino.spi.type.DateType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TinyintType;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -81,11 +82,13 @@ public class ArrayReadWriteTest
     private ArrayBlockAppender appender;
     private BlockFiller filler;
     private ReadJuffersWarmUpElement juffersWE;
+    private Arena arena;
 
     @BeforeEach
     public void before()
     {
         storageEngineConstants = new StubsStorageEngineConstants();
+        arena = Arena.ofConfined();
 
         ByteBuffer nullBuffer = ByteBuffer.allocate(1000);
         ByteBuffer recordBuffer = ByteBuffer.allocate(1000);
@@ -100,6 +103,17 @@ public class ArrayReadWriteTest
         when(bufferAllocator.memorySegment2VarlenMdBuff(any())).thenReturn(varlnmdBuffer);
         when(bufferAllocator.memorySegment2ExtRecsBuff(any())).thenReturn(extendedBuffer);
         when(bufferAllocator.memorySegment2ChunksMapBuff(any())).thenReturn(chunksMapBuffer);
+    }
+
+    @AfterEach
+    public void after()
+    {
+        try {
+            arena.close();
+        }
+        catch (Throwable t) {
+            throw new RuntimeException("failed closing arena");
+        }
     }
 
     static Stream<Arguments> params()
@@ -263,10 +277,11 @@ public class ArrayReadWriteTest
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(mock(StorageEngine.class),
                 storageEngineConstants,
                 bufferAllocator,
-                new RecordBufferParams(Arena.ofAuto().allocate(100, ValueLayout.JAVA_INT.byteSize())),
-                new WarmUpState(Arena.ofAuto().allocate(100, ValueLayout.JAVA_INT.byteSize())),
+                new RecordBufferParams(arena.allocate(100, ValueLayout.JAVA_INT.byteSize())),
+                new WarmUpState(arena.allocate(100, ValueLayout.JAVA_INT.byteSize())),
                 warmUpElementAllocationParams,
-                new CompressionState(Arena.ofAuto().allocate(100, ValueLayout.JAVA_INT.byteSize())));
+                new CompressionState(arena.allocate(100, ValueLayout.JAVA_INT.byteSize())),
+                arena);
         juffersWE.createBuffers(false);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         appender = new ArrayBlockAppender(blockTransformerFactory, juffersWE,

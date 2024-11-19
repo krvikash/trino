@@ -49,11 +49,11 @@ public class ChunkHeader
         //CHUNK_HEADER_OFFSET_MAX = CHUNK_HEADER_LAYOUT.byteOffset(PathElement.groupElement("max"));
     }
 
-    public ChunkHeader(boolean withAggregates)
+    public ChunkHeader(Arena arena, boolean withAggregates)
     {
         int size = withAggregates ? getHeaderSizeWithAgg() : getHeaderSizeWithoutAgg();
         // one chunk header is used to pass to storage engine to be filled copied back to a list held in java layer
-        this.chunkHeader = Arena.ofAuto().allocate(size, ValueLayout.JAVA_INT.byteSize());
+        this.chunkHeader = arena.allocate(size, ValueLayout.JAVA_INT.byteSize());
         // invalid chunk is used for error flows
         this.invalidChunkHeader = MemorySegment.ofArray(new byte[size]);
         this.invalidChunkHeader.fill((byte) -1);
