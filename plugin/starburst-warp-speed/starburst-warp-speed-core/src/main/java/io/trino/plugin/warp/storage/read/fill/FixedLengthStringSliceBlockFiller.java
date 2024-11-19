@@ -96,6 +96,9 @@ public class FixedLengthStringSliceBlockFiller
     @Override
     protected Block createSingleValueBlock(Type spiType, Slice slice, int rowsToFill)
     {
+        if (slice == null) {
+            return super.createSingleValueBlock(spiType, null, rowsToFill);
+        }
         Block res;
         int trimmedRecLength = SliceUtils.trimSlice(slice.toByteBuffer(), slice.length(), 0);
         Slice outputSlice = Slices.wrappedBuffer(slice.byteArray(), slice.byteArrayOffset(), trimmedRecLength);
