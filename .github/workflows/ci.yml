@@ -1285,6 +1285,10 @@ jobs:
             # this suite is designed specifically for apache-hive3. TODO remove the suite once we can run all regular tests on apache-hive3.
             - config: apache-hive3
               suite: suite-hms-only
+            # Workaround for https://github.com/microsoft/mssql-docker/issues/899
+            - config: default
+              suite: suite-7-non-generic
+              runson: ubuntu-20.04
             - config: default
               suite: suite-warp-speed
               runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
