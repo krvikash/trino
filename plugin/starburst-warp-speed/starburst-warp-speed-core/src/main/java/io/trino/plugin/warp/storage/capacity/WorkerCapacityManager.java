@@ -131,7 +131,7 @@ public class WorkerCapacityManager
         return totalCapacity - warpDir.getFreeSpace();
     }
 
-    public void setCurrentUsage()
+    public void updateCurrentUsage()
     {
         statsWarmupDemoter.setcurrentUsage(getCurrentUsage());
     }

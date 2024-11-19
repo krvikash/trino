@@ -180,7 +180,7 @@ public class WarmupDemoterService
                 logger.debug("%s: abortActiveDemote(demoteContext.demoterSequence = %d)", catalogNameProvider.get(), demoteContext.getDemoterSequence());
                 abortActiveDemote();
             }
-            workerCapacityManager.setCurrentUsage();
+            workerCapacityManager.updateCurrentUsage();
 
             initDemoteContext(demoterSequence);
 
@@ -434,7 +434,7 @@ public class WarmupDemoterService
 
     public synchronized AcquireWarmupStatus tryAllocateNativeResourceForWarmup()
     {
-        workerCapacityManager.setCurrentUsage();
+        workerCapacityManager.updateCurrentUsage();
         workerCapacityManager.setExecutingTx(warpDeleteService.getNumActiveWarmingTasks());
         if (!canAllowWarmup()) {
             warpDeleteService.releaseTx();

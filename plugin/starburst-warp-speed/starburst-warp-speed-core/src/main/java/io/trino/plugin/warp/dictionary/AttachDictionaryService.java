@@ -103,7 +103,7 @@ public class AttachDictionaryService
             logger.error("save dictionary failed rowGroupFilePath %s message %s", rowGroupFilePath, e.getMessage());
             throw new RuntimeException(e);
         }
-        workerCapacityManager.setCurrentUsage();
+        workerCapacityManager.updateCurrentUsage();
         return dictionarySizeInPages;
     }
 

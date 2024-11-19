@@ -212,7 +212,7 @@ public class WarpConnectorDeleteService
 
     public synchronized void tryAllocateTx()
     {
-        workerCapacityManager.setCurrentUsage();
+        workerCapacityManager.updateCurrentUsage();
         workerCapacityManager.setExecutingTx(numActiveWarmingTasks.get());
     }
 

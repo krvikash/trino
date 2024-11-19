@@ -127,7 +127,7 @@ public class WorkerWarmupDemoterTask
                 result.put(DEMOTE_SEQUENCE_KEY, finishEvent.demoteSequence());
             }
             result.putAll(getConfigResults());
-            workerCapacityManager.setCurrentUsage();
+            workerCapacityManager.updateCurrentUsage();
         }
         catch (Exception e) {
             result.putAll(getSkippedResult());
