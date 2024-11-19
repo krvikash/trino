@@ -65,7 +65,7 @@ public class HealthTask
     //@ApiOperation(value = "node health", nickname = "getNodeHealth", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
     public HealthResult get()
     {
-        return new HealthResult(workerNodeManager.isWorkerReady(),
+        return new HealthResult(workerNodeManager.isReady(),
                 workerNodeManager.getCurrentNodeHttpUri(),
                 ManagementFactory.getRuntimeMXBean().getStartTime(),
                 (workerCapacityManager.getTotalCapacity() * storageEngineConstants.getPageSize()) / MEGABYTE);

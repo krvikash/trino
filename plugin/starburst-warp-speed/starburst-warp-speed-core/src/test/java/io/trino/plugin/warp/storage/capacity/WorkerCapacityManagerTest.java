@@ -13,12 +13,13 @@
  */
 package io.trino.plugin.warp.storage.capacity;
 
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
-import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.PathUtils;
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Random;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -51,16 +53,15 @@ public class WorkerCapacityManagerTest
         globalConfig = new GlobalConfig();
         catalogNameProvider = new CatalogNameProvider("CatalogName");
         workerCapacityManager = new WorkerCapacityManager(globalConfig,
-                mock(WarmupDemoterConfig.class),
-                mock(StorageEngineConstants.class),
+                new WarmupDemoterConfig(),
+                new StubsStorageEngineConstants(),
                 mock(NativeStorageStateHandler.class),
-                mock(WarpInitializedServiceRegistry.class),
                 TestingTxService.createMetricsManager(),
                 catalogNameProvider);
     }
 
     @Test
-    void testCleanLocalStorage()
+    void testInitWorker()
     {
         Path localStorePath;
         try {
@@ -98,16 +99,14 @@ public class WorkerCapacityManagerTest
             }
             Assertions.assertEquals(1, requireNonNull(catalogLocalStore.list()).length);
 
-            workerCapacityManager.init();
+            workerCapacityManager.initWorker();
 
-            try {
-                while (workerCapacityManager.getTotalCapacity() == 0) {
-                    Thread.sleep(100);
-                }
-            }
-            catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            Failsafe.with(RetryPolicy.builder()
+                            .handle(AssertionError.class)
+                            .withDelay(Duration.ofMillis(10))
+                            .withMaxRetries(10)
+                            .build())
+                    .run(() -> assertThat(workerCapacityManager.getTotalCapacity()).isGreaterThan(0));
 
             Assertions.assertEquals(0, requireNonNull(catalogLocalStore.list()).length);
             FileUtils.deleteDirectory(localStoreDirectory);

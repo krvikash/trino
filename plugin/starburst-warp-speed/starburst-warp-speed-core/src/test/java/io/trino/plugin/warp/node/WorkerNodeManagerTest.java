@@ -66,7 +66,7 @@ public class WorkerNodeManagerTest
 
         when(nodeManager.getCurrentNode()).thenReturn(currentNode);
 
-        workerNodeManager.startWorkerNode();
+        workerNodeManager.init();
         assertThat(workerNodeManager.getCurrentNodeHttpUri()).isEqualTo(HttpUriBuilder.uriBuilderFrom(UriUtils.getHttpUri(currentNode)).build());
         assertThat(workerNodeManager.getCoordinatorNodeHttpUri()).isEqualTo(HttpUriBuilder.uriBuilderFrom(UriUtils.getHttpUri(coordinator)).build());
     }

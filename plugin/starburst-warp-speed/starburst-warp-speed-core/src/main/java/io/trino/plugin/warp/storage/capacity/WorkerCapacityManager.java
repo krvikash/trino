@@ -15,11 +15,12 @@ package io.trino.plugin.warp.storage.capacity;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
-import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -28,7 +29,6 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.PathUtils;
 import io.trino.plugin.warp.tools.util.StopWatch;
-import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.TrinoException;
 import org.apache.commons.io.FileUtils;
 
@@ -39,6 +39,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -46,7 +47,6 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class WorkerCapacityManager
-        implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(WorkerCapacityManager.class);
 
@@ -68,7 +68,6 @@ public class WorkerCapacityManager
             WarmupDemoterConfig warmupDemoterConfig,
             StorageEngineConstants storageEngineConstants,
             NativeStorageStateHandler nativeStorageStateHandler,
-            WarpInitializedServiceRegistry warpInitializedServiceRegistry,
             MetricsManager metricsManager,
             CatalogNameProvider catalogNameProvider)
     {
@@ -78,19 +77,14 @@ public class WorkerCapacityManager
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
         statsWarmupDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP));
-        warpInitializedServiceRegistry.addService(this);
-    }
-
-    @Override
-    public void init()
-    {
-        cleanLocalStorage();
     }
 
     public synchronized void initWorker()
     {
-        if (workerInitialized.compareAndSet(false, true)) {
+        if (!workerInitialized.get()) {
+            cleanLocalStorage();
             calculateReservationUsageForSingleTx();
+            workerInitialized.set(true);
         }
     }
 
@@ -215,9 +209,8 @@ public class WorkerCapacityManager
 
         String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
         File localStore = new File(localStorePath);
-        String[] ls = localStore.list();
 
-        if ((ls == null) || (ls.length == 0)) {
+        if (isEmptyDir(localStore)) {
             logger.info("cleanLocalStorage exiting since no files found in %s", localStorePath);
             calculateTotalCapacity();
             return;
@@ -231,40 +224,46 @@ public class WorkerCapacityManager
                 StopWatch stopWatch = new StopWatch();
                 stopWatch.start();
 
-                String[] fileList = localStore.list();
-                boolean cleaned = ((fileList == null) || (fileList.length == 0));
-                int iterations = 0;
+                String[] listTmp = localStore.list();
+                boolean cleaned = (listTmp != null) && listTmp.length == 0;
 
                 try {
                     if (!cleaned) {
                         FileUtils.deleteDirectory(localStore);
-                        localStore.mkdirs();
-                        cleaned = true;
+                        cleaned = localStore.mkdirs();
                     }
                 }
                 catch (IOException io) {
                     logger.warn(io, "Failed to delete directory %s", localStorePath);
                 }
 
-                while (!cleaned && (iterations < 3)) {
-                    try {
-                        FileUtils.cleanDirectory(new File(localStorePath));
-                        cleaned = true;
-                    }
-                    catch (FileNotFoundException e) {
-                        fileList = localStore.list();
-                        cleaned = ((fileList == null) || (fileList.length == 0));
-                    }
-                    iterations++;
+                if (!cleaned) {
+                    cleaned = Failsafe.with(RetryPolicy.builder()
+                                    .withMaxRetries(3)
+                                    .withDelay(Duration.ofSeconds(1))
+                                    .abortIf(o -> (boolean) o)
+                                    .build())
+                            .get(() -> {
+                                try {
+                                    FileUtils.cleanDirectory(localStore);
+                                    return true;
+                                }
+                                catch (FileNotFoundException e) {
+                                    String[] listTmp1 = localStore.list();
+                                    return (listTmp1 != null) && listTmp1.length == 0;
+                                }
+                            });
                 }
 
                 stopWatch.stop();
-                logger.info("cleanLocalStorage job finished. took %d nano sec %d iterations", stopWatch.getNanoTime(), iterations);
+                if (!cleaned) {
+                    logger.error("cleanLocalStorage job failed to clean localStorePath %s. took %d nano sec",
+                            localStorePath, stopWatch.getNanoTime());
+                }
+
+                logger.info("cleanLocalStorage job finished. took %d nano sec", stopWatch.getNanoTime());
                 // in case we hit an error, we leave total capacity as zero and storage state as permanently failed
                 nativeStorageStateHandler.setStorageDisableState(false, false);
-            }
-            catch (IOException e) {
-                logger.error(e, "cleanLocalStorage job failed to clean localStorePath %s", localStorePath);
             }
             finally {
                 calculateTotalCapacity();
@@ -278,8 +277,7 @@ public class WorkerCapacityManager
         String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
         File localStore = new File(localStorePath);
         try {
-            String[] fileList = localStore.list();
-            boolean cleaned = ((fileList == null) || (fileList.length == 0));
+            boolean cleaned = isEmptyDir(localStore);
             int iterations = 0;
 
             while (!cleaned && (iterations < 3)) {
@@ -288,8 +286,7 @@ public class WorkerCapacityManager
                     cleaned = true;
                 }
                 catch (FileNotFoundException e) {
-                    fileList = localStore.list();
-                    cleaned = ((fileList == null) || (fileList.length == 0));
+                    cleaned = isEmptyDir(localStore);
                 }
                 iterations++;
             }
@@ -297,5 +294,11 @@ public class WorkerCapacityManager
         catch (IOException e) {
             logger.error(e, "deleteLocalStorageFiles failed to clean localStorePath %s", localStorePath);
         }
+    }
+
+    private boolean isEmptyDir(File directory)
+    {
+        String[] list = directory.list();
+        return (list == null) || (list.length == 0);
     }
 }

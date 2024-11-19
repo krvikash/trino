@@ -38,7 +38,8 @@ public class WorkerNodeManager
     private final WorkerCapacityManager workerCapacityManager;
 
     @Inject
-    public WorkerNodeManager(NodeManager nodeManager,
+    public WorkerNodeManager(
+            NodeManager nodeManager,
             WarpInitializedServiceRegistry warpInitializedServiceRegistry,
             WorkerCapacityManager workerCapacityManager)
     {
@@ -51,20 +52,13 @@ public class WorkerNodeManager
     public void init()
     {
         logger.debug("worker node [%s] is initialising", getCurrentNodeIdentifier());
-        startWorkerNode();
-    }
-
-    void startWorkerNode()
-    {
         workerCapacityManager.initWorker();
     }
 
-    public boolean isWorkerReady()
+    public boolean isReady()
     {
         boolean isWorkerReady = workerCapacityManager.isWorkerInitialized();
-        if (!isWorkerReady) {
-            logger.debug("isWorkerReady::%s=[false]", getCurrentNodeIdentifier());
-        }
+        logger.debug("isWorkerReady::%s=[%s]", getCurrentNodeIdentifier(), isWorkerReady);
         return isWorkerReady;
     }
 

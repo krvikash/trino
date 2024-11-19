@@ -33,6 +33,7 @@ import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.write.WarmupCacheData;
 import io.trino.plugin.warp.storage.write.WarpCachePageSink;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
@@ -75,6 +76,7 @@ public class WorkerCacheManager
     private final MemoryContextService memoryContextService;
     private final PredicateHashCalculator predicateHashCalculator;
     private final CacheMgrWarmupRuleService warmupRuleService;
+    private final NativeStorageStateHandler nativeStorageStateHandler;
 
     private final ShapingLogger shapingLogger;
     private final int chunkSize;
@@ -96,7 +98,8 @@ public class WorkerCacheManager
             @Named("CacheActions") Map<CacheWarmState, CacheAction> cacheActions,
             MemoryContextService memoryContextService,
             PredicateHashCalculator predicateHashCalculator,
-            CacheMgrWarmupRuleService warmupRuleService)
+            CacheMgrWarmupRuleService warmupRuleService,
+            NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.globalConfig = requireNonNull(globalConfig);
         this.warpCachePageSourceFactory = requireNonNull(warpCachePageSourceFactory);
@@ -109,6 +112,7 @@ public class WorkerCacheManager
         this.memoryContextService = requireNonNull(memoryContextService);
         this.predicateHashCalculator = requireNonNull(predicateHashCalculator);
         this.warmupRuleService = requireNonNull(warmupRuleService);
+        this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
 
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -145,7 +149,6 @@ public class WorkerCacheManager
     {
         private final PlanSignature planSignature;
         private final CommonStoreIdFinder commonStoreIdFinder;
-        private final boolean isSkipped;
 
         public WarpSplitCache(PlanSignature planSignature)
         {
@@ -156,13 +159,12 @@ public class WorkerCacheManager
                     planSignature.getColumns(),
                     planSignature.getColumnsTypes());
             commonStoreIdFinder = new CommonStoreIdFinder(rowGroupDataService, planSignature);
-            isSkipped = planSignature.getColumns().isEmpty();
         }
 
         @Override
         public Optional<ConnectorPageSource> loadPages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
         {
-            if (isSkipped) {
+            if (isSkipped()) {
                 return Optional.empty();
             }
 
@@ -187,7 +189,7 @@ public class WorkerCacheManager
         @Override
         public Optional<ConnectorPageSink> storePages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
         {
-            if (isSkipped) {
+            if (isSkipped()) {
                 statsWarmingService.incwarm_warp_cache_skip_zero_columns();
                 return Optional.empty();
             }
@@ -248,6 +250,11 @@ public class WorkerCacheManager
 
         @Override
         public void close() {}
+
+        private boolean isSkipped()
+        {
+            return !nativeStorageStateHandler.isStorageAvailable() || planSignature.getColumns().isEmpty();
+        }
 
         private RowGroupKey getRowGroupKey(
                 CacheSplitId splitId,

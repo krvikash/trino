@@ -34,7 +34,6 @@ import io.trino.spi.NodeManager;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
@@ -59,10 +58,9 @@ public class CoordinatorNodeManager
     private final MetricsManager metricsManager;
     private boolean coordinatorInitialized; // no need to set, default is false
 
-    private Node coordinatorNode;
-
     @Inject
-    public CoordinatorNodeManager(NodeManager nodeManager,
+    public CoordinatorNodeManager(
+            NodeManager nodeManager,
             GlobalConfig globalConfig,
             EventBus eventBus,
             MetricsManager metricsManager,
@@ -80,7 +78,6 @@ public class CoordinatorNodeManager
     {
         logger.debug("coordinator node [%s] is initialising", getCoordinatorNode().getNodeIdentifier());
 
-        coordinatorInitialized = true;
         metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
         metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
@@ -89,15 +86,15 @@ public class CoordinatorNodeManager
         metricsManager.registerMetric(WorkerTaskExecutorServiceStats.create(WORKER_TASK_EXECUTOR_STAT_GROUP));
         metricsManager.registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
         metricsManager.registerMetric(CachePredicatesStats.create(STATS_CACHE_PREDICATE_KEY));
+
+        coordinatorInitialized = true;
+
         eventBus.post(new CoordinatorInitializedEvent(getCoordinatorNode()));
     }
 
     public Node getCoordinatorNode()
     {
-        if (Objects.isNull(coordinatorNode)) {
-            coordinatorNode = nodeManager.getCurrentNode();
-        }
-        return coordinatorNode;
+        return nodeManager.getCurrentNode();
     }
 
     public List<Node> getWorkerNodes()
@@ -117,18 +114,17 @@ public class CoordinatorNodeManager
         return workers;
     }
 
-    public boolean isCoordinatorReady()
+    public boolean isReady()
     {
         return coordinatorInitialized;
     }
 
     public boolean isClusterReady()
     {
-        logger.debug("workerNodes=%s", nodeManager.getWorkerNodes());
         logger.debug("isClusterReady::isCoordinatorReady=%b workerNodes=%s",
-                isCoordinatorReady(),
+                isReady(),
                 nodeManager.getWorkerNodes());
-        return isCoordinatorReady() &&
+        return isReady() &&
                 (!nodeManager.getWorkerNodes().isEmpty() || globalConfig.getIsSingle());
     }
 }

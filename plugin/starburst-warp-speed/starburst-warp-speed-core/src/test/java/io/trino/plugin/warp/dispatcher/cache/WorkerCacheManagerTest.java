@@ -27,6 +27,7 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 import io.trino.spi.cache.CacheColumnId;
@@ -60,6 +61,7 @@ public class WorkerCacheManagerTest
     private MemoryContextService memoryContextService;
     private CacheMgrWarmupRuleService warmupRuleService;
     private WorkerCacheManager workerCacheManager;
+    private NativeStorageStateHandler nativeStorageStateHandler;
 
     @BeforeEach
     public void beforeEach()
@@ -85,6 +87,9 @@ public class WorkerCacheManagerTest
         PredicateHashCalculator predicateHashCalculator = mock(PredicateHashCalculator.class);
         warmupRuleService = new CacheMgrWarmupRuleService(cacheManagerConfig);
 
+        nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
+        when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
+
         workerCacheManager = new WorkerCacheManager(
                 globalConfig,
                 warpCachePageSourceFactory,
@@ -98,7 +103,8 @@ public class WorkerCacheManagerTest
                 cacheActions,
                 memoryContextService,
                 predicateHashCalculator,
-                warmupRuleService);
+                warmupRuleService,
+                nativeStorageStateHandler);
     }
 
     @Test
@@ -206,6 +212,24 @@ public class WorkerCacheManagerTest
                 List.of(new CacheManagerRule("noMatch", 1L, Duration.ZERO)));
 
         splitCache = workerCacheManager.getSplitCache(planSignature);
+        assertThat(splitCache.storePages(mock(CacheSplitId.class), TupleDomain.all(), TupleDomain.all()))
+                .isEmpty();
+    }
+
+    @Test
+    public void testSkipWhenStorageNotAvailable()
+    {
+        when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(false);
+
+        PlanSignature planSignature = new PlanSignature(
+                new SignatureKey("key"),
+                Optional.empty(),
+                List.of(new CacheColumnId("1")),
+                List.of(BooleanType.BOOLEAN));
+
+        CacheManager.SplitCache splitCache = workerCacheManager.getSplitCache(planSignature);
+        assertThat(splitCache.loadPages(mock(CacheSplitId.class), TupleDomain.all(), TupleDomain.all()))
+                .isEmpty();
         assertThat(splitCache.storePages(mock(CacheSplitId.class), TupleDomain.all(), TupleDomain.all()))
                 .isEmpty();
     }

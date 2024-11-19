@@ -36,6 +36,6 @@ public class WorkerReadyTaskExecutionIsAllowedSupplier
     @Override
     public boolean getAsBoolean()
     {
-        return workerNodeManager.isWorkerReady();
+        return workerNodeManager.isReady();
     }
 }
