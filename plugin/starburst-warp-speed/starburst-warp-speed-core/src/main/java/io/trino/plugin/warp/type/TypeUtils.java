@@ -374,6 +374,9 @@ public class TypeUtils
         else if (isMapType(type)) {
             return convertToRecTypeCode(((MapType) type).getValueType(), recTypeLength, fixedLengthStringLimit);
         }
+        else if (isVarbinaryType(type)) {
+            ret = RecTypeCode.REC_TYPE_VARBINARY;
+        }
         else {
             throw new UnsupportedOperationException(String.format("unknown record type %s", type));
         }

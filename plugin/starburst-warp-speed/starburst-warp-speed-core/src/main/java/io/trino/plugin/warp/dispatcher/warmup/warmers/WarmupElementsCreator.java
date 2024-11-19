@@ -218,20 +218,22 @@ public class WarmupElementsCreator
         try {
             WarpColumn cachedColumn = new RegularColumn(cacheColumnId);
             int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
-            RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
-            res = Optional.of(WarmUpElement.builder()
-                    .creationTime(System.currentTimeMillis())
-                    .warpColumn(cachedColumn)
-                    .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
-                    .recTypeCode(recTypeCode)
-                    .recTypeLength(recTypeLength)
-                    .warmId(INAVLID_WARM_ID)
-                    .exportState(ExportState.NOT_EXPORTED)
-                    .storeId(storeId)
-                    .state(WarmUpElementState.VALID)
-                    .warmupElementStats(WarmupElementStats.UNINITIALIZED)
-                    .warmUpContextSize(bufferAllocator.getWarmupDataTxSize(recTypeCode, recTypeLength))
-                    .build());
+            if (TypeUtils.isWarmDataSupported(columnType) || TypeUtils.isWarmBasicSupported(columnType) || TypeUtils.isWarmLuceneSupported(columnType)) {
+                RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
+                res = Optional.of(WarmUpElement.builder()
+                        .creationTime(System.currentTimeMillis())
+                        .warpColumn(cachedColumn)
+                        .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
+                        .recTypeCode(recTypeCode)
+                        .recTypeLength(recTypeLength)
+                        .warmId(INAVLID_WARM_ID)
+                        .exportState(ExportState.NOT_EXPORTED)
+                        .storeId(storeId)
+                        .state(WarmUpElementState.VALID)
+                        .warmupElementStats(WarmupElementStats.UNINITIALIZED)
+                        .warmUpContextSize(bufferAllocator.getWarmupDataTxSize(recTypeCode, recTypeLength))
+                        .build());
+            }
         }
         catch (Exception e) {
             statsWarmingService.incwarm_warp_cache_invalid_type();
