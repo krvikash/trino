@@ -14,6 +14,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import com.google.inject.Inject;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.json.JsonCodec;
@@ -197,7 +199,7 @@ public class DataResource
             return Response.ok().entity(bufferNodeInfoService.getNodeInfo()).build();
         }
         catch (RuntimeException e) {
-            logger.warn(e, "error on GET /info");
+            reportException(e, "error on GET /info");
             return errorResponse(e);
         }
     }
@@ -239,7 +241,7 @@ public class DataResource
             @Override
             public void onFailure(Throwable throwable)
             {
-                logger.warn(throwable, "error on %s", "GET /%s/closedChunks?pagingId=%s".formatted(exchangeId, pagingId));
+                reportException(throwable, "error on %s", "GET /%s/closedChunks?pagingId=%s".formatted(exchangeId, pagingId));
                 if (!asyncResponse.isDone()) {
                     asyncResponse.resume(errorResponse(throwable));
                 }
@@ -259,7 +261,7 @@ public class DataResource
             return okResponse();
         }
         catch (RuntimeException e) {
-            logger.warn(e, "error on GET /%s/markAllClosedChunksReceived", exchangeId);
+            reportException(e, "error on GET /%s/markAllClosedChunksReceived", exchangeId);
             return errorResponse(e);
         }
     }
@@ -277,7 +279,7 @@ public class DataResource
             return okResponse();
         }
         catch (RuntimeException e) {
-            logger.warn(e, "error on GET /%s/setChunkDeliveryMode?chunkDeliveryMode=%s", exchangeId, chunkDeliveryMode);
+            reportException(e, "error on GET /%s/setChunkDeliveryMode?chunkDeliveryMode=%s", exchangeId, chunkDeliveryMode);
             return errorResponse(e);
         }
     }
@@ -307,7 +309,7 @@ public class DataResource
             inputStream = request.getInputStream();
         }
         catch (IOException e) {
-            logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+            reportException(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
             completeServletResponse(clientId, asyncResponse, processingStart, Optional.of(e));
             return;
         }
@@ -318,7 +320,7 @@ public class DataResource
             validateAttemptId(attemptId);
         }
         catch (RuntimeException e) {
-            logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+            reportException(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
             consumeRequestAndCompleteAsyncResponse(clientId, asyncResponse, inputStream, processingStart, Optional.of(e));
             return;
         }
@@ -375,7 +377,7 @@ public class DataResource
             AtomicBoolean servingCompletionFlag = new AtomicBoolean(); // guard in case both callback would trigger (not sure if possible)
             asyncResponse.register((CompletionCallback) throwable -> {
                 if (throwable != null) {
-                    logger.warn(throwable, "Unmapped throwable when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                    reportException(throwable, "Unmapped throwable when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                 }
                 if (servingCompletionFlag.getAndSet(true)) {
                     return;
@@ -562,7 +564,7 @@ public class DataResource
                                         @Override
                                         public void onFailure(Throwable throwable)
                                         {
-                                            logger.warn(throwable, errorPrefix.get());
+                                            reportException(throwable, "%s", errorPrefix.get());
                                             if (!asyncResponse.isDone()) {
                                                 asyncResponse.resume(errorResponse(throwable));
                                             }
@@ -584,7 +586,7 @@ public class DataResource
                                 private void resumeWithError(String prefix, Throwable exception)
                                 {
                                     try {
-                                        logger.warn(exception, prefix);
+                                        reportException(exception, "%s", prefix);
                                         asyncResponse.resume(errorResponse(exception, getRateLimitHeaders(clientId)));
                                     }
                                     finally {
@@ -596,7 +598,7 @@ public class DataResource
                                 public void onError(Throwable throwable)
                                 {
                                     finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
-                                    logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                                    reportException(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                                     if (!asyncResponse.isDone()) {
                                         asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
                                     }
@@ -612,7 +614,7 @@ public class DataResource
                         public void onFailure(Throwable throwable)
                         {
                             finalizeAddDataPagesRequest(emptyList(), sliceLease);
-                            logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                            reportException(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                             if (!asyncResponse.isDone()) {
                                 asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
                             }
@@ -651,6 +653,17 @@ public class DataResource
         catch (Exception e) {
             inProgressLatch.decrement();
             throw e;
+        }
+    }
+
+    @FormatMethod
+    private static void reportException(Throwable e, @FormatString String format, Object... args)
+    {
+        if (e instanceof DataApiException) {
+            logger.debug(e, format, args);
+        }
+        else {
+            logger.warn(e, format, args);
         }
     }
 
@@ -725,7 +738,7 @@ public class DataResource
             outputStream = response.getOutputStream();
         }
         catch (IOException e) {
-            logger.warn(e, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+            reportException(e, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
             asyncResponse.resume(errorResponse(e));
             return;
         }
@@ -737,7 +750,7 @@ public class DataResource
             chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
         }
         catch (RuntimeException e) {
-            logger.warn(e, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+            reportException(e, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
             asyncResponse.resume(errorResponse(e));
             return;
         }
@@ -849,7 +862,7 @@ public class DataResource
             return okResponse();
         }
         catch (RuntimeException e) {
-            logger.warn(e, "error on GET /%s/register", exchangeId);
+            reportException(e, "error on GET /%s/register", exchangeId);
             return errorResponse(e);
         }
     }
@@ -879,7 +892,7 @@ public class DataResource
                 @Override
                 public void onFailure(Throwable throwable)
                 {
-                    logger.warn(throwable, "error on GET /%s/finish".formatted(exchangeId));
+                    reportException(throwable, "error on GET /%s/finish", exchangeId);
                     if (!asyncResponse.isDone()) {
                         asyncResponse.resume(errorResponse(throwable));
                     }
@@ -887,7 +900,7 @@ public class DataResource
             }, responseExecutor);
         }
         catch (RuntimeException e) {
-            logger.warn(e, "error on GET /%s/finish", exchangeId);
+            reportException(e, "error on GET /%s/finish", exchangeId);
             if (!asyncResponse.isDone()) {
                 asyncResponse.resume(errorResponse(e));
             }
@@ -906,7 +919,7 @@ public class DataResource
             return okResponse();
         }
         catch (RuntimeException e) {
-            logger.warn(e, "error on GET /%s/ping", exchangeId);
+            reportException(e, "error on GET /%s/ping", exchangeId);
             return errorResponse(e);
         }
     }
@@ -923,7 +936,7 @@ public class DataResource
             return okResponse();
         }
         catch (RuntimeException e) {
-            logger.warn(e, "error on DELETE /%s", exchangeId);
+            reportException(e, "error on DELETE /%s", exchangeId);
             return errorResponse(e);
         }
     }
@@ -980,7 +993,7 @@ public class DataResource
             @Override
             public void onError(Throwable e)
             {
-                logger.warn(e, "Got error while consuming request");
+                reportException(e, "Got error while consuming request");
                 completeServletResponse(clientId, response, processingStart, throwable);
             }
         });
@@ -1096,7 +1109,7 @@ public class DataResource
                 }
             }
             catch (Throwable callbackError) {
-                logger.error(callbackError, "unexpected error in onDataAvailable");
+                reportException(callbackError, "unexpected error in onDataAvailable");
                 throw callbackError;
             }
         }
@@ -1112,7 +1125,7 @@ public class DataResource
                 }
             }
             catch (Throwable callbackError) {
-                logger.error(callbackError, "unexpected error in onAllDataRead");
+                reportException(callbackError, "unexpected error in onAllDataRead");
                 throw callbackError;
             }
         }
@@ -1128,7 +1141,7 @@ public class DataResource
                 if (callbackError != throwable) {
                     callbackError.addSuppressed(throwable);
                 }
-                logger.error(callbackError, "unexpected error in onError");
+                reportException(callbackError, "unexpected error in onError");
                 throw callbackError;
             }
         }
