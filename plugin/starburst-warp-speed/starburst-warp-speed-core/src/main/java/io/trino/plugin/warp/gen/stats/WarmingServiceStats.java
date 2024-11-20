@@ -43,7 +43,6 @@ public final class WarmingServiceStats
     private final LongAdder warm_accomplished = new LongAdder();
     private final LongAdder warm_failed = new LongAdder();
     private final LongAdder warm_skipped_due_demoter = new LongAdder();
-    private final LongAdder warm_skipped_due_loaders_exceeded = new LongAdder();
     private final LongAdder warm_skipped_due_reaching_threshold = new LongAdder();
     private final LongAdder warm_skipped_due_queue_size = new LongAdder();
     private final LongAdder warm_skipped_due_key_conflict = new LongAdder();
@@ -269,29 +268,6 @@ public final class WarmingServiceStats
     {
         warm_skipped_due_demoter.reset();
         addwarm_skipped_due_demoter(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getwarm_skipped_due_loaders_exceeded()
-    {
-        return warm_skipped_due_loaders_exceeded.longValue();
-    }
-
-    public void incwarm_skipped_due_loaders_exceeded()
-    {
-        warm_skipped_due_loaders_exceeded.increment();
-    }
-
-    public void addwarm_skipped_due_loaders_exceeded(long val)
-    {
-        warm_skipped_due_loaders_exceeded.add(val);
-    }
-
-    public void setwarm_skipped_due_loaders_exceeded(long val)
-    {
-        warm_skipped_due_loaders_exceeded.reset();
-        addwarm_skipped_due_loaders_exceeded(val);
     }
 
     @JsonIgnore
@@ -903,7 +879,6 @@ public final class WarmingServiceStats
         ret.put("warm_accomplished", warm_accomplished);
         ret.put("warm_failed", warm_failed);
         ret.put("warm_skipped_due_demoter", warm_skipped_due_demoter);
-        ret.put("warm_skipped_due_loaders_exceeded", warm_skipped_due_loaders_exceeded);
         ret.put("warm_skipped_due_reaching_threshold", warm_skipped_due_reaching_threshold);
         ret.put("warm_skipped_due_queue_size", warm_skipped_due_queue_size);
         ret.put("warm_skipped_due_key_conflict", warm_skipped_due_key_conflict);
@@ -946,7 +921,6 @@ public final class WarmingServiceStats
         this.warm_accomplished.add(other.warm_accomplished.longValue());
         this.warm_failed.add(other.warm_failed.longValue());
         this.warm_skipped_due_demoter.add(other.warm_skipped_due_demoter.longValue());
-        this.warm_skipped_due_loaders_exceeded.add(other.warm_skipped_due_loaders_exceeded.longValue());
         this.warm_skipped_due_reaching_threshold.add(other.warm_skipped_due_reaching_threshold.longValue());
         this.warm_skipped_due_queue_size.add(other.warm_skipped_due_queue_size.longValue());
         this.warm_skipped_due_key_conflict.add(other.warm_skipped_due_key_conflict.longValue());
@@ -987,7 +961,6 @@ public final class WarmingServiceStats
         warm_accomplished.reset();
         warm_failed.reset();
         warm_skipped_due_demoter.reset();
-        warm_skipped_due_loaders_exceeded.reset();
         warm_skipped_due_reaching_threshold.reset();
         warm_skipped_due_queue_size.reset();
         warm_skipped_due_key_conflict.reset();
@@ -1029,7 +1002,6 @@ public final class WarmingServiceStats
         res.put(getJmxKey() + ":warm_accomplished", warm_accomplished.longValue());
         res.put(getJmxKey() + ":warm_failed", warm_failed.longValue());
         res.put(getJmxKey() + ":warm_skipped_due_demoter", warm_skipped_due_demoter.longValue());
-        res.put(getJmxKey() + ":warm_skipped_due_loaders_exceeded", warm_skipped_due_loaders_exceeded.longValue());
         res.put(getJmxKey() + ":warm_skipped_due_reaching_threshold", warm_skipped_due_reaching_threshold.longValue());
         res.put(getJmxKey() + ":warm_skipped_due_queue_size", warm_skipped_due_queue_size.longValue());
         res.put(getJmxKey() + ":warm_skipped_due_key_conflict", warm_skipped_due_key_conflict.longValue());
@@ -1069,7 +1041,6 @@ public final class WarmingServiceStats
         res.put("warm_accomplished", getwarm_accomplished());
         res.put("warm_failed", getwarm_failed());
         res.put("warm_skipped_due_demoter", getwarm_skipped_due_demoter());
-        res.put("warm_skipped_due_loaders_exceeded", getwarm_skipped_due_loaders_exceeded());
         res.put("warm_skipped_due_reaching_threshold", getwarm_skipped_due_reaching_threshold());
         res.put("warm_skipped_due_queue_size", getwarm_skipped_due_queue_size());
         res.put("warm_skipped_due_key_conflict", getwarm_skipped_due_key_conflict());

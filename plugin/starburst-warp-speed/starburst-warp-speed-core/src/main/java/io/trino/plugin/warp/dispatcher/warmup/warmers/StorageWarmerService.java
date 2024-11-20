@@ -22,7 +22,6 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireWarmupStatus;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
@@ -292,17 +291,10 @@ public class StorageWarmerService
 
     public boolean tryAllocateNativeResourceForWarmup()
     {
-        AcquireWarmupStatus acquireWarmupStatus = warmupDemoterService.tryAllocateNativeResourceForWarmup();
-        boolean result = true;
-        if (!acquireWarmupStatus.equals(AcquireWarmupStatus.SUCCESS)) {
-            if (acquireWarmupStatus.equals(AcquireWarmupStatus.EXCEEDED_LOADERS)) {
-                statsWarmingService.incwarm_skipped_due_loaders_exceeded();
-            }
-            else { //AcquireWarmupStatus.REACHED_THRESHOLD
-                statsWarmingService.incwarm_skipped_due_reaching_threshold();
-            }
-            result = false;
+        boolean acquiredWarmup = warmupDemoterService.tryAllocateNativeResourceForWarmup();
+        if (!acquiredWarmup) {
+            statsWarmingService.incwarm_skipped_due_reaching_threshold();
         }
-        return result;
+        return acquiredWarmup;
     }
 }

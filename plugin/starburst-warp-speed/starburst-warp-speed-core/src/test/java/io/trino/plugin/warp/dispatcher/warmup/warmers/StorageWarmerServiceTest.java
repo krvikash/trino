@@ -16,7 +16,6 @@ package io.trino.plugin.warp.dispatcher.warmup.warmers;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireWarmupStatus;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
@@ -34,9 +33,7 @@ class StorageWarmerServiceTest
     public void testTryToAcquireWarmupLoader()
     {
         WarmupDemoterService warmupDemoterService = mock(WarmupDemoterService.class);
-        when(warmupDemoterService.tryAllocateNativeResourceForWarmup()).thenReturn(AcquireWarmupStatus.SUCCESS,
-                AcquireWarmupStatus.EXCEEDED_LOADERS,
-                AcquireWarmupStatus.REACHED_THRESHOLD);
+        when(warmupDemoterService.tryAllocateNativeResourceForWarmup()).thenReturn(true, false, false);
         StorageWarmerService storageWarmerService = new StorageWarmerService(mock(RowGroupDataService.class),
                 new StubsStorageEngine(),
                 new GlobalConfig(),

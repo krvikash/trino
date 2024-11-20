@@ -432,7 +432,8 @@ public class WarmupDemoterService
         return !reachedThreshold(warmupDemoterConfig.getMaxUsageThresholdPercentage());
     }
 
-    public synchronized AcquireWarmupStatus tryAllocateNativeResourceForWarmup()
+    // returns false if resource allocation failed (treshold was reached)
+    public synchronized boolean tryAllocateNativeResourceForWarmup()
     {
         workerCapacityManager.updateCurrentUsage();
         workerCapacityManager.setExecutingTx(warpDeleteService.getNumActiveWarmingTasks());
@@ -441,9 +442,9 @@ public class WarmupDemoterService
             if (workerCapacityManager.getExecutingTxCount() <= 0) {
                 tryDemoteStart();
             }
-            return AcquireWarmupStatus.REACHED_THRESHOLD;
+            return false;
         }
-        return AcquireWarmupStatus.SUCCESS;
+        return true;
     }
 
     @VisibleForTesting
