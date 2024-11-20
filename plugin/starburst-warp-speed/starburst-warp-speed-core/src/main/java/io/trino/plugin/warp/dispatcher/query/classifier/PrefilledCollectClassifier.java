@@ -273,7 +273,7 @@ class PrefilledCollectClassifier
             WarmUpElement warmUpElement = dataWarmedElements.get(regularColumn);
             if (warmUpElement != null) {
                 Type type = dispatcherProxiedConnectorTransformer.getColumnType(entry.getValue());
-                if (warmUpElement.getWarmupElementStats().isSingleValue()) {
+                if (warmUpElement.getWarmupElementStats().isSingleValue() && warmUpElement.getRecTypeCode().isSupportedFiltering()) {
                     // minValue = maxValue and 0 nullCount
                     SingleValue singleValue = createSingleValueFromStat(warmUpElement.getWarmupElementStats().getMaxValue(), type);
                     result.put(regularColumn, singleValue);

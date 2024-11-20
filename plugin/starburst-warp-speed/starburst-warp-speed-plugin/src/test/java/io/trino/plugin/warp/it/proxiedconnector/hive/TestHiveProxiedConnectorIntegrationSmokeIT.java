@@ -430,7 +430,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 1); //DATA for varcharColumn
 
         Map<String, Long> expectedQueryStats = Map.of(
-                "warp_collect_columns", 2L,
+                "warp_collect_columns", 1L,
+                "warp_prefilled_collect_columns", 1L,
                 "external_collect_columns", 0L,
                 "warp_match_columns", 0L,
                 "external_match_columns", 0L);
