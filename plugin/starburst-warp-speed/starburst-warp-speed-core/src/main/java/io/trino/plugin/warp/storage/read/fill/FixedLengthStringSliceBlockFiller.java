@@ -102,7 +102,7 @@ public class FixedLengthStringSliceBlockFiller
         Block res;
         int trimmedRecLength = SliceUtils.trimSlice(slice.toByteBuffer(), slice.length(), 0);
         Slice outputSlice = Slices.wrappedBuffer(slice.byteArray(), slice.byteArrayOffset(), trimmedRecLength);
-        if (outputSlice.getByte(outputSlice.length() - 1) == ' ') {
+        if (outputSlice.length() > 0 && outputSlice.getByte(outputSlice.length() - 1) == ' ') {
             int[] dictOffsets = SliceUtils.allocateOffsetsArray(1);
             dictOffsets[1] = trimmedRecLength;
             Block dictionary = new VariableWidthBlock(1, outputSlice, dictOffsets, Optional.empty());

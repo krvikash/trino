@@ -190,12 +190,12 @@ public abstract class BlockFiller<V>
             case QUERY_RESULT_TYPE_ALL_NULL -> createSingleValueBlock(spiBuilderType, null, rowsToFill);
             case QUERY_RESULT_TYPE_SINGLE -> {
                 byteBuff = (ByteBuffer) juffersWE.getRecordBuffer();
-                mapKey = Short.toUnsignedInt(byteBuff.get());
+                mapKey = Byte.toUnsignedInt(byteBuff.get());
                 yield createSingleBlockWithMapping(juffersWE, mapKey, rowsToFill, mapBlock, recTypeCode, collectNulls);
             }
             case QUERY_RESULT_TYPE_SINGLE_NO_NULL -> {
                 byteBuff = (ByteBuffer) juffersWE.getRecordBuffer();
-                mapKey = Short.toUnsignedInt(byteBuff.get());
+                mapKey = Byte.toUnsignedInt(byteBuff.get());
                 yield createSingleBlockWithMapping(juffersWE, mapKey, rowsToFill, mapBlock, recTypeCode, false);
             }
             default -> throw new UnsupportedOperationException();
