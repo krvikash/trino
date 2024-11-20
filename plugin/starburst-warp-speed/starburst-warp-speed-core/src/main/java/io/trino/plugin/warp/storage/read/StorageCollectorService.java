@@ -182,12 +182,19 @@ public class StorageCollectorService
         return false;
     }
 
+    private boolean isSingle(QueryResultType queryResultType)
+    {
+        return queryResultType == QueryResultType.QUERY_RESULT_TYPE_SINGLE ||
+                queryResultType == QueryResultType.QUERY_RESULT_TYPE_SINGLE_NO_NULL ||
+                queryResultType == QueryResultType.QUERY_RESULT_TYPE_ALL_NULL;
+    }
+
     boolean stopForOptimization(int numWes, MemorySegment currQueryResultTypes, MemorySegment prevQueryResultTypes)
     {
         for (int weIx = 0; weIx < numWes; weIx++) {
             QueryResultType currResultType = QueryResultType.values()[currQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
             QueryResultType prevResultType = QueryResultType.values()[prevQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
-            if (QueryResultType.isSingle(currResultType) || QueryResultType.isSingle(prevResultType)) {
+            if (isSingle(currResultType) || isSingle(prevResultType)) {
                 return true;
             }
         }

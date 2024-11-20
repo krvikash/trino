@@ -28,11 +28,4 @@ public enum QueryResultType
     QueryResultType()
     {
     }
-
-    public static boolean isSingle(QueryResultType queryResultType)
-    {
-        return queryResultType == QUERY_RESULT_TYPE_SINGLE ||
-                queryResultType == QUERY_RESULT_TYPE_SINGLE_NO_NULL ||
-                queryResultType == QUERY_RESULT_TYPE_ALL_NULL;
-    }
 }
