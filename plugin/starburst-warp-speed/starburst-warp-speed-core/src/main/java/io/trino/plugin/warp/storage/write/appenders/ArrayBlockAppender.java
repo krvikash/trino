@@ -53,7 +53,11 @@ public class ArrayBlockAppender
         Optional<BlockTransformer> blockTransformer = blockTransformerFactory.getBlockTransformer(warmUpElement.getWarmUpType(), warmUpElement.getRecTypeCode());
         checkArgument(blockTransformer.isPresent());
         BlockPosHolder blockAsVarchar = blockTransformer.get().transformBlock(blockPos, filterType);
-        AppendResult result = varcharBlockAppender.appendWithoutDictionary(jufferPos, blockAsVarchar, warmUpElement, warmupElementStatsBuilder);
+        AppendResult result = varcharBlockAppender.appendWithoutDictionary(
+                jufferPos,
+                blockAsVarchar,
+                warmUpElement,
+                new WarmupElementStatsBuilder());   // create a new object that is ignored, because min and max values are not supported for arrays
         blockPos.seek(blockAsVarchar.getPos());
         return result;
     }
