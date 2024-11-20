@@ -50,6 +50,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
@@ -151,7 +152,7 @@ public class TestingAccessControlManager
     private Predicate<SchemaTableName> deniedTables = _ -> true;
     private BiPredicate<Identity, String> denyIdentityTable = IDENTITY_TABLE_TRUE;
     private BiPredicate<Identity, String> denyIdentityFunction = IDENTITY_FUNCTION_TRUE;
-    private BiPredicate<ConnectorIdentity, String> deniedLocations = LOCATION_ALLOW_ALL;
+    private AtomicReference<BiPredicate<ConnectorIdentity, String>> deniedLocations = new AtomicReference<>(LOCATION_ALLOW_ALL);
     private BiPredicate<Identity, String> denyImpersonationFunction = IDENTITY_FUNCTION_TRUE;
 
     @Inject
@@ -222,7 +223,7 @@ public class TestingAccessControlManager
         deniedSchemas = _ -> true;
         deniedTables = _ -> true;
         denyIdentityTable = IDENTITY_TABLE_TRUE;
-        deniedLocations = LOCATION_ALLOW_ALL;
+        deniedLocations.set(LOCATION_ALLOW_ALL);
         rowFilters.clear();
         columnMasks.clear();
         denyImpersonationFunction = IDENTITY_FUNCTION_TRUE;
@@ -230,7 +231,7 @@ public class TestingAccessControlManager
 
     public void denyLocations(BiPredicate<ConnectorIdentity, String> deniedLocations)
     {
-        this.deniedLocations = this.deniedLocations.and(deniedLocations);
+        this.deniedLocations.updateAndGet(deniedLocations::and);
     }
 
     public void denyCatalogs(Predicate<String> deniedCatalogs)
@@ -801,7 +802,7 @@ public class TestingAccessControlManager
     @Override
     public void checkCanUseLocation(ConnectorIdentity identity, String location, String queryId)
     {
-        if (!deniedLocations.test(identity, location)) {
+        if (!deniedLocations.get().test(identity, location)) {
             throw new AccessDeniedException(format("Cannot access location %s", location));
         }
         super.checkCanUseLocation(identity, location, queryId);
