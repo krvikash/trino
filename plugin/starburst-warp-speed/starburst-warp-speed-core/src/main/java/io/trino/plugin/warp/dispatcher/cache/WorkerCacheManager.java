@@ -228,7 +228,7 @@ public class WorkerCacheManager
                         cacheActions,
                         workerTaskExecutorService,
                         storageWarmerService,
-                        new WarmupCacheData(warmupElementBlocksList),
+                        new WarmupCacheData(warmupElementBlocksList, globalConfig),
                         cacheWarmer,
                         statsWarmingService,
                         toWarm,

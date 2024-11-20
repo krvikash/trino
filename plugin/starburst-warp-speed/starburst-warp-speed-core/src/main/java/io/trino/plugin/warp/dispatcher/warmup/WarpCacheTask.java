@@ -393,7 +393,7 @@ public class WarpCacheTask
         }
     }
 
-    private synchronized boolean isRevoked()
+    public synchronized boolean isRevoked()
     {
         return revoked;
     }

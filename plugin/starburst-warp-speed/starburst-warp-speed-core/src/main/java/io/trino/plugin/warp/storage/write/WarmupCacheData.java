@@ -13,7 +13,10 @@
  */
 package io.trino.plugin.warp.storage.write;
 
+import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.cache.WarmupElementBlocks;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.spi.block.Block;
 
 import java.util.List;
@@ -23,16 +26,25 @@ import static io.airlift.slice.SizeOf.instanceSize;
 public class WarmupCacheData
 {
     private static final int INSTANCE_SIZE = instanceSize(WarmupCacheData.class);
+    private final ShapingLogger shapingLogger;
 
-    private final List<WarmupElementBlocks> warmupElementBlocksList;
+    private List<WarmupElementBlocks> warmupElementBlocksList;
 
-    public WarmupCacheData(List<WarmupElementBlocks> warmupElementBlocksList)
+    public WarmupCacheData(List<WarmupElementBlocks> warmupElementBlocksList, GlobalConfig globalConfig)
     {
         this.warmupElementBlocksList = warmupElementBlocksList;
+        this.shapingLogger = ShapingLogger.getInstance(
+                Logger.get(WarmupCacheData.class),
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public WarmupElementBlocks getWarmupElementBlock(int index)
     {
+        if (isNull()) {
+            throw new IllegalStateException("blocks are null because of revoke event");
+        }
         return warmupElementBlocksList.get(index);
     }
 
@@ -43,6 +55,9 @@ public class WarmupCacheData
 
     private long getWarmupBlocksRetainedSizeInBytes()
     {
+        if (isNull()) {
+            return 0;
+        }
         long totalRetainedSizeInBytes = 0;
         for (WarmupElementBlocks warmupElementBlocks : warmupElementBlocksList) {
             if (warmupElementBlocks != null) {
@@ -54,22 +69,31 @@ public class WarmupCacheData
 
     public void clear()
     {
-        warmupElementBlocksList.clear();
+        warmupElementBlocksList = null;
     }
 
     public int size()
     {
-        return warmupElementBlocksList.size();
+        return isNull() ? 0 : warmupElementBlocksList.size();
     }
 
     public boolean notAllDataFlushed()
     {
-        return warmupElementBlocksList.stream().anyMatch(x -> !x.isEmpty());
+        return isNull() || warmupElementBlocksList.stream().anyMatch(x -> !x.isEmpty());
     }
 
     public boolean addBlock(Block block, int blockIndex)
     {
-        return warmupElementBlocksList.get(blockIndex).add(block);
+        return !isNull() && warmupElementBlocksList.get(blockIndex).add(block);
+    }
+
+    private boolean isNull()
+    {
+        if (warmupElementBlocksList == null) {
+            shapingLogger.info("warmupElementBlocksList is null because of revoke but requested to use it. should not happened");
+            return true;
+        }
+        return false;
     }
 
     @Override

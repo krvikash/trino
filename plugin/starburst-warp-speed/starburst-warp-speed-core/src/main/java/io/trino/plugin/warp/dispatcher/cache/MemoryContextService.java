@@ -117,26 +117,36 @@ public class MemoryContextService
         return runningTasks.add(warpCacheTask);
     }
 
-    public long revoke(long bytesToRevoke)
+    public synchronized long revoke(long bytesToRevoke)
     {
-        logger.info("revoke memory triggered bytesToRevoke=%s, allocatedMemory=%s, runningTasksSize=%s, localMemoryContexts.size()=%s", bytesToRevoke, getAllocatedMemory(), runningTasks.size(), localMemoryContexts.size());
         long revokedMemory = 0;
         try {
+            if (runningTasks.isEmpty()) {
+                shapingLogger.info("revoke %s bytes triggered but WarpCacheManager doesn't have any running warming tasks. allocatedMemory=%s, localMemoryContextsSize=%s. ignoring this event",
+                        bytesToRevoke, getAllocatedMemory(), localMemoryContexts.size());
+                return 0;
+            }
+            logger.info("revoke memory triggered bytesToRevoke=%s, allocatedMemory=%s, runningTasksSize=%s, localMemoryContexts.size()=%s", bytesToRevoke, getAllocatedMemory(), getRunningSize(), localMemoryContexts.size());
             statsWarmingService.incwarm_warp_cache_revoke_started();
             revokeIsRunning = true;
             int iteration = 0;
             while (revokedMemory < bytesToRevoke && !runningTasks.isEmpty()) {
-                Optional<WarpCacheTask> warpCacheTaskOpt = runningTasks.stream().max(Comparator.comparingLong(WarpCacheTask::getRetainedSizeInBytes));
+                //better to pick tasks that is still running and not to interrupt current warming tasks
+                Optional<WarpCacheTask> warpCacheTaskOpt = runningTasks.stream().filter(x -> !x.isWarmStarted() && !x.isRevoked()).max(Comparator.comparingLong(WarpCacheTask::getRetainedSizeInBytes));
+                if (warpCacheTaskOpt.isEmpty()) {
+                    warpCacheTaskOpt = runningTasks.stream().filter(x -> !x.isRevoked()).max(Comparator.comparingLong(WarpCacheTask::getRetainedSizeInBytes));
+                }
                 if (warpCacheTaskOpt.isEmpty()) {
                     //protect a race in case another thread poll a task
-                    continue;
+                    logger.info("running task is not empty but all elements are revoked. break runningTaskSize=%s", getRunningSize());
+                    break;
                 }
                 WarpCacheTask warpCacheTask = warpCacheTaskOpt.get();
                 revokedMemory += warpCacheTask.getUsedMemory();
                 warpCacheTask.revoke();
                 iteration++;
             }
-            logger.info("revoked memory=%s of bytesToRevoke=%s, runningTasksSize=%s, totalRevokedTasks=%s", revokedMemory, bytesToRevoke, runningTasks.size(), iteration);
+            logger.info("revoked memory=%s of bytesToRevoke=%s, ,allocatedMemory=%s, runningTasksSize=%s, totalRevokedTasks=%s, localMemoryContexts.size()=%s", revokedMemory, bytesToRevoke, getAllocatedMemory(), runningTasks.size(), iteration, localMemoryContexts.size());
             statsWarmingService.incwarm_warp_cache_revoke_accomplished();
         }
         catch (Exception e) {
