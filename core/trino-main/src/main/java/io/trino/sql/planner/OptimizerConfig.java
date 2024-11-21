@@ -101,6 +101,7 @@ public class OptimizerConfig
     private long minInputRowsPerTask = 10_000_000L;
 
     private boolean allowUnsafePushdown; // TODO: remove once https://github.com/trinodb/trino/issues/22268 is fixed
+    private boolean useSessionTimezoneForRenderingTimestamp;
 
     public enum JoinReorderingStrategy
     {
@@ -833,6 +834,19 @@ public class OptimizerConfig
     public OptimizerConfig setUnsafePushdownAllowed(boolean value)
     {
         this.allowUnsafePushdown = value;
+        return this;
+    }
+
+    public boolean isUseSessionTimezoneForRenderingTimestamp()
+    {
+        return useSessionTimezoneForRenderingTimestamp;
+    }
+
+    @Config("optimizer.use-session-timezone-for-rendering-timestamp")
+    @ConfigDescription("Allow using session timezone for rendering timestamp")
+    public OptimizerConfig setUseSessionTimezoneForRenderingTimestamp(boolean value)
+    {
+        this.useSessionTimezoneForRenderingTimestamp = value;
         return this;
     }
 }

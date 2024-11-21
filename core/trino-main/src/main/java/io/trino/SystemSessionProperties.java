@@ -113,6 +113,7 @@ public final class SystemSessionProperties
     public static final String PUSH_AGGREGATION_THROUGH_OUTER_JOIN = "push_aggregation_through_outer_join";
     public static final String PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN = "push_partial_aggregation_through_join";
     public static final String ALLOW_UNSAFE_PUSHDOWN = "allow_unsafe_pushdown";
+    public static final String USE_SESSION_TIMEZONE_FOR_RENDERING_TIMESTAMP = "use_session_timezone_for_rendering_timestamp";
     public static final String PRE_AGGREGATE_CASE_AGGREGATIONS_ENABLED = "pre_aggregate_case_aggregations_enabled";
     public static final String FORCE_SINGLE_NODE_OUTPUT = "force_single_node_output";
     public static final String FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_SIZE = "filter_and_project_min_output_page_size";
@@ -1128,6 +1129,11 @@ public final class SystemSessionProperties
                         ALLOW_UNSAFE_PUSHDOWN,
                         "Allow pushing down expressions that may fail for some inputs",
                         optimizerConfig.isUnsafePushdownAllowed(),
+                        true),
+                booleanProperty(
+                        USE_SESSION_TIMEZONE_FOR_RENDERING_TIMESTAMP,
+                        "Allow using session timezone for rendering timestamp",
+                        optimizerConfig.isUseSessionTimezoneForRenderingTimestamp(),
                         true));
     }
 
@@ -2021,5 +2027,10 @@ public final class SystemSessionProperties
     public static boolean isUnsafePushdownAllowed(Session session)
     {
         return session.getSystemProperty(ALLOW_UNSAFE_PUSHDOWN, Boolean.class);
+    }
+
+    public static boolean isUseSessionTimezoneForRenderingTimestamp(Session session)
+    {
+        return session.getSystemProperty(USE_SESSION_TIMEZONE_FOR_RENDERING_TIMESTAMP, Boolean.class);
     }
 }

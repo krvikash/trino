@@ -33,6 +33,7 @@ import io.trino.sql.planner.iterative.IterativeOptimizer;
 import io.trino.sql.planner.iterative.Rule;
 import io.trino.sql.planner.iterative.RuleStats;
 import io.trino.sql.planner.iterative.rule.AdaptiveReorderPartitionedJoin;
+import io.trino.sql.planner.iterative.rule.AddAtTimezoneOutput;
 import io.trino.sql.planner.iterative.rule.AddDynamicFilterSource;
 import io.trino.sql.planner.iterative.rule.AddExchangesBelowPartialAggregationOverGroupIdRuleSet;
 import io.trino.sql.planner.iterative.rule.AddIntermediateAggregations;
@@ -908,6 +909,13 @@ public class PlanOptimizers
             builder.add(new StatsRecordingPlanOptimizer(optimizerStats, new AddExchanges(plannerContext, statsCalculator, taskCountEstimator)));
             // It can only run after AddExchanges since it estimates the hash partition count for all remote exchanges
             builder.add(new StatsRecordingPlanOptimizer(optimizerStats, new DeterminePartitionCount(statsCalculator, taskCountEstimator)));
+
+            builder.add(new IterativeOptimizer(
+                    plannerContext,
+                    ruleStats,
+                    statsCalculator,
+                    costCalculator,
+                    ImmutableSet.of(new AddAtTimezoneOutput(plannerContext))));
         }
 
         // use cost calculator without estimated exchanges after AddExchanges

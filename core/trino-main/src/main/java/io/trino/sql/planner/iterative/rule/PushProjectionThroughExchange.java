@@ -115,7 +115,10 @@ public class PushProjectionThroughExchange
                         .filter(symbol -> !partitioningColumns.contains(symbol))
                         .map(outputToInputMap::get)
                         .forEach(inputSymbol -> {
-                            projections.putIdentity(inputSymbol);
+                            // TODO Is it correct to do?
+                            projections.put(
+                                    inputSymbol,
+                                    project.getAssignments().get(inputSymbol));
                             inputs.add(inputSymbol);
                         });
             }
