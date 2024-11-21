@@ -270,7 +270,9 @@ public class WarpCacheTask
         }
         catch (Exception e) {
             shapingLogger.error(e, "failed to finish handle cache key=%s", rowGroupKey);
-            cacheWarmState = CacheWarmState.ABORTING;  // so we'll clean the storage
+            if (cacheWarmState != CacheWarmState.EMPTY_PAGE) {
+                cacheWarmState = CacheWarmState.ABORTING;  // so we'll clean the storage
+            }
         }
         finally {
             try {
