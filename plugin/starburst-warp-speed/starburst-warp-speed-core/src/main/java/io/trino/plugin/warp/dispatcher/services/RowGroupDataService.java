@@ -31,7 +31,6 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.util.StorageUtils;
 import io.trino.spi.NodeManager;
-import io.trino.spi.TrinoException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,7 +41,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.WarpErrorCode.WARP_ROW_GROUP_ILLEGAL_STATE;
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
@@ -106,9 +104,6 @@ public class RowGroupDataService
             List<WarmUpElement> newWarmUpElements,
             List<WarmUpElement> warmUpElementsToDelete)
     {
-        if (!rowGroupData.isEmpty()) {
-            throw new TrinoException(WARP_ROW_GROUP_ILLEGAL_STATE, "row group should be empty " + rowGroupData);
-        }
         List<WarmUpElement> updatedWarmupElements = Stream.concat(rowGroupData.getWarmUpElements().stream().filter(we -> !warmUpElementsToDelete.contains(we)),
                         newWarmUpElements.stream()
                                 .map(emptyWeElement -> WarmUpElement.builder(emptyWeElement).totalRecords(0).build()))
