@@ -164,7 +164,7 @@ public class WarpCacheTask
                     return;
                 }
                 if (cacheWarmState == CacheWarmState.RUNNING) {
-                    cacheWarmState = processAll();
+                    cacheWarmState = processAll(loadFromWarmingThread);
                 }
             }
             catch (InterruptedException e) {
@@ -191,12 +191,15 @@ public class WarpCacheTask
         }
     }
 
-    private CacheWarmState processAll()
+    private CacheWarmState processAll(boolean loadFromWarmingThread)
     {
         CacheWarmState cacheWarmState = CacheWarmState.RUNNING;
 
         try {
             while (!isAborted()) {
+                if (!loadFromWarmingThread) {
+                    storageWarmerService.waitForLoaders();
+                }
                 int blockIndexToProcess = blocksToProcess.take();
                 if (isAborted() || blockIndexToProcess == STOP_TRIGGER) {
                     break;
