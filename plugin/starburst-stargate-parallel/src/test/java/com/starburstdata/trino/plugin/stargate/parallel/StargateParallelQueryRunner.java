@@ -71,7 +71,7 @@ public final class StargateParallelQueryRunner
                     .setSchema("unspecified_schema")
                     .build();
             DistributedQueryRunner.Builder<?> queryRunnerBuilder = DistributedQueryRunner.builder(session)
-                    .addExtraProperty("experimental.protocol.spooling.enabled", "true")
+                    .addExtraProperty("protocol.spooling.enabled", "true")
                     .addExtraProperty("protocol.spooling.retrieval-mode", "storage")
                     .addExtraProperty("protocol.spooling.shared-secret-key", random256BitsEncryptionKey())
                     .setWorkerCount(3);
