@@ -124,6 +124,8 @@ public class TestIcebergFileOperations
         assertFileSystemAccesses("CREATE TABLE test_create (id VARCHAR, age INT)",
                 ImmutableMultiset.<FileOperation>builder()
                         .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                        .add(new FileOperation(SNAPSHOT, "InputFile.length"))
+                        .add(new FileOperation(SNAPSHOT, "InputFile.newStream"))
                         .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
                         .build());
     }
@@ -134,12 +136,16 @@ public class TestIcebergFileOperations
         assertFileSystemAccesses("CREATE OR REPLACE TABLE test_create_or_replace (id VARCHAR, age INT)",
                 ImmutableMultiset.<FileOperation>builder()
                         .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                        .add(new FileOperation(SNAPSHOT, "InputFile.length"))
+                        .add(new FileOperation(SNAPSHOT, "InputFile.newStream"))
                         .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
                         .build());
         assertFileSystemAccesses("CREATE OR REPLACE TABLE test_create_or_replace (id VARCHAR, age INT)",
                 ImmutableMultiset.<FileOperation>builder()
                         .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
                         .add(new FileOperation(METADATA_JSON, "InputFile.newStream"))
+                        .add(new FileOperation(SNAPSHOT, "InputFile.length"))
+                        .add(new FileOperation(SNAPSHOT, "InputFile.newStream"))
                         .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
                         .build());
     }
