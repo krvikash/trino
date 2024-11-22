@@ -97,7 +97,9 @@ public class TestQueryTroubleshootingWithBiac
                 .hasEntrySatisfying(
                         "coordinator/biac.json",
                         value -> assertThat(jsonCodec(BiacStoragePayload.class).fromJson(value))
-                                .usingRecursiveComparison().ignoringCollectionOrder()
+                                .usingRecursiveComparison()
+                                .ignoringCollectionOrder()
+                                .ignoringFields("timestamp") // This field is set to the current timestamp every time BiacDiagnostics.getStorage is called.
                                 .isEqualTo(expected));
     }
 }
