@@ -13,6 +13,9 @@
  */
 package io.trino.plugin.warp.storage.read;
 
+import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.spi.TrinoException;
@@ -26,13 +29,19 @@ import static java.util.Objects.requireNonNull;
 
 public class StorageReader
 {
+    private static final Logger logger = Logger.get(StorageReader.class);
+    // The heap size of a worker node on galaxy is 80GB. The total off heap memory limit we take here is 32KB * 64 threads equals 2MB.
+    // 1 prefcentage of the heap size is 800MB, so this 2MB is much less than 1 precentage. It means we are guaranteed the GC will
+    // not be blocked by this small off heap memory.
+    // The limit check is to make sure we do not accidently enlarge the off heap allocation
+    private static final long LIMIT_OFF_HEAP_MEMORY = 32 * 1024;
+
     // parameters
     private final ReadTimeMeasurement readTimeMeasurement;
-
+    private final ShapingLogger shapingLogger;
     private final QueryArgs queryArgs;
     private final StorageCollectorArgs storageCollectorArgs;
     private final MatchArgs matchArgs;
-
     private final StorageCollectorService storageCollectorService;
     private final MatchService matchService;
 
@@ -45,26 +54,48 @@ public class StorageReader
     StorageReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
             StorageCollectorService storageCollectorService,
-            MatchService matchService)
+            MatchService matchService,
+            GlobalConfig globalConfig)
     {
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.matchService = requireNonNull(matchService);
 
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams, customStatsContext);
         this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryArgs);
-
         this.storeRowListResult = Optional.empty();
-
         storageCollectorService.init(queryArgs);
-
         this.matchArgs = matchService.init(queryArgs, customStatsContext);
 
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
+
+        checkOffHeapMemoryUsage();
         readTimeMeasurement = new ReadTimeMeasurement();
     }
 
     void close()
     {
         storageCollectorService.terminate(queryArgs);
+    }
+
+    // verify total amount of off heap memory allocated does not exceed a limit
+    private void checkOffHeapMemoryUsage()
+    {
+        if ((queryArgs != null) && (storageCollectorArgs != null) && (matchArgs != null)) {
+            long totalOffHeapSize = queryArgs.txArgs().collectStateBuff().byteSize() +
+                    storageCollectorArgs.recordBufferStates().byteSize() +
+                    storageCollectorArgs.recordIndexes().byteSize() +
+                    storageCollectorArgs.queryResultTypes().byteSize() +
+                    storageCollectorArgs.prepareQueryResultTypes().byteSize() +
+                    storageCollectorArgs.warmUpElementAtts().byteSize() +
+                    matchArgs.warmUpElementAtts().byteSize();
+            if (totalOffHeapSize > LIMIT_OFF_HEAP_MEMORY) {
+                shapingLogger.warn("off heap memory exceeded threshold " + totalOffHeapSize);
+            }
+        }
     }
 
     /**

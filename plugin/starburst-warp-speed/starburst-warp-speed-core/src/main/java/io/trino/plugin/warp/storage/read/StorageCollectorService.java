@@ -438,32 +438,23 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
 
+        Arena arena = Arena.ofAuto();
         SequenceLayout recordBufferStatesLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT);
-        MemorySegment recordBufferStates =
-                Arena.ofAuto().allocate(recordBufferStatesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
-        MemorySegment recordIndexes =
-                Arena.ofAuto().allocate(RecordIndexes.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
         SequenceLayout queryResultTypesLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT);
-        MemorySegment queryResultTypes =
-                Arena.ofAuto().allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
-        MemorySegment prepareQueryResultTypes =
-                Arena.ofAuto().allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
         SequenceLayout warmUpElementAttsLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
-        MemorySegment warmUpElementAtts =
-                Arena.ofAuto().allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
         return new StorageCollectorArgs(
                 storageCollectorCallBack,
                 blockFillers,
                 collectJuffersWE,
                 storeRowListBuff,
-                recordBufferStates,
-                new RecordIndexes(recordIndexes),
-                queryResultTypes,
-                prepareQueryResultTypes,
-                warmUpElementAtts);
+                arena.allocate(recordBufferStatesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
+                new RecordIndexes(arena.allocate(RecordIndexes.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize())),
+                arena.allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
+                arena.allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
+                arena.allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_BYTE.byteSize()));
     }
 
     private int getNumChunksInRange(QueryParams queryParams)

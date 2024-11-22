@@ -57,6 +57,11 @@ public class RecordIndexes
         return recordIndexes.address();
     }
 
+    public long byteSize()
+    {
+        return recordIndexes.byteSize();
+    }
+
     public int getSize()
     {
         return recordIndexes.get(ValueLayout.JAVA_INT, RECORD_INDEXES_OFFSET_SIZE);

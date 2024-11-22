@@ -71,7 +71,8 @@ public class WarpPageSource
                 queryParams,
                 customStatsContext,
                 collectorService,
-                matchService);
+                matchService,
+                globalConfig);
     }
 
     @Override
