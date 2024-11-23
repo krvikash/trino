@@ -8879,6 +8879,24 @@
           "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
         }
       }
     ]
