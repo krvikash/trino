@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
@@ -25,7 +26,6 @@ import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.gen.constants.MatchCollectOp;
 import io.trino.plugin.warp.gen.constants.MatchNodeType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
-import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.block.Block;
 
 import java.time.Instant;
@@ -61,21 +61,24 @@ public class QueryParamsConverter
         minOffsets[MATCH] = Integer.MAX_VALUE;
 
         // collect
-        Pair<List<WarmupElementCollectParams>, List<MatchCollectElement>> collectAndMatchCollectParams = getCollectAndMatchCollectParams(matchData, queryContext.getNativeQueryCollectDataList(), lastUsedTimestamp, minOffsets);
+        CollectAndMatchCollectParams collectAndMatchCollectParams = getCollectAndMatchCollectParams(matchData,
+                queryContext.getNativeQueryCollectDataList(),
+                lastUsedTimestamp,
+                minOffsets);
 
         // match
-        Pair<List<MatchNode>, Integer> termsToNumLucene;
-        termsToNumLucene = matchData.map(data -> convertToMatchNodes(List.of(data),
-                collectAndMatchCollectParams.getRight(),
+        MatchNodes matchNodes = matchData.map(data -> convertToMatchNodes(List.of(data),
+                collectAndMatchCollectParams.matchCollectElements(),
                 lastUsedTimestamp,
                 0,
                 predicateCacheDataBuilder,
-                minOffsets)).orElseGet(() -> Pair.of(Collections.emptyList(), 0));
-        Optional<MatchNode> rootMatchNode = createRootMatchNode(termsToNumLucene.getLeft());
+                minOffsets)).orElseGet(() -> new MatchNodes(Collections.emptyList(), 0));
+        Optional<MatchNode> rootMatchNode = createRootMatchNode(matchNodes.terms());
 
         return new QueryParams(rootMatchNode,
-                termsToNumLucene.getRight(),
-                collectAndMatchCollectParams.getLeft(),
+                matchNodes.numLucene(),
+                collectAndMatchCollectParams.matchCollectId(),
+                collectAndMatchCollectParams.collectParamsList(),
                 queryContext.getTotalRecords(),
                 queryContext.getCatalogContext(),
                 minOffsets[MATCH],
@@ -102,7 +105,7 @@ public class QueryParamsConverter
         return rootMatchNode;
     }
 
-    private static Pair<List<MatchNode>, Integer> convertToMatchNodes(List<MatchData> matchDataList,
+    private static MatchNodes convertToMatchNodes(List<MatchData> matchDataList,
             List<MatchCollectElement> matchCollectElements,
             long lastUsedTimestamp,
             int currentNumLucene,
@@ -153,25 +156,32 @@ public class QueryParamsConverter
                 predicateCacheDataBuilder.add(queryMatchData.getPredicateCacheData());
             }
             else if (matchData instanceof LogicalMatchData logicalMatchData) {
-                Pair<List<MatchNode>, Integer> termsToNumLucene = convertToMatchNodes(logicalMatchData.getTerms(), matchCollectElements, lastUsedTimestamp, currentNumLucene, predicateCacheDataBuilder, minOffsets);
+                MatchNodes matchNodes = convertToMatchNodes(logicalMatchData.getTerms(),
+                        matchCollectElements,
+                        lastUsedTimestamp,
+                        currentNumLucene,
+                        predicateCacheDataBuilder,
+                        minOffsets);
                 MatchNodeType nodeType = logicalMatchData.getOperator() == LogicalMatchData.Operator.AND ? MatchNodeType.MATCH_NODE_TYPE_AND : MatchNodeType.MATCH_NODE_TYPE_OR;
-                convertedList.add(new LogicalMatchNode(nodeType, termsToNumLucene.getLeft()));
-                currentNumLucene = termsToNumLucene.getRight();
+                convertedList.add(new LogicalMatchNode(nodeType, matchNodes.terms()));
+                currentNumLucene = matchNodes.numLucene();
             }
             else {
                 throw new RuntimeException("Unknown MatchData type: " + matchData);
             }
         }
-        return Pair.of(convertedList, currentNumLucene);
+        return new MatchNodes(convertedList, currentNumLucene);
     }
 
-    private static Pair<List<WarmupElementCollectParams>, List<MatchCollectElement>> getCollectAndMatchCollectParams(Optional<MatchData> matchData,
+    private static CollectAndMatchCollectParams getCollectAndMatchCollectParams(Optional<MatchData> matchData,
             ImmutableList<NativeQueryCollectData> nativeQueryCollectDataList,
             long lastUsedTimestamp,
             int[] minOffsets)
     {
         List<WarmupElementCollectParams> collectParamsList = new ArrayList<>();
         List<MatchCollectElement> matchCollectElements = new ArrayList<>();
+        int matchCollectId = MatchCollectIdService.INVALID_ID;
+
         List<QueryMatchData> queryMatchDataLeaves = matchData.stream()
                 .flatMap(queryMatchData -> queryMatchData.getLeavesDFS().stream())
                 .toList();
@@ -186,7 +196,13 @@ public class QueryParamsConverter
             boolean isCollectNulls = collectDataWarmUpElement.getWarmupElementStats().getNullsCount() > 0;
             int blockIndex = nativeQueryCollectDataList.indexOf(nativeQueryCollectData);
             int matchCollectIndex = INVALID_COL_IX;
-            int matchCollectId = nativeQueryCollectData.getMatchCollectId();
+            int currMatchCollectId = nativeQueryCollectData.getMatchCollectId();
+            if (currMatchCollectId != matchCollectId) {
+                if (matchCollectId != MatchCollectIdService.INVALID_ID) {
+                    throw new RuntimeException("match collect id is not the same for all elements " + matchCollectId + " and " + currMatchCollectId);
+                }
+                matchCollectId = currMatchCollectId;
+            }
             Optional<Block> valuesDictBlock = Optional.empty();
             if (nativeQueryCollectData.getMatchCollectType() != MatchCollectUtils.MatchCollectType.DISABLED) {
                 QueryMatchData queryMatchData = findMatchForMatchCollect(nativeQueryCollectData, queryMatchDataLeaves)
@@ -226,7 +242,6 @@ public class QueryParamsConverter
                                 Optional.of(dictionaryParams),
                                 blockIndex,
                                 matchCollectIndex,
-                                matchCollectId,
                                 isCollectNulls,
                                 collectDataWarmUpElement.hasStoreId() ? INAVLID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
@@ -248,12 +263,21 @@ public class QueryParamsConverter
                                 Optional.empty(), // no dictionary we put invalid
                                 blockIndex,
                                 matchCollectIndex,
-                                matchCollectId,
                                 isCollectNulls,
                                 collectDataWarmUpElement.hasStoreId() ? INAVLID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
             }
         }
-        return Pair.of(collectParamsList, matchCollectElements);
+        return new CollectAndMatchCollectParams(collectParamsList, matchCollectElements, matchCollectId);
+    }
+
+    private record CollectAndMatchCollectParams(List<WarmupElementCollectParams> collectParamsList,
+            List<MatchCollectElement> matchCollectElements,
+            int matchCollectId)
+    {
+    }
+
+    private record MatchNodes(List<MatchNode> terms, int numLucene)
+    {
     }
 }

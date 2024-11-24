@@ -163,6 +163,7 @@ public class MatchService
                         matchArgs.warmUpElementAtts().address(),
                         collectOpenResult.matchBmAddr(),
                         luceneBitmaps.isPresent() ? luceneBitmaps.get().address() : 0,
+                        queryParams.getMatchCollectId(),
                         queryParams.getMinMatchOffset());
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
             }

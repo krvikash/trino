@@ -27,7 +27,6 @@ import java.util.Optional;
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_FILE_OFFSET;
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_FILE_READ_SIZE;
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_IS_COLLECT_NULLS;
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_MATCH_COLLECT_ID;
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_MATCH_COLLECT_INDEX;
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_WARM_ID;
 
@@ -47,7 +46,6 @@ public class WarmupElementCollectParams
     private final Optional<WarmupElementDictionaryParams> dictionaryParams;
     private final int blockIndex;
     private final int matchCollectIndex;
-    private final int matchCollectId;
     private final boolean isCollectNulls;
     private final int warmId;
     private final Optional<Block> valuesDictBlock;
@@ -65,7 +63,6 @@ public class WarmupElementCollectParams
             Optional<WarmupElementDictionaryParams> dictionaryParams,
             int blockIndex,
             int matchCollectIndex,
-            int matchCollectId,
             boolean isCollectNulls,
             int warmId,
             Optional<Block> valuesDictBlock)
@@ -83,7 +80,6 @@ public class WarmupElementCollectParams
         this.dictionary = Optional.empty();
         this.blockIndex = blockIndex;
         this.matchCollectIndex = matchCollectIndex;
-        this.matchCollectId = matchCollectId;
         this.isCollectNulls = isCollectNulls;
         this.warmId = warmId;
         this.valuesDictBlock = valuesDictBlock;
@@ -189,7 +185,6 @@ public class WarmupElementCollectParams
         output[offset + WE_COLLECT_JPARAMS_FILE_OFFSET.ordinal()] = fileOffset;
         output[offset + WE_COLLECT_JPARAMS_FILE_READ_SIZE.ordinal()] = fileReadSize;
         output[offset + WE_COLLECT_JPARAMS_MATCH_COLLECT_INDEX.ordinal()] = matchCollectIndex;
-        output[offset + WE_COLLECT_JPARAMS_MATCH_COLLECT_ID.ordinal()] = matchCollectId;
         output[offset + WE_COLLECT_JPARAMS_IS_COLLECT_NULLS.ordinal()] = isCollectNulls ? 1 : 0;
         output[offset + WE_COLLECT_JPARAMS_WARM_ID.ordinal()] = warmId;
     }
@@ -235,7 +230,6 @@ public class WarmupElementCollectParams
                 ", dictionaryParams=" + (dictionaryParams.isPresent() ? dictionaryParams : "none") +
                 ", blockIndex=" + blockIndex +
                 ", matchCollectIndex=" + matchCollectIndex +
-                ", matchCollectId=" + matchCollectId +
                 ", isCollectNulls=" + isCollectNulls +
                 ", warmId=" + warmId +
                 '}';

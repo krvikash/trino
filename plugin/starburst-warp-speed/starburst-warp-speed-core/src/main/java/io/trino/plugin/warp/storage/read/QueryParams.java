@@ -31,6 +31,7 @@ public class QueryParams
     private final Optional<MatchNode> rootMatchNode;
     private final List<WarmupElementMatchParams> leaves;
     private final int numLucene;
+    private final int matchCollectId;
     private final List<WarmupElementCollectParams> collectParams;
     private final int numLoadDataValues;
     private final int numMatchCollect;
@@ -47,6 +48,7 @@ public class QueryParams
 
     public QueryParams(Optional<MatchNode> rootMatchNode,
             int numLucene,
+            int matchCollectId,
             List<WarmupElementCollectParams> collectParams,
             int totalNumRecords,
             long catalogContext,
@@ -60,6 +62,7 @@ public class QueryParams
         this.rootMatchNode = requireNonNull(rootMatchNode, "rootMatchNode is null");
         this.leaves = rootMatchNode.map(this::getLeaves).orElse(Collections.emptyList());
         this.numLucene = numLucene;
+        this.matchCollectId = matchCollectId;
         this.collectParams = requireNonNull(collectParams, "collectParams is null");
         this.numLoadDataValues = (int) collectParams.stream()
                 .filter(WarmupElementCollectParams::hasDictionaryParams)
@@ -119,6 +122,11 @@ public class QueryParams
     public int getNumLucene()
     {
         return numLucene;
+    }
+
+    public int getMatchCollectId()
+    {
+        return matchCollectId;
     }
 
     public int getNumLoadDataValues()
