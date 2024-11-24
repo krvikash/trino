@@ -30,11 +30,11 @@ import static java.util.Objects.requireNonNull;
 public class StorageReader
 {
     private static final Logger logger = Logger.get(StorageReader.class);
-    // The heap size of a worker node on galaxy is 80GB. The total off heap memory limit we take here is 32KB * 64 threads equals 2MB.
-    // 1 prefcentage of the heap size is 800MB, so this 2MB is much less than 1 precentage. It means we are guaranteed the GC will
+    // The heap size of a worker node on galaxy is 80GB. The total off heap memory limit we take here is 256KB * 64 threads equals 16MB.
+    // 1 prefcentage of the heap size is 800MB, so these 16MB is much less than 1 precentage. It means we are guaranteed the GC will
     // not be blocked by this small off heap memory.
     // The limit check is to make sure we do not accidently enlarge the off heap allocation
-    private static final long LIMIT_OFF_HEAP_MEMORY = 32 * 1024;
+    private static final long LIMIT_OFF_HEAP_MEMORY = 256 * 1024;
 
     // parameters
     private final ReadTimeMeasurement readTimeMeasurement;
