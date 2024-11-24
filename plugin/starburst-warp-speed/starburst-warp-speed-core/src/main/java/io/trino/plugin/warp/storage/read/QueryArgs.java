@@ -16,6 +16,10 @@ package io.trino.plugin.warp.storage.read;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.util.Optional;
+
 public record QueryArgs(QueryParams queryParams,
                         DispatcherPageSourceStats dispatcherPageSourceStats,
                         NativeStats nativeStats,
@@ -23,6 +27,9 @@ public record QueryArgs(QueryParams queryParams,
                         int chunkSize,
                         int numChunks,
                         int numChunksInRange,
-                        ChunksQueue chunksQueue)
+                        ChunksQueue chunksQueue,
+                        Optional<byte[]> storeMatchCollectMetadataBuff,
+                        Optional<MemorySegment> matchCollectMetadata,
+                        Arena arena)
 {
 }

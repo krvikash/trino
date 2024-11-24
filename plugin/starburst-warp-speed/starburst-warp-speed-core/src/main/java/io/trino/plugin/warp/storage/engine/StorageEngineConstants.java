@@ -62,6 +62,8 @@ public interface StorageEngineConstants
 
     int getMatchCollectBufferSize();
 
+    int getMatchCollectMetadataSize();
+
     int getMaxChunksInRange();
 
     int getMatchCollectNumIds();

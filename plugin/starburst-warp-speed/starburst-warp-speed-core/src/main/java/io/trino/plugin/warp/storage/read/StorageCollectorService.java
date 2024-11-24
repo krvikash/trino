@@ -384,6 +384,14 @@ public class StorageCollectorService
 
         ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
 
+        Arena arena = Arena.ofAuto();
+        Optional<byte[]> storeMatchCollectMetadataBuff = Optional.empty();
+        Optional<SequenceLayout> matchCollectMetadataLayout = Optional.empty();
+        if (queryParams.getNumMatchCollect() > 0) {
+            storeMatchCollectMetadataBuff = Optional.of(new byte[storageEngineConstants.getMatchCollectBufferSize() * queryParams.getNumMatchCollect()]);
+            matchCollectMetadataLayout = Optional.of(MemoryLayout.sequenceLayout(queryParams.getNumMatchCollect(), MemoryLayout.paddingLayout(storageEngineConstants.getMatchCollectBufferSize())));
+        }
+
         return new QueryArgs(queryParams,
                 dispatcherPageSourceStats,
                 nativeStats,
@@ -391,7 +399,10 @@ public class StorageCollectorService
                 chunkSize,
                 numChunks,
                 numChunksInRange,
-                chunksQueue);
+                chunksQueue,
+                storeMatchCollectMetadataBuff,
+                matchCollectMetadataLayout.map(m -> arena.allocate(m.byteSize(), ValueLayout.JAVA_INT.byteSize())),
+                arena);
     }
 
     TxArgs getTxArgs(QueryParams queryParams)
@@ -404,7 +415,6 @@ public class StorageCollectorService
 
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];
         MemorySegment collectStateBuff = Arena.ofAuto().allocate(collectStoreBuff.length, ValueLayout.JAVA_INT.byteSize());
-        long[] matchCollectMetadataAddress = new long[1];
         // file is opened at init
         long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
 
@@ -413,7 +423,6 @@ public class StorageCollectorService
                 collectBuffers,
                 collectStateBuff,
                 collectStoreBuff,
-                matchCollectMetadataAddress,
                 fileCookieParams);
     }
 
@@ -439,13 +448,14 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
 
-        Arena arena = Arena.ofAuto();
+        Arena arena = queryArgs.arena();
         SequenceLayout recordBufferStatesLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT);
         SequenceLayout queryResultTypesLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT);
         SequenceLayout warmUpElementAttsLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
+
         return new StorageCollectorArgs(
                 storageCollectorCallBack,
                 blockFillers,

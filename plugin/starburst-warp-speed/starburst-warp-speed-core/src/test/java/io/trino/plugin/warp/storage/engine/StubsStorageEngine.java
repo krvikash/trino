@@ -153,11 +153,11 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
+    public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers)
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long stateAddress,
+            long[][] collectBuffers)
     {
-        return 0;
     }
 
     @Override

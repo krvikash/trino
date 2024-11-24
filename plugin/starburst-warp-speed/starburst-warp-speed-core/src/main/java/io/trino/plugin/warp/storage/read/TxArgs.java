@@ -20,7 +20,6 @@ public record TxArgs(
         long[][] collectBuffers,
         MemorySegment collectStateBuff,
         byte[] collectStoreBuff,
-        long[] matchCollectMetadataAddress,
         long[] fileCookie)
 {
 }

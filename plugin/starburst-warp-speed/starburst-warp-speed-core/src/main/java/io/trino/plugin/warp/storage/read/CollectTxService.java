@@ -124,17 +124,26 @@ public class CollectTxService
                 matchBmAddr,
                 storageCollectorArgs.recordBufferStates().address(),
                 storageCollectorArgs.recordIndexes().getAddress(),
+                queryArgs.matchCollectMetadata().map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
                 queryArgs.dispatcherPageSourceStats());
 
         int restoredChunkIndex = -1;
         if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {
+            // restore row list
             checkState(storeRowListResult.isPresent(), "Restore needed but store data doesn't exists");
             rangeFillerService.restoreRowList(rangeData.getRecordIndexes(), storeRowListResult.get(), storageCollectorArgs.storeRowListBuff());
+
+            // restore match collect metadata
+            queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
+                    MemorySegment.copy(MemorySegment.ofArray(s), 0, queryArgs.matchCollectMetadata().get(), 0, s.length));
+
+            // get chunk index to restore
             restoredChunkIndex = queryArgs.chunksQueue().getCurrent();
+
+            // restore and throw if failed
             long startTime = System.nanoTime();
             long result = storageEngine.collectRestoreState(queryMemoryId, restoredChunkIndex, storageCollectorArgs.storageCollectorCallBack());
             queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
-
             if (result < 0) {
                 throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                         String.format("failed to restore collect state restoredChunkIndex %d numChunks %d",
@@ -166,10 +175,16 @@ public class CollectTxService
 
         Optional<int[]> chunksWithBitmapsToStoreOpt = Optional.empty();
         if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {
+            // store row list
             chunksWithBitmapsToStoreOpt = queryArgs.chunksQueue().getChunkIndexesWithBitmap();
             storeRowListResult = Optional.of(rangeFillerService.storeRowList(queryArgs, storageCollectorArgs, collectOpenResult.rangeData()));
+
+            // store match collect metadata
+            queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
+                    MemorySegment.copy(queryArgs.matchCollectMetadata().get(), 0, MemorySegment.ofArray(s), 0, s.length));
         }
 
+        // close and store if needed
         int[] chunksWithBitmaps = chunksWithBitmapsToStoreOpt.orElse(null);
         int numChunksWithBitmap = (chunksWithBitmaps != null) ? chunksWithBitmaps.length : 0;
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];

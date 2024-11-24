@@ -138,12 +138,11 @@ public interface StorageEngine
      * @param weCollectParams - parameters for collect warmup elements dumped into an array
      * @param catalogContext - connector context used for callbacks handles
      * @param collectBuffers - buffer for data and nulls per warm up element
-     *
-     * @return address of match collect shared metadata
      */
-    default long collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
+    default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers)
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long stateAddress,
+            long[][] collectBuffers)
     {
         throw new UnsupportedOperationException();
     }

@@ -56,6 +56,7 @@ public class NativeStorageEngineConstants
     // chunk
     private final int chunkSizeShift;
     private final int matchCollectBufferSize;
+    private final int matchCollectMetadataSize;
     private final int maxChunksInRange;
     private final int matchCollectNumIds;
     private final int maxMatchColumns;
@@ -100,6 +101,7 @@ public class NativeStorageEngineConstants
             // chunk
             chunkSizeShift = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_chunk_size_shift");
             matchCollectBufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_match_collect_buffer_size");
+            matchCollectMetadataSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_match_collect_metadata_size");
             maxChunksInRange = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_chunks_in_range");
             matchCollectNumIds = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_match_collect_num_ids");
             maxMatchColumns = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_match_columns");
@@ -247,6 +249,12 @@ public class NativeStorageEngineConstants
     public int getMatchCollectBufferSize()
     {
         return matchCollectBufferSize;
+    }
+
+    @Override
+    public int getMatchCollectMetadataSize()
+    {
+        return matchCollectMetadataSize;
     }
 
     @Override

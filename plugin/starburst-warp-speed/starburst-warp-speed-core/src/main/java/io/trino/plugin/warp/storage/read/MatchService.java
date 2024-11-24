@@ -33,7 +33,6 @@ import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SequenceLayout;
@@ -94,7 +93,7 @@ public class MatchService
 
         SequenceLayout warmUpElementAttsLayout = MemoryLayout.sequenceLayout(queryParams.getNumMatchElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
         MatchArgs matchArgs = new MatchArgs(queryParams.dumpMatchParams(),
-                Arena.ofAuto().allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_SHORT.byteSize()),
+                queryArgs.arena().allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_SHORT.byteSize()),
                 matchJuffersWe,
                 new LuceneMatcher[queryParams.getNumLucene()]);
         createLuceneMatchers(queryArgs, matchArgs, customStatsContext); // this call must be after creating the matchJuffersWE
@@ -156,13 +155,13 @@ public class MatchService
                         queryArgs.txArgs().fileCookie(),
                         collectOpenResult.queryMemoryId(),
                         queryArgs.txArgs().collectStoreBuff(),
-                        queryArgs.txArgs().matchCollectMetadataAddress()[0],
+                        queryArgs.matchCollectMetadata().map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
                         queryParams.getNumMatchElements(),
                         queryArgs.numChunksInRange(),
                         matchArgs.weMatchTree(),
                         matchArgs.warmUpElementAtts().address(),
                         collectOpenResult.matchBmAddr(),
-                        luceneBitmaps.isPresent() ? luceneBitmaps.get().address() : 0,
+                        luceneBitmaps.map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
                         queryParams.getMatchCollectId(),
                         queryParams.getMinMatchOffset());
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);

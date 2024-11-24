@@ -71,6 +71,7 @@ public class LazyCollectTxService
                 0,
                 lazyCollectorLoaderArgs.recordBufferStates().address(),
                 lazyCollectorLoaderArgs.recordIndexes().getAddress(),
+                0,
                 dispatcherPageSourceStats);
 
         logger.debug("collectOpen queryMemoryId %d rowsLimit %d", queryMemoryId, rowsLimit);

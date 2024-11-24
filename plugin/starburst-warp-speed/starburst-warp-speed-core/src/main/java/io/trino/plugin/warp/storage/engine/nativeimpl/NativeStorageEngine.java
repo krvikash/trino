@@ -434,9 +434,10 @@ public class NativeStorageEngine
     public native long queryGetCollectStateSize(int numMatchCollect);
 
     @Override
-    public native long collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
+    public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
             int numCollectWes, int numChunksInRange, int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long stateAddress, long[][] collectBuffers);
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long stateAddress,
+            long[][] collectBuffers);
 
     @Override
     public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, long matchCollectMetadataAddresss,

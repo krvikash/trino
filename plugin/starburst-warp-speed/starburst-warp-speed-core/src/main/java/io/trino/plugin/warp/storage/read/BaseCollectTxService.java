@@ -87,10 +87,11 @@ public abstract class BaseCollectTxService
             long matchBmAddr,
             long recordBufferStatesAddr,
             long recordIndexesAddr,
+            long matchCollectMetadataAddress,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         long startTime = System.nanoTime();
-        txArgs.matchCollectMetadataAddress()[0] = storageEngine.collectOpen(queryParams.getTotalNumRecords(),
+        storageEngine.collectOpen(queryParams.getTotalNumRecords(),
                 txArgs.fileCookie(),
                 collectTxId,
                 txArgs.collectStoreBuff(),
@@ -103,6 +104,7 @@ public abstract class BaseCollectTxService
                 matchBmAddr,
                 recordBufferStatesAddr,
                 recordIndexesAddr,
+                matchCollectMetadataAddress,
                 txArgs.collectStateBuff().address(),
                 txArgs.collectBuffers());
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);

@@ -161,6 +161,12 @@ public class StubsStorageEngineConstants
     }
 
     @Override
+    public int getMatchCollectMetadataSize()
+    {
+        return 8;
+    }
+
+    @Override
     public int getMaxChunksInRange()
     {
         return 1;
