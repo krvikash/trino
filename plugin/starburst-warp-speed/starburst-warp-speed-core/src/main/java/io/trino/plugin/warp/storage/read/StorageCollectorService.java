@@ -141,10 +141,11 @@ public class StorageCollectorService
         queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = queryArgs.queryParams().getFileModTime();
     }
 
-    public void init(QueryArgs queryArgs)
+    public StorageCollectorArgs init(QueryArgs queryArgs)
     {
         fileOpen(queryArgs);
         loadDictionaries(queryArgs);
+        return getStorageCollectorArgs(queryArgs);
     }
 
     public CollectOpenResult open(QueryArgs queryArgs,
@@ -423,7 +424,7 @@ public class StorageCollectorService
                 fileCookieParams);
     }
 
-    StorageCollectorArgs getStorageCollectorArgs(QueryArgs queryArgs)
+    private StorageCollectorArgs getStorageCollectorArgs(QueryArgs queryArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
 
@@ -503,9 +504,9 @@ public class StorageCollectorService
         return collectCloseResult.readPages();
     }
 
-    public void abort(CollectOpenResult collectOpenResult, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)
+    public void abort(QueryArgs queryArgs, CollectOpenResult collectOpenResult, Exception e)
     {
-        collectTxService.collectAbort(collectOpenResult, e, dispatcherPageSourceStats);
+        collectTxService.collectAbort(collectOpenResult, e, queryArgs.dispatcherPageSourceStats());
     }
 
     public void terminate(QueryArgs queryArgs)
@@ -516,5 +517,14 @@ public class StorageCollectorService
     public void cleanStorageCache()
     {
         storageEngine.cleanStorageCache();
+    }
+
+    public long getOffHeapMemoryUsage(StorageCollectorArgs storageCollectorArgs)
+    {
+        return storageCollectorArgs.recordBufferStates().byteSize() +
+                storageCollectorArgs.recordIndexes().byteSize() +
+                storageCollectorArgs.queryResultTypes().byteSize() +
+                storageCollectorArgs.prepareQueryResultTypes().byteSize() +
+                storageCollectorArgs.warmUpElementAtts().byteSize();
     }
 }

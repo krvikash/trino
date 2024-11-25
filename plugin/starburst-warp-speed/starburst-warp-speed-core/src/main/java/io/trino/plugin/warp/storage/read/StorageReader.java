@@ -29,9 +29,9 @@ public class StorageReader
 {
     private static final Logger logger = Logger.get(StorageReader.class);
     // The heap size of a worker node on galaxy is 80GB. The total off heap memory limit we take here is 256KB * 64 threads equals 16MB.
-    // 1 prefcentage of the heap size is 800MB, so these 16MB is much less than 1 precentage. It means we are guaranteed the GC will
+    // 1 percentage of the heap size is 800MB, so these 16MB is much less than 1 percentage. It means we are guaranteed the GC will
     // not be blocked by this small off heap memory.
-    // The limit check is to make sure we do not accidently enlarge the off heap allocation
+    // The limit check is to make sure we do not accidentally enlarge the off heap allocation
     private static final long LIMIT_OFF_HEAP_MEMORY = 256 * 1024;
 
     // parameters
@@ -60,8 +60,7 @@ public class StorageReader
         this.rowsLimit = rowsLimit;
 
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams, customStatsContext);
-        this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryArgs);
-        storageCollectorService.init(queryArgs);
+        this.storageCollectorArgs = storageCollectorService.init(queryArgs);
         this.matchArgs = matchService.init(queryArgs, customStatsContext);
         queryState = new WarpQueryState();
 
@@ -88,16 +87,11 @@ public class StorageReader
     // verify total amount of off heap memory allocated does not exceed a limit
     private void checkOffHeapMemoryUsage()
     {
-        if ((queryArgs != null) && (storageCollectorArgs != null) && (matchArgs != null)) {
-            long totalOffHeapSize = storageCollectorArgs.recordBufferStates().byteSize() +
-                    storageCollectorArgs.recordIndexes().byteSize() +
-                    storageCollectorArgs.queryResultTypes().byteSize() +
-                    storageCollectorArgs.prepareQueryResultTypes().byteSize() +
-                    storageCollectorArgs.warmUpElementAtts().byteSize() +
-                    matchArgs.warmUpElementAtts().byteSize();
-            if (totalOffHeapSize > LIMIT_OFF_HEAP_MEMORY) {
-                shapingLogger.warn("off heap memory exceeded threshold " + totalOffHeapSize);
-            }
+        long totalOffHeapSize = storageCollectorService.getOffHeapMemoryUsage(storageCollectorArgs) +
+                matchService.getOffHeapMemoryUsage(matchArgs);
+
+        if (totalOffHeapSize > LIMIT_OFF_HEAP_MEMORY) {
+            shapingLogger.warn("off heap memory exceeded threshold " + totalOffHeapSize);
         }
     }
 
@@ -178,7 +172,7 @@ public class StorageReader
     private long queryClose()
     {
         if (matchOpenResult != null) {
-            matchService.close(matchOpenResult, queryArgs.dispatcherPageSourceStats());
+            matchService.close(queryArgs, matchOpenResult);
             matchOpenResult = null;
         }
 
@@ -199,11 +193,11 @@ public class StorageReader
     private void queryAbort(Exception e)
     {
         if (matchOpenResult != null) {
-            matchService.abort(matchOpenResult, e, queryArgs.dispatcherPageSourceStats());
+            matchService.abort(queryArgs, matchOpenResult, e);
             matchOpenResult = null;
         }
         if (collectOpenResult != null) {
-            storageCollectorService.abort(collectOpenResult, e, queryArgs.dispatcherPageSourceStats());
+            storageCollectorService.abort(queryArgs, collectOpenResult, e);
             collectOpenResult = null;
         }
     }

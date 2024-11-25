@@ -286,24 +286,29 @@ public class MatchService
                 (trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode()) || trinoException.getErrorCode().equals(WARP_NATIVE_MATCH_ERROR.toErrorCode()));
     }
 
-    public void abort(MatchOpenResult matchOpenResult, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)
+    public void abort(QueryArgs queryArgs, MatchOpenResult matchOpenResult, Exception e)
     {
         if (matchOpenResult.matchTxId() != INVALID_TX_ID) {
             // In case of native match exception match tx already closed
             if (!isNativeMatchException(e)) {
                 long startTime = System.nanoTime();
                 storageEngine.matchClose(matchOpenResult.matchTxId());
-                dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
+                queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
             }
         }
     }
 
-    public void close(MatchOpenResult matchOpenResult, DispatcherPageSourceStats dispatcherPageSourceStats)
+    public void close(QueryArgs queryArgs, MatchOpenResult matchOpenResult)
     {
         if (matchOpenResult.matchTxId() != INVALID_TX_ID) {
             long startTime = System.nanoTime();
             storageEngine.matchClose(matchOpenResult.matchTxId());
-            dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
+            queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
         }
+    }
+
+    public long getOffHeapMemoryUsage(MatchArgs matchArgs)
+    {
+        return matchArgs.warmUpElementAtts().byteSize();
     }
 }
