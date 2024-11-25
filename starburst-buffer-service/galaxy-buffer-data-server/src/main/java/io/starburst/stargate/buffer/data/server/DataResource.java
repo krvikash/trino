@@ -411,6 +411,7 @@ public class DataResource
             throw e;
         }
 
+        Supplier<String> errorPrefix = () -> "error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId);
         try {
             AtomicReference<ReleasableReadListener> releasableReadListenerWrapper = new AtomicReference<>();
             AtomicBoolean inProgressCompletionFlag = new AtomicBoolean();
@@ -472,7 +473,6 @@ public class DataResource
                                     boolean shouldRetainMemory = false;
 
                                     Map<Integer, List<Slice>> pagesMap = new HashMap<>();
-                                    Supplier<String> errorPrefix = () -> "error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId);
                                     while (sliceInput.isReadable()) {
                                         int partitionId = sliceInput.readInt();
                                         int bytes = sliceInput.readInt();
@@ -597,15 +597,7 @@ public class DataResource
                                 @Override
                                 public void onError(Throwable throwable)
                                 {
-                                    try {
-                                        reportException(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                                        if (!asyncResponse.isDone()) {
-                                            asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
-                                        }
-                                    }
-                                    finally {
-                                        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
-                                    }
+                                    resumeWithError(errorPrefix.get(), throwable);
                                 }
                             };
 
