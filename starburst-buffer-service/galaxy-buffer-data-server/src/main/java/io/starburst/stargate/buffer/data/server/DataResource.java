@@ -355,7 +355,7 @@ public class DataResource
                 return;
             }
         }
-        catch (Exception e) {
+        catch (Throwable e) {
             // ensure we are not loosing counter
             inProgressLatch.decrement();
             throw e;
@@ -366,7 +366,7 @@ public class DataResource
             sliceLease = new SliceLease(memoryAllocator, contentLength);
             timeoutExecutor.schedule(sliceLease::cancel, asyncTimeout, MILLISECONDS);
         }
-        catch (Exception e) {
+        catch (Throwable e) {
             inProgressLatch.decrement();
             throw e;
         }
@@ -399,7 +399,7 @@ public class DataResource
                 sliceLease.cancel();
             });
         }
-        catch (Exception e) {
+        catch (Throwable e) {
             // Unexpected exception; catch just to handle decrementing of inProgress response counter
             // We also immediately release sliceLease. This is ok as we know underlying slice is not yet used by any background processes.
             try {
@@ -650,7 +650,7 @@ public class DataResource
                     },
                     executor);
         }
-        catch (Exception e) {
+        catch (Throwable e) {
             inProgressLatch.decrement();
             throw e;
         }
