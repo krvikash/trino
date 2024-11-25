@@ -439,7 +439,7 @@ public class DataResource
                                         if (processingDeadline < System.currentTimeMillis()) {
                                             // we've exceeded client timeout for consuming an input stream
                                             if (!asyncResponse.isDone()) {
-                                                asyncResponse.resume(errorResponse(new TimeoutException("Exceeded deadline")));
+                                                onFailure(new TimeoutException("Exceeded deadline"));
                                             }
                                             break;
                                         }
