@@ -465,6 +465,10 @@ public class WarpCacheTask
         if (isAborted()) {
             return;
         }
+        if (totalRecords == 0) {
+            //means query aborted before task added to the queue. just clean the task from the list
+            memoryContextService.remove(this);
+        }
         this.engineAbort = true;
         blocksToProcess.add(STOP_TRIGGER);
     }
