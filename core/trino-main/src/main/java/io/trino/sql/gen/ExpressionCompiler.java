@@ -54,6 +54,7 @@ public class ExpressionCompiler
             boolean columnarFilterEvaluationEnabled,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean filterReorderingEnabled,
             Optional<Expression> filter,
             Optional<DynamicPageFilter> dynamicPageFilter,
             List<? extends Expression> projections,
@@ -66,6 +67,7 @@ public class ExpressionCompiler
                 columnarFilterEvaluationEnabled,
                 columnarFilterSubexpressionEvaluationEnabled,
                 isDebugOutputEnabled,
+                filterReorderingEnabled,
                 filter,
                 layout,
                 columnarFilterCompiler,
@@ -102,14 +104,14 @@ public class ExpressionCompiler
     @VisibleForTesting
     public Supplier<PageProcessor> compilePageProcessor(Optional<Expression> filter, List<? extends Expression> projections, Map<Symbol, Integer> layout)
     {
-        return () -> compilePageProcessor(true, true, false, filter, Optional.empty(), projections, layout, Optional.empty(), OptionalInt.empty())
+        return () -> compilePageProcessor(true, true, false, true, filter, Optional.empty(), projections, layout, Optional.empty(), OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);
     }
 
     @VisibleForTesting
     public Supplier<PageProcessor> compilePageProcessor(Optional<Expression> filter, List<? extends Expression> projections, Map<Symbol, Integer> layout, int initialBatchSize)
     {
-        return () -> compilePageProcessor(true, true, false, filter, Optional.empty(), projections, layout, Optional.empty(), OptionalInt.of(initialBatchSize))
+        return () -> compilePageProcessor(true, true, false, true, filter, Optional.empty(), projections, layout, Optional.empty(), OptionalInt.of(initialBatchSize))
                 .apply(InternalDynamicFilter.EMPTY);
     }
 }

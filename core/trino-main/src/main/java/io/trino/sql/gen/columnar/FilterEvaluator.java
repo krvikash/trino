@@ -23,6 +23,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.Type;
+import io.trino.sql.PlannerContext;
 import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
@@ -54,6 +55,7 @@ import static io.trino.sql.gen.columnar.AndFilterEvaluator.createAndExpressionEv
 import static io.trino.sql.gen.columnar.DynamicPageFilter.DynamicFilterEvaluator;
 import static io.trino.sql.gen.columnar.OrFilterEvaluator.createOrExpressionEvaluator;
 import static io.trino.sql.ir.IrExpressions.call;
+import static io.trino.sql.ir.IrExpressions.mayFail;
 import static io.trino.sql.planner.DeterminismEvaluator.isDeterministic;
 import static io.trino.type.UnknownType.UNKNOWN;
 
@@ -83,6 +85,7 @@ public sealed interface FilterEvaluator
             boolean columnarFilterEvaluationEnabled,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean filterReorderingEnabled,
             Optional<Expression> filter,
             Map<Symbol, Integer> layout,
             ColumnarFilterCompiler columnarFilterCompiler,
@@ -93,6 +96,7 @@ public sealed interface FilterEvaluator
             return createColumnarFilterEvaluator(
                     columnarFilterSubexpressionEvaluationEnabled,
                     isDebugOutputEnabled,
+                    filterReorderingEnabled,
                     filter.get(),
                     layout,
                     columnarFilterCompiler,
@@ -105,6 +109,7 @@ public sealed interface FilterEvaluator
     static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean filterReorderingEnabled,
             Expression expression,
             Map<Symbol, Integer> layout,
             ColumnarFilterCompiler compiler,
@@ -135,9 +140,9 @@ public sealed interface FilterEvaluator
                 yield createCallExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, call, layout, classNameSuffix);
             }
             case IsNull isNull -> createIsNullExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, isNull, layout, classNameSuffix);
-            case Logical logical when logical.operator() == Logical.Operator.AND -> createAndExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
-            case Logical logical when logical.operator() == Logical.Operator.OR -> createOrExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
-            case Between between -> createBetweenEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, between, layout, classNameSuffix);
+            case Logical logical when logical.operator() == Logical.Operator.AND -> createAndExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
+            case Logical logical when logical.operator() == Logical.Operator.OR -> createOrExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
+            case Between between -> createBetweenEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, compiler, pageFunctionCompiler, between, layout, classNameSuffix);
             case In in -> createInExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, in, layout, classNameSuffix);
             default -> Optional.empty();
         };
@@ -149,9 +154,17 @@ public sealed interface FilterEvaluator
         return isBuiltinFunctionName(functionName) && functionName.functionName().equals("$not");
     }
 
+    // Reordering can expose a term that may fail to rows that an earlier term would have filtered out,
+    // changing SQL short-circuit semantics. Only reorder when every term is guaranteed not to fail.
+    static boolean isReorderingSafe(PlannerContext plannerContext, List<Expression> terms)
+    {
+        return terms.stream().noneMatch(term -> mayFail(plannerContext, term));
+    }
+
     private static Optional<Supplier<FilterEvaluator>> createBetweenEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean filterReorderingEnabled,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             Between between,
@@ -182,6 +195,7 @@ public sealed interface FilterEvaluator
         return createAndExpressionEvaluator(
                 columnarFilterSubexpressionEvaluationEnabled,
                 isDebugOutputEnabled,
+                filterReorderingEnabled,
                 compiler,
                 pageFunctionCompiler,
                 new Logical(

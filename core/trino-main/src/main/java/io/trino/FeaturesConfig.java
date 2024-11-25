@@ -136,6 +136,7 @@ public class FeaturesConfig
     private boolean forceSpillingJoin;
 
     private boolean columnarFilterEvaluationEnabled = true;
+    private boolean adaptiveFilterReorderingEnabled = true;
 
     private boolean externalExchangeEncryptionEnabled = true;
 
@@ -571,6 +572,19 @@ public class FeaturesConfig
     public FeaturesConfig setColumnarFilterEvaluationEnabled(boolean columnarFilterEvaluationEnabled)
     {
         this.columnarFilterEvaluationEnabled = columnarFilterEvaluationEnabled;
+        return this;
+    }
+
+    public boolean isAdaptiveFilterReorderingEnabled()
+    {
+        return adaptiveFilterReorderingEnabled;
+    }
+
+    @Config("experimental.adaptive-filter-reordering.enabled")
+    @ConfigDescription("Reorder conjunctive/disjunctive filter terms at runtime based on observed selectivity and performance")
+    public FeaturesConfig setAdaptiveFilterReorderingEnabled(boolean adaptiveFilterReorderingEnabled)
+    {
+        this.adaptiveFilterReorderingEnabled = adaptiveFilterReorderingEnabled;
         return this;
     }
 

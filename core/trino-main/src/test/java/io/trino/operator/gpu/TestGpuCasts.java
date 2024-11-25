@@ -767,6 +767,7 @@ public class TestGpuCasts
                         false,
                         true,
                         false,
+                        true,
                         Optional.empty(),
                         Optional.empty(),
                         List.of(expression),

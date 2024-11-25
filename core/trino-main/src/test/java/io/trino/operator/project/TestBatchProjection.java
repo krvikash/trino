@@ -296,6 +296,7 @@ final class TestBatchProjection
                 true,
                 false,
                 false,
+                true,
                 Optional.of(batchFilter),
                 LAYOUT,
                 compiler,

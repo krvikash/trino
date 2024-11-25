@@ -29,6 +29,7 @@ import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.sql.gen.columnar.FilterEvaluator.isReorderingSafe;
 
 public final class OrFilterEvaluator
         implements FilterEvaluator
@@ -36,6 +37,7 @@ public final class OrFilterEvaluator
     public static Optional<Supplier<FilterEvaluator>> createOrExpressionEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean filterReorderingEnabled,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             Logical logical,
@@ -50,6 +52,7 @@ public final class OrFilterEvaluator
             Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(
                     columnarFilterSubexpressionEvaluationEnabled,
                     isDebugOutputEnabled,
+                    filterReorderingEnabled,
                     expression,
                     layout,
                     compiler,
@@ -61,36 +64,58 @@ public final class OrFilterEvaluator
             builder.add(subExpressionEvaluator.get());
         }
         List<Supplier<FilterEvaluator>> subExpressionEvaluators = builder.build();
-        return Optional.of(() -> new OrFilterEvaluator(subExpressionEvaluators.stream().map(Supplier::get).collect(toImmutableList())));
+        boolean reorderingSafe = filterReorderingEnabled && isReorderingSafe(compiler.getPlannerContext(), logical.terms());
+        return Optional.of(() -> new OrFilterEvaluator(
+                subExpressionEvaluators.stream().map(Supplier::get).collect(toImmutableList()),
+                reorderingSafe));
     }
 
     private final List<FilterEvaluator> subFilterEvaluators;
+    private final FilterReorderingProfiler profiler;
 
-    private OrFilterEvaluator(List<FilterEvaluator> subFilterEvaluators)
+    private OrFilterEvaluator(List<FilterEvaluator> subFilterEvaluators, boolean filterReorderingEnabled)
     {
         checkArgument(subFilterEvaluators.size() >= 2, "must have at least 2 subexpressions to OR");
         this.subFilterEvaluators = subFilterEvaluators;
+        this.profiler = new FilterReorderingProfiler(subFilterEvaluators.size(), filterReorderingEnabled);
     }
 
     @Override
     public SelectionResult evaluate(ConnectorSession session, SelectedPositions activePositions, SourcePage page)
     {
+        int inputPositions = activePositions.size();
         long filterTimeNanos = 0;
-        SelectionResult result = subFilterEvaluators.getFirst().evaluate(session, activePositions, page);
+        SelectionResult result = getFirst().evaluate(session, activePositions, page);
         SelectedPositions accumulatedPositions = result.selectedPositions();
+        profiler.addFilterMetrics(getFilterIndex(0), result.filterTimeNanos(), accumulatedPositions.size());
         filterTimeNanos += result.filterTimeNanos();
         activePositions = activePositions.difference(accumulatedPositions);
         for (int index = 1; index < subFilterEvaluators.size() - 1; index++) {
-            FilterEvaluator evaluator = subFilterEvaluators.get(index);
+            int filterIndex = getFilterIndex(index);
+            FilterEvaluator evaluator = subFilterEvaluators.get(filterIndex);
             result = evaluator.evaluate(session, activePositions, page);
             SelectedPositions selectedPositions = result.selectedPositions();
+            profiler.addFilterMetrics(filterIndex, result.filterTimeNanos(), selectedPositions.size());
             filterTimeNanos += result.filterTimeNanos();
             accumulatedPositions = accumulatedPositions.union(selectedPositions);
             activePositions = activePositions.difference(selectedPositions);
         }
-        result = subFilterEvaluators.getLast().evaluate(session, activePositions, page);
+        int filterIndex = getFilterIndex(subFilterEvaluators.size() - 1);
+        result = subFilterEvaluators.get(filterIndex).evaluate(session, activePositions, page);
+        profiler.addFilterMetrics(filterIndex, result.filterTimeNanos(), result.selectedPositions().size());
+        profiler.reorderFilters(inputPositions);
         filterTimeNanos += result.filterTimeNanos();
         accumulatedPositions = accumulatedPositions.union(result.selectedPositions());
         return new SelectionResult(accumulatedPositions, filterTimeNanos);
+    }
+
+    private int getFilterIndex(int index)
+    {
+        return profiler.getFilterOrder()[index];
+    }
+
+    private FilterEvaluator getFirst()
+    {
+        return subFilterEvaluators.get(getFilterIndex(0));
     }
 }

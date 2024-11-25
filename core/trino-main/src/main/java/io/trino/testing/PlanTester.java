@@ -498,7 +498,7 @@ public class PlanTester
         CacheMetadata cacheMetadata = new CacheMetadata(createCacheMetadata(catalogManager));
         this.plannerContext = new PlannerContext(metadata, cacheMetadata, typeOperators, blockEncodingSerde, typeManager, functionManager, languageFunctionManager, tracer);
         this.pageFunctionCompiler = new PageFunctionCompiler(functionManager, metadata, typeManager, 0);
-        ColumnarFilterCompiler filterCompiler = new ColumnarFilterCompiler(functionManager, metadata, 0);
+        ColumnarFilterCompiler filterCompiler = new ColumnarFilterCompiler(plannerContext, 0);
         this.expressionCompiler = new ExpressionCompiler(pageFunctionCompiler, filterCompiler);
         this.joinFilterFunctionCompiler = new JoinFilterFunctionCompiler(functionManager, metadata, typeManager, new CompilerConfig());
 

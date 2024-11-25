@@ -158,7 +158,7 @@ public class BenchmarkScanFilterAndProjectOperator
                     .collect(toImmutableList());
 
             PageFunctionCompiler pageFunctionCompiler = new PageFunctionCompiler(PLANNER_CONTEXT.getFunctionManager(), PLANNER_CONTEXT.getMetadata(), PLANNER_CONTEXT.getTypeManager(), 0);
-            ColumnarFilterCompiler compiler = new ColumnarFilterCompiler(PLANNER_CONTEXT.getFunctionManager(), PLANNER_CONTEXT.getMetadata(), 0);
+            ColumnarFilterCompiler compiler = new ColumnarFilterCompiler(PLANNER_CONTEXT, 0);
             PageProcessor pageProcessor = new ExpressionCompiler(pageFunctionCompiler, compiler).compilePageProcessor(Optional.of(getFilter(type)), projections, sourceLayout).get();
 
             createTaskContext();

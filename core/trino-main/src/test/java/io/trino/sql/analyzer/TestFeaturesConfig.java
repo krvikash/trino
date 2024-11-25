@@ -71,6 +71,7 @@ public class TestFeaturesConfig
                 .setForceSpillingJoin(false)
                 .setColumnarFilterEvaluationEnabled(true)
                 .setSuperSetPredicatePushdownEnabled(true)
+                .setAdaptiveFilterReorderingEnabled(true)
                 .setLegacyArithmeticDecimalOperators(false)
                 .setExternalExchangeEncryptionEnabled(true)
                 .setParallelizeLookupOuterOperator(true));
@@ -111,6 +112,7 @@ public class TestFeaturesConfig
                 .put("hide-inaccessible-columns", "true")
                 .put("force-spilling-join-operator", "true")
                 .put("experimental.columnar-filter-evaluation.enabled", "false")
+                .put("experimental.adaptive-filter-reordering.enabled", "false")
                 .put("deprecated.legacy-arithmetic-decimal-operators", "true")
                 .put("external-exchange-encryption-enabled", "false")
                 .put("optimizer.super-set-predicate.pushdown.enabled", "false")
@@ -150,6 +152,7 @@ public class TestFeaturesConfig
                 .setForceSpillingJoin(true)
                 .setColumnarFilterEvaluationEnabled(false)
                 .setSuperSetPredicatePushdownEnabled(false)
+                .setAdaptiveFilterReorderingEnabled(false)
                 .setLegacyArithmeticDecimalOperators(true)
                 .setExternalExchangeEncryptionEnabled(false)
                 .setParallelizeLookupOuterOperator(false);

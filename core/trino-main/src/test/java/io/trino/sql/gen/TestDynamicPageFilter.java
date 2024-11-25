@@ -81,7 +81,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestDynamicPageFilter
 {
     private static final FunctionManager FUNCTION_MANAGER = createTestingFunctionManager();
-    private static final ColumnarFilterCompiler COMPILER = new ColumnarFilterCompiler(FUNCTION_MANAGER, PLANNER_CONTEXT.getMetadata(), new CompilerConfig());
+    private static final ColumnarFilterCompiler COMPILER = new ColumnarFilterCompiler(PLANNER_CONTEXT, new CompilerConfig());
     private static final PageFunctionCompiler PAGE_FUNCTION_COMPILER = new PageFunctionCompiler(FUNCTION_MANAGER, PLANNER_CONTEXT.getMetadata(), PLANNER_CONTEXT.getTypeManager(), new CompilerConfig());
     private static final Session SESSION = testSessionBuilder().build();
     private static final FullConnectorSession FULL_CONNECTOR_SESSION = new FullConnectorSession(
@@ -319,7 +319,8 @@ public class TestDynamicPageFilter
                 SESSION,
                 ImmutableMap.of(symbolA, columnA, symbolB, columnB, symbolC, columnC),
                 ImmutableMap.of(symbolA, 0, symbolB, 1, symbolC, 2),
-                1);
+                1,
+                true);
         SourcePage page = SourcePage.create(new Page(
                 createLongSequenceBlock(0, 101),
                 createLongSequenceBlock(100, 201),
@@ -362,7 +363,8 @@ public class TestDynamicPageFilter
                 SESSION,
                 ImmutableMap.of(symbolA, columnA, symbolB, columnB, symbolC, columnC),
                 ImmutableMap.of(symbolA, 0, symbolB, 1, symbolC, 2),
-                1);
+                1,
+                true);
         SourcePage page = SourcePage.create(new Page(
                 createLongSequenceBlock(0, 101),
                 createLongSequenceBlock(100, 201),

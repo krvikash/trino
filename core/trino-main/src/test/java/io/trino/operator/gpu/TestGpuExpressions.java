@@ -1155,6 +1155,7 @@ public class TestGpuExpressions
                         false,
                         true,
                         false,
+                        true,
                         Optional.empty(),
                         Optional.empty(),
                         List.of(expression),

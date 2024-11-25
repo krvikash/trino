@@ -352,6 +352,7 @@ import static io.trino.SystemSessionProperties.getTaskConcurrency;
 import static io.trino.SystemSessionProperties.getTaskMaxWriterCount;
 import static io.trino.SystemSessionProperties.getTaskMinWriterCount;
 import static io.trino.SystemSessionProperties.getWriterScalingMinDataProcessed;
+import static io.trino.SystemSessionProperties.isAdaptiveFilterReorderingEnabled;
 import static io.trino.SystemSessionProperties.isAdaptivePartialAggregationEnabled;
 import static io.trino.SystemSessionProperties.isColumnarFilterEvaluationEnabled;
 import static io.trino.SystemSessionProperties.isDebugOutputEnabled;
@@ -2367,6 +2368,7 @@ public class LocalExecutionPlanner
             try {
                 boolean columnarFilterEvaluationEnabled = isColumnarFilterEvaluationEnabled(session);
                 boolean isDebugOutputEnabled = isDebugOutputEnabled(session);
+                boolean filterReorderingEnabled = isAdaptiveFilterReorderingEnabled(session);
                 Optional<DynamicPageFilter> dynamicPageFilterFactory = Optional.empty();
                 if (dynamicFilter != InternalDynamicFilter.EMPTY && isEnableDynamicRowFiltering(session)) {
                     dynamicPageFilterFactory = Optional.of(new DynamicPageFilter(
@@ -2374,12 +2376,14 @@ public class LocalExecutionPlanner
                             session,
                             ((TableScanNode) sourceNode).getAssignments(),
                             sourceLayout,
-                            getDynamicRowFilterSelectivityThreshold(session)));
+                            getDynamicRowFilterSelectivityThreshold(session),
+                            filterReorderingEnabled));
                 }
                 Function<InternalDynamicFilter, PageProcessor> pageProcessor = expressionCompiler.compilePageProcessor(
                         columnarFilterEvaluationEnabled,
                         columnarFilterSubexpressionEvaluationEnabled,
                         isDebugOutputEnabled,
+                        filterReorderingEnabled,
                         staticFilters,
                         dynamicPageFilterFactory,
                         projections,

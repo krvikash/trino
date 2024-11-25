@@ -51,6 +51,7 @@ public final class DynamicPageFilter
     private final Map<ColumnHandle, Symbol> columnHandles;
     private final Map<Symbol, Integer> sourceLayout;
     private final double selectivityThreshold;
+    private final boolean filterReorderingEnabled;
 
     @Nullable
     @GuardedBy("this")
@@ -67,7 +68,8 @@ public final class DynamicPageFilter
             Session session,
             Map<Symbol, ColumnHandle> columnHandles,
             Map<Symbol, Integer> sourceLayout,
-            double selectivityThreshold)
+            double selectivityThreshold,
+            boolean filterReorderingEnabled)
     {
         this.session = requireNonNull(session, "session is null");
         this.irExpressionOptimizer = plannerContext.getExpressionOptimizer();
@@ -77,6 +79,7 @@ public final class DynamicPageFilter
                 .collect(toImmutableMap(Map.Entry::getValue, Map.Entry::getKey));
         this.sourceLayout = ImmutableMap.copyOf(sourceLayout);
         this.selectivityThreshold = selectivityThreshold;
+        this.filterReorderingEnabled = filterReorderingEnabled;
     }
 
     // Compiled dynamic filter is generated once per split at PageProcessor#createWorkProcessor.
@@ -125,7 +128,7 @@ public final class DynamicPageFilter
                     Expression expression = domainTranslator.toPredicate(entry.getValue().getDomain().orElseThrow(), symbol.toSymbolReference());
                     // Run the expression derived from TupleDomain through IR optimizer to simplify predicates. E.g. SimplifyContinuousInValues
                     expression = irExpressionOptimizer.process(expression, session, ImmutableMap.of()).orElse(expression);
-                    return createColumnarFilterEvaluator(false, false, expression, sourceLayout, compiler, pageFunctionCompiler, Optional.empty());
+                    return createColumnarFilterEvaluator(false, false, filterReorderingEnabled, expression, sourceLayout, compiler, pageFunctionCompiler, Optional.empty());
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get)

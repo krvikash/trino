@@ -106,7 +106,7 @@ public class TestScanFilterAndProjectOperator
         FunctionManager functionManager = runner.getPlannerContext().getFunctionManager();
         expressionCompiler = new ExpressionCompiler(
                 new PageFunctionCompiler(functionManager, runner.getPlannerContext().getMetadata(), runner.getPlannerContext().getTypeManager(), 0),
-                new ColumnarFilterCompiler(functionManager, runner.getPlannerContext().getMetadata(), 0));
+                new ColumnarFilterCompiler(runner.getPlannerContext(), 0));
     }
 
     @AfterAll
@@ -296,7 +296,7 @@ public class TestScanFilterAndProjectOperator
         FunctionManager functionManager = runner.getPlannerContext().getFunctionManager();
         ExpressionCompiler expressionCompiler = new ExpressionCompiler(
                 new PageFunctionCompiler(functionManager, runner.getPlannerContext().getMetadata(), runner.getPlannerContext().getTypeManager(), 0),
-                new ColumnarFilterCompiler(functionManager, runner.getPlannerContext().getMetadata(), 0));
+                new ColumnarFilterCompiler(runner.getPlannerContext(), 0));
         Reference col0 = new Reference(BIGINT, "$col_0");
         Map<Symbol, Integer> layout = ImmutableMap.of(new Symbol(BIGINT, "$col_0"), 0);
         ImmutableList.Builder<Expression> projections = ImmutableList.builder();

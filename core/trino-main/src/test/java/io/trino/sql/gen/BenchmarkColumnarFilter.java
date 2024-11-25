@@ -162,6 +162,7 @@ public class BenchmarkColumnarFilter
                         columnarEvaluationEnabled,
                         true,
                         false,
+                        true,
                         Optional.of(filterProvider.getExpression(type)),
                         Optional.empty(),
                         ImmutableList.of(new Reference(type, COL_0)),
