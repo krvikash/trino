@@ -597,10 +597,14 @@ public class DataResource
                                 @Override
                                 public void onError(Throwable throwable)
                                 {
-                                    finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
-                                    reportException(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                                    if (!asyncResponse.isDone()) {
-                                        asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
+                                    try {
+                                        reportException(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                                        if (!asyncResponse.isDone()) {
+                                            asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
+                                        }
+                                    }
+                                    finally {
+                                        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
                                     }
                                 }
                             };
@@ -613,10 +617,14 @@ public class DataResource
                         @Override
                         public void onFailure(Throwable throwable)
                         {
-                            finalizeAddDataPagesRequest(emptyList(), sliceLease);
-                            reportException(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                            if (!asyncResponse.isDone()) {
-                                asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
+                            try {
+                                reportException(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                                if (!asyncResponse.isDone()) {
+                                    asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
+                                }
+                            }
+                            finally {
+                                finalizeAddDataPagesRequest(emptyList(), sliceLease);
                             }
                         }
 
