@@ -34,6 +34,7 @@ import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
@@ -47,8 +48,9 @@ import io.trino.plugin.warp.node.WorkerNodeManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.plugin.warp.util.json.SliceSerializer;
+import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
-import io.trino.server.SliceSerialization;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.type.Type;
@@ -163,9 +165,11 @@ public class WarpMainModule
     {
         ObjectMapperProvider provider = new ObjectMapperProvider();
         provider.setJsonSerializers(ImmutableMap.of(
-                Slice.class, new SliceSerialization.SliceSerializer()));
+                Slice.class, new SliceSerializer()));
         provider.setJsonDeserializers(ImmutableMap.of(
                 Type.class, new TypeDeserializer(typeManager)));
+        provider.withKeyDeserializers(ImmutableMap.of(
+                WarpColumn.class, new WarpColumnJsonKeyDeserializer()));
         return provider;
     }
 }

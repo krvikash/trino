@@ -181,12 +181,13 @@ public class RangeMatcher
             res = Optional.of(Range.range(type, byteMinValue.longValue(), true, byteMaxValue.longValue(), true));
         }
         else if (isStrType(type)) {
-            Slice min;
-            Slice max;
-            if (minValue instanceof String minVal && maxValue instanceof String maxVal) {
+            if (minValue instanceof Slice minVal && maxValue instanceof Slice maxVal) {
+                res = Optional.of(Range.range(type, minVal, true, maxVal, true));
+            }
+            else if (minValue instanceof String minVal && maxValue instanceof String maxVal) {
                 //todo:in fast warming byte array converted to String, need to check
-                min = Slices.utf8Slice(minVal);
-                max = Slices.utf8Slice(maxVal);
+                Slice min = Slices.utf8Slice(minVal);
+                Slice max = Slices.utf8Slice(maxVal);
                 res = Optional.of(Range.range(type, min, true, max, true));
             }
             else {

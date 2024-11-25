@@ -16,11 +16,11 @@ package io.trino.plugin.warp.dal.dispatcher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.MoreCollectors;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.DictionaryInfo;
@@ -46,8 +46,8 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.util.StringUtils;
+import io.trino.plugin.warp.util.json.SliceSerializer;
 import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
-import io.trino.server.SliceSerialization;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.TestingTypeManager;
@@ -315,18 +315,17 @@ public class RowGroupDataDaoTest
     }
 
     @Test
-    public void testSerializesAndDeserialize()
+    public void testSerializeAndDeserialize()
             throws JsonProcessingException
     {
         ObjectMapperProvider provider = new ObjectMapperProvider();
         provider.setJsonSerializers(ImmutableMap.of(
-                Slice.class, new SliceSerialization.SliceSerializer()));
+                Slice.class, new SliceSerializer()));
         provider.setJsonDeserializers(ImmutableMap.of(
                 Type.class, new TypeDeserializer(new TestingTypeManager())));
-        SimpleModule simpleModule = new SimpleModule();
-        simpleModule.addKeyDeserializer(WarpColumn.class, new WarpColumnJsonKeyDeserializer());
+        provider.withKeyDeserializers(ImmutableMap.of(
+                WarpColumn.class, new WarpColumnJsonKeyDeserializer()));
         ObjectMapper objectMapper = provider.get();
-        objectMapper.registerModules(simpleModule);
 
         //DictionaryKey
         DictionaryKey dictionaryKey = new DictionaryKey(
@@ -353,7 +352,7 @@ public class RowGroupDataDaoTest
                 .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
                 .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
                 .recTypeLength(4)
-                .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
+                .warmupElementStats(new WarmupElementStats(0, Slices.wrappedBuffer(new byte[] {1}), Slices.wrappedBuffer(new byte[] {9})))
                 .usedDictionarySize(7)
                 .dictionaryInfo(new DictionaryInfo(
                         new DictionaryKey(
@@ -379,7 +378,7 @@ public class RowGroupDataDaoTest
                 .build();
 
         str = objectMapper.writeValueAsString(warmUpElement);
-        assertThat(warmUpElement).isEqualTo(objectMapper.readValue(str, WarmUpElement.class));
+        assertThat(objectMapper.readValue(str, WarmUpElement.class)).isEqualTo(warmUpElement);
 
         //RowGroupData
         RowGroupData rowGroupData = RowGroupData.builder()
@@ -403,7 +402,7 @@ public class RowGroupDataDaoTest
                 .build();
 
         str = objectMapper.writeValueAsString(rowGroupData);
-        assertThat(rowGroupData).isEqualTo(objectMapper.readValue(str, RowGroupData.class));
+        assertThat(objectMapper.readValue(str, RowGroupData.class)).isEqualTo(rowGroupData);
     }
 
     @Disabled

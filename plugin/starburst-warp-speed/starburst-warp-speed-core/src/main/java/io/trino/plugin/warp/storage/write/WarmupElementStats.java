@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.write;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.trino.plugin.warp.util.SliceUtils;
 
 import java.util.Objects;
 
@@ -48,8 +49,19 @@ public class WarmupElementStats
     {
         this.initialized = initialized;
         this.nullsCount = nullsCount;
-        this.maxValue = maxValue;
-        this.minValue = minValue;
+        // ObjectMapper map String values of min/max to Object type, we need them as Slice objects
+        if (maxValue instanceof String) {
+            this.maxValue = SliceUtils.deserializeSlice((String) maxValue);
+        }
+        else {
+            this.maxValue = maxValue;
+        }
+        if (minValue instanceof String) {
+            this.minValue = SliceUtils.deserializeSlice((String) minValue);
+        }
+        else {
+            this.minValue = minValue;
+        }
         this.isSingleValue = isSingleValue;
     }
 
@@ -110,10 +122,11 @@ public class WarmupElementStats
     public String toString()
     {
         return "WarmupElementStats[" +
-                "initialized=" + initialized + ", " +
-                "nullsCount=" + nullsCount + ", " +
-                "maxValue=" + maxValue + ", " +
-                "isSingleValue=" + isSingleValue + ", " +
-                "minValue=" + minValue + ']';
+                "initialized=" + initialized +
+                ", nullsCount=" + nullsCount +
+                ", maxValue=" + maxValue +
+                ", minValue=" + minValue +
+                ", isSingleValue=" + isSingleValue +
+                ']';
     }
 }

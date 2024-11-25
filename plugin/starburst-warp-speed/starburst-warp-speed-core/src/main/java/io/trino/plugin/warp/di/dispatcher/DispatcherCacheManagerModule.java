@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.di.dispatcher;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -21,6 +22,7 @@ import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.json.ObjectMapperProvider;
+import io.airlift.slice.Slice;
 import io.trino.plugin.hive.util.BlockJsonSerde;
 import io.trino.plugin.hive.util.HiveBlockEncodingSerde;
 import io.trino.plugin.warp.annotation.ForWarp;
@@ -45,6 +47,7 @@ import io.trino.plugin.warp.dispatcher.cache.DispatcherCacheTransformer;
 import io.trino.plugin.warp.dispatcher.cache.PredicateHashCalculator;
 import io.trino.plugin.warp.dispatcher.cache.WarpCachePageSourceFactory;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.query.classifier.ClassifierFactory;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextFactory;
@@ -87,6 +90,8 @@ import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
+import io.trino.plugin.warp.util.json.SliceSerializer;
+import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import io.trino.spi.NodeManager;
 import io.trino.spi.block.Block;
 
@@ -144,7 +149,6 @@ public class DispatcherCacheManagerModule
         binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
         jsonBinder(binder).addSerializerBinding(Block.class).to(BlockJsonSerde.Serializer.class);
         jsonBinder(binder).addDeserializerBinding(Block.class).to(BlockJsonSerde.Deserializer.class);
-        binder.bind(ObjectMapperProvider.class);
         binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(context, config)));
         binder.install(CloudVendorModule.getModule(context, ForWarp.class, cacheManagerName, config));
 
@@ -153,6 +157,7 @@ public class DispatcherCacheManagerModule
         binder.bind(BlockFillersFactory.class);
         binder.bind(BlockTransformerFactory.class);
         binder.bind(BufferAllocator.class);
+        binder.bind(CacheMgrWarmupRuleService.class);
         binder.bind(ChunksQueueService.class);
         binder.bind(ClassifierFactory.class);
         binder.bind(CollectTxService.class);
@@ -168,28 +173,27 @@ public class DispatcherCacheManagerModule
         binder.bind(MatchCollectIdService.class);
         binder.bind(MatchService.class);
         binder.bind(PredicateContextFactory.class);
+        binder.bind(PredicateHashCalculator.class);
         binder.bind(PredicatesCacheService.class);
         binder.bind(QueryClassifier.class);
         binder.bind(ReadErrorHandler.class);
         binder.bind(RowGroupDataDao.class);
         binder.bind(RowGroupDataService.class);
-        binder.bind(WarpCachePageSourceFactory.class);
         binder.bind(StorageCollectorService.class);
         binder.bind(StorageEngineTxService.class);
         binder.bind(StorageWarmerService.class);
-        binder.bind(WarpDeleteService.class).to(WarpConnectorDeleteService.class);
         binder.bind(StorageWriterService.class);
         binder.bind(WarmupDemoterService.class);
         binder.bind(WarmupElementStatsService.class);
         binder.bind(WarmupElementsCreator.class);
+        binder.bind(WarpCachePageSourceFactory.class);
+        binder.bind(WarpDeleteService.class).to(WarpConnectorDeleteService.class);
         binder.bind(WarpPageSinkFactory.class);
         binder.bind(WarpProxiedWarmer.class);
         binder.bind(WeGroupWarmer.class);
         binder.bind(WorkerCapacityManager.class);
         binder.bind(WorkerNodeManager.class);
         binder.bind(WorkerTaskExecutorService.class);
-        binder.bind(PredicateHashCalculator.class);
-        binder.bind(CacheMgrWarmupRuleService.class);
         bindMetricsServices(binder);
     }
 
@@ -221,5 +225,17 @@ public class DispatcherCacheManagerModule
     public WarmupRuleProvider provideWarmupRuleProvider()
     {
         return new WarmupRuleProvider(Optional.empty());
+    }
+
+    @Provides
+    @Singleton
+    public ObjectMapperProvider provideObjectMapperProvider()
+    {
+        ObjectMapperProvider provider = new ObjectMapperProvider();
+        provider.setJsonSerializers(ImmutableMap.of(
+                Slice.class, new SliceSerializer()));
+        provider.withKeyDeserializers(ImmutableMap.of(
+                WarpColumn.class, new WarpColumnJsonKeyDeserializer()));
+        return provider;
     }
 }

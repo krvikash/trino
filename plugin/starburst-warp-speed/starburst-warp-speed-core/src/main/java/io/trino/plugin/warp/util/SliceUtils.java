@@ -242,6 +242,11 @@ public class SliceUtils
         return new String(slice.getBytes(), UTF_8);
     }
 
+    public static Slice deserializeSlice(String string)
+    {
+        return Slices.utf8Slice(string);
+    }
+
     public static class StringPredicateDataFactory
     {
         public StringPredicateData create(Slice value, int weRecLength, boolean crc, Slice orgVal)
