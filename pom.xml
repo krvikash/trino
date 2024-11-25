@@ -73,7 +73,6 @@
         <module>plugin/starburst-stargate-parallel</module>
         <module>plugin/starburst-synapse</module>
         <module>plugin/starburst-warp-speed</module>
-        <module>plugin/trino-apache-ranger</module>
         <module>plugin/trino-base-jdbc</module>
         <module>plugin/trino-bigquery</module>
         <module>plugin/trino-blackhole</module>
@@ -117,6 +116,7 @@
         <module>plugin/trino-pinot</module>
         <module>plugin/trino-postgresql</module>
         <module>plugin/trino-prometheus</module>
+        <module>plugin/trino-ranger</module>
         <module>plugin/trino-redis</module>
         <module>plugin/trino-redshift</module>
         <module>plugin/trino-resource-group-managers</module>
@@ -1062,19 +1062,6 @@
 
             <dependency>
                 <groupId>io.trino</groupId>
-                <artifactId>trino-apache-ranger</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
-                <artifactId>trino-apache-ranger</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
                 <artifactId>trino-array</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1516,6 +1503,19 @@
                 <groupId>io.trino</groupId>
                 <artifactId>trino-product-tests-groups</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-ranger</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-ranger</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
             </dependency>
 
             <dependency>
