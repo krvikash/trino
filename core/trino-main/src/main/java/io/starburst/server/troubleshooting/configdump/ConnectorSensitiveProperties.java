@@ -18,15 +18,6 @@ import java.util.Set;
 public final class ConnectorSensitiveProperties
 {
     public static final Map<String, Set<String>> SENSITIVE_PROPERTIES_PER_CONNECTOR = ImmutableMap.<String, Set<String>>builder()
-            .put("accumulo",
-                    ImmutableSet.of(
-                            "accumulo.password",
-                            "http-client.http-proxy.password",
-                            "http-client.https.automatic-shared-secret",
-                            "http-client.key-store-password",
-                            "http-client.trust-store-password",
-                            "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
             .put("azure_data_explorer",
                     ImmutableSet.of(
                             "adx.azure.active-directory-application.secret-key",
@@ -256,6 +247,25 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password"))
+            .put("faker",
+                    ImmutableSet.of(
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "http-server.authentication.oauth2.client-secret",
+                            "http-server.authentication.oauth2.refresh-tokens.secret-key",
+                            "http-server.https.automatic-shared-secret",
+                            "http-server.https.keymanager.password",
+                            "http-server.https.keystore.key",
+                            "http-server.https.truststore.key",
+                            "internal-communication.https.keystore.key",
+                            "internal-communication.https.truststore.key",
+                            "internal-communication.shared-secret",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
+                            "web-ui.shared-secret"))
             .put("generic_jdbc",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -956,6 +966,17 @@ public final class ConnectorSensitiveProperties
                             "protocol.spooling.shared-secret-key",
                             "ssl.truststore.password",
                             "web-ui.shared-secret"))
+            .put("stargate_parallel",
+                    ImmutableSet.of(
+                            "connection-password",
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "keystore-password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password",
+                            "ssl.truststore.password"))
             .put("synapse",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
