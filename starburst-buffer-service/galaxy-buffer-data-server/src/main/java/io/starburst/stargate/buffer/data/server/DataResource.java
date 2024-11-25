@@ -692,7 +692,7 @@ public class DataResource
     private class InProgressLatch
     {
         private final long currentRequestsCount;
-        private AtomicBoolean decremented = new AtomicBoolean(false);
+        private final AtomicBoolean decremented = new AtomicBoolean(false);
 
         public InProgressLatch(int currentRequestsCount)
         {
