@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.dispatcher;
 
 import com.google.inject.Module;
-import io.trino.plugin.warp.di.EmptyConnectorContext;
 import io.trino.plugin.warp.di.InitializationModule;
+import io.trino.plugin.warp.di.WarpCacheMgrConnectorContext;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
 
@@ -43,7 +43,7 @@ public class DispatcherCacheManagerFactory
         try {
             ClassLoader classLoader = this.getClass().getClassLoader();
             Class<?> moduleClass = classLoader.loadClass(Module.class.getName());
-            EmptyConnectorContext connectorContext = new EmptyConnectorContext();
+            WarpCacheMgrConnectorContext connectorContext = new WarpCacheMgrConnectorContext(context.getNodeManager());
 
             Optional<List<Object>> optionalModuleInstances =
                     optionalModules.map(classes -> classes.stream()

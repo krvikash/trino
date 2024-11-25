@@ -72,16 +72,19 @@ public class WarpExtensionModule
         install(new WarpClientModule());
 
         ImmutableSet.Builder<Class<? extends BooleanSupplier>> booleanSuppliers = ImmutableSet.builder();
-        if (connectorContext.getNodeManager().getCurrentNode().isCoordinator()) {
+        if (WarpBaseModule.isCoordinator(connectorContext)) {
             booleanSuppliers.add(ClusterReadyTaskExecutionIsAllowedSupplier.class);
         }
         else {
             booleanSuppliers.add(WorkerReadyTaskExecutionIsAllowedSupplier.class);
         }
+        ConfigurationFactory configFactory = new ConfigurationFactory(config);
+        CacheManagerConfig cacheManagerConfig = configFactory.build(CacheManagerConfig.class);
         install(
                 new WarpTasksModule(
                         WarpBaseModule.isCoordinator(connectorContext),
                         WarpBaseModule.isWorker(connectorContext, config),
+                        cacheManagerConfig.getIsCache(),
                         booleanSuppliers.build()));
         if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
             configureHttpServer();
@@ -91,9 +94,7 @@ public class WarpExtensionModule
         configBinder(binder).bindConfig(WarpExtensionConfig.class);
         configBinder(binder).bindConfig(CallHomeConfig.class);
 
-        ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        CacheManagerConfig cacheManagerConfig = configFactory.build(CacheManagerConfig.class);
         if (WarpBaseModule.isWorker(connectorContext, config) &&
                 !cacheManagerConfig.getIsCache() &&
                 StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {

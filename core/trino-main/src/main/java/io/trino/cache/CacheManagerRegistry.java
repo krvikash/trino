@@ -26,6 +26,8 @@ import io.trino.memory.context.LocalMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
 import io.trino.metadata.InternalNodeManager;
 import io.trino.plugin.memory.MemoryCacheManagerFactory;
+import io.trino.spi.Node;
+import io.trino.spi.NodeManager;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockEncodingSerde;
 import io.trino.spi.cache.CacheManager;
@@ -41,12 +43,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -187,6 +191,37 @@ public class CacheManagerRegistry
             public boolean isCoordinator()
             {
                 return internalNodeManager.getCurrentNode().isCoordinator();
+            }
+
+            @Override
+            public NodeManager getNodeManager()
+            {
+                return new NodeManager()
+                {
+                    @Override
+                    public Set<Node> getAllNodes()
+                    {
+                        return internalNodeManager.getAllNodes().getActiveNodes().stream().map((node) -> (Node) node).collect(Collectors.toSet());
+                    }
+
+                    @Override
+                    public Set<Node> getWorkerNodes()
+                    {
+                        return this.getAllNodes().stream().filter((node) -> !node.isCoordinator()).collect(Collectors.toSet());
+                    }
+
+                    @Override
+                    public Node getCurrentNode()
+                    {
+                        return internalNodeManager.getCurrentNode();
+                    }
+
+                    @Override
+                    public String getEnvironment()
+                    {
+                        return "";
+                    }
+                };
             }
         };
         CacheManager cacheManager;

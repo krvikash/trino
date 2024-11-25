@@ -32,13 +32,17 @@ public class WarpTasksModule
     private final boolean isCoordinator;
     private final boolean isWorker;
     private final Set<Class<? extends BooleanSupplier>> taskExecutionEnabledSupplierClassSet;
+    private final boolean isCacheMgr;
 
-    public WarpTasksModule(boolean isCoordinator,
+    public WarpTasksModule(
+            boolean isCoordinator,
             boolean isWorker,
+            boolean isCacheMgr,
             Set<Class<? extends BooleanSupplier>> taskExecutionEnabledSupplierClassSet)
     {
         this.isCoordinator = isCoordinator;
         this.isWorker = isWorker;
+        this.isCacheMgr = isCacheMgr;
         this.taskExecutionEnabledSupplierClassSet = taskExecutionEnabledSupplierClassSet;
     }
 
@@ -70,15 +74,30 @@ public class WarpTasksModule
 
     private boolean isTaskAvailable(Class<?> aClass)
     {
-        boolean keep = false;
         if (aClass.getAnnotationsByType(TaskResourceMarker.class).length > 0) {
+            TaskResourceMarker taskResourceMarker = aClass.getAnnotationsByType(TaskResourceMarker.class)[0];
+
+            if (isCacheMgr) {
+                if (!taskResourceMarker.cacheMgr()) {
+                    return false;
+                }
+            }
+            else {
+                if (!taskResourceMarker.connector()) {
+                    return false;
+                }
+            }
+
+            boolean keep = false;
             if (isCoordinator) {
-                keep = aClass.getAnnotationsByType(TaskResourceMarker.class)[0].coordinator();
+                keep = taskResourceMarker.coordinator();
             }
             if (isWorker) {
-                keep = keep || aClass.getAnnotationsByType(TaskResourceMarker.class)[0].worker();
+                keep = keep || taskResourceMarker.worker();
             }
+            return keep;
         }
-        return keep;
+
+        return false;
     }
 }

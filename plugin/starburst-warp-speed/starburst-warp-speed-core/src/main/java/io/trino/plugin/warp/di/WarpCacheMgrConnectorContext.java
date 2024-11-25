@@ -13,37 +13,29 @@
  */
 package io.trino.plugin.warp.di;
 
-import io.trino.spi.Node;
+import io.opentelemetry.api.OpenTelemetry;
 import io.trino.spi.NodeManager;
+import io.trino.spi.connector.ConnectorContext;
 
-import java.util.Set;
-
-public class EmptyNodeManager
-        implements NodeManager
+public class WarpCacheMgrConnectorContext
+        implements ConnectorContext
 {
-    private final EmptyNode node = new EmptyNode();
+    private final NodeManager nodeManager;
 
-    @Override
-    public Set<Node> getAllNodes()
+    public WarpCacheMgrConnectorContext(NodeManager nodeManager)
     {
-        return Set.of(node);
+        this.nodeManager = nodeManager;
     }
 
     @Override
-    public Set<Node> getWorkerNodes()
+    public OpenTelemetry getOpenTelemetry()
     {
-        return Set.of(node);
+        return OpenTelemetry.noop();
     }
 
     @Override
-    public Node getCurrentNode()
+    public NodeManager getNodeManager()
     {
-        return node;
-    }
-
-    @Override
-    public String getEnvironment()
-    {
-        return "";
+        return nodeManager;
     }
 }

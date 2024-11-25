@@ -25,23 +25,16 @@ import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.google.inject.Binder;
-import com.google.inject.Key;
 import com.google.inject.matcher.Matchers;
-import com.google.inject.multibindings.Multibinder;
 import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.jaxrs.JaxrsModule;
-import io.airlift.jaxrs.JaxrsResource;
 import io.airlift.jaxrs.JsonMapper;
-import io.airlift.jaxrs.ParsingExceptionMapper;
-import io.airlift.jaxrs.SmileMapper;
 import io.swagger.v3.jaxrs2.integration.resources.OpenApiResource;
 import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.extension.execution.CorsFilter;
 import io.trino.plugin.warp.extension.execution.WarpExtResource;
 import io.trino.plugin.warp.util.Auditer;
 import io.trino.plugin.warp.util.TrinoExceptionMapper;
-import jakarta.servlet.Servlet;
-import org.glassfish.jersey.servlet.ServletContainer;
 
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
@@ -52,9 +45,8 @@ public class WarpJaxrsModule
     @Override
     public void setup(Binder binder)
     {
-        binder.disableCircularProxies();
+        super.setup(binder);
 
-        binder.bind(Servlet.class).to(Key.get(ServletContainer.class));
         ObjectMapper objectMapper = new ObjectMapper();
         // ignore unknown fields (for backwards compatibility)
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -87,13 +79,14 @@ public class WarpJaxrsModule
         objectMapper.setConfig(newSerializationConfig);
         objectMapper.setConfig(newDeserializationConfig);
 
-        objectMapper.registerModules(new JavaTimeModule(), new Jdk8Module(), new JodaModule(), new ParameterNamesModule(), new GuavaModule());
+        objectMapper.registerModules(
+                new JavaTimeModule(),
+                new Jdk8Module(),
+                new JodaModule(),
+                new ParameterNamesModule(),
+                new GuavaModule());
         JsonMapper mapper = new JsonMapper(objectMapper);
         JaxrsBinder.jaxrsBinder(binder).bindInstance(mapper);
-        JaxrsBinder.jaxrsBinder(binder).bind(SmileMapper.class);
-        JaxrsBinder.jaxrsBinder(binder).bind(ParsingExceptionMapper.class);
-
-        Multibinder.newSetBinder(binder, Object.class, JaxrsResource.class).permitDuplicates();
 
         jaxrsBinder(binder).bind(WarpExtResource.class);
         jaxrsBinder(binder).bind(OpenApiResource.class);

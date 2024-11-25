@@ -34,8 +34,9 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
-import io.trino.plugin.warp.di.EmptyConnectorContext;
 import io.trino.plugin.warp.di.ExtraModule;
+import io.trino.plugin.warp.di.WarpBaseModule;
+import io.trino.plugin.warp.di.WarpCacheMgrConnectorContext;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dictionary.AttachDictionaryService;
@@ -73,8 +74,6 @@ import io.trino.plugin.warp.metrics.MetricsModule;
 import io.trino.plugin.warp.metrics.MetricsTimerTask;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
-import io.trino.plugin.warp.node.WorkerNodeManager;
-import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
@@ -108,17 +107,17 @@ public class DispatcherCacheManagerModule
         implements ExtraModule
 {
     private final String cacheManagerName;
-    private final boolean isCoordinator;
+    private final NodeManager nodeManager;
     private Map<String, String> config;
     private final Optional<Module> storageEngineModule;
 
     public DispatcherCacheManagerModule(String cacheManagerName,
             Map<String, String> config,
             Module storageEngineModule,
-            boolean isCoordinator)
+            NodeManager nodeManager)
     {
         this.cacheManagerName = cacheManagerName;
-        this.isCoordinator = isCoordinator;
+        this.nodeManager = nodeManager;
         withConfig(config);
         this.storageEngineModule = Optional.ofNullable(storageEngineModule);
     }
@@ -130,21 +129,19 @@ public class DispatcherCacheManagerModule
         binder.bind(MetricsManager.class);
         configBinder(binder).bindConfig(MetricsConfig.class);
         binder.bind(WarpInitializedServiceRegistry.class);
-        if (isCoordinator) {
+        WarpCacheMgrConnectorContext context = new WarpCacheMgrConnectorContext(nodeManager);
+        binder.bind(NodeManager.class).toInstance(nodeManager);
+        binder.bind(EventBus.class).asEagerSingleton();
+        configBinder(binder).bindConfig(GlobalConfig.class);
+        if (!WarpBaseModule.isWorker(context, config)) {
             return;
         }
         configBinder(binder).bindConfig(CloudVendorConfig.class, ForWarp.class);
         configBinder(binder).bindConfig(DictionaryConfig.class);
-        configBinder(binder).bindConfig(GlobalConfig.class);
         configBinder(binder).bindConfig(NativeConfig.class);
         configBinder(binder).bindConfig(WarmupDemoterConfig.class);
         configBinder(binder).bindConfig(CacheManagerConfig.class);
 
-        EmptyConnectorContext context = new EmptyConnectorContext();
-
-        binder.bind(NodeManager.class).toInstance(context.getNodeManager());
-
-        binder.bind(EventBus.class).asEagerSingleton();
         // bind block serializers for the purpose of TupleDomain serde
         binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
         jsonBinder(binder).addSerializerBinding(Block.class).to(BlockJsonSerde.Serializer.class);
@@ -191,8 +188,6 @@ public class DispatcherCacheManagerModule
         binder.bind(WarpPageSinkFactory.class);
         binder.bind(WarpProxiedWarmer.class);
         binder.bind(WeGroupWarmer.class);
-        binder.bind(WorkerCapacityManager.class);
-        binder.bind(WorkerNodeManager.class);
         binder.bind(WorkerTaskExecutorService.class);
         bindMetricsServices(binder);
     }

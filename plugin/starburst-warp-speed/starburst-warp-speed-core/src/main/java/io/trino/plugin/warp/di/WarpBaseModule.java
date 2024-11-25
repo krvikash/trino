@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.di;
 
 import com.google.inject.Module;
+import io.trino.spi.cache.CacheManagerContext;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
@@ -46,6 +47,16 @@ public interface WarpBaseModule
     static boolean isSingle(Map<String, String> config)
     {
         return Boolean.parseBoolean(config.getOrDefault(CONFIG_IS_SINGLE, Boolean.FALSE.toString()));
+    }
+
+    static boolean isCoordinator(CacheManagerContext context, Map<String, String> config)
+    {
+        return context.isCoordinator();
+    }
+
+    static boolean isWorker(CacheManagerContext context, Map<String, String> config)
+    {
+        return isSingle(config) || !isCoordinator(context, config);
     }
 
     default boolean shouldInstall()

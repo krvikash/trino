@@ -13,6 +13,7 @@
  */
 package io.trino.spi.cache;
 
+import io.trino.spi.NodeManager;
 import io.trino.spi.block.BlockEncodingSerde;
 
 public interface CacheManagerContext
@@ -31,5 +32,10 @@ public interface CacheManagerContext
     default boolean isCoordinator()
     {
         return false;
+    }
+
+    default NodeManager getNodeManager()
+    {
+        return null;
     }
 }

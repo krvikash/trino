@@ -14,6 +14,7 @@
 package io.trino.plugin.memory;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.spi.NodeManager;
 import io.trino.spi.Plugin;
 import io.trino.spi.block.BlockEncodingSerde;
 import io.trino.spi.block.TestingBlockEncodingSerde;
@@ -45,6 +46,12 @@ public class TestMemoryCachePlugin
                     public BlockEncodingSerde blockEncodingSerde()
                     {
                         return new TestingBlockEncodingSerde();
+                    }
+
+                    @Override
+                    public NodeManager getNodeManager()
+                    {
+                        return null;
                     }
                 });
     }

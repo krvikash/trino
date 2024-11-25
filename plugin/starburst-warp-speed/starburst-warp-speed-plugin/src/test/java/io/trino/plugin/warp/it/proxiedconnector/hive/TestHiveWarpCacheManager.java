@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.it.proxiedconnector.hive;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
@@ -30,6 +31,8 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.CacheMgrWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
+import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
+import io.trino.plugin.warp.extension.execution.warmup.CacheMgrWarmupTask;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
@@ -44,6 +47,7 @@ import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
+import jakarta.ws.rs.HttpMethod;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -52,6 +56,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -85,12 +90,14 @@ public class TestHiveWarpCacheManager
     private static final String tableScanOperatorName = TableScanOperator.class.getSimpleName();
     private static final String loadCachedDataOperatorName = LoadCachedDataOperator.class.getSimpleName();
 
+    private int coordinatorPort;
     private final Path cacheMgrPath;
     private final Path cacheMgrFetcherPath;
 
     public TestHiveWarpCacheManager()
     {
         super(1, "hive_cache");
+
         try {
             cacheMgrPath = Files.createTempDirectory("cache_mgr");
             cacheMgrFetcherPath = Files.createTempDirectory("cache_mgr_fetcher");
@@ -120,18 +127,35 @@ public class TestHiveWarpCacheManager
                 Map.of("cache.enabled", "true"));
 
         String fetcherDelay = new io.airlift.units.Duration(500, TimeUnit.MILLISECONDS).toString();
-        ImmutableMap.Builder<String, String> cacheConfigBuilder = ImmutableMap.builder();
+
         ((DistributedQueryRunner) queryRunner).getServers()
-                .forEach(server -> server.getCacheManagerRegistry(
-                        "warp_cache",
-                        cacheConfigBuilder
-                                .put(GlobalConfig.CONFIG_IS_SINGLE, Boolean.valueOf(numNodes == 1).toString())
-                                .put(GlobalConfig.LOCAL_STORE_PATH, "file://" + cacheMgrPath.toAbsolutePath())
-                                .put(WarmupRuleCloudFetcherConfig.STORE_PATH, "file://%s/rules".formatted(cacheMgrFetcherPath.toAbsolutePath()))
-                                .put(WarmupRuleCloudFetcherConfig.WARMUP_FETCH_DURATION, fetcherDelay)
-                                .put(WarmupRuleCloudFetcherConfig.WARMUP_FETCH_DELAY_DURATION, fetcherDelay)
-                                .put(CacheManagerConfig.CACHE_MANAGER_RULES_ENABLED, Boolean.TRUE.toString())
-                                .buildOrThrow()));
+                .forEach(server -> {
+                    WarpExtensionConfig warpExtensionConfig = new WarpExtensionConfig();
+                    warpExtensionConfig.setUseHttpServerPort(false);
+                    warpExtensionConfig.setUseHttpServerPort(false);
+                    warpExtensionConfig.setRestHttpPort(server.getBaseUrl().getPort() + 3);
+
+                    if (server.isCoordinator()) {
+                        coordinatorPort = warpExtensionConfig.getRestHttpPort();
+                    }
+
+                    ImmutableMap.Builder<String, String> cacheConfigBuilder = ImmutableMap.builder();
+                    server.getCacheManagerRegistry(
+                            "warp_cache",
+                            cacheConfigBuilder
+                                    .put(GlobalConfig.CONFIG_IS_SINGLE, Boolean.valueOf(numNodes == 1).toString())
+                                    .put(GlobalConfig.LOCAL_STORE_PATH, "file://" + cacheMgrPath.toAbsolutePath())
+                                    .put(WarmupRuleCloudFetcherConfig.STORE_PATH, "file://%s/rules".formatted(cacheMgrFetcherPath.toAbsolutePath()))
+                                    .put(WarmupRuleCloudFetcherConfig.WARMUP_FETCH_DURATION, fetcherDelay)
+                                    .put(WarmupRuleCloudFetcherConfig.WARMUP_FETCH_DELAY_DURATION, fetcherDelay)
+                                    .put(CacheManagerConfig.CACHE_MANAGER_RULES_ENABLED, Boolean.TRUE.toString())
+                                    .put(WarpExtensionConfig.ENABLED, Boolean.TRUE.toString())
+                                    .put(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.toString(warpExtensionConfig.isUseHttpServerPort()))
+                                    .put(WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.toString(warpExtensionConfig.isRestHttpDefaultPortEnabled()))
+                                    .put(WarpExtensionConfig.HTTP_REST_PORT, Integer.toString(warpExtensionConfig.getRestHttpPort()))
+                                    .put("node.environment", "warp")
+                                    .buildOrThrow());
+                });
         return queryRunner;
     }
 
@@ -394,6 +418,17 @@ public class TestHiveWarpCacheManager
         }
 
         runWithRetries(() -> assertThat(getFetcherSuccessStats()).isGreaterThan(beforeStats));
+
+        String result = executeRestCommand(
+                CacheMgrWarmupTask.CACHE_MANAGER_WARMUP_PATH,
+                CacheMgrWarmupTask.TASK_NAME_FETCH,
+                null,
+                HttpMethod.GET,
+                coordinatorPort,
+                HttpURLConnection.HTTP_OK,
+                false);
+        Map<String, List<CacheManagerRule>> res = objectMapper.readerFor(new TypeReference<Map<String, List<CacheManagerRule>>>() {}).readValue(result);
+        assertThat(res.isEmpty()).isFalse();
     }
 
     private long getFetcherSuccessStats()

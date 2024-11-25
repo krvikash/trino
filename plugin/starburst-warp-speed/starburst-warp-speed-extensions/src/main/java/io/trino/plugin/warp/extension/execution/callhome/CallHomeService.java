@@ -27,6 +27,7 @@ import io.trino.plugin.warp.extension.config.CallHomeConfig;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.plugin.warp.tools.util.Version;
 import io.trino.spi.HostAddress;
 import io.trino.spi.NodeManager;
@@ -109,7 +110,7 @@ public class CallHomeService
         this.callHomeConfig = requireNonNull(callHomeConfig);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.currentNodeAddress = nodeManager.getCurrentNode().getHostAndPort();
-        this.nodeStorePathPrefix = UriBuilder.fromPath(cloudVendorConfig.getStorePath()).path(catalogNameProvider.get()).path(CALL_HOME_STORE_PATH_PREFIX).path(nodeManager.getCurrentNode().getNodeIdentifier()).build().toString();
+        this.nodeStorePathPrefix = StringUtils.isNotEmpty(cloudVendorConfig.getStorePath()) ? UriBuilder.fromPath(cloudVendorConfig.getStorePath()).path(catalogNameProvider.get()).path(CALL_HOME_STORE_PATH_PREFIX).path(nodeManager.getCurrentNode().getNodeIdentifier()).build().toString() : null;
         eventBus.register(this);
         this.scheduledExecutorService = requireNonNull(scheduledExecutorService);
     }
@@ -118,7 +119,7 @@ public class CallHomeService
     @Subscribe
     public void connectorSyncInitialized(ConnectorSyncInitializedEvent event)
     {
-        if (event.isDefaultCatalog() && callHomeConfig.isEnable() && cloudVendorConfig.getStoreType() != StoreType.LOCAL) {
+        if (event.isDefaultCatalog() && callHomeConfig.isEnable() && cloudVendorConfig.getStoreType() != StoreType.LOCAL && this.nodeStorePathPrefix != null) {
             logger.debug("scheduling call-home every %s seconds", callHomeConfig.getIntervalInSeconds());
             uploadNodeInfo();
             scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(

@@ -23,6 +23,10 @@ import io.trino.plugin.warp.di.CacheManagerModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.di.dispatcher.DispatcherCacheManagerModule;
+import io.trino.plugin.warp.node.CoordinatorInitializedEventHandler;
+import io.trino.plugin.warp.node.CoordinatorNodeManager;
+import io.trino.plugin.warp.node.WorkerNodeManager;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
 import org.weakref.jmx.guice.MBeanModule;
@@ -50,15 +54,26 @@ public class InternalDispatcherCacheManagerFactory
             Module storageEngineModule,
             CacheManagerContext context)
     {
-        List<Module> modules;
-        boolean isCoordinator = context.isCoordinator() && !WarpBaseModule.isSingle(config);
-        modules = new ArrayList<>(asList(
+        boolean isWorker = WarpBaseModule.isWorker(context, config);
+
+        List<Module> modules = new ArrayList<>(asList(
                 new MBeanServerModule(),
                 new MBeanModule(),
                 new CatalogNameModule(cacheManagerName),
-                new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, isCoordinator),
-                new CacheManagerModule(context, isCoordinator)));
-        if (!isCoordinator) {
+                new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, context.getNodeManager()),
+                new CacheManagerModule(context, !isWorker),
+                binder -> {
+                    if (WarpBaseModule.isCoordinator(context, config)) {
+                        binder.bind(CoordinatorNodeManager.class);
+                        binder.bind(CoordinatorInitializedEventHandler.class);
+                    }
+                    if (isWorker) {
+                        binder.bind(WorkerNodeManager.class);
+                        binder.bind(WorkerCapacityManager.class);
+                    }
+                }));
+
+        if (isWorker) {
             optionalWorkerModule.ifPresent(modules::addAll);
         }
 

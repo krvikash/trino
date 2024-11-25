@@ -219,10 +219,30 @@ public abstract class WarpAbstractTestQueryFramework
             throws IOException
     {
         URI baseUrl = sendToWorker ? ((DistributedQueryRunner) this.getQueryRunner()).getServers().getFirst().getBaseUrl() : this.getQueryRunner().getCoordinator().getBaseUrl();
+        return executeRestCommand(prefix,
+                ext,
+                inObj,
+                httpMethod,
+                baseUrl.getPort() + 1,
+                responseCode,
+                sendToWorker);
+    }
+
+    protected String executeRestCommand(
+            String prefix,
+            String ext,
+            Object inObj,
+            String httpMethod,
+            int port,
+            int responseCode,
+            boolean sendToWorker)
+            throws IOException
+    {
+        URI baseUrl = sendToWorker ? ((DistributedQueryRunner) this.getQueryRunner()).getServers().getFirst().getBaseUrl() : this.getQueryRunner().getCoordinator().getBaseUrl();
         prefix = prefix.endsWith("/") ? prefix : prefix + "/";
         prefix = prefix.startsWith("/") ? prefix : "/" + prefix;
 
-        URL url = URI.create(baseUrl.getScheme() + "://" + baseUrl.getHost() + ":" + (baseUrl.getPort() + 1) + prefix + ext).toURL();
+        URL url = URI.create(baseUrl.getScheme() + "://" + baseUrl.getHost() + ":" + port + prefix + ext).toURL();
 
         Request.Builder request;
         if (HttpMethod.GET.equals(httpMethod)) {
