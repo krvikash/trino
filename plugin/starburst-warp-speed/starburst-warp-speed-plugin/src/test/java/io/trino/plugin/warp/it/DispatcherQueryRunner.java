@@ -89,6 +89,7 @@ public class DispatcherQueryRunner
                 .put(FAILURE_GENERATOR_ENABLED, "true")
                 .put("warp-speed.objectstore.warmup.cloud.retries", "0")
                 .put("warp-speed.objectstore.warmup.fetch.delay.duration", "1s")
+                .put("warp-speed.config.pre-alloc-memory-size-mb", "0")
                 .buildOrThrow();
         QueryRunner queryRunner;
         try {

@@ -20,6 +20,7 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorCacheMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherCacheMetadata;
 import io.trino.plugin.warp.dispatcher.DispatcherMetadata;
 import io.trino.plugin.warp.dispatcher.DispatcherMetadataFactory;
@@ -51,6 +52,7 @@ public class CoordinatorDispatcherConnector
 
     @Inject
     public CoordinatorDispatcherConnector(@ForWarp Connector proxiedConnector,
+            GlobalConfig globalConfig,
             DispatcherMetadataFactory dispatcherMetadataFactory,
             DispatcherCacheMetadata dispatcherCacheMetadata,
             DispatcherSplitManager dispatcherSplitManager,
@@ -61,7 +63,7 @@ public class CoordinatorDispatcherConnector
             CoordinatorNodeManager coordinatorNodeManager,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
-        super(proxiedConnector, warpSessionProperties, lifeCycleManager, connectorTaskExecutor);
+        super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor);
         this.dispatcherMetadataFactory = requireNonNull(dispatcherMetadataFactory);
         this.dispatcherCacheMetadata = new ClassLoaderSafeConnectorCacheMetadata(requireNonNull(dispatcherCacheMetadata), getClass().getClassLoader());
         this.dispatcherSplitManager = requireNonNull(dispatcherSplitManager);

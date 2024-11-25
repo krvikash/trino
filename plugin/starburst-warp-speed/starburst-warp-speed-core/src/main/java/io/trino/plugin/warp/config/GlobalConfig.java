@@ -47,6 +47,7 @@ public class GlobalConfig
     private String cardinalityBuckets = "1000,1000000"; // allows applying most selective predicate first when using predicate push-down
     private DataSize collectMemorySize = DataSize.of(65000, DataSize.Unit.KILOBYTE);
     private DataSize matchMemorySize = DataSize.of(1100, DataSize.Unit.KILOBYTE);
+    private long preAllocMemorySize;
     private boolean enableDefaultWarming = true;
     private boolean createIndexInDefaultWarming;
     private boolean dataOnlyWarming;
@@ -489,6 +490,17 @@ public class GlobalConfig
     public void setMatchMemorySize(int matchMemorySizeInKiloBytes)
     {
         this.matchMemorySize = DataSize.of(matchMemorySizeInKiloBytes, DataSize.Unit.KILOBYTE);
+    }
+
+    public long getPreAllocMemorySize()
+    {
+        return preAllocMemorySize;
+    }
+
+    @Config("warp-speed.config.pre-alloc-memory-size-mb")
+    public void setPreAllocMemorySize(int preAllocMemorySizeInMegaBytes)
+    {
+        this.preAllocMemorySize = DataSize.of(preAllocMemorySizeInMegaBytes, DataSize.Unit.MEGABYTE).toBytes();
     }
 
     @Override
