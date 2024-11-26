@@ -52,6 +52,7 @@ import static io.trino.plugin.warp.storage.read.BaseCollectTxService.INVALID_TX_
 
 @Singleton
 public class MatchService
+        implements Matcher
 {
     private static final Logger logger = Logger.get(MatchService.class);
     private final ShapingLogger shapingLogger;

@@ -41,7 +41,7 @@ public class WarpReader
     private final AggregatorArgs aggregatorArgs;
     private final MatcherArgs matcherArgs;
     private final StorageCollectorService storageCollectorService;
-    private final MatchService matchService;
+    private final Matcher matcher;
 
     private final WarpQueryState queryState;
     private AggregatorPageArgs aggregatorPageArgs;
@@ -51,17 +51,17 @@ public class WarpReader
     WarpReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
             StorageCollectorService storageCollectorService,
-            MatchService matchService,
+            Matcher matcher,
             GlobalConfig globalConfig,
             long rowsLimit)
     {
         this.storageCollectorService = requireNonNull(storageCollectorService);
-        this.matchService = requireNonNull(matchService);
+        this.matcher = requireNonNull(matcher);
         this.rowsLimit = rowsLimit;
 
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams, customStatsContext);
         this.aggregatorArgs = storageCollectorService.open(queryArgs);
-        this.matcherArgs = matchService.open(queryArgs, customStatsContext);
+        this.matcherArgs = matcher.open(queryArgs, customStatsContext);
         queryState = new WarpQueryState();
 
         this.shapingLogger = ShapingLogger.getInstance(
@@ -88,7 +88,7 @@ public class WarpReader
     private void checkOffHeapMemoryUsage()
     {
         long totalOffHeapSize = storageCollectorService.getOffHeapMemoryUsage(aggregatorArgs) +
-                matchService.getOffHeapMemoryUsage(matcherArgs);
+                matcher.getOffHeapMemoryUsage(matcherArgs);
 
         if (totalOffHeapSize > LIMIT_OFF_HEAP_MEMORY) {
             shapingLogger.warn("off heap memory exceeded threshold " + totalOffHeapSize);
@@ -105,7 +105,7 @@ public class WarpReader
 
         aggregatorPageArgs = storageCollectorService.openPage(queryArgs, aggregatorArgs, queryState, pageLimit);
         try {
-            matcherPageArgs = matchService.openPage(queryArgs, matcherArgs, aggregatorPageArgs);
+            matcherPageArgs = matcher.openPage(queryArgs, matcherArgs, aggregatorPageArgs);
         }
         catch (Exception e) {
             throw new TrinoException(WARP_MATCH_FAILED, "failed to open match");
@@ -124,7 +124,7 @@ public class WarpReader
         }
 
         // we continue as long as we didn't reach a limit from the match nor prepare
-        while (matchService.match(queryArgs, matcherArgs, matcherPageArgs)) {
+        while (matcher.match(queryArgs, matcherArgs, matcherPageArgs)) {
             if (!storageCollectorService.prepareBlocks(queryArgs,
                     aggregatorArgs,
                     aggregatorPageArgs,
@@ -173,7 +173,7 @@ public class WarpReader
     private long closePage()
     {
         if (matcherPageArgs != null) {
-            matchService.closePage(queryArgs, matcherPageArgs);
+            matcher.closePage(queryArgs, matcherPageArgs);
             matcherPageArgs = null;
         }
 
@@ -194,7 +194,7 @@ public class WarpReader
     private void abortPage(Exception e)
     {
         if (matcherPageArgs != null) {
-            matchService.abortPage(queryArgs, matcherPageArgs, e);
+            matcher.abortPage(queryArgs, matcherPageArgs, e);
             matcherPageArgs = null;
         }
         if (aggregatorPageArgs != null) {
