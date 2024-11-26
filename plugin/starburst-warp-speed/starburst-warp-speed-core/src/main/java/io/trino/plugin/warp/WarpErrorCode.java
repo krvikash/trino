@@ -30,6 +30,7 @@ public enum WarpErrorCode
 
     // Column/Partition
     WARP_COLUMN_UNKNOWN_PARTITION_COLUMN_TYPE(315, EXTERNAL),
+    WARP_FAILED_TO_ADD_COLUMN_TO_BUILDER(316, EXTERNAL),
 
     //    Coordinator/Worker/Nodes
     WARP_CLUSTER_NOT_READY(406, EXTERNAL),

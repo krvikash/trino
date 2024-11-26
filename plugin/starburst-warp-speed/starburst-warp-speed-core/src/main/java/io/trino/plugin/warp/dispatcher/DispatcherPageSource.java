@@ -44,6 +44,7 @@ import java.util.StringJoiner;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_FAILED_TO_ADD_COLUMN_TO_BUILDER;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -258,7 +259,9 @@ public class DispatcherPageSource
         catch (Throwable e) {
             stats.inccached_warp_failed_pages();
             if (!Thread.currentThread().isInterrupted()) {
-                shapingLogger.error(e, "failed to read cache file %s from warp.", rowGroupData.getRowGroupKey());
+                shapingLogger.error(e,
+                        "Failed to read cache file %s from warp. queryContext=%s, rowGroupData=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s",
+                        rowGroupData.getRowGroupKey(), queryContext, rowGroupData, warpWithoutPrefilledAndProxiedCollectTypes);
             }
             readErrorHandler.handle(e, rowGroupData, queryContext);
             throw e;
@@ -612,7 +615,16 @@ public class DispatcherPageSource
         for (int column = 0; column < page.getChannelCount(); column++) {
             Block block = page.getBlock(column).getLoadedBlock();
             BlockBuilder blockBuilder = resultPageBuilder.getBlockBuilder(columnInBuilder);
-            fillBlock(block, blockBuilder, currentRowInPage, currentRowInPage + numberOfRowsToAdd);
+            try {
+                fillBlock(block, blockBuilder, currentRowInPage, currentRowInPage + numberOfRowsToAdd);
+            }
+            catch (Exception e) {
+                throw new TrinoException(
+                        WARP_FAILED_TO_ADD_COLUMN_TO_BUILDER,
+                        format("Failed to add column %d to builder. numberOfRowsToAdd=%d, currentRowInPage=%d, columnInBuilder=%d",
+                                column, numberOfRowsToAdd, currentRowInPage, columnInBuilder),
+                        e);
+            }
             columnInBuilder++;
         }
     }
