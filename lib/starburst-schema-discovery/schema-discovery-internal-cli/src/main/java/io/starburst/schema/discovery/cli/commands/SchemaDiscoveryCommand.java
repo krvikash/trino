@@ -32,7 +32,7 @@ import io.starburst.schema.discovery.request.GenerateOperationsRequest;
 import io.starburst.schema.discovery.request.GenerateOptions;
 import io.starburst.schema.discovery.request.GuessRequest;
 import io.trino.parquet.ParquetReaderOptions;
-import io.trino.plugin.hive.FileFormatDataSourceStats;
+import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.HdfsOrcDataSource;
 import io.trino.plugin.hive.parquet.TrinoParquetDataSource;
 import picocli.CommandLine.ArgGroup;

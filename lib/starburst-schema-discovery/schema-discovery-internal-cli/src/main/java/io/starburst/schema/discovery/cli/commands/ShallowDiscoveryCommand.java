@@ -20,7 +20,7 @@ import io.starburst.schema.discovery.generation.Dialect;
 import io.starburst.schema.discovery.models.DiscoveredSchema;
 import io.starburst.schema.discovery.request.GuessRequest;
 import io.trino.parquet.ParquetReaderOptions;
-import io.trino.plugin.hive.FileFormatDataSourceStats;
+import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.HdfsOrcDataSource;
 import io.trino.plugin.hive.parquet.TrinoParquetDataSource;
 import picocli.CommandLine.Command;

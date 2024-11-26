@@ -29,7 +29,7 @@ import io.trino.filesystem.Location;
 import io.trino.filesystem.local.LocalFileSystem;
 import io.trino.metastore.type.TypeInfo;
 import io.trino.parquet.ParquetReaderOptions;
-import io.trino.plugin.hive.FileFormatDataSourceStats;
+import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.HdfsOrcDataSource;
 import io.trino.plugin.hive.parquet.TrinoParquetDataSource;
 
