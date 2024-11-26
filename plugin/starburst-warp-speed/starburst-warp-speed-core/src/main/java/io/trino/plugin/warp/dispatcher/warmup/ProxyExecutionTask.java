@@ -32,6 +32,7 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowIdGenerator;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
@@ -79,12 +80,13 @@ public class ProxyExecutionTask
             GlobalConfig globalConfig,
             QueryClassifier queryClassifier,
             WarmupElementsCreator warmupElementsCreator,
+            NativeStorageStateHandler nativeStorageStateHandler,
             int iterationCount,
             int executionTaskPriority,
             WorkerTaskExecutorService workerTaskExecutorService,
             StorageWarmerService storageWarmerService)
     {
-        super(warmExecutionTaskFactory, workerTaskExecutorService, warmingServiceStats, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, iterationCount);
+        super(warmExecutionTaskFactory, workerTaskExecutorService, warmingServiceStats, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),

@@ -23,6 +23,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -56,11 +57,13 @@ public class PrioritizeTask
             WorkerTaskExecutorService workerTaskExecutorService,
             int iterationCount,
             WarmingServiceStats statsWarmingService,
-            WarmingManager warmingManager, WarmupElementsCreator warmupElementsCreator,
+            WarmingManager warmingManager,
+            WarmupElementsCreator warmupElementsCreator,
+            NativeStorageStateHandler nativeStorageStateHandler,
             GlobalConfig globalConfig,
             CloudVendorConfig cloudVendorConfig)
     {
-        super(warmExecutionTaskFactory, workerTaskExecutorService, statsWarmingService, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, iterationCount);
+        super(warmExecutionTaskFactory, workerTaskExecutorService, statsWarmingService, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
         this.globalConfig = globalConfig;
         this.cloudVendorConfig = cloudVendorConfig;
     }

@@ -211,6 +211,7 @@ public class WorkerCapacityManager
         File localStore = new File(localStorePath);
 
         if (isEmptyDir(localStore)) {
+            nativeStorageStateHandler.setStorageDisableState(false, false);
             logger.info("cleanLocalStorage exiting since no files found in %s", localStorePath);
             calculateTotalCapacity();
             return;
@@ -224,8 +225,7 @@ public class WorkerCapacityManager
                 StopWatch stopWatch = new StopWatch();
                 stopWatch.start();
 
-                String[] listTmp = localStore.list();
-                boolean cleaned = (listTmp != null) && listTmp.length == 0;
+                boolean cleaned = isEmptyDir(localStore);
 
                 try {
                     if (!cleaned) {
@@ -238,32 +238,16 @@ public class WorkerCapacityManager
                 }
 
                 if (!cleaned) {
-                    cleaned = Failsafe.with(RetryPolicy.builder()
-                                    .withMaxRetries(3)
-                                    .withDelay(Duration.ofSeconds(1))
-                                    .abortIf(o -> (boolean) o)
-                                    .build())
-                            .get(() -> {
-                                try {
-                                    FileUtils.cleanDirectory(localStore);
-                                    return true;
-                                }
-                                catch (FileNotFoundException e) {
-                                    String[] listTmp1 = localStore.list();
-                                    return (listTmp1 != null) && listTmp1.length == 0;
-                                }
-                            });
+                    cleaned = deleteLocalStorageFiles(localStore);
                 }
 
                 stopWatch.stop();
-                if (!cleaned) {
-                    logger.error("cleanLocalStorage job failed to clean localStorePath %s. took %d nano sec",
-                            localStorePath, stopWatch.getNanoTime());
-                }
-
                 logger.info("cleanLocalStorage job finished. took %d nano sec", stopWatch.getNanoTime());
+
                 // in case we hit an error, we leave total capacity as zero and storage state as permanently failed
-                nativeStorageStateHandler.setStorageDisableState(false, false);
+                if (cleaned) {
+                    nativeStorageStateHandler.setStorageDisableState(false, false);
+                }
             }
             finally {
                 calculateTotalCapacity();
@@ -275,25 +259,29 @@ public class WorkerCapacityManager
     public void deleteLocalStorageFiles()
     {
         String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
-        File localStore = new File(localStorePath);
-        try {
-            boolean cleaned = isEmptyDir(localStore);
-            int iterations = 0;
+        deleteLocalStorageFiles(new File(localStorePath));
+    }
 
-            while (!cleaned && (iterations < 3)) {
-                try {
-                    FileUtils.cleanDirectory(new File(localStorePath));
-                    cleaned = true;
-                }
-                catch (FileNotFoundException e) {
-                    cleaned = isEmptyDir(localStore);
-                }
-                iterations++;
-            }
-        }
-        catch (IOException e) {
-            logger.error(e, "deleteLocalStorageFiles failed to clean localStorePath %s", localStorePath);
-        }
+    private boolean deleteLocalStorageFiles(File localStore)
+    {
+        return Failsafe.with(RetryPolicy.builder()
+                        .withMaxRetries(3)
+                        .withDelay(Duration.ofSeconds(1))
+                        .abortIf(o -> (boolean) o)
+                        .build())
+                .get(() -> {
+                    try {
+                        FileUtils.cleanDirectory(localStore);
+                        return true;
+                    }
+                    catch (FileNotFoundException e) {
+                        return isEmptyDir(localStore);
+                    }
+                    catch (IOException e) {
+                        logger.error(e, "deleteLocalStorageFiles failed to clean localStorePath %s", localStore);
+                        return false;
+                    }
+                });
     }
 
     private boolean isEmptyDir(File directory)

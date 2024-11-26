@@ -30,6 +30,7 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -54,6 +55,7 @@ public class WarmExecutionTaskFactory
     private final WarmupElementsCreator warmupElementsCreator;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final StorageWarmerService storageWarmerService;
+    private final NativeStorageStateHandler nativeStorageStateHandler;
     private final CloudVendorConfig cloudVendorConfig;
 
     @Inject
@@ -67,6 +69,7 @@ public class WarmExecutionTaskFactory
             WarmupElementsCreator warmupElementsCreator,
             WorkerTaskExecutorService workerTaskExecutorService,
             StorageWarmerService storageWarmerService,
+            NativeStorageStateHandler nativeStorageStateHandler,
             @ForWarp CloudVendorConfig cloudVendorConfig)
     {
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
@@ -79,6 +82,7 @@ public class WarmExecutionTaskFactory
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
+        this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
     }
 
@@ -113,6 +117,7 @@ public class WarmExecutionTaskFactory
                     statsWarmingService,
                     warmingManager,
                     warmupElementsCreator,
+                    nativeStorageStateHandler,
                     globalConfig,
                     cloudVendorConfig);
             case PROXY -> new ProxyExecutionTask(this,
@@ -133,6 +138,7 @@ public class WarmExecutionTaskFactory
                     globalConfig,
                     queryClassifier,
                     warmupElementsCreator,
+                    nativeStorageStateHandler,
                     iterationCount,
                     executionTaskPriority,
                     workerTaskExecutorService,
@@ -153,6 +159,7 @@ public class WarmExecutionTaskFactory
                     workerTaskExecutorService,
                     warmingManager,
                     warmupElementsCreator,
+                    nativeStorageStateHandler,
                     iterationCount,
                     executionTaskPriority);
             default -> throw new RuntimeException("no task exists");

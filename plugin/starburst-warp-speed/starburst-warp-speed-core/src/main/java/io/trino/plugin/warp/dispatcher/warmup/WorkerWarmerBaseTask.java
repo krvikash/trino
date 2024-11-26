@@ -24,6 +24,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -55,6 +56,7 @@ public abstract class WorkerWarmerBaseTask
     protected final QueryClassifier queryClassifier;
     protected final WorkerTaskExecutorService workerTaskExecutorService;
     protected final WarmupElementsCreator warmupElementsCreator;
+    protected final NativeStorageStateHandler nativeStorageStateHandler;
     protected final int iterationCount;
     protected final UUID id;
     protected Optional<WorkerSubmittableTask> nextTask = Optional.empty();
@@ -75,6 +77,7 @@ public abstract class WorkerWarmerBaseTask
             RowGroupDataService rowGroupDataService,
             QueryClassifier queryClassifier,
             WarmupElementsCreator warmupElementsCreator,
+            NativeStorageStateHandler nativeStorageStateHandler,
             int iterationCount)
     {
         this.warmExecutionTaskFactory = warmExecutionTaskFactory;
@@ -93,6 +96,7 @@ public abstract class WorkerWarmerBaseTask
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.warmingManager = requireNonNull(warmingManager);
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
+        this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.iterationCount = iterationCount;
         this.id = UUID.randomUUID();
     }
@@ -113,10 +117,12 @@ public abstract class WorkerWarmerBaseTask
     public void run()
     {
         try {
-            WarmData dataToWarm = getWarmData();
-            WarmExecutionState warmExecutionState = dataToWarm.warmExecutionState();
-            if (!warmExecutionState.equals(WarmExecutionState.NOTHING_TO_WARM)) {
-                warm(dataToWarm);
+            if (nativeStorageStateHandler.isStorageAvailable()) {
+                WarmData dataToWarm = getWarmData();
+                WarmExecutionState warmExecutionState = dataToWarm.warmExecutionState();
+                if (!warmExecutionState.equals(WarmExecutionState.NOTHING_TO_WARM)) {
+                    warm(dataToWarm);
+                }
             }
         }
         finally {

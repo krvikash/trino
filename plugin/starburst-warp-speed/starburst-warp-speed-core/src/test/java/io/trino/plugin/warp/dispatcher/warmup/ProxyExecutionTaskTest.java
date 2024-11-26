@@ -46,6 +46,7 @@ import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.spi.connector.ColumnHandle;
@@ -98,6 +99,7 @@ public class ProxyExecutionTaskTest
     private QueryClassifier queryClassifier;
     private RowGroupDataService rowGroupDataService;
     private WarmupElementsCreator warmupElementsCreator;
+    private NativeStorageStateHandler nativeStorageStateHandler;
     private SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap;
 
     @BeforeEach
@@ -144,6 +146,8 @@ public class ProxyExecutionTaskTest
                 mock(StorageEngineConstants.class),
                 mock(BufferAllocator.class),
                 new TestingConnectorProxiedConnectorTransformer(), globalConfig);
+        nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
+        when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
     }
 
     @Test
@@ -312,6 +316,7 @@ public class ProxyExecutionTaskTest
                 globalConfig,
                 queryClassifier,
                 warmupElementsCreator,
+                nativeStorageStateHandler,
                 1,
                 0,
                 mock(WorkerTaskExecutorService.class),

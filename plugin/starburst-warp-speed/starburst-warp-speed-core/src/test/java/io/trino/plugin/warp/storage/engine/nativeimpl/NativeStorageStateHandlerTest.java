@@ -49,6 +49,7 @@ public class NativeStorageStateHandlerTest
 
         NativeExceptionThrower nativeExceptionThrower = mock(NativeExceptionThrower.class);
         handler = new NativeStorageStateHandler(nativeConfig, nativeExceptionThrower, new GlobalConfig());
+        handler.setStorageDisableState(false, false);
     }
 
     @Test

@@ -30,8 +30,8 @@ public class NativeStorageStateHandler
     private final NativeConfig nativeConfig;
     private final ShapingLogger shapingLogger;
 
-    boolean storageDisablePermanently;
-    boolean storageDisableTemporarily;
+    boolean storageDisablePermanently = true;
+    boolean storageDisableTemporarily = true;
     long storageTemporaryExceptionTimestamp;
     long storageTemporaryExceptionNumTries;
     long storageTemporaryExceptionExpiryTimestamp;
