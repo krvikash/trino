@@ -160,7 +160,7 @@ public class MatchService
                         queryArgs.numChunksInRange(),
                         matchArgs.weMatchTree(),
                         matchArgs.warmUpElementAtts().address(),
-                        collectOpenResult.matchBmAddr(),
+                        collectOpenResult.matchBitmaps().map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
                         luceneBitmaps.map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
                         queryParams.getMatchCollectId(),
                         queryParams.getMinMatchOffset());

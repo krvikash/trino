@@ -27,7 +27,6 @@ import io.trino.plugin.warp.storage.engine.QueryMemory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
-import io.trino.spi.TrinoException;
 import jakarta.annotation.PreDestroy;
 
 import java.lang.foreign.MemorySegment;
@@ -36,9 +35,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-
-import static com.google.common.base.Preconditions.checkState;
-import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 
 public class CollectTxService
         extends BaseCollectTxService
@@ -72,7 +68,8 @@ public class CollectTxService
             int rowsLimit,
             int numCollectedInPrevRounds,
             StorageCollectorArgs storageCollectorArgs,
-            Optional<StoreRowListResult> storeRowListResult)
+            Optional<StoreRowListResult> storeRowListResult,
+            Optional<List<Integer>> chunksWithStoredBitmaps)
     {
         QueryParams queryParams = queryArgs.queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
@@ -82,12 +79,13 @@ public class CollectTxService
         int queryMemoryId = queryMemory.id();
         SegmentAllocator queryMemoryAllocator = getQueryMemoryAllocator(queryMemory);
 
-        long matchBmAddr = 0;
+        Optional<MemorySegment> matchBitmaps = Optional.empty();
         if (queryParams.getNumMatchElements() > 0) {
             final long alignment = 32; // this is the alignment required for intel optimized bitmap operations
             final long allocSize = (long) storageEngineConstants.getPageSize() * (long) storageEngineConstants.getMaxChunksInRange();
-            matchBmAddr = queryMemoryAllocator.allocate(allocSize, alignment).address();
+            matchBitmaps = Optional.of(queryMemoryAllocator.allocate(allocSize, alignment));
 
+            // if there are no match elements we are lazy collecting and do not need to allocate all the buffers per element
             if (numCollectElements > 0) {
                 allocCollectBuffers(collectParamsList,
                         queryMemoryAllocator,
@@ -115,47 +113,39 @@ public class CollectTxService
                     });
         }
 
-        collectOpen(queryArgs.queryParams(),
-                queryArgs.txArgs(),
-                queryMemoryId,
-                numCollectElements,
-                queryArgs.numChunksInRange(),
-                storageCollectorArgs.warmUpElementAtts().address(),
-                matchBmAddr,
-                storageCollectorArgs.recordBufferStates().address(),
-                storageCollectorArgs.recordIndexes().getAddress(),
-                queryArgs.matchCollectMetadata().map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
-                queryArgs.dispatcherPageSourceStats());
-
-        int restoredChunkIndex = -1;
-        if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {
+        if (storeRowListResult.isPresent()) {
             // restore row list
-            checkState(storeRowListResult.isPresent(), "Restore needed but store data doesn't exists");
             rangeFillerService.restoreRowList(rangeData.getRecordIndexes(), storeRowListResult.get(), storageCollectorArgs.storeRowListBuff());
 
             // restore match collect metadata
             queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
                     MemorySegment.copy(MemorySegment.ofArray(s), 0, queryArgs.matchCollectMetadata().get(), 0, s.length));
 
-            // get chunk index to restore
-            restoredChunkIndex = queryArgs.chunksQueue().getCurrent();
-
-            // restore and throw if failed
-            long startTime = System.nanoTime();
-            long result = storageEngine.collectRestoreState(queryMemoryId, restoredChunkIndex, storageCollectorArgs.storageCollectorCallBack());
-            queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
-            if (result < 0) {
-                throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
-                        String.format("failed to restore collect state restoredChunkIndex %d numChunks %d",
-                        restoredChunkIndex,
-                        queryArgs.numChunks()));
-            }
+            // restore bitmaps
+            final MemorySegment bitmaps = matchBitmaps.orElse(null);
+            chunksWithStoredBitmaps.ifPresent(chunks -> {
+                final int pageSize = storageEngineConstants.getPageSize();
+                for (Integer chunkIx : chunks) {
+                    final int offsetInBuff = calcMatchBitmapOffset(chunkIx, queryArgs.numChunksInRange(), pageSize);
+                    MemorySegment.copy(MemorySegment.ofArray(queryArgs.txArgs().collectStoreBuff()), offsetInBuff, bitmaps, offsetInBuff, pageSize);
+                }
+            });
         }
 
-        logger.debug("collectOpen queryMemoryId %d rowsLimit %d numChunks %d numCollectElements %d restoredChunkIndex %d",
-                queryMemoryId, rowsLimit, queryArgs.numChunks(), queryParams.getNumCollectElements(), restoredChunkIndex);
+        collectOpen(queryArgs.queryParams(),
+                queryArgs.txArgs(),
+                queryMemoryId,
+                numCollectElements,
+                queryArgs.numChunksInRange(),
+                storeRowListResult.isPresent() ? queryArgs.chunksQueue().getCurrent() : -1,
+                storageCollectorArgs.warmUpElementAtts().address(),
+                matchBitmaps.map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
+                storageCollectorArgs.recordBufferStates().address(),
+                storageCollectorArgs.recordIndexes().getAddress(),
+                queryArgs.matchCollectMetadata().map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
+                queryArgs.dispatcherPageSourceStats());
         return new CollectOpenResult(queryMemoryId,
-                matchBmAddr,
+                matchBitmaps,
                 rowsLimit,
                 numCollectedInPrevRounds,
                 queryMemoryAllocator,
@@ -167,33 +157,36 @@ public class CollectTxService
             CollectOpenResult collectOpenResult,
             StorageCollectorArgs storageCollectorArgs)
     {
-        Optional<StoreRowListResult> storeRowListResult = Optional.empty();
         // idiom potent case
         if (collectOpenResult == null) {
-            return new CollectCloseResult(storeRowListResult, 0);
+            return new CollectCloseResult(Optional.empty(), Optional.empty(), 0);
         }
 
-        Optional<int[]> chunksWithBitmapsToStoreOpt = Optional.empty();
-        if (chunksQueueService.storeRestoreRequired(queryArgs.chunksQueue())) {
+        Optional<StoreRowListResult> storeRowListResult = Optional.empty();
+        Optional<List<Integer>> chunksWithBitmapsToStore = Optional.empty();
+        if (!chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue())) {
             // store row list
-            chunksWithBitmapsToStoreOpt = queryArgs.chunksQueue().getChunkIndexesWithBitmap();
             storeRowListResult = Optional.of(rangeFillerService.storeRowList(queryArgs, storageCollectorArgs, collectOpenResult.rangeData()));
 
             // store match collect metadata
             queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
                     MemorySegment.copy(queryArgs.matchCollectMetadata().get(), 0, MemorySegment.ofArray(s), 0, s.length));
+
+            // store bitmaps
+            chunksWithBitmapsToStore = queryArgs.chunksQueue().getChunkIndexesWithBitmap();
+            chunksWithBitmapsToStore.ifPresent(chunks -> {
+                final int pageSize = storageEngineConstants.getPageSize();
+                MemorySegment matchBitmaps = collectOpenResult.matchBitmaps().get();
+                for (Integer chunkIx : chunks) {
+                    final int offsetInBuff = calcMatchBitmapOffset(chunkIx, queryArgs.numChunksInRange(), pageSize);
+                    MemorySegment.copy(matchBitmaps, offsetInBuff, MemorySegment.ofArray(queryArgs.txArgs().collectStoreBuff()), offsetInBuff, pageSize);
+                }
+            });
         }
 
-        // close and store if needed
-        int[] chunksWithBitmaps = chunksWithBitmapsToStoreOpt.orElse(null);
-        int numChunksWithBitmap = (chunksWithBitmaps != null) ? chunksWithBitmaps.length : 0;
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
         long startTime = System.nanoTime();
-        storageEngine.collectClose(collectOpenResult.queryMemoryId(),
-                chunksWithBitmaps,
-                numChunksWithBitmap,
-                storageCollectorArgs.storageCollectorCallBack(),
-                collectStats);
+        storageEngine.collectClose(collectOpenResult.queryMemoryId(), collectStats);
         queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
 
         int totalReadPages = 0;
@@ -223,7 +216,13 @@ public class CollectTxService
         nativeStats.addread_time_wait_nanos(collectStats[CollectStats.COLLECT_STATS_READ_TIME_WAIT_NANOS.ordinal()]);
 
         freeQueryMemory(collectOpenResult.queryMemoryId());
-        return new CollectCloseResult(storeRowListResult, totalReadPages);
+        return new CollectCloseResult(storeRowListResult, chunksWithBitmapsToStore, totalReadPages);
+    }
+
+    // we assume that numChunksInRange is a power of 2
+    private int calcMatchBitmapOffset(int chunkIx, int numChunksInRange, int pageSize)
+    {
+        return (chunkIx & (numChunksInRange - 1)) * pageSize;
     }
 
     void collectAbort(CollectOpenResult collectOpenResult, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)

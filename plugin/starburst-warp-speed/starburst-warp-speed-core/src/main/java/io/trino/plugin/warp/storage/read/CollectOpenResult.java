@@ -13,11 +13,13 @@
  */
 package io.trino.plugin.warp.storage.read;
 
+import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.util.List;
+import java.util.Optional;
 
 public record CollectOpenResult(int queryMemoryId,
-                         long matchBmAddr,
+                         Optional<MemorySegment> matchBitmaps,
                          int rowsLimit,
                          int numCollectedInPreviousRounds,
                          SegmentAllocator queryMemoryAllocator,

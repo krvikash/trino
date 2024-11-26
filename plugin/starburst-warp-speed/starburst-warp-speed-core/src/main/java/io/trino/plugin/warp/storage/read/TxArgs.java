@@ -13,12 +13,9 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import java.lang.foreign.MemorySegment;
-
 public record TxArgs(
         int[] weCollectParams,
         long[][] collectBuffers,
-        MemorySegment collectStateBuff,
         byte[] collectStoreBuff,
         long[] fileCookie)
 {

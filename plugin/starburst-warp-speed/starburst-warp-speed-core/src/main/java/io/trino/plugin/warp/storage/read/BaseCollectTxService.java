@@ -83,6 +83,7 @@ public abstract class BaseCollectTxService
             int collectTxId,
             int numCollectElements,
             int numChunksInRange,
+            int reopenChunkIndex,
             long warmUpElementAttsAddr,
             long matchBmAddr,
             long recordBufferStatesAddr,
@@ -97,6 +98,7 @@ public abstract class BaseCollectTxService
                 txArgs.collectStoreBuff(),
                 numCollectElements,
                 numChunksInRange,
+                reopenChunkIndex,
                 txArgs.weCollectParams(),
                 warmUpElementAttsAddr,
                 queryParams.getCatalogContext(),
@@ -105,7 +107,6 @@ public abstract class BaseCollectTxService
                 recordBufferStatesAddr,
                 recordIndexesAddr,
                 matchCollectMetadataAddress,
-                txArgs.collectStateBuff().address(),
                 txArgs.collectBuffers());
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
     }
@@ -164,7 +165,7 @@ public abstract class BaseCollectTxService
             }
             if (!nativeThrowed) {
                 long startTime = System.nanoTime();
-                storageEngine.collectClose(collectTxId, null, 0, null, null);
+                storageEngine.collectClose(collectTxId, null);
                 dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
             }
         }

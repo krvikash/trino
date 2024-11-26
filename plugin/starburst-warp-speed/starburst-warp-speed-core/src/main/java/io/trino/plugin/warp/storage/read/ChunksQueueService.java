@@ -50,11 +50,6 @@ public class ChunksQueueService
         return chunksQueue.isEmpty();
     }
 
-    boolean storeRestoreRequired(ChunksQueue chunksQueue)
-    {
-        return !isChunkRangeCompleted(chunksQueue);
-    }
-
     boolean isCompletelyFinished(ChunksQueue chunksQueue, int numChunks)
     {
         return isChunkRangeCompleted(chunksQueue) && (chunksQueue.getTotalNumChunks() >= numChunks);

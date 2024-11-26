@@ -150,8 +150,7 @@ public class StorageCollectorService
     public CollectOpenResult open(QueryArgs queryArgs,
             StorageCollectorArgs storageCollectorArgs,
             WarpQueryState queryState,
-            int rowsLimit,
-            Optional<StoreRowListResult> storeRowListResult)
+            int rowsLimit)
     {
         bufferAllocator.readerOnAllocBundle();
         queryState.resetNumRecordsInCurPage();
@@ -159,7 +158,8 @@ public class StorageCollectorService
                 rowsLimit,
                 queryState.getTotalNumReadRecords(),
                 storageCollectorArgs,
-                storeRowListResult);
+                queryState.getStoreRowListResult(),
+                queryState.getChunksWithStoredBitmaps());
     }
 
     void prepareChunk(QueryArgs queryArgs, CollectOpenResult collectOpenResult, int numCollectedRows, MemorySegment outQueryResultTypes)
@@ -413,15 +413,13 @@ public class StorageCollectorService
             collectBuffers[collectIx] = bufferAllocator.getCollectBuffersArray();
         }
 
-        byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];
-        MemorySegment collectStateBuff = Arena.ofAuto().allocate(collectStoreBuff.length, ValueLayout.JAVA_INT.byteSize());
+        byte[] collectStoreBuff = new byte[storageEngineConstants.getPageSize() * storageEngineConstants.getMaxChunksInRange()];
         // file is opened at init
         long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
 
         return new TxArgs(
                 weCollectParams,
                 collectBuffers,
-                collectStateBuff,
                 collectStoreBuff,
                 fileCookieParams);
     }
@@ -429,7 +427,6 @@ public class StorageCollectorService
     StorageCollectorArgs getStorageCollectorArgs(QueryArgs queryArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
-        StorageCollectorCallBack storageCollectorCallBack = new StorageCollectorCallBack(queryArgs.txArgs());
 
         ArrayList<BlockFiller<?>> blockFillers = new ArrayList<>(queryParams.getNumCollectElements());
         for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
@@ -456,9 +453,7 @@ public class StorageCollectorService
         SequenceLayout warmUpElementAttsLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
 
-        return new StorageCollectorArgs(
-                storageCollectorCallBack,
-                blockFillers,
+        return new StorageCollectorArgs(blockFillers,
                 collectJuffersWE,
                 storeRowListBuff,
                 arena.allocate(recordBufferStatesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
@@ -494,16 +489,20 @@ public class StorageCollectorService
         return rangeFillerService.collectRanges(collectOpenResult.rangeData(), collectOpenResult.rowsLimit());
     }
 
-    public CollectCloseResult close(QueryArgs queryArgs,
+    public long close(QueryArgs queryArgs,
             CollectOpenResult collectOpenResult,
-            StorageCollectorArgs storageCollectorArgs)
+            StorageCollectorArgs storageCollectorArgs,
+            WarpQueryState queryState)
     {
         CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(queryArgs,
                 collectOpenResult,
                 storageCollectorArgs);
 
+        queryState.setStoreRowListResult(collectCloseResult.storeRowListResult());
+        queryState.setChunksWithStoredBitmaps(collectCloseResult.chunksWithStoredBitmaps());
+
         bufferAllocator.readerOnFreeBundle();
-        return collectCloseResult;
+        return collectCloseResult.readPages();
     }
 
     public void abort(CollectOpenResult collectOpenResult, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)

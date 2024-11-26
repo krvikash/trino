@@ -24,7 +24,6 @@ import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
-import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
@@ -431,13 +430,9 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native long queryGetCollectStateSize(int numMatchCollect);
-
-    @Override
-    public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
-            int numCollectWes, int numChunksInRange, int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long stateAddress,
-            long[][] collectBuffers);
+    public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
+            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers);
 
     @Override
     public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, long matchCollectMetadataAddresss,
@@ -445,7 +440,7 @@ public class NativeStorageEngine
             int matchCollectId, int minOffset);
 
     @Override
-    public native long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj);
+    public native long collectRestoreState(int txId, int chunkIndex);
 
     @Override
     public native long matchAgg(int txId, int startChunkIndex);
@@ -487,7 +482,7 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native void collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj, long[] outCollectStats);
+    public native void collectClose(int txId, long[] outCollectStats);
 
     @Override
     public native void matchClose(int txId);

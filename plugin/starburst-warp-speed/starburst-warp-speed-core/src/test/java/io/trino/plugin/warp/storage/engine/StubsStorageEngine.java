@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.storage.engine;
 
 import io.trino.plugin.warp.storage.juffers.ChunkHeader;
-import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 import io.trino.plugin.warp.storage.write.WarmUpState;
 
 import java.lang.foreign.MemorySegment;
@@ -147,16 +146,9 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long queryGetCollectStateSize(int numMatchCollect)
-    {
-        return 0;
-    }
-
-    @Override
-    public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
-            int numCollectWes, int numChunksInRange, int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long stateAddress,
-            long[][] collectBuffers)
+    public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
+            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
     {
     }
 
@@ -169,7 +161,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj)
+    public long collectRestoreState(int txId, int chunkIndex)
     {
         return 0;
     }
@@ -218,7 +210,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj, long[] outCollectStats)
+    public void collectClose(int txId, long[] outCollectStats)
     {
     }
 

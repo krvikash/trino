@@ -67,6 +67,7 @@ public class LazyCollectTxService
                 queryMemoryId,
                 1,
                 lazyCollectorLoaderArgs.numChunksInRange(),
+                -1, // invalid reopen chunk index
                 lazyCollectorLoaderArgs.warmUpElementAtt().address(),
                 0,
                 lazyCollectorLoaderArgs.recordBufferStates().address(),
@@ -83,7 +84,7 @@ public class LazyCollectTxService
     {
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
         long startTime = System.nanoTime();
-        storageEngine.collectClose(queryMemoryId, null, 0, null, collectStats);
+        storageEngine.collectClose(queryMemoryId, collectStats);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
 
         nativeStats.addread_cache_md_chunk_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_HITS.ordinal()]);

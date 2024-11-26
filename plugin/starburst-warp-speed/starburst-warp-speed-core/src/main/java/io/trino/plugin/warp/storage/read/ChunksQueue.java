@@ -70,7 +70,7 @@ class ChunksQueue
         return chunksToCollect.getFirst().bitmapResetPoint();
     }
 
-    Optional<int[]> getChunkIndexesWithBitmap()
+    Optional<List<Integer>> getChunkIndexesWithBitmap()
     {
         if (isEmpty()) {
             return Optional.empty();
@@ -84,7 +84,7 @@ class ChunksQueue
                 chunksRemaining.add(matchChunkResult.chunkIndex());
             }
         }
-        return !chunksRemaining.isEmpty() ? Optional.of(chunksRemaining.stream().mapToInt(x -> x).toArray()) : Optional.empty();
+        return !chunksRemaining.isEmpty() ? Optional.of(chunksRemaining) : Optional.empty();
     }
 
     // get total number of chunks

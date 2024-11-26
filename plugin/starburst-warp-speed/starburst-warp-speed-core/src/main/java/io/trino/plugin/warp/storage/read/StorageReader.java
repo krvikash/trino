@@ -21,8 +21,6 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 
-import java.util.Optional;
-
 import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static java.util.Objects.requireNonNull;
@@ -46,7 +44,6 @@ public class StorageReader
     private final MatchService matchService;
 
     private final WarpQueryState queryState;
-    private Optional<StoreRowListResult> storeRowListResult;
     private CollectOpenResult collectOpenResult;
     private MatchOpenResult matchOpenResult;
     private final long rowsLimit;
@@ -64,7 +61,6 @@ public class StorageReader
 
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams, customStatsContext);
         this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryArgs);
-        this.storeRowListResult = Optional.empty();
         storageCollectorService.init(queryArgs);
         this.matchArgs = matchService.init(queryArgs, customStatsContext);
         queryState = new WarpQueryState();
@@ -93,8 +89,7 @@ public class StorageReader
     private void checkOffHeapMemoryUsage()
     {
         if ((queryArgs != null) && (storageCollectorArgs != null) && (matchArgs != null)) {
-            long totalOffHeapSize = queryArgs.txArgs().collectStateBuff().byteSize() +
-                    storageCollectorArgs.recordBufferStates().byteSize() +
+            long totalOffHeapSize = storageCollectorArgs.recordBufferStates().byteSize() +
                     storageCollectorArgs.recordIndexes().byteSize() +
                     storageCollectorArgs.queryResultTypes().byteSize() +
                     storageCollectorArgs.prepareQueryResultTypes().byteSize() +
@@ -113,7 +108,7 @@ public class StorageReader
     private void queryOpen()
     {
         int pageLimit = (int) Math.min(rowsLimit - queryState.getTotalNumReadRecords(), Integer.MAX_VALUE);
-        collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, queryState, pageLimit, storeRowListResult);
+        collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, queryState, pageLimit);
         try {
             matchOpenResult = matchService.open(queryArgs, matchArgs, collectOpenResult);
         }
@@ -192,12 +187,13 @@ public class StorageReader
         }
 
         queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
-        CollectCloseResult collectCloseResult = storageCollectorService.close(queryArgs,
+        long readPages = storageCollectorService.close(queryArgs,
                 collectOpenResult,
-                storageCollectorArgs);
+                storageCollectorArgs,
+                queryState);
+
         collectOpenResult = null;
-        storeRowListResult = collectCloseResult.storeRowListResult();
-        return collectCloseResult.readPages();
+        return readPages;
     }
 
     private void queryAbort(Exception e)

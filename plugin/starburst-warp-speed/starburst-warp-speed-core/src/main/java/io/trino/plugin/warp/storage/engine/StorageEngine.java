@@ -13,8 +13,6 @@
  */
 package io.trino.plugin.warp.storage.engine;
 
-import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
-
 import java.lang.foreign.MemorySegment;
 
 /**
@@ -122,11 +120,6 @@ public interface StorageEngine
     }
 
     //----------------------- query ----------------------------------------
-    default long queryGetCollectStateSize(int numMatchCollect)
-    {
-        throw new UnsupportedOperationException();
-    }
-
     /**
      * open a collect transaction
      *
@@ -139,10 +132,9 @@ public interface StorageEngine
      * @param catalogContext - connector context used for callbacks handles
      * @param collectBuffers - buffer for data and nulls per warm up element
      */
-    default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff,
-            int numCollectWes, int numChunksInRange, int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long stateAddress,
-            long[][] collectBuffers)
+    default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
+            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
+            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
     {
         throw new UnsupportedOperationException();
     }
@@ -159,11 +151,10 @@ public interface StorageEngine
      *
      * @param txId - transaction id
      * @param chunkIndex - chunk index to collect from
-     * @param collectStateObj - collect object to retreive store/restore state mehtod ids
      *
      * @return 0 for success, -1 for failure
      */
-    default long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj)
+    default long collectRestoreState(int txId, int chunkIndex)
     {
         throw new UnsupportedOperationException();
     }
@@ -272,7 +263,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj, long[] outCollectStats)
+    default void collectClose(int txId, long[] outCollectStats)
     {
         throw new UnsupportedOperationException();
     }
