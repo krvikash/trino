@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
@@ -30,7 +29,6 @@ import io.trino.plugin.warp.execution.debugtools.FileFilter;
 import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupPredicateRule;
@@ -90,13 +88,11 @@ class WarpConnectorDeleteServiceTest
         rowGroupDataService = mock(RowGroupDataService.class);
         WarmupDemoterConfig warmupDemoterConfig = new WarmupDemoterConfig();
         warmupDemoterConfig.setEnableDemote(true);
-        MetricsManager metricsManager = TestingTxService.createMetricsManager();
         warpConnectorDeleteService = spy(new WarpConnectorDeleteService(rowGroupDataService,
-                                                                        mock(WorkerCapacityManager.class),
                                                                         warmupDemoterConfig,
-                                                                        metricsManager,
                                                                         new NativeConfig(),
-                                                                        warmupRuleProvider));
+                                                                        warmupRuleProvider,
+                                                                        mock(WorkerCapacityManager.class)));
         int defaultBatchSize = 2;
         int defaultEpsilon = 1;
         double defaultMaxThreshold = 95;
@@ -494,7 +490,7 @@ class WarpConnectorDeleteServiceTest
                 .toList();
     }
 
-    private RowGroupData buildRowGroupData(String schemaName, String tableName, List<WarmUpElement> warmUpElements, Map<WarpColumn, String> hivePartitionKeys, int fileIndex, boolean isEmpty)
+    public static RowGroupData buildRowGroupData(String schemaName, String tableName, List<WarmUpElement> warmUpElements, Map<WarpColumn, String> hivePartitionKeys, int fileIndex, boolean isEmpty)
     {
         return RowGroupData.builder()
                 .rowGroupKey(new RowGroupKey(schemaName, tableName, DEFAULT_FILE_PATH + "_" + fileIndex, 0, 1L, 0, "", ""))

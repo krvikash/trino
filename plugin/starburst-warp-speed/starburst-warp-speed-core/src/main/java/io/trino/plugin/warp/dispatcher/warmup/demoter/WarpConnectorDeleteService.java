@@ -18,6 +18,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
@@ -33,24 +34,20 @@ import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
-import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
-import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
@@ -60,42 +57,36 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NA_TTL;
-import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
+import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NO_EXPIRY;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
 
+@Singleton
 public class WarpConnectorDeleteService
         implements WarpDeleteService
 {
     private static final Logger logger = Logger.get(WarpConnectorDeleteService.class);
     private final RowGroupDataService rowGroupDataService;
-    private final WorkerCapacityManager workerCapacityManager;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final WarmupProperties defaultWarmupProperties;
-    private final WarmupDemoterStats globalStatsDemoter;
     private final WarmupRuleProvider warmupRuleProvider;
     private final ExecutorService rowGroupExecutorService;
-
-    private final AtomicInteger numActiveWarmingTasks;
+    private final WorkerCapacityManager workerCapacityManager;
 
     @Inject
-    public WarpConnectorDeleteService(RowGroupDataService rowGroupDataService, WorkerCapacityManager workerCapacityManager, WarmupDemoterConfig warmupDemoterConfig, MetricsManager metricsManager, NativeConfig nativeConfig, WarmupRuleProvider warmupRuleProvider)
+    public WarpConnectorDeleteService(RowGroupDataService rowGroupDataService, WarmupDemoterConfig warmupDemoterConfig, NativeConfig nativeConfig, WarmupRuleProvider warmupRuleProvider, WorkerCapacityManager workerCapacityManager)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.workerCapacityManager = requireNonNull(workerCapacityManager);
-        this.defaultWarmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfig.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE);
-        this.warmupDemoterConfig = warmupDemoterConfig;
-        this.globalStatsDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
+        this.defaultWarmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfig.getDefaultRulePriority(), NO_EXPIRY, TransformFunction.NONE);
+        this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.warmupRuleProvider = requireNonNull(warmupRuleProvider);
-        this.numActiveWarmingTasks = new AtomicInteger();
+        this.workerCapacityManager = requireNonNull(workerCapacityManager);
         int rowGroupPoolSize = nativeConfig.getTaskMaxWorkerThreads();
         int rowGroupQueueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
         this.rowGroupExecutorService = new ThreadPoolExecutor(0, rowGroupPoolSize,
@@ -176,50 +167,9 @@ public class WarpConnectorDeleteService
                                                                             WarmUpElement warmUpElement,
                                                                             List<WarmupRule> rulesForWarmupElement)
     {
-        Optional<WarmupRule> optionalWarmupRule = findMostRelevantRuleForWarmupElement(rowGroupData, warmUpElement, rulesForWarmupElement);
+        Optional<WarmupRule> optionalWarmupRule = WarmupRuleService.findMostRelevantRuleForWarmupElement(rowGroupData, warmUpElement, rulesForWarmupElement);
         return optionalWarmupRule.map(warmupRule -> new WarmupProperties(warmupRule.getWarmUpType(), warmupRule.getPriority(), warmupRule.getTtl(), TransformFunction.NONE))
                 .orElse(defaultWarmupProperties);
-    }
-
-    private boolean isDeleteImmediatelyObject(TupleRank tupleRank, Instant currentTime, List<TupleFilter> tupleFilters)
-    {
-        return CollectionUtils.isNotEmpty(tupleFilters) || // since tuppleRanks were already filtered by tupleFilters
-                ((tupleRank.warmupProperties().ttl() > NA_TTL) &&
-                        (tupleRank.warmupProperties().ttl() == 0 ||
-                                currentTime.isAfter(Instant.ofEpochMilli(tupleRank.warmUpElement().getLastUsedTimestamp())
-                                                            .plus(tupleRank.warmupProperties().ttl(), ChronoUnit.SECONDS))));
-    }
-
-    @Override
-    public Optional<WarmupRule> findMostRelevantRuleForWarmupElement(RowGroupData rowGroupData,
-                                                                     WarmUpElement warmUpElement,
-                                                                     List<WarmupRule> rulesForWarmupElement)
-    {
-        Map<RegularColumn, String> partitionKeys = rowGroupData
-                .getPartitionKeys()
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(entry -> (RegularColumn) entry.getKey(),
-                                          Map.Entry::getValue));
-        return Objects.nonNull(rulesForWarmupElement) ?
-                rulesForWarmupElement.stream()
-                        .filter(warmupRule -> warmUpElement.getWarmUpType() == warmupRule.getWarmUpType())
-                        .filter(warmupRule -> (CollectionUtils.isEmpty(warmupRule.getPredicates()) ||
-                                warmupRule.getPredicates().stream().allMatch(warmupPredicateRule -> warmupPredicateRule.test(partitionKeys)))).max(WorkerWarmingService.warmupRuleComparator)
-//                        .max(Comparator.comparing(WarmupRule::getPriority))
-                : Optional.empty();
-    }
-
-    public synchronized void tryAllocateTx()
-    {
-        workerCapacityManager.updateCurrentUsage();
-        workerCapacityManager.setExecutingTx(numActiveWarmingTasks.get());
-    }
-
-    public void releaseTx()
-    {
-        workerCapacityManager.decreaseExecutingTx();
-        globalStatsDemoter.addreserved_tx(-1);
     }
 
     private List<WarmupRule> findExistingWarmupElementRules(RowGroupKey rowGroupKey,
@@ -243,10 +193,10 @@ public class WarpConnectorDeleteService
     }
 
     @Override
-    public long delete(List<TupleRank> tuppleRankList, DemoteContext demoteContext, boolean deleteEmptyRowGroups)
+    public long delete(List<TupleRank> tupleRankList, DemoteContext demoteContext, boolean deleteEmptyRowGroups)
             throws ExecutionException, InterruptedException
     {
-        Map<RowGroupKey, List<TupleRank>> rowGroupDataWarmUpElementMap = tuppleRankList.stream()
+        Map<RowGroupKey, List<TupleRank>> rowGroupDataWarmUpElementMap = tupleRankList.stream()
                 .filter(tr -> !demoteContext.getFailedRowGropDataSet().contains(tr.rowGroupKey()))
                 .collect(groupingBy(TupleRank::rowGroupKey, mapping(Function.identity(), Collectors.toList())));
         List<RowGroupKey> rowGroupDataList = List.copyOf(rowGroupDataWarmUpElementMap.keySet());
@@ -313,7 +263,7 @@ public class WarpConnectorDeleteService
                         .handle(TrinoException.class)
                         .withMaxRetries(warmupDemoterConfig.getMaxRetriesAcquireThread()).handle(RuntimeException.class).build();
                 Failsafe.with(retryPolicy).run(() -> {
-                    tryAllocateTx();
+                    workerCapacityManager.tryAllocateResourcesForWarmupTask();
                     if (!coolRowGroupData(rowGroupData, elementsToDelete, demoteContext)) {
                         delete.set(false);
                     }
@@ -345,7 +295,7 @@ public class WarpConnectorDeleteService
             success = false;
         }
         finally {
-            releaseTx();
+            workerCapacityManager.decreaseExecutingTx();
         }
         return success;
     }
@@ -381,20 +331,5 @@ public class WarpConnectorDeleteService
                 rowGroupData.getLock().writeUnlock();
             }
         }
-    }
-
-    public int getNumActiveWarmingTasks()
-    {
-        return numActiveWarmingTasks.get();
-    }
-
-    public void incremenetActiveWarmingTasks()
-    {
-        numActiveWarmingTasks.incrementAndGet();
-    }
-
-    public void decremenetActiveWarmingTasks()
-    {
-        numActiveWarmingTasks.decrementAndGet();
     }
 }

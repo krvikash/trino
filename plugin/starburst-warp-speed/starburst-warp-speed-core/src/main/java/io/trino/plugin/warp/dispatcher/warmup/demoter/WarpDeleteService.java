@@ -13,33 +13,28 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
-import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
-import io.trino.plugin.warp.warmup.model.WarmupRule;
+import org.apache.commons.collections4.CollectionUtils;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+
+import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NO_EXPIRY;
 
 public interface WarpDeleteService
 {
     TupleRankResult buildTupleRank(List<TupleFilter> tupleFilters,
                                    boolean forceDeleteFailedObjects);
 
-    Optional<WarmupRule> findMostRelevantRuleForWarmupElement(RowGroupData rowGroupData,
-                                                                     WarmUpElement warmUpElement,
-                                                                     List<WarmupRule> rulesForWarmupElement);
-
-    long delete(List<TupleRank> tuppleRankList, DemoteContext demoteContext, boolean deleteEmptyRowGroups)
+    long delete(List<TupleRank> tupleRankList, DemoteContext demoteContext, boolean deleteEmptyRowGroups)
             throws ExecutionException, InterruptedException;
 
-    void tryAllocateTx();
-
-    void releaseTx();
-
-    void incremenetActiveWarmingTasks();
-
-    void decremenetActiveWarmingTasks();
-
-    int getNumActiveWarmingTasks();
+    default boolean isDeleteImmediatelyObject(TupleRank tupleRank, Instant currentTime, List<TupleFilter> tupleFilters)
+    {
+        return CollectionUtils.isNotEmpty(tupleFilters) || // since tuppleRanks were already filtered by tupleFilters
+                (tupleRank.warmupProperties().ttl() > NO_EXPIRY &&
+                currentTime.isAfter(Instant.ofEpochMilli(tupleRank.warmUpElement().getLastUsedTimestamp())
+                                            .plus(tupleRank.warmupProperties().ttl(), ChronoUnit.SECONDS)));
+    }
 }

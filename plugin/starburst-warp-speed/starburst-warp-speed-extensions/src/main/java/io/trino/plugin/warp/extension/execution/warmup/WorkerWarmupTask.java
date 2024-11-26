@@ -26,11 +26,11 @@ import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
+import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.SchemaTableName;
 import jakarta.ws.rs.Consumes;
@@ -65,19 +65,16 @@ public class WorkerWarmupTask
     public static final long MEGABYTE = KILOBYTE * 1024L;
 
     private final RowGroupDataService rowGroupDataService;
-    private final WarpDeleteService deleteService;
     private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
     private final WarmupRuleProvider warmupRuleProvider;
 
     @Inject
     public WorkerWarmupTask(
             RowGroupDataService rowGroupDataService,
-            WarpDeleteService deleteService,
             WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
             WarmupRuleProvider warmupRuleProvider)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.deleteService = deleteService;
         this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
         this.warmupRuleProvider = requireNonNull(warmupRuleProvider);
     }
@@ -136,8 +133,8 @@ public class WorkerWarmupTask
                 SchemaTableColumn schemaTableColumn = new SchemaTableColumn(
                         new SchemaTableName(rowGroupData.getRowGroupKey().schema(), rowGroupData.getRowGroupKey().table()), warmUpElement.getWarpColumn());
 
-                Optional<WarmupRule> optionalWarmupRule = deleteService.findMostRelevantRuleForWarmupElement(rowGroupData,
-                        warmUpElement, schemaTableColumnToRulesMap.get(schemaTableColumn));
+                Optional<WarmupRule> optionalWarmupRule = WarmupRuleService.findMostRelevantRuleForWarmupElement(rowGroupData,
+                                                                                                                 warmUpElement, schemaTableColumnToRulesMap.get(schemaTableColumn));
                 long sizeInBytes = 0;
                 optionalWarmupRule.ifPresentOrElse(warmupRule -> {
                     AtomicLong currentUsage = warmupIdUsageMap.computeIfAbsent(warmupRule.getId(), key -> new AtomicLong(0));

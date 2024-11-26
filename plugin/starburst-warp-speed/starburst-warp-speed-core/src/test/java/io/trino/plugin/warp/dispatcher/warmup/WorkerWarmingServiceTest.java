@@ -34,7 +34,6 @@ import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextData;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.expression.TransformFunction;
@@ -42,6 +41,7 @@ import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
@@ -149,7 +149,7 @@ public class WorkerWarmingServiceTest
                 globalConfig,
                 mock(StorageWarmerService.class),
                 eventBus,
-                mock(WarpDeleteService.class));
+                mock(WorkerCapacityManager.class));
 
         assertThat(workerWarmingService.getWarmupRules(new SchemaTableName("s", "t")))
                 .isEmpty();
@@ -973,7 +973,7 @@ public class WorkerWarmingServiceTest
                 workerTaskExecutorService,
                 warmExecutionTaskFactory,
                 warmupDemoterService,
-                mock(WarpDeleteService.class),
+                mock(WorkerCapacityManager.class),
                 warmupRuleService,
                 rowGroupDataService,
                 warmupDemoterConfig,

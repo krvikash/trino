@@ -47,7 +47,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NA_TTL;
+import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NO_EXPIRY;
 import static java.util.Objects.requireNonNull;
 
 @SuppressWarnings("ALL")
@@ -62,6 +62,7 @@ public class WarmupDemoterService
     private final ConnectorSync connectorSync;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final WarmupDemoterStats globalStatsDemoter;
+    private final WarpDeleteService warpDeleteService;
     private final FlowsSequencer flowsSequencer;
     private WarmupProperties defaultWarmupProperties;
     private AtomicDouble highestPriority = new AtomicDouble(0);
@@ -76,7 +77,6 @@ public class WarmupDemoterService
     private boolean enableDemote;
     private EventBus eventBus;
     private DemoteContext demoteContext;
-    private WarpDeleteService warpDeleteService;
 
     @Inject
     public WarmupDemoterService(WorkerCapacityManager workerCapacityManager,
@@ -95,7 +95,7 @@ public class WarmupDemoterService
         this.connectorSync = requireNonNull(connectorSync);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
         this.eventBus = requireNonNull(eventBus);
-        this.defaultWarmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfig.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE);
+        this.defaultWarmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfig.getDefaultRulePriority(), NO_EXPIRY, TransformFunction.NONE);
         this.enableDemote = warmupDemoterConfig.isEnableDemote();
         this.warpDeleteService = requireNonNull(warpDeleteService);
         init();
@@ -436,9 +436,8 @@ public class WarmupDemoterService
     public synchronized boolean tryAllocateNativeResourceForWarmup()
     {
         workerCapacityManager.updateCurrentUsage();
-        workerCapacityManager.setExecutingTx(warpDeleteService.getNumActiveWarmingTasks());
         if (!canAllowWarmup()) {
-            warpDeleteService.releaseTx();
+            workerCapacityManager.decreaseExecutingTx();
             if (workerCapacityManager.getExecutingTxCount() <= 0) {
                 tryDemoteStart();
             }

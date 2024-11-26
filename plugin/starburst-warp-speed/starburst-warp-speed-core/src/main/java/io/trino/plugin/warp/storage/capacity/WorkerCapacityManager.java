@@ -136,17 +136,6 @@ public class WorkerCapacityManager
         return totalCapacity;
     }
 
-    public void increaseExecutingTx()
-    {
-        executingTxCount.incrementAndGet();
-    }
-
-    public void setExecutingTx(int executingTx)
-    {
-        executingTxCount.set(executingTx);
-        statsWarmupDemoter.setreserved_tx(executingTx);
-    }
-
     public void decreaseExecutingTx()
     {
         executingTxCount.decrementAndGet();
@@ -303,5 +292,15 @@ public class WorkerCapacityManager
     {
         String[] list = directory.list();
         return (list == null) || (list.length == 0);
+    }
+
+    public synchronized void tryAllocateResourcesForWarmupTask()
+    {
+        updateCurrentUsage();
+    }
+
+    public void incrementActiveWarmingTasks()
+    {
+        executingTxCount.incrementAndGet();
     }
 }

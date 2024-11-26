@@ -23,11 +23,11 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowType;
@@ -67,7 +67,7 @@ public class StorageWarmerService
     private final FlowsSequencer flowsSequencer;
     private final WarmingServiceStats statsWarmingService;
     private final ShapingLogger shapingLogger;
-    private final WarpDeleteService deleteService;
+    private final WorkerCapacityManager workerCapacityManager;
     private final NativeStorageStateHandler nativeStorageStateHandler;
 
     @Inject
@@ -78,7 +78,7 @@ public class StorageWarmerService
             StorageEngineTxService storageEngineTxService,
             FlowsSequencer flowsSequencer,
             MetricsManager metricsManager,
-            WarpDeleteService deleteService,
+            WorkerCapacityManager workerCapacityManager,
             NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.shapingLogger = ShapingLogger.getInstance(
@@ -94,7 +94,7 @@ public class StorageWarmerService
         this.storageEngineTxService = requireNonNull(storageEngineTxService);
         this.flowsSequencer = requireNonNull(flowsSequencer);
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
-        this.deleteService = requireNonNull(deleteService);
+        this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
     }
 
@@ -269,7 +269,7 @@ public class StorageWarmerService
     public void releaseTx(boolean releaseTx)
     {
         if (releaseTx) {
-            deleteService.releaseTx();
+            workerCapacityManager.decreaseExecutingTx();
         }
     }
 

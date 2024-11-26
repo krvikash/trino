@@ -30,13 +30,13 @@ import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.TxServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -374,9 +374,8 @@ public class WarpProxiedWarmerTest
                 storageEngineTxService,
                 mock(FlowsSequencer.class),
                 TestingTxService.createMetricsManager(),
-                mock(WarpDeleteService.class),
+                mock(WorkerCapacityManager.class),
                 mock(NativeStorageStateHandler.class));
-
         return new WarpProxiedWarmer(warpPageSinkFactory,
                 dispatcherProxiedConnectorTransformer,
                 nodeManager,

@@ -21,5 +21,5 @@ import java.io.Serializable;
 public record WarmupProperties(WarmUpType warmUpType, double priority, int ttl, TransformFunction transformFunction)
         implements Serializable
 {
-    public static final int NA_TTL = -1;
+    public static final int NO_EXPIRY = -1;
 }
