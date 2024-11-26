@@ -76,7 +76,7 @@ public class LazyCollectorService
     }
 
     private LazyCollectorLoaderArgs getLazyLoaderArgs(QueryArgs queryArgs,
-            StorageCollectorArgs storageCollectorArgs,
+            AggregatorArgs aggregatorArgs,
             int weIx,
             int lazyCollectStartRowIndex,
             int numRows)
@@ -101,11 +101,11 @@ public class LazyCollectorService
                 txArgs,
                 collectParams,
                 juffersWE,
-                storageCollectorArgs.blockFillers().get(weIx),
-                storageCollectorArgs.warmUpElementAtts().asSlice(warmupElementAttLayout.byteSize() * weIx, warmupElementAttLayout),
-                storageCollectorArgs.recordBufferStates(),
-                storageCollectorArgs.recordIndexes(),
-                storageCollectorArgs.queryResultTypes(),
+                aggregatorArgs.blockFillers().get(weIx),
+                aggregatorArgs.warmUpElementAtts().asSlice(warmupElementAttLayout.byteSize() * weIx, warmupElementAttLayout),
+                aggregatorArgs.recordBufferStates(),
+                aggregatorArgs.recordIndexes(),
+                aggregatorArgs.queryResultTypes(),
                 lazyCollectStartRowIndex,
                 numRows,
                 queryArgs.numChunksInRange(),
@@ -113,7 +113,7 @@ public class LazyCollectorService
     }
 
     @Override
-    void collectChunk(CollectOpenResult collectOpenResult,
+    void collectChunk(AggregatorPageArgs aggregatorPageArgs,
             int numCollectElements,
             int chunkIndex,
             int numToCollect,
@@ -124,17 +124,17 @@ public class LazyCollectorService
     }
 
     @Override
-    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, QueryArgs queryArgs, int currentNumCollectedRows)
+    public int getMinForTypeAll(int baseRow, AggregatorPageArgs aggregatorPageArgs, QueryArgs queryArgs, int currentNumCollectedRows)
     {
         // assuming lazy collect is only in full scan and that we have only 1 round per getNextPage so can get numCollectedFromCurrentChunk from numCollectedInPreviousRounds
-        int numCollectedFromCurrentChunk = collectOpenResult.numCollectedInPreviousRounds() % queryArgs.chunkSize();
+        int numCollectedFromCurrentChunk = aggregatorPageArgs.numCollectedInPreviousRounds() % queryArgs.chunkSize();
         return baseRow + numCollectedFromCurrentChunk;
     }
 
     @Override
-    void fillBlocks(Block[] blocks,
+    void aggregateBlocks(Block[] blocks,
             QueryArgs queryArgs,
-            StorageCollectorArgs storageCollectorArgs,
+            AggregatorArgs aggregatorArgs,
             WarpQueryState queryState)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
@@ -142,7 +142,7 @@ public class LazyCollectorService
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(queryArgs, storageCollectorArgs, weIx, queryState.getTotalNumReadRecords(), rowsToFill);
+            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(queryArgs, aggregatorArgs, weIx, queryState.getTotalNumReadRecords(), rowsToFill);
             blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, new LazyCollectorLoader(
                     lazyCollectTxService,
                     lazyCollectorLoaderArgs,

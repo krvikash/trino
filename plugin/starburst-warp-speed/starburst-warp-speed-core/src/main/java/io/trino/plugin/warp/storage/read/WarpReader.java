@@ -25,9 +25,9 @@ import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static java.util.Objects.requireNonNull;
 
-public class StorageReader
+public class WarpReader
 {
-    private static final Logger logger = Logger.get(StorageReader.class);
+    private static final Logger logger = Logger.get(WarpReader.class);
     // The heap size of a worker node on galaxy is 80GB. The total off heap memory limit we take here is 256KB * 64 threads equals 16MB.
     // 1 percentage of the heap size is 800MB, so these 16MB is much less than 1 percentage. It means we are guaranteed the GC will
     // not be blocked by this small off heap memory.
@@ -38,17 +38,17 @@ public class StorageReader
     private final ReadTimeMeasurement readTimeMeasurement;
     private final ShapingLogger shapingLogger;
     private final QueryArgs queryArgs;
-    private final StorageCollectorArgs storageCollectorArgs;
-    private final MatchArgs matchArgs;
+    private final AggregatorArgs aggregatorArgs;
+    private final MatcherArgs matcherArgs;
     private final StorageCollectorService storageCollectorService;
     private final MatchService matchService;
 
     private final WarpQueryState queryState;
-    private CollectOpenResult collectOpenResult;
-    private MatchOpenResult matchOpenResult;
+    private AggregatorPageArgs aggregatorPageArgs;
+    private MatcherPageArgs matcherPageArgs;
     private final long rowsLimit;
 
-    StorageReader(QueryParams queryParams,
+    WarpReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
             StorageCollectorService storageCollectorService,
             MatchService matchService,
@@ -60,8 +60,8 @@ public class StorageReader
         this.rowsLimit = rowsLimit;
 
         this.queryArgs = storageCollectorService.getQueryArgs(queryParams, customStatsContext);
-        this.storageCollectorArgs = storageCollectorService.init(queryArgs);
-        this.matchArgs = matchService.init(queryArgs, customStatsContext);
+        this.aggregatorArgs = storageCollectorService.open(queryArgs);
+        this.matcherArgs = matchService.open(queryArgs, customStatsContext);
         queryState = new WarpQueryState();
 
         this.shapingLogger = ShapingLogger.getInstance(
@@ -81,14 +81,14 @@ public class StorageReader
 
     void close()
     {
-        storageCollectorService.terminate(queryArgs);
+        storageCollectorService.close(queryArgs);
     }
 
     // verify total amount of off heap memory allocated does not exceed a limit
     private void checkOffHeapMemoryUsage()
     {
-        long totalOffHeapSize = storageCollectorService.getOffHeapMemoryUsage(storageCollectorArgs) +
-                matchService.getOffHeapMemoryUsage(matchArgs);
+        long totalOffHeapSize = storageCollectorService.getOffHeapMemoryUsage(aggregatorArgs) +
+                matchService.getOffHeapMemoryUsage(matcherArgs);
 
         if (totalOffHeapSize > LIMIT_OFF_HEAP_MEMORY) {
             shapingLogger.warn("off heap memory exceeded threshold " + totalOffHeapSize);
@@ -99,12 +99,13 @@ public class StorageReader
      * prepare buffers for filling
      */
     @NativeInterrupt
-    private void queryOpen()
+    private void openPage()
     {
         int pageLimit = (int) Math.min(rowsLimit - queryState.getTotalNumReadRecords(), Integer.MAX_VALUE);
-        collectOpenResult = storageCollectorService.open(queryArgs, storageCollectorArgs, queryState, pageLimit);
+
+        aggregatorPageArgs = storageCollectorService.openPage(queryArgs, aggregatorArgs, queryState, pageLimit);
         try {
-            matchOpenResult = matchService.open(queryArgs, matchArgs, collectOpenResult);
+            matcherPageArgs = matchService.openPage(queryArgs, matcherArgs, aggregatorPageArgs);
         }
         catch (Exception e) {
             throw new TrinoException(WARP_MATCH_FAILED, "failed to open match");
@@ -114,19 +115,19 @@ public class StorageReader
     /**
      * collect rows from native, return true if something was collected, false otherwise
      */
-    private boolean matchAndCollect()
+    private boolean prepareBlocks()
     {
         long startTime = readTimeMeasurement.getStartTime();
 
-        if (collectOpenResult == null) {
+        if (aggregatorPageArgs == null) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
         }
 
         // we continue as long as we didn't reach a limit from the match nor prepare
-        while (matchService.match(queryArgs, matchArgs, matchOpenResult)) {
+        while (matchService.match(queryArgs, matcherArgs, matcherPageArgs)) {
             if (!storageCollectorService.prepareBlocks(queryArgs,
-                    storageCollectorArgs,
-                    collectOpenResult,
+                    aggregatorArgs,
+                    aggregatorPageArgs,
                     queryState)) {
                 break;
             }
@@ -141,8 +142,8 @@ public class StorageReader
         try {
             WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
 
-            queryOpen();
-            if (matchAndCollect()) {
+            openPage();
+            if (prepareBlocks()) {
                 if (queryState.getNumRecordsInCurPage() > rowsLimit - queryState.getTotalNumReadRecords()) {
                     shapingLogger.warn("numRecordsInCurPage is exceeding the limit. numRecordsInCurPage %d totalNumReadRecords %d rowsLimit %d page limit %d",
                             queryState.getNumRecordsInCurPage(),
@@ -150,55 +151,55 @@ public class StorageReader
                             rowsLimit,
                             rowsLimit - queryState.getTotalNumReadRecords());
                 }
-                storageCollectorService.fillBlocks(blocks,
+                storageCollectorService.aggregateBlocks(blocks,
                         queryArgs,
-                        storageCollectorArgs,
+                        aggregatorArgs,
                         queryState);
                 if (queryArgs.queryParams().isRangesRequired()) {
-                    ranges = storageCollectorService.collectRanges(collectOpenResult);
+                    ranges = storageCollectorService.collectRanges(aggregatorPageArgs);
                 }
             }
-            long numReadPages = queryClose();
+            long numReadPages = closePage();
 
             return new ReadResult(queryState.getNumRecordsInCurPage(), ranges, numReadPages);
         }
         catch (Exception e) {
-            queryAbort(e);
+            abortPage(e);
             throw e;
         }
     }
 
     @NativeInterrupt
-    private long queryClose()
+    private long closePage()
     {
-        if (matchOpenResult != null) {
-            matchService.close(queryArgs, matchOpenResult);
-            matchOpenResult = null;
+        if (matcherPageArgs != null) {
+            matchService.closePage(queryArgs, matcherPageArgs);
+            matcherPageArgs = null;
         }
 
-        if (collectOpenResult == null) {
+        if (aggregatorPageArgs == null) {
             return 0;
         }
 
         queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
-        long readPages = storageCollectorService.close(queryArgs,
-                collectOpenResult,
-                storageCollectorArgs,
+        long readPages = storageCollectorService.closePage(queryArgs,
+                aggregatorPageArgs,
+                aggregatorArgs,
                 queryState);
 
-        collectOpenResult = null;
+        aggregatorPageArgs = null;
         return readPages;
     }
 
-    private void queryAbort(Exception e)
+    private void abortPage(Exception e)
     {
-        if (matchOpenResult != null) {
-            matchService.abort(queryArgs, matchOpenResult, e);
-            matchOpenResult = null;
+        if (matcherPageArgs != null) {
+            matchService.abortPage(queryArgs, matcherPageArgs, e);
+            matcherPageArgs = null;
         }
-        if (collectOpenResult != null) {
-            storageCollectorService.abort(queryArgs, collectOpenResult, e);
-            collectOpenResult = null;
+        if (aggregatorPageArgs != null) {
+            storageCollectorService.abortPage(queryArgs, aggregatorPageArgs, e);
+            aggregatorPageArgs = null;
         }
     }
 }

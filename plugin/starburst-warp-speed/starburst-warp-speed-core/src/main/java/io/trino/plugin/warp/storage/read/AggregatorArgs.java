@@ -14,14 +14,18 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
-import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
+import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 
 import java.lang.foreign.MemorySegment;
 import java.util.List;
 
-public record MatchArgs(int[] weMatchTree,
-                        MemorySegment warmUpElementAtts,
-                        List<ReadJuffersWarmUpElement> matchJuffersWe,
-                        LuceneMatcher[] luceneMatchers)
+public record AggregatorArgs(List<BlockFiller<?>> blockFillers,
+                             List<ReadJuffersWarmUpElement> collectJuffersWE,
+                             byte[] storeRowListBuff,
+                             MemorySegment recordBufferStates,
+                             RecordIndexes recordIndexes,
+                             MemorySegment queryResultTypes,
+                             MemorySegment prepareQueryResultTypes,
+                             MemorySegment warmUpElementAtts)
 {
 }

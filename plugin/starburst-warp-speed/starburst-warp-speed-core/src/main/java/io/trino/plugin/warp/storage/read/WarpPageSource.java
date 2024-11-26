@@ -37,7 +37,7 @@ public class WarpPageSource
     private final StorageEngineConstants storageEngineConstants;
     private final PredicatesCacheService predicatesCacheService;
     private final QueryParams queryParams;
-    private final StorageReader reader;
+    private final WarpReader reader;
     private boolean finished;
     private boolean closed; // set explicitly by someone calling {@link #close()}
     private RowRanges sortedRowRanges;
@@ -65,7 +65,7 @@ public class WarpPageSource
                 globalConfig.getShapingLoggerNumberOfSamples());
         boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
         StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
-        reader = new StorageReader(
+        reader = new WarpReader(
                 queryParams,
                 customStatsContext,
                 collectorService,

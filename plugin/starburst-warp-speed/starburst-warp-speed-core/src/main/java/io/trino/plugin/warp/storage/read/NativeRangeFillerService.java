@@ -47,18 +47,18 @@ public class NativeRangeFillerService
     }
 
     @Override
-    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, int currentNumCollectedRows)
+    public int getMinForTypeAll(int baseRow, AggregatorPageArgs aggregatorPageArgs, int currentNumCollectedRows)
     {
         // calculate the first row in the all list is done in short and then transfer to int
         // its the diff between the last list reached (exclustive) and the size of the list collected
-        return baseRow + Short.toUnsignedInt((short) (collectOpenResult.rangeData().getRecordIndexes().getStart() - currentNumCollectedRows));
+        return baseRow + Short.toUnsignedInt((short) (aggregatorPageArgs.rangeData().getRecordIndexes().getStart() - currentNumCollectedRows));
     }
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
+    public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService)
     {
-        RangeData rangeData = collectOpenResult.rangeData();
+        RangeData rangeData = aggregatorPageArgs.rangeData();
         RecordIndexes recordIndexes = rangeData.getRecordIndexes();
         advanceChunkIfNeeded(chunkIndex, rangeData);
 
@@ -88,7 +88,7 @@ public class NativeRangeFillerService
             }
             case RECORD_INDEX_LIST_TYPE_ALL -> {
                 if (rangesRequired) {
-                    int min = storageCollectorService.getMinForTypeAll(baseRow, collectOpenResult, queryArgs, currentNumCollectedRows);
+                    int min = storageCollectorService.getMinForTypeAll(baseRow, aggregatorPageArgs, queryArgs, currentNumCollectedRows);
                     long minValue = mergeRanges(min, rangeData);
                     rangeData.addLowerInclusive(minValue);
                     rangeData.addUpperExclusive(min + numRows);
@@ -157,14 +157,14 @@ public class NativeRangeFillerService
     // in type all we store the first row index in the byte array
     // in type all we store the part of the list we have not collected yet in the byte array
     @Override
-    public StoreRowListResult storeRowList(QueryArgs queryArgs, StorageCollectorArgs storageCollectorArgs, RangeData rangeData)
+    public StoreRowListResult storeRowList(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, RangeData rangeData)
     {
         int currChunkIndex = queryArgs.chunksQueue().getCurrent();
         advanceChunkIfNeeded(currChunkIndex, rangeData);
 
         RecordIndexes recordIndexes = rangeData.getRecordIndexes();
         RecordIndexListType storeRowListType = recordIndexes.getType();
-        byte[] storeRowListBuff = storageCollectorArgs.storeRowListBuff();
+        byte[] storeRowListBuff = aggregatorArgs.storeRowListBuff();
         int storeRowListSize;
         Optional<Short> storeRowListStart = Optional.empty(); // only for type ALL
         switch (storeRowListType) {
