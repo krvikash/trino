@@ -22,6 +22,8 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 
+import java.util.Optional;
+
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -114,11 +116,20 @@ public class WarpPageSource
     @Override
     public Page getNextPage()
     {
-        Block[] blocks = new Block[queryParams.getCollectElementsParamsList().size()];
+        Optional<Block[]> blocks = Optional.empty();
         int currentPositionsCount = 0;
         if (!isFinished()) {
             try {
-                currentPositionsCount = fillPage(blocks);
+                ReadResult readResult = reader.getPage();
+                if (readResult.numCollectedRows() == 0) {
+                    finished = true;
+                }
+                updateRowsLimit();
+                blocks = Optional.of(readResult.blocks());
+                sortedRowRanges = readResult.ranges();
+                completedBytes += (readResult.numReadPages() << storageEngineConstants.getPageSizeShift());
+                completedPositions += readResult.numCollectedRows();
+                currentPositionsCount = readResult.numCollectedRows();
             }
             catch (Exception e) {
                 close();
@@ -130,7 +141,7 @@ public class WarpPageSource
         }
 
         // blocks.length can be 0 in case we just match in Warp when collect is done in external/prefilled
-        return ((blocks.length > 0) && blocks[0] != null) ? new Page(currentPositionsCount, blocks) : new Page(currentPositionsCount);
+        return (blocks.isPresent() && blocks.get().length > 0) ? new Page(currentPositionsCount, blocks.get()) : new Page(currentPositionsCount);
     }
 
     private void updateRowsLimit()
@@ -138,23 +149,6 @@ public class WarpPageSource
         if (isRowsLimitReached()) {
             finished = true;
         }
-    }
-
-    private int fillPage(Block[] blocks)
-    {
-        ReadResult readResult;
-
-        readResult = reader.getPage(blocks);
-
-        if (readResult.numCollectedRows() == 0) {
-            finished = true;
-        }
-
-        updateRowsLimit();
-        sortedRowRanges = readResult.ranges();
-        completedBytes += (readResult.numReadPages() << storageEngineConstants.getPageSizeShift());
-        completedPositions += readResult.numCollectedRows();
-        return readResult.numCollectedRows();
     }
 
     @Override

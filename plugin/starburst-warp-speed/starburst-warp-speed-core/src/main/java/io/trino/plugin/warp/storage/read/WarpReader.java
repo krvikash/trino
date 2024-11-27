@@ -137,9 +137,10 @@ public class WarpReader
         return queryState.getNumRecordsInCurPage() > 0;
     }
 
-    ReadResult getPage(Block[] blocks)
+    ReadResult getPage()
     {
         try {
+            Block[] blocks = new Block[0];
             WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
 
             openPage();
@@ -151,8 +152,8 @@ public class WarpReader
                             rowsLimit,
                             rowsLimit - queryState.getTotalNumReadRecords());
                 }
-                storageCollectorService.aggregateBlocks(blocks,
-                        queryArgs,
+
+                blocks = storageCollectorService.aggregateBlocks(queryArgs,
                         aggregatorArgs,
                         queryState);
                 if (queryArgs.queryParams().isRangesRequired()) {
@@ -161,7 +162,7 @@ public class WarpReader
             }
             long numReadPages = closePage();
 
-            return new ReadResult(queryState.getNumRecordsInCurPage(), ranges, numReadPages);
+            return new ReadResult(blocks, queryState.getNumRecordsInCurPage(), ranges, numReadPages);
         }
         catch (Exception e) {
             abortPage(e);

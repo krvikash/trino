@@ -281,13 +281,13 @@ public class StorageCollectorService
         return canPrepareMore;
     }
 
-    void aggregateBlocks(Block[] blocks,
-            QueryArgs queryArgs,
+    Block[] aggregateBlocks(QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             WarpQueryState queryState)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
         int rowsToFill = queryState.getNumRecordsInCurPage();
+        Block[] blocks = new Block[collectElementsParamsList.size()];
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
@@ -302,6 +302,7 @@ public class StorageCollectorService
         }
         queryArgs.dispatcherPageSourceStats().addwrapped_collect_total_lazy_blocks(collectElementsParamsList.size());
         queryArgs.dispatcherPageSourceStats().addcached_read_rows(rowsToFill);
+        return blocks;
     }
 
     int getNumToCollect(QueryArgs queryArgs,

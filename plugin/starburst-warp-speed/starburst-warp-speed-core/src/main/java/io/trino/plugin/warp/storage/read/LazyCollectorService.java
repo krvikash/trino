@@ -132,13 +132,13 @@ public class LazyCollectorService
     }
 
     @Override
-    void aggregateBlocks(Block[] blocks,
-            QueryArgs queryArgs,
+    Block[] aggregateBlocks(QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             WarpQueryState queryState)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
         int rowsToFill = queryState.getNumRecordsInCurPage();
+        Block[] blocks = new Block[collectElementsParamsList.size()];
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
@@ -153,6 +153,7 @@ public class LazyCollectorService
         }
         queryArgs.dispatcherPageSourceStats().addlazy_collect_total_blocks(collectElementsParamsList.size());
         queryArgs.dispatcherPageSourceStats().addcached_read_rows(rowsToFill);
+        return blocks;
     }
 
     @Override

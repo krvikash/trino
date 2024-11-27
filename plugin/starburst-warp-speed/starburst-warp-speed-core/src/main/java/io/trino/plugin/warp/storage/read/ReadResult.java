@@ -13,6 +13,11 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-public record ReadResult(int numCollectedRows, WarpStoragePageSource.RowRanges ranges, long numReadPages)
+import io.trino.spi.block.Block;
+
+public record ReadResult(Block[] blocks,
+                         int numCollectedRows,
+                         WarpStoragePageSource.RowRanges ranges,
+                         long numReadPages)
 {
 }
