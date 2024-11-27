@@ -132,7 +132,7 @@ public class LazyCollectorService
     }
 
     @Override
-    Block[] aggregateBlocks(QueryArgs queryArgs,
+    public Block[] aggregateBlocks(QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             WarpQueryState queryState)
     {

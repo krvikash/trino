@@ -60,6 +60,7 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class StorageCollectorService
+        implements BlocksAggregator
 {
     private static final Logger logger = Logger.get(StorageCollectorService.class);
 
@@ -219,7 +220,7 @@ public class StorageCollectorService
 
     // returns indication if we can continue preparing more records, or we reached some limit by the storage collector
     @NativeInterrupt
-    boolean prepareBlocks(QueryArgs queryArgs,
+    public boolean prepareBlocks(QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState)
@@ -281,7 +282,7 @@ public class StorageCollectorService
         return canPrepareMore;
     }
 
-    Block[] aggregateBlocks(QueryArgs queryArgs,
+    public Block[] aggregateBlocks(QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             WarpQueryState queryState)
     {
@@ -485,14 +486,14 @@ public class StorageCollectorService
         return rangeFillerService.getMinForTypeAll(baseRow, aggregatorPageArgs, currentNumCollectedRows);
     }
 
-    public WarpStoragePageSource.RowRanges collectRanges(AggregatorPageArgs aggregatorPageArgs)
+    public WarpStoragePageSource.RowRanges getRanges(AggregatorPageArgs aggregatorPageArgs)
     {
         return rangeFillerService.collectRanges(aggregatorPageArgs.rangeData(), aggregatorPageArgs.rowsLimit());
     }
 
     public long closePage(QueryArgs queryArgs,
-            AggregatorPageArgs aggregatorPageArgs,
             AggregatorArgs aggregatorArgs,
+            AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState)
     {
         CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(queryArgs,

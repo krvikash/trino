@@ -40,7 +40,7 @@ public class WarpReader
     private final QueryArgs queryArgs;
     private final AggregatorArgs aggregatorArgs;
     private final MatcherArgs matcherArgs;
-    private final StorageCollectorService storageCollectorService;
+    private final BlocksAggregator blocksAggregator;
     private final Matcher matcher;
 
     private final WarpQueryState queryState;
@@ -50,18 +50,19 @@ public class WarpReader
 
     WarpReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
-            StorageCollectorService storageCollectorService,
+            BlocksAggregator blocksAggregator,
             Matcher matcher,
             GlobalConfig globalConfig,
             long rowsLimit)
     {
-        this.storageCollectorService = requireNonNull(storageCollectorService);
+        this.blocksAggregator = requireNonNull(blocksAggregator);
         this.matcher = requireNonNull(matcher);
         this.rowsLimit = rowsLimit;
 
-        this.queryArgs = storageCollectorService.getQueryArgs(queryParams, customStatsContext);
-        this.aggregatorArgs = storageCollectorService.open(queryArgs);
+        this.queryArgs = blocksAggregator.getQueryArgs(queryParams, customStatsContext);
+        this.aggregatorArgs = blocksAggregator.open(queryArgs);
         this.matcherArgs = matcher.open(queryArgs, customStatsContext);
+
         queryState = new WarpQueryState();
 
         this.shapingLogger = ShapingLogger.getInstance(
@@ -81,13 +82,13 @@ public class WarpReader
 
     void close()
     {
-        storageCollectorService.close(queryArgs);
+        blocksAggregator.close(queryArgs);
     }
 
     // verify total amount of off heap memory allocated does not exceed a limit
     private void checkOffHeapMemoryUsage()
     {
-        long totalOffHeapSize = storageCollectorService.getOffHeapMemoryUsage(aggregatorArgs) +
+        long totalOffHeapSize = blocksAggregator.getOffHeapMemoryUsage(aggregatorArgs) +
                 matcher.getOffHeapMemoryUsage(matcherArgs);
 
         if (totalOffHeapSize > LIMIT_OFF_HEAP_MEMORY) {
@@ -103,7 +104,7 @@ public class WarpReader
     {
         int pageLimit = (int) Math.min(rowsLimit - queryState.getTotalNumReadRecords(), Integer.MAX_VALUE);
 
-        aggregatorPageArgs = storageCollectorService.openPage(queryArgs, aggregatorArgs, queryState, pageLimit);
+        aggregatorPageArgs = blocksAggregator.openPage(queryArgs, aggregatorArgs, queryState, pageLimit);
         try {
             matcherPageArgs = matcher.openPage(queryArgs, matcherArgs, aggregatorPageArgs);
         }
@@ -125,7 +126,7 @@ public class WarpReader
 
         // we continue as long as we didn't reach a limit from the match nor prepare
         while (matcher.match(queryArgs, matcherArgs, matcherPageArgs)) {
-            if (!storageCollectorService.prepareBlocks(queryArgs,
+            if (!blocksAggregator.prepareBlocks(queryArgs,
                     aggregatorArgs,
                     aggregatorPageArgs,
                     queryState)) {
@@ -153,11 +154,11 @@ public class WarpReader
                             rowsLimit - queryState.getTotalNumReadRecords());
                 }
 
-                blocks = storageCollectorService.aggregateBlocks(queryArgs,
+                blocks = blocksAggregator.aggregateBlocks(queryArgs,
                         aggregatorArgs,
                         queryState);
                 if (queryArgs.queryParams().isRangesRequired()) {
-                    ranges = storageCollectorService.collectRanges(aggregatorPageArgs);
+                    ranges = blocksAggregator.getRanges(aggregatorPageArgs);
                 }
             }
             long numReadPages = closePage();
@@ -183,9 +184,9 @@ public class WarpReader
         }
 
         queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
-        long readPages = storageCollectorService.closePage(queryArgs,
-                aggregatorPageArgs,
+        long readPages = blocksAggregator.closePage(queryArgs,
                 aggregatorArgs,
+                aggregatorPageArgs,
                 queryState);
 
         aggregatorPageArgs = null;
@@ -199,7 +200,7 @@ public class WarpReader
             matcherPageArgs = null;
         }
         if (aggregatorPageArgs != null) {
-            storageCollectorService.abortPage(queryArgs, aggregatorPageArgs, e);
+            blocksAggregator.abortPage(queryArgs, aggregatorPageArgs, e);
             aggregatorPageArgs = null;
         }
     }
