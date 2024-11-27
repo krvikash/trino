@@ -151,10 +151,10 @@ public class WarpInputDirectory
     }
 
     @Override
-    public ChecksumIndexInput openChecksumInput(String name, IOContext context)
+    public ChecksumIndexInput openChecksumInput(String fileName)
     {
-        logger.debug("indexUniqueIdInRowGroup=%d, openChecksumInput file %s while input", indexUniqueIdInRowGroup, name);
-        LuceneFileType luceneFileType = LuceneFileType.getType(name);
+        logger.debug("indexUniqueIdInRowGroup=%d, openChecksumInput file %s while input", indexUniqueIdInRowGroup, fileName);
+        LuceneFileType luceneFileType = LuceneFileType.getType(fileName);
         return new WarpReadIndexInput(luceneIndexReader,
                 storageEngineConstants,
                 lucenePageCacheStats,
