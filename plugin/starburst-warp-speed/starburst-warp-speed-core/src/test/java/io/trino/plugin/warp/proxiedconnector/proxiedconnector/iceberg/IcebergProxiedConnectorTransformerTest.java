@@ -13,18 +13,30 @@
  */
 package io.trino.plugin.warp.proxiedconnector.proxiedconnector.iceberg;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
+import io.trino.plugin.iceberg.IcebergFileFormat;
+import io.trino.plugin.iceberg.IcebergSplit;
 import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.plugin.iceberg.TableType;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
+import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.proxiedconnector.iceberg.IcebergProxiedConnectorTransformer;
 import io.trino.plugin.warp.proxiedconnector.proxiedconnector.ProxyConnectorTransformerBaseTest;
+import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
+import io.trino.plugin.warp.util.NodeUtils;
+import io.trino.spi.Node;
+import io.trino.spi.SplitWeight;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogHandle;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.predicate.TupleDomain;
 import org.junit.jupiter.api.Test;
@@ -39,12 +51,20 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class IcebergProxiedConnectorTransformerTest
         extends ProxyConnectorTransformerBaseTest
 {
+    private static final String SCHEMA_NAME = "test_schema";
+    private static final String TABLE_NAME = "test_table";
+    private static final String PATH = "/test/path.parquet";
+    private static final long START = 0L;
+    private static final long LENGTH = 100L;
+    private static final long SNAPSHOT_ID = 1L;
+
     private final IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformer =
             new IcebergProxiedConnectorTransformer(new ProxiedConnectorConfig());
 
@@ -187,6 +207,110 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergProxiedConnectorTransformer,
                 dispatcherTableHandle,
                 expectedTableHandleMixedQuery);
+    }
+
+    @Test
+    public void testSnapshotKeyUniqueness()
+    {
+        ConnectorSplitNodeDistributor splitDistributor = mock(ConnectorSplitNodeDistributor.class);
+        IcebergTableHandle icebergTableHandle = new IcebergTableHandle(
+                CatalogHandle.createRootCatalogHandle(mock(io.trino.spi.catalog.CatalogName.class), new CatalogHandle.CatalogVersion("1")),
+                SCHEMA_NAME,
+                TABLE_NAME,
+                TableType.DATA,
+                Optional.of(SNAPSHOT_ID),
+                """
+                        {
+                          "type": "struct",
+                          "schema-id": 0,
+                          "fields": [
+                            {
+                              "id": 1,
+                              "name": "id",
+                              "required": true,
+                              "type": "long"
+                            }
+                          ]
+                        }
+                        """,
+                Optional.empty(),
+                1,
+                TupleDomain.all(),
+                TupleDomain.all(),
+                OptionalLong.empty(),
+                ImmutableSet.of(mock(IcebergColumnHandle.class)),
+                Optional.empty(),
+                "",
+                ImmutableMap.of(),
+                false,
+                Optional.empty(),
+                Collections.emptySet(),
+                Optional.empty());
+
+        ConnectorSplit icebergSplit = new IcebergSplit(
+                PATH,
+                START,
+                LENGTH,
+                1024L,
+                100L,
+                IcebergFileFormat.ORC,
+                """
+                        { "spec-id": 0, "fields": [] }
+                        """,
+                """
+                        { "partitionValues": [] }
+                        """,
+                ImmutableList.of(),
+                SplitWeight.standard(),
+                TupleDomain.all(),
+                ImmutableMap.of(),
+                1L
+        );
+        DispatcherTableHandle dispatcherTableHandle = new DispatcherTableHandle(
+                SCHEMA_NAME,
+                TABLE_NAME,
+                OptionalLong.of(SNAPSHOT_ID),
+                TupleDomain.all(),
+                mock(io.trino.plugin.warp.dispatcher.SimplifiedColumns.class),
+                icebergTableHandle,
+                Optional.empty(),
+                ImmutableList.of(),
+                false,
+                Set.of()
+        );
+        Node node1 = NodeUtils.node(0, true);
+        when(splitDistributor.getNode(anyString())).thenReturn(node1);
+
+        ConnectorSession session = mock(ConnectorSession.class);
+
+        DispatcherSplit dispatcherSplit = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandle, splitDistributor, session);
+
+        assertThat(dispatcherSplit.getSchemaName()).isEqualTo(SCHEMA_NAME);
+        assertThat(dispatcherSplit.getTableName()).isEqualTo(TABLE_NAME);
+        assertThat(dispatcherSplit.getStart()).isEqualTo(START);
+        assertThat(dispatcherSplit.getLength()).isEqualTo(LENGTH);
+        assertThat(dispatcherSplit.getProxyConnectorSplit()).isEqualTo(icebergSplit);
+
+        DispatcherTableHandle dispatcherTableHandleAnotherSnapshot = new DispatcherTableHandle(
+                SCHEMA_NAME,
+                TABLE_NAME,
+                OptionalLong.of(2L),
+                TupleDomain.all(),
+                mock(io.trino.plugin.warp.dispatcher.SimplifiedColumns.class),
+                icebergTableHandle,
+                Optional.empty(),
+                ImmutableList.of(),
+                false,
+                Set.of());
+
+        DispatcherSplit dispatcherSplitAnotherSnapshot = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, splitDistributor, session);
+        assertThat(dispatcherSplitAnotherSnapshot.getDeletedFilesHash()).isEqualTo(dispatcherSplit.getDeletedFilesHash());
+
+        ProxiedConnectorConfig newConfig = new ProxiedConnectorConfig();
+        newConfig.setEnableIcebergSnapshotIdUniqueness(true);
+        IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformerUnique = new IcebergProxiedConnectorTransformer(newConfig);
+        dispatcherSplitAnotherSnapshot = icebergProxiedConnectorTransformerUnique.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, splitDistributor, session);
+        assertThat(dispatcherSplitAnotherSnapshot.getDeletedFilesHash()).isNotEqualTo(dispatcherSplit.getDeletedFilesHash());
     }
 
     @Override

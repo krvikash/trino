@@ -237,12 +237,12 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         // after altering the table a new snapshot is created so we are warming all elements
         warmAndValidate("select * from %s.%s".formatted(schema, table),
                 warmSession,
-                2,
-                2,
+                1,
+                1,
                 0);
 
         query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 2L);
+        expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 3L);
         validateQueryStats(query, getSession(), expectedQueryStats);
         warmSession = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
@@ -253,7 +253,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 1,
                 0);
 
-        int expectedDeadObjects = 4; // 1 from previous snapshot and 3 objects with ttl 0 (tmpColumn ttl -1)
+        int expectedDeadObjects = 3; // 1 from previous snapshot and 3 objects with ttl 0 (tmpColumn ttl -1)
         validateDemoter(expectedDeadObjects);
     }
 
@@ -294,8 +294,8 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         //each alter table has a different snapshot id which get warm
         warmAndValidate("select * from %s.%s".formatted(schema, table),
                 warmSession,
-                4,
                 2,
+                1,
                 0);
 
         query = "select * from %s.%s".formatted(schema, table);
@@ -303,7 +303,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 PREFILLED_COLUMNS_STAT, 3L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
-        validateDemoter(6);
+        validateDemoter(4);
     }
 
     @Test

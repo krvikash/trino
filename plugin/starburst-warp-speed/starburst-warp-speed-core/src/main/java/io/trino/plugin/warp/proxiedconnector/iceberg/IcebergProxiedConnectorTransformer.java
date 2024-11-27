@@ -235,9 +235,9 @@ public class IcebergProxiedConnectorTransformer
         List<PartitionKey> partitionKeyMap = getPartitionKeysMap(icebergSplit,
                 (IcebergTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle());
 
+        String snapshotIdStr = proxiedConnectorConfig.getEnableIcebergSnapshotIdUniqueness() ? String.valueOf(((IcebergTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle()).getSnapshotId().orElse(-1L)) : "";
         String deletedFilesHash = Hashing.sha256()
-                .hashString(icebergSplit.getDeletes().stream().map(DeleteFile::path).sorted().collect(Collectors.joining()),
-                        StandardCharsets.UTF_8).toString() + ((IcebergTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle()).getSnapshotId().orElse(-1L);
+                .hashString(icebergSplit.getDeletes().stream().map(DeleteFile::path).sorted().collect(Collectors.joining()), StandardCharsets.UTF_8).toString() + snapshotIdStr;
 
         return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),

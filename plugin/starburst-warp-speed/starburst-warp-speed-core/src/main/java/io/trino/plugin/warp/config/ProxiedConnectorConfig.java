@@ -36,6 +36,7 @@ public class ProxiedConnectorConfig
 
     private String proxiedConnector;
     private Set<String> passThroughDispatcherSet;
+    private boolean enableIcebergSnapshotIdUniqueness;
 
     public String getProxiedConnector()
     {
@@ -61,6 +62,17 @@ public class ProxiedConnectorConfig
                 .collect(Collectors.toSet());
         checkArgument(supportedConnectors.containsAll(passThroughDispatcherSet),
                 format("%s config only supports %s", PASS_THROUGH_DISPATCHER, supportedConnectors));
+    }
+
+    public boolean getEnableIcebergSnapshotIdUniqueness()
+    {
+        return enableIcebergSnapshotIdUniqueness;
+    }
+
+    @Config("warp-speed.enable.iceberg-snapshot-id-uniqueness")
+    public void setEnableIcebergSnapshotIdUniqueness(boolean enableIcebergSnapshotIdUniqueness)
+    {
+        this.enableIcebergSnapshotIdUniqueness = enableIcebergSnapshotIdUniqueness;
     }
 
     @Override
