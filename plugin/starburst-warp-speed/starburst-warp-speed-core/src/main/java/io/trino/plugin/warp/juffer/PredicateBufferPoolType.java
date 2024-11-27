@@ -16,7 +16,8 @@ package io.trino.plugin.warp.juffer;
 public enum PredicateBufferPoolType
 {
     INVALID,
+    TINY,
     SMALL,
     MEDIUM,
-    LARGE,
+    LARGE
 }

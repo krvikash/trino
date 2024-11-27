@@ -359,8 +359,8 @@ public class DispatcherAlternativeChooserTest
         rowGroupData = generateRowGroupData(rowGroupKey, List.of(columnHandle));
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
 
-        // create a predicate that fits to the small cache (big enough to not go to PREALLOC)
-        List<Range> ranges = LongStream.range(0, (BufferAllocator.PREDICATE_SMALL_BUF_SIZE / BIGINT.getFixedSize()) + 1)
+        // create a predicate that fits to the smallest cache
+        List<Range> ranges = LongStream.range(0, 11)
                 .mapToObj(i -> Range.equal(BIGINT, i))
                 .toList();
         Domain domain = Domain.create(ValueSet.ofRanges(ranges), true);

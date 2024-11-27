@@ -59,14 +59,14 @@ public class PredicatesCacheServiceTest
     static Stream<Arguments> poolTypes()
     {
         return Stream.of(
-                arguments(PredicateBufferPoolType.SMALL),
-                arguments(PredicateBufferPoolType.LARGE));
+                arguments(PredicateBufferPoolType.TINY),
+                arguments(PredicateBufferPoolType.MEDIUM));
     }
 
     static Stream<Arguments> poolSmall()
     {
         return Stream.of(
-                arguments(PredicateBufferPoolType.SMALL));
+                arguments(PredicateBufferPoolType.TINY));
     }
 
     @BeforeEach
@@ -117,18 +117,18 @@ public class PredicatesCacheServiceTest
         PredicateCacheData actualBufferHandle;
         actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData, domain).orElseThrow();
         assertThat(actualBufferHandle.isUsed()).isTrue();
-        assertThat(predicatesCacheService.getHitSmall()).isZero();
-        assertThat(predicatesCacheService.getMissSmall()).isEqualTo(1);
-        assertThat(predicatesCacheService.getMaxSmall()).isEqualTo(1);
+        assertThat(predicatesCacheService.getHitTiny()).isZero();
+        assertThat(predicatesCacheService.getMissTiny()).isEqualTo(1);
+        assertThat(predicatesCacheService.getMaxTiny()).isEqualTo(1);
         actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData, domain).orElseThrow();
         assertThat(actualBufferHandle.isUsed()).isTrue();
-        assertThat(predicatesCacheService.getHitSmall()).isEqualTo(1);
-        assertThat(predicatesCacheService.getMissSmall()).isEqualTo(1);
-        assertThat(predicatesCacheService.getMaxSmall()).isEqualTo(1);
+        assertThat(predicatesCacheService.getHitTiny()).isEqualTo(1);
+        assertThat(predicatesCacheService.getMissTiny()).isEqualTo(1);
+        assertThat(predicatesCacheService.getMaxTiny()).isEqualTo(1);
         actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData2, domain2).orElseThrow();
-        assertThat(predicatesCacheService.getHitSmall()).isEqualTo(1);
-        assertThat(predicatesCacheService.getMissSmall()).isEqualTo(2);
-        assertThat(predicatesCacheService.getMaxSmall()).isEqualTo(2);
+        assertThat(predicatesCacheService.getHitTiny()).isEqualTo(1);
+        assertThat(predicatesCacheService.getMissTiny()).isEqualTo(2);
+        assertThat(predicatesCacheService.getMaxTiny()).isEqualTo(3);
         predicatesCacheService.markFinished(List.of(actualBufferHandle));
         verify(bufferAllocator, never()).freePredicateBuffer(argument.capture());
         assertThat(actualBufferHandle.isUsed()).isFalse();

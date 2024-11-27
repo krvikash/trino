@@ -32,41 +32,23 @@ class PredicateBufferPool
     private final int bufSize;
     private final ArrayBlockingQueue<MemorySegment> queue;
 
-    PredicateBufferPool(PredicateBufferPoolType poolType, int bufSize, int poolSize, SegmentAllocator poolSlicer)
+    PredicateBufferPool(PredicateBufferPoolType poolType, long bufSize, long poolSize, SegmentAllocator poolSlicer)
     {
         checkArgument(poolType != PredicateBufferPoolType.INVALID, "invalid predicate pool type");
         this.poolType = poolType;
         checkArgument(bufSize > 0, "predicate pool buffer size is zero");
-        this.bufSize = bufSize;
+        this.bufSize = (int) bufSize;
+        checkArgument(poolSize > 0, "predicate pool size is zero");
+        this.poolSize = (int) poolSize;
 
         ArrayList<MemorySegment> buffList;
-        // if poolSize is zero we need to calculate here according to the bufSize and available memory left in the slicer
-        // if poolSize is positive we use it even if we do not use all the slicer memory
-        if (poolSize > 0) {
-            MemorySegment allBuffs = poolSlicer.allocate(((long) poolSize) * bufSize);
-            SegmentAllocator buffSlicer = SegmentAllocator.slicingAllocator(allBuffs);
-            buffList = new ArrayList<>(poolSize);
-            for (int i = 0; i < poolSize; i++) {
-                buffList.add(buffSlicer.allocate(bufSize));
-            }
-            this.poolSize = poolSize;
+        MemorySegment allBuffs = poolSlicer.allocate(poolSize * bufSize);
+        SegmentAllocator buffSlicer = SegmentAllocator.slicingAllocator(allBuffs);
+        buffList = new ArrayList<>(this.poolSize);
+        for (int i = 0; i < this.poolSize; i++) {
+            buffList.add(buffSlicer.allocate(bufSize));
         }
-        else {
-            buffList = new ArrayList<>();
-            MemorySegment buff = MemorySegment.NULL;
-            while (buff != null) {
-                try {
-                    buff = poolSlicer.allocate(bufSize);
-                    if (buff != MemorySegment.NULL) {
-                        buffList.add(buff);
-                    }
-                }
-                catch (Exception e) {
-                    break;
-                }
-            }
-            this.poolSize = buffList.size();
-        }
+
         this.queue = new ArrayBlockingQueue<>(buffList.size(), true, buffList);
         logger.info("predicate buffer pool %s", this);
     }

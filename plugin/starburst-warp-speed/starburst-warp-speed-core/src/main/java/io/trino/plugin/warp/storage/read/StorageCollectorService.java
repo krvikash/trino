@@ -152,7 +152,6 @@ public class StorageCollectorService
             WarpQueryState queryState,
             int rowsLimit)
     {
-        bufferAllocator.readerOnAllocBundle();
         queryState.resetNumRecordsInCurPage();
         return collectTxService.collectOpenAndRestore(queryArgs,
                 rowsLimit,
@@ -501,14 +500,12 @@ public class StorageCollectorService
         queryState.setStoreRowListResult(collectCloseResult.storeRowListResult());
         queryState.setChunksWithStoredBitmaps(collectCloseResult.chunksWithStoredBitmaps());
 
-        bufferAllocator.readerOnFreeBundle();
         return collectCloseResult.readPages();
     }
 
     public void abort(CollectOpenResult collectOpenResult, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         collectTxService.collectAbort(collectOpenResult, e, dispatcherPageSourceStats);
-        bufferAllocator.readerOnFreeBundle();
     }
 
     public void terminate(QueryArgs queryArgs)

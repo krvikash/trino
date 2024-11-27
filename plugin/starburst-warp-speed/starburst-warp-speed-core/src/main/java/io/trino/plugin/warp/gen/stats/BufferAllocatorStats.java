@@ -35,11 +35,7 @@ public final class BufferAllocatorStats
     /* This class file is auto-generated from bufferAllocator xml file for statistics and counters */
     private final String group;
 
-    private final LongAdder available_load_bundles = new LongAdder();
-    private final LongAdder reader_taken = new LongAdder();
-    private final LongAdder writer_taken = new LongAdder();
-    private final LongAdder allowed_loaders = new LongAdder();
-    private final LongAdder partial_handled_columns = new LongAdder();
+    private final LongAdder predicate_buffer_tiny_alloc = new LongAdder();
     private final LongAdder predicate_buffer_small_alloc = new LongAdder();
     private final LongAdder predicate_buffer_medium_alloc = new LongAdder();
     private final LongAdder predicate_buffer_large_alloc = new LongAdder();
@@ -61,117 +57,25 @@ public final class BufferAllocatorStats
 
     @JsonIgnore
     @Managed
-    public long getavailable_load_bundles()
+    public long getpredicate_buffer_tiny_alloc()
     {
-        return available_load_bundles.longValue();
+        return predicate_buffer_tiny_alloc.longValue();
     }
 
-    public void incavailable_load_bundles()
+    public void incpredicate_buffer_tiny_alloc()
     {
-        available_load_bundles.increment();
+        predicate_buffer_tiny_alloc.increment();
     }
 
-    public void addavailable_load_bundles(long val)
+    public void addpredicate_buffer_tiny_alloc(long val)
     {
-        available_load_bundles.add(val);
+        predicate_buffer_tiny_alloc.add(val);
     }
 
-    public void setavailable_load_bundles(long val)
+    public void setpredicate_buffer_tiny_alloc(long val)
     {
-        available_load_bundles.reset();
-        addavailable_load_bundles(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getreader_taken()
-    {
-        return reader_taken.longValue();
-    }
-
-    public void increader_taken()
-    {
-        reader_taken.increment();
-    }
-
-    public void addreader_taken(long val)
-    {
-        reader_taken.add(val);
-    }
-
-    public void setreader_taken(long val)
-    {
-        reader_taken.reset();
-        addreader_taken(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getwriter_taken()
-    {
-        return writer_taken.longValue();
-    }
-
-    public void incwriter_taken()
-    {
-        writer_taken.increment();
-    }
-
-    public void addwriter_taken(long val)
-    {
-        writer_taken.add(val);
-    }
-
-    public void setwriter_taken(long val)
-    {
-        writer_taken.reset();
-        addwriter_taken(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getallowed_loaders()
-    {
-        return allowed_loaders.longValue();
-    }
-
-    public void incallowed_loaders()
-    {
-        allowed_loaders.increment();
-    }
-
-    public void addallowed_loaders(long val)
-    {
-        allowed_loaders.add(val);
-    }
-
-    public void setallowed_loaders(long val)
-    {
-        allowed_loaders.reset();
-        addallowed_loaders(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getpartial_handled_columns()
-    {
-        return partial_handled_columns.longValue();
-    }
-
-    public void incpartial_handled_columns()
-    {
-        partial_handled_columns.increment();
-    }
-
-    public void addpartial_handled_columns(long val)
-    {
-        partial_handled_columns.add(val);
-    }
-
-    public void setpartial_handled_columns(long val)
-    {
-        partial_handled_columns.reset();
-        addpartial_handled_columns(val);
+        predicate_buffer_tiny_alloc.reset();
+        addpredicate_buffer_tiny_alloc(val);
     }
 
     @JsonIgnore
@@ -257,11 +161,7 @@ public final class BufferAllocatorStats
     public Map<String, LongAdder> getCounters()
     {
         Map<String, LongAdder> ret = new HashMap<>();
-        ret.put("available_load_bundles", available_load_bundles);
-        ret.put("reader_taken", reader_taken);
-        ret.put("writer_taken", writer_taken);
-        ret.put("allowed_loaders", allowed_loaders);
-        ret.put("partial_handled_columns", partial_handled_columns);
+        ret.put("predicate_buffer_tiny_alloc", predicate_buffer_tiny_alloc);
         ret.put("predicate_buffer_small_alloc", predicate_buffer_small_alloc);
         ret.put("predicate_buffer_medium_alloc", predicate_buffer_medium_alloc);
         ret.put("predicate_buffer_large_alloc", predicate_buffer_large_alloc);
@@ -276,11 +176,7 @@ public final class BufferAllocatorStats
             return;
         }
         BufferAllocatorStats other = (BufferAllocatorStats) warpStatsBase;
-        this.available_load_bundles.add(other.available_load_bundles.longValue());
-        this.reader_taken.add(other.reader_taken.longValue());
-        this.writer_taken.add(other.writer_taken.longValue());
-        this.allowed_loaders.add(other.allowed_loaders.longValue());
-        this.partial_handled_columns.add(other.partial_handled_columns.longValue());
+        this.predicate_buffer_tiny_alloc.add(other.predicate_buffer_tiny_alloc.longValue());
         this.predicate_buffer_small_alloc.add(other.predicate_buffer_small_alloc.longValue());
         this.predicate_buffer_medium_alloc.add(other.predicate_buffer_medium_alloc.longValue());
         this.predicate_buffer_large_alloc.add(other.predicate_buffer_large_alloc.longValue());
@@ -289,11 +185,7 @@ public final class BufferAllocatorStats
     @Override
     public void reset()
     {
-        available_load_bundles.reset();
-        reader_taken.reset();
-        writer_taken.reset();
-        allowed_loaders.reset();
-        partial_handled_columns.reset();
+        predicate_buffer_tiny_alloc.reset();
         predicate_buffer_small_alloc.reset();
         predicate_buffer_medium_alloc.reset();
         predicate_buffer_large_alloc.reset();
@@ -303,11 +195,7 @@ public final class BufferAllocatorStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":available_load_bundles", available_load_bundles.longValue());
-        res.put(getJmxKey() + ":reader_taken", reader_taken.longValue());
-        res.put(getJmxKey() + ":writer_taken", writer_taken.longValue());
-        res.put(getJmxKey() + ":allowed_loaders", allowed_loaders.longValue());
-        res.put(getJmxKey() + ":partial_handled_columns", partial_handled_columns.longValue());
+        res.put(getJmxKey() + ":predicate_buffer_tiny_alloc", predicate_buffer_tiny_alloc.longValue());
         res.put(getJmxKey() + ":predicate_buffer_small_alloc", predicate_buffer_small_alloc.longValue());
         res.put(getJmxKey() + ":predicate_buffer_medium_alloc", predicate_buffer_medium_alloc.longValue());
         res.put(getJmxKey() + ":predicate_buffer_large_alloc", predicate_buffer_large_alloc.longValue());

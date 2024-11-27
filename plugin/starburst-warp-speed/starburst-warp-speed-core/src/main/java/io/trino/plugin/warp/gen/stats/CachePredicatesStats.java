@@ -35,15 +35,19 @@ public final class CachePredicatesStats
     /* This class file is auto-generated from cachePredicates xml file for statistics and counters */
     private final String group;
 
+    private final LongAdder in_use_tiny = new LongAdder();
     private final LongAdder in_use_small = new LongAdder();
     private final LongAdder in_use_medium = new LongAdder();
     private final LongAdder in_use_large = new LongAdder();
+    private final LongAdder hit_tiny = new LongAdder();
     private final LongAdder hit_small = new LongAdder();
     private final LongAdder hit_medium = new LongAdder();
     private final LongAdder hit_large = new LongAdder();
+    private final LongAdder miss_tiny = new LongAdder();
     private final LongAdder miss_small = new LongAdder();
     private final LongAdder miss_medium = new LongAdder();
     private final LongAdder miss_large = new LongAdder();
+    private final LongAdder max_tiny = new LongAdder();
     private final LongAdder max_small = new LongAdder();
     private final LongAdder max_medium = new LongAdder();
     private final LongAdder max_large = new LongAdder();
@@ -71,6 +75,29 @@ public final class CachePredicatesStats
     public String getGroup()
     {
         return group;
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getin_use_tiny()
+    {
+        return in_use_tiny.longValue();
+    }
+
+    public void incin_use_tiny()
+    {
+        in_use_tiny.increment();
+    }
+
+    public void addin_use_tiny(long val)
+    {
+        in_use_tiny.add(val);
+    }
+
+    public void setin_use_tiny(long val)
+    {
+        in_use_tiny.reset();
+        addin_use_tiny(val);
     }
 
     @JsonIgnore
@@ -144,6 +171,29 @@ public final class CachePredicatesStats
 
     @JsonIgnore
     @Managed
+    public long gethit_tiny()
+    {
+        return hit_tiny.longValue();
+    }
+
+    public void inchit_tiny()
+    {
+        hit_tiny.increment();
+    }
+
+    public void addhit_tiny(long val)
+    {
+        hit_tiny.add(val);
+    }
+
+    public void sethit_tiny(long val)
+    {
+        hit_tiny.reset();
+        addhit_tiny(val);
+    }
+
+    @JsonIgnore
+    @Managed
     public long gethit_small()
     {
         return hit_small.longValue();
@@ -213,6 +263,29 @@ public final class CachePredicatesStats
 
     @JsonIgnore
     @Managed
+    public long getmiss_tiny()
+    {
+        return miss_tiny.longValue();
+    }
+
+    public void incmiss_tiny()
+    {
+        miss_tiny.increment();
+    }
+
+    public void addmiss_tiny(long val)
+    {
+        miss_tiny.add(val);
+    }
+
+    public void setmiss_tiny(long val)
+    {
+        miss_tiny.reset();
+        addmiss_tiny(val);
+    }
+
+    @JsonIgnore
+    @Managed
     public long getmiss_small()
     {
         return miss_small.longValue();
@@ -278,6 +351,29 @@ public final class CachePredicatesStats
     {
         miss_large.reset();
         addmiss_large(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getmax_tiny()
+    {
+        return max_tiny.longValue();
+    }
+
+    public void incmax_tiny()
+    {
+        max_tiny.increment();
+    }
+
+    public void addmax_tiny(long val)
+    {
+        max_tiny.add(val);
+    }
+
+    public void setmax_tiny(long val)
+    {
+        max_tiny.reset();
+        addmax_tiny(val);
     }
 
     @JsonIgnore
@@ -593,15 +689,19 @@ public final class CachePredicatesStats
     public Map<String, LongAdder> getCounters()
     {
         Map<String, LongAdder> ret = new HashMap<>();
+        ret.put("in_use_tiny", in_use_tiny);
         ret.put("in_use_small", in_use_small);
         ret.put("in_use_medium", in_use_medium);
         ret.put("in_use_large", in_use_large);
+        ret.put("hit_tiny", hit_tiny);
         ret.put("hit_small", hit_small);
         ret.put("hit_medium", hit_medium);
         ret.put("hit_large", hit_large);
+        ret.put("miss_tiny", miss_tiny);
         ret.put("miss_small", miss_small);
         ret.put("miss_medium", miss_medium);
         ret.put("miss_large", miss_large);
+        ret.put("max_tiny", max_tiny);
         ret.put("max_small", max_small);
         ret.put("max_medium", max_medium);
         ret.put("max_large", max_large);
@@ -626,15 +726,19 @@ public final class CachePredicatesStats
             return;
         }
         CachePredicatesStats other = (CachePredicatesStats) warpStatsBase;
+        this.in_use_tiny.add(other.in_use_tiny.longValue());
         this.in_use_small.add(other.in_use_small.longValue());
         this.in_use_medium.add(other.in_use_medium.longValue());
         this.in_use_large.add(other.in_use_large.longValue());
+        this.hit_tiny.add(other.hit_tiny.longValue());
         this.hit_small.add(other.hit_small.longValue());
         this.hit_medium.add(other.hit_medium.longValue());
         this.hit_large.add(other.hit_large.longValue());
+        this.miss_tiny.add(other.miss_tiny.longValue());
         this.miss_small.add(other.miss_small.longValue());
         this.miss_medium.add(other.miss_medium.longValue());
         this.miss_large.add(other.miss_large.longValue());
+        this.max_tiny.add(other.max_tiny.longValue());
         this.max_small.add(other.max_small.longValue());
         this.max_medium.add(other.max_medium.longValue());
         this.max_large.add(other.max_large.longValue());
@@ -653,15 +757,19 @@ public final class CachePredicatesStats
     @Override
     public void reset()
     {
+        in_use_tiny.reset();
         in_use_small.reset();
         in_use_medium.reset();
         in_use_large.reset();
+        hit_tiny.reset();
         hit_small.reset();
         hit_medium.reset();
         hit_large.reset();
+        miss_tiny.reset();
         miss_small.reset();
         miss_medium.reset();
         miss_large.reset();
+        max_tiny.reset();
         max_small.reset();
         max_medium.reset();
         max_large.reset();
@@ -681,15 +789,19 @@ public final class CachePredicatesStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
+        res.put(getJmxKey() + ":in_use_tiny", in_use_tiny.longValue());
         res.put(getJmxKey() + ":in_use_small", in_use_small.longValue());
         res.put(getJmxKey() + ":in_use_medium", in_use_medium.longValue());
         res.put(getJmxKey() + ":in_use_large", in_use_large.longValue());
+        res.put(getJmxKey() + ":hit_tiny", hit_tiny.longValue());
         res.put(getJmxKey() + ":hit_small", hit_small.longValue());
         res.put(getJmxKey() + ":hit_medium", hit_medium.longValue());
         res.put(getJmxKey() + ":hit_large", hit_large.longValue());
+        res.put(getJmxKey() + ":miss_tiny", miss_tiny.longValue());
         res.put(getJmxKey() + ":miss_small", miss_small.longValue());
         res.put(getJmxKey() + ":miss_medium", miss_medium.longValue());
         res.put(getJmxKey() + ":miss_large", miss_large.longValue());
+        res.put(getJmxKey() + ":max_tiny", max_tiny.longValue());
         res.put(getJmxKey() + ":max_small", max_small.longValue());
         res.put(getJmxKey() + ":max_medium", max_medium.longValue());
         res.put(getJmxKey() + ":max_large", max_large.longValue());
@@ -710,15 +822,19 @@ public final class CachePredicatesStats
     protected Map<String, Long> deltaPrintFields()
     {
         Map<String, Long> res = new HashMap<>();
+        res.put("in_use_tiny", getin_use_tiny());
         res.put("in_use_small", getin_use_small());
         res.put("in_use_medium", getin_use_medium());
         res.put("in_use_large", getin_use_large());
+        res.put("hit_tiny", gethit_tiny());
         res.put("hit_small", gethit_small());
         res.put("hit_medium", gethit_medium());
         res.put("hit_large", gethit_large());
+        res.put("miss_tiny", getmiss_tiny());
         res.put("miss_small", getmiss_small());
         res.put("miss_medium", getmiss_medium());
         res.put("miss_large", getmiss_large());
+        res.put("max_tiny", getmax_tiny());
         res.put("max_small", getmax_small());
         res.put("max_medium", getmax_medium());
         res.put("max_large", getmax_large());

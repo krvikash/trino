@@ -17,7 +17,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.airlift.units.DataSize;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
@@ -45,7 +44,10 @@ import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -55,14 +57,6 @@ public class BufferAllocator
 {
     private static final Logger logger = Logger.get(BufferAllocator.class);
     static final String BUFFER_ALLOCATOR_METRICS_GROUP = "BufferAllocator";
-
-    @VisibleForTesting
-    public static final int PREDICATE_SMALL_BUF_SIZE = 80; // around 4 bigint ranges or 9 bigint values
-    private static final int PREDICATE_SMALL_NUM_BUFFERS = 2048;
-    private static final int PREDICATE_MEDIUM_BUF_SIZE = (int) DataSize.of(128, DataSize.Unit.KILOBYTE).toBytes();
-    private static final int PREDICATE_MEDIUM_NUM_BUFFERS = 32;
-    private static final int PREDICATE_LARGE_BUF_SIZE = (int) DataSize.of(2300, DataSize.Unit.KILOBYTE).toBytes();
-    private static final int PREDICATE_LARGE_NUM_BUFFERS = 0; // will be set according to memory available
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
@@ -124,36 +118,32 @@ public class BufferAllocator
         predicateBundleMem = null;
     }
 
-    private long initPredicateBundle(boolean isReducedSize)
+    private long initPredicateBundle()
     {
-        if (isReducedSize) {
-            logger.warn("Init predicate bundle with reduced size");
-        }
-        this.predicateBufferPools = new PredicateBufferPool[PredicateBufferPoolType.values().length];
+        final long[] poolSizes = {0, 2000, 1000, 100, 10};
+        final long[] bufferSizes = {0, 100, 1000, 100 * 1000, 1000 * 1000};
 
+        // create a set of the buffer types without invalid
+        Set<PredicateBufferPoolType> bufferTypes = Arrays.stream(PredicateBufferPoolType.values())
+                .filter(type -> !PredicateBufferPoolType.INVALID.equals(type))
+                .collect(Collectors.toSet());
+
+        // calculate total size and allocate it
         final long alignment = storageEngineConstants.getPageSize();
+        long totalPoolSize = alignment;
+        for (PredicateBufferPoolType type : bufferTypes) {
+            totalPoolSize += poolSizes[type.ordinal()] * bufferSizes[type.ordinal()];
+        }
+        predicateBundleMem = Arena.ofAuto().allocate(totalPoolSize, alignment);
+        SegmentAllocator poolSlicer = SegmentAllocator.slicingAllocator(predicateBundleMem);
 
-        long predicateBundleSize = (long) (nativeConfig.getPredicateBundleSizeInMegaBytes() << 20) + alignment;
-        if (isReducedSize) {
-            predicateBundleSize = (predicateBundleSize >> 2) + alignment;
+        // do another loop to actually create the pools
+        this.predicateBufferPools = new PredicateBufferPool[PredicateBufferPoolType.values().length];
+        for (PredicateBufferPoolType type : bufferTypes) {
+            predicateBufferPools[type.ordinal()] = new PredicateBufferPool(type, bufferSizes[type.ordinal()], poolSizes[type.ordinal()], poolSlicer);
         }
 
-        predicateBundleMem = Arena.ofAuto().allocate(predicateBundleSize, alignment);
-        SegmentAllocator poolSlicer = SegmentAllocator.slicingAllocator(predicateBundleMem);
-        predicateBufferPools[PredicateBufferPoolType.SMALL.ordinal()] = new PredicateBufferPool(PredicateBufferPoolType.SMALL,
-                PREDICATE_SMALL_BUF_SIZE,
-                PREDICATE_SMALL_NUM_BUFFERS,
-                poolSlicer);
-        predicateBufferPools[PredicateBufferPoolType.MEDIUM.ordinal()] = new PredicateBufferPool(PredicateBufferPoolType.MEDIUM,
-                PREDICATE_MEDIUM_BUF_SIZE,
-                PREDICATE_MEDIUM_NUM_BUFFERS,
-                poolSlicer);
-        predicateBufferPools[PredicateBufferPoolType.LARGE.ordinal()] = new PredicateBufferPool(PredicateBufferPoolType.LARGE,
-                PREDICATE_LARGE_BUF_SIZE,
-                PREDICATE_LARGE_NUM_BUFFERS,
-                poolSlicer);
-
-        return predicateBundleSize;
+        return totalPoolSize;
     }
 
     private void initBufferTypeSizes()
@@ -213,33 +203,29 @@ public class BufferAllocator
     @Override
     public void init()
     {
-        long predicateBundleSize = 0;
-
-        // 3 for records, extended records and metadata (we take spare for metadata)
-        int dataWriteBufferSize = storageEngineConstants.getRecordBufferMaxSize() * 3;
-        int basicWriteBufferSize = storageEngineConstants.getIndexChunkMaxSize();
-        this.warmWriteBufferSize = Math.max(dataWriteBufferSize, basicWriteBufferSize);
-
-        // we take the maximal size limit and multiply by 1024, in practice since not all WEs are in maximal size we can warm at once more
-        this.warmContextBufferSize = storageEngineConstants.getMaxWeContextSize() * 1024;
-
         try {
-            predicateBundleSize = initPredicateBundle(connectorSync.isCatalogReducedResources());
+            // 3 for records, extended records and metadata (we take spare for metadata)
+            int dataWriteBufferSize = storageEngineConstants.getRecordBufferMaxSize() * 3;
+            int basicWriteBufferSize = storageEngineConstants.getIndexChunkMaxSize();
+            this.warmWriteBufferSize = Math.max(dataWriteBufferSize, basicWriteBufferSize);
+
+            // we take the maximal size limit and multiply by 1024, in practice since not all WEs are in maximal size we can warm at once more
+            this.warmContextBufferSize = storageEngineConstants.getMaxWeContextSize() * 1024;
+
+            long predicateCacheSizeInBytes = initPredicateBundle();
+            logger.info("catalog %s warmBufferSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateCacheSizeInBytes %dMB",
+                    connectorSync.getCatalogName(),
+                    warmBufferSize,
+                    warmWriteBufferSize,
+                    warmContextBufferSize,
+                    predicateCacheSizeInBytes >> 20);
+
+            metricsManager.registerMetric(this.stats);
         }
         catch (Throwable t) {
+            logger.error(t, "failed to initialize buffer allocator");
             throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + connectorSync.getCatalogName() + " failed to load");
         }
-
-        logger.info("catalog %s warmBufferSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateBundleSize %dMB",
-                connectorSync.getCatalogName(),
-                warmBufferSize,
-                warmWriteBufferSize,
-                warmContextBufferSize,
-                predicateBundleSize >> 20);
-
-        metricsManager.registerMetric(this.stats);
-        updateStats(nativeConfig.getTaskMaxWorkerThreads());
-        stats.addallowed_loaders(nativeConfig.getTaskMaxWorkerThreads());
     }
 
     @VisibleForTesting
@@ -427,28 +413,12 @@ public class BufferAllocator
     {
         int diff = alloc ? 1 : -1;
         switch (predicateBuffer) {
+            case TINY -> stats.addpredicate_buffer_tiny_alloc(diff);
             case SMALL -> stats.addpredicate_buffer_small_alloc(diff);
             case MEDIUM -> stats.addpredicate_buffer_medium_alloc(diff);
             case LARGE -> stats.addpredicate_buffer_large_alloc(diff);
             default -> throw new RuntimeException("unknown predicateBuffer code " + predicateBuffer);
         }
-    }
-
-    public void readerOnAllocBundle()
-    {
-        stats.addreader_taken(1);
-        updateStats(-1);
-    }
-
-    public void readerOnFreeBundle()
-    {
-        stats.addreader_taken(-1);
-        updateStats(1);
-    }
-
-    private void updateStats(long bundles)
-    {
-        stats.addavailable_load_bundles(bundles);
     }
 
     public WarmUpElementAllocationParams calculateAllocationParams(WarmupElementWriteMetadata warmupElementWriteMetadata, MemorySegment loadSegment)

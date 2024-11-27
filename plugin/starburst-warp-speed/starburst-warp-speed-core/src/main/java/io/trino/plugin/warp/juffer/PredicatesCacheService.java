@@ -17,7 +17,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.airlift.units.DataSize;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
@@ -67,18 +66,27 @@ public class PredicatesCacheService
     private final DomainToMapBlockConvertor domainToMapBlockConvertor;
     private final Lock readLock;
     private final Lock writeLock;
+    private final AtomicInteger activePredicatesTiny;
     private final AtomicInteger activePredicatesSmall;
     private final AtomicInteger activePredicatesMedium;
     private final AtomicInteger activePredicatesLarge;
-    private static final int PREDICATE_SIZE1 = 80;
-    private static final int PREDICATE_SIZE2 = (int) DataSize.of(32, DataSize.Unit.KILOBYTE).toBytes();
-    private static final int PREDICATE_SIZE3 = (int) DataSize.of(64, DataSize.Unit.KILOBYTE).toBytes();
-    private static final int PREDICATE_SIZE4 = (int) DataSize.of(96, DataSize.Unit.KILOBYTE).toBytes();
-    private static final int PREDICATE_SIZE5 = (int) DataSize.of(128, DataSize.Unit.KILOBYTE).toBytes();
-    private static final int PREDICATE_SIZE6 = (int) DataSize.of(640, DataSize.Unit.KILOBYTE).toBytes();
-    private static final int PREDICATE_SIZE7 = (int) DataSize.of(1152, DataSize.Unit.KILOBYTE).toBytes();
-    private static final int PREDICATE_SIZE8 = (int) DataSize.of(1664, DataSize.Unit.KILOBYTE).toBytes();
-    private static final int PREDICATE_SIZE9 = (int) DataSize.of(2176, DataSize.Unit.KILOBYTE).toBytes();
+    private static final int PREDICATE_SIZE1 = 100;
+    private static final int PREDICATE_SIZE2 = 500;
+    private static final int PREDICATE_SIZE3 = 1000;
+    private static final int PREDICATE_SIZE4 = 5000;
+    private static final int PREDICATE_SIZE5 = 10000;
+    private static final int PREDICATE_SIZE6 = 50000;
+    private static final int PREDICATE_SIZE7 = 100000;
+    private static final int PREDICATE_SIZE8 = 500000;
+    private static final int PREDICATE_SIZE9 = 1000000;
+
+    private enum MetricsType
+    {
+        IN_USE,
+        CACHE_HIT,
+        CACHE_MISS,
+        CACHE_MAX
+    }
 
     @Inject
     public PredicatesCacheService(BufferAllocator bufferAllocator,
@@ -98,6 +106,7 @@ public class PredicatesCacheService
         initPredicateCachePoll();
         initPredicateFillerMap();
         this.cachePredicatesStats = metricsManager.registerMetric(CachePredicatesStats.create(STATS_CACHE_PREDICATE_KEY));
+        this.activePredicatesTiny = new AtomicInteger(0);
         this.activePredicatesSmall = new AtomicInteger(0);
         this.activePredicatesMedium = new AtomicInteger(0);
         this.activePredicatesLarge = new AtomicInteger(0);
@@ -300,6 +309,13 @@ public class PredicatesCacheService
         int delta;
         if (increase) {
             switch (predicateBufferPoolType) {
+                case TINY -> {
+                    newVal = activePredicatesTiny.incrementAndGet();
+                    delta = (int) (newVal - cachePredicatesStats.getmax_small());
+                    if (delta > 0) {
+                        cachePredicatesStats.addmax_tiny(delta);
+                    }
+                }
                 case SMALL -> {
                     newVal = activePredicatesSmall.incrementAndGet();
                     delta = (int) (newVal - cachePredicatesStats.getmax_small());
@@ -326,6 +342,7 @@ public class PredicatesCacheService
         }
         else {
             switch (predicateBufferPoolType) {
+                case TINY -> activePredicatesTiny.decrementAndGet();
                 case SMALL -> activePredicatesSmall.decrementAndGet();
                 case MEDIUM -> activePredicatesMedium.decrementAndGet();
                 case LARGE -> activePredicatesLarge.decrementAndGet();
@@ -338,6 +355,14 @@ public class PredicatesCacheService
     {
         if (increase) {
             switch (predicateBufferPoolType) {
+                case TINY -> {
+                    switch (metricsType) {
+                        case IN_USE -> cachePredicatesStats.incin_use_tiny();
+                        case CACHE_HIT -> cachePredicatesStats.inchit_tiny();
+                        case CACHE_MISS -> cachePredicatesStats.incmiss_tiny();
+                        case CACHE_MAX -> throw new TrinoException(WarpErrorCode.WARP_GENERIC, "Unexpected to increase " + metricsType);
+                    }
+                }
                 case SMALL -> {
                     switch (metricsType) {
                         case IN_USE -> cachePredicatesStats.incin_use_small();
@@ -371,6 +396,7 @@ public class PredicatesCacheService
             }
             else {
                 switch (predicateBufferPoolType) {
+                    case TINY -> cachePredicatesStats.addin_use_tiny(-1);
                     case SMALL -> cachePredicatesStats.addin_use_small(-1);
                     case MEDIUM -> cachePredicatesStats.addin_use_medium(-1);
                     case LARGE -> cachePredicatesStats.addin_use_large(-1);
@@ -450,27 +476,22 @@ public class PredicatesCacheService
         return true;
     }
 
-    private enum MetricsType
+    @VisibleForTesting
+    public int getHitTiny()
     {
-        IN_USE,
-        CACHE_HIT,
-        CACHE_MISS,
-        CACHE_MAX
+        return (int) cachePredicatesStats.gethit_tiny();
     }
 
-    public int getHitSmall()
+    @VisibleForTesting
+    public int getMissTiny()
     {
-        return (int) cachePredicatesStats.gethit_small();
+        return (int) cachePredicatesStats.getmiss_tiny();
     }
 
-    public int getMissSmall()
+    @VisibleForTesting
+    public int getMaxTiny()
     {
-        return (int) cachePredicatesStats.getmiss_small();
-    }
-
-    public int getMaxSmall()
-    {
-        return (int) cachePredicatesStats.getmax_small();
+        return (int) cachePredicatesStats.getmax_tiny();
     }
 
     @VisibleForTesting

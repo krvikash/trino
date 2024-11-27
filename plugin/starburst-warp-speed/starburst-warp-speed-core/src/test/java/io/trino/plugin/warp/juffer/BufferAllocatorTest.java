@@ -109,22 +109,22 @@ public class BufferAllocatorTest
         bufferAllocator.init();
         PredicateBufferInfo predicateBufferInfo = requireNonNull(bufferAllocator.allocPredicateBuffer(10));
         PredicateCacheData bufferHandleSmall = new PredicateCacheData(predicateBufferInfo, Optional.empty());
-        assertThat(bufferHandleSmall.getPredicateBufferInfo().buff().byteSize()).isEqualTo(BufferAllocator.PREDICATE_SMALL_BUF_SIZE);
-        assertThat(bufferHandleSmall.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.SMALL);
-        PredicateBufferInfo predicateBufferInfo2 = requireNonNull(bufferAllocator.allocPredicateBuffer(BufferAllocator.PREDICATE_SMALL_BUF_SIZE - 10));
+        assertThat(bufferHandleSmall.getPredicateBufferInfo().buff().byteSize()).isEqualTo(100);
+        assertThat(bufferHandleSmall.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.TINY);
+        PredicateBufferInfo predicateBufferInfo2 = requireNonNull(bufferAllocator.allocPredicateBuffer(70));
         PredicateCacheData bufferHandleSmall2 = new PredicateCacheData(predicateBufferInfo2, Optional.empty());
-        assertThat(bufferHandleSmall2.getPredicateBufferInfo().buff().byteSize()).isEqualTo(BufferAllocator.PREDICATE_SMALL_BUF_SIZE);
-        assertThat(bufferHandleSmall2.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.SMALL);
+        assertThat(bufferHandleSmall2.getPredicateBufferInfo().buff().byteSize()).isEqualTo(100);
+        assertThat(bufferHandleSmall2.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.TINY);
 
         // small/large
         PredicateCacheData bufferHandleMedium1 = createPredicateCacheData(bufferAllocator, 3000);
         assertThat(bufferHandleMedium1.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.MEDIUM);
-        assertThat(bufferHandleMedium1.getPredicateBufferInfo().buff().byteSize()).isEqualTo(128 * 1024);
+        assertThat(bufferHandleMedium1.getPredicateBufferInfo().buff().byteSize()).isEqualTo(100000);
         PredicateCacheData bufferHandleMedium2 = createPredicateCacheData(bufferAllocator, 40000);
         assertThat(bufferHandleMedium2.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.MEDIUM);
         PredicateCacheData bufferHandleMedium3 = createPredicateCacheData(bufferAllocator, 100000);
         assertThat(bufferHandleMedium3.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.MEDIUM);
-        PredicateCacheData bufferHandleLarge = createPredicateCacheData(bufferAllocator, 2200000);
+        PredicateCacheData bufferHandleLarge = createPredicateCacheData(bufferAllocator, 999999);
         assertThat(bufferHandleLarge.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.LARGE);
         bufferAllocator.freePredicateBuffer(bufferHandleMedium3);
         bufferAllocator.freePredicateBuffer(bufferHandleLarge);
@@ -138,7 +138,7 @@ public class BufferAllocatorTest
         bufferAllocator.freePredicateBuffer(bufferHandleMedium4);
 
         // allocate large again an free it
-        PredicateCacheData bufferHandleLarge2 = createPredicateCacheData(bufferAllocator, 1700000);
+        PredicateCacheData bufferHandleLarge2 = createPredicateCacheData(bufferAllocator, 900000);
         assertThat(bufferHandleLarge2.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.LARGE);
         bufferAllocator.freePredicateBuffer(bufferHandleLarge2);
 
