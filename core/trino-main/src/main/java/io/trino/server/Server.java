@@ -133,7 +133,7 @@ public class Server
                 new TransactionManagerModule(),
                 new StarburstDataframeModule(),
                 new ServerMainModule(trinoVersion),
-                new GracefulShutdownModule(),
+                new NodeStateManagerModule(),
                 new WarningCollectorModule());
 
         modules.addAll(getAdditionalModules());
