@@ -110,9 +110,18 @@ public class LuceneIndexer
         try {
             stopWatch.reset();
             stopWatch.start();
+
             doc.clear();
+
             for (Slice value : values) {
-                TextField textField = new TextField(VALUE_FIELD_NAME, serializeSlice(value), Field.Store.NO);
+                String valueAsString = serializeSlice(value);
+
+                if (valueAsString.length() > 32766) {
+                    failedDocumentError = "failed creating doc (path %s) - UTF8 encoding is longer than max length 32766".formatted(path);
+                    failedCommit = true;
+                    return;
+                }
+                TextField textField = new TextField(VALUE_FIELD_NAME, valueAsString, Field.Store.NO);
                 doc.add(textField);
             }
 
@@ -129,11 +138,15 @@ public class LuceneIndexer
             stats.addaddDoc(stopWatch.getNanoTime());
         }
         catch (Exception e) {
-            shapingLogger.error("Got exception from addDocument (path %s) - %s", path, e);
-            failedDocumentError = e.getMessage();
+            failedDocumentError = "Got exception from addDocument (path %s) - %s".formatted(path, e);
             failedCommit = true;
-            stats.incfailedAddDoc();
-            closeLuceneIndex(); // will throw an exception
+        }
+        finally {
+            if (failedCommit) {
+                shapingLogger.error(failedDocumentError);
+                stats.incfailedAddDoc();
+                closeLuceneIndex(); // will throw an exception
+            }
         }
     }
 
