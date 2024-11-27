@@ -64,6 +64,7 @@ public abstract class BaseStargateConnectorTest
                 // not yet supported in Stargate connector
                 return false;
 
+            case SUPPORTS_MAP_TYPE:
             case SUPPORTS_ROW_TYPE:
             case SUPPORTS_ARRAY:
                 // TODO Add support in Stargate connector (https://starburstdata.atlassian.net/browse/SEP-4798)

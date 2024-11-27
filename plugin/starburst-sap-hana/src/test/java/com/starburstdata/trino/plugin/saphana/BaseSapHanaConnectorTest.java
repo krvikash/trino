@@ -70,6 +70,7 @@ public abstract class BaseSapHanaConnectorTest
                 return false;
 
             case SUPPORTS_ARRAY:
+            case SUPPORTS_MAP_TYPE:
             case SUPPORTS_ROW_TYPE:
             case SUPPORTS_NEGATIVE_DATE:
                 return false;
