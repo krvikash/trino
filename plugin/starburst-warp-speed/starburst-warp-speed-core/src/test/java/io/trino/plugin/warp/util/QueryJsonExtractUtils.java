@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.node.ContainerNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Splitter;
+import io.airlift.units.Duration;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,11 +31,15 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 public class QueryJsonExtractUtils
 {
@@ -45,11 +50,16 @@ public class QueryJsonExtractUtils
     public static void main(String[] args)
             throws IOException
     {
-        // TODO: In order to use this util, please update this path
-        File rootDir = new File("/tmp/please/set/a/directory/path");
-        for (File file : getDirFiles(rootDir)) {
-            extract(file);
+        // TODO: In order to use this util, please update the following args:
+        String folderPath = "/tmp/please/set/a/directory/path";
+        boolean lastJsonInEachFolder = true;
+
+        File rootDir = new File(folderPath);
+        long executionTimeNanos = 0;
+        for (File file : getDirFiles(rootDir, lastJsonInEachFolder)) {
+            executionTimeNanos += extract(file);
         }
+        System.out.println("Total execution time = " + Duration.succinctNanos(executionTimeNanos).toString(TimeUnit.SECONDS));
     }
 
     private static class JsonFilter
@@ -62,21 +72,23 @@ public class QueryJsonExtractUtils
         }
     }
 
-    private static List<File> getDirFiles(File file)
+    private static List<File> getDirFiles(File file, boolean lastJsonInEachFolder)
     {
         List<File> ret = new ArrayList<>();
         File[] files = file.listFiles(new JsonFilter());
         if (files == null) {
             throw new RuntimeException("files is null");
         }
-        for (File f : files) {
-            if (f.isDirectory()) {
-                ret.addAll(getDirFiles(f));
-            }
-            else {
-                ret.add(f);
-            }
+        Stream<File> filesStream = Arrays.stream(files).filter(File::isFile);
+        if (lastJsonInEachFolder) {
+            filesStream.min((f1, f2) -> -1 * f1.getAbsolutePath().compareTo(f2.getAbsolutePath())).ifPresent(ret::add);
         }
+        else {
+            filesStream.forEach(ret::add);
+        }
+        Arrays.stream(files)
+                .filter(File::isDirectory)
+                .forEach(directory -> ret.addAll(getDirFiles(directory, lastJsonInEachFolder)));
         return ret;
     }
 
@@ -95,7 +107,7 @@ public class QueryJsonExtractUtils
         }
     }
 
-    public static void extract(File f)
+    public static long extract(File f)
             throws IOException
     {
         System.out.println("starting " + f);
@@ -103,12 +115,8 @@ public class QueryJsonExtractUtils
         String filename = f.getAbsolutePath().substring(0, f.getAbsolutePath().lastIndexOf(".json"));
         ContainerNode jsonNode = (ContainerNode) objectReader.readTree(new StringReader(prepareFileContent(filename + ".json", false)));
         ArrayNode operatorsNode;
-        if (jsonNode instanceof ObjectNode) {
-            operatorsNode = (ArrayNode) jsonNode.get("queryStats").get("operatorSummaries");
-        }
-        else {
-            operatorsNode = (ArrayNode) jsonNode;
-        }
+        ObjectNode queryStats = (ObjectNode) jsonNode.get("queryStats");
+        operatorsNode = (ArrayNode) queryStats.get("operatorSummaries");
         Map<String, ObjectNode> s = new TreeMap<>();
         for (JsonNode node : operatorsNode) {
             ObjectNode convertedNode = convertNode((ObjectNode) node);
@@ -117,20 +125,34 @@ public class QueryJsonExtractUtils
                 s.put(key, convertedNode);
             }
         }
-        buildOperatorTree(filename, s);
+        Map<String, Object> tree = new LinkedHashMap<>();
+        addStats(tree, queryStats);
+        addOperators(tree, s);
+        new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT).writeValue(new File(filename + "_tree.json"), tree);
+        return getExecutionTimeNanos(queryStats);
     }
 
-    private static void buildOperatorTree(String fileName, Map<String, ObjectNode> s)
-            throws IOException
+    private static long getExecutionTimeNanos(ObjectNode queryStats)
     {
-        Map<String, Map<String, Map<String, Map<String, String>>>> tree = new TreeMap<>();
+        Duration duration = Duration.valueOf(queryStats.get("executionTime").textValue());
+        return duration.roundTo(TimeUnit.NANOSECONDS);
+    }
+
+    private static void addStats(Map<String, Object> tree, ObjectNode queryStats)
+    {
+        List<String> statsToAdd = List.of("executionTime", "planningTime");
+        statsToAdd.forEach(stat -> tree.put(stat, queryStats.get(stat)));
+    }
+
+    private static void addOperators(Map<String, Object> tree, Map<String, ObjectNode> s)
+    {
         s.forEach((key, value) -> {
             List<String> keyTokens = Splitter.on('_').splitToList(key);
             if (keyTokens.size() < 4) {
                 throw new RuntimeException("Expected more parts");
             }
             tree.putIfAbsent(getKey(keyTokens.get(0)), new HashMap<>());
-            Map<String, Map<String, Map<String, String>>> stageMap = tree.get(getKey(keyTokens.get(0)));
+            Map<String, Map<String, Map<String, String>>> stageMap = (Map<String, Map<String, Map<String, String>>>) tree.get(getKey(keyTokens.get(0)));
             stageMap.putIfAbsent(getKey(keyTokens.get(1)), new HashMap<>());
             Map<String, Map<String, String>> pipelineMap = stageMap.get(getKey(keyTokens.get(1)));
             pipelineMap.putIfAbsent(getKey(keyTokens.get(2)), new HashMap<>());
@@ -161,8 +183,6 @@ public class QueryJsonExtractUtils
             }
             alternativeMap.put(getKey(keyTokens.get(3)), (value.get("5.operatorType").textValue() + ": op=" + value.get("outputPositions") + ": wall=" + value.get("getOutputWall") + ": driver=" + value.get("totalDrivers") + moreInfo));
         });
-
-        new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT).writeValue(new File(fileName + "_tree.json"), tree);
     }
 
     private static String getKey(String key)
