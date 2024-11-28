@@ -135,6 +135,7 @@ import io.trino.testing.TestingGroupProviderManager;
 import io.trino.testing.TestingWarningCollectorModule;
 import io.trino.tracing.ForTracing;
 import io.trino.tracing.TracingAccessControl;
+import io.trino.tracing.TracingLocationAccessControl;
 import io.trino.tracing.TracingScopesModule;
 import io.trino.transaction.TransactionManager;
 import io.trino.transaction.TransactionManagerModule;
@@ -378,6 +379,8 @@ public class TestingTrinoServer
                     binder.bind(GroupProviderManager.class).to(TestingGroupProviderManager.class).in(Scopes.SINGLETON);
                     binder.bind(AccessControl.class).annotatedWith(ForTracing.class).to(AccessControlManager.class).in(Scopes.SINGLETON);
                     binder.bind(AccessControl.class).to(TracingAccessControl.class).in(Scopes.SINGLETON);
+                    binder.bind(LocationAccessControl.class).annotatedWith(ForTracing.class).to(AccessControlManager.class).in(Scopes.SINGLETON);
+                    binder.bind(LocationAccessControl.class).to(TracingLocationAccessControl.class).in(Scopes.SINGLETON);
                     binder.bind(ShutdownAction.class).to(TestShutdownAction.class).in(Scopes.SINGLETON);
                     binder.bind(CurrentNodeState.class).in(Scopes.SINGLETON);
                     binder.bind(NodeStateManager.class).in(Scopes.SINGLETON);

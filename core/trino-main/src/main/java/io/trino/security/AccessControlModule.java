@@ -27,6 +27,7 @@ import io.trino.spi.security.GroupProvider;
 import io.trino.spi.security.LocationAccessControl;
 import io.trino.tracing.ForTracing;
 import io.trino.tracing.TracingAccessControl;
+import io.trino.tracing.TracingLocationAccessControl;
 
 import static com.google.common.reflect.Reflection.newProxy;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
@@ -48,6 +49,7 @@ public class AccessControlModule
                 .in(Scopes.SINGLETON);
         binder.bind(AccessControlManager.class).in(Scopes.SINGLETON);
         binder.bind(AccessControl.class).to(TracingAccessControl.class);
+        binder.bind(LocationAccessControl.class).to(TracingLocationAccessControl.class);
         newOptionalBinder(binder, AiModelAccessControl.class)
                 .setDefault()
                 .toInstance(AiModelAccessControl.ALLOW_ALL);
@@ -70,6 +72,25 @@ public class AccessControlModule
         return ForwardingAccessControl.of(() -> {
             if (logger.isDebugEnabled()) {
                 return loggingInvocationsAccessControl;
+            }
+            return accessControlManager;
+        });
+    }
+
+    @Provides
+    @Singleton
+    @ForTracing
+    public LocationAccessControl createLocationAccessControl(AccessControlManager accessControlManager)
+    {
+        Logger logger = Logger.get(LocationAccessControl.class);
+
+        LocationAccessControl loggingInvocationsLocationAccessControl = newProxy(
+                LocationAccessControl.class,
+                new LoggingInvocationHandler(accessControlManager, logger::debug));
+
+        return ForwardingLocationAccessControl.of(() -> {
+            if (logger.isDebugEnabled()) {
+                return loggingInvocationsLocationAccessControl;
             }
             return accessControlManager;
         });
