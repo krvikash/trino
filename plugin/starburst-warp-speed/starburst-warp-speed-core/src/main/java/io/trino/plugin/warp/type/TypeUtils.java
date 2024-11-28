@@ -86,7 +86,7 @@ public class TypeUtils
             return false;
         }
 
-        if (TypeUtils.isRowType(type) || TypeUtils.isMapType(type)) {
+        if (TypeUtils.isRowType(type) || TypeUtils.isMapType(type) || isVarbinaryType(type)) {
             return false;
         }
         if (TypeUtils.isArrayType(type)) {

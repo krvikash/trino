@@ -217,8 +217,8 @@ public class WarmupElementsCreator
         Optional<WarmUpElement> res = Optional.empty();
         try {
             WarpColumn cachedColumn = new RegularColumn(cacheColumnId);
-            int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
             if (TypeUtils.isWarmDataSupported(columnType) || TypeUtils.isWarmBasicSupported(columnType) || TypeUtils.isWarmLuceneSupported(columnType)) {
+                int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
                 RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
                 res = Optional.of(WarmUpElement.builder()
                         .creationTime(System.currentTimeMillis())
