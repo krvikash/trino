@@ -31,7 +31,6 @@ import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.security.AccessControl;
-import io.trino.security.AccessControlManager;
 import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
@@ -49,6 +48,7 @@ import io.trino.spi.connector.ConnectorName;
 import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 import io.trino.sql.planner.OptimizerConfig;
 import io.trino.transaction.TransactionManager;
@@ -84,7 +84,7 @@ public class DefaultCatalogFactory
 
     private final boolean schedulerIncludeCoordinator;
     private final int maxPrefetchedInformationSchemaPrefixes;
-    private final AccessControlManager accessControlManager;
+    private final LocationAccessControl locationAccessControl;
     private final AiModelAccessControl aiModelAccessControl;
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
     private final ManagedStatisticsClient managedStatisticsClient;
@@ -111,7 +111,7 @@ public class DefaultCatalogFactory
             TypeManager typeManager,
             FlatHashStrategyCompiler flatHashStrategyCompiler,
             NodeSchedulerConfig nodeSchedulerConfig,
-            AccessControlManager accessControlManager,
+            LocationAccessControl locationAccessControl,
             AiModelAccessControl aiModelAccessControl,
             ModelConnectionSpecsLoader modelConnectionSpecsLoader,
             ManagedStatisticsClient managedStatisticsClient,
@@ -136,7 +136,7 @@ public class DefaultCatalogFactory
         this.blocksHashFactory = requireNonNull(flatHashStrategyCompiler, "flatHashStrategyCompiler is null").createBlocksHashFactory();
         this.schedulerIncludeCoordinator = nodeSchedulerConfig.isIncludeCoordinator();
         this.maxPrefetchedInformationSchemaPrefixes = optimizerConfig.getMaxPrefetchedInformationSchemaPrefixes();
-        this.accessControlManager = requireNonNull(accessControlManager, "accessControlManager is null");
+        this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
         this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
         this.managedStatisticsClient = requireNonNull(managedStatisticsClient, "managedStatisticsClient is null");
@@ -237,7 +237,7 @@ public class DefaultCatalogFactory
                 versionEmbedder,
                 typeManager,
                 new InternalMetadataProvider(metadata, typeManager),
-                accessControlManager,
+                locationAccessControl,
                 aiModelAccessControl,
                 modelConnectionSpecsLoader,
                 pageSorter,
