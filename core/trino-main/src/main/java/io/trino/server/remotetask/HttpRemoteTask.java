@@ -74,6 +74,7 @@ import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.tracing.TrinoAttributes;
+import jakarta.ws.rs.ServiceUnavailableException;
 import org.joda.time.DateTime;
 
 import java.net.URI;
@@ -129,6 +130,7 @@ import static io.trino.util.Failures.toFailure;
 import static java.lang.Math.addExact;
 import static java.lang.Math.clamp;
 import static java.lang.String.format;
+import static java.net.HttpURLConnection.HTTP_UNAVAILABLE;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -990,7 +992,7 @@ public final class HttpRemoteTask
             public void onSuccess(JsonResponse<TaskInfo> result)
             {
                 if (result.getStatusCode() != OK.code()) {
-                    onFailure(new RuntimeException("Unexpected http status code " + result.getStatusCode()));
+                    onFailure(exceptionForErrorCode(result));
                     return;
                 }
 
@@ -1005,6 +1007,14 @@ public final class HttpRemoteTask
                         fatalAsyncCleanupFailure(new TrinoTransportException(REMOTE_TASK_ERROR, fromUri(request.getUri()), format("Unable to %s task at %s, last known state was: %s", action, request.getUri(), taskState)));
                     }
                 }
+            }
+
+            private static RuntimeException exceptionForErrorCode(JsonResponse<TaskInfo> result)
+            {
+                return switch (result.getStatusCode()) {
+                    case HTTP_UNAVAILABLE -> new ServiceUnavailableException("Service Unavailable");
+                    default -> new RuntimeException("Unexpected http status code " + result.getStatusCode());
+                };
             }
 
             @Override
