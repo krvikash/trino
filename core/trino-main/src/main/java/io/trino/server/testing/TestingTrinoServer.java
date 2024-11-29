@@ -698,7 +698,7 @@ public class TestingTrinoServer
         return mBeanServer;
     }
 
-    public NodeStateManager getGracefulShutdownHandler()
+    public NodeStateManager getNodeStateManager()
     {
         return nodeStateManager;
     }
