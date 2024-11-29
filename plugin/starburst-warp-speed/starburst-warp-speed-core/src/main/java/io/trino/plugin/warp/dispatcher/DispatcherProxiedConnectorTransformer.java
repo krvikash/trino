@@ -74,15 +74,6 @@ public interface DispatcherProxiedConnectorTransformer
             DispatcherStatisticsProvider statisticsProvider,
             Map<ColumnHandle, ColumnStatistics> columnStatistics);
 
-    default Set<String> calculateColumnsNotFitForDictionary(Map<ColumnHandle, ColumnStatistics> columnStatistics, int dictionaryMaxSize)
-    {
-        return columnStatistics.entrySet()
-                .stream()
-                .filter(entry -> entry.getValue().getDistinctValuesCount().getValue() >= dictionaryMaxSize)
-                .map(entry -> getWarpRegularColumn(entry.getKey()).getName())
-                .collect(Collectors.toSet());
-    }
-
     DispatcherSplit createDispatcherSplit(ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
             ConnectorSplitNodeDistributor connectorSplitNodeDistributor,

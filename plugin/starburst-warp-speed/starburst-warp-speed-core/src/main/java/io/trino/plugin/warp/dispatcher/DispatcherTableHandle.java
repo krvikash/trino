@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.Set;
 
 import static com.google.common.base.MoreObjects.ToStringHelper;
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -45,7 +44,6 @@ public class DispatcherTableHandle
     private final Optional<WarpExpression> warpExpression;
     private final List<CustomStat> customStats;
     private final boolean subsumedPredicates;
-    private final Set<String> columnsNotFitForDictionary;
 
     @JsonCreator
     public DispatcherTableHandle(@JsonProperty("schemaName") String schemaName,
@@ -56,8 +54,7 @@ public class DispatcherTableHandle
             @JsonProperty("proxyConnectorTableHandle") ConnectorTableHandle proxyConnectorTableHandle,
             @JsonProperty("warpExpression") Optional<WarpExpression> warpExpression,
             @JsonProperty("customStats") List<CustomStat> customStats,
-            @JsonProperty("subsumedPredicates") boolean subsumedPredicates,
-            @JsonProperty("columnsNotFitForDictionary") Set<String> columnsNotFitForDictionary)
+            @JsonProperty("subsumedPredicates") boolean subsumedPredicates)
     {
         this.schemaTableName = new SchemaTableName(requireNonNull(schemaName), requireNonNull(tableName));
         this.limit = limit;
@@ -67,7 +64,6 @@ public class DispatcherTableHandle
         this.warpExpression = requireNonNull(warpExpression);
         this.customStats = customStats;
         this.subsumedPredicates = subsumedPredicates;
-        this.columnsNotFitForDictionary = columnsNotFitForDictionary;
     }
 
     @JsonProperty
@@ -136,17 +132,6 @@ public class DispatcherTableHandle
         return warpExpression;
     }
 
-    @JsonProperty
-    public Set<String> getColumnsNotFitForDictionary()
-    {
-        return columnsNotFitForDictionary;
-    }
-
-    public boolean isColumnFitForDictionary(String columnName)
-    {
-        return columnsNotFitForDictionary.isEmpty() || !columnsNotFitForDictionary.contains(columnName);
-    }
-
     @Override
     public boolean equals(Object o)
     {
@@ -163,8 +148,7 @@ public class DispatcherTableHandle
                 Objects.equals(fullPredicate, that.fullPredicate) &&
                 Objects.equals(simplifiedColumns, that.simplifiedColumns) &&
                 Objects.equals(warpExpression, that.warpExpression) &&
-                Objects.equals(proxyConnectorTableHandle, that.proxyConnectorTableHandle) &&
-                Objects.equals(columnsNotFitForDictionary, that.columnsNotFitForDictionary);
+                Objects.equals(proxyConnectorTableHandle, that.proxyConnectorTableHandle);
     }
 
     @Override
@@ -177,8 +161,7 @@ public class DispatcherTableHandle
                 simplifiedColumns,
                 proxyConnectorTableHandle,
                 warpExpression,
-                subsumedPredicates,
-                columnsNotFitForDictionary);
+                subsumedPredicates);
     }
 
     @Override
@@ -189,8 +172,7 @@ public class DispatcherTableHandle
                 .add("fullPredicate", fullPredicate)
                 .add("simplifiedColumns", simplifiedColumns)
                 .add("proxyConnectorTableHandle", proxyConnectorTableHandle)
-                .add("subsumedPredicates", subsumedPredicates)
-                .add("columnsNotFitForDictionary", columnsNotFitForDictionary);
+                .add("subsumedPredicates", subsumedPredicates);
         limit.ifPresent(value -> toStringHelper.add("limit", value));
         warpExpression.ifPresent(value -> toStringHelper.add("warpExpression", value));
         return toStringHelper.toString();

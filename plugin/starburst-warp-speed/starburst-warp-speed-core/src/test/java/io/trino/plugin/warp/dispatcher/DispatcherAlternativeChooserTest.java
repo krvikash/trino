@@ -69,7 +69,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.Set;
 import java.util.stream.LongStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -424,8 +423,7 @@ public class DispatcherAlternativeChooserTest
                 new TestingTableHandle(),
                 Optional.empty(),
                 Collections.emptyList(),
-                subsumedPredicates,
-                Set.of());
+                subsumedPredicates);
     }
 
     private void assertResourcesAreOpened()

@@ -157,8 +157,7 @@ public class DispatcherPageSourceFactoryTest
                 proxyTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
+                false);
 
         this.customStatsContext = new CustomStatsContext(mock(MetricsManager.class), dispatcherTableHandle.getCustomStats());
 

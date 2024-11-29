@@ -119,9 +119,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
                 mock(HiveTableHandle.class),
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
-
+                false);
         List<PartitionKey> partitionKeys = hiveSplit.getPartitionKeys()
                 .stream()
                 .map(hivePartitionKey -> new PartitionKey(new RegularColumn(hivePartitionKey.name()), hivePartitionKey.value()))
@@ -176,8 +174,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
                 hiveTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
+                false);
 
         HiveTableHandle expectedTableHandleForWarming = new HiveTableHandle(
                 hiveTableHandle.getSchemaName(),
@@ -237,8 +234,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
                 hiveTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
+                false);
 
         HiveTableHandle expectedTableHandleMixedQuery = new HiveTableHandle(
                 hiveTableHandle.getSchemaName(),

@@ -89,8 +89,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 getDeltaLakeTableHandle(),
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
+                false);
 
         DispatcherSplit expectedDispatcherSplit = getDispatcherSplit(deltaLakeSplit, dispatcherTableHandle);
 
@@ -135,9 +134,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 tableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
-
+                false);
         super.testCreateProxyTableHandleForWarming(
                 deltaLakeProxiedConnectorTransformer,
                 dispatcherTableHandle,
@@ -171,8 +168,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 getDeltaLakeTableHandle(),
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
+                false);
 
         super.testCreateProxiedConnectorTableHandleForMixedQuery(
                 deltaLakeProxiedConnectorTransformer,

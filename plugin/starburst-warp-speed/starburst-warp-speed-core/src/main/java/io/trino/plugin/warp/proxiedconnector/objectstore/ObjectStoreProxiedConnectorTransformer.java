@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -91,16 +90,6 @@ public class ObjectStoreProxiedConnectorTransformer
         }
         return transformerMap.get(getTransformerKey(columnStatistics.keySet().stream().findFirst().orElseThrow()))
                 .calculateColumnsStatisticsBucketPriority(statisticsProvider, columnStatistics);
-    }
-
-    @Override
-    public Set<String> calculateColumnsNotFitForDictionary(Map<ColumnHandle, ColumnStatistics> columnStatistics, int dictionaryMaxSize)
-    {
-        if (columnStatistics.isEmpty()) {
-            return Set.of();
-        }
-        return transformerMap.get(getTransformerKey(columnStatistics.keySet().stream().findFirst().orElseThrow()))
-                .calculateColumnsNotFitForDictionary(columnStatistics, dictionaryMaxSize);
     }
 
     @Override

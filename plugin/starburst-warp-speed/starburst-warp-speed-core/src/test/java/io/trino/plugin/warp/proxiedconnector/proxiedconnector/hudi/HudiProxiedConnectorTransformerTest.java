@@ -107,9 +107,7 @@ public class HudiProxiedConnectorTransformerTest
                 mock(HiveTableHandle.class),
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
-
+                false);
         List<PartitionKey> partitionKeys = hudiSplit.getPartitionKeys()
                 .stream()
                 .map(hivePartitionKey -> new PartitionKey(new RegularColumn(hivePartitionKey.name()), hivePartitionKey.value()))
@@ -157,8 +155,7 @@ public class HudiProxiedConnectorTransformerTest
                 hudiTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
+                false);
 
         HudiTableHandle expectedTableHandleForWarming = new HudiTableHandle(
                 hudiTableHandle.getSchemaName(),
@@ -202,8 +199,7 @@ public class HudiProxiedConnectorTransformerTest
                 hudiTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false,
-                Set.of());
+                false);
 
         HudiTableHandle expectedTableHandleMixedQuery = new HudiTableHandle(
                 hudiTableHandle.getSchemaName(),

@@ -25,19 +25,16 @@ import static java.util.Objects.requireNonNull;
 public class DispatcherMetadataFactory
 {
     private final ExpressionService expressionService;
-    private final DispatcherStatisticsProvider dispatcherStatisticsProvider;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
     private final GlobalConfig globalConfig;
 
     @Inject
     public DispatcherMetadataFactory(
             ExpressionService expressionService,
-            DispatcherStatisticsProvider dispatcherStatisticsProvider,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
             GlobalConfig globalConfig)
     {
         this.expressionService = requireNonNull(expressionService);
-        this.dispatcherStatisticsProvider = requireNonNull(dispatcherStatisticsProvider);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
         this.globalConfig = requireNonNull(globalConfig);
     }
@@ -47,7 +44,6 @@ public class DispatcherMetadataFactory
         return new DispatcherMetadata(
                 connectorMetadata,
                 expressionService,
-                dispatcherStatisticsProvider,
                 dispatcherTableHandleBuilderProvider,
                 globalConfig);
     }

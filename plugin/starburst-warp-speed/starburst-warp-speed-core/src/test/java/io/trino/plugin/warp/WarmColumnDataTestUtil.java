@@ -57,7 +57,6 @@ public class WarmColumnDataTestUtil
                 .connectorBlockIndex(0)
                 .type(recordData.type())
                 .schemaTableColumn(recordData.schemaTableColumn())
-                .fitForDictionary(true)
                 .build();
     }
 
