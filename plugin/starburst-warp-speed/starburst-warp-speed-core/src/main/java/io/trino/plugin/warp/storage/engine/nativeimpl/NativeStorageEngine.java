@@ -435,9 +435,8 @@ public class NativeStorageEngine
             long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers);
 
     @Override
-    public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, long matchCollectMetadataAddresss,
-            int numMatchWes, int numChunksInRange, int[] weMatchTree, long warmUpElementAttsAddress, long matchBitmapAddress, long luceneBitmapAddress,
-            int matchCollectId, int minOffset);
+    public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, long matchParamsAddress, long matchCollectMetadataAddresss,
+            int numMatchWes, int numChunksInRange, int matchTreeHeight, long matchTreeAddress, long matchBitmapAddress, long luceneBitmapAddress, int matchCollectId, int minOffset);
 
     @Override
     public native long collectRestoreState(int txId, int chunkIndex);

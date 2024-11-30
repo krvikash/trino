@@ -24,6 +24,7 @@ public class LogicalMatchData
     private final Operator operator;
     private final List<MatchData> terms;
     private final List<QueryMatchData> leaves;
+    private final int subtreeSize;
 
     public LogicalMatchData(Operator operator, List<MatchData> terms)
     {
@@ -35,6 +36,7 @@ public class LogicalMatchData
         this.leaves = terms.stream()
                 .flatMap(term -> term.getLeavesDFS().stream())
                 .toList();
+        this.subtreeSize = terms.stream().mapToInt(MatchData::getSubtreeSize).sum() + 1;
     }
 
     public Operator getOperator()
@@ -57,6 +59,12 @@ public class LogicalMatchData
     public List<QueryMatchData> getLeavesDFS()
     {
         return leaves;
+    }
+
+    @Override
+    public int getSubtreeSize()
+    {
+        return subtreeSize;
     }
 
     @Override

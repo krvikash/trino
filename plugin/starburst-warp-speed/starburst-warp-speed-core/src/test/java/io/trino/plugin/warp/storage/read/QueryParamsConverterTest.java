@@ -29,11 +29,11 @@ import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import org.junit.jupiter.api.Test;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.util.List;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INAVLID_WARM_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -47,52 +47,42 @@ public class QueryParamsConverterTest
         LuceneQueryMatchData luceneQueryMatchData1 = createLuceneQueryMatchData("lucene1", 1);
         LuceneQueryMatchData luceneQueryMatchData2 = createLuceneQueryMatchData("lucene2", 2);
 
-        MatchData matchData =
-                new LogicalMatchData(
-                        LogicalMatchData.Operator.AND,
-                        List.of(
-                                luceneQueryMatchData0,
-                                new LogicalMatchData(
-                                        LogicalMatchData.Operator.OR,
-                                        List.of(
-                                                luceneQueryMatchData1,
-                                                luceneQueryMatchData2))));
+        MatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND,
+                List.of(luceneQueryMatchData0, new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(luceneQueryMatchData1, luceneQueryMatchData2))));
 
         QueryContext queryContext = mock(QueryContext.class);
         when(queryContext.getMatchData()).thenReturn(Optional.of(matchData));
         when(queryContext.getNativeQueryCollectDataList()).thenReturn(ImmutableList.of());
         when(queryContext.getTotalRecords()).thenReturn(100);
         QueryParams queryParams = QueryParamsConverter.createQueryParams(queryContext, "filePath", 0x40302010, false);
-        List<MatchNode> es = List.of(
-                new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND,
-                        List.of(
-                                convertLuceneMatchDataToMatchParams(luceneQueryMatchData0, 0),
-                                new LogicalMatchNode(
-                                        MatchNodeType.MATCH_NODE_TYPE_OR,
-                                        List.of(
-                                                convertLuceneMatchDataToMatchParams(luceneQueryMatchData1, 1),
-                                                convertLuceneMatchDataToMatchParams(luceneQueryMatchData2, 2))))));
+        List<MatchNode> es = List.of(new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND,
+                List.of(convertLuceneMatchDataToMatchParams(luceneQueryMatchData0, 0),
+                        new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_OR,
+                                List.of(convertLuceneMatchDataToMatchParams(luceneQueryMatchData1, 1),
+                                        convertLuceneMatchDataToMatchParams(luceneQueryMatchData2, 2)),
+                                        MemorySegment.ofArray(new byte[10]))), MemorySegment.ofArray(new byte[10])));
         assertThat(queryParams.getRootMatchNode().orElseThrow()).isEqualTo(es.getFirst());
         assertThat(queryParams.getNumLucene()).isEqualTo(3);
     }
 
     private WarmupElementMatchParams convertLuceneMatchDataToMatchParams(LuceneQueryMatchData luceneQueryMatchData, int luceneIx)
     {
-        return new WarmupElementMatchParams(
+        return new WarmupElementMatchParams(Arena.ofAuto().allocate(96, 8), // large enough size aligned to size 8 to hold match parameters
+                luceneQueryMatchData.getPredicateCacheData().getPredicateBufferInfo().buff(),
                 luceneQueryMatchData.getWarmUpElement().getQueryOffset(),
-                luceneQueryMatchData.getWarmUpElement().getQueryReadSize(),
-                luceneQueryMatchData.getWarmUpElement().getWarmUpType(),
                 luceneQueryMatchData.getWarmUpElement().getRecTypeCode(),
                 luceneQueryMatchData.getWarmUpElement().getRecTypeLength(),
-                luceneQueryMatchData.getWarmUpElement().getWarmEvents(),
-                luceneQueryMatchData.getWarmUpElement().isImported(),
-                luceneQueryMatchData.getPredicateCacheData().getPredicateBufferInfo().buff(),
+                luceneQueryMatchData.getWarmUpElement().getWarmUpType(),
+                luceneQueryMatchData.getWarmUpElement().getQueryReadSize(),
+                MatchCollectOp.MATCH_COLLECT_OP_INVALID,
+                -1,
                 luceneQueryMatchData.getWarmUpElement().getWarmupElementStats().getNullsCount() > 0 && luceneQueryMatchData.isCollectNulls(),
                 luceneQueryMatchData.isTightnessRequired(),
-                -1,
-                MatchCollectOp.MATCH_COLLECT_OP_INVALID,
-                INAVLID_WARM_ID,
-                Optional.of(new WarmupElementLuceneParams(luceneQueryMatchData, luceneIx)));
+                luceneQueryMatchData.getWarmUpElement().getWarmEvents(),
+                luceneQueryMatchData.getWarmUpElement().isImported(),
+                Optional.of(new WarmupElementLuceneParams(luceneQueryMatchData, luceneIx)),
+                Arena.ofAuto().allocate(16, 8), // large enough size aligned to size 8 to hold node attributes
+                0);
     }
 
     private static LuceneQueryMatchData createLuceneQueryMatchData(String columnName, int weId)

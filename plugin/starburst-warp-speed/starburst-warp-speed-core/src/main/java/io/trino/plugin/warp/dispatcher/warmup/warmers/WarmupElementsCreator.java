@@ -62,7 +62,7 @@ import static java.util.Objects.requireNonNull;
 public class WarmupElementsCreator
 {
     private static final Logger logger = Logger.get(WarmupElementsCreator.class);
-    public static final int INAVLID_WARM_ID = -1;
+    public static final int INVALID_WARM_ID = -1;
     private final ShapingLogger shapingLogger;
 
     private final RowGroupDataService rowGroupDataService;
@@ -128,7 +128,7 @@ public class WarmupElementsCreator
                                 .recTypeCode(existingWarmUpElement.get().getRecTypeCode())
                                 .recTypeLength(existingWarmUpElement.get().getRecTypeLength())
                                 .warpColumn(warpColumn)
-                                .warmId(INAVLID_WARM_ID)
+                                .warmId(INVALID_WARM_ID)
                                 .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                                 .warmUpContextSize(existingWarmUpElement.get().getWarmUpContextSize())
                                 .build());
@@ -166,7 +166,7 @@ public class WarmupElementsCreator
                             .recTypeCode(recTypeCode)
                             .recTypeLength(recTypeLength)
                             .warpColumn(warpColumn)
-                            .warmId(INAVLID_WARM_ID)
+                            .warmId(INVALID_WARM_ID)
                             .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                             .warmUpContextSize(warmUpContextSize)
                             .build());
@@ -226,7 +226,7 @@ public class WarmupElementsCreator
                         .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
                         .recTypeCode(recTypeCode)
                         .recTypeLength(recTypeLength)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .storeId(storeId)
                         .state(WarmUpElementState.VALID)

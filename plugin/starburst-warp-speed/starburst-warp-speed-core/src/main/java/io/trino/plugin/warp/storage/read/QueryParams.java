@@ -16,6 +16,8 @@ package io.trino.plugin.warp.storage.read;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -29,6 +31,8 @@ import static java.util.Objects.requireNonNull;
 public class QueryParams
 {
     private final Optional<MatchNode> rootMatchNode;
+    private final Optional<MemorySegment> warmUpElementMatchParams;
+    private final MemorySegment matchNodeAtts;
     private final List<WarmupElementMatchParams> leaves;
     private final int numLucene;
     private final int matchCollectId;
@@ -41,12 +45,15 @@ public class QueryParams
     private final int minCollectOffset;
     private final ImmutableList<PredicateCacheData> predicateCacheData;
     private final boolean rangesRequired;
+    private final Arena arena;
 
     private final String filePath;
     private final long fileModTime;
     private final long rowGroupUniqueId; // TBD - will be used for logs, currently zero
 
     public QueryParams(Optional<MatchNode> rootMatchNode,
+            Optional<MemorySegment> warmUpElementMatchParams,
+            MemorySegment matchNodeAtts,
             int numLucene,
             int matchCollectId,
             List<WarmupElementCollectParams> collectParams,
@@ -57,9 +64,12 @@ public class QueryParams
             String filePath,
             long fileModTime,
             ImmutableList<PredicateCacheData> predicateCacheData,
-            boolean rangesRequired)
+            boolean rangesRequired,
+            Arena arena)
     {
         this.rootMatchNode = requireNonNull(rootMatchNode, "rootMatchNode is null");
+        this.warmUpElementMatchParams = requireNonNull(warmUpElementMatchParams);
+        this.matchNodeAtts = requireNonNull(matchNodeAtts);
         this.leaves = rootMatchNode.map(this::getLeaves).orElse(Collections.emptyList());
         this.numLucene = numLucene;
         this.matchCollectId = matchCollectId;
@@ -80,6 +90,7 @@ public class QueryParams
         this.rowGroupUniqueId = Calendar.getInstance().getTimeInMillis();
         this.filePath = filePath;
         this.fileModTime = fileModTime;
+        this.arena = arena;
     }
 
     private List<WarmupElementMatchParams> getLeaves(MatchNode node)
@@ -169,14 +180,24 @@ public class QueryParams
         return minCollectOffset;
     }
 
-    public int[] dumpMatchParams()
+    public Arena getArena()
     {
-        if (rootMatchNode.isEmpty()) {
-            return new int[0];
-        }
-        int[] dump = new int[rootMatchNode.get().getDumpSize()];
-        rootMatchNode.get().dump(dump, 0);
-        return dump;
+        return arena;
+    }
+
+    public Optional<MemorySegment> getWarmUpElementMatchParams()
+    {
+        return warmUpElementMatchParams;
+    }
+
+    public MemorySegment getMatchNodeAtts()
+    {
+        return matchNodeAtts;
+    }
+
+    public int getMatchTreeHeight()
+    {
+        return rootMatchNode.map(r -> r.getHeight()).orElse(0);
     }
 
     public int[] dumpCollectParams()

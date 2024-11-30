@@ -139,10 +139,10 @@ public class CollectTxService
                 queryArgs.numChunksInRange(),
                 storeRowListResult.isPresent() ? queryArgs.chunksQueue().getCurrent() : -1,
                 aggregatorArgs.warmUpElementAtts().address(),
-                matchBitmaps.map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
+                matchBitmaps.map(m -> m.address()).orElse(0L),
                 aggregatorArgs.recordBufferStates().address(),
                 aggregatorArgs.recordIndexes().getAddress(),
-                queryArgs.matchCollectMetadata().map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
+                queryArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L),
                 queryArgs.dispatcherPageSourceStats());
         return new AggregatorPageArgs(queryMemoryId,
                 matchBitmaps,

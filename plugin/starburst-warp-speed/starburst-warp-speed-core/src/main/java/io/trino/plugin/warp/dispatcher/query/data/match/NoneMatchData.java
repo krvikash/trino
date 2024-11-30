@@ -33,4 +33,10 @@ public class NoneMatchData
     {
         return List.of();
     }
+
+    @Override
+    public int getSubtreeSize()
+    {
+        return 0;
+    }
 }

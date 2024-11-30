@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.storage.read;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.log.Logger;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils;
@@ -28,7 +29,13 @@ import io.trino.plugin.warp.gen.constants.MatchNodeType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.spi.block.Block;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SequenceLayout;
+import java.lang.foreign.ValueLayout;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,11 +44,12 @@ import java.util.Optional;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.findMatchForMatchCollect;
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INAVLID_WARM_ID;
+import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INVALID_WARM_ID;
 import static io.trino.plugin.warp.storage.read.WarpPageSource.INVALID_COL_IX;
 
 public class QueryParamsConverter
 {
+    private static final Logger logger = Logger.get(QueryParamsConverter.class);
     private static final int MATCH = 0;
     private static final int COLLECT = 1;
 
@@ -55,27 +63,55 @@ public class QueryParamsConverter
         Optional<MatchData> matchData = queryContext.getMatchData();
         ImmutableList.Builder<PredicateCacheData> predicateCacheDataBuilder = ImmutableList.builder();
 
+        Arena arena = Arena.ofAuto();
         long lastUsedTimestamp = Instant.now().toEpochMilli();
         int[] minOffsets = new int[2];
         minOffsets[COLLECT] = Integer.MAX_VALUE;
         minOffsets[MATCH] = Integer.MAX_VALUE;
 
+        // prepare match elements list
+        List<QueryMatchData> queryMatchDataLeaves = matchData.stream()
+                .flatMap(queryMatchData -> queryMatchData.getLeavesDFS().stream())
+                .toList();
+        int numLeaves = queryMatchDataLeaves.size();
+        int subtreeSize = matchData.map(data -> data.getSubtreeSize()).orElse(0);
+        boolean onlyLeaves = (numLeaves > 0) && (numLeaves == subtreeSize);
+        if (onlyLeaves) {
+            subtreeSize++; // one more for an AND root we will add above
+        }
+
         // collect
-        CollectAndMatchCollectParams collectAndMatchCollectParams = getCollectAndMatchCollectParams(matchData,
+        CollectAndMatchCollectParams collectAndMatchCollectParams = getCollectAndMatchCollectParams(queryMatchDataLeaves,
                 queryContext.getNativeQueryCollectDataList(),
                 lastUsedTimestamp,
                 minOffsets);
 
-        // match
+        // match allocate parameters
+        Optional<MemorySegment> warmUpElementMatchParams = (numLeaves > 0) ? Optional.of(allocateWarmUpElementMatchParamsMemory(arena, numLeaves)) : Optional.empty();
+        ArrayDeque<MemorySegment> warmUpElementMatchParamsQueue = sliceWarmUpElementMatchParamsMemory(warmUpElementMatchParams, numLeaves);
+        // match allocate node attributes
+        MemorySegment matchNodeAtts = allocateMatchNodeAttsMemory(arena, subtreeSize);
+        ArrayDeque<MemorySegment> matchNodeAttsQueue = sliceMatchNodeAttsMemory(matchNodeAtts, subtreeSize);
+        Optional<MemorySegment> rootMatchNodeAtt = onlyLeaves ? Optional.of(matchNodeAttsQueue.remove()) : Optional.empty();
+
+        // match recursively create tree nodes
         MatchNodes matchNodes = matchData.map(data -> convertToMatchNodes(List.of(data),
                 collectAndMatchCollectParams.matchCollectElements(),
                 lastUsedTimestamp,
                 0,
+                0,
                 predicateCacheDataBuilder,
-                minOffsets)).orElseGet(() -> new MatchNodes(Collections.emptyList(), 0));
-        Optional<MatchNode> rootMatchNode = createRootMatchNode(matchNodes.terms());
+                minOffsets,
+                warmUpElementMatchParamsQueue,
+                matchNodeAttsQueue)).orElseGet(() -> new MatchNodes(Collections.emptyList(), 0, 0));
+        // calculate the root
+        Optional<MatchNode> rootMatchNode = createRootMatchNode(matchNodes.terms(), rootMatchNodeAtt);
 
+        logger.debug("numLeaves %d subtreeSize %d height %d onlyLeaves %b",
+                 numLeaves, subtreeSize, rootMatchNode.map(node -> node.getHeight()).orElse(0), onlyLeaves);
         return new QueryParams(rootMatchNode,
+                warmUpElementMatchParams,
+                matchNodeAtts,
                 matchNodes.numLucene(),
                 collectAndMatchCollectParams.matchCollectId(),
                 collectAndMatchCollectParams.collectParamsList(),
@@ -86,31 +122,55 @@ public class QueryParamsConverter
                 filePath,
                 fileModTime,
                 predicateCacheDataBuilder.build(),
-                rangesRequired);
+                rangesRequired,
+                arena);
     }
 
-    private static Optional<MatchNode> createRootMatchNode(List<MatchNode> matchNodes)
+    private static MemorySegment allocateWarmUpElementMatchParamsMemory(Arena arena, int numLeaves)
     {
-        Optional<MatchNode> rootMatchNode;
+        SequenceLayout warmUpElementMatchParamsLayout = MemoryLayout.sequenceLayout(numLeaves, WarmupElementMatchParams.WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT);
+        return arena.allocate(warmUpElementMatchParamsLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
+    }
+
+    private static ArrayDeque<MemorySegment> sliceWarmUpElementMatchParamsMemory(Optional<MemorySegment> warmUpElementMatchParams, int numLeaves)
+    {
+        ArrayDeque<MemorySegment> warmUpElementMatchParamsQueue = new ArrayDeque<>(numLeaves);
+        if (warmUpElementMatchParams.isPresent()) {
+            warmUpElementMatchParams.get().elements(WarmupElementMatchParams.WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT).forEach(m -> warmUpElementMatchParamsQueue.add(m));
+        }
+        return warmUpElementMatchParamsQueue;
+    }
+
+    private static MemorySegment allocateMatchNodeAttsMemory(Arena arena, int subtreeSize)
+    {
+        SequenceLayout matchNodeAttsLayout = MemoryLayout.sequenceLayout(subtreeSize, MatchNodeAtt.MATCH_NODE_ATT_LAYOUT);
+        return arena.allocate(matchNodeAttsLayout.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
+    }
+
+    private static ArrayDeque<MemorySegment> sliceMatchNodeAttsMemory(MemorySegment matchNodeAtts, int subtreeSize)
+    {
+        ArrayDeque<MemorySegment> matchNodeAttsQueue = new ArrayDeque<>(subtreeSize);
+        matchNodeAtts.elements(MatchNodeAtt.MATCH_NODE_ATT_LAYOUT).forEach(m -> matchNodeAttsQueue.add(m));
+        return matchNodeAttsQueue;
+    }
+
+    private static Optional<MatchNode> createRootMatchNode(List<MatchNode> matchNodes, Optional<MemorySegment> rootMatchNodeAtt)
+    {
         if (matchNodes.isEmpty()) {
-            rootMatchNode = Optional.empty();
+            return Optional.empty();
         }
-        else if (matchNodes.size() == 1 && matchNodes.getFirst() instanceof LogicalMatchNode) {
-            // root node must be logical
-            rootMatchNode = Optional.of(matchNodes.getFirst());
-        }
-        else {
-            rootMatchNode = Optional.of(new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND, matchNodes));
-        }
-        return rootMatchNode;
+        return Optional.of(rootMatchNodeAtt.map(m -> (MatchNode) new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND, matchNodes, m)).orElse(matchNodes.getFirst()));
     }
 
     private static MatchNodes convertToMatchNodes(List<MatchData> matchDataList,
             List<MatchCollectElement> matchCollectElements,
             long lastUsedTimestamp,
+            int currentNumLeaves,
             int currentNumLucene,
             ImmutableList.Builder<PredicateCacheData> predicateCacheDataBuilder,
-            int[] minOffsets)
+            int[] minOffsets,
+            ArrayDeque<MemorySegment> warmUpElementMatchParamsQueue,
+            ArrayDeque<MemorySegment> matchNodeAttsQueue)
     {
         List<MatchNode> convertedList = new ArrayList<>(matchDataList.size());
 
@@ -138,42 +198,49 @@ public class QueryParamsConverter
                 MatchCollectOp matchCollectOp = matchCollectElement.map(MatchCollectElement::getMatchCollectOp).orElse(MatchCollectOp.MATCH_COLLECT_OP_INVALID);
 
                 convertedList.add(
-                        new WarmupElementMatchParams(
+                        new WarmupElementMatchParams(warmUpElementMatchParamsQueue.remove(),
+                                queryMatchData.getPredicateCacheData().getPredicateBufferInfo().buff(),
                                 matchDataWarmUpElement.getQueryOffset(),
-                                matchDataWarmUpElement.getQueryReadSize(),
-                                matchDataWarmUpElement.getWarmUpType(),
                                 matchDataWarmUpElement.getRecTypeCode(),
                                 matchDataWarmUpElement.getRecTypeLength(),
-                                matchDataWarmUpElement.getWarmEvents(),
-                                matchDataWarmUpElement.isImported(),
-                                queryMatchData.getPredicateCacheData().getPredicateBufferInfo().buff(),
+                                matchDataWarmUpElement.getWarmUpType(),
+                                matchDataWarmUpElement.getQueryReadSize(),
+                                matchCollectOp,
+                                matchCollectIndex,
                                 matchDataWarmUpElement.getWarmupElementStats().getNullsCount() > 0 && queryMatchData.isCollectNulls(),
                                 queryMatchData.isTightnessRequired(),
-                                matchCollectIndex,
-                                matchCollectOp,
-                                INAVLID_WARM_ID,
-                                luceneParams));
+                                matchDataWarmUpElement.getWarmEvents(),
+                                matchDataWarmUpElement.isImported(),
+                                luceneParams,
+                                matchNodeAttsQueue.remove(),
+                                currentNumLeaves));
+                currentNumLeaves++;
                 predicateCacheDataBuilder.add(queryMatchData.getPredicateCacheData());
             }
             else if (matchData instanceof LogicalMatchData logicalMatchData) {
+                MemorySegment matchNodeAtt = matchNodeAttsQueue.remove();
                 MatchNodes matchNodes = convertToMatchNodes(logicalMatchData.getTerms(),
                         matchCollectElements,
                         lastUsedTimestamp,
+                        currentNumLeaves,
                         currentNumLucene,
                         predicateCacheDataBuilder,
-                        minOffsets);
+                        minOffsets,
+                        warmUpElementMatchParamsQueue,
+                        matchNodeAttsQueue);
                 MatchNodeType nodeType = logicalMatchData.getOperator() == LogicalMatchData.Operator.AND ? MatchNodeType.MATCH_NODE_TYPE_AND : MatchNodeType.MATCH_NODE_TYPE_OR;
-                convertedList.add(new LogicalMatchNode(nodeType, matchNodes.terms()));
+                convertedList.add(new LogicalMatchNode(nodeType, matchNodes.terms(), matchNodeAtt));
+                currentNumLeaves = matchNodes.numLeaves();
                 currentNumLucene = matchNodes.numLucene();
             }
             else {
                 throw new RuntimeException("Unknown MatchData type: " + matchData);
             }
         }
-        return new MatchNodes(convertedList, currentNumLucene);
+        return new MatchNodes(convertedList, currentNumLeaves, currentNumLucene);
     }
 
-    private static CollectAndMatchCollectParams getCollectAndMatchCollectParams(Optional<MatchData> matchData,
+    private static CollectAndMatchCollectParams getCollectAndMatchCollectParams(List<QueryMatchData> queryMatchDataLeaves,
             ImmutableList<NativeQueryCollectData> nativeQueryCollectDataList,
             long lastUsedTimestamp,
             int[] minOffsets)
@@ -181,10 +248,6 @@ public class QueryParamsConverter
         List<WarmupElementCollectParams> collectParamsList = new ArrayList<>();
         List<MatchCollectElement> matchCollectElements = new ArrayList<>();
         int matchCollectId = MatchCollectIdService.INVALID_ID;
-
-        List<QueryMatchData> queryMatchDataLeaves = matchData.stream()
-                .flatMap(queryMatchData -> queryMatchData.getLeavesDFS().stream())
-                .toList();
 
         for (NativeQueryCollectData nativeQueryCollectData : nativeQueryCollectDataList) {
             WarmUpElement collectDataWarmUpElement = nativeQueryCollectData.getWarmUpElement();
@@ -243,7 +306,7 @@ public class QueryParamsConverter
                                 blockIndex,
                                 matchCollectIndex,
                                 isCollectNulls,
-                                collectDataWarmUpElement.hasStoreId() ? INAVLID_WARM_ID : collectDataWarmUpElement.getWarmId(),
+                                collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
             }
             else {
@@ -264,7 +327,7 @@ public class QueryParamsConverter
                                 blockIndex,
                                 matchCollectIndex,
                                 isCollectNulls,
-                                collectDataWarmUpElement.hasStoreId() ? INAVLID_WARM_ID : collectDataWarmUpElement.getWarmId(),
+                                collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
             }
         }
@@ -277,7 +340,9 @@ public class QueryParamsConverter
     {
     }
 
-    private record MatchNodes(List<MatchNode> terms, int numLucene)
+    private record MatchNodes(List<MatchNode> terms,
+            int numLeaves,
+            int numLucene)
     {
     }
 }

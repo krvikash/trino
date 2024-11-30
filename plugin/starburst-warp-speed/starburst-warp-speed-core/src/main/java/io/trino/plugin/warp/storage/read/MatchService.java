@@ -18,7 +18,6 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
-import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
@@ -33,11 +32,7 @@ import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
 
-import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.SequenceLayout;
-import java.lang.foreign.ValueLayout;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -92,13 +87,8 @@ public class MatchService
                 .map(we -> we.hasLuceneParams() ? new ReadJuffersWarmUpElement(bufferAllocator, false) : new ReadJuffersWarmUpElement())
                 .collect(Collectors.toList());
 
-        SequenceLayout warmUpElementAttsLayout = MemoryLayout.sequenceLayout(queryParams.getNumMatchElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
-        MatcherArgs matcherArgs = new MatcherArgs(queryParams.dumpMatchParams(),
-                queryArgs.arena().allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_SHORT.byteSize()),
-                matchJuffersWe,
-                new LuceneMatcher[queryParams.getNumLucene()]);
+        MatcherArgs matcherArgs = new MatcherArgs(matchJuffersWe, new LuceneMatcher[queryParams.getNumLucene()]);
         createLuceneMatchers(queryArgs, matcherArgs, customStatsContext); // this call must be after creating the matchJuffersWE
-
         return matcherArgs;
     }
 
@@ -137,15 +127,6 @@ public class MatchService
             Optional<MemorySegment> luceneBitmaps = Optional.empty();
             final int luceneBitmapSizePerWE = storageEngineConstants.getPageSize() * queryArgs.numChunksInRange();
             try {
-                Iterator<WarmupElementMatchParams> matchParamsListItr = queryParams.getMatchElementsParamsList().iterator();
-                matcherArgs.warmUpElementAtts().elements(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT)
-                        .forEach(warmupElementAtt -> {
-                            WarmupElementMatchParams matchParams = matchParamsListItr.next();
-                            WarmUpElement.setRecTypeCode(warmupElementAtt, matchParams.getRecTypeCode());
-                            WarmUpElement.setRecTypeLength(warmupElementAtt, matchParams.getRecTypeLength());
-                            WarmUpElement.setWarmUpType(warmupElementAtt, matchParams.getWarmUpType());
-                        });
-
                 if (queryParams.getNumLucene() > 0) {
                     final long alignment = 32; // this is the alignment required for intel optimized bitmap operations
                     final long allocSize = (long) luceneBitmapSizePerWE * (long) queryParams.getNumLucene();
@@ -155,14 +136,14 @@ public class MatchService
                 matchTxId = (int) storageEngine.matchOpen(queryParams.getTotalNumRecords(),
                         queryArgs.txArgs().fileCookie(),
                         aggregatorPageArgs.queryMemoryId(),
-                        queryArgs.txArgs().collectStoreBuff(),
-                        queryArgs.matchCollectMetadata().map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
+                        queryParams.getWarmUpElementMatchParams().get().address(),
+                        queryArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L),
                         queryParams.getNumMatchElements(),
                         queryArgs.numChunksInRange(),
-                        matcherArgs.weMatchTree(),
-                        matcherArgs.warmUpElementAtts().address(),
-                        aggregatorPageArgs.matchBitmaps().map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
-                        luceneBitmaps.map(m -> Optional.of(m.address())).orElse(Optional.of(0L)).get(),
+                        queryParams.getMatchTreeHeight(),
+                        queryParams.getMatchNodeAtts().address(),
+                        aggregatorPageArgs.matchBitmaps().map(m -> m.address()).orElse(0L),
+                        luceneBitmaps.map(m -> m.address()).orElse(0L),
                         queryParams.getMatchCollectId(),
                         queryParams.getMinMatchOffset());
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
@@ -309,8 +290,9 @@ public class MatchService
         }
     }
 
-    public long getOffHeapMemoryUsage(MatcherArgs matcherArgs)
+    public long getOffHeapMemoryUsage(QueryArgs queryArgs, MatcherArgs matcherArgs)
     {
-        return matcherArgs.warmUpElementAtts().byteSize();
+        return queryArgs.queryParams().getWarmUpElementMatchParams().map(m -> m.byteSize()).orElse(0L) +
+                queryArgs.queryParams().getMatchNodeAtts().byteSize();
     }
 }

@@ -69,6 +69,12 @@ public abstract class QueryMatchData
         return leaves;
     }
 
+    @Override
+    public int getSubtreeSize()
+    {
+        return 1;
+    }
+
     public boolean canBeTight()
     {
         return !simplifiedDomain;

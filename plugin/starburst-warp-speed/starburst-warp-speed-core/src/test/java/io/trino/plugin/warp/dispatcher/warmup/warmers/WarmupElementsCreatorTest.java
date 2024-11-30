@@ -47,7 +47,7 @@ import java.util.Set;
 
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createRegularColumns;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INAVLID_WARM_ID;
+import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INVALID_WARM_ID;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_INTEGER;
 import static io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_BASIC;
 import static io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_DATA;
@@ -109,7 +109,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(medium))
                         .warmUpType(WARM_UP_TYPE_DATA)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -119,7 +119,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(high))
                         .warmUpType(WARM_UP_TYPE_DATA)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -129,7 +129,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(low))
                         .warmUpType(WARM_UP_TYPE_DATA)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -179,7 +179,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(medium))
                         .warmUpType(WARM_UP_TYPE_LUCENE)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -189,7 +189,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(medium))
                         .warmUpType(WARM_UP_TYPE_DATA)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -199,7 +199,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(medium))
                         .warmUpType(WARM_UP_TYPE_BASIC)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -209,7 +209,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(high))
                         .warmUpType(WARM_UP_TYPE_DATA)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -219,7 +219,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(low))
                         .warmUpType(WARM_UP_TYPE_DATA)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                         .state(WarmUpElementState.VALID)
@@ -263,7 +263,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(high))
                         .warmUpType(WARM_UP_TYPE_DATA)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -273,7 +273,7 @@ public class WarmupElementsCreatorTest
                         .recTypeLength(4)
                         .warpColumn(new RegularColumn(low))
                         .warmUpType(WARM_UP_TYPE_DATA)
-                        .warmId(INAVLID_WARM_ID)
+                        .warmId(INVALID_WARM_ID)
                         .exportState(ExportState.NOT_EXPORTED)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                         .state(WarmUpElementState.VALID)

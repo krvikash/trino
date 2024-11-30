@@ -23,4 +23,6 @@ public interface MatchData
     boolean isPartOfLogicalOr();
 
     List<QueryMatchData> getLeavesDFS();
+
+    int getSubtreeSize();
 }

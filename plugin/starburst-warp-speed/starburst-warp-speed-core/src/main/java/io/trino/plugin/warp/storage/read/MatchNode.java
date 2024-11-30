@@ -23,9 +23,7 @@ public interface MatchNode
 
     List<MatchNode> getChildren();
 
-    // return the number of ints required for the dump output array
-    int getDumpSize();
+    int getSubtreeSize();
 
-    // return the next offset
-    int dump(int[] output, int offset);
+    int getHeight();
 }

@@ -19,13 +19,13 @@ public interface Matcher
 {
     MatcherArgs open(QueryArgs queryArgs, CustomStatsContext customStatsContext);
 
-    MatcherPageArgs openPage(QueryArgs queryArgs, MatcherArgs matchArgs, AggregatorPageArgs aggregatorPageArgs);
+    MatcherPageArgs openPage(QueryArgs queryArgs, MatcherArgs matcherArgs, AggregatorPageArgs aggregatorPageArgs);
 
-    boolean match(QueryArgs queryArgs, MatcherArgs matchArgs, MatcherPageArgs matcherPageArgs);
+    boolean match(QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs);
 
     void closePage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs);
 
     void abortPage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs, Exception e);
 
-    long getOffHeapMemoryUsage(MatcherArgs matchArgs);
+    long getOffHeapMemoryUsage(QueryArgs queryArgs, MatcherArgs matcherArgs);
 }

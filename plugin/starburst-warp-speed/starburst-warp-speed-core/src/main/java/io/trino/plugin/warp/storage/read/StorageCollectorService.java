@@ -386,7 +386,6 @@ public class StorageCollectorService
 
         ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
 
-        Arena arena = Arena.ofAuto();
         Optional<byte[]> storeMatchCollectMetadataBuff = Optional.empty();
         Optional<SequenceLayout> matchCollectMetadataLayout = Optional.empty();
         if (queryParams.getNumMatchCollect() > 0) {
@@ -403,8 +402,7 @@ public class StorageCollectorService
                 numChunksInRange,
                 chunksQueue,
                 storeMatchCollectMetadataBuff,
-                matchCollectMetadataLayout.map(m -> arena.allocate(m.byteSize(), ValueLayout.JAVA_INT.byteSize())),
-                arena);
+                matchCollectMetadataLayout.map(m -> queryParams.getArena().allocate(m.byteSize(), ValueLayout.JAVA_INT.byteSize())));
     }
 
     TxArgs getTxArgs(QueryParams queryParams)
@@ -447,7 +445,6 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
 
-        Arena arena = queryArgs.arena();
         SequenceLayout recordBufferStatesLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT);
         SequenceLayout queryResultTypesLayout =
@@ -455,6 +452,7 @@ public class StorageCollectorService
         SequenceLayout warmUpElementAttsLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
 
+        Arena arena = queryParams.getArena();
         return new AggregatorArgs(blockFillers,
                 collectJuffersWE,
                 storeRowListBuff,

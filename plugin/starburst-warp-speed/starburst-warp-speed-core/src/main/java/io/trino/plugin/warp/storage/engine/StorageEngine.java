@@ -139,9 +139,8 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, long matchCollectMetadataAddresss,
-            int numMatchWes, int numChunksInRange, int[] weMatchTree, long warmUpElementAttsAddress, long matchBitmapAddress, long luceneBitmapAddress,
-            int matchCollectId, int minOffset)
+    default long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, long matchParamsAddress, long matchCollectMetadataAddresss,
+            int numMatchWes, int numChunksInRange, int matchTreeHeight, long matchTreeAddress, long matchBitmapAddress, long luceneBitmapAddress, int matchCollectId, int minOffset)
     {
         throw new UnsupportedOperationException();
     }

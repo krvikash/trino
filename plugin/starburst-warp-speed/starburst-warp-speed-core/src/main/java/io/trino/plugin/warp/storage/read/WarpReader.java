@@ -89,8 +89,7 @@ public class WarpReader
     private void checkOffHeapMemoryUsage()
     {
         long totalOffHeapSize = blocksAggregator.getOffHeapMemoryUsage(aggregatorArgs) +
-                matcher.getOffHeapMemoryUsage(matcherArgs);
-
+                matcher.getOffHeapMemoryUsage(queryArgs, matcherArgs);
         if (totalOffHeapSize > LIMIT_OFF_HEAP_MEMORY) {
             shapingLogger.warn("off heap memory exceeded threshold " + totalOffHeapSize);
         }

@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.gen.constants.MatchNodeType;
 
+import java.lang.foreign.MemorySegment;
 import java.util.List;
 import java.util.Objects;
 
@@ -25,12 +26,18 @@ public class LogicalMatchNode
 {
     private final MatchNodeType nodeType;
     private final List<MatchNode> terms;
+    private final int subtreeSize;
+    private final int height;
+    private final MatchNodeAtt matchNodeAtt;
 
-    public LogicalMatchNode(MatchNodeType nodeType, List<MatchNode> terms)
+    public LogicalMatchNode(MatchNodeType nodeType, List<MatchNode> terms, MemorySegment matchNodeAttMem)
     {
         this.nodeType = nodeType;
         checkArgument(nodeType == MatchNodeType.MATCH_NODE_TYPE_OR || nodeType == MatchNodeType.MATCH_NODE_TYPE_AND);
         this.terms = terms;
+        this.subtreeSize = terms.stream().mapToInt(MatchNode::getSubtreeSize).sum() + 1;
+        this.height = terms.stream().mapToInt(MatchNode::getHeight).max().orElse(0) + 1;
+        this.matchNodeAtt = new MatchNodeAtt(matchNodeAttMem, nodeType, terms.size(), subtreeSize);
     }
 
     @Override
@@ -46,21 +53,15 @@ public class LogicalMatchNode
     }
 
     @Override
-    public int getDumpSize()
+    public int getSubtreeSize()
     {
-        // 1 is for the MatchNodeType and 1 for the num of the children
-        return 2 + terms.stream().mapToInt(MatchNode::getDumpSize).sum();
+        return subtreeSize;
     }
 
     @Override
-    public int dump(int[] output, int offset)
+    public int getHeight()
     {
-        output[offset++] = getNodeType().ordinal();
-        output[offset++] = terms.size();
-        for (MatchNode term : terms) {
-            offset = term.dump(output, offset);
-        }
-        return offset;
+        return height;
     }
 
     @Override
@@ -88,7 +89,10 @@ public class LogicalMatchNode
     {
         return "LogicalMatchNode{" +
                 "nodeType=" + nodeType +
-                ", terms=" + terms +
+                ", numTerms=" + terms.size() +
+                ", subtreeSize=" + subtreeSize +
+                ", matchNodeAtt=" + matchNodeAtt +
+                ", height=" + height +
                 '}';
     }
 }
