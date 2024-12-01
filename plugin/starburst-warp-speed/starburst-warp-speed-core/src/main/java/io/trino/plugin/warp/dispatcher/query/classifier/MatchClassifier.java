@@ -89,7 +89,7 @@ class MatchClassifier
             else {
                 for (QueryMatchData queryMatchData : matchData.getLeavesDFS()) {
                     if (queryMatchData.getWarmUpElement().getWarmUpType() == WarmUpType.WARM_UP_TYPE_DATA) {
-                        shapingLogger.error("calculated queryMatchData with WARM_UP_TYPE_DATA type, skip matching. matchData=%s. classifyArgs=%s", matchData, classifyArgs);
+                        shapingLogger.error("calculated queryMatchData with WARM_UP_TYPE_DATA type, skip matching. matchData=%s.", matchData);
                         matchColumns.clear();
                         break;
                     }
@@ -299,8 +299,11 @@ class MatchClassifier
                 }
                 WarpColumn warpColumn = predicateContext.getWarpColumn();
                 MatchContext matchContext = runMatchers(classifyArgs, Map.of(warpColumn, predicateContext));
-
                 checkArgument(matchContext.matchDataList().size() <= 1, "Too many matchData objects in the list");
+                if (!matchContext.validRange()) {
+                    terms.add(new NoneMatchData());
+                    continue;
+                }
                 if (matchContext.matchDataList().isEmpty()) {
                     terms = Collections.emptyList();
                     canBeTight = false;
