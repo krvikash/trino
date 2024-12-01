@@ -1786,7 +1786,7 @@ public class IcebergMetadata
             cleanExtraOutputFiles(
                     session,
                     newFiles.stream()
-                            .map(dataFile -> dataFile.path().toString())
+                            .map(ContentFile::location)
                             .collect(toImmutableSet()));
         }
 
@@ -2016,7 +2016,7 @@ public class IcebergMetadata
                 validMetadataFileNames.add(fileName(manifest.path()));
                 try (ManifestReader<? extends ContentFile<?>> manifestReader = readerForManifest(table, manifest)) {
                     for (ContentFile<?> contentFile : manifestReader) {
-                        validDataFileNames.add(fileName(contentFile.path().toString()));
+                        validDataFileNames.add(fileName(contentFile.location()));
                     }
                 }
                 catch (IOException e) {
