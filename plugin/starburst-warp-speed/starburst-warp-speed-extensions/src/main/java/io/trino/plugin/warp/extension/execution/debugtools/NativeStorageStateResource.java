@@ -27,6 +27,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
+import static io.trino.plugin.warp.gen.errorcodes.ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR;
+import static io.trino.plugin.warp.gen.errorcodes.ErrorCodes.ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -46,7 +48,7 @@ public class NativeStorageStateResource
 
     @Inject
     public NativeStorageStateResource(WorkerCapacityManager workerCapacityManager,
-                                      NativeStorageStateHandler handler)
+            NativeStorageStateHandler handler)
     {
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.handler = requireNonNull(handler);
@@ -55,7 +57,19 @@ public class NativeStorageStateResource
     @POST
     public void set(NativeStorageState state)
     {
-        handler.setStorageDisableState(state.storagePermanentException, state.storageTemporaryException);
+        if (state.storagePermanentException) {
+            handler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
+        }
+        else {
+            handler.enablePermanently();
+        }
+
+        if (state.storageTemporaryException) {
+            handler.handleErrorCode(ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR);
+        }
+        else {
+            handler.enableTemporarily();
+        }
     }
 
     @GET

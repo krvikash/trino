@@ -29,6 +29,7 @@ import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.PageSink;
@@ -48,6 +49,7 @@ import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PA
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_MOD_TIME;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
+import static io.trino.plugin.warp.gen.errorcodes.ErrorCodes.ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -55,7 +57,6 @@ public class StorageWarmerService
 {
     private static final Logger logger = Logger.get(StorageWarmerService.class);
     public static final long INVALID_FILE_COOKIE_FD = -1;
-    public static final int INVALID_TX_ID = -1;
     public static final int INVALID_FLOW_ID = -1;
 
     private final RowGroupDataService rowGroupDataService;
@@ -67,16 +68,18 @@ public class StorageWarmerService
     private final WarmingServiceStats statsWarmingService;
     private final ShapingLogger shapingLogger;
     private final WarpDeleteService deleteService;
+    private final NativeStorageStateHandler nativeStorageStateHandler;
 
     @Inject
     public StorageWarmerService(RowGroupDataService rowGroupDataService,
-                                StorageEngine storageEngine,
-                                GlobalConfig globalConfig,
-                                WarmupDemoterService warmupDemoterService,
-                                StorageEngineTxService storageEngineTxService,
-                                FlowsSequencer flowsSequencer,
-                                MetricsManager metricsManager,
-                                WarpDeleteService deleteService)
+            StorageEngine storageEngine,
+            GlobalConfig globalConfig,
+            WarmupDemoterService warmupDemoterService,
+            StorageEngineTxService storageEngineTxService,
+            FlowsSequencer flowsSequencer,
+            MetricsManager metricsManager,
+            WarpDeleteService deleteService,
+            NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -92,6 +95,7 @@ public class StorageWarmerService
         this.flowsSequencer = requireNonNull(flowsSequencer);
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.deleteService = requireNonNull(deleteService);
+        this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
     }
 
     public void createFile(RowGroupKey rowGroupKey)
@@ -100,7 +104,13 @@ public class StorageWarmerService
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File file = new File(rowGroupFilePath);
         if (!file.exists()) {
-            FileUtils.createParentDirectories(file);
+            try {
+                FileUtils.createParentDirectories(file);
+            }
+            catch (Throwable e) {
+                nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR);
+                throw e;
+            }
         }
     }
 
@@ -108,7 +118,7 @@ public class StorageWarmerService
     {
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long[] fileCookie = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
-        // fileCookie.fd was initialized to -1. In case fileOpen throws an exception we will not close it in the finally clause
+        // fileCookie.fd was initialized to -1. In case fileOpen throws an exception we will not close it in the 'finally' clause
         fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] = storageEngine.fileOpen(rowGroupFilePath);
         fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(rowGroupFilePath);
         fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = rowGroupKey.fileModifiedTime();
@@ -192,8 +202,8 @@ public class StorageWarmerService
                 fileCookieParams = fileOpen(rowGroupKey);
                 warmUpState.setFileCookie(
                         (int) fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()],
-                        (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
-                        (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
+                        fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
+                        fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
                 for (WarmUpElement warmUpElement : validWarmUpElements) {
                     int queryOffset = warmUpElement.getQueryOffset();
                     if (queryOffset > 0) { // @TODO there are issues with offset zero should be investigated

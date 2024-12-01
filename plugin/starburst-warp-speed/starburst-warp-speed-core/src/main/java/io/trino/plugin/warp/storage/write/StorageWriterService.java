@@ -286,7 +286,7 @@ public class StorageWriterService
                 (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
                 (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
         // warm up element attributes
-        warmUpState.setWarmUpElemetAtt(
+        warmUpState.setWarmUpElementAtt(
                 hasDictionary ? DICTIONARY_REC_TYPE_CODE : TypeUtils.nativeRecTypeCode(warmUpElement.getRecTypeCode()),
                 hasDictionary ? DICTIONARY_REC_TYPE_LENGTH : warmUpElement.getRecTypeLength(),
                 warmUpElement.getWarmUpType());

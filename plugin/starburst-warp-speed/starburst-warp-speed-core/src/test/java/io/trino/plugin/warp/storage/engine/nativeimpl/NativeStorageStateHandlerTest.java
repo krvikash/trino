@@ -49,7 +49,8 @@ public class NativeStorageStateHandlerTest
 
         NativeExceptionThrower nativeExceptionThrower = mock(NativeExceptionThrower.class);
         handler = new NativeStorageStateHandler(nativeConfig, nativeExceptionThrower, new GlobalConfig());
-        handler.setStorageDisableState(false, false);
+        handler.enablePermanently();
+        handler.enableTemporarily();
     }
 
     @Test
@@ -59,7 +60,6 @@ public class NativeStorageStateHandlerTest
         assertThat(handler.storageDisableTemporarily).isFalse();
         assertThat(handler.storageTemporaryExceptionNumTries).isZero();
         assertThat(handler.storageTemporaryExceptionTimestamp).isZero();
-        assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isZero();
 
         assertThat(handler.isStorageAvailable()).isTrue();
     }
@@ -71,14 +71,15 @@ public class NativeStorageStateHandlerTest
                 .filter(errorCode -> !(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR.equals(errorCode) || tempErrorCodes.containsValue(errorCode)))
                 .forEach(errorCode -> {
                     handler.handleErrorCode(errorCode);
-                    assertThat(handler.isStorageAvailable()).isTrue();
+                    assertThat(handler.isStorageAvailable())
+                            .describedAs("failed for %s", errorCode)
+                            .isTrue();
                 });
 
         assertThat(handler.storageDisablePermanently).isFalse();
         assertThat(handler.storageDisableTemporarily).isFalse();
         assertThat(handler.storageTemporaryExceptionNumTries).isZero();
         assertThat(handler.storageTemporaryExceptionTimestamp).isZero();
-        assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isZero();
     }
 
     @Test
@@ -89,10 +90,9 @@ public class NativeStorageStateHandlerTest
         assertThat(handler.isStorageAvailable()).isFalse();
 
         assertThat(handler.storageDisablePermanently).isTrue();
-        assertThat(handler.storageDisableTemporarily).isFalse();
+        assertThat(handler.storageDisableTemporarily).isTrue();
         assertThat(handler.storageTemporaryExceptionNumTries).isZero();
         assertThat(handler.storageTemporaryExceptionTimestamp).isZero();
-        assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isZero();
     }
 
     @Test
@@ -109,7 +109,6 @@ public class NativeStorageStateHandlerTest
                     assertThat(handler.storageDisableTemporarily).isTrue();
                     assertThat(handler.storageTemporaryExceptionNumTries).isGreaterThanOrEqualTo(1);
                     assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
-                    assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
                 });
         assertThat(handler.isStorageAvailable()).isFalse();
 
@@ -117,7 +116,6 @@ public class NativeStorageStateHandlerTest
         assertThat(handler.storageDisableTemporarily).isTrue();
         assertThat(handler.storageTemporaryExceptionNumTries).isEqualTo(2);
         assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
-        assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
     }
 
     @Test
@@ -134,7 +132,6 @@ public class NativeStorageStateHandlerTest
                     assertThat(handler.storageDisableTemporarily).isTrue();
                     assertThat(handler.storageTemporaryExceptionNumTries).isGreaterThanOrEqualTo(1);
                     assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
-                    assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
 
                     try {
                         Thread.sleep(2);
@@ -150,7 +147,6 @@ public class NativeStorageStateHandlerTest
         assertThat(handler.storageDisableTemporarily).isTrue();
         assertThat(handler.storageTemporaryExceptionNumTries).isEqualTo(2);
         assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
-        assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
     }
 
     @Test
@@ -169,7 +165,6 @@ public class NativeStorageStateHandlerTest
                     assertThat(handler.storageDisableTemporarily).isTrue();
                     assertThat(handler.storageTemporaryExceptionNumTries).isEqualTo(i);
                     assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
-                    assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
 
                     try {
                         Thread.sleep(sleepTime);
@@ -186,7 +181,6 @@ public class NativeStorageStateHandlerTest
         assertThat(handler.storageDisableTemporarily).isTrue();
         assertThat(handler.storageTemporaryExceptionNumTries).isEqualTo(nativeConfig.getStorageTemporaryExceptionNumTries());
         assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
-        assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
     }
 
     @Disabled
@@ -207,7 +201,6 @@ public class NativeStorageStateHandlerTest
                     assertThat(handler.storageDisableTemporarily).isTrue();
                     assertThat(handler.storageTemporaryExceptionNumTries).isGreaterThanOrEqualTo(i);
                     assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
-                    assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
 
                     try {
                         Thread.sleep(sleepTime);
@@ -223,7 +216,6 @@ public class NativeStorageStateHandlerTest
         assertThat(handler.storageDisableTemporarily).isTrue();
         assertThat(handler.storageTemporaryExceptionNumTries).isLessThan(nativeConfig.getStorageTemporaryExceptionNumTries());
         assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
-        assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
 
         Thread.sleep(nativeConfig.getStorageTemporaryExceptionExpiryDuration().toMillis() + 1);
 
@@ -233,6 +225,5 @@ public class NativeStorageStateHandlerTest
         assertThat(handler.storageDisableTemporarily).isFalse();
         assertThat(handler.storageTemporaryExceptionNumTries).isZero();
         assertThat(handler.storageTemporaryExceptionTimestamp).isZero();
-        assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isZero();
     }
 }

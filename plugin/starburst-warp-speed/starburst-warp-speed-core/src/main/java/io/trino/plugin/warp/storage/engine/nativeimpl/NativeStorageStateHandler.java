@@ -34,7 +34,6 @@ public class NativeStorageStateHandler
     boolean storageDisableTemporarily = true;
     long storageTemporaryExceptionTimestamp;
     long storageTemporaryExceptionNumTries;
-    long storageTemporaryExceptionExpiryTimestamp;
 
     @Inject
     public NativeStorageStateHandler(
@@ -62,9 +61,8 @@ public class NativeStorageStateHandler
 
             // reset storage temp params in case timeout expiry passed
             if (currentDurationMillis > configuredExpiryDurationMillis) {
-                synchronized (this) {
-                    resetTempState();
-                }
+                enableTemporarily();
+                resetTempState();
             }
             else {
                 return false;
@@ -78,17 +76,16 @@ public class NativeStorageStateHandler
         shapingLogger.info("handleErrorCode:: %s", errorCode);
 
         if (errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR)) {
-            storageDisablePermanently = true;
-            shapingLogger.warn("set storage permanent state due to %s", errorCode);
+            disablePermanently();
+            shapingLogger.warn("storage disabled permanently due to %s", errorCode);
         }
         else if (errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR) || errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_TIMEOUT_ERROR)) {
             long currentTimeMillis = System.currentTimeMillis();
 
             // initialize on first temp error
-            if (!storageDisableTemporarily) {
-                storageDisableTemporarily = true;
-                storageTemporaryExceptionExpiryTimestamp = currentTimeMillis;
-                shapingLogger.warn("set storage temporary state due to %s", errorCode);
+            if (!isStorageDisabledTemporarily()) {
+                disableTemporarily();
+                shapingLogger.warn("storage temporary disabled due to %s", errorCode);
             }
 
             storageTemporaryExceptionNumTries++;
@@ -97,18 +94,16 @@ public class NativeStorageStateHandler
 
             // mark as permanent in case too many temp errors
             if (storageTemporaryExceptionNumTries >= nativeConfig.getStorageTemporaryExceptionNumTries()) {
-                storageDisablePermanently = true;
+                disablePermanently();
                 shapingLogger.warn("set storage permanent state due to too many temporary errors - %s", errorCode);
             }
         }
     }
 
-    private void resetTempState()
+    private synchronized void resetTempState()
     {
-        storageDisableTemporarily = false;
         storageTemporaryExceptionNumTries = 0;
         storageTemporaryExceptionTimestamp = 0L;
-        storageTemporaryExceptionExpiryTimestamp = 0L;
     }
 
     public boolean isStorageDisabledPermanently()
@@ -121,13 +116,40 @@ public class NativeStorageStateHandler
         return storageDisableTemporarily;
     }
 
-    public synchronized void setStorageDisableState(boolean disablePermanently, boolean disableTemporarily)
+    public void enablePermanently()
     {
-        storageDisablePermanently = disablePermanently;
-        storageDisableTemporarily = disableTemporarily;
-        if (!storageDisableTemporarily) {
-            shapingLogger.info("reset storage temporary state due to expiry duration");
-            resetTempState();
+        setStorageDisableState(false, null);
+    }
+
+    private void disablePermanently()
+    {
+        setStorageDisableState(true, null);
+    }
+
+    public void disableTemporarily()
+    {
+        setStorageDisableState(null, true);
+    }
+
+    public void enableTemporarily()
+    {
+        setStorageDisableState(null, false);
+    }
+
+    private synchronized void setStorageDisableState(Boolean disablePermanently, Boolean disableTemporarily)
+    {
+        if (disablePermanently != null) {
+            storageDisablePermanently = disablePermanently;
+            if (storageDisablePermanently) {
+                storageDisableTemporarily = true;
+            }
+        }
+        else if (disableTemporarily != null) {
+            storageDisableTemporarily = disableTemporarily;
+            if (!storageDisableTemporarily) {
+                shapingLogger.info("reset storage temporary state due to expiry duration");
+                resetTempState();
+            }
         }
     }
 }

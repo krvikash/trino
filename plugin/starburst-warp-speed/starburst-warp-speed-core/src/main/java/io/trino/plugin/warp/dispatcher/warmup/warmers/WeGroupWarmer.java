@@ -34,6 +34,7 @@ import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.connector.ConnectorSession;
 import org.apache.commons.io.FileUtils;
@@ -48,6 +49,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.plugin.warp.gen.errorcodes.ErrorCodes.ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -63,6 +65,8 @@ public class WeGroupWarmer
     private final StorageEngineConstants storageEngineConstants;
     private final RowGroupDataService rowGroupDataService;
     private final CloudVendorService cloudVendorService;
+    private final NativeStorageStateHandler nativeStorageStateHandler;
+
     private final WarmupImportServiceStats warmupImportServiceStats;
 
     @Inject
@@ -72,15 +76,18 @@ public class WeGroupWarmer
             StorageEngineConstants storageEngineConstants,
             RowGroupDataService rowGroupDataService,
             @ForWarp CloudVendorService cloudVendorService,
-            MetricsManager metricsManager)
+            MetricsManager metricsManager,
+            NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.globalConfig = requireNonNull(globalConfig);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cloudVendorService = requireNonNull(cloudVendorService);
-        this.warmupImportServiceStats = metricsManager.registerMetric(new WarmupImportServiceStats(WARMUP_IMPORTER_STAT_GROUP));
-        this.shapingLogger = ShapingLogger.getInstance(
+        this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
+
+        warmupImportServiceStats = metricsManager.registerMetric(new WarmupImportServiceStats(WARMUP_IMPORTER_STAT_GROUP));
+        shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
@@ -123,12 +130,19 @@ public class WeGroupWarmer
 
     private boolean download(RowGroupKey rowGroupKey, String cloudPath, String localFileName)
     {
+        warmupImportServiceStats.incimport_we_group_download_started();
         try {
-            warmupImportServiceStats.incimport_we_group_download_started();
-
             FileUtils.createParentDirectories(new File(localFileName));
-            cloudVendorService.downloadFileFromCloud(cloudPath, new File(localFileName));
+        }
+        catch (Throwable e) {
+            nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR);
+            shapingLogger.warn(e,
+                    "storage temporary disabled since failed to create directories for %s", localFileName);
+            return false;
+        }
 
+        try {
+            cloudVendorService.downloadFileFromCloud(cloudPath, new File(localFileName));
             return true;
         }
         catch (Exception e) {
@@ -181,8 +195,7 @@ public class WeGroupWarmer
             File localTmpFile = new File(localTmpFileName);
             if (!localTmpFile.renameTo(new File(localFileName))) {
                 // delete localTmpFile
-                //noinspection ResultOfMethodCallIgnored
-                boolean unused = localTmpFile.delete();
+                FileUtils.deleteQuietly(localTmpFile);
                 throw new RuntimeException("failed renaming file " + localTmpFileName + " => " + localFileName);
             }
 

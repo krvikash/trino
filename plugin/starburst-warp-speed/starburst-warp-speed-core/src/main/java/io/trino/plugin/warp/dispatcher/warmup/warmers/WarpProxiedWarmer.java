@@ -228,7 +228,8 @@ public class WarpProxiedWarmer
             storageWarmerService.fileClose(fileCookieParams, Optional.of(rowGroupData));
         }
 
-        if (extraDebug && (storageWriterSplitConfig != null)) {
+        if (extraDebug &&
+                ((storageWriterSplitConfig != null) && storageWriterSplitConfig.warmUpStateOpt().isPresent())) {
             WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().get();
             storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements(), warmUpState);
         }

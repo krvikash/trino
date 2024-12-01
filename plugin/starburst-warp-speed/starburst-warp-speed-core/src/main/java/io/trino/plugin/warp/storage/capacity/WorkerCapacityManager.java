@@ -43,6 +43,7 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.trino.plugin.warp.gen.errorcodes.ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -160,7 +161,7 @@ public class WorkerCapacityManager
             if (!Files.exists(Paths.get(localStorePath))) {
                 if (!new File(localStorePath).mkdirs()) {
                     logger.error("local store directory does not exists %s. setting StorageDisableState to permanently disabled", localStorePath);
-                    nativeStorageStateHandler.setStorageDisableState(true, false);
+                    nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
                     return false;
                 }
             }
@@ -175,7 +176,7 @@ public class WorkerCapacityManager
         }
         catch (Exception e) {
             logger.error("cannot write to local store path %s. message %s. setting StorageDisableState to permanently disabled", localStorePath, e.getMessage());
-            nativeStorageStateHandler.setStorageDisableState(true, false);
+            nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
             return false;
         }
     }
@@ -202,7 +203,7 @@ public class WorkerCapacityManager
     private void cleanLocalStorage()
     {
         if (!createCatalogLocalStore()) {
-            logger.info("cleanLocalStorage exiting since cannot write to local store");
+            logger.warn("cleanLocalStorage exiting since cannot write to local store");
             calculateTotalCapacity();
             return;
         }
@@ -211,42 +212,56 @@ public class WorkerCapacityManager
         File localStore = new File(localStorePath);
 
         if (isEmptyDir(localStore)) {
-            nativeStorageStateHandler.setStorageDisableState(false, false);
             logger.info("cleanLocalStorage exiting since no files found in %s", localStorePath);
             calculateTotalCapacity();
+            nativeStorageStateHandler.enableTemporarily();
+            nativeStorageStateHandler.enablePermanently();
             return;
         }
 
         logger.info("cleanLocalStorage launching background clean for path %s", localStorePath);
-        nativeStorageStateHandler.setStorageDisableState(true, false);
+        nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
         Thread cleanLocalStorageThread = new Thread(() -> {
             try {
                 logger.info("cleanLocalStorage job starting localStorePath %s", localStorePath);
                 StopWatch stopWatch = new StopWatch();
                 stopWatch.start();
 
-                boolean cleaned = isEmptyDir(localStore);
-
                 try {
-                    if (!cleaned) {
+                    if (!isEmptyDir(localStore)) {
                         FileUtils.deleteDirectory(localStore);
-                        cleaned = localStore.mkdirs();
                     }
                 }
                 catch (IOException io) {
                     logger.warn(io, "Failed to delete directory %s", localStorePath);
                 }
 
-                if (!cleaned) {
-                    cleaned = deleteLocalStorageFiles(localStore);
+                try {
+                    //noinspection ResultOfMethodCallIgnored
+                    localStore.mkdirs();
+                }
+                catch (Throwable e) {
+                    logger.warn(e, "Failed to create directories %s", localStorePath);
+                }
+
+                if (!isEmptyDir(localStore)) {
+                    deleteLocalStorageFiles(localStore);
                 }
 
                 stopWatch.stop();
                 logger.info("cleanLocalStorage job finished. took %d nano sec", stopWatch.getNanoTime());
 
                 // in case we hit an error, we leave total capacity as zero and storage state as permanently failed
-                if (cleaned) {
-                    nativeStorageStateHandler.setStorageDisableState(false, false);
+                if (isEmptyDir(localStore)) {
+                    nativeStorageStateHandler.enableTemporarily();
+                    nativeStorageStateHandler.enablePermanently();
+                    logger.info("cleanLocalStorage job finished successfully for [%s]. took %d nano sec",
+                            localStorePath, stopWatch.getNanoTime());
+                }
+                else {
+                    logger.error("cleanLocalStorage job failed to clean [%s]. took %d nano sec",
+                            localStorePath, stopWatch.getNanoTime());
+                    nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
                 }
             }
             finally {
@@ -262,9 +277,9 @@ public class WorkerCapacityManager
         deleteLocalStorageFiles(new File(localStorePath));
     }
 
-    private boolean deleteLocalStorageFiles(File localStore)
+    private void deleteLocalStorageFiles(File localStore)
     {
-        return Failsafe.with(RetryPolicy.builder()
+        Failsafe.with(RetryPolicy.builder()
                         .withMaxRetries(3)
                         .withDelay(Duration.ofSeconds(1))
                         .abortIf(o -> (boolean) o)

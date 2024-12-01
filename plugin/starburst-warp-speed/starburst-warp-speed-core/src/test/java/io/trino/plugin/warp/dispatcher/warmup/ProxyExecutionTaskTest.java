@@ -297,7 +297,17 @@ public class ProxyExecutionTaskTest
 
     private ProxyExecutionTask createWarmExecutionTask(WarmingServiceStats warmingServiceStats, EventBus eventBus)
     {
-        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, new StubsStorageEngine(), globalConfig, warmupDemoterService, storageEngineTxService, flowsSequencer, TestingTxService.createMetricsManager(), deleteService);
+        StorageWarmerService storageWarmerService = new StorageWarmerService(
+                rowGroupDataService,
+                new StubsStorageEngine(),
+                globalConfig,
+                warmupDemoterService,
+                storageEngineTxService,
+                flowsSequencer,
+                TestingTxService.createMetricsManager(),
+                deleteService,
+                mock(NativeStorageStateHandler.class));
+
         return new ProxyExecutionTask(mock(WarmExecutionTaskFactory.class),
                 eventBus,
                 dispatcherProxiedConnectorTransformer,

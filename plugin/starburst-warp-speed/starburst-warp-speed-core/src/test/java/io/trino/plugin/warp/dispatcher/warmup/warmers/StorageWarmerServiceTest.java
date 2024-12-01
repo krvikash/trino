@@ -20,6 +20,7 @@ import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import org.junit.jupiter.api.Test;
 
@@ -41,7 +42,8 @@ class StorageWarmerServiceTest
                 mock(StorageEngineTxService.class),
                 mock(FlowsSequencer.class),
                 TestingTxService.createMetricsManager(),
-                mock(WarpDeleteService.class));
+                mock(WarpDeleteService.class),
+                mock(NativeStorageStateHandler.class));
         assertThat(storageWarmerService.tryAllocateNativeResourceForWarmup()).isTrue();
         assertThat(storageWarmerService.tryAllocateNativeResourceForWarmup()).isFalse();
         assertThat(storageWarmerService.tryAllocateNativeResourceForWarmup()).isFalse();

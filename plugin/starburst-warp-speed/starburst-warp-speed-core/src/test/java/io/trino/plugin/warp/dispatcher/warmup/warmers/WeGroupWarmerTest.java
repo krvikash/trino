@@ -27,6 +27,7 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
@@ -121,7 +122,8 @@ public class WeGroupWarmerTest
                 storageEngineConstants,
                 rowGroupDataService,
                 cloudVendorService,
-                metricsManager);
+                metricsManager,
+                mock(NativeStorageStateHandler.class));
     }
 
     @Test

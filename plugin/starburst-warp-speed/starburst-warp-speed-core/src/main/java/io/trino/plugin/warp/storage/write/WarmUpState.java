@@ -31,7 +31,7 @@ public class WarmUpState
     private static final StructLayout FILE_COOKIE_LAYOUT;
     private static final long FILE_COOKIE_OFFSET_FILE_HASH;
     private static final long FILE_COOKIE_OFFSET_FILE_MOD_TIME;
-    private static final long FILE_COOKIE_OFFSET_FILE_DECSRIPTOR;
+    private static final long FILE_COOKIE_OFFSET_FILE_DESCRIPTOR;
 
     // jbuffers array
     private static final SequenceLayout JBUFS_LIST_LAYOUT;
@@ -59,7 +59,7 @@ public class WarmUpState
                 ValueLayout.JAVA_INT.withName("file_fd")).withName("storage_file_cookie_t");
         FILE_COOKIE_OFFSET_FILE_HASH = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_hash"));
         FILE_COOKIE_OFFSET_FILE_MOD_TIME = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_mod_time"));
-        FILE_COOKIE_OFFSET_FILE_DECSRIPTOR = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_fd"));
+        FILE_COOKIE_OFFSET_FILE_DESCRIPTOR = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_fd"));
 
         JBUFS_LIST_LAYOUT = MemoryLayout.sequenceLayout(JbufType.JBUF_TYPE_NUM_OF.ordinal(), ValueLayout.JAVA_LONG);
 
@@ -99,22 +99,22 @@ public class WarmUpState
         return warmUpState;
     }
 
-    // currently called only after open but we can extend this in the future to avoid throwing exceptions from native
+    // currently called only after open, but we can extend this in the future to avoid throwing exceptions from native
     public void verifyWarmUpSuccess()
     {
         if (warmUpState.get(ValueLayout.JAVA_BYTE, WARMUP_STATE_OFFSET_WARMUP_FAILED) != 0) {
-            throw new RuntimeException("storage engione failed to warm up element");
+            throw new RuntimeException("storage engine failed to warm up element");
         }
     }
 
-    public MemorySegment getWarmUpElemetAtt()
+    public MemorySegment getWarmUpElementAtt()
     {
         return warmUpState.asSlice(WARMUP_STATE_OFFSET_ELEMENT_ATT, WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
     }
 
-    public void setWarmUpElemetAtt(RecTypeCode recTypeCode, int recTypeLength, WarmUpType warmUpType)
+    public void setWarmUpElementAtt(RecTypeCode recTypeCode, int recTypeLength, WarmUpType warmUpType)
     {
-        MemorySegment warmUpElementAtt = getWarmUpElemetAtt();
+        MemorySegment warmUpElementAtt = getWarmUpElementAtt();
         WarmUpElement.setRecTypeCode(warmUpElementAtt, recTypeCode);
         WarmUpElement.setRecTypeLength(warmUpElementAtt, recTypeLength);
         WarmUpElement.setWarmUpType(warmUpElementAtt, warmUpType);
@@ -123,7 +123,7 @@ public class WarmUpState
     public void setFileCookie(int fileDescriptor, long fileHash, long fileModTime)
     {
         MemorySegment fileCookie = warmUpState.asSlice(WARMUP_STATE_OFFSET_FILE_COOKIE, FILE_COOKIE_LAYOUT);
-        fileCookie.set(ValueLayout.JAVA_INT, FILE_COOKIE_OFFSET_FILE_DECSRIPTOR, fileDescriptor);
+        fileCookie.set(ValueLayout.JAVA_INT, FILE_COOKIE_OFFSET_FILE_DESCRIPTOR, fileDescriptor);
         fileCookie.set(ValueLayout.JAVA_LONG, FILE_COOKIE_OFFSET_FILE_HASH, fileHash);
         fileCookie.set(ValueLayout.JAVA_LONG, FILE_COOKIE_OFFSET_FILE_MOD_TIME, fileModTime);
     }
