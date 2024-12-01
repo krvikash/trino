@@ -13,21 +13,27 @@
  */
 package io.trino.plugin.warp.util;
 
-import io.trino.plugin.hive.HiveTimestampPrecision;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TimeZoneKey;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 public class DefaultFakeConnectorSession
         implements ConnectorSession
 {
-    public static final ConnectorSession INSTANCE = new DefaultFakeConnectorSession();
+    public static final ConnectorSession INSTANCE = new DefaultFakeConnectorSession(Collections.emptyMap());
 
-    private DefaultFakeConnectorSession() {}
+    private final Map<String, Object> defaultValues;
+
+    public DefaultFakeConnectorSession(Map<String, Object> defaultValues)
+    {
+        this.defaultValues = defaultValues;
+    }
 
     @Override
     public String getQueryId()
@@ -80,16 +86,6 @@ public class DefaultFakeConnectorSession
     @Override
     public <T> T getProperty(String name, Class<T> type)
     {
-        // TODO - fix for hive removal
-        if ("timestamp_precision".equals(name)) {
-            return (T) HiveTimestampPrecision.DEFAULT_PRECISION;
-        }
-        if ("allow_legacy_snapshot_syntax".equals(name)) {
-            return (T) Boolean.FALSE;
-        }
-        if (Boolean.class.equals(type)) {
-            return (T) Boolean.FALSE;
-        }
-        return null;
+        return (T) defaultValues.get(name);
     }
 }

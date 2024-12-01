@@ -21,6 +21,8 @@ import io.airlift.log.Logger;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
+import io.trino.plugin.warp.di.DefaultFakeConnectorSessionProvider;
+import io.trino.plugin.warp.di.FakeConnectorSessionProvider;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.di.WarpModules;
 import io.trino.plugin.warp.di.dispatcher.DispatcherCoordinatorModule;
@@ -134,6 +136,7 @@ public class InternalDispatcherConnectorFactory
             binder.bind(ConnectorPageSourceProviderFactory.class).annotatedWith(ForWarp.class).toInstance(connector.getPageSourceProviderFactory());
             binder.bind(ConnectorPageSinkProvider.class).annotatedWith(ForWarp.class).toInstance(connector.getPageSinkProvider());
             binder.bind(ConnectorNodePartitioningProvider.class).annotatedWith(ForWarp.class).toInstance(connector.getNodePartitioningProvider());
+            binder.bind(FakeConnectorSessionProvider.class).toInstance(new DefaultFakeConnectorSessionProvider(connector.getSessionProperties()));
         };
     }
 }

@@ -17,8 +17,6 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
-import io.trino.plugin.warp.di.DefaultFakeConnectorSessionProvider;
-import io.trino.plugin.warp.di.FakeConnectorSessionProvider;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.plugin.warp.extension.di.WarpEmptyExtensionModule;
@@ -65,7 +63,5 @@ public class WarpModule
         else {
             install(new WarpEmptyExtensionModule(config, connectorContext, catalogName));
         }
-
-        binder.bind(FakeConnectorSessionProvider.class).to(DefaultFakeConnectorSessionProvider.class);
     }
 }

@@ -97,7 +97,7 @@ public class WarmupRuleServiceTest
                 storageEngineConstants,
                 new WarmupDemoterConfig(),
                 dispatcherProxiedConnectorTransformer,
-                new DefaultFakeConnectorSessionProvider(),
+                new DefaultFakeConnectorSessionProvider(Collections.emptyList()),
                 globalConfig);
     }
 

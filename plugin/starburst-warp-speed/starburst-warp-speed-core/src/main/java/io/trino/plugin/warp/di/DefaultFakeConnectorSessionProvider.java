@@ -17,17 +17,27 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.util.DefaultFakeConnectorSession;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.session.PropertyMetadata;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Singleton
 public class DefaultFakeConnectorSessionProvider
         implements FakeConnectorSessionProvider
 {
+    private final Map<String, Object> defaultValues;
+
     @Inject
-    public DefaultFakeConnectorSessionProvider() {}
+    public DefaultFakeConnectorSessionProvider(List<PropertyMetadata<?>> sessionProperties)
+    {
+        defaultValues = sessionProperties.stream().filter(pm -> pm.getDefaultValue() != null).collect(Collectors.toMap(PropertyMetadata::getName, PropertyMetadata::getDefaultValue));
+    }
 
     @Override
     public ConnectorSession get()
     {
-        return DefaultFakeConnectorSession.INSTANCE;
+        return new DefaultFakeConnectorSession(defaultValues);
     }
 }
