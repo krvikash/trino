@@ -19,6 +19,9 @@ import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.Type;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.QueryCachingPolicy;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -26,6 +29,25 @@ import java.util.Optional;
 public class LuceneQueryMatchData
         extends QueryMatchData
 {
+    // IndexSearcher.setMaxClauseCount(...) method is used to set the maximum number of clauses allowed in a Boolean query.
+    static {
+        IndexSearcher.setDefaultQueryCachingPolicy(new QueryCachingPolicy()
+        {
+            @Override
+            public void onUse(Query query)
+            {
+            }
+
+            @SuppressWarnings("CheckedExceptionNotThrown")
+            @Override
+            public boolean shouldCache(Query query)
+            {
+                return false;
+            }
+        });
+        IndexSearcher.setMaxClauseCount(Integer.MAX_VALUE);
+    }
+
     private final BooleanQuery query;
 
     private LuceneQueryMatchData(WarmUpElement warmUpElement,

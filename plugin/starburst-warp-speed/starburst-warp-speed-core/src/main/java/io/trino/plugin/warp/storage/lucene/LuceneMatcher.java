@@ -27,7 +27,6 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.QueryCachingPolicy;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -173,23 +172,5 @@ public class LuceneMatcher
         finally {
             statsDispatcherPageSource.addlucene_execution_time(System.currentTimeMillis() - startTime);
         }
-    }
-
-    static {
-        IndexSearcher.setDefaultQueryCachingPolicy(new QueryCachingPolicy()
-        {
-            @Override
-            public void onUse(Query query)
-            {
-            }
-
-            @SuppressWarnings("CheckedExceptionNotThrown")
-            @Override
-            public boolean shouldCache(Query query)
-            {
-                return false;
-            }
-        });
-        IndexSearcher.setMaxClauseCount(Integer.MAX_VALUE);
     }
 }

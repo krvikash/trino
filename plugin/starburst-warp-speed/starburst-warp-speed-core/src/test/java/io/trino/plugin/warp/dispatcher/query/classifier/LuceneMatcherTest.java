@@ -45,6 +45,7 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,6 +53,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -585,5 +587,39 @@ public class LuceneMatcherTest
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
         return luceneElementsMatcher.match(classifyArgs, matchContext);
+    }
+
+    @Test
+    void testMaxClauseCount()
+    {
+        ColumnHandle columnHandle = mockColumnHandle("columnName", varcharType, dispatcherProxiedConnectorTransformer);
+        WarmedWarmupTypes warmUpElementByType = createColumnToWarmUpElementByType(List.of(columnHandle), WarmUpType.WARM_UP_TYPE_LUCENE);
+        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+                rowGroupData,
+                mock(PredicateContextData.class),
+                ImmutableMap.of(),
+                warmUpElementByType,
+                false,
+                true,
+                true,
+                false,
+                false);
+
+        Type type = VarcharType.createVarcharType(10);
+        List<Slice> values = new ArrayList<>();
+        for (int i = 0; i < 1025; i++) {
+            values.add(Slices.utf8Slice("AAA" + i));
+        }
+        Domain domain = Domain.multipleValues(type, values);
+        Map<ColumnHandle, Domain> columnDomains = Map.of(columnHandle, domain);
+        TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(columnDomains);
+
+        when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
+        PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
+                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
+        MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
+
+        Assertions.assertDoesNotThrow(() -> luceneElementsMatcher.match(classifyArgs, matchContext));
     }
 }
