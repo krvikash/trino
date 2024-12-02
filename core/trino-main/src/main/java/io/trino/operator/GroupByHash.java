@@ -114,4 +114,6 @@ public interface GroupByHash
 
     @VisibleForTesting
     int getCapacity();
+
+    GroupByHash copy();
 }

@@ -104,6 +104,24 @@ public class BigintGroupByHash
         this.updateMemory = requireNonNull(updateMemory, "updateMemory is null");
     }
 
+    private BigintGroupByHash(BigintGroupByHash other)
+    {
+        outputRawHash = other.outputRawHash;
+        hashType = other.hashType;
+        hashCapacity = other.hashCapacity;
+        maxFill = other.maxFill;
+        mask = other.mask;
+        values = other.values.replicateWithNewSize(maxFill);
+        groupIds = Arrays.copyOf(other.groupIds, other.groupIds.length);
+        nullGroupId = other.nullGroupId;
+        valuesByGroupId = other.valuesByGroupId.replicateWithNewSize(maxFill);
+        nextGroupId = other.nextGroupId;
+        dictionaryLookBack = other.dictionaryLookBack.copy();
+        updateMemory = other.updateMemory;
+        preallocatedMemoryInBytes = other.preallocatedMemoryInBytes;
+        currentPageSizeInBytes = other.currentPageSizeInBytes;
+    }
+
     @Override
     public long getEstimatedSize()
     {
@@ -184,6 +202,12 @@ public class BigintGroupByHash
     public int getCapacity()
     {
         return hashCapacity;
+    }
+
+    @Override
+    public GroupByHash copy()
+    {
+        return new BigintGroupByHash(this);
     }
 
     private int putIfAbsent(int position, Block block)
@@ -642,6 +666,12 @@ public class BigintGroupByHash
             Arrays.fill(processed, -1);
         }
 
+        private DictionaryLookBack(DictionaryLookBack other)
+        {
+            this.dictionary = other.dictionary;
+            this.processed = Arrays.copyOf(other.processed, other.processed.length);
+        }
+
         public Block getDictionary()
         {
             return dictionary;
@@ -660,6 +690,11 @@ public class BigintGroupByHash
         public void setProcessed(int position, int groupId)
         {
             processed[position] = groupId;
+        }
+
+        public DictionaryLookBack copy()
+        {
+            return new DictionaryLookBack(this);
         }
     }
 
