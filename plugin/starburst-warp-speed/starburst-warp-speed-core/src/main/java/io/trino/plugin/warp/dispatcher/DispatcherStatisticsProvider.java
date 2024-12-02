@@ -21,6 +21,7 @@ import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
@@ -82,6 +83,11 @@ public class DispatcherStatisticsProvider
         return ImmutableMap.copyOf(cardinalityMap.descendingMap());
     }
 
+    public boolean isValidForTableStatistics(ConnectorTableHandle connectorTableHandle)
+    {
+        return transformer.isValidForTableStatistics(connectorTableHandle);
+    }
+
     public Set<String> getColumnsNotFitForDictionary(SchemaTableName schemaTableName)
     {
         if (schemaTableName != null) {
@@ -94,11 +100,12 @@ public class DispatcherStatisticsProvider
         return Set.of();
     }
 
-    public void putColumnsNotFitForDictionary(SchemaTableName schemaTableName,
-                                              Map<ColumnHandle, ColumnStatistics> columnStatistics)
+    public Set<String> putColumnsNotFitForDictionary(SchemaTableName schemaTableName,
+                                                     Map<ColumnHandle, ColumnStatistics> columnStatistics)
     {
         Set<String> columnsNotFitForDictionary = transformer.calculateColumnsNotFitForDictionary(columnStatistics, dictionaryMaxSize);
 
         notFitForDictionary.put(schemaTableName, columnsNotFitForDictionary);
+        return columnsNotFitForDictionary;
     }
 }

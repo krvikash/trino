@@ -19,6 +19,7 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.spi.RefreshType;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
@@ -117,6 +118,7 @@ public class DispatcherMetadata
     private final DispatcherStatisticsProvider dispatcherStatisticsProvider;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
     private final GlobalConfig globalConfig;
+    private final ShapingLogger shapingLogger;
 
     public DispatcherMetadata(
             ConnectorMetadata proxiedConnectorMetadata,
@@ -130,6 +132,11 @@ public class DispatcherMetadata
         this.dispatcherStatisticsProvider = requireNonNull(dispatcherStatisticsProvider);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
         this.globalConfig = requireNonNull(globalConfig);
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @Override
@@ -236,11 +243,31 @@ public class DispatcherMetadata
     public TableStatistics getTableStatistics(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
-        TableStatistics tableStatistics = proxiedConnectorMetadata.getTableStatistics(
+        TableStatistics tableStatistics = getProxyTableStatistics(
                 session,
                 dispatcherTableHandle.getProxyConnectorTableHandle());
-        dispatcherStatisticsProvider.putColumnsNotFitForDictionary(dispatcherTableHandle.getSchemaTableName(),
+        dispatcherStatisticsProvider.putColumnsNotFitForDictionary(
+                dispatcherTableHandle.getSchemaTableName(),
                 tableStatistics.getColumnStatistics());
+        return tableStatistics;
+    }
+
+    private TableStatistics getProxyTableStatistics(ConnectorSession session, ConnectorTableHandle proxiedConnectorTableHandle)
+    {
+        TableStatistics tableStatistics;
+
+        if (dispatcherStatisticsProvider.isValidForTableStatistics(proxiedConnectorTableHandle)) {
+            try {
+                tableStatistics = proxiedConnectorMetadata.getTableStatistics(session, proxiedConnectorTableHandle);
+            }
+            catch (Exception e) {
+                shapingLogger.warn("getTableStatistics failed tableHandle %s error %s", proxiedConnectorTableHandle, e);
+                tableStatistics = TableStatistics.empty();
+            }
+        }
+        else {
+            tableStatistics = TableStatistics.empty();
+        }
         return tableStatistics;
     }
 
@@ -1411,8 +1438,7 @@ public class DispatcherMetadata
             return columnsNotFitForDictionary;
         }
 
-        TableStatistics tableStatistics = proxiedConnectorMetadata.getTableStatistics(session, proxiedConnectorTableHandle);
-        dispatcherStatisticsProvider.putColumnsNotFitForDictionary(schemaTableName, tableStatistics.getColumnStatistics());
-        return columnsNotFitForDictionary;
+        TableStatistics tableStatistics = getProxyTableStatistics(session, proxiedConnectorTableHandle);
+        return dispatcherStatisticsProvider.putColumnsNotFitForDictionary(schemaTableName, tableStatistics.getColumnStatistics());
     }
 }

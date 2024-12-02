@@ -54,6 +54,11 @@ import static java.lang.String.format;
 public interface DispatcherProxiedConnectorTransformer
         extends DispatcherProxiedConnectorColumnTransformer
 {
+    default boolean isValidForTableStatistics(ConnectorTableHandle connectorTableHandle)
+    {
+        return true;
+    }
+
     default List<HostAddress> getHostAddressForSplit(
             String splitKey,
             ConnectorSplitNodeDistributor connectorSplitNodeDistributor)

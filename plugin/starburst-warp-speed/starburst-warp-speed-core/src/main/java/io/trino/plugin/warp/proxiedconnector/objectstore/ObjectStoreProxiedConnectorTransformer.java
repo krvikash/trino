@@ -82,6 +82,13 @@ public class ObjectStoreProxiedConnectorTransformer
     }
 
     @Override
+    public boolean isValidForTableStatistics(ConnectorTableHandle connectorTableHandle)
+    {
+        return transformerMap.get(getTransformerKey(connectorTableHandle))
+                .isValidForTableStatistics(connectorTableHandle);
+    }
+
+    @Override
     public Map<String, Integer> calculateColumnsStatisticsBucketPriority(
             DispatcherStatisticsProvider statisticsProvider,
             Map<ColumnHandle, ColumnStatistics> columnStatistics)
