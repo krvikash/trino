@@ -210,7 +210,8 @@ public class WarmupTestDataUtil
                 testingConnectorTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                false);
+                false,
+                Set.of());
     }
 
     public static SetMultimap<WarpColumn, WarmupProperties> createRequiredWarmUpTypes(List<ColumnHandle> columns, List<WarmUpType> warmUpTypeList)

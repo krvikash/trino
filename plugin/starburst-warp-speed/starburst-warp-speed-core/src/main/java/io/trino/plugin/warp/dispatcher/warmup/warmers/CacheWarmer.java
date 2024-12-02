@@ -135,6 +135,7 @@ public class CacheWarmer
                     .connectorBlockIndex(connectorBlockIndex)
                     .type(type)
                     .schemaTableColumn(new SchemaTableColumn(schemaTableColumn, warmupElement.get().getWarpColumn()))
+                    .fitForDictionary(true)
                     .build());
         }
         return res;

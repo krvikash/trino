@@ -133,7 +133,8 @@ public class WarpProxiedWarmer
         List<Pair<WarmupElementWriteMetadata, ColumnHandle>> warmupElementsWriteMetadata = createWarmupElementWriteMetadata(proxiedWarmupElementsMultimap,
                 schemaTableName,
                 columnsToWarm,
-                requiredWarmUpTypeMap);
+                requiredWarmUpTypeMap,
+                dispatcherTableHandle);
         if (warmupElementsWriteMetadata.isEmpty()) {
             return rowGroupData;
         }
@@ -250,7 +251,8 @@ public class WarpProxiedWarmer
     List<Pair<WarmupElementWriteMetadata, ColumnHandle>> createWarmupElementWriteMetadata(Multimap<WarpColumn, WarmUpElement> proxiedWarmupElements,
             SchemaTableName schemaTableName,
             List<ColumnHandle> columnsToWarm,
-            SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap)
+            SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
+            DispatcherTableHandle tableHandle)
     {
         logger.debug("createWarmupElementWriteMetadata proxiedWarmupElements = %s, schemaTableName = %s, columnsToWarm= %s, requiredWarmUpTypeMap = %s",
                 proxiedWarmupElements, schemaTableName, columnsToWarm, requiredWarmUpTypeMap);
@@ -286,6 +288,7 @@ public class WarpProxiedWarmer
                         .connectorBlockIndex(connectorBlockIdx)
                         .type(type)
                         .schemaTableColumn(new SchemaTableColumn(schemaTableName, warmUpElement.getWarpColumn()))
+                        .fitForDictionary(tableHandle.isColumnFitForDictionary(warmUpElement.getWarpColumn().getName()))
                         .build();
                 columnMap.put(warmUpElement.getWarpColumn(), metadata);
                 warmupElementWriteMetadataColumnHandleMap.put(metadata, columnHandle);

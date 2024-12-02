@@ -114,16 +114,20 @@ public class DispatcherMetadata
 
     private final ConnectorMetadata proxiedConnectorMetadata;
     private final ExpressionService expressionService;
+    private final DispatcherStatisticsProvider dispatcherStatisticsProvider;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
     private final GlobalConfig globalConfig;
 
-    public DispatcherMetadata(ConnectorMetadata proxiedConnectorMetadata,
+    public DispatcherMetadata(
+            ConnectorMetadata proxiedConnectorMetadata,
             ExpressionService expressionService,
+            DispatcherStatisticsProvider dispatcherStatisticsProvider,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
             GlobalConfig globalConfig)
     {
         this.proxiedConnectorMetadata = requireNonNull(proxiedConnectorMetadata);
         this.expressionService = requireNonNull(expressionService);
+        this.dispatcherStatisticsProvider = requireNonNull(dispatcherStatisticsProvider);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
         this.globalConfig = requireNonNull(globalConfig);
     }
@@ -145,7 +149,8 @@ public class DispatcherMetadata
     {
         return convertTableHandle(
                 session,
-                proxiedConnectorMetadata.getTableHandle(session, tableName, startVersion, endVersion));
+                proxiedConnectorMetadata.getTableHandle(session, tableName, startVersion, endVersion),
+                tableName);
     }
 
     @Override
@@ -164,7 +169,8 @@ public class DispatcherMetadata
                 proxiedConnectorMetadata.makeCompatiblePartitioning(
                         session,
                         dispatcherTableHandle.getProxyConnectorTableHandle(),
-                        partitioningHandle));
+                        partitioningHandle),
+                dispatcherTableHandle.getSchemaTableName());
     }
 
     @Override
@@ -229,9 +235,13 @@ public class DispatcherMetadata
     @Override
     public TableStatistics getTableStatistics(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        return proxiedConnectorMetadata.getTableStatistics(
+        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
+        TableStatistics tableStatistics = proxiedConnectorMetadata.getTableStatistics(
                 session,
-                ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle());
+                dispatcherTableHandle.getProxyConnectorTableHandle());
+        dispatcherStatisticsProvider.putColumnsNotFitForDictionary(dispatcherTableHandle.getSchemaTableName(),
+                tableStatistics.getColumnStatistics());
+        return tableStatistics;
     }
 
     @Override
@@ -432,7 +442,8 @@ public class DispatcherMetadata
         DispatcherTableHandle dispatcherTableHandleResult = convertTableHandle(
                 session,
                 dispatcherTableHandle,
-                proxiedResult.getTableHandle());
+                proxiedResult.getTableHandle(),
+                dispatcherTableHandle.getSchemaTableName());
 
         return new ConnectorAnalyzeMetadata(dispatcherTableHandleResult, proxiedResult.getStatisticsMetadata());
     }
@@ -446,7 +457,8 @@ public class DispatcherMetadata
                 dispatcherTableHandle,
                 proxiedConnectorMetadata.beginStatisticsCollection(
                         session,
-                        dispatcherTableHandle.getProxyConnectorTableHandle()));
+                        dispatcherTableHandle.getProxyConnectorTableHandle()),
+                dispatcherTableHandle.getSchemaTableName());
     }
 
     @Override
@@ -648,7 +660,8 @@ public class DispatcherMetadata
                         convertTableHandle(
                                 session,
                                 dispatcherTableHandle,
-                                ret));
+                                ret,
+                                dispatcherTableHandle.getSchemaTableName()));
     }
 
     @Override
@@ -809,12 +822,15 @@ public class DispatcherMetadata
                         limit);
 
         boolean isLimitGuaranteed = false;
+        SchemaTableName schemaTableName = dispatcherTableHandle.getSchemaTableName();
+
         if (resultOpt.isPresent()) {
             LimitApplicationResult<ConnectorTableHandle> result = resultOpt.get();
             dispatcherTableHandle = createTableHandleBuilder(
                     session,
                     Optional.of(dispatcherTableHandle),
-                    result.getHandle())
+                    result.getHandle(),
+                    schemaTableName)
                     .limit(limit)
                     .build();
             isLimitGuaranteed = result.isLimitGuaranteed();
@@ -823,7 +839,8 @@ public class DispatcherMetadata
             dispatcherTableHandle = createTableHandleBuilder(
                     session,
                     Optional.of(dispatcherTableHandle),
-                    dispatcherTableHandle.getProxyConnectorTableHandle())
+                    dispatcherTableHandle.getProxyConnectorTableHandle(),
+                    schemaTableName)
                     .limit(limit)
                     .build();
         }
@@ -922,7 +939,7 @@ public class DispatcherMetadata
                 .toList();
 
         TupleDomain<ColumnHandle> fullPredicate = table.getFullPredicate().intersect(newRemainingFilter);
-        DispatcherTableHandle dispatcherTableHandle = createTableHandleBuilder(session, Optional.of(table), proxiedConnectorTableHandle)
+        DispatcherTableHandle dispatcherTableHandle = createTableHandleBuilder(session, Optional.of(table), proxiedConnectorTableHandle, table.getSchemaTableName())
                 .warpExpression(warpExpression)
                 .customStats(customStats)
                 .fullPredicate(fullPredicate)
@@ -945,7 +962,7 @@ public class DispatcherMetadata
     {
         if (!dispatcherTableHandle.getFullPredicate().isAll()) {
             // TODO: Support expressions (we currently don't have a way to know if the expression is fully subsumed or not)
-            DispatcherTableHandle table = createTableHandleBuilder(session, Optional.of(dispatcherTableHandle), dispatcherTableHandle.getProxyConnectorTableHandle())
+            DispatcherTableHandle table = createTableHandleBuilder(session, Optional.of(dispatcherTableHandle), dispatcherTableHandle.getProxyConnectorTableHandle(), dispatcherTableHandle.getSchemaTableName())
                     .subsumedPredicates(true)
                     .build();
             return Optional.of(new ConstraintApplicationResult.Alternative<>(
@@ -972,7 +989,7 @@ public class DispatcherMetadata
                         projections,
                         assignments);
         return resultOpt.map(result -> new ProjectionApplicationResult<>(
-                convertTableHandle(session, dispatcherTableHandle, result.getHandle()),
+                convertTableHandle(session, dispatcherTableHandle, result.getHandle(), dispatcherTableHandle.getSchemaTableName()),
                 result.getProjections(),
                 result.getAssignments(),
                 result.isPrecalculateStatistics()));
@@ -991,7 +1008,7 @@ public class DispatcherMetadata
                         sampleType,
                         sampleRatio)
                 .map(result -> new SampleApplicationResult<>(
-                        convertTableHandle(session, dispatcherTableHandle, result.getHandle()),
+                        convertTableHandle(session, dispatcherTableHandle, result.getHandle(), dispatcherTableHandle.getSchemaTableName()),
                         result.isPrecalculateStatistics()));
     }
 
@@ -1012,7 +1029,7 @@ public class DispatcherMetadata
                         assignments,
                         groupingSets);
         return resultOpt.map(result -> new AggregationApplicationResult<>(
-                convertTableHandle(session, dispatcherTableHandle, result.getHandle()),
+                convertTableHandle(session, dispatcherTableHandle, result.getHandle(), dispatcherTableHandle.getSchemaTableName()),
                 result.getProjections(),
                 result.getAssignments(),
                 result.getGroupingColumnMapping(),
@@ -1080,7 +1097,8 @@ public class DispatcherMetadata
                 convertTableHandle(
                         session,
                         dispatcherTableHandle,
-                        beginTableExecuteResult.getSourceHandle()));
+                        beginTableExecuteResult.getSourceHandle(),
+                        dispatcherTableHandle.getSchemaTableName()));
     }
 
     @Override
@@ -1166,7 +1184,7 @@ public class DispatcherMetadata
 
         return proxiedResult.map(result ->
                 new TableFunctionApplicationResult<>(
-                        convertTableHandle(session, result.getTableHandle()),
+                        convertTableHandle(session, result.getTableHandle(), null),
                         result.getColumnHandles()));
     }
 
@@ -1350,33 +1368,51 @@ public class DispatcherMetadata
         return proxiedConnectorMetadata.getCatalogIdentity(session);
     }
 
-    private DispatcherTableHandle convertTableHandle(ConnectorSession session, ConnectorTableHandle proxiedConnectorTableHandle)
+    private DispatcherTableHandle convertTableHandle(ConnectorSession session, ConnectorTableHandle proxiedConnectorTableHandle, SchemaTableName schemaTableName)
     {
-        return convertTableHandle(session, null, proxiedConnectorTableHandle);
+        return convertTableHandle(session, null, proxiedConnectorTableHandle, schemaTableName);
     }
 
     private DispatcherTableHandle convertTableHandle(
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
-            ConnectorTableHandle proxiedConnectorTableHandle)
+            ConnectorTableHandle proxiedConnectorTableHandle,
+            SchemaTableName schemaTableName)
     {
         if (proxiedConnectorTableHandle == null) {
             return null;
         }
-        return createTableHandleBuilder(session, Optional.ofNullable(dispatcherTableHandle), proxiedConnectorTableHandle)
+        return createTableHandleBuilder(session, Optional.ofNullable(dispatcherTableHandle), proxiedConnectorTableHandle, schemaTableName)
                 .build();
     }
 
     private DispatcherTableHandleBuilderProvider.Builder createTableHandleBuilder(
             ConnectorSession session,
             Optional<DispatcherTableHandle> optionalDispatcherTableHandle,
-            ConnectorTableHandle proxiedConnectorTableHandle)
+            ConnectorTableHandle proxiedConnectorTableHandle,
+            SchemaTableName schemaTableName)
     {
-        int predicateThreashold = WarpSessionProperties.getPredicateSimplifyThreshold(session, globalConfig);
+        int predicateThreshold = WarpSessionProperties.getPredicateSimplifyThreshold(session, globalConfig);
 
         return optionalDispatcherTableHandle.map(dispatcherTableHandle ->
-                        dispatcherTableHandleBuilderProvider.builder(dispatcherTableHandle, predicateThreashold)
+                        dispatcherTableHandleBuilderProvider.builder(dispatcherTableHandle, predicateThreshold)
                                 .proxiedConnectorTableHandle(proxiedConnectorTableHandle))
-                .orElse(dispatcherTableHandleBuilderProvider.builder(predicateThreashold, proxiedConnectorTableHandle));
+                .orElse(dispatcherTableHandleBuilderProvider.builder(predicateThreshold, proxiedConnectorTableHandle)
+                        .columnsNotFitForDictionary(getColumnsNotFitForDictionary(schemaTableName, session, proxiedConnectorTableHandle)));
+    }
+
+    private Set<String> getColumnsNotFitForDictionary(SchemaTableName schemaTableName,
+                                                      ConnectorSession session,
+                                                      ConnectorTableHandle proxiedConnectorTableHandle)
+    {
+        Set<String> columnsNotFitForDictionary = dispatcherStatisticsProvider.getColumnsNotFitForDictionary(schemaTableName);
+
+        if (!columnsNotFitForDictionary.isEmpty()) {
+            return columnsNotFitForDictionary;
+        }
+
+        TableStatistics tableStatistics = proxiedConnectorMetadata.getTableStatistics(session, proxiedConnectorTableHandle);
+        dispatcherStatisticsProvider.putColumnsNotFitForDictionary(schemaTableName, tableStatistics.getColumnStatistics());
+        return columnsNotFitForDictionary;
     }
 }
