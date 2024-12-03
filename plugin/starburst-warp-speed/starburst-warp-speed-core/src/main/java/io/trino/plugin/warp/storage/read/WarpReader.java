@@ -37,16 +37,18 @@ public class WarpReader
     // parameters
     private final ReadTimeMeasurement readTimeMeasurement;
     private final ShapingLogger shapingLogger;
-    private final QueryArgs queryArgs;
-    private final AggregatorArgs aggregatorArgs;
-    private final MatcherArgs matcherArgs;
-    private final BlocksAggregator blocksAggregator;
-    private final Matcher matcher;
 
+    private final QueryArgs queryArgs;
     private final WarpQueryState queryState;
-    private AggregatorPageArgs aggregatorPageArgs;
-    private MatcherPageArgs matcherPageArgs;
     private final long rowsLimit;
+
+    private final AggregatorArgs aggregatorArgs;
+    private final BlocksAggregator blocksAggregator;
+    private AggregatorPageArgs aggregatorPageArgs;
+
+    private final Matcher matcher;
+    private final MatcherArgs matcherArgs;
+    private MatcherPageArgs matcherPageArgs;
 
     WarpReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
