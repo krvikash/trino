@@ -28,7 +28,6 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextData;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
@@ -508,7 +507,7 @@ public class DispatcherAlternativePageSourceProviderTest
                 queryClassifier,
                 globalConfig,
                 nativeStorageStateHandler,
-                new ReadErrorHandler(mock(WarmupDemoterService.class), rowGroupDataService, mock(PrintMetricsTimerTask.class)),
+                new ReadErrorHandler(rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),

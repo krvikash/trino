@@ -28,9 +28,6 @@ import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.RowGroupDataFilter;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.TupleFilter;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
@@ -55,9 +52,7 @@ import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -84,22 +79,19 @@ class ReadErrorHandlerTest
     public void testHandle_UnrecoverableError()
     {
         TrinoException trinoException = new TrinoException(WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR, "error message");
-        WarmUpElement failedElement = mock(WarmUpElement.class);
+        WarmUpElement failedElement = createWarmupElement(new RegularColumn("c1"));
         RowGroupKey rowGroupKey = mock(RowGroupKey.class);
         List<ColumnHandle> warmedColumnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
         RowGroupData failedRowGroupData = WarmupTestDataUtil.generateRowGroupData(rowGroupKey, warmedColumnHandleList);
-        WarmupDemoterService warmupDemoterService = mock(WarmupDemoterService.class);
         NativeQueryCollectData nativeQueryCollectData = mockNativeCollectData(failedElement);
         ImmutableList<NativeQueryCollectData> failedElementCollectData = ImmutableList.of(nativeQueryCollectData);
         QueryContext queryContext = mockQueryContext(failedElementCollectData, Collections.emptyList());
-
-        ArgumentCaptor<List<TupleFilter>> argument = ArgumentCaptor.forClass(List.class);
-
-        ReadErrorHandler errorHandler = new ReadErrorHandler(warmupDemoterService, rowGroupDataService, mock(PrintMetricsTimerTask.class));
+        ReadErrorHandler errorHandler = new ReadErrorHandler(rowGroupDataService, mock(PrintMetricsTimerTask.class));
         errorHandler.handle(trinoException, failedRowGroupData, queryContext);
-        RowGroupDataFilter expectingResult = new RowGroupDataFilter(rowGroupKey, Set.of(failedElement));
-        verify(warmupDemoterService, times(1)).tryDemoteStart(argument.capture());
-        assertThat(argument.getValue()).contains(expectingResult);
+        ArgumentCaptor<RowGroupData> argument = ArgumentCaptor.forClass(RowGroupData.class);
+        verify(rowGroupDataDao, times(1)).save(argument.capture());
+        Set<WarmUpElementState.State> actualFailureState = argument.getValue().getWarmUpElements().stream().map(we -> we.getState().state()).collect(Collectors.toSet());
+        assertThat(actualFailureState).isEqualTo(Set.of(WarmUpElementState.State.FAILED_TEMPORARILY));
     }
 
     @Test
@@ -110,13 +102,11 @@ class ReadErrorHandlerTest
         RowGroupKey rowGroupKey = mock(RowGroupKey.class);
         List<ColumnHandle> warmedColumnHandleList = mockColumns(List.of(Pair.of("c1", IntegerType.INTEGER)));
         RowGroupData failedRowGroupData = WarmupTestDataUtil.generateRowGroupData(rowGroupKey, warmedColumnHandleList);
-        WarmupDemoterService warmupDemoterService = mock(WarmupDemoterService.class);
         NativeQueryCollectData nativeQueryCollectData = mockNativeCollectData(failedElement);
         ImmutableList<NativeQueryCollectData> failedElementCollectData = ImmutableList.of(nativeQueryCollectData);
         QueryContext queryContext = mockQueryContext(failedElementCollectData, Collections.emptyList());
-        ReadErrorHandler errorHandler = new ReadErrorHandler(warmupDemoterService, rowGroupDataService, mock(PrintMetricsTimerTask.class));
+        ReadErrorHandler errorHandler = new ReadErrorHandler(rowGroupDataService, mock(PrintMetricsTimerTask.class));
         errorHandler.handle(trinoException, failedRowGroupData, queryContext);
-        verify(warmupDemoterService, never()).tryDemoteStart(anyList());
         ArgumentCaptor<RowGroupData> argument = ArgumentCaptor.forClass(RowGroupData.class);
         verify(rowGroupDataDao, times(1)).save(argument.capture());
         Set<WarmUpElementState> actualFailure = argument.getValue().getWarmUpElements().stream().map(WarmUpElement::getState).collect(Collectors.toSet());

@@ -35,7 +35,6 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextFactory;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
@@ -221,7 +220,7 @@ public class DispatcherPageSourceFactoryTest
                 queryClassifier,
                 new GlobalConfig(),
                 nativeStorageStateHandler,
-                new ReadErrorHandler(mock(WarmupDemoterService.class), rowGroupDataService, mock(PrintMetricsTimerTask.class)),
+                new ReadErrorHandler(rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),

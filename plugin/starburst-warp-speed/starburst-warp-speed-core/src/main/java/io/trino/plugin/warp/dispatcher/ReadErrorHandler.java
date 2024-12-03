@@ -23,14 +23,11 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.QueryColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.RowGroupDataFilter;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.spi.ErrorCode;
 import io.trino.spi.TrinoException;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -47,16 +44,13 @@ import static java.util.Objects.requireNonNull;
 public class ReadErrorHandler
 {
     private static final Logger logger = Logger.get(ReadErrorHandler.class);
-    private final WarmupDemoterService warmupDemoterService;
     private final RowGroupDataService rowGroupDataService;
     private final PrintMetricsTimerTask printMetricsTimerTask;
 
     @Inject
-    public ReadErrorHandler(WarmupDemoterService warmupDemoterService,
-                            RowGroupDataService rowGroupDataService,
+    public ReadErrorHandler(RowGroupDataService rowGroupDataService,
                             PrintMetricsTimerTask printMetricsTimerTask)
     {
-        this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.printMetricsTimerTask = requireNonNull(printMetricsTimerTask);
     }
@@ -70,8 +64,8 @@ public class ReadErrorHandler
                     errorCode.equals(WARP_UNRECOVERABLE_COLLECT_FAILED.toErrorCode()) ||
                     errorCode.equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode())) {
                 Set<WarmUpElement> queryContextWarmupElements = getQueryContextWarmupElements(queryContext);
-                logger.warn("unrecoverable error: demoting rowGroupKey %s queryContextWarmupElements %s", failedRowGroupData.getRowGroupKey(), queryContextWarmupElements);
-                warmupDemoterService.tryDemoteStart(List.of(new RowGroupDataFilter(failedRowGroupData.getRowGroupKey(), queryContextWarmupElements)));
+                logger.warn("unrecoverable error: demoting due error code %s rowGroupKey %s queryContextWarmupElements %s", errorCode.getName(), failedRowGroupData.getRowGroupKey(), queryContextWarmupElements);
+                rowGroupDataService.markAsFailed(failedRowGroupData.getRowGroupKey(), queryContextWarmupElements, failedRowGroupData.getPartitionKeys());
             }
             else if (errorCode.equals(WARP_NATIVE_READ_OUT_OF_BOUNDS.toErrorCode()) ||
                     errorCode.equals(WARP_FAILED_TO_ADD_COLUMN_TO_BUILDER.toErrorCode())) {
