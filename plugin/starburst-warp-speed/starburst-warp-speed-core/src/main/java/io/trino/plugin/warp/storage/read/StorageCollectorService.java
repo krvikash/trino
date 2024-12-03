@@ -68,7 +68,6 @@ public class StorageCollectorService
     protected final BufferAllocator bufferAllocator;
     protected final DictionaryStats dictionaryStats;
     private final RangeFillerService rangeFillerService;
-    private final ChunksQueueService chunksQueueService;
     private final CollectTxService collectTxService;
     private final StorageEngineConstants storageEngineConstants;
     private final BlockFillersFactory blockFillersFactory;
@@ -80,7 +79,6 @@ public class StorageCollectorService
             StorageEngine storageEngine,
             BufferAllocator bufferAllocator,
             MetricsManager metricsManager,
-            ChunksQueueService chunksQueueService,
             RangeFillerService rangeFillerService,
             CollectTxService collectTxService,
             StorageEngineConstants storageEngineConstants,
@@ -93,7 +91,6 @@ public class StorageCollectorService
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
         this.rangeFillerService = requireNonNull(rangeFillerService);
-        this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
@@ -169,7 +166,7 @@ public class StorageCollectorService
                 queryArgs.chunksQueue().getCurrentResetPoint(),
                 outQueryResultTypes,
                 queryArgs.dispatcherPageSourceStats());
-        chunksQueueService.setFirstChunkPrepared(queryArgs.chunksQueue());
+        queryArgs.chunksQueue().setFirstChunkAsPrepared();
     }
 
     boolean advanceChunk(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, int numCollectedRows)
@@ -225,17 +222,17 @@ public class StorageCollectorService
     {
         int numCollectedRows = queryState.getNumRecordsInCurPage();
 
-        if (chunksQueueService.isCompletelyFinished(queryArgs.chunksQueue(), queryArgs.numChunks())) {
+        if (queryArgs.chunksQueue().isCompletelyFinished(queryArgs.numChunks())) {
             return false;
         }
 
         boolean canPrepareMore = true;
         QueryParams queryParams = queryArgs.queryParams();
 
-        while (!chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue()) && canPrepareMore) {
+        while (!queryArgs.chunksQueue().isChunkRangeCompleted() && canPrepareMore) {
             // get next chunk to collect and check if its already done on buffer
             int chunkIndex = queryArgs.chunksQueue().getCurrent();
-            if (chunksQueueService.isChunkPreparationNeeded(queryArgs.chunksQueue())) {
+            if (queryArgs.chunksQueue().isChunkPreparationNeeded()) {
                 prepareChunk(queryArgs, aggregatorPageArgs, numCollectedRows, aggregatorArgs.prepareQueryResultTypes());
                 if ((numCollectedRows > 0) && stopForOptimization(queryParams.getNumCollectElements(), aggregatorArgs.prepareQueryResultTypes(), aggregatorArgs.queryResultTypes())) {
                     canPrepareMore = false;

@@ -50,7 +50,6 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.WarpProxiedWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer;
 import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
-import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
@@ -119,7 +118,6 @@ public class DispatcherMainModule
             binder.bind(RowGroupDataDao.class);
             binder.bind(CollectTxService.class);
             binder.bind(LazyCollectTxService.class);
-            binder.bind(ChunksQueueService.class);
             binder.bind(StorageCollectorService.class);
             binder.bind(LazyCollectorService.class);
             binder.bind(StorageWriterService.class);

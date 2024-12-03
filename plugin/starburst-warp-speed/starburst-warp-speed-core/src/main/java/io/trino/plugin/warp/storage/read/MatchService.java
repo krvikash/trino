@@ -55,20 +55,17 @@ public class MatchService
     BufferAllocator bufferAllocator;
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
-    private final ChunksQueueService chunksQueueService;
     private final GlobalConfig globalConfig;
 
     @Inject
     MatchService(BufferAllocator bufferAllocator,
             StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
-            ChunksQueueService chunksQueueService,
             GlobalConfig globalConfig)
     {
         this.bufferAllocator = bufferAllocator;
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
-        this.chunksQueueService = chunksQueueService;
         this.globalConfig = globalConfig;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -165,11 +162,11 @@ public class MatchService
     @NativeInterrupt
     public boolean match(QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs)
     {
-        boolean matchExhausted = chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue());
+        boolean matchExhausted = queryArgs.chunksQueue().isChunkRangeCompleted();
         if (matchExhausted) {
             ChunksQueue chunksQueue = queryArgs.chunksQueue();
             if (matcherPageArgs.matchState().isEmpty()) {
-                matchExhausted = chunksQueueService.updateChunkRangeFullScan(chunksQueue, queryArgs.numChunks(), queryArgs.numChunksInRange());
+                matchExhausted = chunksQueue.updateChunkRangeFullScan(queryArgs.numChunks(), queryArgs.numChunksInRange());
                 logger.debug("matchIfNeeded matchExhausted %b after full scan update numChunks %d range %d", matchExhausted, queryArgs.numChunks(), queryArgs.numChunksInRange());
             }
             else {
@@ -177,7 +174,7 @@ public class MatchService
                 int numChunks = 0;
                 boolean luceneSuccess = true;
                 int numMatchedChunks = 0;
-                int chunkIndex = chunksQueueService.getChunkIndexForMatch(chunksQueue);
+                int chunkIndex = chunksQueue.getChunkIndexForMatch();
                 MemorySegment matchStateMem = matcherPageArgs.matchState().get().getMemory();
                 StopWatch readStopWatch = new StopWatch();
                 // we loop until either agg result returnes 0 which  means no more chunks (break under if inside the loop)
@@ -241,7 +238,7 @@ public class MatchService
                 }
 
                 if (!matchExhausted) {
-                    chunksQueueService.updateChunkRangeAfterMatch(chunksQueue, chunkIndex, numMatchedChunks, matcherPageArgs.matchedChunksIndexes(), matcherPageArgs.matchBitmapResetPoints());
+                    chunksQueue.updateChunkRangeAfterMatch(chunkIndex, numMatchedChunks, matcherPageArgs.matchedChunksIndexes(), matcherPageArgs.matchBitmapResetPoints());
                 }
             }
         }

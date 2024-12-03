@@ -97,10 +97,10 @@ class ChunksQueue
     void currentCompleted()
     {
         chunksToCollect.poll();
-        setFirstChunkPrepared(false);
+        setIsFirstChunkPrepared(false);
     }
 
-    public void setFirstChunkPrepared(boolean firstChunkPrepared)
+    public void setIsFirstChunkPrepared(boolean firstChunkPrepared)
     {
         this.firstChunkPrepared = firstChunkPrepared;
     }
@@ -114,5 +114,46 @@ class ChunksQueue
     boolean isEmpty()
     {
         return chunksToCollect.isEmpty();
+    }
+
+    int getChunkIndexForMatch()
+    {
+        return getTotalNumChunks();
+    }
+
+    void updateChunkRangeAfterMatch(int endChunkIndex, int numMatchedChunks, short[] matchedChunksIndexes, int[] matchBitmapResetPoints)
+    {
+        add(endChunkIndex, numMatchedChunks, matchedChunksIndexes, matchBitmapResetPoints);
+    }
+
+    // return true if completely finished, false otherwise
+    boolean updateChunkRangeFullScan(int numChunks, int numChunksInRange)
+    {
+        if (isCompletelyFinished(numChunks)) {
+            return true;
+        }
+        int startChunkIndex = getTotalNumChunks();
+        add(startChunkIndex, Math.min(startChunkIndex + numChunksInRange, numChunks));
+        return false;
+    }
+
+    boolean isChunkRangeCompleted()
+    {
+        return isEmpty();
+    }
+
+    boolean isCompletelyFinished(int numChunks)
+    {
+        return isChunkRangeCompleted() && (getTotalNumChunks() >= numChunks);
+    }
+
+    boolean isChunkPreparationNeeded()
+    {
+        return !isFirstChunkPrepared();
+    }
+
+    void setFirstChunkAsPrepared()
+    {
+        setIsFirstChunkPrepared(true);
     }
 }

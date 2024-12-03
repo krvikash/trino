@@ -39,7 +39,6 @@ import java.util.Optional;
 public class CollectTxService
         extends BaseCollectTxService
 {
-    private final ChunksQueueService chunksQueueService;
     private final RangeFillerService rangeFillerService;
 
     @Inject
@@ -47,12 +46,10 @@ public class CollectTxService
             StorageEngineConstants storageEngineConstants,
             ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
-            ChunksQueueService chunksQueueService,
             RangeFillerService rangeFillerService,
             GlobalConfig globalConfig)
     {
         super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
-        this.chunksQueueService = chunksQueueService;
         this.rangeFillerService = rangeFillerService;
     }
 
@@ -166,7 +163,7 @@ public class CollectTxService
 
         Optional<StoreRowListResult> storeRowListResult = Optional.empty();
         Optional<List<Integer>> chunksWithBitmapsToStore = Optional.empty();
-        if (!chunksQueueService.isChunkRangeCompleted(queryArgs.chunksQueue())) {
+        if (!queryArgs.chunksQueue().isChunkRangeCompleted()) {
             // store row list
             storeRowListResult = Optional.of(rangeFillerService.storeRowList(queryArgs, aggregatorArgs, aggregatorPageArgs.rangeData()));
 
