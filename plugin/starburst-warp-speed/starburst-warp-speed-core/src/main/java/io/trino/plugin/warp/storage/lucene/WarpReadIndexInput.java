@@ -262,11 +262,9 @@ public class WarpReadIndexInput
 
         if (key.isSmallFile()) {
             smallFilePageCache[key.getFileId()] = page;
-            lucenePageCacheStats.inclucene_page_cache_small_file_size();
         }
         else {
             bigFilePageCache.put(key, page);
-            lucenePageCacheStats.setlucene_page_cache_big_file_size(bigFilePageCache.size());
         }
         return page.duplicate();
     }

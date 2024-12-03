@@ -37,10 +37,8 @@ public final class LucenePageCacheStats
 
     private final LongAdder lucene_page_cache_small_file_hit = new LongAdder();
     private final LongAdder lucene_page_cache_small_file_miss = new LongAdder();
-    private final LongAdder lucene_page_cache_small_file_size = new LongAdder();
     private final LongAdder lucene_page_cache_big_file_hit = new LongAdder();
     private final LongAdder lucene_page_cache_big_file_miss = new LongAdder();
-    private final LongAdder lucene_page_cache_big_file_size = new LongAdder();
 
     @JsonCreator
     public LucenePageCacheStats(@JsonProperty("group") String group)
@@ -105,29 +103,6 @@ public final class LucenePageCacheStats
 
     @JsonIgnore
     @Managed
-    public long getlucene_page_cache_small_file_size()
-    {
-        return lucene_page_cache_small_file_size.longValue();
-    }
-
-    public void inclucene_page_cache_small_file_size()
-    {
-        lucene_page_cache_small_file_size.increment();
-    }
-
-    public void addlucene_page_cache_small_file_size(long val)
-    {
-        lucene_page_cache_small_file_size.add(val);
-    }
-
-    public void setlucene_page_cache_small_file_size(long val)
-    {
-        lucene_page_cache_small_file_size.reset();
-        addlucene_page_cache_small_file_size(val);
-    }
-
-    @JsonIgnore
-    @Managed
     public long getlucene_page_cache_big_file_hit()
     {
         return lucene_page_cache_big_file_hit.longValue();
@@ -172,29 +147,6 @@ public final class LucenePageCacheStats
         addlucene_page_cache_big_file_miss(val);
     }
 
-    @JsonIgnore
-    @Managed
-    public long getlucene_page_cache_big_file_size()
-    {
-        return lucene_page_cache_big_file_size.longValue();
-    }
-
-    public void inclucene_page_cache_big_file_size()
-    {
-        lucene_page_cache_big_file_size.increment();
-    }
-
-    public void addlucene_page_cache_big_file_size(long val)
-    {
-        lucene_page_cache_big_file_size.add(val);
-    }
-
-    public void setlucene_page_cache_big_file_size(long val)
-    {
-        lucene_page_cache_big_file_size.reset();
-        addlucene_page_cache_big_file_size(val);
-    }
-
     public static LucenePageCacheStats create(String group)
     {
         return new LucenePageCacheStats(group);
@@ -211,10 +163,8 @@ public final class LucenePageCacheStats
         Map<String, LongAdder> ret = new HashMap<>();
         ret.put("lucene_page_cache_small_file_hit", lucene_page_cache_small_file_hit);
         ret.put("lucene_page_cache_small_file_miss", lucene_page_cache_small_file_miss);
-        ret.put("lucene_page_cache_small_file_size", lucene_page_cache_small_file_size);
         ret.put("lucene_page_cache_big_file_hit", lucene_page_cache_big_file_hit);
         ret.put("lucene_page_cache_big_file_miss", lucene_page_cache_big_file_miss);
-        ret.put("lucene_page_cache_big_file_size", lucene_page_cache_big_file_size);
 
         return ret;
     }
@@ -228,10 +178,8 @@ public final class LucenePageCacheStats
         LucenePageCacheStats other = (LucenePageCacheStats) warpStatsBase;
         this.lucene_page_cache_small_file_hit.add(other.lucene_page_cache_small_file_hit.longValue());
         this.lucene_page_cache_small_file_miss.add(other.lucene_page_cache_small_file_miss.longValue());
-        this.lucene_page_cache_small_file_size.add(other.lucene_page_cache_small_file_size.longValue());
         this.lucene_page_cache_big_file_hit.add(other.lucene_page_cache_big_file_hit.longValue());
         this.lucene_page_cache_big_file_miss.add(other.lucene_page_cache_big_file_miss.longValue());
-        this.lucene_page_cache_big_file_size.add(other.lucene_page_cache_big_file_size.longValue());
     }
 
     @Override
@@ -239,10 +187,8 @@ public final class LucenePageCacheStats
     {
         lucene_page_cache_small_file_hit.reset();
         lucene_page_cache_small_file_miss.reset();
-        lucene_page_cache_small_file_size.reset();
         lucene_page_cache_big_file_hit.reset();
         lucene_page_cache_big_file_miss.reset();
-        lucene_page_cache_big_file_size.reset();
     }
 
     @Override
@@ -266,9 +212,6 @@ public final class LucenePageCacheStats
     @Override
     protected Map<String, Long> statePrintFields()
     {
-        Map<String, Long> res = new HashMap<>();
-        res.put("lucene_page_cache_small_file_size", getlucene_page_cache_small_file_size());
-        res.put("lucene_page_cache_big_file_size", getlucene_page_cache_big_file_size());
-        return res;
+        return new HashMap<>();
     }
 }
