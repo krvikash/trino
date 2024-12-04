@@ -35,7 +35,6 @@ public class WarpReader
     private static final long LIMIT_OFF_HEAP_MEMORY = 512 * 1024;
 
     // parameters
-    private final ReadTimeMeasurement readTimeMeasurement;
     private final ShapingLogger shapingLogger;
 
     private final QueryArgs queryArgs;
@@ -74,7 +73,6 @@ public class WarpReader
                 globalConfig.getShapingLoggerNumberOfSamples());
 
         checkOffHeapMemoryUsage();
-        readTimeMeasurement = new ReadTimeMeasurement();
     }
 
     public boolean isRowsLimitReached()
@@ -118,8 +116,6 @@ public class WarpReader
      */
     private boolean prepareBlocks()
     {
-        long startTime = readTimeMeasurement.getStartTime();
-
         if (aggregatorPageArgs == null) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
         }
@@ -134,7 +130,6 @@ public class WarpReader
             }
         }
 
-        readTimeMeasurement.updateRuntimeMeasurements(startTime, queryArgs);
         return queryState.getNumRecordsInCurPage() > 0;
     }
 
