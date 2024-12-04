@@ -158,21 +158,28 @@ public class StorageCollectorService
                 queryState.getChunksWithStoredBitmaps());
     }
 
-    void prepareChunk(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, int numCollectedRows, MemorySegment outQueryResultTypes)
+    void prepareChunk(ChunksQueue chunksQueue,
+            QueryArgs queryArgs,
+            AggregatorPageArgs aggregatorPageArgs,
+            int numCollectedRows,
+            MemorySegment outQueryResultTypes)
     {
         collectTxService.prepareChunk(aggregatorPageArgs.queryMemoryId(),
-                queryArgs.chunksQueue().getCurrent(),
+                chunksQueue.getCurrent(),
                 aggregatorPageArgs.rowsLimit() - numCollectedRows,
-                queryArgs.chunksQueue().getCurrentResetPoint(),
+                chunksQueue.getCurrentResetPoint(),
                 outQueryResultTypes,
                 queryArgs.dispatcherPageSourceStats());
-        queryArgs.chunksQueue().setFirstChunkAsPrepared();
+        chunksQueue.setFirstChunkAsPrepared();
     }
 
-    boolean advanceChunk(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, int numCollectedRows)
+    boolean advanceChunk(ChunksQueue chunksQueue,
+            QueryArgs queryArgs,
+            AggregatorPageArgs aggregatorPageArgs,
+            int numCollectedRows)
     {
         if (numCollectedRows == 0 || rangeFillerService.isCurrentChunkCompleted(aggregatorPageArgs.rangeData(), queryArgs.chunkSize())) {
-            queryArgs.chunksQueue().currentCompleted();
+            chunksQueue.currentCompleted();
             logger.debug("collectFromStorage advance numCollectedRows %d", numCollectedRows);
             return true;
         }
@@ -215,25 +222,26 @@ public class StorageCollectorService
 
     // returns indication if we can continue preparing more records, or we reached some limit by the storage collector
     @NativeInterrupt
-    public boolean prepareBlocks(QueryArgs queryArgs,
+    public boolean prepareBlocks(ChunksQueue chunksQueue,
+            QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState)
     {
         int numCollectedRows = queryState.getNumRecordsInCurPage();
 
-        if (queryArgs.chunksQueue().isCompletelyFinished(queryArgs.numChunks())) {
+        if (chunksQueue.isCompletelyFinished(queryArgs.numChunks())) {
             return false;
         }
 
         boolean canPrepareMore = true;
         QueryParams queryParams = queryArgs.queryParams();
 
-        while (!queryArgs.chunksQueue().isChunkRangeCompleted() && canPrepareMore) {
+        while (!chunksQueue.isChunkRangeCompleted() && canPrepareMore) {
             // get next chunk to collect and check if its already done on buffer
-            int chunkIndex = queryArgs.chunksQueue().getCurrent();
-            if (queryArgs.chunksQueue().isChunkPreparationNeeded()) {
-                prepareChunk(queryArgs, aggregatorPageArgs, numCollectedRows, aggregatorArgs.prepareQueryResultTypes());
+            int chunkIndex = chunksQueue.getCurrent();
+            if (chunksQueue.isChunkPreparationNeeded()) {
+                prepareChunk(chunksQueue, queryArgs, aggregatorPageArgs, numCollectedRows, aggregatorArgs.prepareQueryResultTypes());
                 if ((numCollectedRows > 0) && stopForOptimization(queryParams.getNumCollectElements(), aggregatorArgs.prepareQueryResultTypes(), aggregatorArgs.queryResultTypes())) {
                     canPrepareMore = false;
                     break;
@@ -261,7 +269,7 @@ public class StorageCollectorService
             }
             logger.debug("collectFromStorage after native collect chunkIndex %d canPrepareMore %b numCollectedRows %d", chunkIndex, canPrepareMore, numCollectedRows);
 
-            if (!advanceChunk(queryArgs, aggregatorPageArgs, numCollectedRows)) {
+            if (!advanceChunk(chunksQueue, queryArgs, aggregatorPageArgs, numCollectedRows)) {
                 canPrepareMore = false; // We do not collect from one chunk twice in one round
             }
 
@@ -379,8 +387,6 @@ public class StorageCollectorService
         }
         int numChunksInRange = getNumChunksInRange(queryParams);
 
-        ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
-
         Optional<byte[]> storeMatchCollectMetadataBuff = Optional.empty();
         Optional<SequenceLayout> matchCollectMetadataLayout = Optional.empty();
         if (queryParams.getNumMatchCollect() > 0) {
@@ -395,7 +401,6 @@ public class StorageCollectorService
                 chunkSize,
                 numChunks,
                 numChunksInRange,
-                chunksQueue,
                 storeMatchCollectMetadataBuff,
                 matchCollectMetadataLayout.map(m -> queryParams.getArena().allocate(m.byteSize(), ValueLayout.JAVA_INT.byteSize())));
     }
@@ -487,11 +492,13 @@ public class StorageCollectorService
     public long closePage(QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
-            WarpQueryState queryState)
+            WarpQueryState queryState,
+            ChunksQueue chunksQueue)
     {
         CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(queryArgs,
                 aggregatorPageArgs,
-                aggregatorArgs);
+                aggregatorArgs,
+                chunksQueue);
 
         queryState.setStoreRowListResult(collectCloseResult.storeRowListResult());
         queryState.setChunksWithStoredBitmaps(collectCloseResult.chunksWithStoredBitmaps());

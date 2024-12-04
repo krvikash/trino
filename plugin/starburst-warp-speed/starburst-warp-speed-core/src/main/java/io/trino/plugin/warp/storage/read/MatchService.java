@@ -160,11 +160,10 @@ public class MatchService
 
     @SuppressWarnings("Finally")
     @NativeInterrupt
-    public boolean match(QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs)
+    public boolean match(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs)
     {
-        boolean matchExhausted = queryArgs.chunksQueue().isChunkRangeCompleted();
+        boolean matchExhausted = chunksQueue.isChunkRangeCompleted();
         if (matchExhausted) {
-            ChunksQueue chunksQueue = queryArgs.chunksQueue();
             if (matcherPageArgs.matchState().isEmpty()) {
                 matchExhausted = chunksQueue.updateChunkRangeFullScan(queryArgs.numChunks(), queryArgs.numChunksInRange());
                 logger.debug("matchIfNeeded matchExhausted %b after full scan update numChunks %d range %d", matchExhausted, queryArgs.numChunks(), queryArgs.numChunksInRange());

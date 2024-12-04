@@ -26,13 +26,13 @@ public interface BlocksAggregator
 
     AggregatorPageArgs openPage(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, WarpQueryState queryState, int rowsLimit);
 
-    boolean prepareBlocks(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, AggregatorPageArgs aggregatorPageArgs, WarpQueryState queryState);
+    boolean prepareBlocks(ChunksQueue chunksQueue, QueryArgs queryArgs, AggregatorArgs aggregatorArgs, AggregatorPageArgs aggregatorPageArgs, WarpQueryState queryState);
 
     Block[] aggregateBlocks(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, WarpQueryState queryState);
 
     WarpStoragePageSource.RowRanges getRanges(AggregatorPageArgs aggregatorPageArgs);
 
-    long closePage(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, AggregatorPageArgs aggregatorPageArgs, WarpQueryState queryState);
+    long closePage(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, AggregatorPageArgs aggregatorPageArgs, WarpQueryState queryState, ChunksQueue chunksQueue);
 
     void abortPage(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Exception e);
 

@@ -63,9 +63,9 @@ public class StubsRangeFillerService
     // in type all we store the first row index in the byte array
     // in type all we store the part of the list we have not collected yet in the byte array
     @Override
-    public StoreRowListResult storeRowList(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, RangeData rangeData)
+    public StoreRowListResult storeRowList(ChunksQueue chunksQueue, QueryArgs queryArgs, AggregatorArgs aggregatorArgs, RangeData rangeData)
     {
-        return new StoreRowListResult(RECORD_INDEX_LIST_TYPE_ALL, 0, Optional.of((short) 0));
+        return new StoreRowListResult(RECORD_INDEX_LIST_TYPE_ALL, 0, Optional.of((short) 0), 0);
     }
 
     @Override

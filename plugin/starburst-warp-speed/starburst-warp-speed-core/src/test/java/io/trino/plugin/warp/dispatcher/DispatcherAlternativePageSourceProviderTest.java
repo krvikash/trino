@@ -44,6 +44,7 @@ import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
+import io.trino.plugin.warp.storage.read.QueryArgs;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
@@ -497,6 +498,9 @@ public class DispatcherAlternativePageSourceProviderTest
         NativeStorageStateHandler nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
 
+        QueryArgs queryArgs = mock(QueryArgs.class);
+        StorageCollectorService storageCollectorService = mock(StorageCollectorService.class);
+        when(storageCollectorService.getQueryArgs(any(), any())).thenReturn(queryArgs);
         DispatcherPageSourceFactory pageSourceFactory = new DispatcherPageSourceFactory(
                 storageEngineConstants,
                 rowGroupDataService,
@@ -509,7 +513,7 @@ public class DispatcherAlternativePageSourceProviderTest
                 nativeStorageStateHandler,
                 new ReadErrorHandler(rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),
-                mock(StorageCollectorService.class),
+                storageCollectorService,
                 mock(LazyCollectorService.class),
                 mock(MatchService.class));
 

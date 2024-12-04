@@ -136,7 +136,7 @@ public class CollectTxService
                 queryMemoryId,
                 numCollectElements,
                 queryArgs.numChunksInRange(),
-                storeRowListResult.isPresent() ? queryArgs.chunksQueue().getCurrent() : -1,
+                storeRowListResult.map(StoreRowListResult::storedChunkIx).orElse(-1),
                 aggregatorArgs.warmUpElementAtts().address(),
                 matchBitmaps.map(m -> m.address()).orElse(0L),
                 aggregatorArgs.recordBufferStates().address(),
@@ -154,7 +154,8 @@ public class CollectTxService
 
     CollectCloseResult collectStoreAndClose(QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs,
-            AggregatorArgs aggregatorArgs)
+            AggregatorArgs aggregatorArgs,
+            ChunksQueue chunksQueue)
     {
         // idiom potent case
         if (aggregatorPageArgs == null) {
@@ -163,16 +164,16 @@ public class CollectTxService
 
         Optional<StoreRowListResult> storeRowListResult = Optional.empty();
         Optional<List<Integer>> chunksWithBitmapsToStore = Optional.empty();
-        if (!queryArgs.chunksQueue().isChunkRangeCompleted()) {
+        if (!chunksQueue.isChunkRangeCompleted()) {
             // store row list
-            storeRowListResult = Optional.of(rangeFillerService.storeRowList(queryArgs, aggregatorArgs, aggregatorPageArgs.rangeData()));
+            storeRowListResult = Optional.of(rangeFillerService.storeRowList(chunksQueue, queryArgs, aggregatorArgs, aggregatorPageArgs.rangeData()));
 
             // store match collect metadata
             queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
                     MemorySegment.copy(queryArgs.matchCollectMetadata().get(), 0, MemorySegment.ofArray(s), 0, s.length));
 
             // store bitmaps
-            chunksWithBitmapsToStore = queryArgs.chunksQueue().getChunkIndexesWithBitmap();
+            chunksWithBitmapsToStore = chunksQueue.getChunkIndexesWithBitmap();
             chunksWithBitmapsToStore.ifPresent(chunks -> {
                 final int pageSize = storageEngineConstants.getPageSize();
                 MemorySegment matchBitmaps = aggregatorPageArgs.matchBitmaps().get();

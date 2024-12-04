@@ -24,16 +24,16 @@ import java.util.Optional;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
 
-class ChunksQueue
+public class ChunksQueue
 {
     private final int allSet;
     private final Deque<MatchChunkResult> chunksToCollect;
     private int totalNumChunks; // in case queue is empty we return the total number of chunks
     private boolean firstChunkPrepared;
 
-    ChunksQueue(int maxChunks, int pageSize)
+    ChunksQueue(int maxChunks, int chunkSize)
     {
-        this.allSet = pageSize * Byte.SIZE; // constant used for setting full bitmaps in full scan case
+        this.allSet = chunkSize; // constant used for setting full bitmaps in full scan case
         this.chunksToCollect = new ArrayDeque<>(maxChunks);
     }
 

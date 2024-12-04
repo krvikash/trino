@@ -40,6 +40,7 @@ public class WarpReader
     private final QueryArgs queryArgs;
     private final WarpQueryState queryState;
     private final long rowsLimit;
+    private final ChunksQueue chunksQueue;
 
     private final AggregatorArgs aggregatorArgs;
     private final BlocksAggregator blocksAggregator;
@@ -65,6 +66,7 @@ public class WarpReader
         this.matcherArgs = matcher.open(queryArgs, customStatsContext);
 
         queryState = new WarpQueryState();
+        chunksQueue = new ChunksQueue(queryArgs.maxMatchedChunks(), queryArgs.chunkSize());
 
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -120,9 +122,14 @@ public class WarpReader
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
         }
 
-        // we continue as long as we didn't reach a limit from the match nor prepare
-        while (matcher.match(queryArgs, matcherArgs, matcherPageArgs)) {
-            if (!blocksAggregator.prepareBlocks(queryArgs,
+        // we continue as long as we didn't reach the rowsLimit nor a limit from the matcher or aggregator
+        while (queryState.getNumRecordsInCurPage() < rowsLimit - queryState.getTotalNumReadRecords()) {
+            if (chunksQueue.isEmpty() && !matcher.match(chunksQueue, queryArgs, matcherArgs, matcherPageArgs)) {
+                break;
+            }
+
+            if (!blocksAggregator.prepareBlocks(chunksQueue,
+                    queryArgs,
                     aggregatorArgs,
                     aggregatorPageArgs,
                     queryState)) {
@@ -180,7 +187,8 @@ public class WarpReader
             readPages = blocksAggregator.closePage(queryArgs,
                     aggregatorArgs,
                     aggregatorPageArgs,
-                    queryState);
+                    queryState,
+                    chunksQueue);
             aggregatorPageArgs = null;
         }
 

@@ -21,7 +21,7 @@ public interface Matcher
 
     MatcherPageArgs openPage(QueryArgs queryArgs, MatcherArgs matcherArgs, AggregatorPageArgs aggregatorPageArgs);
 
-    boolean match(QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs);
+    boolean match(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs);
 
     void closePage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs);
 

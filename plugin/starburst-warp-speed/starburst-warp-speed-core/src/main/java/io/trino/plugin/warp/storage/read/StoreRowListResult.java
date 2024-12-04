@@ -19,6 +19,7 @@ import java.util.Optional;
 
 public record StoreRowListResult(RecordIndexListType storeRowListType,
         int storeRowListSize,
-        Optional<Short> storeRowListStart)
+        Optional<Short> storeRowListStart,
+        int storedChunkIx)
 {
 }

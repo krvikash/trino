@@ -26,8 +26,11 @@ public record QueryArgs(QueryParams queryParams,
                         int chunkSize,
                         int numChunks,
                         int numChunksInRange,
-                        ChunksQueue chunksQueue,
                         Optional<byte[]> storeMatchCollectMetadataBuff,
                         Optional<MemorySegment> matchCollectMetadata)
 {
+    int maxMatchedChunks()
+    {
+        return numChunksInRange;
+    }
 }

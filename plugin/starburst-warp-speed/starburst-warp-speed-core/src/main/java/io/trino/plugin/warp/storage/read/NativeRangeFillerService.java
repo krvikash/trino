@@ -157,9 +157,12 @@ public class NativeRangeFillerService
     // in type all we store the first row index in the byte array
     // in type all we store the part of the list we have not collected yet in the byte array
     @Override
-    public StoreRowListResult storeRowList(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, RangeData rangeData)
+    public StoreRowListResult storeRowList(ChunksQueue chunksQueue,
+            QueryArgs queryArgs,
+            AggregatorArgs aggregatorArgs,
+            RangeData rangeData)
     {
-        int currChunkIndex = queryArgs.chunksQueue().getCurrent();
+        int currChunkIndex = chunksQueue.getCurrent();
         advanceChunkIfNeeded(currChunkIndex, rangeData);
 
         RecordIndexes recordIndexes = rangeData.getRecordIndexes();
@@ -197,7 +200,7 @@ public class NativeRangeFillerService
                 throw new RuntimeException("unknown list type " + storeRowListType);
         }
         logger.debug("storeRowList lastChunkIndex %d type %s size %d", rangeData.getLastChunkIndex(), storeRowListType, storeRowListSize);
-        return new StoreRowListResult(storeRowListType, storeRowListSize, storeRowListStart);
+        return new StoreRowListResult(storeRowListType, storeRowListSize, storeRowListStart, currChunkIndex);
     }
 
     @Override
