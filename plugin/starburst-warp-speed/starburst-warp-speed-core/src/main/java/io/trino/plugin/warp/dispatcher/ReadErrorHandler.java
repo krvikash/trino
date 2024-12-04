@@ -71,7 +71,7 @@ public class ReadErrorHandler
                     errorCode.equals(WARP_FAILED_TO_ADD_COLUMN_TO_BUILDER.toErrorCode())) {
                 Set<WarmUpElement> queryContextWarmupElements = getQueryContextWarmupElements(queryContext);
                 Collection<WarmUpElement> allAsPermanentlyFailed = queryContextWarmupElements.stream().map(x -> WarmUpElement.builder(x).state(WarmUpElementState.FAILED_PERMANENTLY).build()).collect(Collectors.toSet());
-                logger.warn("read out of bounds error: marking as failed rowGroupKey %s allAsPermanentlyFailed %s", failedRowGroupData.getRowGroupKey(), allAsPermanentlyFailed);
+                logger.warn("%s error: marking as failed rowGroupKey %s allAsPermanentlyFailed %s", errorCode, failedRowGroupData.getRowGroupKey(), allAsPermanentlyFailed);
                 rowGroupDataService.markAsFailed(failedRowGroupData.getRowGroupKey(), allAsPermanentlyFailed, failedRowGroupData.getPartitionKeys());
             }
             printMetricsTimerTask.print(false);
