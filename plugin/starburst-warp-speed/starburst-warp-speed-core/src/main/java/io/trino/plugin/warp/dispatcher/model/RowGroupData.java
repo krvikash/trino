@@ -24,6 +24,11 @@ import io.trino.plugin.warp.tools.util.WarpReadWriteLock;
 import io.trino.plugin.warp.util.json.WarpColumnJsonMapKeyDeserializer;
 import io.trino.plugin.warp.util.json.WarpColumnJsonSerializer;
 
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemoryLayout.PathElement;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.StructLayout;
+import java.lang.foreign.ValueLayout;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +40,11 @@ import static java.util.Objects.requireNonNull;
 @JsonDeserialize(builder = RowGroupData.Builder.class)
 public class RowGroupData
 {
+    public static final StructLayout FILE_COOKIE_LAYOUT;
+    private static final long FILE_COOKIE_OFFSET_FILE_HASH;
+    private static final long FILE_COOKIE_OFFSET_FILE_MOD_TIME;
+    private static final long FILE_COOKIE_OFFSET_FILE_DESCRIPTOR;
+
     public static final String KEY = "key";
     public static final String WARMUP_ELEMENTS = "warmup_elements";
     public static final String PARTITION_KEYS = "partition_keys";
@@ -61,6 +71,16 @@ public class RowGroupData
     private final WarpReadWriteLock lock;
     @JsonIgnore
     private List<WarmUpElement> validWarmUpElements;
+
+    static {
+        FILE_COOKIE_LAYOUT = MemoryLayout.structLayout(
+                ValueLayout.JAVA_LONG.withName("file_hash"),
+                ValueLayout.JAVA_LONG.withName("file_mod_time"),
+                ValueLayout.JAVA_INT.withName("file_fd")).withName("storage_file_cookie_t");
+        FILE_COOKIE_OFFSET_FILE_HASH = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_hash"));
+        FILE_COOKIE_OFFSET_FILE_MOD_TIME = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_mod_time"));
+        FILE_COOKIE_OFFSET_FILE_DESCRIPTOR = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_fd"));
+    }
 
     protected RowGroupData(
             RowGroupKey rowGroupKey,
@@ -222,6 +242,14 @@ public class RowGroupData
     public WarpReadWriteLock getLock()
     {
         return lock;
+    }
+
+    @JsonIgnore
+    public static void setFileCookie(MemorySegment fileCookie, int fileDescriptor, long fileHash, long fileModTime)
+    {
+        fileCookie.set(ValueLayout.JAVA_INT, FILE_COOKIE_OFFSET_FILE_DESCRIPTOR, fileDescriptor);
+        fileCookie.set(ValueLayout.JAVA_LONG, FILE_COOKIE_OFFSET_FILE_HASH, fileHash);
+        fileCookie.set(ValueLayout.JAVA_LONG, FILE_COOKIE_OFFSET_FILE_MOD_TIME, fileModTime);
     }
 
     @Override

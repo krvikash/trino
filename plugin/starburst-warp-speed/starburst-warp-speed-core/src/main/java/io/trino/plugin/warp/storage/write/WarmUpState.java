@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.storage.write;
 
+import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -27,12 +28,6 @@ import java.lang.foreign.ValueLayout;
 
 public class WarmUpState
 {
-    // file cookie layout
-    private static final StructLayout FILE_COOKIE_LAYOUT;
-    private static final long FILE_COOKIE_OFFSET_FILE_HASH;
-    private static final long FILE_COOKIE_OFFSET_FILE_MOD_TIME;
-    private static final long FILE_COOKIE_OFFSET_FILE_DESCRIPTOR;
-
     // jbuffers array
     private static final SequenceLayout JBUFS_LIST_LAYOUT;
 
@@ -53,14 +48,6 @@ public class WarmUpState
     private final MemorySegment[] jbufs;
 
     static {
-        FILE_COOKIE_LAYOUT = MemoryLayout.structLayout(
-                ValueLayout.JAVA_LONG.withName("file_hash"),
-                ValueLayout.JAVA_LONG.withName("file_mod_time"),
-                ValueLayout.JAVA_INT.withName("file_fd")).withName("storage_file_cookie_t");
-        FILE_COOKIE_OFFSET_FILE_HASH = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_hash"));
-        FILE_COOKIE_OFFSET_FILE_MOD_TIME = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_mod_time"));
-        FILE_COOKIE_OFFSET_FILE_DESCRIPTOR = FILE_COOKIE_LAYOUT.byteOffset(PathElement.groupElement("file_fd"));
-
         JBUFS_LIST_LAYOUT = MemoryLayout.sequenceLayout(JbufType.JBUF_TYPE_NUM_OF.ordinal(), ValueLayout.JAVA_LONG);
 
         WARMUP_STATE_LAYOUT = MemoryLayout.structLayout(
@@ -68,7 +55,7 @@ public class WarmUpState
                 ValueLayout.JAVA_LONG.withName("pwrite_buf"),
                 ValueLayout.JAVA_LONG.withName("pchunk"),
                 ValueLayout.JAVA_LONG.withName("pchunk_pers"),
-                FILE_COOKIE_LAYOUT.withName("file_cookie"),
+                RowGroupData.FILE_COOKIE_LAYOUT.withName("file_cookie"),
                 ValueLayout.JAVA_INT.withName("start_offset"),
                 ValueLayout.JAVA_INT.withName("warm_events"),
                 WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.withName("we_attr"),
@@ -122,10 +109,7 @@ public class WarmUpState
 
     public void setFileCookie(int fileDescriptor, long fileHash, long fileModTime)
     {
-        MemorySegment fileCookie = warmUpState.asSlice(WARMUP_STATE_OFFSET_FILE_COOKIE, FILE_COOKIE_LAYOUT);
-        fileCookie.set(ValueLayout.JAVA_INT, FILE_COOKIE_OFFSET_FILE_DESCRIPTOR, fileDescriptor);
-        fileCookie.set(ValueLayout.JAVA_LONG, FILE_COOKIE_OFFSET_FILE_HASH, fileHash);
-        fileCookie.set(ValueLayout.JAVA_LONG, FILE_COOKIE_OFFSET_FILE_MOD_TIME, fileModTime);
+        RowGroupData.setFileCookie(warmUpState.asSlice(WARMUP_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT), fileDescriptor, fileHash, fileModTime);
     }
 
     public MemorySegment[] getJbufs()

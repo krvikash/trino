@@ -120,6 +120,76 @@ public interface StorageEngine
     }
 
     //----------------------- query ----------------------------------------
+    default void matchOpen(MemorySegment matchState)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * match aggregates on a chunk range starting from the given chunk index
+     *
+     * @param matchState - match state
+     * @param startChunkIndex - chunk to start match from
+     *
+     * @return 0 for no more chunks, >0 for success giving the number of chunks in range, -1 for error
+     */
+    default int matchAgg(MemorySegment matchState, int startChunkIndex)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * prepare for match lucene on a chunk range starting from the given chunk index
+     *
+     * @param matchStateAddress - match state
+     * @param matchWeIx - identifies warmup element within the tx
+     * @param startChunkIndex - chunk to start match from
+     * @param numChunks - number of chunks to match
+     *
+     * @return 0 for success, -1 for error (to throw exception)
+     */
+    default long matchLucenePrepare(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * cleanup after match lucene on a chunk range starting from the given chunk index
+     *
+     * @param matchStateAddress - match state
+     * @param matchWeIx - identifies warmup element within the tx
+     * @param startChunkIndex - chunk to start match from
+     * @param numChunks - number of chunks to match
+     * @param matchResult - passing the result of match on numChunks in an array, the result is number of matching records
+     */
+    default void matchLuceneCompleted(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * match on a chunk range starting from the given chunk index, filling the match bitmaps as output
+     *
+     * @param matchStateAddress - match state
+     * @param startChunkIndex - chunk to start match from
+     * @param numChunks - number of chunks to match
+     * @param outMatchedChunksIndexes - indexes of chunks that have at least one match
+     * @param outMatchBitmapResetPoints - reset points for those chunks bitmaps
+     *
+     * @return MSB 32 bits number of matched chuks as filled in the output array, LSB 32 bits end chunk index of the range matched
+     *         -1 for error (to rhow exception)
+     *         0 is not a valid result
+     */
+    default long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default void matchClose(MemorySegment matchState)
+    {
+        throw new UnsupportedOperationException();
+    }
+
     /**
      * open a collect transaction
      *
@@ -135,85 +205,6 @@ public interface StorageEngine
     default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
             int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
             long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, long matchParamsAddress, long matchCollectMetadataAddresss,
-            int numMatchWes, int numChunksInRange, int matchTreeHeight, long matchTreeAddress, long matchBitmapAddress, long luceneBitmapAddress, int matchCollectId, int minOffset)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * restore collect state from java state array
-     *
-     * @param txId - transaction id
-     * @param chunkIndex - chunk index to collect from
-     *
-     * @return 0 for success, -1 for failure
-     */
-    default long collectRestoreState(int txId, int chunkIndex)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * match aggregates on a chunk range starting from the given chunk index
-     *
-     * @param txId - identifies tx, passed from native to java during import_create
-     * @param startChunkIndex - chunk to start match from
-     *
-     * @return 0 for no more chunks, >0 for success giving the number of chunks in range, -1 for error (to throw exception)
-     */
-    default long matchAgg(int txId, int startChunkIndex)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * prepare for match lucene on a chunk range starting from the given chunk index
-     *
-     * @param matchTxId - identifies tx, passed from native to java in match_open
-     * @param matchWeIx - identifies warmup element within the tx
-     * @param startChunkIndex - chunk to start match from
-     * @param numChunks - number of chunks to match
-     *
-     * @return 0 for success, -1 for error (to throw exception)
-     */
-    default long matchLucenePrepare(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * cleanup after match lucene on a chunk range starting from the given chunk index
-     *
-     * @param matchTxId - identifies tx, passed from native to java in match_open
-     * @param matchWeIx - identifies warmup element within the tx
-     * @param startChunkIndex - chunk to start match from
-     * @param numChunks - number of chunks to match
-     * @param matchResult - passing the result of match on numChunks in an array, the result is number of matching records
-     */
-    default void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * match on a chunk range starting from the given chunk index, filling the match bitmaps as output
-     *
-     * @param txId - identifies tx, passed from native to java during import_create
-     * @param startChunkIndex - chunk to start match from
-     * @param numChunks - number of chunks to match
-     * @param outMatchedChunksIndexes - indexes of chunks that have at least one match
-     * @param outMatchBitmapResetPoints - reset points for those chunks bitmaps
-     *
-     * @return MSB 32 bits number of matched chuks as filled in the output array, LSB 32 bits end chunk index of the range matched
-     *         -1 for error (to rhow exception)
-     *         0 is not a valid result
-     */
-    default long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
     {
         throw new UnsupportedOperationException();
     }
@@ -263,11 +254,6 @@ public interface StorageEngine
     }
 
     default void collectClose(int txId, long[] outCollectStats)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default void matchClose(int txId)
     {
         throw new UnsupportedOperationException();
     }

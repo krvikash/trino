@@ -67,6 +67,10 @@ public class NativeStorageEngine
     private final MethodHandle mWarmupVerifyQueryOffset;
     private final MethodHandle mWarmupChunk;
     private final MethodHandle mWarmupChunkExtRec;
+    // match API
+    private final MethodHandle mMatchOpen;
+    private final MethodHandle mMatchAgg;
+    private final MethodHandle mMatchClose;
     // collect API
     private final MethodHandle mCollectProcessMatchResult;
     private final MethodHandle mCollectCollectChunk;
@@ -135,6 +139,14 @@ public class NativeStorageEngine
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
             mWarmupChunkExtRec = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_chunk_ext_rec").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+
+            // match API
+            mMatchOpen = linker.downcallHandle(libraryHandle.find("warp_speed_match_open").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+            mMatchAgg = linker.downcallHandle(libraryHandle.find("warp_speed_match_agg").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT));
+            mMatchClose = linker.downcallHandle(libraryHandle.find("warp_speed_match_close").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
             // collect API
             mCollectProcessMatchResult = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_match_result").orElseThrow(),
@@ -430,28 +442,54 @@ public class NativeStorageEngine
     }
 
     @Override
+    public void matchOpen(MemorySegment matchState)
+    {
+        try {
+            mMatchOpen.invokeExact(matchState);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to matchOpen");
+            throw new RuntimeException("failed to match open");
+        }
+    }
+
+    @Override
+    public int matchAgg(MemorySegment matchState, int startChunkIndex)
+    {
+        try {
+            return (int) mMatchAgg.invokeExact(matchState, (short) startChunkIndex);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to matchAgg");
+            throw new RuntimeException("failed to match aggregates");
+        }
+    }
+
+    @Override
+    public native long matchLucenePrepare(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams);
+
+    @Override
+    public native void matchLuceneCompleted(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult);
+
+    @Override
+    public native long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);
+
+    @Override
+    public void matchClose(MemorySegment matchState)
+    {
+        try {
+            mMatchClose.invokeExact(matchState);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to matchOpen");
+            throw new RuntimeException("failed to match open");
+        }
+    }
+
+    @Override
     public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
             int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
             long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers);
-
-    @Override
-    public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, long matchParamsAddress, long matchCollectMetadataAddresss,
-            int numMatchWes, int numChunksInRange, int matchTreeHeight, long matchTreeAddress, long matchBitmapAddress, long luceneBitmapAddress, int matchCollectId, int minOffset);
-
-    @Override
-    public native long collectRestoreState(int txId, int chunkIndex);
-
-    @Override
-    public native long matchAgg(int txId, int startChunkIndex);
-
-    @Override
-    public native long matchLucenePrepare(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams);
-
-    @Override
-    public native void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult);
-
-    @Override
-    public native long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);
 
     @Override
     public boolean processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
@@ -482,9 +520,6 @@ public class NativeStorageEngine
 
     @Override
     public native void collectClose(int txId, long[] outCollectStats);
-
-    @Override
-    public native void matchClose(int txId);
 
     @Override
     public native void setDebugThrowPolicy(int numElements, int[] panicID, int[] repetitionMode, int[] ratio);

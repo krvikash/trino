@@ -71,4 +71,6 @@ public interface StorageEngineConstants
     int getMaxMatchColumns();
 
     int getMatchTxSize();
+
+    int getMatchStatePayload();
 }

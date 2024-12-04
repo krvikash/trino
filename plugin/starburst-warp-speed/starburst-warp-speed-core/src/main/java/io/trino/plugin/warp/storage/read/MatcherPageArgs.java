@@ -13,8 +13,10 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-public record MatcherPageArgs(int matchTxId,
-                              short[] matchedChunksIndexes,
-                              int[] matchBitmapResetPoints)
+import java.util.Optional;
+
+public record MatcherPageArgs(Optional<MatchState> matchState,
+        short[] matchedChunksIndexes,
+        int[] matchBitmapResetPoints)
 {
 }

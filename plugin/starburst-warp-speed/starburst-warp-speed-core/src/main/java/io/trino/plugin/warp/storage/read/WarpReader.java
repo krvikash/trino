@@ -28,11 +28,11 @@ import static java.util.Objects.requireNonNull;
 public class WarpReader
 {
     private static final Logger logger = Logger.get(WarpReader.class);
-    // The heap size of a worker node on galaxy is 80GB. The total off heap memory limit we take here is 256KB * 64 threads equals 16MB.
-    // 1 percentage of the heap size is 800MB, so these 16MB is much less than 1 percentage. It means we are guaranteed the GC will
+    // The heap size of a worker node on galaxy is 80GB. The total off heap memory limit we take here is 512KB * 64 threads equals 32MB.
+    // 1 percentage of the heap size is 800MB, so these 32MB is much less than 1 percentage. It means we are guaranteed the GC will
     // not be blocked by this small off heap memory.
     // The limit check is to make sure we do not accidentally enlarge the off heap allocation
-    private static final long LIMIT_OFF_HEAP_MEMORY = 256 * 1024;
+    private static final long LIMIT_OFF_HEAP_MEMORY = 512 * 1024;
 
     // parameters
     private final ReadTimeMeasurement readTimeMeasurement;
@@ -88,8 +88,7 @@ public class WarpReader
     // verify total amount of off heap memory allocated does not exceed a limit
     private void checkOffHeapMemoryUsage()
     {
-        long totalOffHeapSize = blocksAggregator.getOffHeapMemoryUsage(aggregatorArgs) +
-                matcher.getOffHeapMemoryUsage(queryArgs, matcherArgs);
+        long totalOffHeapSize = blocksAggregator.getOffHeapMemoryUsage(aggregatorArgs) + matcher.getOffHeapMemoryUsage(queryArgs, matcherArgs);
         if (totalOffHeapSize > LIMIT_OFF_HEAP_MEMORY) {
             shapingLogger.warn("off heap memory exceeded threshold " + totalOffHeapSize);
         }

@@ -146,46 +146,43 @@ public class StubsStorageEngine
     }
 
     @Override
+    public void matchOpen(MemorySegment matchState)
+    {
+    }
+
+    @Override
+    public int matchAgg(MemorySegment matchState, int startChunkIndex)
+    {
+        return 0;
+    }
+
+    @Override
+    public long matchLucenePrepare(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams)
+    {
+        return 0L;
+    }
+
+    @Override
+    public void matchLuceneCompleted(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult)
+    {
+    }
+
+    @Override
+    public long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
+    {
+        return 0L;
+    }
+
+    @Override
+    public void matchClose(MemorySegment matchState)
+    {
+    }
+
+    @Override
     public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
             int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
             long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
     {
-    }
-
-    @Override
-    public long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, long matchParamsAddress, long matchCollectMetadataAddresss,
-            int numMatchWes, int numChunksInRange, int matchTreeHeight, long matchTreeAddress, long matchBitmapAddress, long luceneBitmapAddress, int matchCollectId, int minOffset)
-    {
-        return 0;
-    }
-
-    @Override
-    public long collectRestoreState(int txId, int chunkIndex)
-    {
-        return 0;
-    }
-
-    @Override
-    public long matchAgg(int txId, int startChunkIndex)
-    {
-        return 0L;
-    }
-
-    @Override
-    public long matchLucenePrepare(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams)
-    {
-        return 0L;
-    }
-
-    @Override
-    public void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult)
-    {
-    }
-
-    @Override
-    public long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
-    {
-        return 0L;
     }
 
     @Override
@@ -210,11 +207,6 @@ public class StubsStorageEngine
 
     @Override
     public void collectClose(int txId, long[] outCollectStats)
-    {
-    }
-
-    @Override
-    public void matchClose(int txId)
     {
     }
 

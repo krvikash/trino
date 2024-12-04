@@ -189,4 +189,10 @@ public class StubsStorageEngineConstants
     {
         return 16 * 1024;
     }
+
+    @Override
+    public int getMatchStatePayload()
+    {
+        return 8192;
+    }
 }

@@ -85,11 +85,11 @@ public class LuceneMatcher
         logger.debug("lucene matcher for luceneQueryMatchData %s", luceneQueryMatchData);
     }
 
-    public boolean match(int matchTxId, int startChunkIndex, int numChunks, DispatcherPageSourceStats dispatcherPageSourceStats)
+    public boolean match(long matchStateAddress, int startChunkIndex, int numChunks, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         // call storage engine to prepare the match and get the parameters
         long startTime = System.nanoTime();
-        long result = storageEngine.matchLucenePrepare(matchTxId, matchWeIx, startChunkIndex, numChunks, matchParams);
+        long result = storageEngine.matchLucenePrepare(matchStateAddress, matchWeIx, startChunkIndex, numChunks, matchParams);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         if (result < 0) {
             return false;
@@ -99,8 +99,8 @@ public class LuceneMatcher
         List<ChunkState> chunkStates = null;
         int loadedPageIndex = -1;
 
-        logger.debug("match rowGroupFilePath %s matchOffset %d matchTxId %d startChunkIndex %d numChunks %d",
-                rowGroupFilePath, matchOffset, matchTxId, startChunkIndex, numChunks);
+        logger.debug("match rowGroupFilePath %s matchOffset %d matchStateAddress %d startChunkIndex %d numChunks %d",
+                rowGroupFilePath, matchOffset, matchStateAddress, startChunkIndex, numChunks);
 
         // loop to perform the match chunk by chunk
         currChunkInRange = 0;
@@ -120,7 +120,7 @@ public class LuceneMatcher
 
         // pass storage engine the match result and free resources
         startTime = System.nanoTime();
-        storageEngine.matchLuceneCompleted(matchTxId, matchWeIx, startChunkIndex, numChunks, matchResult);
+        storageEngine.matchLuceneCompleted(matchStateAddress, matchWeIx, startChunkIndex, numChunks, matchResult);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         return true;
     }
