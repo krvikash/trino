@@ -260,8 +260,8 @@ public class DispatcherPageSource
             stats.inccached_warp_failed_pages();
             if (!Thread.currentThread().isInterrupted()) {
                 shapingLogger.error(e,
-                        "Failed to read cache file %s from warp. queryContext=%s, rowGroupData=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s",
-                        rowGroupData.getRowGroupKey(), queryContext, rowGroupData, warpWithoutPrefilledAndProxiedCollectTypes);
+                        "Failed to read cache file %s from warp. queryContext=%s, rowGroupData=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, dispatcherTableHandle=%s",
+                        rowGroupData.getRowGroupKey(), queryContext, rowGroupData, warpWithoutPrefilledAndProxiedCollectTypes, dispatcherTableHandle);
             }
             readErrorHandler.handle(e, rowGroupData, queryContext);
             throw e;
