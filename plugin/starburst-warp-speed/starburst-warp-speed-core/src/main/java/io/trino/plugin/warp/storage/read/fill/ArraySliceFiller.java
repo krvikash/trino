@@ -34,28 +34,25 @@ public abstract class ArraySliceFiller
         extends BlockFiller<Block>
 {
     protected final int queryStringNullValueSize;
-    protected final Type elementType;
 
     protected ArraySliceFiller(StorageEngineConstants storageEngineConstants,
             BlockFillerType blockFillerType,
             Type elementType)
     {
-        super(elementType, blockFillerType);
-        this.elementType = elementType;
+        super(new ArrayType(elementType), blockFillerType);
         this.queryStringNullValueSize = storageEngineConstants.getQueryStringNullValueSize();
     }
 
     @Override
     protected Block getSingleValue(ReadJuffersWarmUpElement juffersWE, int recLength, int currPos)
     {
-        Type type = new ArrayType(elementType);
         ByteBuffer recordBuff = (ByteBuffer) juffersWE.getRecordBuffer();
         ByteBuffer nullBuff = juffersWE.getNullBuffer();
         ShortBuffer lenBuff = nullBuff.asShortBuffer();
 
         ByteBufferInputStream byteBufferInputStream = new ByteBufferInputStream(recordBuff);
-        BlockBuilder output = type.createBlockBuilder(null, 1);
-        writeSlice(lenBuff, byteBufferInputStream, output, type, currPos, 0);
+        BlockBuilder output = spiBuilderType.createBlockBuilder(null, 1);
+        writeSlice(lenBuff, byteBufferInputStream, output, spiBuilderType, currPos, 0);
         return output.build();
     }
 
@@ -78,8 +75,7 @@ public abstract class ArraySliceFiller
         ByteBufferInputStream byteBufferInputStream = new ByteBufferInputStream(recordBuff);
         Block block = getBlock(byteBufferInputStream, 0, Short.toUnsignedInt(lenBuff.get(0)));
 
-        Type type = new ArrayType(elementType);
-        ArrayBlockBuilder output = (ArrayBlockBuilder) type.createBlockBuilder(null, rowsToFill);
+        ArrayBlockBuilder output = (ArrayBlockBuilder) spiBuilderType.createBlockBuilder(null, rowsToFill);
 
         int nullValueSize = TypeUtils.isVarlenStr(recTypeCode) ? queryStringNullValueSize : 1;
         for (int i = 0; i < rowsToFill; i++) {
@@ -87,7 +83,7 @@ public abstract class ArraySliceFiller
                 output.appendNull();
             }
             else {
-                type.writeObject(output, block);
+                spiBuilderType.writeObject(output, block);
             }
         }
 
@@ -101,8 +97,7 @@ public abstract class ArraySliceFiller
             int rowsToFill,
             boolean collectNulls)
     {
-        Type type = new ArrayType(elementType);
-        BlockBuilder output = type.createBlockBuilder(null, rowsToFill);
+        BlockBuilder output = spiBuilderType.createBlockBuilder(null, rowsToFill);
         ByteBuffer recordBuff = (ByteBuffer) juffersWE.getRecordBuffer();
         ByteBuffer nullBuff = juffersWE.getNullBuffer();
         ShortBuffer lenBuff = nullBuff.asShortBuffer();
@@ -118,14 +113,14 @@ public abstract class ArraySliceFiller
                 }
                 else {
                     byteBufferInputStream.position(offset);
-                    offset += writeSlice(lenBuff, byteBufferInputStream, output, type, currRow, offset);
+                    offset += writeSlice(lenBuff, byteBufferInputStream, output, spiBuilderType, currRow, offset);
                 }
             }
         }
         else {
             for (int currRow = 0; currRow < rowsToFill; currRow++) {
                 byteBufferInputStream.position(offset);
-                offset += writeSlice(lenBuff, byteBufferInputStream, output, type, currRow, offset);
+                offset += writeSlice(lenBuff, byteBufferInputStream, output, spiBuilderType, currRow, offset);
             }
         }
 
@@ -151,8 +146,7 @@ public abstract class ArraySliceFiller
             boolean collectNulls,
             ReadDictionary readDictionary)
     {
-        Type type = new ArrayType(elementType);
-        BlockBuilder output = type.createBlockBuilder(null, rowsToFill);
+        BlockBuilder output = spiBuilderType.createBlockBuilder(null, rowsToFill);
         ShortBuffer shortBuffer = (ShortBuffer) juffersWE.getRecordBuffer();
         if (collectNulls) {
             ByteBuffer nullBuff = juffersWE.getNullBuffer();
@@ -164,7 +158,7 @@ public abstract class ArraySliceFiller
                 else {
                     Slice slice = (Slice) readDictionary.get(Short.toUnsignedInt(shortBuffer.get(currRow)));
                     Block block = getBlock(slice, 0, slice.length());
-                    type.writeObject(output, block);
+                    spiBuilderType.writeObject(output, block);
                 }
             }
         }
@@ -172,7 +166,7 @@ public abstract class ArraySliceFiller
             for (int currRow = 0; currRow < rowsToFill; currRow++) {
                 Slice slice = (Slice) readDictionary.get(Short.toUnsignedInt(shortBuffer.get(currRow)));
                 Block block = getBlock(slice, 0, slice.length());
-                type.writeObject(output, block);
+                spiBuilderType.writeObject(output, block);
             }
         }
         return output.build();
@@ -189,15 +183,14 @@ public abstract class ArraySliceFiller
     protected Block createSingleWithNullBlockWithDictionary(ReadJuffersWarmUpElement juffersWE, int mappingKey, int rowsToFill, ReadDictionary readDictionary)
     {
         Block block = getSingleValueWithDictionary(mappingKey, readDictionary);
-        Type type = new ArrayType(elementType);
-        BlockBuilder output = type.createBlockBuilder(null, rowsToFill);
+        BlockBuilder output = spiBuilderType.createBlockBuilder(null, rowsToFill);
         ByteBuffer nullBuff = juffersWE.getNullBuffer();
         for (int i = 0; i < rowsToFill; i++) {
             if (isNull(nullBuff, i)) {
                 output.appendNull();
             }
             else {
-                type.writeObject(output, block);
+                spiBuilderType.writeObject(output, block);
             }
         }
 
