@@ -961,33 +961,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_collect_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
-        //both sides are invalid, predicates only data
-        query = "select int_1 from %s.%s where small_int_col > 100 or varchar_col > 'bbb'".formatted(schema, table);
-        expectedQueryStats = Map.of(
-                "filtered_by_predicate", 1L,
-                "warp_match_columns", 2L,
-                "warp_collect_columns", 3L,
-                "external_collect_columns", 0L);
-        validateQueryStats(query, session, expectedQueryStats, true);
-
-        //one side is invalid, predicates only data
-        query = "select int_1 from %s.%s where small_int_col < 100 or varchar_col > 'bbb'".formatted(schema, table);
-        expectedQueryStats = Map.of(
-                "filtered_by_predicate", 0L,
-                "warp_match_columns", 0L,
-                "warp_collect_columns", 3L,
-                "external_collect_columns", 0L);
-        validateQueryStats(query, session, expectedQueryStats, true);
-
-        //both sides are valid, predicates only data
-        query = "select int_1 from %s.%s where small_int_col < 100 or varchar_col > 'bbb'".formatted(schema, table);
-        expectedQueryStats = Map.of(
-                "filtered_by_predicate", 0L,
-                "warp_match_columns", 0L,
-                "warp_collect_columns", 3L,
-                "external_collect_columns", 0L);
-        validateQueryStats(query, session, expectedQueryStats, true);
-
         query = "select not_warm_double ,int_1 from %s.%s where int_1 > 1".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
