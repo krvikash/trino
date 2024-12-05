@@ -19,8 +19,6 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.ObjectMapperProvider;
-import io.airlift.tracing.Tracing;
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.trino.cache.CacheConfig;
 import io.trino.cache.CacheManagerRegistry;
@@ -81,6 +79,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static io.airlift.tracing.Tracing.noopTracer;
+import static io.opentelemetry.api.OpenTelemetry.noop;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
@@ -208,7 +208,7 @@ public final class TaskTestUtils
                 blockTypeOperators,
                 PLANNER_CONTEXT.getTypeOperators(),
                 new TableExecuteContextManager(),
-                new ExchangeManagerRegistry(OpenTelemetry.noop(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())),
+                new ExchangeManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of())),
                 new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats, new InMemoryNodeManager()),
                 new JsonCodecFactory(new ObjectMapperProvider()).jsonCodec(TupleDomain.class),
                 new NodeVersion("test"),
@@ -223,7 +223,7 @@ public final class TaskTestUtils
     public static SplitMonitor createTestSplitMonitor()
     {
         return new SplitMonitor(
-                new EventListenerManager(new EventListenerConfig(), new SecretsResolver(ImmutableMap.of())),
+                new EventListenerManager(new EventListenerConfig(), new SecretsResolver(ImmutableMap.of()), noop(), noopTracer(), new NodeVersion("test")),
                 new ObjectMapperProvider().get());
     }
 }

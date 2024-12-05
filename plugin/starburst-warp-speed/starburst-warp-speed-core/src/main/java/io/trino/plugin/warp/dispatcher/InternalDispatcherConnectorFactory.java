@@ -18,6 +18,7 @@ import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.ConfigurationUtils;
 import io.airlift.log.Logger;
+import io.opentelemetry.api.trace.Tracer;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
@@ -94,6 +95,7 @@ public class InternalDispatcherConnectorFactory
                 binder -> {
                     binder.bind(TypeManager.class).toInstance(context.getTypeManager());
                     binder.bind(NodeManager.class).toInstance(context.getNodeManager());
+                    binder.bind(Tracer.class).toInstance(context.getTracer());
                 }));
         modules.addAll(proxiedConnectorInitializer.getModules(context));
         modules.add(proxiedConnectorModule(proxiedConnector));

@@ -17,6 +17,8 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.log.Logger;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import io.trino.plugin.base.CatalogNameModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.di.CacheManagerModule;
@@ -63,6 +65,8 @@ public class InternalDispatcherCacheManagerFactory
                 new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, context.getNodeManager()),
                 new CacheManagerModule(context, !isWorker),
                 binder -> {
+                    binder.bind(Tracer.class).toInstance(OpenTelemetry.noop().getTracer("InternalDispatcherCacheManagerFactory"));
+                    binder.bind(OpenTelemetry.class).toInstance(OpenTelemetry.noop());
                     if (WarpBaseModule.isCoordinator(context, config)) {
                         binder.bind(CoordinatorNodeManager.class);
                         binder.bind(CoordinatorInitializedEventHandler.class);
