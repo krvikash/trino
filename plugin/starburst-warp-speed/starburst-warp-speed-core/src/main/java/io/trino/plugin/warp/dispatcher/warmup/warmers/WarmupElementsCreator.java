@@ -217,7 +217,7 @@ public class WarmupElementsCreator
         Optional<WarmUpElement> res = Optional.empty();
         try {
             WarpColumn cachedColumn = new RegularColumn(cacheColumnId);
-            if (TypeUtils.isWarmDataSupported(columnType) || TypeUtils.isWarmBasicSupported(columnType) || TypeUtils.isWarmLuceneSupported(columnType)) {
+            if (TypeUtils.isWarmDataSupported(columnType)) {
                 int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
                 RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
                 res = Optional.of(WarmUpElement.builder()
@@ -233,6 +233,9 @@ public class WarmupElementsCreator
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                         .warmUpContextSize(bufferAllocator.getWarmupDataTxSize(recTypeCode, recTypeLength))
                         .build());
+            }
+            else {
+                statsWarmingService.incwarm_warp_cache_invalid_type();
             }
         }
         catch (Exception e) {
