@@ -29,11 +29,6 @@ public interface CacheManagerContext
      */
     BlockEncodingSerde blockEncodingSerde();
 
-    default boolean isCoordinator()
-    {
-        return false;
-    }
-
     default NodeManager getNodeManager()
     {
         return null;

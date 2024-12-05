@@ -188,12 +188,6 @@ public class CacheManagerRegistry
             }
 
             @Override
-            public boolean isCoordinator()
-            {
-                return internalNodeManager.getCurrentNode().isCoordinator();
-            }
-
-            @Override
             public NodeManager getNodeManager()
             {
                 return new NodeManager()

@@ -51,7 +51,7 @@ public interface WarpBaseModule
 
     static boolean isCoordinator(CacheManagerContext context, Map<String, String> config)
     {
-        return context.isCoordinator();
+        return context.getNodeManager().getCurrentNode().isCoordinator();
     }
 
     static boolean isWorker(CacheManagerContext context, Map<String, String> config)
