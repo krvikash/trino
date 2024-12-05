@@ -587,7 +587,8 @@ jobs:
             !:trino-sqlserver,
             !:trino-test-jdbc-compatibility-old-server,
             !:trino-tests,
-            !:trino-thrift'
+            !:trino-thrift,
+            !:trino-vertica'
       - name: Upload test results
         uses: ./.github/actions/process-test-results
         if: always()
@@ -717,6 +718,7 @@ jobs:
             - { modules: plugin/trino-snowflake }
             #- { modules: plugin/trino-snowflake, profile: cloud-tests } # Disabled for Starburst, since we don't ship this connector and don't have secrets configured to run its tests
             - { modules: plugin/trino-sqlserver }
+            - { modules: plugin/trino-vertica }
             - { modules: testing/trino-faulttolerant-tests, profile: default }
             - { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-delta }
             - { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-hive }
