@@ -31,7 +31,6 @@ import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.exchange.ExchangeSourceOutputSelector;
 import io.trino.spi.metrics.Metrics;
 import jakarta.annotation.Nullable;
-import sun.misc.Unsafe;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -294,7 +293,7 @@ public class BufferExchangeSource
     private void offerSourceChunk(SourceChunk sourceChunk)
     {
         sourceChunks.offer(sourceChunk);
-        sourceChunksEstimatedSize.updateAndGet(oldValue -> oldValue + Unsafe.ARRAY_OBJECT_INDEX_SCALE + sourceChunk.getRetainedSize());
+        sourceChunksEstimatedSize.updateAndGet(oldValue -> oldValue + sourceChunk.getRetainedSize());
     }
 
     @GuardedBy("this")
@@ -302,7 +301,7 @@ public class BufferExchangeSource
     {
         SourceChunk sourceChunk = sourceChunks.poll();
         if (sourceChunk != null) {
-            sourceChunksEstimatedSize.updateAndGet(oldValue -> oldValue - Unsafe.ARRAY_OBJECT_INDEX_SCALE - sourceChunk.getRetainedSize());
+            sourceChunksEstimatedSize.updateAndGet(oldValue -> oldValue - sourceChunk.getRetainedSize());
         }
         return sourceChunk;
     }
