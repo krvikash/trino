@@ -12,6 +12,7 @@ package com.starburstdata.trino.plugin.stargate.parallel;
 import com.google.common.primitives.Shorts;
 import com.google.common.primitives.SignedBytes;
 import io.airlift.slice.Slice;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimeWithTimeZone;
@@ -21,11 +22,14 @@ import io.trino.spi.type.SqlTime;
 import io.trino.spi.type.SqlTimeWithTimeZone;
 import io.trino.spi.type.SqlTimestamp;
 import io.trino.spi.type.SqlTimestampWithTimeZone;
+import io.trino.spi.type.SqlVarbinary;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimeWithTimeZoneType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
+import io.trino.spi.type.VarcharType;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -136,7 +140,15 @@ public final class LiteralFormatter
 
         if (javaType == Slice.class) {
             Slice typedValue = (Slice) value;
-            return escapeStringLiteral(typedValue.toStringUtf8());
+            switch (type) {
+                case VarcharType _, CharType _ -> {
+                    return escapeStringLiteral(typedValue.toStringUtf8());
+                }
+                case VarbinaryType _ -> {
+                    return "x" + escapeStringLiteral(new SqlVarbinary(typedValue.getBytes()).toString());
+                }
+                default -> throw new UnsupportedOperationException("Unsupported type " + type + " backed by java " + javaType);
+            }
         }
 
         if (javaType == Int128.class) {
@@ -145,7 +157,7 @@ public final class LiteralFormatter
 
                 BigInteger unscaledValue = typedValue.toBigInteger();
                 BigDecimal bigDecimal = new BigDecimal(unscaledValue, decimalType.getScale(), new MathContext(decimalType.getPrecision()));
-                return formatStringLiteral("DECIMAL", bigDecimal.toString());
+                return formatStringLiteral("DECIMAL", bigDecimal.toPlainString());
             }
         }
 
