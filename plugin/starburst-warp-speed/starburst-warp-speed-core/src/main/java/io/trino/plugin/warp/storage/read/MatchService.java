@@ -202,7 +202,7 @@ public class MatchService
 
                         if (queryArgs.queryParams().getNumLucene() > 0) {
                             for (int luceneMatcherIx = 0; luceneMatcherIx < matcherArgs.luceneMatchers().length; luceneMatcherIx++) {
-                                if (!matcherArgs.luceneMatchers()[luceneMatcherIx].match(matchStateMem.address(), chunkIndex, numChunks, queryArgs.dispatcherPageSourceStats())) {
+                                if (!matcherArgs.luceneMatchers()[luceneMatcherIx].match(matcherPageArgs.matchState().get(), chunkIndex, numChunks, queryArgs.dispatcherPageSourceStats())) {
                                     luceneSuccess = false;
                                     break;
                                 }

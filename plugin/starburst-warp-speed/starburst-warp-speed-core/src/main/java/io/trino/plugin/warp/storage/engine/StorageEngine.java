@@ -141,14 +141,13 @@ public interface StorageEngine
     /**
      * prepare for match lucene on a chunk range starting from the given chunk index
      *
-     * @param matchStateAddress - match state
-     * @param matchWeIx - identifies warmup element within the tx
-     * @param startChunkIndex - chunk to start match from
-     * @param numChunks - number of chunks to match
+     * @param matchState - match state
+     * @param weIx - wearm up element index
+     * @param chunkIndex - chunk index
      *
-     * @return 0 for success, -1 for error (to throw exception)
+     * @return TRUE for success, FALSE for error (to throw exception)
      */
-    default long matchLucenePrepare(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams)
+    default boolean matchLucenePrepare(MemorySegment matchState, int weIx, int chunkIndex)
     {
         throw new UnsupportedOperationException();
     }
@@ -156,13 +155,12 @@ public interface StorageEngine
     /**
      * cleanup after match lucene on a chunk range starting from the given chunk index
      *
-     * @param matchStateAddress - match state
-     * @param matchWeIx - identifies warmup element within the tx
-     * @param startChunkIndex - chunk to start match from
-     * @param numChunks - number of chunks to match
-     * @param matchResult - passing the result of match on numChunks in an array, the result is number of matching records
+     * @param matchState - match state
+     * @param weIx - wearm up element index
+     * @param chunkIndex - chunk index
+     * @param numMatchedRecords - number of matched records
      */
-    default void matchLuceneCompleted(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult)
+    default void matchLuceneCompleted(MemorySegment matchState, int weIx, int chunkIndex, int numMatchedRecords)
     {
         throw new UnsupportedOperationException();
     }

@@ -157,13 +157,13 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long matchLucenePrepare(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams)
+    public boolean matchLucenePrepare(MemorySegment matchState, int weIx, int chunkIndex)
     {
-        return 0L;
+        return true;
     }
 
     @Override
-    public void matchLuceneCompleted(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult)
+    public void matchLuceneCompleted(MemorySegment matchState, int weIx, int chunkIndex, int numMatchedRecords)
     {
     }
 

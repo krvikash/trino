@@ -70,6 +70,8 @@ public class NativeStorageEngine
     // match API
     private final MethodHandle mMatchOpen;
     private final MethodHandle mMatchAgg;
+    private final MethodHandle mMatchLucenePrepare;
+    private final MethodHandle mMatchLuceneCompleted;
     private final MethodHandle mMatchClose;
     // collect API
     private final MethodHandle mCollectProcessMatchResult;
@@ -145,6 +147,10 @@ public class NativeStorageEngine
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
             mMatchAgg = linker.downcallHandle(libraryHandle.find("warp_speed_match_agg").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT));
+            mMatchLucenePrepare = linker.downcallHandle(libraryHandle.find("warp_speed_match_lucene_prepare").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT));
+            mMatchLuceneCompleted = linker.downcallHandle(libraryHandle.find("warp_speed_match_lucene_completed").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT));
             mMatchClose = linker.downcallHandle(libraryHandle.find("warp_speed_match_close").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
@@ -466,10 +472,28 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native long matchLucenePrepare(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams);
+    public boolean matchLucenePrepare(MemorySegment matchState, int weIx, int chunkIndex)
+    {
+        try {
+            return (boolean) mMatchLucenePrepare.invokeExact(matchState, (short) weIx, (short) chunkIndex);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to matchLucenePrepare");
+            throw new RuntimeException("failed to match lucene prepare");
+        }
+    }
 
     @Override
-    public native void matchLuceneCompleted(long matchStateAddress, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult);
+    public void matchLuceneCompleted(MemorySegment matchState, int weIx, int chunkIndex, int numMatchedRecords)
+    {
+        try {
+            mMatchLuceneCompleted.invokeExact(matchState, (short) weIx, (short) chunkIndex, numMatchedRecords);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to matchLuceneCompleted");
+            throw new RuntimeException("failed to match lucene completed");
+        }
+    }
 
     @Override
     public native long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);

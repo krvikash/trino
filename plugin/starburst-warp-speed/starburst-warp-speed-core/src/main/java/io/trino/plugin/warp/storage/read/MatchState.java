@@ -28,6 +28,10 @@ import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PA
 
 public class MatchState
 {
+    private static final StructLayout MATCH_LUCENE_STATE_LAYOUT;
+    private static final long MATCH_LUCENE_STATE_OFFSET_UNIQUE_ID;
+    private static final long MATCH_LUCENE_STATE_OFFSET_NUM_RECORDS;
+
     static final StructLayout MATCH_STATE_LAYOUT;
     private static final long MATCH_STATE_OFFSET_MATCH_TREE;
     private static final long MATCH_STATE_OFFSET_WARMUP_ELEMENT_PARAMS;
@@ -35,6 +39,7 @@ public class MatchState
     private static final long MATCH_STATE_OFFSET_LUCENE_BM;
     private static final long MATCH_STATE_OFFSET_MATCH_COLLECT_MD;
     private static final long MATCH_STATE_OFFSET_FILE_COOKIE;
+    private static final long MATCH_STATE_OFFSET_LUCENE_STATE;
     private static final long MATCH_STATE_OFFSET_NUM_RECORDS;
     private static final long MATCH_STATE_OFFSET_MIN_FILE_OFFSET;
     private static final long MATCH_STATE_OFFSET_MATCH_COLLECT_ID;
@@ -48,6 +53,12 @@ public class MatchState
     private final MemorySegment matchStateWithPayload;
 
     static {
+        MATCH_LUCENE_STATE_LAYOUT = MemoryLayout.structLayout(
+                ValueLayout.JAVA_INT.withName("unique_id"),
+                ValueLayout.JAVA_INT.withName("nrecs")).withName("match_lucene_state_t");
+        MATCH_LUCENE_STATE_OFFSET_UNIQUE_ID = MATCH_LUCENE_STATE_LAYOUT.byteOffset(PathElement.groupElement("unique_id"));
+        MATCH_LUCENE_STATE_OFFSET_NUM_RECORDS = MATCH_LUCENE_STATE_LAYOUT.byteOffset(PathElement.groupElement("nrecs"));
+
         MATCH_STATE_LAYOUT = MemoryLayout.structLayout(
                 ValueLayout.JAVA_LONG.withName("pmatch_tree"),
                 ValueLayout.JAVA_LONG.withName("pwe_params"),
@@ -55,6 +66,7 @@ public class MatchState
                 ValueLayout.JAVA_LONG.withName("lucene_bm_address"),
                 ValueLayout.JAVA_LONG.withName("pmatch_collect_infos"),
                 RowGroupData.FILE_COOKIE_LAYOUT.withName("file_cookie"),
+                MATCH_LUCENE_STATE_LAYOUT.withName("lucene_state"),
                 ValueLayout.JAVA_INT.withName("nrecs"),
                 ValueLayout.JAVA_INT.withName("min_offset"),
                 ValueLayout.JAVA_INT.withName("match_collect_buff_ix"),
@@ -69,6 +81,7 @@ public class MatchState
         MATCH_STATE_OFFSET_LUCENE_BM = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("lucene_bm_address"));
         MATCH_STATE_OFFSET_MATCH_COLLECT_MD = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("pmatch_collect_infos"));
         MATCH_STATE_OFFSET_FILE_COOKIE = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("file_cookie"));
+        MATCH_STATE_OFFSET_LUCENE_STATE = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("lucene_state"));
         MATCH_STATE_OFFSET_NUM_RECORDS = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("nrecs"));
         MATCH_STATE_OFFSET_MIN_FILE_OFFSET = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("min_offset"));
         MATCH_STATE_OFFSET_MATCH_COLLECT_ID = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("match_collect_buff_ix"));
@@ -113,5 +126,20 @@ public class MatchState
     public MemorySegment getMemory()
     {
         return matchStateWithPayload;
+    }
+
+    public MemorySegment getMatchLuceneState()
+    {
+        return matchState.asSlice(MATCH_STATE_OFFSET_LUCENE_STATE, MATCH_LUCENE_STATE_LAYOUT);
+    }
+
+    public int getLuceneUniqueId(MemorySegment luceneState)
+    {
+        return luceneState.get(ValueLayout.JAVA_INT, MATCH_LUCENE_STATE_OFFSET_UNIQUE_ID);
+    }
+
+    public int getLuceneNumRecords(MemorySegment luceneState)
+    {
+        return luceneState.get(ValueLayout.JAVA_INT, MATCH_LUCENE_STATE_OFFSET_NUM_RECORDS);
     }
 }
