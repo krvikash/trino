@@ -396,7 +396,7 @@ public class DataApiFacade
     {
         AtomicLong retryCount = new AtomicLong();
         Stopwatch stopwatch = Stopwatch.createStarted();
-        Stopwatch successRequseStopwatch = Stopwatch.createStarted();
+        Stopwatch successRequestStopwatch = Stopwatch.createStarted();
         CompletableFuture<DataApi.ChunkDataResponse> finalFuture = ((Function<Long, FailsafeExecutor<Object>>) this::getDefaultRetryExecutor).apply(bufferNodeId)
                 .getAsyncExecution(execution -> {
                     ListenableFuture<DataApi.ChunkDataResponse> future = ((Callable<ListenableFuture<DataApi.ChunkDataResponse>>) () -> internalGetChunkData(bufferNodeId, exchangeId, partitionId, chunkId, chunkBufferNodeId)).call();
@@ -413,14 +413,14 @@ public class DataApiFacade
                         {
                             execution.recordException(t);
                             retryCount.incrementAndGet();
-                            successRequseStopwatch.reset().start();
+                            successRequestStopwatch.reset().start();
                         }
                     }, directExecutor());
                 });
 
         return Futures.transform(
                 MoreFutures.toListenableFuture(finalFuture),
-                dataApiResult -> new ChunkDataResponse(dataApiResult.pages(), dataApiResult.readFromSpoolingStorage(), retryCount.intValue(), stopwatch.elapsed(MILLISECONDS), successRequseStopwatch.elapsed(MILLISECONDS)),
+                dataApiResult -> new ChunkDataResponse(dataApiResult.pages(), dataApiResult.readFromSpoolingStorage(), retryCount.intValue(), stopwatch.elapsed(MILLISECONDS), successRequestStopwatch.elapsed(MILLISECONDS)),
                 directExecutor());
     }
 
