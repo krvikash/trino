@@ -136,11 +136,6 @@ public class WorkerCapacityManager
         return totalCapacity;
     }
 
-    public void decreaseExecutingTx()
-    {
-        executingTxCount.decrementAndGet();
-    }
-
     private boolean createCatalogLocalStore()
     {
         String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
@@ -297,6 +292,11 @@ public class WorkerCapacityManager
     public synchronized void tryAllocateResourcesForWarmupTask()
     {
         updateCurrentUsage();
+    }
+
+    public void decrementActiveWarmingTasks()
+    {
+        executingTxCount.decrementAndGet();
     }
 
     public void incrementActiveWarmingTasks()

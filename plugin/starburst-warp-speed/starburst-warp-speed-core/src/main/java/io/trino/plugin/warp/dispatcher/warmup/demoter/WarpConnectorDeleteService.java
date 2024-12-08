@@ -33,11 +33,11 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
+import io.trino.plugin.warp.dispatcher.warmup.WarmUtils;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
-import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
@@ -167,7 +167,7 @@ public class WarpConnectorDeleteService
                                                                             WarmUpElement warmUpElement,
                                                                             List<WarmupRule> rulesForWarmupElement)
     {
-        Optional<WarmupRule> optionalWarmupRule = WarmupRuleService.findMostRelevantRuleForWarmupElement(rowGroupData, warmUpElement, rulesForWarmupElement);
+        Optional<WarmupRule> optionalWarmupRule = WarmUtils.findMostRelevantRuleForWarmupElement(rowGroupData, warmUpElement, rulesForWarmupElement);
         return optionalWarmupRule.map(warmupRule -> new WarmupProperties(warmupRule.getWarmUpType(), warmupRule.getPriority(), warmupRule.getTtl(), TransformFunction.NONE))
                 .orElse(defaultWarmupProperties);
     }
@@ -295,7 +295,7 @@ public class WarpConnectorDeleteService
             success = false;
         }
         finally {
-            workerCapacityManager.decreaseExecutingTx();
+            workerCapacityManager.decrementActiveWarmingTasks();
         }
         return success;
     }

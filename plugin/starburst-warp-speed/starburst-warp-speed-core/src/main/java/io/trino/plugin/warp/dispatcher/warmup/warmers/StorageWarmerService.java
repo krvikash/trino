@@ -269,7 +269,7 @@ public class StorageWarmerService
     public void releaseTx(boolean releaseTx)
     {
         if (releaseTx) {
-            workerCapacityManager.decreaseExecutingTx();
+            workerCapacityManager.decrementActiveWarmingTasks();
         }
     }
 

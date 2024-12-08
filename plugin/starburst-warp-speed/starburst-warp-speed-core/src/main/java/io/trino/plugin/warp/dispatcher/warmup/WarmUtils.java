@@ -18,8 +18,19 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.cloudvendors.config.StoreType;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.dispatcher.model.RegularColumn;
+import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.ConnectorSession;
+import org.apache.commons.collections4.CollectionUtils;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class WarmUtils
 {
@@ -51,5 +62,23 @@ public class WarmUtils
     public static String getCloudPath(RowGroupKey rowGroupKey, String cloudImportExportPath)
     {
         return getRowGroupStorageObjectName(rowGroupKey, cloudImportExportPath);
+    }
+
+    public static Optional<WarmupRule> findMostRelevantRuleForWarmupElement(RowGroupData rowGroupData,
+                                                                            WarmUpElement warmUpElement,
+                                                                            List<WarmupRule> rulesForWarmupElement)
+    {
+        Map<RegularColumn, String> partitionKeys = rowGroupData
+                .getPartitionKeys()
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(entry -> (RegularColumn) entry.getKey(),
+                                          Map.Entry::getValue));
+        return Objects.nonNull(rulesForWarmupElement) ?
+                rulesForWarmupElement.stream()
+                        .filter(warmupRule -> warmUpElement.getWarmUpType() == warmupRule.getWarmUpType())
+                        .filter(warmupRule -> (CollectionUtils.isEmpty(warmupRule.getPredicates()) ||
+                                warmupRule.getPredicates().stream().allMatch(warmupPredicateRule -> warmupPredicateRule.test(partitionKeys)))).max(WorkerWarmingService.warmupRuleComparator)
+                : Optional.empty();
     }
 }

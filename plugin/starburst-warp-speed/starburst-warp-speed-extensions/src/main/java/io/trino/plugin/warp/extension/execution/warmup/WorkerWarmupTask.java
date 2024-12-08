@@ -25,12 +25,12 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
+import io.trino.plugin.warp.dispatcher.warmup.WarmUtils;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
-import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.SchemaTableName;
 import jakarta.ws.rs.Consumes;
@@ -133,8 +133,8 @@ public class WorkerWarmupTask
                 SchemaTableColumn schemaTableColumn = new SchemaTableColumn(
                         new SchemaTableName(rowGroupData.getRowGroupKey().schema(), rowGroupData.getRowGroupKey().table()), warmUpElement.getWarpColumn());
 
-                Optional<WarmupRule> optionalWarmupRule = WarmupRuleService.findMostRelevantRuleForWarmupElement(rowGroupData,
-                                                                                                                 warmUpElement, schemaTableColumnToRulesMap.get(schemaTableColumn));
+                Optional<WarmupRule> optionalWarmupRule = WarmUtils.findMostRelevantRuleForWarmupElement(rowGroupData,
+                                                                                                         warmUpElement, schemaTableColumnToRulesMap.get(schemaTableColumn));
                 long sizeInBytes = 0;
                 optionalWarmupRule.ifPresentOrElse(warmupRule -> {
                     AtomicLong currentUsage = warmupIdUsageMap.computeIfAbsent(warmupRule.getId(), key -> new AtomicLong(0));

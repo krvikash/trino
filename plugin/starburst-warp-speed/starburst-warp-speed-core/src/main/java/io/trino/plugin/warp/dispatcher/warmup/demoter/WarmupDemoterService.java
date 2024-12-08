@@ -437,7 +437,7 @@ public class WarmupDemoterService
     {
         workerCapacityManager.updateCurrentUsage();
         if (!canAllowWarmup()) {
-            workerCapacityManager.decreaseExecutingTx();
+            workerCapacityManager.decrementActiveWarmingTasks();
             if (workerCapacityManager.getExecutingTxCount() <= 0) {
                 tryDemoteStart();
             }

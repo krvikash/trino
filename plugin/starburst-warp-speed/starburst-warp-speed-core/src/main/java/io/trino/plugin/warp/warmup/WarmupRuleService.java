@@ -24,11 +24,7 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.FakeConnectorSessionProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
-import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
-import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.Pair;
@@ -50,7 +46,6 @@ import io.trino.spi.type.CharType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.RowType.Field;
 import io.trino.spi.type.Type;
-import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -60,7 +55,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -421,23 +415,5 @@ public class WarmupRuleService
             actualAppliedRules.add(warmupRule);
         });
         return actualAppliedRules;
-    }
-
-    public static Optional<WarmupRule> findMostRelevantRuleForWarmupElement(RowGroupData rowGroupData,
-                                                                                    WarmUpElement warmUpElement,
-                                                                                    List<WarmupRule> rulesForWarmupElement)
-    {
-        Map<RegularColumn, String> partitionKeys = rowGroupData
-                .getPartitionKeys()
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(entry -> (RegularColumn) entry.getKey(),
-                                          Map.Entry::getValue));
-        return Objects.nonNull(rulesForWarmupElement) ?
-                rulesForWarmupElement.stream()
-                        .filter(warmupRule -> warmUpElement.getWarmUpType() == warmupRule.getWarmUpType())
-                        .filter(warmupRule -> (CollectionUtils.isEmpty(warmupRule.getPredicates()) ||
-                                warmupRule.getPredicates().stream().allMatch(warmupPredicateRule -> warmupPredicateRule.test(partitionKeys)))).max(WorkerWarmingService.warmupRuleComparator)
-                : Optional.empty();
     }
 }

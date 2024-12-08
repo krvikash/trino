@@ -225,7 +225,7 @@ public class WorkerWarmingService
 
     protected void warmTaskFinished()
     {
-        workerCapacityManager.decreaseExecutingTx();
+        workerCapacityManager.decrementActiveWarmingTasks();
     }
 
     protected void removeRowGroupFromSubmittedRowGroup(RowGroupKey rowGroupKey)
