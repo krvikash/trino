@@ -137,7 +137,7 @@ public class LuceneMatcher
             WarpInputDirectory warpInputDirectory = new WarpInputDirectory(luceneIndexReader,
                     storageEngineConstants,
                     lucenePageCacheStats,
-                    (int) indexUniqueIdInRowGroup,
+                    indexUniqueIdInRowGroup,
                     FILE_PREFIX,
                     chunkState.filesLength());
             IndexReader reader = DirectoryReader.open(warpInputDirectory);

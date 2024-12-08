@@ -51,7 +51,6 @@ public class MatchService
     private static final Logger logger = Logger.get(MatchService.class);
     private final ShapingLogger shapingLogger;
     private static final long PAGE_BM_ALIGN = 32; // this is the alignment required for intel optimized bitmap operations
-    private static final long MATCH_RESULT_MASK = 0x00000000ffffffffL;
 
     BufferAllocator bufferAllocator;
     private final StorageEngine storageEngine;
@@ -215,13 +214,11 @@ public class MatchService
                         readStopWatch.start();
                         matchResult = storageEngine.match(matchStateMem.address(), chunkIndex, numChunks, matcherPageArgs.matchedChunksIndexes(), matcherPageArgs.matchBitmapResetPoints());
                         readStopWatch.stop();
-
                         if (matchResult < 0) {
                             break;
                         }
-                        chunkIndex = (int) (matchResult & MATCH_RESULT_MASK);
-                        numMatchedChunks = (int) (matchResult >> 32);
-                        logger.debug("matchResult %x chunkIndex %d numMatchedChunks %d", matchResult, chunkIndex, numMatchedChunks);
+                        chunkIndex += numChunks;
+                        numMatchedChunks = (int) matchResult;
                     }
                 }
                 catch (Exception e) {
@@ -247,8 +244,6 @@ public class MatchService
                 }
 
                 if (!matchExhausted) {
-                    logger.debug("matchIfNeeded matchStartChunkIndex %d matchEndChunkIndex %d numMatchedChunks %d",
-                            chunksQueueService.getChunkIndexForMatch(chunksQueue), chunkIndex, numMatchedChunks);
                     chunksQueueService.updateChunkRangeAfterMatch(chunksQueue, chunkIndex, numMatchedChunks, matcherPageArgs.matchedChunksIndexes(), matcherPageArgs.matchBitmapResetPoints());
                 }
             }
