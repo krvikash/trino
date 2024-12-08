@@ -22,6 +22,8 @@ import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryUsage;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,6 +42,7 @@ public class PrintMetricsTimerTask
     private final MetricsManager metricsManager;
     private final ObjectMapper objectMapper = new ObjectMapperProvider().get();
     private final CatalogNameProvider catalogNameProvider;
+    private final MemoryUsage nonHeapMemoryUsage;
 
     @Inject
     public PrintMetricsTimerTask(MetricsConfig metricsConfig,
@@ -56,6 +59,7 @@ public class PrintMetricsTimerTask
                 1);
 
         logger.debug("PrintMetricsTimerTask constructor");
+        this.nonHeapMemoryUsage = ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage();
     }
 
     @Override
@@ -98,6 +102,9 @@ public class PrintMetricsTimerTask
             fullJson.put(TIMESTAMP, System.currentTimeMillis());
             fullJson.put(STATS, metricsDump);
             fullJson.put(CATALOG, catalogNameProvider.get());
+            fullJson.put("off-heap-committed", nonHeapMemoryUsage.getCommitted());
+            fullJson.put("off-heap-used", nonHeapMemoryUsage.getUsed());
+            fullJson.put("off-heap-init", nonHeapMemoryUsage.getInit());
         }
         return fullJson;
     }
