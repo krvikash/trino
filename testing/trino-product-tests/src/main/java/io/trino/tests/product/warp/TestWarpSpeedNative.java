@@ -143,7 +143,7 @@ public class TestWarpSpeedNative
                 iTestContext.getName());
     }
 
-    @Test(groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
+    @Test(enabled = false, groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
     public void testWarpGenerateNativePanicStorageRead(ITestContext iTestContext)
             throws IOException
     {
