@@ -17,6 +17,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
+import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
@@ -91,7 +92,7 @@ public class DataValueDictionary
                 index = writeDictionary.computeIfAbsent(value, (x) -> {
                     int incDictionaryWeight = addedWeight(value);
                     if (writeDictionary.size() == dictionaryMaxSize || (incDictionaryWeight + dictionaryWeight > maxDictionaryCacheWeight)) {
-                        throw new DictionaryMaxException("dictionary get failed", WarmUpElementState.State.FAILED_TEMPORARILY, dictionaryKey);
+                        throw new DictionaryException("dictionary get failed due max size", WarmUpElementState.State.FAILED_TEMPORARILY, dictionaryKey, DictionaryState.DICTIONARY_MAX_EXCEPTION);
                     }
                     try {
                         increaseDictionaryWeight(incDictionaryWeight);

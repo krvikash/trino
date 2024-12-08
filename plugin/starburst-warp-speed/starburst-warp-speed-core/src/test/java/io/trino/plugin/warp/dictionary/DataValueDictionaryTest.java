@@ -225,11 +225,12 @@ public class DataValueDictionaryTest
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
         DataValueDictionary dataValueDictionary = (DataValueDictionary) dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);
         int overMaxLimit = dictionaryConfig.getDictionaryMaxSize() + 1;
-        Assertions.assertThrows(DictionaryMaxException.class, () -> {
+        DictionaryException exception = Assertions.assertThrows(DictionaryException.class, () -> {
             for (long j = 0; j < overMaxLimit; j++) {
                 dataValueDictionary.get(j);
             }
         });
+        assertThat(exception.getDictionaryState()).isEqualTo(DictionaryState.DICTIONARY_MAX_EXCEPTION);
         assertThat(dataValueDictionary.getDictionaryWeight()).isLessThan(MAX_DICTIONARY_SIZE);
         assertThat(dataValueDictionary.getWriteSize()).isEqualTo(dictionaryConfig.getDictionaryMaxSize());
     }

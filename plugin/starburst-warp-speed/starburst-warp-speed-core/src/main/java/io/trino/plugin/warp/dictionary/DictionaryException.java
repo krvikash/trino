@@ -14,25 +14,34 @@
 package io.trino.plugin.warp.dictionary;
 
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
+import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 
-public class DictionaryMaxException
+public class DictionaryException
         extends WarmupException
 {
     private final DictionaryKey dictionaryKey;
+    private final DictionaryState dictionaryState;
 
-    public DictionaryMaxException(
+    public DictionaryException(
             String message,
             WarmUpElementState.State state,
-            DictionaryKey dictionaryKey)
+            DictionaryKey dictionaryKey,
+            DictionaryState dictionaryState)
     {
         super(message, state);
         this.dictionaryKey = dictionaryKey;
+        this.dictionaryState = dictionaryState;
     }
 
     public DictionaryKey getDictionaryKey()
     {
         return dictionaryKey;
+    }
+
+    public DictionaryState getDictionaryState()
+    {
+        return dictionaryState;
     }
 }

@@ -15,6 +15,8 @@ package io.trino.plugin.warp.storage.write.appenders;
 
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.trino.plugin.warp.dictionary.DictionaryException;
+import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
@@ -35,6 +37,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.when;
 
@@ -95,7 +98,9 @@ class CrcStringBlockAppenderTest
             assertThatThrownBy(() -> {
                 when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(ShortBuffer.allocate(100));
                 runTest(block, blockType, expectedResult, getWriteDictionary(recTypeCode));
-            }).isInstanceOf(UnsupportedOperationException.class);
+            }).isInstanceOf(DictionaryException.class)
+                    .satisfies(e -> assertThat(((DictionaryException) e).getDictionaryState())
+                            .isEqualTo(DictionaryState.DICTIONARY_REJECTED));
         }
     }
 

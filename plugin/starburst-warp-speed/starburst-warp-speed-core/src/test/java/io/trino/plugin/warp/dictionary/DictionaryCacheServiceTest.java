@@ -173,8 +173,9 @@ public class DictionaryCacheServiceTest
             WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);
             for (int i = 0; i <= totalValuesWithOverflow; i++) {
                 writeDictionary.get("number=" + i);
-            }
-        }).isInstanceOf(DictionaryMaxException.class);
+            }})
+                .isInstanceOf(DictionaryException.class)
+                .satisfies(e -> assertThat(((DictionaryException) e).getDictionaryState()).isEqualTo(DictionaryState.DICTIONARY_MAX_EXCEPTION));
     }
 
     private WriteDictionary createWriteDictionary(String columnName, RecTypeCode recTypeCode)

@@ -13,7 +13,9 @@
  */
 package io.trino.plugin.warp.storage.write.appenders;
 
+import io.trino.plugin.warp.dictionary.DictionaryException;
 import io.trino.plugin.warp.dictionary.WriteDictionary;
+import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
@@ -55,7 +57,7 @@ public abstract class BlockAppender
             result = appendWithoutDictionary(jufferPos, blockPos, warmUpElement, warmupElementStatsBuilder);
         }
         else {
-            result = appendWithDictionary(blockPos, writeDictionary.get(), warmupElementStatsBuilder);
+            result = tryAppendWithDictionary(blockPos, writeDictionary.get(), warmupElementStatsBuilder);
         }
         warmupElementStatsBuilder.incNullCount(result.nullsCount());
         return result;
@@ -77,6 +79,19 @@ public abstract class BlockAppender
         }
         else {
             buff.put(padding, 0, len);
+        }
+    }
+
+    final AppendResult tryAppendWithDictionary(BlockPosHolder blockPos, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    {
+        try {
+            return appendWithDictionary(blockPos, writeDictionary, warmupElementStatsBuilder);
+        }
+        catch (DictionaryException de) {
+            throw de;
+        }
+        catch (Exception e) {
+            throw new DictionaryException("failed to append with dictionary", WarmUpElementState.State.FAILED_TEMPORARILY, writeDictionary.getDictionaryKey(), DictionaryState.DICTIONARY_REJECTED);
         }
     }
 

@@ -18,7 +18,7 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dictionary.DictionaryMaxException;
+import io.trino.plugin.warp.dictionary.DictionaryException;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dictionary.WriteDictionary;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
@@ -652,9 +652,9 @@ public class StorageWriterService
             logger.debug("failed appending block to WE %s exception %s", warmupElementWriteMetadata, e);
 
             WarmUpElement.Builder warmupElementBuilder = WarmUpElement.builder(warmUpElement);
-            if (e instanceof DictionaryMaxException dictionaryMaxException) {
+            if (e instanceof DictionaryException dictionaryMaxException) {
                 DictionaryInfo dictionaryInfo = new DictionaryInfo(dictionaryMaxException.getDictionaryKey(),
-                        DictionaryState.DICTIONARY_MAX_EXCEPTION,
+                        dictionaryMaxException.getDictionaryState(),
                         0, // dataValuesRecTypeLength
                         DictionaryInfo.NO_OFFSET);
                 warmupElementBuilder.dictionaryInfo(dictionaryInfo);
