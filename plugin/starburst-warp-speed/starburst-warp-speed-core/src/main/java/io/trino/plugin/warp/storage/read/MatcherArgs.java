@@ -16,11 +16,10 @@ package io.trino.plugin.warp.storage.read;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
 
-import java.lang.foreign.MemorySegment;
 import java.util.List;
 
 public record MatcherArgs(List<ReadJuffersWarmUpElement> matchJuffersWe,
         LuceneMatcher[] luceneMatchers,
-        MemorySegment matchState)
+        MatchState matchState)
 {
 }

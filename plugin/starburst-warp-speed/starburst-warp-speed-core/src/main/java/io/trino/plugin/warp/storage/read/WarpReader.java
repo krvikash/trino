@@ -177,17 +177,17 @@ public class WarpReader
             matcherPageArgs = null;
         }
 
-        if (aggregatorPageArgs == null) {
-            return 0;
+        long readPages = 0;
+        if (aggregatorPageArgs != null) {
+            queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
+            readPages = blocksAggregator.closePage(queryArgs,
+                    aggregatorArgs,
+                    aggregatorPageArgs,
+                    queryState);
+            aggregatorPageArgs = null;
         }
 
-        queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
-        long readPages = blocksAggregator.closePage(queryArgs,
-                aggregatorArgs,
-                aggregatorPageArgs,
-                queryState);
-
-        aggregatorPageArgs = null;
+        resetMemory();
         return readPages;
     }
 
@@ -201,5 +201,12 @@ public class WarpReader
             blocksAggregator.abortPage(queryArgs, aggregatorPageArgs, e);
             aggregatorPageArgs = null;
         }
+        resetMemory();
+    }
+
+    private void resetMemory()
+    {
+        aggregatorArgs.recordIndexes().resetMemory();
+        matcherArgs.matchState().resetMemory();
     }
 }

@@ -455,7 +455,7 @@ public class StorageCollectorService
                 collectJuffersWE,
                 storeRowListBuff,
                 arena.allocate(recordBufferStatesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
-                new RecordIndexes(arena.allocate(RecordIndexes.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize())),
+                new RecordIndexes(), // since this memory is large we allocate it only in open page
                 arena.allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
                 arena.allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
                 arena.allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_BYTE.byteSize()));

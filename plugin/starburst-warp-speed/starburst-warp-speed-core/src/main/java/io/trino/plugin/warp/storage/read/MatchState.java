@@ -49,8 +49,10 @@ public class MatchState
     private static final long MATCH_STATE_OFFSET_NUM_CHUNKS_IN_RANGE;
     private static final long MATCH_STATE_OFFSET_MAX_TREE_HEIGHT;
 
-    private final MemorySegment matchState;
-    private final MemorySegment matchStateWithPayload;
+    private final int payloadSize;
+    private final long alignment;
+    private MemorySegment matchState;
+    private MemorySegment matchStateWithPayload;
 
     static {
         MATCH_LUCENE_STATE_LAYOUT = MemoryLayout.structLayout(
@@ -92,16 +94,20 @@ public class MatchState
         MATCH_STATE_OFFSET_MAX_TREE_HEIGHT = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("max_height"));
     }
 
-    public MatchState(MemorySegment matchStateMem,
-            QueryArgs queryArgs,
-            AggregatorPageArgs aggregatorPageArgs,
-            Optional<MemorySegment> luceneBitmaps,
-            int payloadSize) // payload is taken at the begining of the memory layout
+    public MatchState(int payloadSize, long alignment) // payload is taken at the begining of the memory layout
+    {
+        this.payloadSize = payloadSize;
+        this.alignment = alignment;
+    }
+
+    public void setMemory(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Optional<MemorySegment> luceneBitmaps)
     {
         QueryParams queryParams = queryArgs.queryParams();
 
-        this.matchStateWithPayload = matchStateMem;
-        this.matchState = matchStateWithPayload.asSlice(payloadSize, MATCH_STATE_LAYOUT);
+        if (matchStateWithPayload == null) {
+            this.matchStateWithPayload = queryParams.getArena().allocate(byteSize(), alignment);
+            this.matchState = matchStateWithPayload.asSlice(payloadSize, MATCH_STATE_LAYOUT);
+        }
 
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_MATCH_TREE, queryParams.getMatchNodeAtts().address());
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_WARMUP_ELEMENT_PARAMS, queryParams.getWarmUpElementMatchParams().get().address());
@@ -122,10 +128,21 @@ public class MatchState
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_MAX_TREE_HEIGHT, (byte) queryParams.getMatchTreeHeight());
     }
 
+    public void resetMemory()
+    {
+        matchStateWithPayload = null;
+        matchState = null;
+    }
+
     // returns the main memory with the payload
     public MemorySegment getMemory()
     {
         return matchStateWithPayload;
+    }
+
+    public long byteSize()
+    {
+        return payloadSize + MATCH_STATE_LAYOUT.byteSize();
     }
 
     public MemorySegment getMatchLuceneState()

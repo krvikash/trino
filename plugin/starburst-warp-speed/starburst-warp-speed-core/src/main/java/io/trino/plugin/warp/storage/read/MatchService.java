@@ -88,7 +88,7 @@ public class MatchService
 
         MatcherArgs matcherArgs = new MatcherArgs(matchJuffersWe,
                 new LuceneMatcher[queryParams.getNumLucene()],
-                queryParams.getArena().allocate(storageEngineConstants.getMatchStatePayload() + MatchState.MATCH_STATE_LAYOUT.byteSize(), PAGE_BM_ALIGN));
+                new MatchState(storageEngineConstants.getMatchStatePayload(), PAGE_BM_ALIGN));
         createLuceneMatchers(queryArgs, matcherArgs, customStatsContext); // this call must be after creating the matchJuffersWE
         return matcherArgs;
     }
@@ -134,12 +134,9 @@ public class MatchService
                             PAGE_BM_ALIGN));
                 }
                 long startTime = System.nanoTime();
-                matchState = Optional.of(new MatchState(matcherArgs.matchState(),
-                        queryArgs,
-                        aggregatorPageArgs,
-                        luceneBitmaps,
-                        storageEngineConstants.getMatchStatePayload()));
-                storageEngine.matchOpen(matchState.get().getMemory());
+                matcherArgs.matchState().setMemory(queryArgs, aggregatorPageArgs, luceneBitmaps);
+                storageEngine.matchOpen(matcherArgs.matchState().getMemory());
+                matchState = Optional.of(matcherArgs.matchState());
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
             }
             catch (Exception e) {

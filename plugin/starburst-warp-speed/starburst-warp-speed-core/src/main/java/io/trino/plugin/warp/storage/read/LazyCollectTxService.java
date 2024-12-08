@@ -62,6 +62,8 @@ public class LazyCollectTxService
         allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_NULL, bufferAllocator.getQueryNullBufferSize(RecTypeCode.REC_TYPE_VARCHAR), collectSegments, collectBuffers);
         lazyCollectorLoaderArgs.collectJufferWE().createBuffers(collectParams.getRecTypeCode(), collectParams.getRecTypeLength(), collectParams.hasDictionary(), collectSegments);
 
+        RecordIndexes recordIndexes = lazyCollectorLoaderArgs.recordIndexes();
+        recordIndexes.setMemory(lazyCollectorLoaderArgs.queryParams().getArena());
         collectOpen(lazyCollectorLoaderArgs.queryParams(),
                 lazyCollectorLoaderArgs.txArgs(),
                 queryMemoryId,
@@ -71,7 +73,7 @@ public class LazyCollectTxService
                 lazyCollectorLoaderArgs.warmUpElementAtt().address(),
                 0,
                 lazyCollectorLoaderArgs.recordBufferStates().address(),
-                lazyCollectorLoaderArgs.recordIndexes().getAddress(),
+                recordIndexes.getAddress(),
                 0,
                 dispatcherPageSourceStats);
 

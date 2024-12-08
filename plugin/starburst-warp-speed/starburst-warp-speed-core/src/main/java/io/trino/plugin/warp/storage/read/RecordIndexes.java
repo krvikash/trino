@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
@@ -31,7 +32,7 @@ public class RecordIndexes
     private static final long RECORD_INDEXES_OFFSET_START;
     static final long RECORD_INDEXES_OFFSET_LIST; // not private for test
 
-    private final MemorySegment recordIndexes;
+    private MemorySegment recordIndexes;
 
     static {
         // since chunk size is not available in static initializer, we will allocate the largest array possible for shorts
@@ -47,9 +48,21 @@ public class RecordIndexes
         RECORD_INDEXES_OFFSET_LIST = RECORD_INDEXES_LAYOUT.byteOffset(PathElement.groupElement("list"));
     }
 
-    public RecordIndexes(MemorySegment recordIndexes)
+    public RecordIndexes()
     {
-        this.recordIndexes = recordIndexes;
+    }
+
+    public MemorySegment setMemory(Arena arena)
+    {
+        if (recordIndexes == null) {
+            recordIndexes = arena.allocate(byteSize(), ValueLayout.JAVA_SHORT.byteSize());
+        }
+        return recordIndexes;
+    }
+
+    public void resetMemory()
+    {
+        recordIndexes = null;
     }
 
     public long getAddress()
@@ -59,7 +72,7 @@ public class RecordIndexes
 
     public long byteSize()
     {
-        return recordIndexes.byteSize();
+        return RECORD_INDEXES_LAYOUT.byteSize();
     }
 
     public int getSize()

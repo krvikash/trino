@@ -94,7 +94,9 @@ public class CollectTxService
             }
         }
 
-        RangeData rangeData = new RangeData(aggregatorArgs.recordIndexes());
+        RecordIndexes recordIndexes = aggregatorArgs.recordIndexes();
+        recordIndexes.setMemory(queryParams.getArena());
+        RangeData rangeData = new RangeData(recordIndexes);
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = Collections.emptyList();
         if (numCollectElements > 0) {
             warmupElementRecordBufferStates = aggregatorArgs.recordBufferStates()
@@ -141,7 +143,7 @@ public class CollectTxService
                 aggregatorArgs.warmUpElementAtts().address(),
                 matchBitmaps.map(m -> m.address()).orElse(0L),
                 aggregatorArgs.recordBufferStates().address(),
-                aggregatorArgs.recordIndexes().getAddress(),
+                recordIndexes.getAddress(),
                 queryArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L),
                 queryArgs.dispatcherPageSourceStats());
         return new AggregatorPageArgs(queryMemoryId,

@@ -40,8 +40,8 @@ public class RangeDataServiceTest
     @BeforeEach
     public void before()
     {
-        MemorySegment recordIndexesMem = Arena.ofAuto().allocate(RecordIndexes.RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
-        recordIndexes = new RecordIndexes(recordIndexesMem);
+        recordIndexes = new RecordIndexes();
+        MemorySegment recordIndexesMem = recordIndexes.setMemory(Arena.ofAuto());
         recordIndexesList = recordIndexesMem.asSlice(RecordIndexes.RECORD_INDEXES_OFFSET_LIST, RecordIndexes.RECORD_INDEXES_LIST_LAYOUT);
 
         queryArgs = mock(QueryArgs.class);
