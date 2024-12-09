@@ -170,7 +170,7 @@ public class ParquetTestUtils
                 splitOffset,
                 splitLength,
                 input,
-                parquetMetadata.getBlocks(),
+                parquetMetadata,
                 ImmutableList.of(parquetTupleDomain),
                 ImmutableList.of(parquetPredicate),
                 descriptorsByPath,
