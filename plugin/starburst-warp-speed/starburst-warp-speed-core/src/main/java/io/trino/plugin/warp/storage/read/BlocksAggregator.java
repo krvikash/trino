@@ -22,19 +22,30 @@ public interface BlocksAggregator
 
     AggregatorArgs open(QueryArgs queryArgs);
 
-    long getOffHeapMemoryUsage(AggregatorArgs aggregatorArgs);
+    AggregatorPageArgs openPage(QueryArgs queryArgs,
+            AggregatorArgs aggregatorArgs,
+            WarpQueryState queryState,
+            int rowsLimit);
 
-    AggregatorPageArgs openPage(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, WarpQueryState queryState, int rowsLimit);
-
-    boolean prepareBlocks(ChunksQueue chunksQueue, QueryArgs queryArgs, AggregatorArgs aggregatorArgs, AggregatorPageArgs aggregatorPageArgs, WarpQueryState queryState);
+    boolean prepareBlocks(ChunksQueue chunksQueue,
+            QueryArgs queryArgs,
+            AggregatorArgs aggregatorArgs,
+            AggregatorPageArgs aggregatorPageArgs,
+            WarpQueryState queryState);
 
     Block[] aggregateBlocks(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, WarpQueryState queryState);
 
     WarpStoragePageSource.RowRanges getRanges(AggregatorPageArgs aggregatorPageArgs);
 
-    long closePage(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, AggregatorPageArgs aggregatorPageArgs, WarpQueryState queryState, ChunksQueue chunksQueue);
+    long closePage(QueryArgs queryArgs,
+            AggregatorArgs aggregatorArgs,
+            AggregatorPageArgs aggregatorPageArgs,
+            WarpQueryState queryState,
+            ChunksQueue chunksQueue);
 
     void abortPage(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Exception e);
 
     void close(QueryArgs queryArgs);
+
+    long getOffHeapMemoryUsage(AggregatorArgs aggregatorArgs);
 }

@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.read;
 public record TxArgs(
         int[] weCollectParams,
         long[][] collectBuffers,
-        byte[] collectStoreBuff,
         long[] fileCookie)
 {
 }

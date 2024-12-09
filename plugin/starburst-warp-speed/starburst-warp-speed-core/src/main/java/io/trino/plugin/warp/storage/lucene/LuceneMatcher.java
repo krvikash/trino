@@ -102,7 +102,7 @@ public class LuceneMatcher
             }
 
             long startTime = System.nanoTime();
-            boolean success = storageEngine.matchLucenePrepare(matchState.getMemory(), matchWeIx, chunkIndex);
+            boolean success = storageEngine.matchLucenePrepare(matchState.getStateMemory(), matchWeIx, chunkIndex);
             dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
             if (!success) {
                 return false;
@@ -112,7 +112,7 @@ public class LuceneMatcher
             if (indexUniqueIdInRowGroup >= 0) {
                 int chunkIndexInPage = chunkStateHandler.getChunkIndexInPage(startChunkIndex + currChunkInRange);
                 int numMatchedRecords = luceneMatch(chunkStates.get(chunkIndexInPage), indexUniqueIdInRowGroup, matchState.getLuceneNumRecords(luceneState));
-                storageEngine.matchLuceneCompleted(matchState.getMemory(), matchWeIx, chunkIndex, numMatchedRecords);
+                storageEngine.matchLuceneCompleted(matchState.getStateMemory(), matchWeIx, chunkIndex, numMatchedRecords);
             }
             currChunkInRange++;
         }

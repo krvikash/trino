@@ -168,7 +168,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
+    public long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes)
     {
         return 0L;
     }
@@ -180,13 +180,13 @@ public class StubsStorageEngine
 
     @Override
     public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
-            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
+            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset, boolean isFullScan,
+            long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
     {
     }
 
     @Override
-    public boolean processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
+    public boolean processMatchResult(int txId, int chunkIndex, MemorySegment bitmapDescriptor, int rowsLimit, MemorySegment outQueryResultTypes)
     {
         return true;
     }

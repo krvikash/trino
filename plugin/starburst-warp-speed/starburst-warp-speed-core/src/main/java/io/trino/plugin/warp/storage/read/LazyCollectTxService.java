@@ -71,7 +71,6 @@ public class LazyCollectTxService
                 lazyCollectorLoaderArgs.numChunksInRange(),
                 -1, // invalid reopen chunk index
                 lazyCollectorLoaderArgs.warmUpElementAtt().address(),
-                0,
                 lazyCollectorLoaderArgs.recordBufferStates().address(),
                 recordIndexes.getAddress(),
                 0,

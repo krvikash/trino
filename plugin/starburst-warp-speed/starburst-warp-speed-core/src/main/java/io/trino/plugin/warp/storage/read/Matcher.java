@@ -19,7 +19,7 @@ public interface Matcher
 {
     MatcherArgs open(QueryArgs queryArgs, CustomStatsContext customStatsContext);
 
-    MatcherPageArgs openPage(QueryArgs queryArgs, MatcherArgs matcherArgs, AggregatorPageArgs aggregatorPageArgs);
+    MatcherPageArgs openPage(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, AggregatorPageArgs aggregatorPageArgs);
 
     boolean match(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs);
 

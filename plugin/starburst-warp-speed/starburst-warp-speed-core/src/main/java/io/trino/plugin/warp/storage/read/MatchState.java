@@ -15,11 +15,16 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
@@ -28,6 +33,14 @@ import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PA
 
 public class MatchState
 {
+    private static final long PAGE_BM_ALIGN = 32; // this is the alignment required for intel optimized bitmap operations
+
+    // these definitions can be used by ChunksQueue as well
+    static final StructLayout MATCH_BITMAP_DESC_LAYOUT;
+    static final long MATCH_BITMAP_DESC_OFFSET_BM_ADDRESS;
+    static final long MATCH_BITMAP_DESC_OFFSET_RESET_POINT;
+    //private static final long MATCH_BITMAP_DESC_OFFSET_POP_COUNT;
+
     private static final StructLayout MATCH_LUCENE_STATE_LAYOUT;
     private static final long MATCH_LUCENE_STATE_OFFSET_UNIQUE_ID;
     private static final long MATCH_LUCENE_STATE_OFFSET_NUM_RECORDS;
@@ -35,7 +48,9 @@ public class MatchState
     static final StructLayout MATCH_STATE_LAYOUT;
     private static final long MATCH_STATE_OFFSET_MATCH_TREE;
     private static final long MATCH_STATE_OFFSET_WARMUP_ELEMENT_PARAMS;
-    private static final long MATCH_STATE_OFFSET_MATCH_BM;
+    private static final long MATCH_STATE_OFFSET_ROOT_BITMAPS;
+    private static final long MATCH_STATE_OFFSET_NODE_BITMAPS;
+    private static final long MATCH_STATE_OFFSET_CURR_BITMAPS;
     private static final long MATCH_STATE_OFFSET_LUCENE_BM;
     private static final long MATCH_STATE_OFFSET_MATCH_COLLECT_MD;
     private static final long MATCH_STATE_OFFSET_FILE_COOKIE;
@@ -50,11 +65,25 @@ public class MatchState
     private static final long MATCH_STATE_OFFSET_MAX_TREE_HEIGHT;
 
     private final int payloadSize;
-    private final long alignment;
+    private final int pageSize;
+    private final int numBitmaps;
+    private final int numLuceneBitmaps;
     private MemorySegment matchState;
     private MemorySegment matchStateWithPayload;
+    private Optional<SequenceLayout> flatLevelBitmapsLayout;
+    private Optional<MemorySegment> matchBitmaps;
+    private Optional<MemorySegment> matchBitmapsDescriptors;
+    private Optional<MemorySegment> luceneBitmaps;
 
     static {
+        MATCH_BITMAP_DESC_LAYOUT = MemoryLayout.structLayout(
+                ValueLayout.JAVA_LONG.withName("bm"),
+                ValueLayout.JAVA_INT.withName("reset_point"),
+                ValueLayout.JAVA_INT.withName("pop_count")).withName("page_bm_t");
+        MATCH_BITMAP_DESC_OFFSET_BM_ADDRESS = MATCH_BITMAP_DESC_LAYOUT.byteOffset(PathElement.groupElement("bm"));
+        MATCH_BITMAP_DESC_OFFSET_RESET_POINT = MATCH_BITMAP_DESC_LAYOUT.byteOffset(PathElement.groupElement("reset_point"));
+        //MATCH_BITMAP_DESC_OFFSET_POP_COUNT = MATCH_BITMAP_DESC_LAYOUT.byteOffset(PathElement.groupElement("pop_count"));
+
         MATCH_LUCENE_STATE_LAYOUT = MemoryLayout.structLayout(
                 ValueLayout.JAVA_INT.withName("unique_id"),
                 ValueLayout.JAVA_INT.withName("nrecs")).withName("match_lucene_state_t");
@@ -64,7 +93,9 @@ public class MatchState
         MATCH_STATE_LAYOUT = MemoryLayout.structLayout(
                 ValueLayout.JAVA_LONG.withName("pmatch_tree"),
                 ValueLayout.JAVA_LONG.withName("pwe_params"),
-                ValueLayout.JAVA_LONG.withName("match_bm_address"),
+                ValueLayout.JAVA_LONG.withName("proot_bms"),
+                ValueLayout.JAVA_LONG.withName("pnode_bms"),
+                ValueLayout.JAVA_LONG.withName("pcurr_bms"),
                 ValueLayout.JAVA_LONG.withName("lucene_bm_address"),
                 ValueLayout.JAVA_LONG.withName("pmatch_collect_infos"),
                 RowGroupData.FILE_COOKIE_LAYOUT.withName("file_cookie"),
@@ -79,7 +110,9 @@ public class MatchState
                 ValueLayout.JAVA_BYTE.withName("max_height")).withName("match_state_t");
         MATCH_STATE_OFFSET_MATCH_TREE = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("pmatch_tree"));
         MATCH_STATE_OFFSET_WARMUP_ELEMENT_PARAMS = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("pwe_params"));
-        MATCH_STATE_OFFSET_MATCH_BM = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("match_bm_address"));
+        MATCH_STATE_OFFSET_ROOT_BITMAPS = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("proot_bms"));
+        MATCH_STATE_OFFSET_NODE_BITMAPS = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("pnode_bms"));
+        MATCH_STATE_OFFSET_CURR_BITMAPS = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("pcurr_bms"));
         MATCH_STATE_OFFSET_LUCENE_BM = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("lucene_bm_address"));
         MATCH_STATE_OFFSET_MATCH_COLLECT_MD = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("pmatch_collect_infos"));
         MATCH_STATE_OFFSET_FILE_COOKIE = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("file_cookie"));
@@ -94,24 +127,74 @@ public class MatchState
         MATCH_STATE_OFFSET_MAX_TREE_HEIGHT = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("max_height"));
     }
 
-    public MatchState(int payloadSize, long alignment) // payload is taken at the begining of the memory layout
+    public MatchState(int payloadSize, // payload is taken at the begining of the memory layout
+            int pageSize,
+            int numBitmaps,
+            int numLuceneBitmaps)
     {
         this.payloadSize = payloadSize;
-        this.alignment = alignment;
+        this.pageSize = pageSize;
+        this.numBitmaps = numBitmaps;
+        this.numLuceneBitmaps = numLuceneBitmaps;
+        resetMemory();
     }
 
-    public void setMemory(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Optional<MemorySegment> luceneBitmaps)
+    public void setMemory(QueryArgs queryArgs)
+    {
+        if (matchStateWithPayload == null) {
+            Arena arena = queryArgs.queryParams().getArena();
+            if (numBitmaps > 0) {
+                matchBitmaps = Optional.of(arena.allocate((long) numBitmaps * (long) pageSize, PAGE_BM_ALIGN));
+                matchBitmapsDescriptors = Optional.of(arena.allocate(MemoryLayout.sequenceLayout(numBitmaps, MATCH_BITMAP_DESC_LAYOUT).byteSize(), ValueLayout.JAVA_INT.byteSize()));
+                flatLevelBitmapsLayout = Optional.of(MemoryLayout.sequenceLayout(queryArgs.numChunksInRange(), MATCH_BITMAP_DESC_LAYOUT));
+            }
+            if (numLuceneBitmaps > 0) {
+                luceneBitmaps = Optional.of(arena.allocate((long) numLuceneBitmaps * (long) pageSize, PAGE_BM_ALIGN));
+            }
+            this.matchStateWithPayload = arena.allocate(payloadSize + MATCH_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_LONG.byteSize());
+            this.matchState = matchStateWithPayload.asSlice(payloadSize, MATCH_STATE_LAYOUT);
+        }
+    }
+
+    public void setState(QueryArgs queryArgs, int queryMemoryId)
     {
         QueryParams queryParams = queryArgs.queryParams();
 
-        if (matchStateWithPayload == null) {
-            this.matchStateWithPayload = queryParams.getArena().allocate(byteSize(), alignment);
-            this.matchState = matchStateWithPayload.asSlice(payloadSize, MATCH_STATE_LAYOUT);
-        }
-
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_MATCH_TREE, queryParams.getMatchNodeAtts().address());
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_WARMUP_ELEMENT_PARAMS, queryParams.getWarmUpElementMatchParams().get().address());
-        matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_MATCH_BM, aggregatorPageArgs.matchBitmaps().map(m -> m.address()).orElse(0L));
+
+        if (matchBitmapsDescriptors.isPresent()) {
+            MemorySegment allBitmaps = matchBitmapsDescriptors.get();
+            SequenceLayout flatLevelBitmaps = flatLevelBitmapsLayout.get();
+            final long flatLevelBitmapsSize = flatLevelBitmaps.byteSize();
+            List<MemorySegment> allBitmapsDescriptors = new ArrayList<>();
+
+            // we first cut the fixed size arrays which are the root and current of size flatLevelBitmapsLayout
+            // then we cut the node bitnmaps as all the rest.
+            MemorySegment rootBitmaps = allBitmaps.asSlice(0, flatLevelBitmaps);
+            rootBitmaps.elements(MATCH_BITMAP_DESC_LAYOUT).forEach(bm -> allBitmapsDescriptors.add(bm));
+            matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_ROOT_BITMAPS, rootBitmaps.address());
+
+            MemorySegment currBitmaps = allBitmaps.asSlice(flatLevelBitmapsSize, flatLevelBitmaps);
+            currBitmaps.elements(MATCH_BITMAP_DESC_LAYOUT).forEach(bm -> allBitmapsDescriptors.add(bm));
+            matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_CURR_BITMAPS, currBitmaps.address());
+
+            MemorySegment nodeBitmaps = allBitmaps.asSlice(flatLevelBitmapsSize * 2);
+            nodeBitmaps.elements(MATCH_BITMAP_DESC_LAYOUT).forEach(bm -> allBitmapsDescriptors.add(bm));
+            matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_NODE_BITMAPS, nodeBitmaps.address());
+
+            long bitmapAddress = matchBitmaps.get().address();
+            for (MemorySegment bitmapDescriptor : allBitmapsDescriptors) {
+                bitmapDescriptor.set(ValueLayout.JAVA_LONG, MATCH_BITMAP_DESC_OFFSET_BM_ADDRESS, bitmapAddress);
+                bitmapAddress += pageSize;
+            }
+        }
+        else {
+            matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_ROOT_BITMAPS, 0L);
+            matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_CURR_BITMAPS, 0L);
+            matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_NODE_BITMAPS, 0L);
+        }
+
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_LUCENE_BM, luceneBitmaps.map(m -> m.address()).orElse(0L));
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_MATCH_COLLECT_MD, queryArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L));
         RowGroupData.setFileCookie(matchState.asSlice(MATCH_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
@@ -121,7 +204,7 @@ public class MatchState
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinMatchOffset());
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_MATCH_COLLECT_ID, queryParams.getMatchCollectId());
-        matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_TX_ID, aggregatorPageArgs.queryMemoryId());
+        matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_TX_ID, queryMemoryId);
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) queryParams.getNumMatchElements());
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) queryParams.getNumMatchCollect());
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) queryArgs.numChunksInRange());
@@ -132,17 +215,32 @@ public class MatchState
     {
         matchStateWithPayload = null;
         matchState = null;
+        this.matchBitmaps = Optional.empty();
+        this.matchBitmapsDescriptors = Optional.empty();
+        this.luceneBitmaps = Optional.empty();
     }
 
     // returns the main memory with the payload
-    public MemorySegment getMemory()
+    public MemorySegment getStateMemory()
     {
         return matchStateWithPayload;
     }
 
+    public Optional<MemorySegment> getMatchBitmaps()
+    {
+        return matchBitmaps;
+    }
+
+    public Optional<MemorySegment> getLuceneBitmaps()
+    {
+        return luceneBitmaps;
+    }
+
     public long byteSize()
     {
-        return payloadSize + MATCH_STATE_LAYOUT.byteSize();
+        return ((long) payloadSize + MATCH_STATE_LAYOUT.byteSize()) +
+                matchBitmaps.map(m -> m.byteSize()).orElse(0L) +
+                luceneBitmaps.map(m -> m.byteSize()).orElse(0L);
     }
 
     public MemorySegment getMatchLuceneState()
@@ -158,5 +256,10 @@ public class MatchState
     public int getLuceneNumRecords(MemorySegment luceneState)
     {
         return luceneState.get(ValueLayout.JAVA_INT, MATCH_LUCENE_STATE_OFFSET_NUM_RECORDS);
+    }
+
+    public List<MemorySegment> getRootBitmapsDescriptors()
+    {
+        return matchBitmapsDescriptors.map(bm -> bm.asSlice(0, flatLevelBitmapsLayout.get()).elements(MATCH_BITMAP_DESC_LAYOUT).toList()).orElse(Collections.emptyList());
     }
 }

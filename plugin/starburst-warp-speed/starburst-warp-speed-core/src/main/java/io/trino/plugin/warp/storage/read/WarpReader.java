@@ -21,7 +21,6 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 
-import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static java.util.Objects.requireNonNull;
 
@@ -55,6 +54,7 @@ public class WarpReader
             BlocksAggregator blocksAggregator,
             Matcher matcher,
             GlobalConfig globalConfig,
+            int pageSize,
             long rowsLimit)
     {
         this.blocksAggregator = requireNonNull(blocksAggregator);
@@ -66,7 +66,7 @@ public class WarpReader
         this.matcherArgs = matcher.open(queryArgs, customStatsContext);
 
         queryState = new WarpQueryState();
-        chunksQueue = new ChunksQueue(queryArgs.maxMatchedChunks(), queryArgs.chunkSize());
+        chunksQueue = new ChunksQueue(queryArgs.maxMatchedChunks(), queryArgs.chunkSize(), pageSize);
 
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -102,15 +102,13 @@ public class WarpReader
     @NativeInterrupt
     private void openPage()
     {
-        int pageLimit = (int) Math.min(rowsLimit - queryState.getTotalNumReadRecords(), Integer.MAX_VALUE);
+        // each API call will throw exception if failed
+        aggregatorPageArgs = blocksAggregator.openPage(queryArgs,
+                aggregatorArgs,
+                queryState,
+                (int) Math.min(rowsLimit - queryState.getTotalNumReadRecords(), Integer.MAX_VALUE));
 
-        aggregatorPageArgs = blocksAggregator.openPage(queryArgs, aggregatorArgs, queryState, pageLimit);
-        try {
-            matcherPageArgs = matcher.openPage(queryArgs, matcherArgs, aggregatorPageArgs);
-        }
-        catch (Exception e) {
-            throw new TrinoException(WARP_MATCH_FAILED, "failed to open match");
-        }
+        matcherPageArgs = matcher.openPage(chunksQueue, queryArgs, matcherArgs, aggregatorPageArgs);
     }
 
     /**
@@ -179,6 +177,8 @@ public class WarpReader
         long readPages = 0;
 
         try {
+            chunksQueue.storeMatchBitmaps(); // only the bitmaps that were added during this round and not processed are stored
+
             if (matcherPageArgs != null) {
                 matcher.closePage(queryArgs, matcherPageArgs);
             }

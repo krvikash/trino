@@ -13,11 +13,8 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import java.util.List;
 import java.util.Optional;
 
-record CollectCloseResult(Optional<StoreRowListResult> storeRowListResult,
-                          Optional<List<Integer>> chunksWithStoredBitmaps,
-                          long readPages)
+record CollectCloseResult(Optional<StoreRowListResult> storeRowListResult, long readPages)
 {
 }

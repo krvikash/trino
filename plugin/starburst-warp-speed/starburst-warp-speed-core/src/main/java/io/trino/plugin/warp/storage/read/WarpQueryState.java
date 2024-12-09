@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import java.util.List;
 import java.util.Optional;
 
 public class WarpQueryState
@@ -21,7 +20,6 @@ public class WarpQueryState
     private int numRecordsInCurPage;
     private int totalNumReadRecords;
     private Optional<StoreRowListResult> storeRowListResult;
-    private Optional<List<Integer>> chunksWithStoredBitmaps;
 
     public WarpQueryState()
     {
@@ -61,15 +59,5 @@ public class WarpQueryState
     public void setStoreRowListResult(Optional<StoreRowListResult> storeRowListResult)
     {
         this.storeRowListResult = storeRowListResult;
-    }
-
-    public Optional<List<Integer>> getChunksWithStoredBitmaps()
-    {
-        return chunksWithStoredBitmaps;
-    }
-
-    public void setChunksWithStoredBitmaps(Optional<List<Integer>> chunksWithStoredBitmaps)
-    {
-        this.chunksWithStoredBitmaps = chunksWithStoredBitmaps;
     }
 }

@@ -73,6 +73,7 @@ public class WarpPageSource
                 collectorService,
                 matchService,
                 globalConfig,
+                storageEngineConstants.getPageSize(),
                 rowsLimit);
     }
 

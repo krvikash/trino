@@ -89,7 +89,6 @@ public class LazyCollectorService
         TxArgs txArgs = new TxArgs(
                 weCollectParams,
                 collectBuffers,
-                new byte[queryArgs.txArgs().collectStoreBuff().length],
                 queryArgs.txArgs().fileCookie());
 
         ReadJuffersWarmUpElement juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true);

@@ -13,38 +13,45 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.spi.TrinoException;
-
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
+import static io.trino.plugin.warp.storage.read.MatchState.MATCH_BITMAP_DESC_OFFSET_RESET_POINT;
 
 public class ChunksQueue
 {
     private final int allSet;
-    private final Deque<MatchChunkResult> chunksToCollect;
+    private final int pageSize;
+    private final int maxChunks;
+    private final Deque<MatchChunkState> chunksToCollect;
+
     private int totalNumChunks; // in case queue is empty we return the total number of chunks
     private boolean firstChunkPrepared;
+    private Optional<List<MemorySegment>> rootBitmapsDescriptors;
+    private Optional<MemorySegment> rootBitmaps;
 
-    ChunksQueue(int maxChunks, int chunkSize)
+    ChunksQueue(int maxChunks, int chunkSize, int pageSize)
     {
+        this.maxChunks = maxChunks;
         this.allSet = chunkSize; // constant used for setting full bitmaps in full scan case
+        this.pageSize = pageSize;
         this.chunksToCollect = new ArrayDeque<>(maxChunks);
+        initRootBitmaps();
     }
 
     // add more chunks to collect and update total number of chunks
-    void add(int totalNumChunks, int numMatchedChunks, short[] matchedChunksIndexes, int[] matchBitmapResetPoints)
+    void add(int totalNumChunks, int numMatchedChunks, short[] matchedChunksIndexes)
     {
+        final int chunkIndexMask = rootBitmapsDescriptors.get().size() - 1;
+        List<MemorySegment> bitmapsDescriptors = rootBitmapsDescriptors.get();
         for (int i = 0; i < numMatchedChunks; i++) {
-            if (matchBitmapResetPoints[i] < 0) {
-                throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED, "match got to error state at chunk " + matchedChunksIndexes[i]);
-            }
-            chunksToCollect.add(new MatchChunkResult(matchedChunksIndexes[i], matchBitmapResetPoints[i]));
+            MemorySegment bitmapDescriptor = bitmapsDescriptors.get(matchedChunksIndexes[i] & chunkIndexMask);
+            chunksToCollect.add(new MatchChunkState(matchedChunksIndexes[i], Optional.of(bitmapDescriptor)));
         }
         this.totalNumChunks = totalNumChunks;
     }
@@ -53,7 +60,7 @@ public class ChunksQueue
     void add(int startChunkIndex, int endChunkIndex)
     {
         for (int chunkIndex = startChunkIndex; chunkIndex < endChunkIndex; chunkIndex++) {
-            chunksToCollect.add(new MatchChunkResult(chunkIndex, allSet));
+            chunksToCollect.add(new MatchChunkState(chunkIndex, Optional.empty()));
         }
         this.totalNumChunks = endChunkIndex;
     }
@@ -61,30 +68,55 @@ public class ChunksQueue
     // get the current chunk to collect
     int getCurrent()
     {
-        return chunksToCollect.getFirst().chunkIndex();
+        return chunksToCollect.getFirst().getChunkIndex();
     }
 
     // get the current chunk match bitmap reset point
-    int getCurrentResetPoint()
+    Optional<MemorySegment> getCurrentBitmapDescriptor()
     {
-        return chunksToCollect.getFirst().bitmapResetPoint();
-    }
-
-    Optional<List<Integer>> getChunkIndexesWithBitmap()
-    {
-        if (isEmpty()) {
-            return Optional.empty();
-        }
-        Iterator<MatchChunkResult> itr = chunksToCollect.iterator();
-        List<Integer> chunksRemaining = new ArrayList<>(chunksToCollect.size());
-        while (itr.hasNext()) {
-            MatchChunkResult matchChunkResult = itr.next();
-            // value larger than allSet means the reset point is not valid and the bitmap is used
-            if (matchChunkResult.bitmapResetPoint() > allSet) {
-                chunksRemaining.add(matchChunkResult.chunkIndex());
+        // lazy restore
+        MatchChunkState matchChunkState = chunksToCollect.getFirst();
+        Optional<MemorySegment> bitmapDescriptor = matchChunkState.getBitmapDescriptor();
+        if (matchChunkState.shouldRestore()) {
+            int bitmapResetPoint = matchChunkState.restored();
+            bitmapDescriptor.ifPresent(bm -> bm.set(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT, bitmapResetPoint));
+            if (bitmapResetPoint > allSet) {
+                final int offsetInBuff = calcMatchBitmapOffset(matchChunkState.getChunkIndex());
+                MemorySegment.copy(MemorySegment.ofArray(matchChunkState.getBitmapBuffer()), 0, rootBitmaps.get(), offsetInBuff, pageSize);
             }
         }
-        return !chunksRemaining.isEmpty() ? Optional.of(chunksRemaining) : Optional.empty();
+        return bitmapDescriptor;
+    }
+
+    void storeMatchBitmaps()
+    {
+        if (isEmpty()) {
+            return;
+        }
+
+        MemorySegment rootBitmapsMem = rootBitmaps.orElse(null); // will be used only if the descriptor is valid and the reset point is invalid
+        Iterator<MatchChunkState> itr = chunksToCollect.iterator();
+        while (itr.hasNext()) {
+            MatchChunkState matchChunkState = itr.next();
+            if (matchChunkState.shouldStore()) {
+                int bitmapResetPoint = (int) matchChunkState.getBitmapDescriptor().map(bm -> bm.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT)).orElse(allSet);
+                Optional<byte[]> bitmapBufferOpt = Optional.empty();
+                // value larger than allSet means the reset point is not valid and the bitmap is used
+                if (bitmapResetPoint > allSet) {
+                    final int offsetInBuff = calcMatchBitmapOffset(matchChunkState.getChunkIndex());
+                    byte[] bitmapBuffer = new byte[pageSize];
+                    MemorySegment.copy(rootBitmapsMem, offsetInBuff, MemorySegment.ofArray(bitmapBuffer), 0, pageSize);
+                    bitmapBufferOpt = Optional.of(bitmapBuffer);
+                }
+                matchChunkState.stored(bitmapResetPoint, bitmapBufferOpt);
+            }
+        }
+    }
+
+    // we assume that numChunksInRange is a power of 2
+    private int calcMatchBitmapOffset(int chunkIx)
+    {
+        return (chunkIx & (maxChunks - 1)) * pageSize;
     }
 
     // get total number of chunks
@@ -121,9 +153,9 @@ public class ChunksQueue
         return getTotalNumChunks();
     }
 
-    void updateChunkRangeAfterMatch(int endChunkIndex, int numMatchedChunks, short[] matchedChunksIndexes, int[] matchBitmapResetPoints)
+    void updateChunkRangeAfterMatch(int endChunkIndex, int numMatchedChunks, short[] matchedChunksIndexes)
     {
-        add(endChunkIndex, numMatchedChunks, matchedChunksIndexes, matchBitmapResetPoints);
+        add(endChunkIndex, numMatchedChunks, matchedChunksIndexes);
     }
 
     // return true if completely finished, false otherwise
@@ -155,5 +187,73 @@ public class ChunksQueue
     void setFirstChunkAsPrepared()
     {
         setIsFirstChunkPrepared(true);
+    }
+
+    void setRootBitmaps(Optional<MemorySegment> rootBitmaps, List<MemorySegment> rootBitmapsDescriptors)
+    {
+        this.rootBitmaps = rootBitmaps;
+        this.rootBitmapsDescriptors = Optional.of(rootBitmapsDescriptors);
+    }
+
+    void initRootBitmaps()
+    {
+        this.rootBitmaps = Optional.empty();
+        this.rootBitmapsDescriptors = Optional.empty();
+    }
+
+    private static class MatchChunkState
+    {
+        private int chunkIndex;
+        // state
+        boolean isLoaded;
+        private Optional<MemorySegment> bitmapDescriptor;
+        // store
+        private int storeBitmapResetPoint;
+        private Optional<byte[]> storeBitmapBuffer;
+
+        MatchChunkState(int chunkIndex, Optional<MemorySegment> bitmapDescriptor)
+        {
+            this.chunkIndex = chunkIndex;
+            this.bitmapDescriptor = bitmapDescriptor;
+            this.isLoaded = true;
+        }
+
+        int getChunkIndex()
+        {
+            return chunkIndex;
+        }
+
+        Optional<MemorySegment> getBitmapDescriptor()
+        {
+            return bitmapDescriptor;
+        }
+
+        byte[] getBitmapBuffer()
+        {
+            return storeBitmapBuffer.get();
+        }
+
+        void stored(int bitmapResetPoint, Optional<byte[]> bitmapBuffer)
+        {
+            storeBitmapResetPoint = bitmapResetPoint;
+            storeBitmapBuffer = bitmapBuffer;
+            isLoaded = false;
+        }
+
+        int restored()
+        {
+            isLoaded = true;
+            return storeBitmapResetPoint;
+        }
+
+        boolean shouldStore()
+        {
+            return isLoaded;
+        }
+
+        boolean shouldRestore()
+        {
+            return !isLoaded;
+        }
     }
 }

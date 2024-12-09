@@ -65,8 +65,7 @@ public class CollectTxService
             int rowsLimit,
             int numCollectedInPrevRounds,
             AggregatorArgs aggregatorArgs,
-            Optional<StoreRowListResult> storeRowListResult,
-            Optional<List<Integer>> chunksWithStoredBitmaps)
+            Optional<StoreRowListResult> storeRowListResult)
     {
         QueryParams queryParams = queryArgs.queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
@@ -76,19 +75,12 @@ public class CollectTxService
         int queryMemoryId = queryMemory.id();
         SegmentAllocator queryMemoryAllocator = getQueryMemoryAllocator(queryMemory);
 
-        Optional<MemorySegment> matchBitmaps = Optional.empty();
-        if (queryParams.getNumMatchElements() > 0) {
-            final long alignment = 32; // this is the alignment required for intel optimized bitmap operations
-            final long allocSize = (long) storageEngineConstants.getPageSize() * (long) storageEngineConstants.getMaxChunksInRange();
-            matchBitmaps = Optional.of(queryMemoryAllocator.allocate(allocSize, alignment));
-
-            // if there are no match elements we are lazy collecting and do not need to allocate all the buffers per element
-            if (numCollectElements > 0) {
-                allocCollectBuffers(collectParamsList,
-                        queryMemoryAllocator,
-                        queryArgs.txArgs().collectBuffers(),
-                        aggregatorArgs.collectJuffersWE());
-            }
+        // if there are no match elements we are lazy collecting and do not need to allocate all the buffers per element
+        if ((queryParams.getNumMatchElements() > 0) && (numCollectElements > 0)) {
+            allocCollectBuffers(collectParamsList,
+                    queryMemoryAllocator,
+                    queryArgs.txArgs().collectBuffers(),
+                    aggregatorArgs.collectJuffersWE());
         }
 
         RecordIndexes recordIndexes = aggregatorArgs.recordIndexes();
@@ -119,16 +111,6 @@ public class CollectTxService
             // restore match collect metadata
             queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
                     MemorySegment.copy(MemorySegment.ofArray(s), 0, queryArgs.matchCollectMetadata().get(), 0, s.length));
-
-            // restore bitmaps
-            final MemorySegment bitmaps = matchBitmaps.orElse(null);
-            chunksWithStoredBitmaps.ifPresent(chunks -> {
-                final int pageSize = storageEngineConstants.getPageSize();
-                for (Integer chunkIx : chunks) {
-                    final int offsetInBuff = calcMatchBitmapOffset(chunkIx, queryArgs.numChunksInRange(), pageSize);
-                    MemorySegment.copy(MemorySegment.ofArray(queryArgs.txArgs().collectStoreBuff()), offsetInBuff, bitmaps, offsetInBuff, pageSize);
-                }
-            });
         }
 
         collectOpen(queryArgs.queryParams(),
@@ -138,13 +120,11 @@ public class CollectTxService
                 queryArgs.numChunksInRange(),
                 storeRowListResult.map(StoreRowListResult::storedChunkIx).orElse(-1),
                 aggregatorArgs.warmUpElementAtts().address(),
-                matchBitmaps.map(m -> m.address()).orElse(0L),
                 aggregatorArgs.recordBufferStates().address(),
                 recordIndexes.getAddress(),
                 queryArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L),
                 queryArgs.dispatcherPageSourceStats());
         return new AggregatorPageArgs(queryMemoryId,
-                matchBitmaps,
                 rowsLimit,
                 numCollectedInPrevRounds,
                 queryMemoryAllocator,
@@ -157,13 +137,7 @@ public class CollectTxService
             AggregatorArgs aggregatorArgs,
             ChunksQueue chunksQueue)
     {
-        // idiom potent case
-        if (aggregatorPageArgs == null) {
-            return new CollectCloseResult(Optional.empty(), Optional.empty(), 0);
-        }
-
         Optional<StoreRowListResult> storeRowListResult = Optional.empty();
-        Optional<List<Integer>> chunksWithBitmapsToStore = Optional.empty();
         if (!chunksQueue.isChunkRangeCompleted()) {
             // store row list
             storeRowListResult = Optional.of(rangeFillerService.storeRowList(chunksQueue, queryArgs, aggregatorArgs, aggregatorPageArgs.rangeData()));
@@ -171,17 +145,6 @@ public class CollectTxService
             // store match collect metadata
             queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
                     MemorySegment.copy(queryArgs.matchCollectMetadata().get(), 0, MemorySegment.ofArray(s), 0, s.length));
-
-            // store bitmaps
-            chunksWithBitmapsToStore = chunksQueue.getChunkIndexesWithBitmap();
-            chunksWithBitmapsToStore.ifPresent(chunks -> {
-                final int pageSize = storageEngineConstants.getPageSize();
-                MemorySegment matchBitmaps = aggregatorPageArgs.matchBitmaps().get();
-                for (Integer chunkIx : chunks) {
-                    final int offsetInBuff = calcMatchBitmapOffset(chunkIx, queryArgs.numChunksInRange(), pageSize);
-                    MemorySegment.copy(matchBitmaps, offsetInBuff, MemorySegment.ofArray(queryArgs.txArgs().collectStoreBuff()), offsetInBuff, pageSize);
-                }
-            });
         }
 
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
@@ -216,13 +179,7 @@ public class CollectTxService
         nativeStats.addread_time_wait_nanos(collectStats[CollectStats.COLLECT_STATS_READ_TIME_WAIT_NANOS.ordinal()]);
 
         freeQueryMemory(aggregatorPageArgs.queryMemoryId());
-        return new CollectCloseResult(storeRowListResult, chunksWithBitmapsToStore, totalReadPages);
-    }
-
-    // we assume that numChunksInRange is a power of 2
-    private int calcMatchBitmapOffset(int chunkIx, int numChunksInRange, int pageSize)
-    {
-        return (chunkIx & (numChunksInRange - 1)) * pageSize;
+        return new CollectCloseResult(storeRowListResult, totalReadPages);
     }
 
     void collectAbort(AggregatorPageArgs aggregatorPageArgs, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)

@@ -85,17 +85,17 @@ public abstract class BaseCollectTxService
             int numChunksInRange,
             int reopenChunkIndex,
             long warmUpElementAttsAddr,
-            long matchBmAddr,
             long recordBufferStatesAddr,
             long recordIndexesAddr,
             long matchCollectMetadataAddress,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         long startTime = System.nanoTime();
+        byte[] tempParsingBuffer = new byte[64 * 1024]; // this is a temporary solution
         storageEngine.collectOpen(queryParams.getTotalNumRecords(),
                 txArgs.fileCookie(),
                 collectTxId,
-                txArgs.collectStoreBuff(),
+                tempParsingBuffer,
                 numCollectElements,
                 numChunksInRange,
                 reopenChunkIndex,
@@ -103,7 +103,7 @@ public abstract class BaseCollectTxService
                 warmUpElementAttsAddr,
                 queryParams.getCatalogContext(),
                 queryParams.getMinCollectOffset(),
-                matchBmAddr,
+                queryParams.getNumMatchElements() == 0,
                 recordBufferStatesAddr,
                 recordIndexesAddr,
                 matchCollectMetadataAddress,
@@ -112,20 +112,25 @@ public abstract class BaseCollectTxService
     }
 
     // prepare chunk with match result, error throws and exception
-    void prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint, MemorySegment outQueryResultTypes, DispatcherPageSourceStats dispatcherPageSourceStats)
+    void prepareChunk(int collectTxId,
+            int chunkIndex,
+            int numRowsToCollect,
+            MemorySegment bitmapDescriptor,
+            MemorySegment outQueryResultTypes,
+            DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d matchBitmapResetPoint %d", chunkIndex, numRowsToCollect, matchBitmapResetPoint);
+        logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d", chunkIndex, numRowsToCollect);
         long startTime = System.nanoTime();
         boolean success = storageEngine.processMatchResult(collectTxId,
                 chunkIndex,
-                matchBitmapResetPoint,
+                bitmapDescriptor,
                 numRowsToCollect,
                 outQueryResultTypes);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         if (!success) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
-                    String.format("prepareChunk failed unexpectedly collectTxId %d chunkIndex %d matchBitmapResetPoint %d numRowsToCollect %d",
-                            collectTxId, chunkIndex, matchBitmapResetPoint, numRowsToCollect));
+                    String.format("prepareChunk failed unexpectedly collectTxId %d chunkIndex %d numRowsToCollect %d",
+                            collectTxId, chunkIndex, numRowsToCollect));
         }
     }
 

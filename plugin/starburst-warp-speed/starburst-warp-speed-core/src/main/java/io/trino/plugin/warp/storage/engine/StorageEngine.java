@@ -172,13 +172,10 @@ public interface StorageEngine
      * @param startChunkIndex - chunk to start match from
      * @param numChunks - number of chunks to match
      * @param outMatchedChunksIndexes - indexes of chunks that have at least one match
-     * @param outMatchBitmapResetPoints - reset points for those chunks bitmaps
      *
-     * @return MSB 32 bits number of matched chuks as filled in the output array, LSB 32 bits end chunk index of the range matched
-     *         -1 for error (to rhow exception)
-     *         0 is not a valid result
+     * @return number of matched chunks as filled in the output array, in case of error we return -1L
      */
-    default long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
+    default long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes)
     {
         throw new UnsupportedOperationException();
     }
@@ -201,8 +198,8 @@ public interface StorageEngine
      * @param collectBuffers - buffer for data and nulls per warm up element
      */
     default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
-            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset,
-            long matchBitmapAddress, long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
+            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset, boolean isFullScan,
+            long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
     {
         throw new UnsupportedOperationException();
     }
@@ -212,12 +209,12 @@ public interface StorageEngine
      *
      * @param txId - identifies tx, passed from native to java during import_create
      * @param chunkIndex - chunk to collect from
-     * @param bitmapResetPoint - reset point of the match bitmap
+     * @param bitmapDescriptor - match bitmap pointer and reset point
      * @param rowsLimit - optional limit on the number of rows to collect from this chunk
      *
      * @return TRUE for success, FALSE for error
      */
-    default boolean processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
+    default boolean processMatchResult(int txId, int chunkIndex, MemorySegment bitmapDescriptor, int rowsLimit, MemorySegment outQueryResultTypes)
     {
         throw new UnsupportedOperationException();
     }

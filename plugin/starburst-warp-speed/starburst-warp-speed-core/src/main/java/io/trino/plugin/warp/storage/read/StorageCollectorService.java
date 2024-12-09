@@ -154,8 +154,7 @@ public class StorageCollectorService
                 rowsLimit,
                 queryState.getTotalNumReadRecords(),
                 aggregatorArgs,
-                queryState.getStoreRowListResult(),
-                queryState.getChunksWithStoredBitmaps());
+                queryState.getStoreRowListResult());
     }
 
     void prepareChunk(ChunksQueue chunksQueue,
@@ -167,7 +166,7 @@ public class StorageCollectorService
         collectTxService.prepareChunk(aggregatorPageArgs.queryMemoryId(),
                 chunksQueue.getCurrent(),
                 aggregatorPageArgs.rowsLimit() - numCollectedRows,
-                chunksQueue.getCurrentResetPoint(),
+                chunksQueue.getCurrentBitmapDescriptor().orElse(MemorySegment.ofAddress(0L)),
                 outQueryResultTypes,
                 queryArgs.dispatcherPageSourceStats());
         chunksQueue.setFirstChunkAsPrepared();
@@ -412,16 +411,9 @@ public class StorageCollectorService
         for (int collectIx = 0; collectIx < queryParams.getNumCollectElements(); collectIx++) {
             collectBuffers[collectIx] = bufferAllocator.getCollectBuffersArray();
         }
-
-        byte[] collectStoreBuff = new byte[storageEngineConstants.getPageSize() * storageEngineConstants.getMaxChunksInRange()];
-        // file is opened at init
-        long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
-
-        return new TxArgs(
-                weCollectParams,
+        return new TxArgs(weCollectParams,
                 collectBuffers,
-                collectStoreBuff,
-                fileCookieParams);
+                new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()]);
     }
 
     private AggregatorArgs getStorageCollectorArgs(QueryArgs queryArgs)
@@ -499,10 +491,7 @@ public class StorageCollectorService
                 aggregatorPageArgs,
                 aggregatorArgs,
                 chunksQueue);
-
         queryState.setStoreRowListResult(collectCloseResult.storeRowListResult());
-        queryState.setChunksWithStoredBitmaps(collectCloseResult.chunksWithStoredBitmaps());
-
         return collectCloseResult.readPages();
     }
 

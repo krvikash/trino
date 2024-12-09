@@ -37,11 +37,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_MATCH_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR;
-import static io.trino.plugin.warp.WarpErrorCode.WARP_TX_ALLOCATION_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
 
 @Singleton
@@ -50,7 +49,6 @@ public class MatchService
 {
     private static final Logger logger = Logger.get(MatchService.class);
     private final ShapingLogger shapingLogger;
-    private static final long PAGE_BM_ALIGN = 32; // this is the alignment required for intel optimized bitmap operations
 
     BufferAllocator bufferAllocator;
     private final StorageEngine storageEngine;
@@ -83,9 +81,14 @@ public class MatchService
                 .map(we -> we.hasLuceneParams() ? new ReadJuffersWarmUpElement(bufferAllocator, false) : new ReadJuffersWarmUpElement())
                 .collect(Collectors.toList());
 
+        // +1 below is for the current bitmaps set that is used as an intermediate bitmap by native layer
+        final int matchTreeHeight = queryParams.getRootMatchNode().map(r -> r.getHeight() + 1).orElse(0);
         MatcherArgs matcherArgs = new MatcherArgs(matchJuffersWe,
                 new LuceneMatcher[queryParams.getNumLucene()],
-                new MatchState(storageEngineConstants.getMatchStatePayload(), PAGE_BM_ALIGN));
+                new MatchState(storageEngineConstants.getMatchStatePayload(),
+                        storageEngineConstants.getPageSize(),
+                        queryArgs.numChunksInRange() * matchTreeHeight,
+                        queryArgs.numChunksInRange() * queryParams.getNumLucene()));
         createLuceneMatchers(queryArgs, matcherArgs, customStatsContext); // this call must be after creating the matchJuffersWE
         return matcherArgs;
     }
@@ -117,45 +120,46 @@ public class MatchService
         }
     }
 
-    public MatcherPageArgs openPage(QueryArgs queryArgs, MatcherArgs matcherArgs, AggregatorPageArgs aggregatorPageArgs)
+    public MatcherPageArgs openPage(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, AggregatorPageArgs aggregatorPageArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
-        Optional<MatchState> matchState = Optional.empty();
+        chunksQueue.initRootBitmaps();
+
+        Optional<MatchState> matchStateOpt = Optional.empty();
         if (queryParams.getNumMatchElements() > 0) {
-            Optional<MemorySegment> luceneBitmaps = Optional.empty();
-            final int luceneBitmapSizePerWE = storageEngineConstants.getPageSize() * queryArgs.numChunksInRange();
+            MatchState matchState = matcherArgs.matchState();
             try {
-                if (queryParams.getNumLucene() > 0) {
-                    luceneBitmaps = Optional.of(aggregatorPageArgs.queryMemoryAllocator().allocate(
-                            (long) luceneBitmapSizePerWE * (long) queryParams.getNumLucene() + PAGE_BM_ALIGN,
-                            PAGE_BM_ALIGN));
-                }
                 long startTime = System.nanoTime();
-                matcherArgs.matchState().setMemory(queryArgs, aggregatorPageArgs, luceneBitmaps);
-                storageEngine.matchOpen(matcherArgs.matchState().getMemory());
-                matchState = Optional.of(matcherArgs.matchState());
+                // at this point we still keep setMemory and setState as separate APIs allthough they are called one after the other
+                // we can revisit this when we are done refactoring the memory usage
+                matchState.setMemory(queryArgs);
+                matchState.setState(queryArgs, aggregatorPageArgs.queryMemoryId());
+                storageEngine.matchOpen(matchState.getStateMemory());
+                matchStateOpt = Optional.of(matchState);
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
             }
-            catch (Exception e) {
-                // throw WARP_TX_ALLOCATION_FAILED to make sure that collect tx will be closed by the caller
-                shapingLogger.error(e, "matchOpen failed");
-                throw new TrinoException(WARP_TX_ALLOCATION_FAILED, "storage engine failed to open match");
+            catch (Throwable t) {
+                shapingLogger.error(t, "matchOpen failed");
+                if (t instanceof TrinoException trinoException && ExceptionThrower.isNativeException(trinoException)) {
+                    throw new TrinoException(WARP_NATIVE_MATCH_ERROR, "failed to open match " + t.getMessage());
+                }
+                else {
+                    throw new TrinoException(WARP_MATCH_ERROR, "failed to open match " + t.getMessage());
+                }
             }
 
+            final int luceneBitmapSizePerWE = storageEngineConstants.getPageSize() * queryArgs.numChunksInRange();
             int matchIx = 0;
             for (WarmupElementMatchParams matchParams : queryParams.getMatchElementsParamsList()) {
                 // only for lucene
-                matcherArgs.matchJuffersWe().get(matchIx).createLuceneBuffers(luceneBitmaps.orElse(null),
+                matcherArgs.matchJuffersWe().get(matchIx).createLuceneBuffers(matchState.getLuceneBitmaps().orElse(null),
                         matchParams.hasLuceneParams() ? luceneBitmapSizePerWE * matchParams.getLuceneIx() : 0);
                 matchIx++;
             }
         }
+        matchStateOpt.ifPresent(m -> chunksQueue.setRootBitmaps(m.getMatchBitmaps(), m.getRootBitmapsDescriptors()));
 
-        short[] matchedChunksIndexes = new short[queryArgs.numChunksInRange()];
-        int[] matchBitmapResetPoints = new int[queryArgs.numChunksInRange()];
-        return new MatcherPageArgs(matchState,
-                matchedChunksIndexes,
-                matchBitmapResetPoints);
+        return new MatcherPageArgs(matchStateOpt, new short[queryArgs.numChunksInRange()]);
     }
 
     @SuppressWarnings("Finally")
@@ -174,7 +178,7 @@ public class MatchService
                 boolean luceneSuccess = true;
                 int numMatchedChunks = 0;
                 int chunkIndex = chunksQueue.getChunkIndexForMatch();
-                MemorySegment matchStateMem = matcherPageArgs.matchState().get().getMemory();
+                MemorySegment matchStateMem = matcherPageArgs.matchState().get().getStateMemory();
                 StopWatch readStopWatch = new StopWatch();
                 // we loop until either agg result returnes 0 which  means no more chunks (break under if inside the loop)
                 // or if numMatchedChunks returned positive from match call which means at least one chunk has a match
@@ -205,7 +209,7 @@ public class MatchService
                         }
 
                         readStopWatch.start();
-                        matchResult = storageEngine.match(matchStateMem.address(), chunkIndex, numChunks, matcherPageArgs.matchedChunksIndexes(), matcherPageArgs.matchBitmapResetPoints());
+                        matchResult = storageEngine.match(matchStateMem.address(), chunkIndex, numChunks, matcherPageArgs.matchedChunksIndexes());
                         readStopWatch.stop();
                         if (matchResult < 0) {
                             break;
@@ -224,7 +228,7 @@ public class MatchService
                         }
                     }
                     else {
-                        throw new TrinoException(WARP_MATCH_FAILED, "failed to match: " + e.getMessage());
+                        throw new TrinoException(WARP_MATCH_ERROR, "failed to match: " + e.getMessage());
                     }
                 }
                 finally {
@@ -237,7 +241,7 @@ public class MatchService
                 }
 
                 if (!matchExhausted) {
-                    chunksQueue.updateChunkRangeAfterMatch(chunkIndex, numMatchedChunks, matcherPageArgs.matchedChunksIndexes(), matcherPageArgs.matchBitmapResetPoints());
+                    chunksQueue.updateChunkRangeAfterMatch(chunkIndex, numMatchedChunks, matcherPageArgs.matchedChunksIndexes());
                 }
             }
         }
@@ -256,7 +260,7 @@ public class MatchService
             // In case of native match exception match tx already closed
             if (!isNativeMatchException(e)) {
                 long startTime = System.nanoTime();
-                storageEngine.matchClose(matcherPageArgs.matchState().get().getMemory());
+                storageEngine.matchClose(matcherPageArgs.matchState().get().getStateMemory());
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
             }
         }
@@ -267,7 +271,7 @@ public class MatchService
         if (matcherPageArgs.matchState().isPresent()) {
             long startTime = System.nanoTime();
 
-            storageEngine.matchClose(matcherPageArgs.matchState().get().getMemory());
+            storageEngine.matchClose(matcherPageArgs.matchState().get().getStateMemory());
             queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
         }
     }
