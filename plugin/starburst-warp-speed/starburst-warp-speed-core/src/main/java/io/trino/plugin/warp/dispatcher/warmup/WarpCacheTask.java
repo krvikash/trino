@@ -393,7 +393,7 @@ public class WarpCacheTask
         }
     }
 
-    public synchronized boolean isRevoked()
+    public boolean isRevoked()
     {
         return revoked;
     }
@@ -483,7 +483,7 @@ public class WarpCacheTask
         return engineAbort;
     }
 
-    private synchronized boolean isAborted()
+    private boolean isAborted()
     {
         return warpAbort || engineAbort;
     }
