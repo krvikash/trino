@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
@@ -22,8 +23,11 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.CounterMetricBuilder;
+import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.DistributionMetricBuilder;
 import io.trino.spi.exchange.ExchangeSink;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
+import io.trino.spi.metrics.Metrics;
 import jakarta.annotation.Nullable;
 
 import java.util.HashMap;
@@ -81,6 +85,8 @@ public class BufferExchangeSink
     @GuardedBy("this")
     private boolean handleUpdateInProgress;
     @GuardedBy("this")
+    private Stopwatch handleUpdateDuration = Stopwatch.createUnstarted();
+    @GuardedBy("this")
     private volatile boolean handleUpdateRequired;
 
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -91,6 +97,13 @@ public class BufferExchangeSink
 
     private final SinkDataPool dataPool;
     private final DataPagesIdGenerator dataPagesIdGenerator = new DataPagesIdGenerator();
+
+    private final MetricsBuilder metricsBuilder = new MetricsBuilder();
+    private final DistributionMetricBuilder handleUpdatesDurationMetric = metricsBuilder.getDistributionMetric("BufferExchangeSink.handleUpdatesDuration");
+    private final DistributionMetricBuilder addDataPagesProcessingTimeMetric = metricsBuilder.getDistributionMetric("BufferExchangeSink.addDataPagesProcessingTime");
+    private final DistributionMetricBuilder addDataPagesSuccessRequestTimeMetric = metricsBuilder.getDistributionMetric("BufferExchangeSink.addDataPagesSuccessRequestTime");
+    private final CounterMetricBuilder addDataPagesRetryCountMetric = metricsBuilder.getCounterMetric("BufferExchangeSource.addDataPagesRetryCount");
+    private final DistributionMetricBuilder addDataPagesRateLimitDelayMetric = metricsBuilder.getDistributionMetric("BufferExchangeSink.addDataPagesRateLimitDelay");
 
     public BufferExchangeSink(
             DataApiFacade dataApi,
@@ -213,6 +226,10 @@ public class BufferExchangeSink
                 bufferNodeId,
                 () -> activeMapping.get().getPartitionsForBufferNode(bufferNodeId),
                 dataPagesIdGenerator,
+                addDataPagesProcessingTimeMetric,
+                addDataPagesSuccessRequestTimeMetric,
+                addDataPagesRetryCountMetric,
+                addDataPagesRateLimitDelayMetric,
                 new SinkWriter.FinishCallback()
                 {
                     private final AtomicReference<String> called = new AtomicReference<>();
@@ -297,6 +314,7 @@ public class BufferExchangeSink
         // mark that we need new mapping and that update is in progress
         handleUpdateRequired = true;
         handleUpdateInProgress = true;
+        handleUpdateDuration.reset().start();
 
         // stop all writers
         for (SinkWriter writer : writers.values()) {
@@ -386,6 +404,8 @@ public class BufferExchangeSink
         }
 
         handleUpdateInProgress = false;
+        handleUpdateDuration.stop();
+        handleUpdatesDurationMetric.add(handleUpdateDuration.elapsed(TimeUnit.MILLISECONDS));
 
         // update base mapping in scaler
         mappingScaler.receivedUpdatedPartitionNodeMapping(mappingForUpdate.orElseThrow());
@@ -478,6 +498,12 @@ public class BufferExchangeSink
         }
         // todo - do I need to wait here
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public Optional<Metrics> getMetrics()
+    {
+        return Optional.of(metricsBuilder.buildMetrics());
     }
 
     @ThreadSafe

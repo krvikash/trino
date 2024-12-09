@@ -16,6 +16,9 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.starburst.stargate.buffer.trino.exchange.DataApiFacade.AddDataPagesResponse;
+import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.CounterMetricBuilder;
+import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.DistributionMetricBuilder;
 
 import java.util.HashSet;
 import java.util.Optional;
@@ -40,6 +43,10 @@ public class SinkWriter
     private final long bufferNodeId;
     private final Supplier<Set<Integer>> managedPartitionsSupplier;
     private final DataPagesIdGenerator dataPagesIdGenerator;
+    private final DistributionMetricBuilder addDataPagesProcessingTimeMetric;
+    private final DistributionMetricBuilder addDataPagesSuccessRequestTimeMetric;
+    private final CounterMetricBuilder addDataPagesRetryCountMetric;
+    private final DistributionMetricBuilder addDataPagesRateLimitDelayMetric;
     private final FinishCallback finishCallback;
     @GuardedBy("this")
     private boolean someDataSent;
@@ -50,7 +57,7 @@ public class SinkWriter
     @GuardedBy("this")
     private boolean aborted;
     @GuardedBy("this")
-    private ListenableFuture<Void> currentRequestFuture;
+    private ListenableFuture<AddDataPagesResponse> currentRequestFuture;
     @GuardedBy("this")
     private boolean sinkFinishing;
     @GuardedBy("this")
@@ -67,6 +74,10 @@ public class SinkWriter
             long bufferNodeId,
             Supplier<Set<Integer>> managedPartitionsSupplier,
             DataPagesIdGenerator dataPagesIdGenerator,
+            DistributionMetricBuilder addDataPagesProcessingTimeMetric,
+            DistributionMetricBuilder addDataPagesSuccessRequestTimeMetric,
+            CounterMetricBuilder addDataPagesRetryCountMetric,
+            DistributionMetricBuilder addDataPagesRateLimitDelayMetric,
             FinishCallback finishCallback)
     {
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
@@ -79,6 +90,10 @@ public class SinkWriter
         this.bufferNodeId = bufferNodeId;
         this.managedPartitionsSupplier = requireNonNull(managedPartitionsSupplier, "managedPartitionsSupplier is null");
         this.dataPagesIdGenerator = requireNonNull(dataPagesIdGenerator, "dataPagesIdGenerator is null");
+        this.addDataPagesProcessingTimeMetric = requireNonNull(addDataPagesProcessingTimeMetric, "addDataPagesProcessingTimeMetric is null");
+        this.addDataPagesSuccessRequestTimeMetric = requireNonNull(addDataPagesSuccessRequestTimeMetric, "addDataPagesSuccessRequestTimeMetric is null");
+        this.addDataPagesRetryCountMetric = requireNonNull(addDataPagesRetryCountMetric, "addDataPagesRetryCountMetric is null");
+        this.addDataPagesRateLimitDelayMetric = requireNonNull(addDataPagesRateLimitDelayMetric, "addDataPagesRateLimitDelayMetric is null");
         this.finishCallback = requireNonNull(finishCallback, "callback is null");
     }
 
@@ -135,9 +150,13 @@ public class SinkWriter
                 pollResult.getDataByPartition());
         Futures.addCallback(currentRequestFuture, new FutureCallback<>() {
             @Override
-            public void onSuccess(Void result)
+            public void onSuccess(AddDataPagesResponse result)
             {
                 try {
+                    addDataPagesProcessingTimeMetric.add(result.processingTimeMillis());
+                    addDataPagesSuccessRequestTimeMetric.add(result.successRequestTimeMillis());
+                    addDataPagesRateLimitDelayMetric.add(result.rateLimitDelay());
+                    addDataPagesRetryCountMetric.add(result.retryCount());
                     boolean callFinishCallback = false;
                     synchronized (SinkWriter.this) {
                         currentRequestFuture = null;

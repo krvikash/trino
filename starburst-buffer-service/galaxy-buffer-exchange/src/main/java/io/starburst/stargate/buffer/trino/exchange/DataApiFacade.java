@@ -57,7 +57,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -312,12 +311,16 @@ public class DataApiFacade
         }
     }
 
-    public ListenableFuture<Void> addDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
+    public ListenableFuture<AddDataPagesResponse> addDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
-        AtomicBoolean retryFlag = new AtomicBoolean();
+        AtomicLong triesCount = new AtomicLong();
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        Stopwatch successRequestStopwatch = Stopwatch.createStarted();
+        AtomicLong totalRequestDelay = new AtomicLong();
         Callable<ListenableFuture<Void>> call = () -> {
-            boolean retry = retryFlag.getAndSet(true);
+            boolean retry = triesCount.getAndIncrement() > 0;
             long requestDelayInMillis = rateMonitor.registerExecutionSchedule(bufferNodeId);
+            totalRequestDelay.addAndGet(requestDelayInMillis);
 
             ListenableFuture<Optional<RateLimitInfo>> requestFuture;
             if (requestDelayInMillis == 0) {
@@ -344,6 +347,7 @@ public class DataApiFacade
                 @Override
                 public void onFailure(Throwable failure)
                 {
+                    successRequestStopwatch.reset().start();
                     if ((failure instanceof DataApiException dataApiException)) {
                         rateMonitor.updateRateLimitInfo(bufferNodeId, dataApiException.getRateLimitInfo());
                         if (retry && (dataApiException.getErrorCode() == ErrorCode.DRAINING || dataApiException.getErrorCode() == ErrorCode.DRAINED)) {
@@ -360,8 +364,13 @@ public class DataApiFacade
 
             return resultFuture;
         };
-        return runWithRetry(bufferNodeId, this::getAddDataPagesRetryExecutor, call);
+        return Futures.transform(
+                runWithRetry(bufferNodeId, this::getAddDataPagesRetryExecutor, call),
+                _ -> new AddDataPagesResponse(triesCount.intValue() - 1, stopwatch.elapsed(MILLISECONDS), successRequestStopwatch.elapsed(MILLISECONDS), totalRequestDelay.get()),
+                directExecutor());
     }
+
+    public record AddDataPagesResponse(int retryCount, long processingTimeMillis, long successRequestTimeMillis, long rateLimitDelay) {}
 
     private ListenableFuture<Optional<RateLimitInfo>> internalAddDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {

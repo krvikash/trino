@@ -243,7 +243,7 @@ public class TestDataApiFacade
             sleepUninterruptibly(java.time.Duration.ofMillis(500));
             return Optional.empty();
         }));
-        ListenableFuture<Void> addDataPagesFuture0 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0L, ImmutableListMultimap.of());
+        ListenableFuture<DataApiFacade.AddDataPagesResponse> addDataPagesFuture0 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0L, ImmutableListMultimap.of());
         Thread.sleep(100); // wait for addDataPages job above to start execution
         addDataPagesFuture0.cancel(true);
         assertThatThrownBy(() -> getFutureValue(addDataPagesFuture0)).isInstanceOf(CancellationException.class);
@@ -251,7 +251,7 @@ public class TestDataApiFacade
 
         // test cancelling after request failure will cancel the next retry
         dataApiDelegate.recordAddDataPages(EXCHANGE_0, 1, 1, 1L, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        ListenableFuture<Void> addDataPagesFuture1 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1, 1L, ImmutableListMultimap.of());
+        ListenableFuture<DataApiFacade.AddDataPagesResponse> addDataPagesFuture1 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1, 1L, ImmutableListMultimap.of());
         sleepUninterruptibly(java.time.Duration.ofMillis(500));
         addDataPagesFuture1.cancel(true);
         sleepUninterruptibly(java.time.Duration.ofSeconds(1));
