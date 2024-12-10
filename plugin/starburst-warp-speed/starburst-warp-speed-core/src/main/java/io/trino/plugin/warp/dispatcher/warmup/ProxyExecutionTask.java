@@ -33,7 +33,6 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
-import io.trino.plugin.warp.storage.flows.FlowIdGenerator;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
@@ -48,6 +47,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
 import static java.util.Objects.requireNonNull;
 
 public class ProxyExecutionTask
@@ -169,19 +169,17 @@ public class ProxyExecutionTask
             return;
         }
 
-        long flowId = FlowIdGenerator.generateFlowId();
+        long flowId = INVALID_FLOW_ID;
         StopWatch stopWatch = new StopWatch();
-        boolean started = false;
         boolean skipWait = false;
         try {
             skipWait = storageWarmerService.isLoaderAvailable();
             if (!skipWait) {
                 storageWarmerService.waitForLoaders();
             }
-            storageWarmerService.tryRunningWarmFlow(flowId, rowGroupKey);
+            flowId = storageWarmerService.tryRunningWarmFlow(rowGroupKey);
             stopWatch.start();
             statsWarmingService.incwarm_started();
-            started = true;
             statsWarmingService.addwaiting_for_lock_nano(stopWatch.getNanoTime());
             warmingManager.warm(rowGroupKey,
                     connectorPageSourceProvider,
@@ -197,20 +195,19 @@ public class ProxyExecutionTask
         }
         catch (Exception e) {
             logFailure(e);
-            if (started) {
+            if (flowId != INVALID_FLOW_ID) {
                 statsWarmingService.incwarm_failed();
             }
         }
         finally {
             boolean releaseTx = dataToWarm.txMemoryReserved();
             storageWarmerService.releaseLoaderThread(skipWait);
-            storageWarmerService.finishWarm(flowId, releaseTx, true, true);
+            if (storageWarmerService.finishWarm(flowId, releaseTx, true, true)) {
+                statsWarmingService.incwarm_accomplished();
+            }
             stopWatch.stop();
             statsWarmingService.addexecution_time_nano(stopWatch.getNanoTime());
             logger.debug("warm flow finished nano sec = %d", stopWatch.getNanoTime());
-            if (started) {
-                statsWarmingService.incwarm_accomplished();
-            }
             workerWarmingService.warmTaskFinished();
         }
 

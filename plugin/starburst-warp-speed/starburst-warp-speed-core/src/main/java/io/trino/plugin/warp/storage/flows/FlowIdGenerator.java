@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class FlowIdGenerator
 {
+    public static final long INVALID_FLOW_ID = -1;
     private static final AtomicLong flowIdGen = new AtomicLong();
 
     private FlowIdGenerator() {}

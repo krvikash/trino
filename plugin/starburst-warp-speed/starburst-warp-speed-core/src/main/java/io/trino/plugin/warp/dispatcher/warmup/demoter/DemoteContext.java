@@ -26,6 +26,7 @@ import java.util.Set;
 
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.FAILED_DEMOTE_SQUENCE;
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
+import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
 
 public class DemoteContext
 {
@@ -36,7 +37,7 @@ public class DemoteContext
     private double cleanupUsageThresholdPercentage = -1;
     private int batchSize = 1;
     private WarmupDemoterStats statsWarmupDemoter;
-    private long flowId = -1;
+    private long flowId = INVALID_FLOW_ID;
     private long maxElementsToDemote = 1000;
     private double epsilon = -1;
     private int numberOfCycles;

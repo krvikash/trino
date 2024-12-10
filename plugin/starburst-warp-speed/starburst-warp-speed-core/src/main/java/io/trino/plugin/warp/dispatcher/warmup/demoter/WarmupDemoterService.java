@@ -42,12 +42,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NO_EXPIRY;
+import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
 import static java.util.Objects.requireNonNull;
 
 @SuppressWarnings("ALL")
@@ -245,14 +245,22 @@ public class WarmupDemoterService
             throws ExecutionException, InterruptedException
     {
         logger.debug("execute demote - demoteSequence = %d", demoterSequence);
-        demoteContext.setFlowId(FlowIdGenerator.generateFlowId());
-        StopWatch stopWatch = new StopWatch();
-        stopWatch.start();
-        CompletableFuture<Boolean> future = flowsSequencer.tryRunningFlow(FlowType.WARMUP_DEMOTER, demoteContext.getFlowId(), Optional.empty());
-        future.get();
-        stopWatch.stop();
-        globalStatsDemoter.addwaiting_for_lock_nano(stopWatch.getNanoTime());
-        logger.debug("got key, start demote nano sec waited = %d", stopWatch.getNanoTime());
+
+        try {
+            demoteContext.setFlowId(FlowIdGenerator.generateFlowId());
+            StopWatch stopWatch = new StopWatch();
+            stopWatch.start();
+            flowsSequencer.tryRunningFlow(FlowType.WARMUP_DEMOTER, demoteContext.getFlowId(), Optional.empty()).get();
+            stopWatch.stop();
+            globalStatsDemoter.addwaiting_for_lock_nano(stopWatch.getNanoTime());
+            logger.debug("got key, start demote nano sec waited = %d", stopWatch.getNanoTime());
+        }
+        catch (Exception e) {
+            demoteContext.setFlowId(INVALID_FLOW_ID);
+            isExecuting.set(false);
+            return;
+        }
+
         logger.debug("%s: build tupleRank", catalogNameProvider.get());
         TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(tupleFilters, forceDeleteFailedObjects);
         demoteContext.setTupleRankList(tupleRankResult.tupleRankList());

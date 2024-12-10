@@ -30,6 +30,7 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
+import io.trino.plugin.warp.storage.flows.FlowIdGenerator;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.PageSink;
@@ -50,6 +51,7 @@ import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PA
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_MOD_TIME;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
 import static io.trino.plugin.warp.gen.errorcodes.ErrorCodes.ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR;
+import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -57,7 +59,6 @@ public class StorageWarmerService
 {
     private static final Logger logger = Logger.get(StorageWarmerService.class);
     public static final long INVALID_FILE_COOKIE_FD = -1;
-    public static final int INVALID_FLOW_ID = -1;
 
     private final RowGroupDataService rowGroupDataService;
     private final StorageEngine storageEngine;
@@ -247,15 +248,15 @@ public class StorageWarmerService
         storageEngineTxService.doneWarming(skipWait);
     }
 
-    public void finishWarm(long flowId,
+    public boolean finishWarm(long flowId,
             boolean releaseTx,
             boolean force,
             boolean runDemote)
     {
         releaseTx(releaseTx);
-        if (flowId != INVALID_FILE_COOKIE_FD) {
-            flowsSequencer.flowFinished(FlowType.WARMUP, flowId, force);
-        }
+
+        boolean finish = flowsSequencer.flowFinished(FlowType.WARMUP, flowId, force);
+
         if (runDemote) {
             try {
                 warmupDemoterService.tryDemoteStart();
@@ -264,6 +265,8 @@ public class StorageWarmerService
                 logger.warn("demoter failed");
             } //do nothing
         }
+
+        return finish;
     }
 
     public void releaseTx(boolean releaseTx)
@@ -289,14 +292,16 @@ public class StorageWarmerService
         return storageEngineTxService.isLoaderAvailable();
     }
 
-    public void tryRunningWarmFlow(long flowId, RowGroupKey rowGroupKey)
+    public long tryRunningWarmFlow(RowGroupKey rowGroupKey)
             throws ExecutionException, InterruptedException
     {
+        long flowId = FlowIdGenerator.generateFlowId();
         CompletableFuture<Boolean> flowFuture = flowsSequencer.tryRunningFlow(
                 FlowType.WARMUP,
                 flowId,
                 Optional.of(rowGroupKey.toString()));
         flowFuture.get();
+        return flowId;
     }
 
     public boolean tryAllocateNativeResourceForWarmup()

@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -55,11 +56,15 @@ public class FlowsSequencer
         return flowPriorityQueue.addFlow(flowType, flowId, additionalInfo);
     }
 
-    public void flowFinished(FlowType flowType, long flowId, boolean force)
+    public boolean flowFinished(FlowType flowType, long flowId, boolean force)
     {
-        flowPriorityQueue.removeFlow(flowType, flowId, force);
-        FlowSequencerStats stats = (FlowSequencerStats) metricsManager.get(FlowSequencerStats.createKey(STATS_GROUP_NAME, flowType.name()));
-        stats.incflow_finished();
+        if (flowId != INVALID_FLOW_ID) {
+            flowPriorityQueue.removeFlow(flowType, flowId, force);
+            FlowSequencerStats stats = (FlowSequencerStats) metricsManager.get(FlowSequencerStats.createKey(STATS_GROUP_NAME, flowType.name()));
+            stats.incflow_finished();
+            return true;
+        }
+        return false;
     }
 
     @VisibleForTesting

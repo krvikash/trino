@@ -26,7 +26,6 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingCandidate;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
-import io.trino.plugin.warp.storage.flows.FlowIdGenerator;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.warp.storage.write.WarmResult;
 import io.trino.plugin.warp.storage.write.WarmupCacheData;
@@ -43,7 +42,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FLOW_ID;
+import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
 import static java.util.Objects.requireNonNull;
 
 public class WarpCacheTask
@@ -68,7 +67,7 @@ public class WarpCacheTask
     private int totalRecords;
 
     private boolean warpAbort;
-    private long flowId = -1;
+    private long flowId;
     private LocalMemoryContext localMemoryContext;
     private final BlockingDeque<Integer> blocksToProcess;
     private boolean engineAbort;
@@ -102,6 +101,7 @@ public class WarpCacheTask
         this.blocksToProcess = new LinkedBlockingDeque<>();
         this.taskStarted = false;
         this.revoked = false;
+        this.flowId = INVALID_FLOW_ID;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -314,18 +314,15 @@ public class WarpCacheTask
 
     private boolean initWarmUpProcess()
     {
-        boolean success = false;
         statsWarmingService.incwarm_warp_cache_started();
         try {
-            flowId = FlowIdGenerator.generateFlowId();
-            storageWarmerService.tryRunningWarmFlow(flowId, rowGroupKey);
-            success = true;
+            flowId = storageWarmerService.tryRunningWarmFlow(rowGroupKey);
+            return true;
         }
         catch (Exception e) {
             shapingLogger.error(e, "failed to init warm up process. key=%s", rowGroupKey);
-            flowId = INVALID_FLOW_ID;
         }
-        return success;
+        return false;
     }
 
     private boolean initCandidates()
