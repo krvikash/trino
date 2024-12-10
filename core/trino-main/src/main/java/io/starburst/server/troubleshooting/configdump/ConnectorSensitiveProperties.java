@@ -167,7 +167,6 @@ public final class ConnectorSensitiveProperties
                             "iceberg.snowflake-catalog.password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
-                            "ranger.password",
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key"))
