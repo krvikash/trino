@@ -18,7 +18,6 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.errorcodes.ErrorCodes;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -183,7 +182,7 @@ public class NativeStorageStateHandlerTest
         assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
     }
 
-    @Disabled
+    @Test
     public void testStorageStateTempErrorCodesReset()
             throws InterruptedException
     {
