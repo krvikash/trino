@@ -74,8 +74,10 @@ public class IcebergProxiedConnectorTransformer
     @Override
     public boolean isValidForTableStatistics(ConnectorTableHandle connectorTableHandle)
     {
-        IcebergTableHandle originalHandle = (IcebergTableHandle) connectorTableHandle;
-        return (!originalHandle.isRecordScannedFiles() && originalHandle.getMaxScannedFileSize().isEmpty());
+        if (connectorTableHandle instanceof IcebergTableHandle icebergTableHandle) {
+            return (!icebergTableHandle.isRecordScannedFiles() && icebergTableHandle.getMaxScannedFileSize().isEmpty());
+        }
+        return false;
     }
 
     @Override
