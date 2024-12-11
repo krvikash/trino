@@ -58,7 +58,8 @@ class AttachDictionaryServiceTest
                 storageEngineConstants,
                 new DictionaryConfig(),
                 metricsManager,
-                dictionaryWriterFactory);
+                dictionaryWriterFactory,
+                new GlobalConfig());
     }
 
     @Test

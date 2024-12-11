@@ -17,9 +17,11 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.DictionaryConfig;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -38,6 +40,7 @@ import static java.util.Objects.requireNonNull;
 public class AttachDictionaryService
 {
     private static final Logger logger = Logger.get(AttachDictionaryService.class);
+    private final ShapingLogger shapingLogger;
 
     private static final byte[] padding = new byte[8192];   // PageSize
 
@@ -52,13 +55,19 @@ public class AttachDictionaryService
             StorageEngineConstants storageEngineConstants,
             DictionaryConfig dictionaryConfig,
             MetricsManager metricsManager,
-            DictionaryWriterFactory dictionaryWriterFactory)
+            DictionaryWriterFactory dictionaryWriterFactory,
+            GlobalConfig globalConfig)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.dictionaryConfig = requireNonNull(dictionaryConfig);
         this.dictionaryStats = metricsManager.registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
         this.dictionaryWriterFactory = requireNonNull(dictionaryWriterFactory);
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public int save(
@@ -100,7 +109,7 @@ public class AttachDictionaryService
                     rowGroupFilePath, recTypeCode, dictionaryOffset, dictionarySizeInPages);
         }
         catch (IOException e) {
-            logger.error("save dictionary failed rowGroupFilePath %s message %s", rowGroupFilePath, e.getMessage());
+            shapingLogger.error(e, "save dictionary failed rowGroupFilePath %s, usage= %d", rowGroupFilePath, workerCapacityManager.getCurrentUsage());
             throw new RuntimeException(e);
         }
         workerCapacityManager.updateCurrentUsage();
