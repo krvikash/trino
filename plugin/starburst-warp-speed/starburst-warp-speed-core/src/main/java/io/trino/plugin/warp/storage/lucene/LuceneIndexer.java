@@ -140,11 +140,11 @@ public class LuceneIndexer
         }
         catch (Exception e) {
             failedDocumentError = "Got exception from addDocument (path %s) - %s".formatted(path, e);
+            shapingLogger.error(failedDocumentError);
             failedCommit = true;
         }
         finally {
             if (failedCommit) {
-                shapingLogger.error(failedDocumentError);
                 stats.incfailedAddDoc();
                 closeLuceneIndex(); // will throw an exception
             }
