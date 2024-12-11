@@ -32,6 +32,7 @@ import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.VarbinaryType;
@@ -68,6 +69,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.isSortedWritingEn
 import static io.trino.plugin.iceberg.IcebergUtil.getTopLevelColumns;
 import static io.trino.plugin.iceberg.PartitionTransforms.getColumnTransform;
 import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTz;
+import static io.trino.plugin.iceberg.util.Timestamps.timestampToNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzToMicros;
 import static io.trino.spi.block.RowBlock.getRowFieldsFromBlock;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -80,6 +82,7 @@ import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
@@ -91,6 +94,8 @@ import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.iceberg.FileContent.DATA;
+import static org.apache.iceberg.util.DateTimeUtil.isoTimestampToNanos;
+import static org.apache.iceberg.util.DateTimeUtil.nanosToIsoTimestamp;
 
 public class IcebergPageSink
         implements ConnectorPageSink
@@ -467,6 +472,9 @@ public class IcebergPageSink
             Type type = column.sourceType();
             org.apache.iceberg.types.Type icebergType = outputSchema.findType(column.field().sourceId());
             Object value = getIcebergValue(block, position, type);
+            if (value != null && icebergType.equals(Types.TimestampNanoType.withoutZone())) {
+                value = isoTimestampToNanos((String) value);
+            }
             values[i] = applyTransform(column.field().transform(), icebergType, value);
         }
         return Optional.of(new PartitionData(values));
@@ -515,6 +523,11 @@ public class IcebergPageSink
         }
         if (type.equals(TIMESTAMP_MICROS)) {
             return TIMESTAMP_MICROS.getLong(block, position);
+        }
+        if (type.equals(TIMESTAMP_NANOS)) {
+            LongTimestamp timestamp = (LongTimestamp) TIMESTAMP_NANOS.getObject(block, position);
+            long nanos = timestampToNanos(timestamp);
+            return nanosToIsoTimestamp(nanos);
         }
         if (type.equals(TIMESTAMP_TZ_MICROS)) {
             return timestampTzToMicros(getTimestampTz(block, position));

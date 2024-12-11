@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg;
 import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Types.DateType;
 import org.apache.iceberg.types.Types.StringType;
+import org.apache.iceberg.types.Types.TimestampNanoType;
 import org.apache.iceberg.types.Types.TimestampType;
 import org.junit.jupiter.api.Test;
 
@@ -35,6 +36,7 @@ public class TestPartitionTransforms
 {
     private static final DateType ICEBERG_DATE = DateType.get();
     private static final TimestampType ICEBERG_TIMESTAMP = TimestampType.withoutZone();
+    private static final TimestampNanoType ICEBERG_TIMESTAMP_NANOS = TimestampNanoType.withoutZone();
 
     @Test
     public void testToStringMatchesSpecification()
@@ -89,6 +91,20 @@ public class TestPartitionTransforms
             assertThat(actualHour)
                     .describedAs(time.toString())
                     .isEqualTo((int) Transforms.hour().bind(ICEBERG_TIMESTAMP).apply(epochMicro));
+
+            long epochNano = SECONDS.toNanos(epochSecond);
+            assertThat(actualYear)
+                    .describedAs(time.toString())
+                    .isEqualTo((int) Transforms.year().bind(ICEBERG_TIMESTAMP_NANOS).apply(epochNano));
+            assertThat(actualMonth)
+                    .describedAs(time.toString())
+                    .isEqualTo((int) Transforms.month().bind(ICEBERG_TIMESTAMP_NANOS).apply(epochNano));
+            assertThat(actualDay)
+                    .describedAs(time.toString())
+                    .isEqualTo((int) Transforms.day().bind(ICEBERG_TIMESTAMP_NANOS).apply(epochNano));
+            assertThat(actualHour)
+                    .describedAs(time.toString())
+                    .isEqualTo((int) Transforms.hour().bind(ICEBERG_TIMESTAMP_NANOS).apply(epochNano));
         }
     }
 }

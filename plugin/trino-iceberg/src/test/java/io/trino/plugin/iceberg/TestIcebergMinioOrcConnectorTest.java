@@ -170,11 +170,11 @@ public class TestIcebergMinioOrcConnectorTest
     @Override
     protected Optional<TypeCoercionTestSetup> filterTypeCoercionOnCreateTableAsSelectProvider(TypeCoercionTestSetup setup)
     {
-        if (setup.sourceValueLiteral().equals("TIMESTAMP '1969-12-31 23:59:59.999999499999'")) {
-            return Optional.of(setup.withNewValueLiteral("TIMESTAMP '1970-01-01 00:00:00.999999'"));
+        if (setup.sourceValueLiteral().equals("TIMESTAMP '1969-12-31 23:59:59.999999999499'")) {
+            return Optional.of(setup.withNewValueLiteral("TIMESTAMP '1970-01-01 00:00:00.999999999'"));
         }
-        if (setup.sourceValueLiteral().equals("TIMESTAMP '1969-12-31 23:59:59.9999994'")) {
-            return Optional.of(setup.withNewValueLiteral("TIMESTAMP '1970-01-01 00:00:00.999999'"));
+        if (setup.sourceValueLiteral().equals("TIMESTAMP '1969-12-31 23:59:59.9999999994'")) {
+            return Optional.of(setup.withNewValueLiteral("TIMESTAMP '1970-01-01 00:00:00.999999999'"));
         }
         return Optional.of(setup);
     }

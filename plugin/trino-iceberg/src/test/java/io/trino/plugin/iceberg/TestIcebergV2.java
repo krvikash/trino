@@ -1596,6 +1596,41 @@ public class TestIcebergV2
         catalog.dropTable(SESSION, schemaTableName);
     }
 
+    @Test
+    void testTimestampNano()
+    {
+        testTimestampNano("PARQUET");
+        testTimestampNano("ORC");
+        testTimestampNano("AVRO");
+    }
+
+    private void testTimestampNano(String format)
+    {
+        try (TestTable table = newTrinoTable("test_nano", "(id int, x timestamp(9)) WITH (format = '" + format + "', format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, timestamp '2022-07-26 12:13:14.123456789')", 1);
+
+            assertThat(query("SELECT x FROM " + table.getName()))
+                    .matches("VALUES timestamp '2022-07-26 12:13:14.123456789'");
+            assertThat(query("SELECT 1 FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456789'"))
+                    .matches("VALUES 1");
+            assertThat(query("SELECT 1 FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456'"))
+                    .returnsEmptyResult();
+        }
+    }
+
+    @Test
+    void testTimestampNanoPartition()
+    {
+        try (TestTable table = newTrinoTable("test_nano", "(id int, x timestamp(9)) WITH (partitioning = ARRAY['x'], format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, timestamp '2022-07-26 12:13:14.123456789')", 1);
+
+            assertThat(query("SELECT x FROM " + table.getName()))
+                    .matches("VALUES timestamp '2022-07-26 12:13:14.123456789'");
+            assertThat(query("SELECT 1 FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456789'"))
+                    .matches("VALUES 1");
+        }
+    }
+
     private void testHighlyNestedFieldPartitioningWithTimestampTransform(String partitioning, String partitionDirectoryRegex, Set<String> expectedPartitionDirectories)
     {
         String tableName = "test_highly_nested_field_partitioning_with_timestamp_transform_" + randomNameSuffix();
