@@ -31,8 +31,6 @@ import java.util.Optional;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assumptions.abort;
 
 public abstract class BaseSnowflakeFailureRecoveryTest
         extends BaseJdbcFailureRecoveryTest
@@ -76,14 +74,6 @@ public abstract class BaseSnowflakeFailureRecoveryTest
     protected SnowflakeQueryRunner.Builder<?> getBuilder()
     {
         return jdbcBuilder();
-    }
-
-    @Test
-    @Override
-    protected void testUpdateWithSubquery()
-    {
-        assertThatThrownBy(super::testUpdateWithSubquery).hasMessageContaining("Unexpected Join over for-update table scan");
-        abort("skipped");
     }
 
     @Test
