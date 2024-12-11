@@ -276,7 +276,7 @@ public class WorkerCapacityManager
                     catch (FileNotFoundException e) {
                         return isEmptyDir(localStore);
                     }
-                    catch (IOException e) {
+                    catch (Throwable e) {
                         logger.error(e, "deleteLocalStorageFiles failed to clean localStorePath %s", localStore);
                         return false;
                     }
