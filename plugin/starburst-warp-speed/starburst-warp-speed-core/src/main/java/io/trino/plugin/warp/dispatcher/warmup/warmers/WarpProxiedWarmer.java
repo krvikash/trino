@@ -37,6 +37,7 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.write.PageSink;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
@@ -82,6 +83,7 @@ import static java.util.Objects.requireNonNull;
 public class WarpProxiedWarmer
 {
     private static final Logger logger = Logger.get(WarpProxiedWarmer.class);
+    private final ShapingLogger shapingLogger;
 
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final String nodeIdentifier;
@@ -110,6 +112,11 @@ public class WarpProxiedWarmer
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
+        shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     RowGroupData warm(ConnectorPageSourceProvider connectorPageSourceProvider,
@@ -206,7 +213,7 @@ public class WarpProxiedWarmer
             }
             catch (Exception e) {
                 if (!ExceptionUtils.isCausedBy(e, FileNotFoundException.class)) {
-                    logger.error(e, "unexpected error in warm up file %s", rowGroupFilePath);
+                    shapingLogger.error(e, "unexpected error in warm up file %s", rowGroupFilePath);
                 }
                 throw e;
             }
@@ -223,7 +230,7 @@ public class WarpProxiedWarmer
                     storageWriterService.finishWarming(storageWriterSplitConfig);
                 }
                 catch (Exception e) {
-                    logger.error(e, "failed to release warming resources file %s", rowGroupFilePath);
+                    shapingLogger.error(e, "failed to release warming resources file %s", rowGroupFilePath);
                 }
             }
             storageWarmerService.fileClose(fileCookieParams, Optional.of(rowGroupData));
@@ -244,7 +251,7 @@ public class WarpProxiedWarmer
             connectorPageSource.close();
         }
         catch (IOException e) {
-            logger.error(e, "failed to close external connector %s", rowGroupKey);
+            shapingLogger.error(e, "failed to close external connector %s", rowGroupKey);
         }
     }
 
