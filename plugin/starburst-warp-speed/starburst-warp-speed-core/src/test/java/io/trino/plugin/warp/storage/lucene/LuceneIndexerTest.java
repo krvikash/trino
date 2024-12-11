@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import static io.trino.plugin.warp.storage.write.StorageWriterService.LUCENE_STATS_GROUP_NAME;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class LuceneIndexerTest
 {
@@ -88,5 +89,13 @@ public class LuceneIndexerTest
         LuceneIndexer luceneIndexer1 = new LuceneIndexer(storageEngineConstants, rowGroupFilePath, stats, globalConfig);
 
         Assertions.assertThatNoException().isThrownBy(luceneIndexer1::resetLuceneIndex);
+    }
+
+    @Test
+    void testMaxTermLength()
+    {
+        String string = "Hello, Ω!"; // Unicode string
+        Assertions.assertThat(string.length()).isEqualTo(9);
+        Assertions.assertThat(string.getBytes(UTF_8).length).isEqualTo(10);
     }
 }

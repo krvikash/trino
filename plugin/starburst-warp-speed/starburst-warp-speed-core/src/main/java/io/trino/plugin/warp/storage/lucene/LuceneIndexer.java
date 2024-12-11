@@ -50,6 +50,7 @@ import static com.google.common.io.BaseEncoding.base64;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_FAILURE;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_WRITER_ERROR;
 import static io.trino.plugin.warp.util.SliceUtils.serializeSlice;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class LuceneIndexer
         implements Closeable
@@ -116,7 +117,7 @@ public class LuceneIndexer
             for (Slice value : values) {
                 String valueAsString = serializeSlice(value);
 
-                if (valueAsString.length() > 32766) {
+                if (valueAsString.getBytes(UTF_8).length > 32766) {
                     failedDocumentError = "failed creating doc (path %s) - UTF8 encoding is longer than max length 32766".formatted(path);
                     failedCommit = true;
                     return;
