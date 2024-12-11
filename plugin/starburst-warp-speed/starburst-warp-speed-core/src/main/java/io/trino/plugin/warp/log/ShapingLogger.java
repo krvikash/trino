@@ -41,7 +41,7 @@ public class ShapingLogger
     private final int threshold;
 
     //interval in millis for log flushing. if duration = Duration.ZERO then it is ignored
-    private final Duration duration;
+    long durationMillis;
 
     //if shapeMode=FORMAT then we accumulate by format string
     //if shapeMode=FULL then we accumulate by formatted string
@@ -58,7 +58,7 @@ public class ShapingLogger
     {
         this.logger = requireNonNull(logger);
         this.threshold = threshold;
-        this.duration = duration != null ? duration : Duration.ZERO;
+        durationMillis = (duration != null ? duration : Duration.ZERO).toMillis();
         this.numberOfSamples = numberOfSamples;
         checkArgument(threshold == 0 || threshold > numberOfSamples, "threshold must be greater than number of samples");
         this.mode = requireNonNull(mode);
@@ -140,9 +140,10 @@ public class ShapingLogger
 
     private void log(Pair<String, List<Object>> key, Runnable runnable)
     {
+        long currentTimeMillis = System.currentTimeMillis();
         shapingLoggerStateMap.compute(key, (_, val) -> {
             if (val == null) {
-                val = new ShapingLoggerState(1, System.currentTimeMillis());
+                val = new ShapingLoggerState(1, currentTimeMillis);
             }
 
             long lastLogTime = val.lastLogTime();
@@ -152,11 +153,11 @@ public class ShapingLogger
             }
 
             if ((threshold > 0 && (count == threshold)) ||
-                    ((duration.toMillis() > 0) && System.currentTimeMillis() - lastLogTime > duration.toMillis())) {
+                    ((durationMillis > 0) && currentTimeMillis - lastLogTime > durationMillis)) {
                 if (count > numberOfSamples) {
                     logger.info(getOccurrencesMessage(key, count - numberOfSamples));
                 }
-                lastLogTime = System.currentTimeMillis();
+                lastLogTime = currentTimeMillis;
                 count = 0;
             }
             return new ShapingLoggerState(count + 1, lastLogTime);

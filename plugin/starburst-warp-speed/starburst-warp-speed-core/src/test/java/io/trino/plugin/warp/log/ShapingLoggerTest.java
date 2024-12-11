@@ -111,10 +111,10 @@ public class ShapingLoggerTest
         ShapingLogger shapingLogger = ShapingLogger.getInstance(
                 logger,
                 0,
-                Duration.ofMillis(100));
+                Duration.ofMillis(10));
         shapingLogger.error("%s", "test");
 
-        Thread.sleep(130);
+        Thread.sleep(13);
 
         shapingLogger.error("%s", "test");
 
@@ -122,7 +122,7 @@ public class ShapingLoggerTest
 
         shapingLogger.error("%s", "test");
 
-        Thread.sleep(130);
+        Thread.sleep(13);
 
         shapingLogger.error("%s", "test");
 
@@ -136,12 +136,13 @@ public class ShapingLoggerTest
         ShapingLogger shapingLogger = ShapingLogger.getInstance(
                 logger,
                 10,
-                Duration.ofMillis(100),
+                Duration.ofMillis(20),
                 2);
-        IntStream.range(0, 5).forEach((i) -> shapingLogger.error("%s", "test"));
+        IntStream.range(0, 5).forEach(_ -> shapingLogger.error("%s", "test"));
 
-        Thread.sleep(130);
-        IntStream.range(0, 5).forEach((i) -> shapingLogger.error("%s", "test"));
+        Thread.sleep(23);
+
+        IntStream.range(0, 5).forEach(_ -> shapingLogger.error("%s", "test"));
 
         verify(logger, times(4)).error(eq("%s"), eq("test"));
         verify(logger, times(1)).info(eq("%s - skipped 4 times"));
@@ -154,10 +155,10 @@ public class ShapingLoggerTest
         ShapingLogger shapingLogger = ShapingLogger.getInstance(
                 logger,
                 2,
-                Duration.ofMillis(100));
+                Duration.ofMillis(10));
         shapingLogger.error("%s", "test");
 
-        Thread.sleep(130);
+        Thread.sleep(13);
 
         shapingLogger.error("%s", "test");
 
@@ -165,7 +166,7 @@ public class ShapingLoggerTest
 
         shapingLogger.error("%s", "test");
 
-        Thread.sleep(130);
+        Thread.sleep(13);
 
         shapingLogger.error("%s", "test");
 
