@@ -165,7 +165,7 @@ public class S3CloudStorageModule
             }
             else {
                 logger.info("annotation %s no StaticCredentials provided for S3 client, using DefaultCredentialsProvider chain", annotation.toString());
-                credentialsProvider = DefaultCredentialsProvider.create();
+                credentialsProvider = DefaultCredentialsProvider.builder().build();
             }
         }
 
