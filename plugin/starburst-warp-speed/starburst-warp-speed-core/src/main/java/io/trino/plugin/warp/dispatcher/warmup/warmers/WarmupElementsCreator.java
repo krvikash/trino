@@ -240,7 +240,7 @@ public class WarmupElementsCreator
         }
         catch (Exception e) {
             statsWarmingService.incwarm_warp_cache_invalid_type();
-            shapingLogger.error("failed to create warmup element. columnType=%s, e.getMessage()=%s", columnType, e.getMessage());
+            shapingLogger.warn("failed to create warmup element. columnType=%s, e.getMessage()=%s", columnType, e.getMessage());
         }
         return res;
     }
