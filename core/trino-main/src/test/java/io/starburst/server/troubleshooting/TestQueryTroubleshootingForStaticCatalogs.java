@@ -16,6 +16,7 @@ import io.airlift.discovery.client.ServiceDescriptor;
 import io.airlift.discovery.client.testing.InMemoryDiscoveryClient;
 import io.trino.Session;
 import io.trino.connector.ConnectorServicesProvider;
+import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.server.testing.TestingTrinoServer;
@@ -127,6 +128,7 @@ public class TestQueryTroubleshootingForStaticCatalogs
         nodeModifier.accept(nodeBuilder);
         TestingTrinoServer node = nodeBuilder.build();
         node.installPlugin(new TpchPlugin());
+        node.installPlugin(new GeoPlugin());
         node.installPlugin(new PostgreSqlPlugin());
         node.getInstance(Key.get(ConnectorServicesProvider.class)).loadInitialCatalogs();
         return node;

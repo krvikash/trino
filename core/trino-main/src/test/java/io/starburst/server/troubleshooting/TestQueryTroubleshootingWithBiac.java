@@ -22,6 +22,7 @@ import com.starburstdata.presto.server.diagnostics.BiacDiagnostics;
 import com.starburstdata.presto.server.diagnostics.BiacStoragePayload;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import com.starburstdata.presto.testing.testcontainers.TestingEventLoggerPostgreSqlServer;
+import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.security.Identity;
@@ -56,6 +57,7 @@ public class TestQueryTroubleshootingWithBiac
                 .build();
 
         queryRunner.installPlugin(new TpchPlugin());
+        queryRunner.installPlugin(new GeoPlugin());
         queryRunner.installPlugin(new PostgreSqlPlugin());
         queryRunner.createCatalog("tpch", "tpch");
         queryRunner.createCatalog("postgres", "postgresql", POSTGRES_CATALOG_PROPERTIES);

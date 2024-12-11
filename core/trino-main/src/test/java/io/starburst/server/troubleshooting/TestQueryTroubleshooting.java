@@ -16,6 +16,7 @@ import com.google.inject.Key;
 import com.starburstdata.presto.server.StarburstQueryRunner;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.starburst.server.troubleshooting.configdump.ForAccessControlConfigDump;
+import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.security.GroupProvider;
@@ -82,6 +83,7 @@ public class TestQueryTroubleshooting
                 .build();
 
         queryRunner.installPlugin(new TpchPlugin());
+        queryRunner.installPlugin(new GeoPlugin());
         queryRunner.installPlugin(new PostgreSqlPlugin());
         queryRunner.createCatalog("tpch", "tpch");
         queryRunner.createCatalog("postgres", "postgresql", POSTGRES_CATALOG_PROPERTIES);
