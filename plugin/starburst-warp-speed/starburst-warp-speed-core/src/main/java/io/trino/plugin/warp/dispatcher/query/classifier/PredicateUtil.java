@@ -240,7 +240,7 @@ public class PredicateUtil
     public static boolean isInversePredicate(SortedRangeSet sortedRangeSet, Type type)
     {
         int rangeCount = sortedRangeSet.getRangeCount();
-        if (TypeUtils.isRealType(type) || TypeUtils.isBooleanType(type)) {
+        if (TypeUtils.isRealType(type) || TypeUtils.isBooleanType(type) || TypeUtils.isDoubleType(type)) {
             return false;
         }
 
