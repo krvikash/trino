@@ -182,7 +182,7 @@ public class WarmupRuleService
     {
         WarmupRuleResult warmupRuleResult = validateNewRules(existingWarmupRules, newWarmupRules);
         if (!warmupRuleResult.rejectedRules().isEmpty()) {
-            logger.error(warmupRuleResult.rejectedRules().toString());
+            logger.info(warmupRuleResult.rejectedRules().toString());
         }
         return warmupRuleResult;
     }
