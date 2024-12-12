@@ -41,9 +41,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.findMatchForMatchCollect;
+import static io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier.INVALID_TOTAL_RECORDS;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INVALID_WARM_ID;
 import static io.trino.plugin.warp.storage.read.WarpPageSource.INVALID_COL_IX;
 
@@ -60,6 +62,8 @@ public class QueryParamsConverter
             long fileModTime,
             boolean rangesRequired)
     {
+        checkArgument(queryContext.getTotalRecords() != INVALID_TOTAL_RECORDS, "Invalid total records");
+
         Optional<MatchData> matchData = queryContext.getMatchData();
         ImmutableList.Builder<PredicateCacheData> predicateCacheDataBuilder = ImmutableList.builder();
 
