@@ -26,6 +26,7 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
@@ -42,6 +43,7 @@ public class IcebergMetadataFactory
     private final Optional<HiveMetastoreFactory> metastoreFactory;
     private final boolean addFilesProcedureEnabled;
     private final Predicate<String> allowedExtraProperties;
+    private final ExecutorService executor;
 
     @Inject
     public IcebergMetadataFactory(
@@ -53,6 +55,7 @@ public class IcebergMetadataFactory
             IcebergFileSystemFactory fileSystemFactory,
             TableStatisticsWriter tableStatisticsWriter,
             @RawHiveMetastoreFactory Optional<HiveMetastoreFactory> metastoreFactory,
+            @ForIcebergScanPlanning ExecutorService executor,
             IcebergConfig config)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
@@ -63,6 +66,7 @@ public class IcebergMetadataFactory
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableStatisticsWriter = requireNonNull(tableStatisticsWriter, "tableStatisticsWriter is null");
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
+        this.executor = requireNonNull(executor, "executor is null");
         this.addFilesProcedureEnabled = config.isAddFilesProcedureEnabled();
         if (config.getAllowedExtraProperties().equals(ImmutableList.of("*"))) {
             this.allowedExtraProperties = _ -> true;
@@ -84,6 +88,7 @@ public class IcebergMetadataFactory
                 tableStatisticsWriter,
                 metastoreFactory,
                 addFilesProcedureEnabled,
-                allowedExtraProperties);
+                allowedExtraProperties,
+                executor);
     }
 }

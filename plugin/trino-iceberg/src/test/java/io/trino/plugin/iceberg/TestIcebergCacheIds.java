@@ -130,6 +130,7 @@ public class TestIcebergCacheIds
                 new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
                 new TableStatisticsWriter(new NodeVersion("test-version")),
                 Optional.of(metastoreFactory),
+                newDirectExecutorService(),
                 icebergConfig);
         icebergMetadata = new IcebergCacheMetadata(
                 createJsonCodec(IcebergCacheTableId.class),
