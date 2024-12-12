@@ -379,9 +379,8 @@ class VariableRewriter
         else {
             int recTypeLength = TypeUtils.getTypeLength(castToType, storageEngineConstants.getVarcharMaxLen());
             RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(castToType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
-            nativeExpressionBuilder.functionParams(List.of(recTypeCode.ordinal()))
-                    .functionType(FunctionType.FUNCTION_TYPE_CAST);
-            supported = true;
+            nativeExpressionBuilder.functionParams(List.of(recTypeCode.ordinal())).functionType(FunctionType.FUNCTION_TYPE_CAST);
+            supported = (recTypeCode != RecTypeCode.REC_TYPE_INVALID);
         }
         if (!supported) {
             pushdownPredicatesStats.incunsupported_functions_native();

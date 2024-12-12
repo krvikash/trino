@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.type;
 
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.spi.TrinoException;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
@@ -32,7 +31,6 @@ import io.trino.spi.type.VarcharType;
 
 import java.util.Set;
 
-import static io.trino.plugin.warp.WarpErrorCode.WARP_CONTROL;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -264,7 +262,7 @@ public class TypeUtils
 
     public static int getTypeLength(Type type, int maxVarlenLength)
     {
-        int ret;
+        int ret = 0;
         switch (type) {
             case CharType charType -> {
                 return charType.getLength();
@@ -284,7 +282,9 @@ public class TypeUtils
             case MapType mapType -> {
                 return getTypeLength(mapType.getValueType(), maxVarlenLength);
             }
-            default -> throw new TrinoException(WARP_CONTROL, "Unsupported record type " + type);
+            default -> {
+                return 0;
+            }
         }
         return ret != 0 ? ret : maxVarlenLength;
     }
@@ -299,9 +299,11 @@ public class TypeUtils
         return (length == 1) || (length == 2) || (length == 4);
     }
 
+    // returns REC_TYPE_INVALID in case its not supported
     public static RecTypeCode convertToRecTypeCode(Type type, int recTypeLength, int fixedLengthStringLimit)
     {
-        RecTypeCode ret;
+        RecTypeCode ret = RecTypeCode.REC_TYPE_INVALID;
+
         if (isShortDecimalType(type)) {
             ret = RecTypeCode.REC_TYPE_DECIMAL_SHORT;
         }
@@ -367,18 +369,12 @@ public class TypeUtils
             else if (isDoubleType(elementType)) {
                 ret = RecTypeCode.REC_TYPE_ARRAY_DOUBLE;
             }
-            else {
-                throw new UnsupportedOperationException(String.format("unknown record array type %s", elementType));
-            }
         }
         else if (isMapType(type)) {
             return convertToRecTypeCode(((MapType) type).getValueType(), recTypeLength, fixedLengthStringLimit);
         }
         else if (isVarbinaryType(type)) {
             ret = RecTypeCode.REC_TYPE_VARBINARY;
-        }
-        else {
-            throw new UnsupportedOperationException(String.format("unknown record type %s", type));
         }
         return ret;
     }

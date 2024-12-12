@@ -192,19 +192,17 @@ public class WarmupElementsCreator
     private RecordData createColumn(SchemaTableName schemaTableName, WarpColumn warpColumn, Map<String, Type> columnNameToType)
     {
         Type type = null;
-        int recTypeLength = -1;
-        RecTypeCode recTypeCode = RecTypeCode.REC_TYPE_INVALID;
-        try {
-            if (warpColumn instanceof RegularColumn) {
-                type = columnNameToType.get(warpColumn.getName());
-                recTypeLength = TypeUtils.getTypeLength(type, storageEngineConstants.getVarcharMaxLen());
-                recTypeCode = TypeUtils.convertToRecTypeCode(type, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
-            }
-        }
-        catch (Exception e) {
-            recTypeLength = -1;
-        }
+        int recTypeLength = 0;
 
+        RecTypeCode recTypeCode = RecTypeCode.REC_TYPE_INVALID;
+        if (warpColumn instanceof RegularColumn) {
+            type = columnNameToType.get(warpColumn.getName());
+            recTypeLength = TypeUtils.getTypeLength(type, storageEngineConstants.getVarcharMaxLen());
+            recTypeCode = TypeUtils.convertToRecTypeCode(type, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
+        }
+        if (recTypeCode == RecTypeCode.REC_TYPE_INVALID) {
+            recTypeLength = 0;
+        }
         return new RecordData(
                 new SchemaTableColumn(schemaTableName, warpColumn),
                 type,
@@ -214,35 +212,32 @@ public class WarmupElementsCreator
 
     public Optional<WarmUpElement> createWarmupElement(String cacheColumnId, Type columnType, UUID storeId)
     {
-        Optional<WarmUpElement> res = Optional.empty();
-        try {
-            WarpColumn cachedColumn = new RegularColumn(cacheColumnId);
-            if (TypeUtils.isWarmDataSupported(columnType)) {
-                int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
-                RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
-                res = Optional.of(WarmUpElement.builder()
-                        .creationTime(System.currentTimeMillis())
-                        .warpColumn(cachedColumn)
-                        .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
-                        .recTypeCode(recTypeCode)
-                        .recTypeLength(recTypeLength)
-                        .warmId(INVALID_WARM_ID)
-                        .exportState(ExportState.NOT_EXPORTED)
-                        .storeId(storeId)
-                        .state(WarmUpElementState.VALID)
-                        .warmupElementStats(WarmupElementStats.UNINITIALIZED)
-                        .warmUpContextSize(bufferAllocator.getWarmupDataTxSize(recTypeCode, recTypeLength))
-                        .build());
-            }
-            else {
-                statsWarmingService.incwarm_warp_cache_invalid_type();
-            }
-        }
-        catch (Exception e) {
+        if (!TypeUtils.isWarmDataSupported(columnType)) {
             statsWarmingService.incwarm_warp_cache_invalid_type();
-            shapingLogger.warn("failed to create warmup element. columnType=%s, e.getMessage()=%s", columnType, e.getMessage());
+            return Optional.empty();
         }
-        return res;
+
+        int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
+        RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
+        if (recTypeCode == RecTypeCode.REC_TYPE_INVALID) {
+            statsWarmingService.incwarm_warp_cache_invalid_type();
+            shapingLogger.warn("unexpectedly failed to create warmup element, columnType=%s", columnType);
+            return Optional.empty();
+        }
+
+        return Optional.of(WarmUpElement.builder()
+                .creationTime(System.currentTimeMillis())
+                .warpColumn(new RegularColumn(cacheColumnId))
+                .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
+                .recTypeCode(recTypeCode)
+                .recTypeLength(recTypeLength)
+                .warmId(INVALID_WARM_ID)
+                .exportState(ExportState.NOT_EXPORTED)
+                .storeId(storeId)
+                .state(WarmUpElementState.VALID)
+                .warmupElementStats(WarmupElementStats.UNINITIALIZED)
+                .warmUpContextSize(bufferAllocator.getWarmupDataTxSize(recTypeCode, recTypeLength))
+                .build());
     }
 
     public static byte getCurrentThreadWarmId()
