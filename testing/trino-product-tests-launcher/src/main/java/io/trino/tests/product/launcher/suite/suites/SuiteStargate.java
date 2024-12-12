@@ -15,6 +15,7 @@ package io.trino.tests.product.launcher.suite.suites;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.tests.product.launcher.env.EnvironmentConfig;
+import io.trino.tests.product.launcher.env.environment.EnvMultinodeStargateParallel;
 import io.trino.tests.product.launcher.env.environment.EnvSinglenodeStargateWithRemoteSinglenodeStarburst;
 import io.trino.tests.product.launcher.suite.Suite;
 import io.trino.tests.product.launcher.suite.SuiteTestRun;
@@ -33,6 +34,9 @@ public class SuiteStargate
     {
         return ImmutableList.of(
                 testOnEnvironment(EnvSinglenodeStargateWithRemoteSinglenodeStarburst.class)
+                        .withGroups(CONFIGURED_FEATURES, STARGATE)
+                        .build(),
+                testOnEnvironment(EnvMultinodeStargateParallel.class)
                         .withGroups(CONFIGURED_FEATURES, STARGATE)
                         .build());
     }
