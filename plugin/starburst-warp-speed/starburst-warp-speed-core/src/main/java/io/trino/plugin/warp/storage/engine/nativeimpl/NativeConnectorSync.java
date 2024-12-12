@@ -136,6 +136,10 @@ public class NativeConnectorSync
             final long sharedConnectorMemorySize = memorySizePerWorker * (long) numWorkerThreads;
             // register and get memory address. note that the name is not passed to native. no need.
             long sharedConnectorMemoryAddress = register(catalogContext.address());
+            if (sharedConnectorMemoryAddress == -1) {
+                throw new RuntimeException("catalog failed to register on too many catalogs");
+            }
+
             // in case no memory was allocated yet, allocate it
             if (sharedConnectorMemoryAddress == 0) {
                 // allocate the memory as global so it will leave even if this connector is unregistered
@@ -166,6 +170,7 @@ public class NativeConnectorSync
         }
         catch (Throwable t) {
             logger.error(t, "failed to register");
+            shutdown();
             throw new RuntimeException(t);
         }
     }
