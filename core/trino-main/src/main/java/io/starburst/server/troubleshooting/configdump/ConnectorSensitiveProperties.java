@@ -537,6 +537,7 @@ public final class ConnectorSensitiveProperties
             .put("maxcompute",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
+                            "cache-service.password",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
