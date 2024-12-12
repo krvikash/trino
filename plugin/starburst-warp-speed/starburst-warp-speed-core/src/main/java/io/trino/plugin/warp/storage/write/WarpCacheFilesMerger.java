@@ -76,7 +76,7 @@ public class WarpCacheFilesMerger
             int maxOffset = permanentRowGroupData.getNextOffset();
             String permanentRowGroupPath = permanentRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
             try (RandomAccessFile mergedFile = new RandomAccessFile(permanentRowGroupPath, "rw")) {
-                int offset = maxOffset << pageSizeShift;
+                long offset = ((long) maxOffset) << pageSizeShift;
                 mergedFile.seek(offset);
                 for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
                     try {
@@ -92,7 +92,7 @@ public class WarpCacheFilesMerger
                                 .endOffset(relativeEndOffset)
                                 .queryOffset(relativeQueryOffset)
                                 .build();
-                        copyFileContent(tmpRowGroupData.getRowGroupKey(), permanentRowGroupPath, mergedFile, tmpRowGroupData.getNextOffset() << pageSizeShift);
+                        copyFileContent(tmpRowGroupData.getRowGroupKey(), permanentRowGroupPath, mergedFile, ((long) tmpRowGroupData.getNextOffset()) << pageSizeShift);
                         maxOffset += tmpRowGroupData.getNextOffset();
                         permanentRowGroupData = rowGroupDataService.updateRowGroupData(permanentRowGroupData,
                                 newWarmupElement,
@@ -129,7 +129,7 @@ public class WarpCacheFilesMerger
         }
     }
 
-    private void copyFileContent(RowGroupKey tmpRowGroupKey, String permanentRowGroupPath, RandomAccessFile mergedFile, int length)
+    private void copyFileContent(RowGroupKey tmpRowGroupKey, String permanentRowGroupPath, RandomAccessFile mergedFile, long length)
     {
         String tmpRowGroupFilePath = tmpRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         validateAndCreateDirectoryIfNeeded(tmpRowGroupFilePath, permanentRowGroupPath);
@@ -138,10 +138,13 @@ public class WarpCacheFilesMerger
 
             // Read from the source file and write to the destination file
             int bytesRead;
-            int totalBytesRead = 0;
-            while (totalBytesRead < length && (bytesRead = reader.read(buffer, 0, Math.min(BUFFER_SIZE, length - totalBytesRead))) != -1) {
+            long totalBytesRead = 0;
+            int bytesToRead = length < BUFFER_SIZE ? (int) length : BUFFER_SIZE;
+            while (totalBytesRead < length && (bytesRead = reader.read(buffer, 0, bytesToRead)) != -1) {
                 mergedFile.write(buffer, 0, bytesRead);
                 totalBytesRead += bytesRead;
+                long remainingBytes = length - totalBytesRead;
+                bytesToRead = remainingBytes < BUFFER_SIZE ? (int) remainingBytes : BUFFER_SIZE;
             }
         }
         catch (IOException e) {
