@@ -52,4 +52,10 @@ public class DataApiException
     {
         return rateLimitInfo;
     }
+
+    @Override
+    public String toString()
+    {
+        return "DataApiException[" + errorCode + rateLimitInfo.map(limitInfo -> ("/" + limitInfo)).orElse("") + "]: " + getMessage();
+    }
 }
