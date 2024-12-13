@@ -14,8 +14,8 @@
 package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.plugin.hive.containers.Hive3MinioDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
-import io.trino.plugin.hive.containers.HiveMinioDataLake;
 import io.trino.testing.QueryRunner;
 import org.apache.iceberg.FileFormat;
 
@@ -28,7 +28,7 @@ import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
 public class TestIcebergHiveMinioCatalogMaterializedViewAutoRefreshTest
         extends TestIcebergHiveCatalogMaterializedViewAutoRefreshTest
 {
-    private HiveMinioDataLake hiveMinioDataLake;
+    private Hive3MinioDataLake hive3MinioDataLake;
     private String bucketName;
 
     @Override
@@ -36,8 +36,8 @@ public class TestIcebergHiveMinioCatalogMaterializedViewAutoRefreshTest
             throws Exception
     {
         this.bucketName = "test-iceberg-hive-minio-mv-auto-refresh-test-" + randomNameSuffix();
-        hiveMinioDataLake = closeAfterClass(new HiveMinioDataLake(bucketName, HiveHadoop.HIVE3_IMAGE));
-        hiveMinioDataLake.start();
+        hive3MinioDataLake = closeAfterClass(new Hive3MinioDataLake(bucketName, HiveHadoop.HIVE3_IMAGE));
+        hive3MinioDataLake.start();
         return super.createQueryRunner();
     }
 
@@ -46,12 +46,12 @@ public class TestIcebergHiveMinioCatalogMaterializedViewAutoRefreshTest
     {
         return ImmutableMap.<String, String>builder()
                 .put("iceberg.catalog.type", "HIVE_METASTORE")
-                .put("hive.metastore.uri", hiveMinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
+                .put("hive.metastore.uri", hive3MinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
                 .put("fs.hadoop.enabled", "false")
                 .put("fs.native-s3.enabled", "true")
                 .put("s3.aws-access-key", MINIO_ACCESS_KEY)
                 .put("s3.aws-secret-key", MINIO_SECRET_KEY)
-                .put("s3.endpoint", hiveMinioDataLake.getMinio().getMinioAddress())
+                .put("s3.endpoint", hive3MinioDataLake.getMinio().getMinioAddress())
                 .put("s3.region", "us-east-1")
                 .put("s3.path-style-access", "true")
                 .put("iceberg.file-format", FileFormat.PARQUET.name())
