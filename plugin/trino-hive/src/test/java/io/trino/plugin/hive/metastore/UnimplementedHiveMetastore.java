@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.metastore;
 
+import com.google.common.collect.ImmutableSet;
 import io.trino.metastore.Database;
 import io.trino.metastore.HiveColumnStatistics;
 import io.trino.metastore.HiveMetastore;
@@ -306,6 +307,12 @@ public class UnimplementedHiveMetastore
 
     @Override
     public void dropFunction(String databaseName, String functionName, String signatureToken)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<String> getTableNamesWithParameters(String databaseName, String parameterKey, ImmutableSet<String> parameterValues)
     {
         throw new UnsupportedOperationException();
     }
