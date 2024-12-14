@@ -176,37 +176,52 @@ public class WarpReader
     @NativeInterrupt
     private long closePage()
     {
-        if (matcherPageArgs != null) {
-            matcher.closePage(queryArgs, matcherPageArgs);
-            matcherPageArgs = null;
-        }
-
         long readPages = 0;
-        if (aggregatorPageArgs != null) {
-            queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
-            readPages = blocksAggregator.closePage(queryArgs,
-                    aggregatorArgs,
-                    aggregatorPageArgs,
-                    queryState,
-                    chunksQueue);
+
+        try {
+            if (matcherPageArgs != null) {
+                matcher.closePage(queryArgs, matcherPageArgs);
+            }
+
+            if (aggregatorPageArgs != null) {
+                queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
+                readPages = blocksAggregator.closePage(queryArgs,
+                        aggregatorArgs,
+                        aggregatorPageArgs,
+                        queryState,
+                        chunksQueue);
+            }
+        }
+        catch (Exception e) {
+            shapingLogger.error(e, "failed to close page");
+        }
+        finally {
+            matcherPageArgs = null;
             aggregatorPageArgs = null;
+            resetMemory();
         }
 
-        resetMemory();
         return readPages;
     }
 
     private void abortPage(Exception e)
     {
-        if (matcherPageArgs != null) {
-            matcher.abortPage(queryArgs, matcherPageArgs, e);
+        try {
+            if (matcherPageArgs != null) {
+                matcher.abortPage(queryArgs, matcherPageArgs, e);
+            }
+            if (aggregatorPageArgs != null) {
+                blocksAggregator.abortPage(queryArgs, aggregatorPageArgs, e);
+            }
+        }
+        catch (Exception e2) {
+            shapingLogger.error(e2, "failed to abort page");
+        }
+        finally {
             matcherPageArgs = null;
-        }
-        if (aggregatorPageArgs != null) {
-            blocksAggregator.abortPage(queryArgs, aggregatorPageArgs, e);
             aggregatorPageArgs = null;
+            resetMemory();
         }
-        resetMemory();
     }
 
     private void resetMemory()

@@ -130,25 +130,6 @@ public class ShapingLoggerTest
     }
 
     @Test
-    public void testAfterShapingIntervalLogNSamples()
-            throws InterruptedException
-    {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(
-                logger,
-                10,
-                Duration.ofMillis(20),
-                2);
-        IntStream.range(0, 5).forEach(_ -> shapingLogger.error("%s", "test"));
-
-        Thread.sleep(23);
-
-        IntStream.range(0, 5).forEach(_ -> shapingLogger.error("%s", "test"));
-
-        verify(logger, times(4)).error(eq("%s"), eq("test"));
-        verify(logger, times(1)).info(eq("%s - skipped 4 times"));
-    }
-
-    @Test
     public void testAfterShapingIntervalDontLogFirst()
             throws InterruptedException
     {

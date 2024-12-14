@@ -89,10 +89,6 @@ public class LazyCollectorLoader
             ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorLoaderArgs.collectJufferWE();
             QueryResultType queryResultType = QueryResultType.values()[queryResultTypeMem.get(ValueLayout.JAVA_INT, 0)];
             retBlock = lazyCollectorLoaderArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats, dispatcherPageSourceStats);
-
-            // close
-            collectTxService.collectClose(collectOpenResult.queryMemoryId(), nativeStats, dispatcherPageSourceStats);
-            dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
         }
         catch (Exception e) {
             shapingLogger.error(e, "lazy collect failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
@@ -100,6 +96,15 @@ public class LazyCollectorLoader
             dispatcherPageSourceStats.inclazy_collect_failed_load();
             collectTxService.collectAbort(e, queryMemoryId, dispatcherPageSourceStats);
             throw e;
+        }
+
+        try {
+            // close
+            collectTxService.collectClose(collectOpenResult.queryMemoryId(), nativeStats, dispatcherPageSourceStats);
+            dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
+        }
+        catch (Exception e) {
+            shapingLogger.error(e, "lazy collect failed in close");
         }
         return retBlock;
     }

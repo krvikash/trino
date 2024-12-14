@@ -97,7 +97,7 @@ public class NativeConnectorSync
             mAllocQueryMemoryId = linker.downcallHandle(libraryHandle.find("syncher_alloc_reader_id").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
             mFreeQueryMemoryId = linker.downcallHandle(libraryHandle.find("syncher_free_reader_id").orElseThrow(),
-                    FunctionDescriptor.ofVoid(ValueLayout.JAVA_INT));
+                    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.JAVA_INT));
             mDemotePrepare = linker.downcallHandle(libraryHandle.find("syncher_demote_prepare").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_DOUBLE));
             mDemoteStart = linker.downcallHandle(libraryHandle.find("syncher_demote_start").orElseThrow(),
@@ -247,13 +247,20 @@ public class NativeConnectorSync
     @Override
     public void freeQueryMemory(int queryMemoryId)
     {
+        long result = -1;
         try {
-            mFreeQueryMemoryId.invokeExact(queryMemoryId);
+            result = (long) mFreeQueryMemoryId.invokeExact(queryMemoryId);
+            if (result > 0) {
+                logger.warn("query memory was held too long %d millis", result);
+            }
+            if (result >= 0) {
+                return;
+            }
         }
         catch (Throwable t) {
             logger.error(t, "failed to free query memory");
-            throw new RuntimeException("failed to free query memory");
         }
+        throw new RuntimeException("failed to free query memory");
     }
 
     // demote API
