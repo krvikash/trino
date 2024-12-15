@@ -14,6 +14,8 @@
 package io.trino.plugin.warp.storage.lucene;
 
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.Directory;
@@ -35,12 +37,21 @@ public class LuceneIndexWriter
     private final StorageEngineConstants storageEngineConstants;
     private final IndexWriter indexWriter;
     private final String rowGroupFilePath;
+    private final ShapingLogger shapingLogger;
 
-    public LuceneIndexWriter(StorageEngineConstants storageEngineConstants, IndexWriter indexWriter, String rowGroupFilePath)
+    public LuceneIndexWriter(StorageEngineConstants storageEngineConstants,
+                             IndexWriter indexWriter,
+                             String rowGroupFilePath,
+                             GlobalConfig globalConfig)
     {
         this.storageEngineConstants = storageEngineConstants;
         this.indexWriter = indexWriter;
         this.rowGroupFilePath = rowGroupFilePath;
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public Optional<ChunkState> saveLuceneIndex(int startOffset)
@@ -116,7 +127,7 @@ public class LuceneIndexWriter
             return Optional.of(chunkState);
         }
         catch (IOException e) {
-            logger.error("saveLuceneIndex failed rowGroupFilePath %s startOffset %d message %s", rowGroupFilePath, startOffset, e.getMessage());
+            shapingLogger.error("saveLuceneIndex failed rowGroupFilePath %s startOffset %d message %s", rowGroupFilePath, startOffset, e.getMessage());
             throw new RuntimeException(e);
         }
     }

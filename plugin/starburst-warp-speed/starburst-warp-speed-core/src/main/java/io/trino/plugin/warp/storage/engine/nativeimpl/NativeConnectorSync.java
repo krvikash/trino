@@ -42,7 +42,6 @@ import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static io.trino.plugin.warp.gen.errorcodes.ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -59,7 +58,6 @@ public class NativeConnectorSync
     private final GlobalConfig globalConfig;
     private final NativeConfig nativeConfig;
     private WarmupDemoterService warmupDemoterService;
-    private final NativeStorageStateHandler nativeStorageStateHandler;
 
     private MemorySegment catalogContext;
     private MemorySegment sharedConnectorMemory;
@@ -81,8 +79,7 @@ public class NativeConnectorSync
             EventBus eventBus,
             GlobalConfig globalConfig,
             NativeConfig nativeConfig,
-            WorkerCapacityManager workerCapacityManager,
-            NativeStorageStateHandler nativeStorageStateHandler)
+            WorkerCapacityManager workerCapacityManager)
     {
         try {
             SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
@@ -110,7 +107,6 @@ public class NativeConnectorSync
             this.workerCapacityManager = requireNonNull(workerCapacityManager);
             this.globalConfig = requireNonNull(globalConfig);
             this.nativeConfig = requireNonNull(nativeConfig);
-            this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
 
             int contextSize = (int) mGetContextSize.invokeExact();
             if (contextSize <= 0) {
@@ -178,9 +174,6 @@ public class NativeConnectorSync
     @PreDestroy
     public void shutdown()
     {
-        //stop all native processes
-        nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
-
         try {
             boolean success = (boolean) mUnregister.invokeExact(catalogContext);
             if (!success) {

@@ -23,6 +23,7 @@ import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.DispatcherNodePartitioningProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.node.CoordinatorNodeManager;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
@@ -48,12 +49,13 @@ public class SingleDispatcherConnector
             WarpSessionProperties warpSessionProperties,
             LifeCycleManager lifeCycleManager,
             ConnectorTaskExecutor connectorTaskExecutor,
+            NativeStorageStateHandler nativeStorageStateHandler,
             CoordinatorDispatcherConnector coordinatorDispatcherConnector,
             WorkerDispatcherConnector workerDispatcherConnector,
             CoordinatorNodeManager coordinatorNodeManager,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
-        super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor);
+        super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
         this.coordinatorDispatcherConnector = coordinatorDispatcherConnector;
         this.workerDispatcherConnector = workerDispatcherConnector;
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);

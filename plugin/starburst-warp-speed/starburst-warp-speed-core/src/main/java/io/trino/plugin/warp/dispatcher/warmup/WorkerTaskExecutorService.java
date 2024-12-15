@@ -31,8 +31,10 @@ import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.connector.ConnectorSession;
+import jakarta.annotation.PreDestroy;
 
 import java.util.Comparator;
 import java.util.Iterator;
@@ -79,6 +81,7 @@ public class WorkerTaskExecutorService
     private ExecutorService cloudExecutorService;
     private ExecutorService proxyExecutorService;
     private ScheduledExecutorService scheduledCloudExecutorService;
+    private final NativeStorageStateHandler nativeStorageStateHandler;
     private final int queueSize;
     private final GlobalConfig globalConfig;
     private final CloudVendorConfig cloudVendorConfig;
@@ -92,6 +95,7 @@ public class WorkerTaskExecutorService
             MetricsManager metricsManager,
             GlobalConfig globalConfig,
             @ForWarp CloudVendorConfig cloudVendorConfig,
+            NativeStorageStateHandler nativeStorageStateHandler,
             WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         this.shapingLogger = ShapingLogger.getInstance(
@@ -106,6 +110,7 @@ public class WorkerTaskExecutorService
         requireNonNull(warmupDemoterConfig);
         this.queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
+        this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         warpInitializedServiceRegistry.addService(this);
     }
 
@@ -132,6 +137,23 @@ public class WorkerTaskExecutorService
             cloudExecutorService = getCloudExecutorService();
             scheduledCloudExecutorService = getScheduledCloudExecutorService();
             isImportExportInitialized = true;
+        }
+    }
+
+    @PreDestroy
+    public void shutdown()
+    {
+        lock.lock();
+        try {
+            prioritizeExecutorService.shutdown();
+            if (isImportExportInitialized) {
+                cloudExecutorService.shutdown();
+                scheduledCloudExecutorService.shutdown();
+            }
+            proxyExecutorService.shutdown();
+        }
+        finally {
+            lock.unlock();
         }
     }
 
@@ -182,6 +204,10 @@ public class WorkerTaskExecutorService
 
     public SubmissionResult submitTask(WorkerSubmittableTask task, boolean allowConflicts)
     {
+        if (!nativeStorageStateHandler.isStorageAvailable()) {
+            return SubmissionResult.REJECTED;
+        }
+
         SubmissionResult ret = SubmissionResult.SCHEDULED;
         lock.lock();
         try {
@@ -248,16 +274,18 @@ public class WorkerTaskExecutorService
     {
         lock.lock();
         try {
-            submittedRowGroups.remove(rowGroupKey);
-            Set<WorkerSubmittableTask> pendingRowGroupTasks = pendingTasks.get(rowGroupKey);
-            if (!pendingRowGroupTasks.isEmpty()) {
-                Iterator<WorkerSubmittableTask> iterator = pendingRowGroupTasks.iterator();
-                WorkerSubmittableTask workerSubmittableTask = iterator.next();
-                iterator.remove();
-                statsWorkerTaskExecutorService.inctask_resubmitted();
-                submitTask(workerSubmittableTask, true);
+            if (nativeStorageStateHandler.isStorageAvailable()) {
+                submittedRowGroups.remove(rowGroupKey);
+                Set<WorkerSubmittableTask> pendingRowGroupTasks = pendingTasks.get(rowGroupKey);
+                if (!pendingRowGroupTasks.isEmpty()) {
+                    Iterator<WorkerSubmittableTask> iterator = pendingRowGroupTasks.iterator();
+                    WorkerSubmittableTask workerSubmittableTask = iterator.next();
+                    iterator.remove();
+                    statsWorkerTaskExecutorService.inctask_resubmitted();
+                    submitTask(workerSubmittableTask, true);
+                }
+                statsWorkerTaskExecutorService.inctask_finished();
             }
-            statsWorkerTaskExecutorService.inctask_finished();
         }
         finally {
             lock.unlock();
@@ -266,19 +294,21 @@ public class WorkerTaskExecutorService
 
     public void delaySubmit(long delayInSeconds, WorkerSubmittableTask task, Consumer<WorkerSubmittableTask> conflictCallback)
     {
-        if (delayInSeconds > 0) {
-            statsWorkerTaskExecutorService.inctask_delayed();
-            DelayedTask delayedTask = new DelayedTask(this, task, conflictCallback);
-            ScheduledFuture<?> unused = scheduledCloudExecutorService.schedule(delayedTask, delayInSeconds, TimeUnit.SECONDS);
-        }
-        else {
-            SubmissionResult submissionResult = submitTask(task, true);
-            if ((submissionResult == SubmissionResult.CONFLICT) && (conflictCallback != null)) {
-                try {
-                    conflictCallback.accept(task);
-                }
-                catch (Exception e) {
-                    shapingLogger.warn("failed to call conflict callback for task %s", task.getRowGroupKey());
+        if (nativeStorageStateHandler.isStorageAvailable()) {
+            if (delayInSeconds > 0) {
+                statsWorkerTaskExecutorService.inctask_delayed();
+                DelayedTask delayedTask = new DelayedTask(this, task, conflictCallback);
+                ScheduledFuture<?> unused = scheduledCloudExecutorService.schedule(delayedTask, delayInSeconds, TimeUnit.SECONDS);
+            }
+            else {
+                SubmissionResult submissionResult = submitTask(task, true);
+                if ((submissionResult == SubmissionResult.CONFLICT) && (conflictCallback != null)) {
+                    try {
+                        conflictCallback.accept(task);
+                    }
+                    catch (Exception e) {
+                        shapingLogger.warn("failed to call conflict callback for task %s", task.getRowGroupKey());
+                    }
                 }
             }
         }

@@ -69,6 +69,7 @@ public class LuceneIndexer
 
     private final StorageEngineConstants storageEngineConstants;
     private final String rowGroupFilePath;
+    private final GlobalConfig globalConfig;
     private final Path path;
     private final LuceneIndexerStats stats;
     private final StopWatch stopWatch;
@@ -79,10 +80,14 @@ public class LuceneIndexer
     private boolean failedCommit;
     private int countDocsForSizeLimit;
 
-    public LuceneIndexer(StorageEngineConstants storageEngineConstants, String rowGroupFilePath, LuceneIndexerStats stats, GlobalConfig globalConfig)
+    public LuceneIndexer(StorageEngineConstants storageEngineConstants,
+                         String rowGroupFilePath,
+                         LuceneIndexerStats stats,
+                         GlobalConfig globalConfig)
     {
         this.storageEngineConstants = storageEngineConstants;
         this.rowGroupFilePath = rowGroupFilePath;
+        this.globalConfig = globalConfig;
 
         String uniqueName = rowGroupFilePath;
         for (int i = 0; i < RowGroupKey.FILE_NAME_START_OF_FILE_NAME; i++) {
@@ -170,7 +175,7 @@ public class LuceneIndexer
             }
             logger.debug("create temporary directory %s", path);
             indexWriter = new IndexWriter(FSDirectory.open(path), config);
-            luceneIndexWriter = new LuceneIndexWriter(storageEngineConstants, indexWriter, rowGroupFilePath);
+            luceneIndexWriter = new LuceneIndexWriter(storageEngineConstants, indexWriter, rowGroupFilePath, globalConfig);
         }
         catch (Exception e) {
             logger.warn("Got exception when creating the indexWriter - %s", e);

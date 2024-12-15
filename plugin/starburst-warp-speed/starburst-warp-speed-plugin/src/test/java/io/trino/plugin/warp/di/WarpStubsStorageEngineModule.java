@@ -27,6 +27,7 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.read.RangeFillerService;
 import io.trino.plugin.warp.storage.read.StubsRangeFillerService;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 
 /**
  * Module for binding
@@ -50,6 +51,7 @@ public class WarpStubsStorageEngineModule
         NativeStorageStateHandler nativeStorageStateHandler = new NativeStorageStateHandler(
                 new NativeConfig(),
                 new StubExceptionThrower(),
+                new CatalogNameProvider("catalogName"),
                 new GlobalConfig());
         binder.bind(NativeStorageStateHandler.class).toInstance(nativeStorageStateHandler);
     }

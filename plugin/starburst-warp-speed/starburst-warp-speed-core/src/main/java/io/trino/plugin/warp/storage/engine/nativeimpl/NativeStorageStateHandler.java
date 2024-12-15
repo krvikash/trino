@@ -21,13 +21,17 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.errorcodes.ErrorCodes;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 
 import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class NativeStorageStateHandler
 {
+    private static final Logger logger = Logger.get(NativeStorageStateHandler.class);
+
     private final NativeConfig nativeConfig;
+    private final CatalogNameProvider catalogNameProvider;
     private final ShapingLogger shapingLogger;
 
     boolean storageDisablePermanently = true;
@@ -39,12 +43,14 @@ public class NativeStorageStateHandler
     public NativeStorageStateHandler(
             NativeConfig nativeConfig,
             ExceptionThrower exceptionThrower,
+            CatalogNameProvider catalogNameProvider,
             GlobalConfig globalConfig)
     {
         this.nativeConfig = requireNonNull(nativeConfig);
         exceptionThrower.addExceptionConsumer(this::handleErrorCode);
+        this.catalogNameProvider = requireNonNull(catalogNameProvider);
         shapingLogger = ShapingLogger.getInstance(
-                Logger.get(NativeStorageStateHandler.class),
+                logger,
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
@@ -73,11 +79,11 @@ public class NativeStorageStateHandler
 
     public synchronized void handleErrorCode(ErrorCodes errorCode)
     {
-        shapingLogger.info("handleErrorCode:: %s", errorCode);
+        shapingLogger.info("[%s] handleErrorCode:: %s", catalogNameProvider.get(), errorCode);
 
         if (errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR)) {
             disablePermanently();
-            shapingLogger.warn("storage disabled permanently due to %s", errorCode);
+            shapingLogger.warn("[%s] storage disabled permanently due to %s", catalogNameProvider.get(), errorCode);
         }
         else if (errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR) || errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_TIMEOUT_ERROR)) {
             long currentTimeMillis = System.currentTimeMillis();
@@ -85,17 +91,17 @@ public class NativeStorageStateHandler
             // initialize on first temp error
             if (!isStorageDisabledTemporarily()) {
                 disableTemporarily();
-                shapingLogger.warn("storage temporary disabled due to %s", errorCode);
+                shapingLogger.warn("[%s] storage temporary disabled due to %s", catalogNameProvider.get(), errorCode);
             }
 
             storageTemporaryExceptionNumTries++;
             storageTemporaryExceptionTimestamp = currentTimeMillis;
-            shapingLogger.warn("set storage temporary tries [%d]", storageTemporaryExceptionNumTries);
+            shapingLogger.warn("[%s] set storage temporary tries [%d]", catalogNameProvider.get(), storageTemporaryExceptionNumTries);
 
             // mark as permanent in case too many temp errors
             if (storageTemporaryExceptionNumTries >= nativeConfig.getStorageTemporaryExceptionNumTries()) {
                 disablePermanently();
-                shapingLogger.warn("set storage permanent state due to too many temporary errors - %s", errorCode);
+                shapingLogger.warn("[%s] set storage permanent state due to too many temporary errors - %s", catalogNameProvider.get(), errorCode);
             }
         }
     }
@@ -136,6 +142,12 @@ public class NativeStorageStateHandler
         setStorageDisableState(null, false);
     }
 
+    public void shutdown()
+    {
+        disablePermanently();
+        logger.warn("[%s] storage disabled permanently due to shutdown", catalogNameProvider.get());
+    }
+
     private synchronized void setStorageDisableState(Boolean disablePermanently, Boolean disableTemporarily)
     {
         if (disablePermanently != null) {
@@ -147,7 +159,7 @@ public class NativeStorageStateHandler
         else if (disableTemporarily != null) {
             storageDisableTemporarily = disableTemporarily;
             if (!storageDisableTemporarily) {
-                shapingLogger.info("reset storage temporary state due to expiry duration");
+                shapingLogger.info("[%s] reset storage temporary state due to expiry duration", catalogNameProvider.get());
                 resetTempState();
             }
         }

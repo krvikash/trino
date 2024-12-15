@@ -24,6 +24,7 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
@@ -52,6 +53,8 @@ public class WorkerTaskExecutorServiceTest
         globalConfig.setEnableImportExport(true);
         CloudVendorConfig cloudVendorConfig = new CloudVendorConfig();
         cloudVendorConfig.setStoreType("s3");
+        NativeStorageStateHandler nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
+        when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
         this.taskExecutorService = new WorkerTaskExecutorService(
                 new WarmupDemoterConfig(),
                 new NativeConfig(),
@@ -59,6 +62,7 @@ public class WorkerTaskExecutorServiceTest
                 metricManager,
                 globalConfig,
                 cloudVendorConfig,
+                nativeStorageStateHandler,
                 mock(WarpInitializedServiceRegistry.class));
         this.taskExecutorService.init();
     }

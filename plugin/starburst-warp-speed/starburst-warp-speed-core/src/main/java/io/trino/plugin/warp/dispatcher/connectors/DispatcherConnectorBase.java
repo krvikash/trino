@@ -21,6 +21,7 @@ import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherIndexProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;
@@ -55,19 +56,22 @@ public abstract class DispatcherConnectorBase
     private final ImmutableList<PropertyMetadata<?>> sessionProperties;
     private final LifeCycleManager lifeCycleManager;
     private final ConnectorTaskExecutor connectorTaskExecutor;
+    private final NativeStorageStateHandler nativeStorageStateHandler;
 
     public DispatcherConnectorBase(
             @ForWarp Connector proxiedConnector,
             GlobalConfig globalConfig,
             WarpSessionProperties warpSessionProperties,
             LifeCycleManager lifeCycleManager,
-            ConnectorTaskExecutor connectorTaskExecutor)
+            ConnectorTaskExecutor connectorTaskExecutor,
+            NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.proxiedConnector = requireNonNull(proxiedConnector);
         this.globalConfig = requireNonNull(globalConfig);
         this.sessionProperties = ImmutableList.copyOf(requireNonNull(warpSessionProperties.getSessionProperties()));
         this.lifeCycleManager = requireNonNull(lifeCycleManager);
         this.connectorTaskExecutor = requireNonNull(connectorTaskExecutor);
+        this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
     }
 
     @Override
@@ -113,6 +117,7 @@ public abstract class DispatcherConnectorBase
     @Override
     public void shutdown()
     {
+        nativeStorageStateHandler.shutdown();
         proxiedConnector.shutdown();
         lifeCycleManager.stop();
     }

@@ -21,6 +21,7 @@ import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.WorkerNodePartitioningProvider;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 
@@ -39,9 +40,10 @@ public class WorkerDispatcherConnector
             WarpSessionProperties warpSessionProperties,
             DispatcherAlternativeChooser dispatcherAlternativeChooser,
             LifeCycleManager lifeCycleManager,
-            ConnectorTaskExecutor connectorTaskExecutor)
+            ConnectorTaskExecutor connectorTaskExecutor,
+            NativeStorageStateHandler nativeStorageStateHandler)
     {
-        super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor);
+        super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
         this.dispatcherAlternativeChooser = requireNonNull(dispatcherAlternativeChooser);
     }
 

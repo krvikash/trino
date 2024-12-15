@@ -29,6 +29,7 @@ import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplitManager;
 import io.trino.plugin.warp.dispatcher.DispatcherTransactionManager;
 import io.trino.plugin.warp.node.CoordinatorNodeManager;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
@@ -60,10 +61,11 @@ public class CoordinatorDispatcherConnector
             WarpSessionProperties warpSessionProperties,
             LifeCycleManager lifeCycleManager,
             ConnectorTaskExecutor connectorTaskExecutor,
+            NativeStorageStateHandler nativeStorageStateHandler,
             CoordinatorNodeManager coordinatorNodeManager,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
-        super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor);
+        super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
         this.dispatcherMetadataFactory = requireNonNull(dispatcherMetadataFactory);
         this.dispatcherCacheMetadata = new ClassLoaderSafeConnectorCacheMetadata(requireNonNull(dispatcherCacheMetadata), getClass().getClassLoader());
         this.dispatcherSplitManager = requireNonNull(dispatcherSplitManager);
