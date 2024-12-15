@@ -368,7 +368,8 @@ public class DispatcherPageSourceFactory
                         throw new TrinoException(WarpErrorCode.WARP_TX_ALLOCATION_INTERRUPTED,
                                 "interrupted while trying to create page source");
                     }
-                    shapingLogger.warn(e, "failed createMixedPageSource, returning proxied connector page source");
+                    shapingLogger.warn(e, "Failed to create a mixed page source, returning proxied connector page source. rowGroupData=%s, queryContext=%s",
+                            afterLockRowGroupData, queryContext);
                     dispatcherPageSourceStats.incexternal_collect_columns();
                 }
             }

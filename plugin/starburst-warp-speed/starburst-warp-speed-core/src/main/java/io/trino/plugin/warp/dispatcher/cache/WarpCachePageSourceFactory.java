@@ -58,6 +58,7 @@ import java.util.UUID;
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY;
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_NATIVE_KEY;
 import static io.trino.plugin.warp.storage.read.QueryParamsConverter.createQueryParams;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -145,21 +146,22 @@ public class WarpCachePageSourceFactory
             return Optional.of(prefilledPageSource);
         }
 
-        String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
-        long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
-        QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime, false);
-        WarpPageSource warpPageSource = new WarpPageSource(
-                storageEngineConstants,
-                Long.MAX_VALUE,
-                queryParams,
-                predicatesCacheService,
-                customStatsContext,
-                globalConfig,
-                storageCollectorService,
-                lazyCollectorService,
-                matchService);
         RowGroupCloseHandler closeHandler = new RowGroupCloseHandler();
         try {
+            String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
+            long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
+            QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime, false);
+            WarpPageSource warpPageSource = new WarpPageSource(
+                    storageEngineConstants,
+                    Long.MAX_VALUE,
+                    queryParams,
+                    predicatesCacheService,
+                    customStatsContext,
+                    globalConfig,
+                    storageCollectorService,
+                    lazyCollectorService,
+                    matchService);
+
             PageSourceDecision pageSourceDecision = PageSourceDecision.WARP;
             DispatcherPageSource dispatcherPageSource = new DispatcherPageSource(EmptyPageSource::new,
                     queryClassifier,
@@ -183,7 +185,8 @@ public class WarpCachePageSourceFactory
             if (afterLockRowGroupData != null) {
                 closeHandler.accept(afterLockRowGroupData);
             }
-            throw e;
+            throw new RuntimeException(format("Failed to create page source. queryStoreId=%s, rowGroupData=%s, queryContext=%s",
+                    queryStoreId, rowGroupData, queryContext), e);
         }
     }
 
