@@ -20,10 +20,10 @@ import io.trino.Session;
 import io.trino.SystemSessionProperties;
 import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.jmx.JmxPlugin;
+import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.CachingPlugin;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.spi.Plugin;
 import io.trino.testing.DistributedQueryRunner;
@@ -128,7 +128,7 @@ public class DispatcherQueryRunner
         DistributedQueryRunner queryRunner = queryRunnerBuilder.build();
 
         try {
-            ((CachingPlugin) proxiedPlugin)
+            ((WarpPlugin) proxiedPlugin)
                     .withStorageEngineModule(storageEngineModule)
                     .withProxyModule(optionalProxyModule.orElse(null));
 
