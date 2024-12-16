@@ -21,7 +21,10 @@ import io.github.classgraph.ScanResult;
 import io.trino.server.PluginLoader;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
+import org.assertj.core.api.SoftAssertions;
+import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,12 +40,12 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
 import static com.starburstdata.presto.testing.FileUtils.findRepositoryRoot;
 import static java.util.stream.Collectors.joining;
-import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(SoftAssertionsExtension.class)
 public class TestConnectorSensitiveProperties
 {
     @Test
-    public void testSensitivePropertySetIsComplete()
+    public void testSensitivePropertySetIsComplete(SoftAssertions softly)
             throws IOException
     {
         Map<String, Set<String>> expectedPropertiesPerConnector = findSensitivePropertiesPerConnector();
@@ -51,18 +54,18 @@ public class TestConnectorSensitiveProperties
         Set<String> expectedConnectors = expectedPropertiesPerConnector.keySet();
         Set<String> connectorsOnlyInActualSet = Sets.difference(expectedConnectors, actualConnectors);
         Set<String> connectorsOnlyInExpectedSet = Sets.difference(actualConnectors, expectedConnectors);
-        assertThat(connectorsOnlyInActualSet)
+        softly.assertThat(connectorsOnlyInActualSet)
                 .withFailMessage("Missing connectors in the current set: %s. Consider updating the set with:\n%s",
                         connectorsOnlyInActualSet, buildPropertyDefinitions(connectorsOnlyInActualSet, expectedPropertiesPerConnector))
                 .isEmpty();
-        assertThat(connectorsOnlyInExpectedSet)
+        softly.assertThat(connectorsOnlyInExpectedSet)
                 .withFailMessage("Unexpected connectors in the current set: %s", connectorsOnlyInExpectedSet)
                 .isEmpty();
         for (Map.Entry<String, Set<String>> connectorProperties : expectedPropertiesPerConnector.entrySet()) {
             String connectorName = connectorProperties.getKey();
             Set<String> expectedProperties = connectorProperties.getValue();
             Set<String> actualProperties = SENSITIVE_PROPERTIES_PER_CONNECTOR.get(connectorName);
-            assertThat(actualProperties)
+            softly.assertThat(actualProperties)
                     .withFailMessage("Current sensitive property set for the %s connector is different than expected. Consider updating the set with:\n%s",
                             connectorName, buildPropertyDefinitions(ImmutableSet.of(connectorName), expectedPropertiesPerConnector))
                     .isEqualTo(expectedProperties);
