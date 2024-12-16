@@ -39,7 +39,6 @@ import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isImportExportEna
 public class PrioritizeTask
         extends WorkerWarmerBaseTask
 {
-    private final GlobalConfig globalConfig;
     private final CloudVendorConfig cloudVendorConfig;
 
     public PrioritizeTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
@@ -63,8 +62,7 @@ public class PrioritizeTask
             GlobalConfig globalConfig,
             CloudVendorConfig cloudVendorConfig)
     {
-        super(warmExecutionTaskFactory, workerTaskExecutorService, statsWarmingService, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
-        this.globalConfig = globalConfig;
+        super(warmExecutionTaskFactory, workerTaskExecutorService, statsWarmingService, warmingManager, workerWarmingService, globalConfig, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
         this.cloudVendorConfig = cloudVendorConfig;
     }
 

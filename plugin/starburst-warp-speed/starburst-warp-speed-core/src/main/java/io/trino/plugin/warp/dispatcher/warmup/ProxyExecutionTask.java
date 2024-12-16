@@ -57,7 +57,6 @@ public class ProxyExecutionTask
 
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final EventBus eventBus;
-    private final GlobalConfig globalConfig;
     private final int executionTaskPriority;
     private final StorageWarmerService storageWarmerService;
     private final ShapingLogger shapingLogger;
@@ -86,7 +85,7 @@ public class ProxyExecutionTask
             WorkerTaskExecutorService workerTaskExecutorService,
             StorageWarmerService storageWarmerService)
     {
-        super(warmExecutionTaskFactory, workerTaskExecutorService, warmingServiceStats, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
+        super(warmExecutionTaskFactory, workerTaskExecutorService, warmingServiceStats, warmingManager, workerWarmingService, globalConfig, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -95,7 +94,6 @@ public class ProxyExecutionTask
 
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.eventBus = requireNonNull(eventBus);
-        this.globalConfig = requireNonNull(globalConfig);
         this.executionTaskPriority = executionTaskPriority;
         this.storageWarmerService = storageWarmerService;
     }

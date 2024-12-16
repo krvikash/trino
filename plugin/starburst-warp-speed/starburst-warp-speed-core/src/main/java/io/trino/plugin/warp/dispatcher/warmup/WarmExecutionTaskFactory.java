@@ -146,6 +146,7 @@ public class WarmExecutionTaskFactory
             case IMPORT -> new ImportExecutionTask(this,
                     statsWarmingService,
                     workerWarmingService,
+                    globalConfig,
                     connectorPageSourceProvider,
                     transactionHandle,
                     session,

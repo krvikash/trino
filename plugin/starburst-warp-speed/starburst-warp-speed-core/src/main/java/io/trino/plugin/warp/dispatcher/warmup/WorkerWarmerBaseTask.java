@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup;
 
+import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -24,6 +26,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -40,6 +43,9 @@ import static java.util.Objects.requireNonNull;
 public abstract class WorkerWarmerBaseTask
         implements WorkerSubmittableTask
 {
+    private static final Logger logger = Logger.get(WorkerWarmerBaseTask.class);
+    private final ShapingLogger shapingLogger;
+
     protected final WarmExecutionTaskFactory warmExecutionTaskFactory;
     protected final WarmingManager warmingManager;
     protected final ConnectorPageSourceProvider connectorPageSourceProvider;
@@ -50,6 +56,7 @@ public abstract class WorkerWarmerBaseTask
     protected final List<ColumnHandle> columns;
     protected final DispatcherSplit dispatcherSplit;
     protected final WorkerWarmingService workerWarmingService;
+    protected final GlobalConfig globalConfig;
     protected final WarmingServiceStats statsWarmingService;
     protected final DynamicFilter dynamicFilter;
     protected final RowGroupDataService rowGroupDataService;
@@ -66,6 +73,7 @@ public abstract class WorkerWarmerBaseTask
             WarmingServiceStats statsWarmingService,
             WarmingManager warmingManager,
             WorkerWarmingService workerWarmingService,
+            GlobalConfig globalConfig,
             ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
@@ -90,6 +98,7 @@ public abstract class WorkerWarmerBaseTask
         this.columns = requireNonNull(columns);
         this.dispatcherSplit = requireNonNull(dispatcherSplit);
         this.workerWarmingService = requireNonNull(workerWarmingService);
+        this.globalConfig = requireNonNull(globalConfig);
         this.dynamicFilter = requireNonNull(dynamicFilter);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.queryClassifier = requireNonNull(queryClassifier);
@@ -99,6 +108,12 @@ public abstract class WorkerWarmerBaseTask
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.iterationCount = iterationCount;
         this.id = UUID.randomUUID();
+
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @Override
@@ -124,6 +139,9 @@ public abstract class WorkerWarmerBaseTask
                     warm(dataToWarm);
                 }
             }
+        }
+        catch (Exception e) {
+            shapingLogger.error(e, "Warming task has failed");
         }
         finally {
             finish();

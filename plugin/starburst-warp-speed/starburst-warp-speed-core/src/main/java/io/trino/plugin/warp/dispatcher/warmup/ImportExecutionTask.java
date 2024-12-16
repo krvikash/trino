@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup;
 
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -40,6 +41,7 @@ public class ImportExecutionTask
     public ImportExecutionTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
             WarmingServiceStats statsWarmingService,
             WorkerWarmingService workerWarmingService,
+            GlobalConfig globalConfig,
             ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
@@ -56,7 +58,7 @@ public class ImportExecutionTask
             int iterationCount,
             int executionTaskPriority)
     {
-        super(warmExecutionTaskFactory, workerTaskExecutorService, statsWarmingService, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
+        super(warmExecutionTaskFactory, workerTaskExecutorService, statsWarmingService, warmingManager, workerWarmingService, globalConfig, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
         this.executionTaskPriority = executionTaskPriority;
     }
 
