@@ -122,7 +122,11 @@ public class WarpExtensionModule
         install(new NodeModule());
         install(httpServerModule);
         install(new JsonModule());
-        WarpJaxrsModule module = new WarpJaxrsModule();
+
+        CacheManagerConfig cacheManagerConfig = configFactory.build(CacheManagerConfig.class);
+        WarpJaxrsModule module = new WarpJaxrsModule(WarpBaseModule.isCoordinator(connectorContext),
+                WarpBaseModule.isWorker(connectorContext, config),
+                cacheManagerConfig.getIsCache());
         module.setConfigurationFactory(configFactory);
         install(module);
         install(binder1 -> binder1.bind(HttpServerLifeCycleHandler.class));

@@ -30,11 +30,15 @@ import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.jaxrs.JsonMapper;
 import io.swagger.v3.jaxrs2.integration.resources.OpenApiResource;
+import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.extension.execution.CorsFilter;
 import io.trino.plugin.warp.extension.execution.WarpExtResource;
+import io.trino.plugin.warp.extension.execution.WarpTasksModule;
 import io.trino.plugin.warp.util.Auditer;
 import io.trino.plugin.warp.util.TrinoExceptionMapper;
+
+import java.util.stream.Collectors;
 
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
@@ -42,6 +46,20 @@ import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 public class WarpJaxrsModule
         extends JaxrsModule
 {
+    private final boolean isCoordinator;
+    private final boolean isWorker;
+    private final boolean isCacheMgr;
+
+    public WarpJaxrsModule(
+            boolean isCoordinator,
+            boolean isWorker,
+            boolean isCacheMgr)
+    {
+        this.isCoordinator = isCoordinator;
+        this.isWorker = isWorker;
+        this.isCacheMgr = isCacheMgr;
+    }
+
     @Override
     public void setup(Binder binder)
     {
@@ -88,8 +106,12 @@ public class WarpJaxrsModule
         JsonMapper mapper = new JsonMapper(objectMapper);
         JaxrsBinder.jaxrsBinder(binder).bindInstance(mapper);
 
+        OpenApiResource openApiResource = new OpenApiResource();
+        openApiResource.setOpenApiConfiguration(
+                new SwaggerConfiguration()
+                        .resourceClasses(WarpTasksModule.getTaskExecutors(isCoordinator, isWorker, isCacheMgr).stream().map(Class::getName).collect(Collectors.toSet())));
+        jaxrsBinder(binder).bindInstance(openApiResource);
         jaxrsBinder(binder).bind(WarpExtResource.class);
-        jaxrsBinder(binder).bind(OpenApiResource.class);
         jaxrsBinder(binder).bind(TrinoExceptionMapper.class);
         jaxrsBinder(binder).bind(CorsFilter.class);
         httpServerBinder(binder).bindResource("/swagger", "webapp/ui").withWelcomeFile("index.html");
