@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.kudu.properties.ColumnDesign;
 import io.trino.plugin.kudu.properties.HashPartitionDefinition;
+import io.trino.plugin.kudu.properties.KuduColumnProperties;
 import io.trino.plugin.kudu.properties.KuduTableProperties;
 import io.trino.plugin.kudu.properties.PartitionDesign;
 import io.trino.plugin.kudu.properties.RangePartition;
@@ -39,10 +40,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.kudu.properties.KuduColumnProperties.PRIMARY_KEY;
 import static io.trino.plugin.kudu.properties.KuduTableProperties.PARTITION_BY_HASH_BUCKETS;
 import static io.trino.plugin.kudu.properties.KuduTableProperties.PARTITION_BY_HASH_COLUMNS;
 import static io.trino.plugin.kudu.properties.KuduTableProperties.PARTITION_BY_RANGE_COLUMNS;
-import static io.trino.plugin.kudu.properties.KuduTableProperties.PRIMARY_KEY;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 
@@ -120,7 +121,7 @@ public abstract class KuduTestTable
     private static ColumnSchema toColumnSchema(ColumnMetadata columnMetadata)
     {
         String name = columnMetadata.getName();
-        ColumnDesign design = KuduTableProperties.getColumnDesign(columnMetadata.getProperties());
+        ColumnDesign design = KuduColumnProperties.getColumnDesign(columnMetadata.getProperties());
         Type ktype = TypeHelper.toKuduClientType(columnMetadata.getType());
         ColumnSchema.ColumnSchemaBuilder builder = new ColumnSchema.ColumnSchemaBuilder(name, ktype);
         builder.key(design.isPrimaryKey()).nullable(design.isNullable());
