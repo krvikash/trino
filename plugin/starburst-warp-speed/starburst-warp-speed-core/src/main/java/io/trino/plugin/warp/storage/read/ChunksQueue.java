@@ -44,25 +44,46 @@ public class ChunksQueue
         initRootBitmaps();
     }
 
-    // add more chunks to collect and update total number of chunks
-    void add(int totalNumChunks, int numMatchedChunks, short[] matchedChunksIndexes)
+    // return if there is at least one chunk with matched records
+    boolean anyMatchedChunkExists(int numChunksInRange)
     {
-        final int chunkIndexMask = rootBitmapsDescriptors.get().size() - 1;
-        List<MemorySegment> bitmapsDescriptors = rootBitmapsDescriptors.get();
-        for (int i = 0; i < numMatchedChunks; i++) {
-            MemorySegment bitmapDescriptor = bitmapsDescriptors.get(matchedChunksIndexes[i] & chunkIndexMask);
-            chunksToCollect.add(new MatchChunkState(matchedChunksIndexes[i], Optional.of(bitmapDescriptor)));
+        List<MemorySegment> bitmapsDescriptors = rootBitmapsDescriptors.get().subList(0, numChunksInRange);
+        for (MemorySegment bitmapDescriptor : bitmapsDescriptors) {
+            int bitmapResetPoint = (int) bitmapDescriptor.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT);
+            if (bitmapResetPoint > 0) {
+                return true;
+            }
         }
-        this.totalNumChunks = totalNumChunks;
+        totalNumChunks += numChunksInRange; // in case there is no matched we advance the total counter
+        return false;
     }
 
-    // add a range of chunks to collect and set total number of chunks as the end of the range
-    void add(int startChunkIndex, int endChunkIndex)
+    // add more chunks to collect and update total number of chunks
+    void updateChunkRangeAfterMatch(int numChunksInRange)
     {
+        List<MemorySegment> bitmapsDescriptors = rootBitmapsDescriptors.get().subList(0, numChunksInRange);
+        for (MemorySegment bitmapDescriptor : bitmapsDescriptors) {
+            int bitmapResetPoint = (int) bitmapDescriptor.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT);
+            if (bitmapResetPoint > 0) {
+                chunksToCollect.add(new MatchChunkState(totalNumChunks, Optional.of(bitmapDescriptor)));
+            }
+            totalNumChunks++;
+        }
+    }
+
+    // return true if completely finished, false otherwise
+    boolean updateChunkRangeFullScan(int numChunks, int numChunksInRange)
+    {
+        if (isCompletelyFinished(numChunks)) {
+            return true;
+        }
+        int startChunkIndex = totalNumChunks;
+        int endChunkIndex = Math.min(startChunkIndex + numChunksInRange, numChunks);
         for (int chunkIndex = startChunkIndex; chunkIndex < endChunkIndex; chunkIndex++) {
             chunksToCollect.add(new MatchChunkState(chunkIndex, Optional.empty()));
         }
         this.totalNumChunks = endChunkIndex;
+        return false;
     }
 
     // get the current chunk to collect
@@ -90,7 +111,7 @@ public class ChunksQueue
 
     void storeMatchBitmaps()
     {
-        if (isEmpty()) {
+        if (chunksToCollect.isEmpty()) {
             return;
         }
 
@@ -119,12 +140,6 @@ public class ChunksQueue
         return (chunkIx & (maxChunks - 1)) * pageSize;
     }
 
-    // get total number of chunks
-    int getTotalNumChunks()
-    {
-        return totalNumChunks;
-    }
-
     // advance to the next chunk to collect
     void currentCompleted()
     {
@@ -142,41 +157,19 @@ public class ChunksQueue
         return firstChunkPrepared;
     }
 
-    // are there chunks to collect
-    boolean isEmpty()
-    {
-        return chunksToCollect.isEmpty();
-    }
-
     int getChunkIndexForMatch()
     {
-        return getTotalNumChunks();
-    }
-
-    void updateChunkRangeAfterMatch(int endChunkIndex, int numMatchedChunks, short[] matchedChunksIndexes)
-    {
-        add(endChunkIndex, numMatchedChunks, matchedChunksIndexes);
-    }
-
-    // return true if completely finished, false otherwise
-    boolean updateChunkRangeFullScan(int numChunks, int numChunksInRange)
-    {
-        if (isCompletelyFinished(numChunks)) {
-            return true;
-        }
-        int startChunkIndex = getTotalNumChunks();
-        add(startChunkIndex, Math.min(startChunkIndex + numChunksInRange, numChunks));
-        return false;
+        return totalNumChunks;
     }
 
     boolean isChunkRangeCompleted()
     {
-        return isEmpty();
+        return chunksToCollect.isEmpty();
     }
 
     boolean isCompletelyFinished(int numChunks)
     {
-        return isChunkRangeCompleted() && (getTotalNumChunks() >= numChunks);
+        return isChunkRangeCompleted() && (totalNumChunks >= numChunks);
     }
 
     boolean isChunkPreparationNeeded()

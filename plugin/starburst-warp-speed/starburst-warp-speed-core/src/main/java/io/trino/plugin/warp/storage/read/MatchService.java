@@ -159,7 +159,7 @@ public class MatchService
         }
         matchStateOpt.ifPresent(m -> chunksQueue.setRootBitmaps(m.getMatchBitmaps(), m.getRootBitmapsDescriptors()));
 
-        return new MatcherPageArgs(matchStateOpt, new short[queryArgs.numChunksInRange()]);
+        return new MatcherPageArgs(matchStateOpt);
     }
 
     @SuppressWarnings("Finally")
@@ -173,20 +173,19 @@ public class MatchService
                 logger.debug("matchIfNeeded matchExhausted %b after full scan update numChunks %d range %d", matchExhausted, queryArgs.numChunks(), queryArgs.numChunksInRange());
             }
             else {
-                long matchResult = 0;
                 int numChunks = 0;
+                boolean matchSuccess = true;
                 boolean luceneSuccess = true;
-                int numMatchedChunks = 0;
-                int chunkIndex = chunksQueue.getChunkIndexForMatch();
+                boolean hasMacthedChunks = false;
                 MemorySegment matchStateMem = matcherPageArgs.matchState().get().getStateMemory();
                 StopWatch readStopWatch = new StopWatch();
-                // we loop until either agg result returnes 0 which  means no more chunks (break under if inside the loop)
-                // or if numMatchedChunks returned positive from match call which means at least one chunk has a match
+                // we loop until either agg result returnes 0 which means no more chunks (break under if inside the loop)
+                // or if chunkQueue indicates after match call that at least one chunk has matched records
                 // in addition, on every call to storage engine we check for error
                 try {
-                    while (numMatchedChunks == 0) { // no match so far
+                    while (!hasMacthedChunks) { // no match so far
                         readStopWatch.start();
-                        numChunks = storageEngine.matchAgg(matchStateMem, chunkIndex);
+                        numChunks = storageEngine.matchAgg(matchStateMem, chunksQueue.getChunkIndexForMatch());
                         readStopWatch.stop();
                         if (numChunks < 0) {
                             break;
@@ -198,7 +197,7 @@ public class MatchService
 
                         if (queryArgs.queryParams().getNumLucene() > 0) {
                             for (int luceneMatcherIx = 0; luceneMatcherIx < matcherArgs.luceneMatchers().length; luceneMatcherIx++) {
-                                if (!matcherArgs.luceneMatchers()[luceneMatcherIx].match(matcherPageArgs.matchState().get(), chunkIndex, numChunks, queryArgs.dispatcherPageSourceStats())) {
+                                if (!matcherArgs.luceneMatchers()[luceneMatcherIx].match(matcherPageArgs.matchState().get(), chunksQueue.getChunkIndexForMatch(), numChunks, queryArgs.dispatcherPageSourceStats())) {
                                     luceneSuccess = false;
                                     break;
                                 }
@@ -209,13 +208,12 @@ public class MatchService
                         }
 
                         readStopWatch.start();
-                        matchResult = storageEngine.match(matchStateMem.address(), chunkIndex, numChunks, matcherPageArgs.matchedChunksIndexes());
+                        matchSuccess = storageEngine.match(matchStateMem, chunksQueue.getChunkIndexForMatch(), numChunks);
                         readStopWatch.stop();
-                        if (matchResult < 0) {
+                        if (!matchSuccess) {
                             break;
                         }
-                        chunkIndex += numChunks;
-                        numMatchedChunks = (int) matchResult;
+                        hasMacthedChunks = chunksQueue.anyMatchedChunkExists(numChunks);
                     }
                 }
                 catch (Exception e) {
@@ -235,13 +233,13 @@ public class MatchService
                     queryArgs.dispatcherPageSourceStats().addnative_read_time(readStopWatch.getNanoTime());
                 }
 
-                if ((numChunks < 0) || !luceneSuccess || (matchResult < 0)) {
+                if ((numChunks < 0) || !luceneSuccess || !matchSuccess) {
                     throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED,
-                            "match failed chunkIndex " + chunkIndex + " numChunks " + numChunks + " lucene " + luceneSuccess + " match " + matchResult);
+                            "match failed numChunks " + numChunks + " lucene " + luceneSuccess + " match " + matchSuccess);
                 }
 
                 if (!matchExhausted) {
-                    chunksQueue.updateChunkRangeAfterMatch(chunkIndex, numMatchedChunks, matcherPageArgs.matchedChunksIndexes());
+                    chunksQueue.updateChunkRangeAfterMatch(numChunks);
                 }
             }
         }

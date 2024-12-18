@@ -168,14 +168,13 @@ public interface StorageEngine
     /**
      * match on a chunk range starting from the given chunk index, filling the match bitmaps as output
      *
-     * @param matchStateAddress - match state
+     * @param matchState - match state
      * @param startChunkIndex - chunk to start match from
      * @param numChunks - number of chunks to match
-     * @param outMatchedChunksIndexes - indexes of chunks that have at least one match
      *
-     * @return number of matched chunks as filled in the output array, in case of error we return -1L
+     * @return TRUE if there were no errors (even if no match), FALSE if there was an error
      */
-    default long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes)
+    default boolean match(MemorySegment matchState, int startChunkIndex, int numChunks)
     {
         throw new UnsupportedOperationException();
     }

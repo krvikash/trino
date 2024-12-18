@@ -72,6 +72,7 @@ public class NativeStorageEngine
     private final MethodHandle mMatchAgg;
     private final MethodHandle mMatchLucenePrepare;
     private final MethodHandle mMatchLuceneCompleted;
+    private final MethodHandle mMatch;
     private final MethodHandle mMatchClose;
     // collect API
     private final MethodHandle mCollectProcessMatchResult;
@@ -151,6 +152,8 @@ public class NativeStorageEngine
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT));
             mMatchLuceneCompleted = linker.downcallHandle(libraryHandle.find("warp_speed_match_lucene_completed").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT));
+            mMatch = linker.downcallHandle(libraryHandle.find("warp_speed_match").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT));
             mMatchClose = linker.downcallHandle(libraryHandle.find("warp_speed_match_close").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
@@ -499,7 +502,16 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes);
+    public boolean match(MemorySegment matchState, int startChunkIndex, int numChunks)
+    {
+        try {
+            return (boolean) mMatch.invokeExact(matchState, (short) startChunkIndex, (short) numChunks);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to match");
+            throw new RuntimeException("failed to match");
+        }
+    }
 
     @Override
     public void matchClose(MemorySegment matchState)

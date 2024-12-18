@@ -122,7 +122,7 @@ public class WarpReader
 
         // we continue as long as we didn't reach the rowsLimit nor a limit from the matcher or aggregator
         while (queryState.getNumRecordsInCurPage() < rowsLimit - queryState.getTotalNumReadRecords()) {
-            if (chunksQueue.isEmpty() && !matcher.match(chunksQueue, queryArgs, matcherArgs, matcherPageArgs)) {
+            if (chunksQueue.isChunkRangeCompleted() && !matcher.match(chunksQueue, queryArgs, matcherArgs, matcherPageArgs)) {
                 break;
             }
 

@@ -168,9 +168,9 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long match(long matchStateAddress, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes)
+    public boolean match(MemorySegment matchState, int startChunkIndex, int numChunks)
     {
-        return 0L;
+        return true;
     }
 
     @Override
