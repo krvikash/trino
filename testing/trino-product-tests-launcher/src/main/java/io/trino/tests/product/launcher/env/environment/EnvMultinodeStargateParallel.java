@@ -21,6 +21,7 @@ import io.trino.tests.product.launcher.env.DockerContainer;
 import io.trino.tests.product.launcher.env.Environment;
 import io.trino.tests.product.launcher.env.EnvironmentConfig;
 import io.trino.tests.product.launcher.env.EnvironmentProvider;
+import io.trino.tests.product.launcher.env.Ipv6;
 import io.trino.tests.product.launcher.env.ServerPackage;
 import io.trino.tests.product.launcher.env.common.Minio;
 import io.trino.tests.product.launcher.env.common.Standard;
@@ -55,6 +56,7 @@ public final class EnvMultinodeStargateParallel
     private final DockerFiles dockerFiles;
     private final String imagesVersion;
     private final File serverPackage;
+    private final boolean ipv6;
     private final JdkProvider jdkProvider;
 
     @Inject
@@ -64,12 +66,14 @@ public final class EnvMultinodeStargateParallel
             DockerFiles dockerFiles,
             EnvironmentConfig environmentConfig,
             @ServerPackage File serverPackage,
+            @Ipv6 boolean ipv6,
             JdkProvider jdkProvider)
     {
         super(ImmutableList.of(standardMultinode, minio));
         this.dockerFiles = requireNonNull(dockerFiles, "dockerFiles is null");
         this.imagesVersion = requireNonNull(environmentConfig, "environmentConfig is null").getImagesVersion();
         this.serverPackage = requireNonNull(serverPackage, "serverPackage is null");
+        this.ipv6 = ipv6;
         this.jdkProvider = requireNonNull(jdkProvider, "jdkProvider is null");
         checkArgument(serverPackage.getName().endsWith(".tar.gz"), "Currently only server .tar.gz package is supported");
     }
@@ -99,13 +103,13 @@ public final class EnvMultinodeStargateParallel
         // Remote Trino Cluster
         DockerFiles.ResourceProvider remoteTrinoResourceProvider = dockerFiles.getDockerFilesHostDirectory("conf/environment/multinode-stargate-parallel/remote");
         DockerContainer remoteCoordinator =
-                createTrinoContainer(dockerFiles, serverPackage, jdkProvider, false, false, "ghcr.io/trinodb/testing/almalinux9-oj17:" + imagesVersion, "remote-trino-coordinator")
+                createTrinoContainer(dockerFiles, serverPackage, jdkProvider, false, false, ipv6, "ghcr.io/trinodb/testing/almalinux9-oj17:" + imagesVersion, "remote-trino-coordinator")
                         .withCopyFileToContainer(forHostPath(dockerFiles.getDockerFilesHostPath("common/standard/access-control.properties")), Standard.CONTAINER_TRINO_ACCESS_CONTROL_PROPERTIES)
                         .withCopyFileToContainer(forHostPath(remoteTrinoResourceProvider.getPath("coordinator-config.properties")), Standard.CONTAINER_TRINO_CONFIG_PROPERTIES)
                         .withCopyFileToContainer(forHostPath(remoteTrinoResourceProvider.getPath("spooling-manager.properties")), CONTAINER_TRINO_ETC + "/spooling-manager.properties")
                         .withFixedExposedPort(18080, 8080);
         DockerContainer remoteWorker =
-                createTrinoContainer(dockerFiles, serverPackage, jdkProvider, false, false, "ghcr.io/trinodb/testing/almalinux9-oj17:" + imagesVersion, "remote-trino-worker")
+                createTrinoContainer(dockerFiles, serverPackage, jdkProvider, false, false, ipv6, "ghcr.io/trinodb/testing/almalinux9-oj17:" + imagesVersion, "remote-trino-worker")
                         .withCopyFileToContainer(forHostPath(remoteTrinoResourceProvider.getPath("worker-config.properties")), CONTAINER_TRINO_CONFIG_PROPERTIES)
                         .withCopyFileToContainer(forHostPath(remoteTrinoResourceProvider.getPath("spooling-manager.properties")), CONTAINER_TRINO_ETC + "/spooling-manager.properties");
         builder.addContainer(remoteCoordinator);
