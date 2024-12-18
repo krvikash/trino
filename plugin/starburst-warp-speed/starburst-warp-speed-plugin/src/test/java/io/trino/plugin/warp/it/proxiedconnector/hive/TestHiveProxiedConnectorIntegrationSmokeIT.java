@@ -57,6 +57,7 @@ import io.trino.plugin.warp.expression.WarpSliceConstant;
 import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions;
 import io.trino.plugin.warp.extension.execution.debugtools.FailureGeneratorResource;
+import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageState;
 import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageStateResource;
 import io.trino.plugin.warp.extension.execution.debugtools.PredicateCacheTask;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
@@ -353,7 +354,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
-                new NativeStorageStateResource.NativeStorageState(0, 0, true, false),
+                new NativeStorageState(0, 0, true, false),
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_NO_CONTENT);
 
@@ -370,7 +371,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
-                new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
+                new NativeStorageState(0, 0, false, false),
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_NO_CONTENT);
 

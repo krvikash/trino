@@ -19,6 +19,7 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageState;
 import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageStateResource;
 import jakarta.ws.rs.HttpMethod;
 
@@ -147,10 +148,10 @@ public class RestUtils
                 null,
                 HttpMethod.GET,
                 HttpURLConnection.HTTP_OK);
-        NativeStorageStateResource.NativeStorageState state =
+        NativeStorageState state =
                 objectMapper.readValue(
                         result,
-                        NativeStorageStateResource.NativeStorageState.class);
+                        NativeStorageState.class);
 
         assertThat(state.storagePermanentException()).isEqualTo(storagePermanentException);
         assertThat(state.storageTemporaryException()).isEqualTo(storageTemporaryException);

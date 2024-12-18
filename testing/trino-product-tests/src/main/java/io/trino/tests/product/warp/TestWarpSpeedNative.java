@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.plugin.warp.extension.execution.debugtools.FailureGeneratorResource;
+import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageState;
 import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageStateResource;
 import io.trino.plugin.warp.gen.constants.FailureRepetitionMode;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
@@ -83,7 +84,7 @@ public class TestWarpSpeedNative
             restUtils.executeWorkerRestCommand(
                     NativeStorageStateResource.PATH,
                     "",
-                    new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
+                    new NativeStorageState(0, 0, false, false),
                     HttpMethod.POST,
                     HttpURLConnection.HTTP_NO_CONTENT);
 
@@ -105,7 +106,7 @@ public class TestWarpSpeedNative
             restUtils.executeWorkerRestCommand(
                     NativeStorageStateResource.PATH,
                     "",
-                    new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
+                    new NativeStorageState(0, 0, false, false),
                     HttpMethod.POST,
                     HttpURLConnection.HTTP_NO_CONTENT);
 
@@ -223,7 +224,7 @@ public class TestWarpSpeedNative
         restUtils.executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
-                new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
+                new NativeStorageState(0, 0, false, false),
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_NO_CONTENT);
         logger.info("testRead::before additional queryAndValidate");
@@ -276,7 +277,7 @@ public class TestWarpSpeedNative
         restUtils.executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
-                new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
+                new NativeStorageState(0, 0, false, false),
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_NO_CONTENT);
 

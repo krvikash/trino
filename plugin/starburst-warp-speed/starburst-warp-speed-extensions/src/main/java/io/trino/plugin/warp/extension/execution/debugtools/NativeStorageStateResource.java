@@ -39,7 +39,7 @@ import static java.util.Objects.requireNonNull;
 public class NativeStorageStateResource
         implements TaskResource
 {
-    public static final String PATH = "native_storage_state";
+    public static final String PATH = "native_storage_state_worker";
 
     private static final Logger logger = Logger.get(NativeStorageStateResource.class);
 
@@ -57,14 +57,14 @@ public class NativeStorageStateResource
     @POST
     public void set(NativeStorageState state)
     {
-        if (state.storagePermanentException) {
+        if (state.storagePermanentException()) {
             handler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
         }
         else {
             handler.enablePermanently();
         }
 
-        if (state.storageTemporaryException) {
+        if (state.storageTemporaryException()) {
             handler.handleErrorCode(ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR);
         }
         else {
@@ -83,6 +83,4 @@ public class NativeStorageStateResource
         logger.info("state=%s", state);
         return state;
     }
-
-    public record NativeStorageState(long totalCapacity, long currentUsage, boolean storagePermanentException, boolean storageTemporaryException) {}
 }
