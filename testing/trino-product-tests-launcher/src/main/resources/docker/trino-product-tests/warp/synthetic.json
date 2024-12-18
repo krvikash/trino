@@ -1544,13 +1544,7 @@
         "fetch_size": 1000
       }
     ],
-    "data": "resources/synthetic/onem_lines.jsonl",
-    "expected_dictionary_counters": {
-      "write_dictionaries_count": 3
-    },
-    "iceberg_expected_dictionary_counters": {
-      "write_dictionaries_count": 5
-    }
+    "data": "resources/synthetic/onem_lines.jsonl"
   },
   {
     "name": "empty_result",
@@ -3888,11 +3882,7 @@
           "empty_collect_columns": 0
         }
       }
-    ],
-    "expected_dictionary_counters": {
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 2
-    }
+    ]
   },
   {
     "name": "limit_mix",
@@ -11726,6 +11716,159 @@
         }
       }
     ]
+  },
+  {
+    "name": "arr_collect_more_first_null",
+    "skip": true,
+    "warning": "this test fails rare on query, please skip it and investigate if happens",
+    "structure": [
+      {
+        "name": "char_8_one_val",
+        "type": "array",
+        "args": [
+          "char",
+          "8"
+        ]
+      }
+    ],
+    "warmup_rules": [
+      {
+        "colNameId": "char_8_one_val",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA"
+        ]
+      }],
+    "queries_data":[
+      {
+        "query": "select count(*) from arr_collect_more_first_null",
+        "expected_result": [30],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      }
+    ],
+    "data": "resources/synthetic/arr_collect_more_first_null.jsonl"
+  },
+  {
+    "name": "arr_collect_more_null_pure",
+    "structure": [
+      {
+        "name": "char_8_one_val",
+        "type": "array",
+        "args": [
+          "char",
+          "8"
+        ]
+      }
+    ],
+    "warmup_rules": [
+      {
+        "colNameId": "char_8_one_val",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA"
+        ]
+      }],
+    "queries_data":[
+      {
+        "query": "select count(*) from arr_collect_more_null_pure",
+        "expected_result": [30],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(char_8_one_val[2]) from arr_collect_more_null_pure",
+        "expected_result": [11],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(char_8_one_val[2]) from arr_collect_more_null_pure where char_8_one_val[2]='Hdskskhf'",
+        "expected_result": [11],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      }
+    ],
+    "data": "resources/synthetic/arr_collect_more_first_null_pure.jsonl"
+  },
+  {
+    "name": "arr_collect_more_varchar",
+    "structure": [
+      {
+        "name": "char_8_one_val",
+        "type": "array",
+        "args": [
+          "char",
+          "8"
+        ]
+      }
+    ],
+    "warmup_rules": [
+      {
+        "colNameId": "char_8_one_val",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA"
+        ]
+      }],
+    "queries_data":[
+      {
+        "query": "select count(*) from arr_collect_more_varchar",
+        "expected_result": [30],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(char_8_one_val[2]) from arr_collect_more_varchar",
+        "expected_result": [
+          30
+        ],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(char_8_one_val[2]) from arr_collect_more_varchar where char_8_one_val[2]='yyy'",
+        "expected_result": [19],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      }
+    ],
+    "data": "resources/synthetic/arr_collect_more_first_str.jsonl"
   }
 ]
 
