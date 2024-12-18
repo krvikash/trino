@@ -322,6 +322,9 @@ public class NativeStorageEngine
             if (fileDescriptor >= 0) {
                 return fileDescriptor;
             }
+            if (fileDescriptor == -2) {
+                shapingLogger.error("open file file not found %s", fileName);
+            }
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to open file");
