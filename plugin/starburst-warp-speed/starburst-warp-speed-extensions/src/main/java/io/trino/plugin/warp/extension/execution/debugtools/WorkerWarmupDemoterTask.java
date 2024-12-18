@@ -30,6 +30,7 @@ import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -80,20 +81,23 @@ public class WorkerWarmupDemoterTask
     private final WorkerCapacityManager workerCapacityManager;
     private final CatalogNameProvider catalogNameProvider;
     private final WarmupDemoterStats globalStatsDemoter;
+    private final NativeStorageStateHandler nativeStorageStateHandler;
     private final Map<Integer, CompletableFuture<WarmupDemoterFinishEvent>> demoteFutures = new ConcurrentHashMap<>();
 
     @Inject
     public WorkerWarmupDemoterTask(WarmupDemoterService warmupDemoterService,
-            WarmupDemoterConfig warmupDemoterConfig,
-            WorkerCapacityManager workerCapacityManager,
-            CatalogNameProvider catalogNameProvider,
-            MetricsManager metricsManager,
-            EventBus eventBus)
+                                   WarmupDemoterConfig warmupDemoterConfig,
+                                   WorkerCapacityManager workerCapacityManager,
+                                   CatalogNameProvider catalogNameProvider,
+                                   MetricsManager metricsManager,
+                                   EventBus eventBus,
+                                   NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
-        this.warmupDemoterConfig = warmupDemoterConfig;
-        this.workerCapacityManager = workerCapacityManager;
-        this.catalogNameProvider = catalogNameProvider;
+        this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
+        this.workerCapacityManager = requireNonNull(workerCapacityManager);
+        this.catalogNameProvider = requireNonNull(catalogNameProvider);
+        this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         eventBus.register(this);
         this.globalStatsDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
     }
@@ -105,6 +109,10 @@ public class WorkerWarmupDemoterTask
     public Map<String, Object> start(WarmupDemoterData warmupDemoterData)
     {
         logger.debug("%s: start warmup demote task", catalogNameProvider.get());
+        if (!nativeStorageStateHandler.isStorageAvailable()) {
+            logger.warn("storage not initiated");
+            return getSkippedResult();
+        }
         modifyConfigIfRequired(warmupDemoterData);
         if (!warmupDemoterData.isExecuteDemoter()) {
             return getConfigResults();

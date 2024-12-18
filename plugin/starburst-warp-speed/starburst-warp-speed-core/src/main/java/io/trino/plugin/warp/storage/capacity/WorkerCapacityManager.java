@@ -38,7 +38,6 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -141,9 +140,10 @@ public class WorkerCapacityManager
         String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
 
         try {
+            File file = new File(localStorePath);
             // verify that directory exist
-            if (!Files.exists(Paths.get(localStorePath))) {
-                if (!new File(localStorePath).mkdirs()) {
+            if (!file.exists()) {
+                if (!file.mkdirs() && !file.exists()) {
                     logger.error("local store directory does not exists %s. setting StorageDisableState to permanently disabled", localStorePath);
                     nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
                     return false;

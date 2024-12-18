@@ -26,6 +26,7 @@ import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTa
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,12 +35,14 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 public class WorkerWarmupDemoterTaskTest
 {
@@ -49,6 +52,7 @@ public class WorkerWarmupDemoterTaskTest
     private WorkerCapacityManager workerCapacityManager;
     private WarmupDemoterConfig warmupDemoterConfig;
     private EventBus eventBus;
+    private NativeStorageStateHandler nativeStorageStateHandler;
 
     @BeforeEach
     public void before()
@@ -57,6 +61,8 @@ public class WorkerWarmupDemoterTaskTest
         workerCapacityManager = Mockito.mock(WorkerCapacityManager.class);
         warmupDemoterService = Mockito.mock(WarmupDemoterService.class);
         eventBus = new EventBus();
+        nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
+        Mockito.when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
         WarmupDemoterStats warmupDemoterStats = WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP);
         MetricsManager metricsManager = Mockito.mock(MetricsManager.class);
         Mockito.when(metricsManager.registerMetric(ArgumentMatchers.any())).thenReturn(warmupDemoterStats);
@@ -65,7 +71,8 @@ public class WorkerWarmupDemoterTaskTest
                 workerCapacityManager,
                 Mockito.mock(CatalogNameProvider.class),
                 metricsManager,
-                eventBus);
+                eventBus,
+                nativeStorageStateHandler);
     }
 
     @Test
@@ -97,5 +104,13 @@ public class WorkerWarmupDemoterTaskTest
         String jsonStr = "{\"@class\":\"io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData\"}";
         WarmupDemoterData warmupDemoterData = objectMapper.readerFor(WarmupDemoterData.class).readValue(jsonStr);
         assertThat(warmupDemoterData.getBatchSize()).isEqualTo(-1);
+    }
+
+    @Test
+    public void testStorageNotAvailable()
+    {
+        Mockito.when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(false);
+        Map<String, Object> actualResult = workerWarmupDemoterTask.start(WarmupDemoterData.builder().build());
+        assertThat(actualResult).containsAllEntriesOf(workerWarmupDemoterTask.getSkippedResult());
     }
 }
