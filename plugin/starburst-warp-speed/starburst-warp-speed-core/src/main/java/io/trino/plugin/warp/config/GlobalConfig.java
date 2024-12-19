@@ -45,7 +45,7 @@ public class GlobalConfig
     private int cloudExecutorPoolSize = Runtime.getRuntime().availableProcessors() * 100;
     private int prioritizeExecutorPoolSize = 1000;
     private String cardinalityBuckets = "1000,1000000"; // allows applying most selective predicate first when using predicate push-down
-    private DataSize collectMemorySize = DataSize.of(65000, DataSize.Unit.KILOBYTE);
+    private DataSize collectMemorySize = DataSize.of(13000, DataSize.Unit.KILOBYTE); // exactly enough for 20 varchars
     private DataSize matchMemorySize = DataSize.of(1100, DataSize.Unit.KILOBYTE);
     private long preAllocMemorySize;
     private boolean enableDefaultWarming = true;
@@ -466,8 +466,8 @@ public class GlobalConfig
         return emptyPageIterations;
     }
 
-    @Min(16 * 1024 * 1024)
-    @Max(128 * 1024 * 1024)
+    @Min(5000000)
+    @Max(70000000)
     public int getCollectMemorySize()
     {
         return (int) collectMemorySize.toBytes();

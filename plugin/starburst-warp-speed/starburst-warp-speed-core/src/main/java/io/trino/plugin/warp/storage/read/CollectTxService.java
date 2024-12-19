@@ -205,11 +205,8 @@ public class CollectTxService
             // consider mapped match collect when calculating rec type code and length
             RecTypeCode recTypeCode = collectParams.mappedMatchCollect() ? RecTypeCode.REC_TYPE_TINYINT : collectParams.getRecTypeCode();
             final int recTypeLength = collectParams.mappedMatchCollect() ? 1 : collectParams.getRecTypeLength();
-            // get maximal record buffer size for this element
-            final int recordBufferSize = bufferAllocator.getCollectRecordBufferSize(recTypeCode, recTypeLength);
-            // get how much of this size can be optional
-            final int recordBufferSizeOptional = bufferAllocator.getCollectRecordBufferSizeOptional(recTypeCode, recordBufferSize);
-            final int recordBufferSizeMust = recordBufferSize - recordBufferSizeOptional;
+            final int recordBufferSizeMust = bufferAllocator.getCollectRecordBufferSizeMust(recTypeCode, recTypeLength);
+            final int recordBufferSizeOptional = bufferAllocator.getCollectRecordBufferSizeOptional(recTypeCode, recTypeLength);
             // save all parameters in a record array
             allocParams[collectIx] = new CollectAllocPararms(recTypeCode,
                     recTypeLength,

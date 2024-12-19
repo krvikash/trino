@@ -38,9 +38,9 @@ public class NativeConfig
 
     private int predicateBundleSizeInMegaBytes = 110;
     private DataSize generalReservedMemory = DataSize.of(0, DataSize.Unit.GIGABYTE);
-    private DataSize maxRecJufferSize = DataSize.of(16, DataSize.Unit.MEGABYTE);
+    private DataSize maxRecJufferSize = DataSize.of(10, DataSize.Unit.MEGABYTE);
     private int lz4HcPercent = 10;
-    private DataSize collectTxSize = DataSize.of(4, DataSize.Unit.MEGABYTE);
+    private DataSize collectTxSize = DataSize.of(2, DataSize.Unit.MEGABYTE);
     private int storageCacheSizeInPages;
     private int skipIndexPercent = 80;
     private int taskMaxWorkerThreads = Runtime.getRuntime().availableProcessors() * 2;
@@ -100,7 +100,7 @@ public class NativeConfig
         this.generalReservedMemory = DataSize.of(generalReservedMemoryInGigaBytes, DataSize.Unit.GIGABYTE);
     }
 
-    @Min(4 * 1024 * 1024)
+    @Min(1 * 1024 * 1024)
     @Max(16 * 1024 * 1024)
     public int getMaxRecJufferSize()
     {

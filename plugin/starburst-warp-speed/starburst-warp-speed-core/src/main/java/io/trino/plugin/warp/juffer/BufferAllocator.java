@@ -447,7 +447,7 @@ public class BufferAllocator
     public int getCollectRecordBufferSizeMust(RecTypeCode recTypeCode, int recTypeLength)
     {
         int recordBufferSize = getCollectRecordBufferSize(recTypeCode, recTypeLength);
-        return recordBufferSize - getCollectRecordBufferSizeOptional(recTypeCode, recordBufferSize);
+        return Math.min(storageEngineConstants.getRecordBufferMaxSize(), recordBufferSize - getCollectRecordBufferSizeOptional(recTypeCode, recTypeLength));
     }
 
     public int getCollectRecordBufferSize(RecTypeCode recTypeCode, int recTypeLength)
@@ -458,9 +458,10 @@ public class BufferAllocator
         return collectFixedRecordBufferSizes[Math.min(recTypeLength, maxRecLenForDataFixed)];
     }
 
-    public int getCollectRecordBufferSizeOptional(RecTypeCode recTypeCode, int recordBufferSize)
+    public int getCollectRecordBufferSizeOptional(RecTypeCode recTypeCode, int recTypeLength)
     {
         if (TypeUtils.isVarlenStr(recTypeCode)) {
+            final int recordBufferSize = getCollectRecordBufferSize(recTypeCode, recTypeLength);
             if (recordBufferSize <= storageEngineConstants.getRecordBufferMaxSize()) {
                 // no extra needed
                 return 0;
