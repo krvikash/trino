@@ -40,7 +40,7 @@ public class RangeDataServiceTest
     @BeforeEach
     public void before()
     {
-        recordIndexes = new RecordIndexes();
+        recordIndexes = new RecordIndexes((int) Math.pow(2, 16));
         MemorySegment recordIndexesMem = recordIndexes.setMemory(Arena.ofAuto());
         recordIndexesList = recordIndexesMem.asSlice(RecordIndexes.RECORD_INDEXES_OFFSET_LIST, RecordIndexes.RECORD_INDEXES_LIST_LAYOUT);
 

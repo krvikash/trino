@@ -80,7 +80,7 @@ public class NativeStorageStateResource
                 workerCapacityManager.getCurrentUsage(),
                 handler.isStorageDisabledPermanently(),
                 handler.isStorageDisabledTemporarily());
-        logger.info("state=%s", state);
+        logger.debug("state=%s", state);
         return state;
     }
 }

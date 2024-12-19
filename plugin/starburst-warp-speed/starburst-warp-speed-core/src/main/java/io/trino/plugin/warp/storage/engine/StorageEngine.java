@@ -208,12 +208,12 @@ public interface StorageEngine
      *
      * @param txId - identifies tx, passed from native to java during import_create
      * @param chunkIndex - chunk to collect from
-     * @param bitmapDescriptor - match bitmap pointer and reset point
+     * @param bmResetPoint - match reset point
      * @param rowsLimit - optional limit on the number of rows to collect from this chunk
      *
      * @return TRUE for success, FALSE for error
      */
-    default boolean processMatchResult(int txId, int chunkIndex, MemorySegment bitmapDescriptor, int rowsLimit, MemorySegment outQueryResultTypes)
+    default boolean processMatchResult(int txId, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
     {
         throw new UnsupportedOperationException();
     }

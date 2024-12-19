@@ -115,7 +115,7 @@ public abstract class BaseCollectTxService
     void prepareChunk(int collectTxId,
             int chunkIndex,
             int numRowsToCollect,
-            MemorySegment bitmapDescriptor,
+            int bitmapResetPoint,
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
@@ -123,7 +123,7 @@ public abstract class BaseCollectTxService
         long startTime = System.nanoTime();
         boolean success = storageEngine.processMatchResult(collectTxId,
                 chunkIndex,
-                bitmapDescriptor,
+                bitmapResetPoint,
                 numRowsToCollect,
                 outQueryResultTypes);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);

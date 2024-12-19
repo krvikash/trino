@@ -55,6 +55,7 @@ import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PA
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_MOD_TIME;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
+import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -159,14 +160,17 @@ public class StorageCollectorService
 
     void prepareChunk(ChunksQueue chunksQueue,
             QueryArgs queryArgs,
+            AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             int numCollectedRows,
             MemorySegment outQueryResultTypes)
     {
+        int resetPoint = chunksQueue.getCurrentBitmapResetPoint();
+        int numRecordsInChunk = chunksQueue.prepareCurRecList(aggregatorArgs.recordIndexes(), resetPoint);
         collectTxService.prepareChunk(aggregatorPageArgs.queryMemoryId(),
                 chunksQueue.getCurrent(),
-                aggregatorPageArgs.rowsLimit() - numCollectedRows,
-                chunksQueue.getCurrentBitmapDescriptor().orElse(MemorySegment.ofAddress(0L)),
+                min(numRecordsInChunk, aggregatorPageArgs.rowsLimit() - numCollectedRows),
+                resetPoint,
                 outQueryResultTypes,
                 queryArgs.dispatcherPageSourceStats());
         chunksQueue.setFirstChunkAsPrepared();
@@ -240,7 +244,7 @@ public class StorageCollectorService
             // get next chunk to collect and check if its already done on buffer
             int chunkIndex = chunksQueue.getCurrent();
             if (chunksQueue.isChunkPreparationNeeded()) {
-                prepareChunk(chunksQueue, queryArgs, aggregatorPageArgs, numCollectedRows, aggregatorArgs.prepareQueryResultTypes());
+                prepareChunk(chunksQueue, queryArgs, aggregatorArgs, aggregatorPageArgs, numCollectedRows, aggregatorArgs.prepareQueryResultTypes());
                 if ((numCollectedRows > 0) && stopForOptimization(queryParams.getNumCollectElements(), aggregatorArgs.prepareQueryResultTypes(), aggregatorArgs.queryResultTypes())) {
                     canPrepareMore = false;
                     break;
@@ -316,7 +320,7 @@ public class StorageCollectorService
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = aggregatorPageArgs.warmupElementRecordBufferStates();
         if (warmupElementRecordBufferStates.isEmpty()) {
             logger.debug("getNumToCollect no wes %d", queryArgs.chunkSize() - numCollectedRows);
-            return Math.min(queryArgs.chunkSize() - numCollectedRows, aggregatorPageArgs.rowsLimit() - numCollectedRows);
+            return min(queryArgs.chunkSize() - numCollectedRows, aggregatorPageArgs.rowsLimit() - numCollectedRows);
         }
 
         int recLimit = aggregatorPageArgs.rowsLimit() - numCollectedRows;
@@ -359,7 +363,7 @@ public class StorageCollectorService
         }
         int freeBytes = getFreeBytes(warmupElementRecordBufferState);
 
-        int actualNumToCollect = Math.min(freeBytes / maxRecordLength, numToCollect);
+        int actualNumToCollect = min(freeBytes / maxRecordLength, numToCollect);
         logger.debug("getNumToCollect var size actualNumToCollect %d numToCollect %d maxToCollect %d maxRecordLength %d freeBytes %d",
                 actualNumToCollect, numToCollect, maxToCollect, maxRecordLength, freeBytes);
         return actualNumToCollect;
@@ -449,7 +453,7 @@ public class StorageCollectorService
                 collectJuffersWE,
                 storeRowListBuff,
                 arena.allocate(recordBufferStatesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
-                new RecordIndexes(), // since this memory is large we allocate it only in open page
+                new RecordIndexes(queryArgs.chunkSize()), // since this memory is large we allocate it only in open page
                 arena.allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
                 arena.allocate(queryResultTypesLayout.byteSize(), ValueLayout.JAVA_INT.byteSize()),
                 arena.allocate(warmUpElementAttsLayout.byteSize(), ValueLayout.JAVA_BYTE.byteSize()));

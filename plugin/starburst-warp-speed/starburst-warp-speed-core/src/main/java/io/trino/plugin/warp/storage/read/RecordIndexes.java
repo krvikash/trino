@@ -22,19 +22,28 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RecordIndexes
 {
+    private static final byte[][] PRECOMPUTED_INDICES;
+    private static final long RECORD_INDEX_SIZE;
+
     static final StructLayout RECORD_INDEXES_LAYOUT;
     static final SequenceLayout RECORD_INDEXES_LIST_LAYOUT;
     private static final long RECORD_INDEXES_OFFSET_SIZE;
     private static final long RECORD_INDEXES_OFFSET_TYPE;
     private static final long RECORD_INDEXES_OFFSET_START;
     static final long RECORD_INDEXES_OFFSET_LIST; // not private for test
+    private final int bytesInChunk;
 
     private MemorySegment recordIndexes;
 
     static {
+        RECORD_INDEX_SIZE = (byte) ValueLayout.JAVA_SHORT.byteSize();
+        PRECOMPUTED_INDICES = precomputeIndexes();
+
         // since chunk size is not available in static initializer, we will allocate the largest array possible for shorts
         RECORD_INDEXES_LIST_LAYOUT = MemoryLayout.sequenceLayout(1 << Short.SIZE, ValueLayout.JAVA_SHORT);
         RECORD_INDEXES_LAYOUT = MemoryLayout.structLayout(
@@ -48,8 +57,29 @@ public class RecordIndexes
         RECORD_INDEXES_OFFSET_LIST = RECORD_INDEXES_LAYOUT.byteOffset(PathElement.groupElement("list"));
     }
 
-    public RecordIndexes()
+    private static byte[][] precomputeIndexes()
     {
+        byte[][] indices = new byte[256][];
+        for (int i = 0; i < 256; i++) {
+            List<Byte> setBits = new ArrayList<>();
+            for (int bit = 0; bit < Byte.SIZE; bit++) {
+                if ((i & (1 << bit)) != 0) {
+                    setBits.add((byte) bit);
+                }
+            }
+            // Convert List<Byte> to byte[] for efficiency
+            byte[] byteArray = new byte[setBits.size()];
+            for (int j = 0; j < setBits.size(); j++) {
+                byteArray[j] = setBits.get(j);
+            }
+            indices[i] = byteArray;
+        }
+        return indices;
+    }
+
+    public RecordIndexes(int chunkSize)
+    {
+        this.bytesInChunk = chunkSize / Byte.SIZE;
     }
 
     public MemorySegment setMemory(Arena arena)
@@ -113,5 +143,21 @@ public class RecordIndexes
     public int getRowFromList(MemorySegment recordIndexesList, int listIdx)
     {
         return Short.toUnsignedInt(recordIndexesList.getAtIndex(ValueLayout.JAVA_SHORT, listIdx));
+    }
+
+    public int setRecIxListFromBM(MemorySegment bm)
+    {
+        int numRecords = 0;
+
+        for (long byteIndex = 0; byteIndex < bytesInChunk; byteIndex++) {
+            int byteValue = Byte.toUnsignedInt(bm.get(ValueLayout.JAVA_BYTE, byteIndex));
+            for (int bitOffset : PRECOMPUTED_INDICES[byteValue]) {
+                long recIxOffset = RECORD_INDEXES_OFFSET_LIST + numRecords * RECORD_INDEX_SIZE;
+                recordIndexes.set(ValueLayout.JAVA_SHORT, recIxOffset,
+                        (short) (byteIndex * Byte.SIZE + bitOffset));
+                numRecords++;
+            }
+        }
+        return numRecords;
     }
 }

@@ -93,20 +93,40 @@ public class ChunksQueue
     }
 
     // get the current chunk match bitmap reset point
-    Optional<MemorySegment> getCurrentBitmapDescriptor()
+    int getCurrentBitmapResetPoint()
     {
+        int bitmapResetPoint;
+
         // lazy restore
         MatchChunkState matchChunkState = chunksToCollect.getFirst();
         Optional<MemorySegment> bitmapDescriptor = matchChunkState.getBitmapDescriptor();
         if (matchChunkState.shouldRestore()) {
-            int bitmapResetPoint = matchChunkState.restored();
+            bitmapResetPoint = matchChunkState.restored();
             bitmapDescriptor.ifPresent(bm -> bm.set(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT, bitmapResetPoint));
             if (bitmapResetPoint > allSet) {
                 final int offsetInBuff = calcMatchBitmapOffset(matchChunkState.getChunkIndex());
                 MemorySegment.copy(MemorySegment.ofArray(matchChunkState.getBitmapBuffer()), 0, rootBitmaps.get(), offsetInBuff, pageSize);
             }
+            return bitmapResetPoint;
         }
-        return bitmapDescriptor;
+        return bitmapDescriptor.map(bm -> bm.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT)).orElse(allSet);
+    }
+
+    private Optional<MemorySegment> getBmOfChunkIx(int chunkIndex)
+    {
+        int bmOffset = calcMatchBitmapOffset(chunkIndex);
+        return rootBitmaps.map(memorySegment -> memorySegment.asSlice(bmOffset, pageSize));
+    }
+
+    int prepareCurRecList(RecordIndexes recordIndexes, int bmResetPoint)
+    {
+        int numRecInBm = bmResetPoint;
+        if (bmResetPoint > allSet) {
+            // bm must be valid since bmResetPoint is not
+            MemorySegment bm = getBmOfChunkIx(getCurrent()).get();
+            numRecInBm = recordIndexes.setRecIxListFromBM(bm);
+        }
+        return numRecInBm;
     }
 
     void storeMatchBitmaps()
