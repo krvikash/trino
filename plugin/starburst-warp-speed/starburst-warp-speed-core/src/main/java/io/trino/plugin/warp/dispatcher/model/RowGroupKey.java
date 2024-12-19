@@ -97,6 +97,6 @@ public record RowGroupKey(
         if (filePathWithoutPrefix.contains("//")) {
             filePathWithoutPrefix = filePathWithoutPrefix.substring(filePathWithoutPrefix.indexOf("//") + "//".length());
         }
-        return filePathWithoutPrefix;
+        return filePathWithoutPrefix.replaceAll("\\s+", "_"); // in UNIX file system a file name can't contain spaces
     }
 }
