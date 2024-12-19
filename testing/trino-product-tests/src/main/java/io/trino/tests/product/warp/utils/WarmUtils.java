@@ -98,7 +98,8 @@ public class WarmUtils
                 testFormat.expected_warm_failures(),
                 testFormat.session_properties() != null ? testFormat.session_properties().entrySet().stream().collect(Collectors.toMap(e -> "warp." + e.getKey(), Map.Entry::getValue)) : new HashMap<>(),
                 testFormat.expected_dictionary_counters(),
-                fastWarming);
+                fastWarming,
+                true);
     }
 
     public void warmAndValidate(
@@ -107,7 +108,8 @@ public class WarmUtils
             int expectedFailures,
             Map<String, Object> sessionPropertiesWithCatalog,
             Map<String, Long> expectedDictionaryCounters,
-            FastWarming fastWarming)
+            FastWarming fastWarming,
+            boolean useEmptyQuery)
     {
         QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
         QueryResult dictionaryRowBefore = JMXCachingManager.getDictionaryStats();
@@ -118,10 +120,14 @@ public class WarmUtils
                         sessionPropertiesWithCatalog.getOrDefault("warp.enable_default_warming", "false").toString());
         logger.info("STARTING WARMUP=%s, fastWarming=%s, defaultWarming=%b", warmQuery, fastWarming, defaultWarming);
         QueryExecutor queryExecutor = onTrino();
-        queryExecutor.executeQuery("SET SESSION warp.empty_query=True");
+        if (useEmptyQuery) {
+            queryExecutor.executeQuery("SET SESSION warp.empty_query=True");
+        }
         queryExecutor.executeQuery(format("set session warp.enable_default_warming = %b", defaultWarming));
         queryExecutor.executeQuery(warmQuery);
-        queryExecutor.executeQuery("SET SESSION warp.empty_query=false");
+        if (useEmptyQuery) {
+            queryExecutor.executeQuery("SET SESSION warp.empty_query=false");
+        }
 
         assertEventually(
                 Duration.valueOf("360s"),

@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
@@ -30,7 +29,6 @@ import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.WarpExpression;
-import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
@@ -76,19 +74,6 @@ public class QueryClassifier
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.globalConfig = requireNonNull(globalConfig);
         this.catalogName = requireNonNull(catalogName);
-    }
-
-    public QueryContext classifyCache(ImmutableList<ColumnHandle> projectColumns, Optional<UUID> storeIdOpt, RowGroupData rowGroupData)
-    {
-        PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
-        String queryId = storeIdOpt.isPresent() ? storeIdOpt.get().toString() : "Empty-Query-Id";
-        QueryContext baseQueryContext = new QueryContext(predicateContextData, projectColumns, connectorSync.getCatalogContext(), false, queryId);
-        return classify(baseQueryContext,
-                rowGroupData,
-                null,
-                Optional.empty(),
-                storeIdOpt,
-                ClassificationType.CACHE);
     }
 
     public QueryContext classify(QueryContext baseQueryContext,
@@ -142,8 +127,7 @@ public class QueryClassifier
                     debugNoPredicateBuffer);
             queryContext = baseQueryContext;
             if (classificationType == ClassificationType.QUERY ||
-                    classificationType == ClassificationType.CHOOSING_ALTERNATIVE ||
-                    classificationType == ClassificationType.CACHE) {
+                    classificationType == ClassificationType.CHOOSING_ALTERNATIVE) {
                 int totalRecords = getTotalRecords(classifyArgs, queryContext, dispatcherProxiedConnectorTransformer);
                 queryContext = queryContext.asBuilder()
                         .totalRecords(totalRecords)

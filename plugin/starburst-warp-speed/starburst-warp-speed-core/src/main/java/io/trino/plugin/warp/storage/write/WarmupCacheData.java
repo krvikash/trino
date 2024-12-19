@@ -15,24 +15,29 @@ package io.trino.plugin.warp.storage.write;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.cache.WarmupElementBlocks;
+import io.trino.plugin.warp.dispatcher.cache.CacheWarmupElementArgs;
+import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingCandidate;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.spi.block.Block;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static io.airlift.slice.SizeOf.instanceSize;
+import static java.util.Collections.emptyList;
 
 public class WarmupCacheData
 {
     private static final int INSTANCE_SIZE = instanceSize(WarmupCacheData.class);
     private final ShapingLogger shapingLogger;
 
-    private List<WarmupElementBlocks> warmupElementBlocksList;
+    private Map<Integer, List<CacheWarmupElementArgs>> connectorIndexToWarmColumns;
 
-    public WarmupCacheData(List<WarmupElementBlocks> warmupElementBlocksList, GlobalConfig globalConfig)
+    public WarmupCacheData(Map<Integer, List<CacheWarmupElementArgs>> connectorIndexToWarmColumns, GlobalConfig globalConfig)
     {
-        this.warmupElementBlocksList = warmupElementBlocksList;
+        this.connectorIndexToWarmColumns = connectorIndexToWarmColumns;
         this.shapingLogger = ShapingLogger.getInstance(
                 Logger.get(WarmupCacheData.class),
                 globalConfig.getShapingLoggerThreshold(),
@@ -40,12 +45,17 @@ public class WarmupCacheData
                 globalConfig.getShapingLoggerNumberOfSamples());
     }
 
-    public WarmupElementBlocks getWarmupElementBlock(int index)
+    public List<CacheWarmupElementArgs> getCacheWarmupElementArgsList()
+    {
+        return isNull() ? emptyList() : connectorIndexToWarmColumns.values().stream().flatMap(Collection::stream).toList();
+    }
+
+    public List<CacheWarmupElementArgs> getCacheWarmupElementArgsList(int connectorBlockIndex)
     {
         if (isNull()) {
-            throw new IllegalStateException("blocks are null because of revoke event");
+            throw new IllegalStateException("connectorIndexToWarmColumns is null because of revoke event");
         }
-        return warmupElementBlocksList.get(index);
+        return connectorIndexToWarmColumns.get(connectorBlockIndex);
     }
 
     public long getRetainedSizeInBytes()
@@ -58,39 +68,63 @@ public class WarmupCacheData
         if (isNull()) {
             return 0;
         }
-        long totalRetainedSizeInBytes = 0;
-        for (WarmupElementBlocks warmupElementBlocks : warmupElementBlocksList) {
-            if (warmupElementBlocks != null) {
-                totalRetainedSizeInBytes += Integer.SIZE + warmupElementBlocks.getRetainedSizeInBytes();
-            }
-        }
-        return totalRetainedSizeInBytes;
+        return connectorIndexToWarmColumns
+                .values()
+                .stream()
+                .mapToLong(list -> list.stream()
+                        .map(CacheWarmupElementArgs::getWarmupBlocksRetainedSizeInBytes)
+                        .max(Long::compare) // All elements hold the same block instances, take the maximum because some may had processed more blocks than others
+                        .orElse(0L))
+                .sum();
     }
 
     public void clear()
     {
-        warmupElementBlocksList = null;
+        connectorIndexToWarmColumns = null;
     }
 
-    public int size()
+    public int connectorColumnIndexesSize()
     {
-        return isNull() ? 0 : warmupElementBlocksList.size();
+        return isNull() ? 0 : connectorIndexToWarmColumns.size();
     }
 
     public boolean notAllDataFlushed()
     {
-        return isNull() || warmupElementBlocksList.stream().anyMatch(x -> !x.isEmpty());
+        return isNull() ||
+                connectorIndexToWarmColumns
+                        .values()
+                        .stream()
+                        .flatMap(Collection::stream)
+                        .anyMatch(x -> !x.isEmpty());
     }
 
-    public boolean addBlock(Block block, int blockIndex)
+    /**
+     * Add a {@code block} to every {@code CacheWarmupElementArgs} with the given {@code connectorBlockIndex}
+     *
+     * @param block Block to add to all warmup elements with the same connectorBlockIndex
+     * @param connectorBlockIndex column index in page
+     * @return if any warmup element is ready
+     */
+    public boolean addBlock(Block block, int connectorBlockIndex)
     {
-        return !isNull() && warmupElementBlocksList.get(blockIndex).add(block);
+        if (isNull()) {
+            return false;
+        }
+        for (CacheWarmupElementArgs cacheWarmupElementArgs : connectorIndexToWarmColumns.get(connectorBlockIndex)) {
+            cacheWarmupElementArgs.addBlock(block);
+        }
+        return connectorIndexToWarmColumns.get(connectorBlockIndex).stream().anyMatch(CacheWarmupElementArgs::isReady);
+    }
+
+    public List<WarmingCandidate> getWarmingCandidates()
+    {
+        return isNull() ? emptyList() : connectorIndexToWarmColumns.values().stream().flatMap(Collection::stream).map(CacheWarmupElementArgs::getWarmupCandidate).collect(Collectors.toList());
     }
 
     private boolean isNull()
     {
-        if (warmupElementBlocksList == null) {
-            shapingLogger.info("warmupElementBlocksList is null because of revoke but requested to use it. should not happened");
+        if (connectorIndexToWarmColumns == null) {
+            shapingLogger.info("connectorIndexToWarmColumns is null because of revoke but requested to use it. should not happened");
             return true;
         }
         return false;
@@ -100,7 +134,7 @@ public class WarmupCacheData
     public String toString()
     {
         return "WarmupCacheData{" +
-                "warmupElementBlocksList=" + warmupElementBlocksList +
+                "connectorIndexToWarmColumns=" + connectorIndexToWarmColumns +
                 '}';
     }
 }

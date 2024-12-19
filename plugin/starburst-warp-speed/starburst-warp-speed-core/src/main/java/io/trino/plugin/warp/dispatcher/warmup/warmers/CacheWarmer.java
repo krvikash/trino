@@ -13,8 +13,10 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
@@ -24,16 +26,21 @@ import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
+import io.trino.plugin.warp.gen.constants.RecTypeCode;
+import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.PageSink;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
+import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
+import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,17 +52,22 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INVALID_WARM_ID;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class CacheWarmer
 {
+    private static final Logger logger = Logger.get(CacheWarmer.class);
+
     private final RowGroupDataService rowGroupDataService;
     private final WarmupElementsCreator warmupElementsCreator;
     private final WarpPageSinkFactory warpPageSinkFactory;
     private final StorageWarmerService storageWarmerService;
     private final StorageWriterService storageWriterService;
     private final DictionaryConfig dictionaryConfig;
+    private final StorageEngineConstants storageEngineConstants;
+    private final BufferAllocator bufferAllocator;
     private final AtomicInteger tmpUniqueKeyMarker;
 
     @Inject
@@ -64,7 +76,9 @@ public class CacheWarmer
             WarpPageSinkFactory warpPageSinkFactory,
             StorageWarmerService storageWarmerService,
             StorageWriterService storageWriterService,
-            DictionaryConfig dictionaryConfig)
+            DictionaryConfig dictionaryConfig,
+            StorageEngineConstants storageEngineConstants,
+            BufferAllocator bufferAllocator)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
@@ -72,12 +86,15 @@ public class CacheWarmer
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
         this.dictionaryConfig = requireNonNull(dictionaryConfig);
+        this.storageEngineConstants = requireNonNull(storageEngineConstants);
+        this.bufferAllocator = requireNonNull(bufferAllocator);
         this.tmpUniqueKeyMarker = new AtomicInteger(0);
     }
 
     public List<WarmupElementWriteMetadata> getWarmupElementWriteMetadatasToWarm(List<CacheColumnId> columns,
             List<Type> columnsTypes,
-            RowGroupKey rowGroupKey)
+            RowGroupKey rowGroupKey,
+            boolean warmBasic)
     {
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         Set<String> permanentFailedWarmupElements = new HashSet<>();
@@ -93,23 +110,50 @@ public class CacheWarmer
                 }
             }
         }
+
         UUID storeId = UUID.randomUUID();
-        List<WarmupElementWriteMetadata> result = new ArrayList<>();
+        ImmutableList.Builder<WarmupElementWriteMetadata> result = ImmutableList.builder();
+        boolean hasPermanentFailedColumn = false;
         for (int i = 0; i < columns.size(); i++) {
             String cacheColumnId = columns.get(i).toString().toLowerCase(Locale.ROOT);
             if (permanentFailedWarmupElements.contains(cacheColumnId)) {
+                hasPermanentFailedColumn = true;
                 break;
             }
-            Optional<WarmupElementWriteMetadata> we = createCacheWarmupElements(rowGroupKey, cacheColumnId, columnsTypes.get(i), i, storeId, temporaryFailedWarmupElements);
-            if (we.isEmpty()) {
+            Type type = columnsTypes.get(i);
+            Optional<WarmupElementWriteMetadata> writeMetadata = createCacheWarmupElements(rowGroupKey, cacheColumnId, type, i, storeId, temporaryFailedWarmupElements);
+            if (writeMetadata.isEmpty()) {
+                logger.debug("failed to create WarmupElementWriteMetadata for type %s", type);
+                hasPermanentFailedColumn = true;
                 break;
             }
-            result.add(we.get());
+            result.add(writeMetadata.get());
+
+            if (warmBasic && TypeUtils.isCacheWarmBasicSupported(type)) {
+                WarmUpElement warmUpElement = writeMetadata.get().warmUpElement();
+                int recTypeLength = warmUpElement.getRecTypeLength();
+                RecTypeCode recTypeCode = warmUpElement.getRecTypeCode();
+                recTypeLength = TypeUtils.getIndexTypeLength(recTypeCode, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
+                int warmUpContextSize = bufferAllocator.getWarmupIndexTxSize();
+                WarmUpElement basicElement = WarmUpElement.builder()
+                        .creationTime(System.currentTimeMillis())
+                        .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
+                        .recTypeCode(recTypeCode)
+                        .recTypeLength(recTypeLength)
+                        .warpColumn(warmUpElement.getWarpColumn())
+                        .warmId(INVALID_WARM_ID)
+                        .warmupElementStats(WarmupElementStats.UNINITIALIZED)
+                        .warmUpContextSize(warmUpContextSize)
+                        .storeId(warmUpElement.getStoreId())
+                        .build();
+                WarmupElementWriteMetadata basicWriteMetadata = WarmupElementWriteMetadata.builder(writeMetadata.get()).warmUpElement(basicElement).build();
+                result.add(basicWriteMetadata);
+            }
         }
-        if (result.size() != columns.size()) {
-            result = Collections.emptyList();
+        if (hasPermanentFailedColumn) {
+            return Collections.emptyList();
         }
-        return result;
+        return result.build();
     }
 
     private Optional<WarmupElementWriteMetadata> createCacheWarmupElements(RowGroupKey rowGroupKey,

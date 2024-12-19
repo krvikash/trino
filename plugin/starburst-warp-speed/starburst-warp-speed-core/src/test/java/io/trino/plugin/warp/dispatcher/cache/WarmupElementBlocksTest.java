@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.dispatcher.cache;
 
-import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.IntArrayBlock;
 import org.junit.jupiter.api.Test;
@@ -28,12 +27,11 @@ class WarmupElementBlocksTest
     @Test
     public void testReadyOnChunkSize()
     {
-        WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
         int chunkSize = 10;
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
         Block block = mockBlock(chunkSize);
-
-        assertThat(warmupElementBlocks.add(block)).isTrue();
+        warmupElementBlocks.add(block);
+        assertThat(warmupElementBlocks.isReady()).isTrue();
         assertThat(warmupElementBlocks.isReady()).isTrue();
         assertThat(warmupElementBlocks.isEmpty()).isFalse();
 
@@ -49,17 +47,18 @@ class WarmupElementBlocksTest
     @Test
     public void testExtraBlockAfterReady()
     {
-        WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
         int chunkSize = 10;
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
         Block bigEnoughBlock = mockBlock(chunkSize);
         Block anExtraBlock = mockBlock(chunkSize);
 
         // add
-        assertThat(warmupElementBlocks.add(bigEnoughBlock)).isTrue();
+        warmupElementBlocks.add(bigEnoughBlock);
+        assertThat(warmupElementBlocks.isReady()).isTrue();
         assertThat(warmupElementBlocks.isReady()).isTrue();
         assertThat(warmupElementBlocks.getSize()).isEqualTo(1);
-        assertThat(warmupElementBlocks.add(anExtraBlock)).isTrue();
+        warmupElementBlocks.add(anExtraBlock);
+        assertThat(warmupElementBlocks.isReady()).isTrue();
         assertThat(warmupElementBlocks.isReady()).isTrue();
         assertThat(warmupElementBlocks.getSize()).isEqualTo(2);
 
@@ -78,18 +77,18 @@ class WarmupElementBlocksTest
     {
         int numberOfBlocks = 10;
 
-        WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
         int chunkSize = 10;
         int recordsPerBlock = 4;
         int blockNeededToBeReady = (chunkSize / recordsPerBlock) + 1;
 
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
 
         // add
         for (int i = 0; i < numberOfBlocks; i++) {
             Block block = mockBlock(recordsPerBlock);
             boolean expectedToBeReady = warmupElementBlocks.getSize() + 1 >= blockNeededToBeReady; // +1 because we haven't added the block yet
-            assertThat(warmupElementBlocks.add(block)).isEqualTo(expectedToBeReady);
+            warmupElementBlocks.add(block);
+            assertThat(warmupElementBlocks.isReady()).isEqualTo(expectedToBeReady);
             assertThat(warmupElementBlocks.isReady()).isEqualTo(expectedToBeReady);
         }
         assertThat(warmupElementBlocks.getSize()).isEqualTo(numberOfBlocks);
@@ -112,12 +111,12 @@ class WarmupElementBlocksTest
     @Test
     public void testAdvanceOffsets()
     {
-        WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
         int chunkSize = 10;
 
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
         Block block = mockBlock(chunkSize);
-        assertThat(warmupElementBlocks.add(block)).isTrue();
+        warmupElementBlocks.add(block);
+        assertThat(warmupElementBlocks.isReady()).isTrue();
         assertThat(warmupElementBlocks.isReady()).isTrue();
 
         for (int i = 1; i < chunkSize; i++) {
@@ -130,11 +129,11 @@ class WarmupElementBlocksTest
     @Test
     public void testInvalidInputOnDrop()
     {
-        WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
         int chunkSize = 10;
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
         Block block = mockBlock(5);
-        assertThat(warmupElementBlocks.add(block)).isFalse();
+        warmupElementBlocks.add(block);
+        assertThat(warmupElementBlocks.isReady()).isFalse();
 
         // negative input
         assertThatThrownBy(() -> warmupElementBlocks.dropProcessed(-1, 0)).isInstanceOf(RuntimeException.class);

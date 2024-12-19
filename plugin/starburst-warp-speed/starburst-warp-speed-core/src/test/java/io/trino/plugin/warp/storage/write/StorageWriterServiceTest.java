@@ -447,7 +447,7 @@ public class StorageWriterServiceTest
         storageWriterContext.setRecordBufferSize(chunkSize);
         storageWriterContext.getWriteJuffersWarmUpElement().setChunkTypeAsValid();
 
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, chunkSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
         buildLongBlocks(numberOfBlocks, recordsPerBlock)
                 .forEach(warmupElementBlocks::add);
 
@@ -475,7 +475,7 @@ public class StorageWriterServiceTest
         storageWriterContext.setRecordBufferSize(chunkSize);
         storageWriterContext.getWriteJuffersWarmUpElement().setChunkTypeAsValid();
 
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, chunkSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
         buildLongBlocks(expectedBlockIndex + 1, recordsPerBlock)
                 .forEach(warmupElementBlocks::add);
 
@@ -502,7 +502,7 @@ public class StorageWriterServiceTest
         storageWriterContext.setRecordBufferSize(chunkSize);
         storageWriterContext.getWriteJuffersWarmUpElement().setChunkTypeAsValid();
 
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, chunkSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
         buildLongBlocks(blocksNumber, recordsPerBlock)
                 .forEach(warmupElementBlocks::add);
 

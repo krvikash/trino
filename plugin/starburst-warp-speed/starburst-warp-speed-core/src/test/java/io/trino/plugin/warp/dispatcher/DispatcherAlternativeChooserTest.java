@@ -383,7 +383,7 @@ public class DispatcherAlternativeChooserTest
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
         return new DispatcherAlternativeChooser(
                 () -> connectorPageSourceProvider,
-                mock(DispatcherPageSourceFactory.class),
+                mock(WarpDispatcherPageSourceFactory.class),
                 mock(StorageEngineTxService.class),
                 mock(MetricsManager.class),
                 new CatalogName("connector"),

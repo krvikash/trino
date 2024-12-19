@@ -37,7 +37,7 @@ public class DispatcherAlternativePageSourceProvider
     private static final Logger logger = Logger.get(DispatcherAlternativePageSourceProvider.class);
 
     private final ConnectorPageSourceProvider connectorPageSourceProvider;
-    private final DispatcherPageSourceFactory pageSourceFactory;
+    private final WarpDispatcherPageSourceFactory pageSourceFactory;
     private final StorageEngineTxService txService;
     private final CustomStatsContext customStatsContext;
     private final String catalogName;
@@ -47,7 +47,7 @@ public class DispatcherAlternativePageSourceProvider
 
     public DispatcherAlternativePageSourceProvider(
             ConnectorPageSourceProvider connectorPageSourceProvider,
-            DispatcherPageSourceFactory pageSourceFactory,
+            WarpDispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             CustomStatsContext customStatsContext,
             CatalogName catalogName,

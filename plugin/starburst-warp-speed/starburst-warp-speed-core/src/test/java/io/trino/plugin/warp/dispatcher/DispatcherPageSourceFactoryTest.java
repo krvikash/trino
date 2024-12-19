@@ -119,7 +119,7 @@ public class DispatcherPageSourceFactoryTest
     private TestingConnectorTransactionHandle proxiedTransactionHandle;
     private DispatcherTableHandle dispatcherTableHandle;
     private NativeStorageStateHandler nativeStorageStateHandler;
-    private DispatcherPageSourceFactory pageSourceFactory;
+    private WarpDispatcherPageSourceFactory pageSourceFactory;
     private CustomStatsContext customStatsContext;
 
     @BeforeEach
@@ -215,21 +215,21 @@ public class DispatcherPageSourceFactoryTest
         QueryArgs queryArgs = mock(QueryArgs.class);
         StorageCollectorService storageCollectorService = mock(StorageCollectorService.class);
         when(storageCollectorService.getQueryArgs(any(), any())).thenReturn(queryArgs);
-        pageSourceFactory = new DispatcherPageSourceFactory(
+        pageSourceFactory = new WarpDispatcherPageSourceFactory(
                 storageEngineConstants,
                 rowGroupDataService,
-                workerWarmingService,
                 metricsManager,
                 dispatcherProxiedConnectorTransformer,
                 predicatesCacheService,
                 queryClassifier,
                 new GlobalConfig(),
-                nativeStorageStateHandler,
                 new ReadErrorHandler(rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),
                 storageCollectorService,
                 mock(LazyCollectorService.class),
-                mock(MatchService.class));
+                mock(MatchService.class),
+                workerWarmingService,
+                nativeStorageStateHandler);
     }
 
     @Test

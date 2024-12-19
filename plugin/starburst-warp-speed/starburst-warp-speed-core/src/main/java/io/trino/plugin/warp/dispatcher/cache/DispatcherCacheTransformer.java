@@ -34,10 +34,16 @@ import io.trino.spi.type.Type;
 import java.util.Map;
 import java.util.Optional;
 
+import static java.util.Collections.emptyMap;
+
 @Singleton
 public class DispatcherCacheTransformer
         implements DispatcherProxiedConnectorTransformer
 {
+    private static final String SCHEMA = "warp-cache-manager-schema";
+    private static final String TABLE = "warp-cache-manager-table";
+    private static final SchemaTableName SCHEMA_TABLE_NAME = new SchemaTableName(SCHEMA, TABLE);
+
     @Inject
     public DispatcherCacheTransformer()
     {
@@ -46,7 +52,7 @@ public class DispatcherCacheTransformer
     @Override
     public Map<String, Integer> calculateColumnsStatisticsBucketPriority(DispatcherStatisticsProvider statisticsProvider, Map<ColumnHandle, ColumnStatistics> columnStatistics)
     {
-        throw new UnsupportedOperationException();
+        return emptyMap();
     }
 
     @Override
@@ -70,7 +76,7 @@ public class DispatcherCacheTransformer
     @Override
     public SchemaTableName getSchemaTableName(ConnectorTableHandle connectorTableHandle)
     {
-        throw new UnsupportedOperationException();
+        return SCHEMA_TABLE_NAME;
     }
 
     @Override

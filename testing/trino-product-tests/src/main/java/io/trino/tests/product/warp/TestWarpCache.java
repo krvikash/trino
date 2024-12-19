@@ -26,12 +26,14 @@ import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tempto.query.QueryResult;
 import io.trino.tests.product.warp.utils.CacheUtils;
 import io.trino.tests.product.warp.utils.DemoterUtils;
+import io.trino.tests.product.warp.utils.FastWarming;
 import io.trino.tests.product.warp.utils.JMXCachingConstants;
 import io.trino.tests.product.warp.utils.JMXCachingManager;
 import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.RuleUtils;
 import io.trino.tests.product.warp.utils.TestCacheFormat;
 import io.trino.tests.product.warp.utils.TestFormat;
+import io.trino.tests.product.warp.utils.WarmUtils;
 import io.trino.tests.product.warp.utils.syntheticconfig.ExcludeStrategy;
 import jakarta.ws.rs.HttpMethod;
 import org.testng.ITestContext;
@@ -74,6 +76,8 @@ public class TestWarpCache
     RestUtils restUtils;
     @Inject
     CacheUtils cacheUtils;
+    @Inject
+    WarmUtils warmUtils;
 
     public TestWarpCache()
     {
@@ -158,7 +162,19 @@ public class TestWarpCache
             onTrino().executeQuery("USE warp.synthetic");
             onTrino().executeQuery(format("set session warp.enable_default_warming=%s", testFormat.default_warming()));
             QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
-            cacheUtils.runQueries(testFormat.queries_data(), false);
+            if (testFormat.warm_query() == null) {
+                cacheUtils.runQueries(testFormat.queries_data(), false);
+            }
+            else {
+                warmUtils.warmAndValidate(
+                        testFormat.name(),
+                        testFormat.warm_query(),
+                        0,
+                        new HashMap<>(),
+                        null,
+                        FastWarming.NONE,
+                        false);
+            }
             cacheUtils.runQueries(testFormat.queries_data(), true);
             QueryResult warmingStatsAfter = JMXCachingManager.getWarmingStats();
             long rowGroupCount = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.ROW_GROUP_COUNT);

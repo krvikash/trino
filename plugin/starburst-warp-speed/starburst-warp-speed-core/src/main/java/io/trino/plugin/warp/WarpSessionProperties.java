@@ -253,7 +253,8 @@ public final class WarpSessionProperties
 
     public static boolean getEnableMatchCollect(ConnectorSession session)
     {
-        return getProperty(session, ENABLE_MATCH_COLLECT, Boolean.class);
+        Boolean ret = getProperty(session, ENABLE_MATCH_COLLECT, Boolean.class);
+        return ret != null ? ret : false;
     }
 
     public static boolean getEnableOrPushdown(ConnectorSession session)

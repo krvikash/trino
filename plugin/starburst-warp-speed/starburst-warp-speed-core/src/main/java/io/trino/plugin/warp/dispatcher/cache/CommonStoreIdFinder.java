@@ -50,7 +50,7 @@ public class CommonStoreIdFinder
         Optional<UUID> queryStoreId = Optional.ofNullable(queryStoreIdCache.get(rowGroupKey));
         if (queryStoreId.isEmpty()) {
             RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
-            if (rowGroupData != null && !rowGroupData.isEmpty()) {
+            if (rowGroupData != null) {
                 queryStoreId = find(rowGroupData, planSignature.getColumns());
                 queryStoreId.ifPresent(id -> queryStoreIdCache.put(rowGroupKey, id));
             }

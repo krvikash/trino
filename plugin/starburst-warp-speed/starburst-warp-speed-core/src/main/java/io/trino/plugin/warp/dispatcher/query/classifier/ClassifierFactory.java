@@ -97,7 +97,6 @@ public class ClassifierFactory
                 matchPrepareAfterCollectClassifier,
                 allProxyDecisionClassifier);
         classificationTypeToClassifiersBuilder.put(ClassificationType.WARMING, warmingClassifiers);
-        classificationTypeToClassifiersBuilder.put(ClassificationType.CACHE, List.of(prefilledCollectClassifier, nativeCollectClassifier));
         this.classificationTypeToClassifiers = classificationTypeToClassifiersBuilder.buildOrThrow();
     }
 

@@ -56,7 +56,7 @@ public class DispatcherAlternativeChooser
     private static final Logger logger = Logger.get(DispatcherAlternativeChooser.class);
 
     private final ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory;
-    private final DispatcherPageSourceFactory pageSourceFactory;
+    private final WarpDispatcherPageSourceFactory pageSourceFactory;
     private final StorageEngineTxService txService;
     private final MetricsManager metricsManager;
     private final CatalogName catalogName;
@@ -68,7 +68,7 @@ public class DispatcherAlternativeChooser
     @Inject
     public DispatcherAlternativeChooser(
             @ForWarp ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory,
-            DispatcherPageSourceFactory pageSourceFactory,
+            WarpDispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             MetricsManager metricsManager,
             CatalogName catalogName,

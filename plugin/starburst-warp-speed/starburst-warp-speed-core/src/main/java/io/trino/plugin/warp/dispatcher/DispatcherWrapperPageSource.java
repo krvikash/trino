@@ -45,7 +45,7 @@ public class DispatcherWrapperPageSource
     private static final String CUSTOM_METRIC_CATALOG_NAME = "CATALOG_NAME:";
 
     private final ConnectorPageSourceProvider connectorPageSourceProvider;
-    private final DispatcherPageSourceFactory pageSourceFactory;
+    private final WarpDispatcherPageSourceFactory pageSourceFactory;
     private final StorageEngineTxService txService;
     private final ConnectorTransactionHandle transactionHandle;
     private final ConnectorSession session;
@@ -61,7 +61,7 @@ public class DispatcherWrapperPageSource
     private boolean closed;
 
     public DispatcherWrapperPageSource(ConnectorPageSourceProvider pageSourceProvider,
-            DispatcherPageSourceFactory pageSourceFactory,
+            WarpDispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             CustomStatsContext customStatsContext,
             ConnectorTransactionHandle transactionHandle,

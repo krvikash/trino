@@ -19,9 +19,11 @@ public class CacheManagerConfig
 {
     public static final String CONFIG_IS_CACHE = "warp-speed.config.is-cache";
     public static final String CACHE_MANAGER_RULES_ENABLED = "warp-speed.cache-manager.rules.enabled";
+    public static final String CACHE_MANAGER_BASIC_INDEX_ENABLED = "warp-speed.cache-manager.basic-index.enabled";
 
     private boolean isCache;
     private boolean isRulesEnabled;
+    private boolean isBasicIndexEnabled;
 
     public boolean getIsCache()
     {
@@ -43,5 +45,16 @@ public class CacheManagerConfig
     public void setRulesEnabled(boolean rulesEnabled)
     {
         isRulesEnabled = rulesEnabled;
+    }
+
+    public boolean isBasicIndexEnabled()
+    {
+        return isBasicIndexEnabled;
+    }
+
+    @Config(CACHE_MANAGER_BASIC_INDEX_ENABLED)
+    public void setBasicIndexEnabled(boolean isBasicIndexEnabled)
+    {
+        this.isBasicIndexEnabled = isBasicIndexEnabled;
     }
 }

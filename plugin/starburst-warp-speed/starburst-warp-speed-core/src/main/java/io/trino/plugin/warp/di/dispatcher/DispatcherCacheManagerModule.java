@@ -42,6 +42,7 @@ import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dictionary.AttachDictionaryService;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
+import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.warp.dispatcher.ReadErrorHandler;
 import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.cache.DispatcherCacheTransformer;
@@ -188,6 +189,7 @@ public class DispatcherCacheManagerModule
         binder.bind(WeGroupWarmer.class);
         binder.bind(WorkerTaskExecutorService.class);
         bindMetricsServices(binder);
+        binder.bind(DispatcherTableHandleBuilderProvider.class);
     }
 
     private void bindMetricsServices(Binder binder)

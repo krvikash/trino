@@ -19,6 +19,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -48,11 +49,11 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static io.trino.plugin.base.cache.CacheUtils.normalizeTupleDomain;
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_DISPATCHER_KEY;
@@ -66,6 +67,7 @@ public class WorkerCacheManager
     private static final Logger logger = Logger.get(WorkerCacheManager.class);
 
     private final GlobalConfig globalConfig;
+    private final CacheManagerConfig cacheManagerConfig;
     private final WarpCachePageSourceFactory warpCachePageSourceFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final RowGroupDataService rowGroupDataService;
@@ -87,6 +89,7 @@ public class WorkerCacheManager
     @Inject
     public WorkerCacheManager(
             GlobalConfig globalConfig,
+            CacheManagerConfig cacheManagerConfig,
             WarpCachePageSourceFactory warpCachePageSourceFactory,
             WorkerTaskExecutorService workerTaskExecutorService,
             RowGroupDataService rowGroupDataService,
@@ -102,6 +105,7 @@ public class WorkerCacheManager
             NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.globalConfig = requireNonNull(globalConfig);
+        this.cacheManagerConfig = requireNonNull(cacheManagerConfig);
         this.warpCachePageSourceFactory = requireNonNull(warpCachePageSourceFactory);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
@@ -170,9 +174,16 @@ public class WorkerCacheManager
 
             Optional<ConnectorPageSource> result = Optional.empty();
             try {
+                // if we stored the data after filtering, we don't need to filter again
                 RowGroupKey rowGroupKey = getRowGroupKey(splitId, predicate, unenforcedPredicate);
                 Optional<UUID> queryStoreId = commonStoreIdFinder.findAndCache(rowGroupKey);
-                result = warpCachePageSourceFactory.createConnectorPageSource(rowGroupKey, planSignature, queryStoreId);
+                result = warpCachePageSourceFactory.createConnectorPageSource(rowGroupKey, planSignature, queryStoreId, TupleDomain.all(), TupleDomain.all());
+
+                if (cacheManagerConfig.isBasicIndexEnabled() && result.isEmpty() && !(predicate.isAll() && unenforcedPredicate.isAll())) {
+                    rowGroupKey = getRowGroupKey(splitId, TupleDomain.all(), TupleDomain.all());
+                    queryStoreId = commonStoreIdFinder.findAndCache(rowGroupKey);
+                    result = warpCachePageSourceFactory.createConnectorPageSource(rowGroupKey, planSignature, queryStoreId, predicate, unenforcedPredicate);
+                }
             }
             catch (Throwable e) {
                 shapingLogger.error(e, "failed to load pages splitId=%s, planSignature=%s", splitId, planSignature);
@@ -216,22 +227,26 @@ public class WorkerCacheManager
                     return Optional.empty();
                 }
 
+                boolean warmBasic = warmBasicQuery(predicate, unenforcedPredicate);
                 List<WarmupElementWriteMetadata> toWarm = cacheWarmer.getWarmupElementWriteMetadatasToWarm(
-                        planSignature.getColumns(), planSignature.getColumnsTypes(), rowGroupKey);
+                        planSignature.getColumns(), planSignature.getColumnsTypes(), rowGroupKey, warmBasic);
                 if (toWarm.isEmpty()) {
                     logger.debug("nothing to warm for %s", planSignature);
                     return Optional.empty();
                 }
-                List<WarmupElementBlocks> warmupElementBlocksList = new ArrayList<>(toWarm.stream().map(x -> new WarmupElementBlocks(x, chunkSize)).toList());
+                Map<Integer, List<CacheWarmupElementArgs>> connectorIndexToWarmColumns = toWarm.stream()
+                        .collect(Collectors.groupingBy(
+                                WarmupElementWriteMetadata::connectorBlockIndex,
+                                Collectors.mapping(writeMetadata -> new CacheWarmupElementArgs(writeMetadata, new WarmupElementBlocks(chunkSize)),
+                                        Collectors.toList())));
                 WarpCacheTask warpCacheTask = new WarpCacheTask(
                         globalConfig,
                         cacheActions,
                         workerTaskExecutorService,
                         storageWarmerService,
-                        new WarmupCacheData(warmupElementBlocksList, globalConfig),
+                        new WarmupCacheData(connectorIndexToWarmColumns, globalConfig),
                         cacheWarmer,
                         statsWarmingService,
-                        toWarm,
                         rowGroupKey,
                         memoryContextService);
                 boolean taskAdded = memoryContextService.add(warpCacheTask);
@@ -254,6 +269,15 @@ public class WorkerCacheManager
         private boolean isSkipped()
         {
             return !nativeStorageStateHandler.isStorageAvailable() || planSignature.getColumns().isEmpty();
+        }
+
+        //in case of empty predicates we warm basic in addition to data in order to optimize similar queries that not fully match to rowGroupKey
+        private boolean warmBasicQuery(TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
+        {
+            return cacheManagerConfig.isBasicIndexEnabled() &&
+                    predicate.isAll() &&
+                    unenforcedPredicate.isAll() &&
+                    (planSignature.getGroupByColumns().isEmpty() || planSignature.getGroupByColumns().get().isEmpty());
         }
 
         private RowGroupKey getRowGroupKey(

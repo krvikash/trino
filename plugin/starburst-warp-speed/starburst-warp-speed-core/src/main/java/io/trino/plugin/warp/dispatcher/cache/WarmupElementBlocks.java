@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher.cache;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.spi.block.Block;
 
 import java.util.ArrayList;
@@ -32,7 +31,6 @@ public class WarmupElementBlocks
 
     private static final Logger logger = Logger.get(WarmupElementBlocks.class);
 
-    private final WarmupElementWriteMetadata metadata;
     private final int chunkSize;
 
     private List<Block> blocks; // from different pages
@@ -40,19 +38,17 @@ public class WarmupElementBlocks
     private int positionCount; // accumulative
     private long retainedSizeInBytes; // accumulative
 
-    public WarmupElementBlocks(WarmupElementWriteMetadata metadata, int chunkSize)
+    public WarmupElementBlocks(int chunkSize)
     {
-        this.metadata = metadata;
         this.chunkSize = chunkSize;
         this.blocks = new ArrayList<>();
     }
 
-    public synchronized boolean add(Block block)
+    public synchronized void add(Block block)
     {
         blocks.add(block);
         positionCount += block.getPositionCount();
         retainedSizeInBytes += block.getLoadedBlock().getRetainedSizeInBytes();
-        return isReady();
     }
 
     public synchronized boolean isReady()
@@ -111,11 +107,6 @@ public class WarmupElementBlocks
             checkState(retainedSizeInBytes >= 0, "retainedSizeInBytes became negative after drop");
             checkState(positionCount >= 0, "positionCount became negative after drop");
         }
-    }
-
-    public WarmupElementWriteMetadata getMetadata()
-    {
-        return metadata;
     }
 
     public long getRetainedSizeInBytes()

@@ -501,21 +501,21 @@ public class DispatcherAlternativePageSourceProviderTest
         QueryArgs queryArgs = mock(QueryArgs.class);
         StorageCollectorService storageCollectorService = mock(StorageCollectorService.class);
         when(storageCollectorService.getQueryArgs(any(), any())).thenReturn(queryArgs);
-        DispatcherPageSourceFactory pageSourceFactory = new DispatcherPageSourceFactory(
+        WarpDispatcherPageSourceFactory pageSourceFactory = new WarpDispatcherPageSourceFactory(
                 storageEngineConstants,
                 rowGroupDataService,
-                workerWarmingService,
                 metricsManager,
                 dispatcherProxiedConnectorTransformer,
                 mock(PredicatesCacheService.class),
                 queryClassifier,
                 globalConfig,
-                nativeStorageStateHandler,
                 new ReadErrorHandler(rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),
                 storageCollectorService,
                 mock(LazyCollectorService.class),
-                mock(MatchService.class));
+                mock(MatchService.class),
+                workerWarmingService,
+                nativeStorageStateHandler);
 
         return new DispatcherAlternativePageSourceProvider(proxiedPageSourceProvider,
                 pageSourceFactory,

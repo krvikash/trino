@@ -13,18 +13,11 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Inject;
-import com.google.inject.Provider;
-import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.WarpErrorCode;
-import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
@@ -32,7 +25,6 @@ import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.query.data.QueryColumn;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
@@ -43,44 +35,26 @@ import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
-import io.trino.plugin.warp.storage.read.PrefilledPageSource;
-import io.trino.plugin.warp.storage.read.QueryParams;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
-import io.trino.plugin.warp.storage.read.WarpPageSource;
-import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.ConnectorPageSource;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
-import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.ConnectorSplit;
-import io.trino.spi.connector.ConnectorTableHandle;
-import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.type.Type;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.plugin.warp.storage.read.QueryParamsConverter.createQueryParams;
-import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
-@Singleton
-public class DispatcherPageSourceFactory
+public abstract class DispatcherPageSourceFactory
 {
     public static final String WARP_COLLECT = "warp-collect";
     public static final String WARP_MATCH = "warp-match";
@@ -93,30 +67,27 @@ public class DispatcherPageSourceFactory
 
     private static final Logger logger = Logger.get(DispatcherPageSourceFactory.class);
     private final ShapingLogger shapingLogger;
-    private final ReadErrorHandler readErrorHandler;
-    private final StorageCollectorService storageCollectorService;
-    private final MatchService matchService;
-    private final StorageEngineConstants storageEngineConstants;
-    private final RowGroupDataService rowGroupDataService;
-    private final WorkerWarmingService workerWarmingService;
-    private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
-    private final PredicatesCacheService predicatesCacheService;
-    private final QueryClassifier queryClassifier;
+    protected final ReadErrorHandler readErrorHandler;
+    protected final CollectTxService collectTxService;
+    protected final StorageCollectorService storageCollectorService;
+    protected final MatchService matchService;
+    protected final StorageEngineConstants storageEngineConstants;
+    protected final RowGroupDataService rowGroupDataService;
+    protected final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
+    protected final PredicatesCacheService predicatesCacheService;
+    protected final QueryClassifier queryClassifier;
 
-    private final GlobalConfig globalConfig;
-    private final NativeStorageStateHandler nativeStorageStateHandler;
-    private final LazyCollectorService lazyCollectorService;
+    protected final GlobalConfig globalConfig;
+    protected final LazyCollectorService lazyCollectorService;
 
-    @Inject
-    public DispatcherPageSourceFactory(StorageEngineConstants storageEngineConstants,
+    public DispatcherPageSourceFactory(
+            StorageEngineConstants storageEngineConstants,
             RowGroupDataService rowGroupDataService,
-            WorkerWarmingService workerWarmingService,
             MetricsManager metricsManager,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             PredicatesCacheService predicatesCacheService,
             QueryClassifier queryClassifier,
             GlobalConfig globalConfig,
-            NativeStorageStateHandler nativeStorageStateHandler,
             ReadErrorHandler readErrorHandler,
             CollectTxService collectTxService,
             StorageCollectorService storageCollectorService,
@@ -125,19 +96,17 @@ public class DispatcherPageSourceFactory
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.workerWarmingService = requireNonNull(workerWarmingService);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
         this.queryClassifier = requireNonNull(queryClassifier);
         this.globalConfig = requireNonNull(globalConfig);
-        this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
         this.readErrorHandler = requireNonNull(readErrorHandler);
-        requireNonNull(collectTxService);
+        this.collectTxService = requireNonNull(collectTxService);
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
         this.matchService = requireNonNull(matchService);
@@ -155,360 +124,15 @@ public class DispatcherPageSourceFactory
         return sj.toString();
     }
 
-    public ConnectorPageSource createConnectorPageSource(
-            ConnectorPageSourceProvider connectorPageSourceProvider,
-            ConnectorTransactionHandle transactionHandle,
-            ConnectorSession session,
-            DispatcherSplit dispatcherSplit,
-            DispatcherTableHandle dispatcherTableHandle,
-            List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter,
-            CustomStatsContext customStatsContext)
-    {
-        initializeCustomStats(customStatsContext);
-        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-
-        if ((!nativeStorageStateHandler.isStorageAvailable() && dispatcherTableHandle.isSubsumedPredicates())) {
-            throw new TrinoException(WarpErrorCode.WARP_NATIVE_ERROR,
-                    "storage is not available");
-        }
-
-        if (!nativeStorageStateHandler.isStorageAvailable() ||
-                !dispatcherProxiedConnectorTransformer.isValidForAcceleration(dispatcherTableHandle)) {
-            logger.debug("Query is not valid for acceleration, reading from proxy connector without warmup. dispatcherTableHandle=%s", dispatcherTableHandle);
-            QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(columns,
-                    dispatcherTableHandle,
-                    dynamicFilter,
-                    session);
-            addProxiedColumnStats(dispatcherPageSourceStats,
-                    customStatsContext,
-                    columns,
-                    basicQueryContext);
-            return connectorPageSourceProvider.createPageSource(
-                    transactionHandle,
-                    session,
-                    dispatcherSplit.getProxyConnectorSplit(),
-                    dispatcherTableHandle.getProxyConnectorTableHandle(),
-                    columns,
-                    dynamicFilter);
-        }
-
-        ConnectorPageSource connectorPageSource = getConnectorPageSource(
-                connectorPageSourceProvider,
-                transactionHandle,
-                session,
-                dispatcherSplit,
-                dispatcherTableHandle,
-                columns,
-                dynamicFilter,
-                customStatsContext);
-
-        workerWarmingService.warm(
-                connectorPageSourceProvider,
-                transactionHandle,
-                session,
-                dispatcherSplit,
-                dispatcherTableHandle,
-                columns,
-                dynamicFilter,
-                1);
-
-        return connectorPageSource;
-    }
-
-    ConnectorPageSource getConnectorPageSource(ConnectorPageSourceProvider connectorPageSourceProvider,
-            ConnectorTransactionHandle transactionHandle,
-            ConnectorSession session,
-            DispatcherSplit dispatcherSplit,
-            DispatcherTableHandle dispatcherTableHandle,
-            List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter,
-            CustomStatsContext customStatsContext)
-    {
-        // nice tweak to make load a bit faster in POCs and tests (from the old varada days)
-        if (WarpSessionProperties.isEmptyQuery(session)) {
-            storageCollectorService.cleanStorageCache();
-            return new EmptyPageSource();
-        }
-
-        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-
-        RowGroupKey rowGroupKey = rowGroupDataService.createRowGroupKey(dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
-
-        RowGroupData rowGroupData = rowGroupDataService.getIfPresent(rowGroupKey);
-        PageSourceDecision pageSourceDecision = getBasicPageSourceDecision(
-                rowGroupData,
-                dispatcherTableHandle,
-                columns,
-                dynamicFilter,
-                dispatcherPageSourceStats);
-
-        if (PageSourceDecision.EMPTY.equals(pageSourceDecision)) {
-            dispatcherPageSourceStats.incempty_page_source();
-            return new EmptyPageSource();
-        }
-        if (PageSourceDecision.PREFILL.equals(pageSourceDecision) && columns.isEmpty()) {
-            int totalRecords = getTotalRecords(rowGroupData);
-            dispatcherPageSourceStats.incempty_collect_columns();
-            return new PrefilledPageSource(emptyMap(), dispatcherPageSourceStats, rowGroupData, totalRecords, Optional.empty());
-        }
-
-        RowGroupCloseHandler closeHandler = new RowGroupCloseHandler();
-        try {
-            QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(columns,
-                    dispatcherTableHandle,
-                    dynamicFilter,
-                    session);
-
-            if (PageSourceDecision.PROXY.equals(pageSourceDecision)) {
-                addProxiedColumnStats(dispatcherPageSourceStats,
-                        customStatsContext,
-                        columns,
-                        basicQueryContext);
-
-                return createProxiedConnectorPageSource(
-                        Optional.empty(),
-                        connectorPageSourceProvider,
-                        transactionHandle,
-                        session,
-                        dispatcherSplit,
-                        dispatcherTableHandle,
-                        columns,
-                        dynamicFilter,
-                        Optional.empty(),
-                        closeHandler,
-                        pageSourceDecision);
-            }
-
-            final RowGroupData afterLockRowGroupData = rowGroupDataService.getIfPresent(rowGroupKey); // re-fetch the row group since it might have been changed while this flow was in read-lock
-
-            if (logger.isDebugEnabled()) {
-                logger.debug("Intersected fullPredicate: %s, dynamicFilter: %s -> into tupleDomain: %s",
-                        dispatcherTableHandle.getFullPredicate().toString(session),
-                        dynamicFilter.getCurrentPredicate().toString(session),
-                        basicQueryContext.getPredicateContextData());
-            }
-
-            QueryContext queryContext = queryClassifier.classify(
-                    basicQueryContext,
-                    afterLockRowGroupData,
-                    dispatcherTableHandle,
-                    Optional.of(session));
-
-            pageSourceDecision = getPageSourceDecision(queryContext);
-            if (PageSourceDecision.EMPTY.equals(pageSourceDecision)) {
-                closeHandler.accept(afterLockRowGroupData);
-                queryClassifier.close(queryContext);
-                addStatsOnFilteredByPredicate(columns, customStatsContext, dispatcherPageSourceStats, basicQueryContext);
-                return new EmptyPageSource();
-            }
-
-            addColumnStats(customStatsContext, queryContext);
-
-            if (PageSourceDecision.PROXY.equals(pageSourceDecision)) {
-                addProxiedColumnStats(dispatcherPageSourceStats,
-                        customStatsContext,
-                        columns,
-                        queryContext);
-
-                return createProxiedConnectorPageSource(
-                        Optional.of(afterLockRowGroupData),
-                        connectorPageSourceProvider,
-                        transactionHandle,
-                        session,
-                        dispatcherSplit,
-                        dispatcherTableHandle,
-                        columns,
-                        dynamicFilter,
-                        Optional.of(queryContext),
-                        closeHandler,
-                        PageSourceDecision.PROXY);
-            }
-
-            checkArgument(queryContext.getTotalRecords() != QueryClassifier.INVALID_TOTAL_RECORDS, "invalid totalRecords, %s", queryContext);
-            if (PageSourceDecision.PREFILL.equals(pageSourceDecision)) {
-                dispatcherPageSourceStats.addwarp_prefilled_collect_columns(columns.size());
-                queryClassifier.close(queryContext);
-                //in prefill queryContext doesn't hold any WE
-                int totalRecords = getTotalRecords(rowGroupData);
-                return new PrefilledPageSource(queryContext.getPrefilledQueryCollectDataByBlockIndex(),
-                        dispatcherPageSourceStats,
-                        afterLockRowGroupData,
-                        totalRecords,
-                        Optional.of(closeHandler));
-            }
-
-            if (PageSourceDecision.MIXED.equals(pageSourceDecision) ||
-                    PageSourceDecision.WARP.equals(pageSourceDecision)) {
-                try {
-                    increaseMixedCounters(dispatcherPageSourceStats, queryContext);
-
-                    return createMixedPageSource(connectorPageSourceProvider,
-                            queryClassifier,
-                            queryContext,
-                            transactionHandle,
-                            dispatcherTableHandle,
-                            session,
-                            dispatcherSplit,
-                            afterLockRowGroupData,
-                            pageSourceDecision,
-                            customStatsContext,
-                            closeHandler);
-                }
-                catch (Exception e) {
-                    if (Thread.interrupted()) {
-                        closeHandler.accept(afterLockRowGroupData);
-                        Thread.currentThread().interrupt();
-                        throw new TrinoException(WarpErrorCode.WARP_TX_ALLOCATION_INTERRUPTED,
-                                "interrupted while trying to create page source");
-                    }
-                    shapingLogger.warn(e, "Failed to create a mixed page source, returning proxied connector page source. rowGroupData=%s, queryContext=%s",
-                            afterLockRowGroupData, queryContext);
-                    dispatcherPageSourceStats.incexternal_collect_columns();
-                }
-            }
-
-            return createProxiedConnectorPageSource(
-                    Optional.of(afterLockRowGroupData),
-                    connectorPageSourceProvider,
-                    transactionHandle,
-                    session,
-                    dispatcherSplit,
-                    dispatcherTableHandle,
-                    columns,
-                    dynamicFilter,
-                    Optional.of(queryContext),
-                    closeHandler,
-                    PageSourceDecision.PROXY);
-        }
-        catch (Exception e) {
-            RowGroupData afterLockRowGroupData = rowGroupDataService.getIfPresent(rowGroupKey);
-            if (afterLockRowGroupData != null) {
-                closeHandler.accept(afterLockRowGroupData);
-            }
-            throw e;
-        }
-    }
-
     private void updateUsageForEmptyRowGroupData(RowGroupData rowGroupData)
     {
         long lastUsedTimestamp = Instant.now().toEpochMilli();
         rowGroupData.getWarmUpElements().forEach(warmUpElement -> warmUpElement.setUsedTimestamp(lastUsedTimestamp));
     }
 
-    private ConnectorPageSource createProxiedConnectorPageSource(
-            Optional<RowGroupData> rowGroupData,
-            ConnectorPageSourceProvider proxiedConnectorPageSourceProvider,
-            ConnectorTransactionHandle transactionHandle,
-            ConnectorSession session,
-            DispatcherSplit dispatcherSplit,
-            DispatcherTableHandle dispatcherTableHandle,
-            List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter,
-            Optional<QueryContext> queryContext,
-            RowGroupCloseHandler closeHandler,
-            PageSourceDecision pageSourceDecision)
-    {
-        rowGroupData.ifPresent(closeHandler);
-        queryContext.ifPresent(queryClassifier::close);
-
-        ConnectorTableHandle connectorTableHandle;
-        ConnectorSplit proxiedSplit;
-        if (PageSourceDecision.PROXY.equals(pageSourceDecision)) {
-            connectorTableHandle = dispatcherTableHandle.getProxyConnectorTableHandle();
-            proxiedSplit = dispatcherSplit.getProxyConnectorSplit();
-        }
-        else {
-            connectorTableHandle = dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(dispatcherTableHandle);
-            proxiedSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
-        }
-        return proxiedConnectorPageSourceProvider.createPageSource(transactionHandle,
-                session,
-                proxiedSplit,
-                connectorTableHandle,
-                columns,
-                dynamicFilter);
-    }
-
-    private ConnectorPageSource createMixedPageSource(
-            ConnectorPageSourceProvider connectorPageSourceProvider,
-            QueryClassifier queryClassifier,
-            QueryContext queryContext,
-            ConnectorTransactionHandle transactionHandle,
-            DispatcherTableHandle dispatcherTableHandle,
-            ConnectorSession session,
-            DispatcherSplit dispatcherSplit,
-            RowGroupData rowGroupData,
-            PageSourceDecision pageSourceDecision,
-            CustomStatsContext customStatsContext,
-            RowGroupCloseHandler closeHandler)
-    {
-        Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider = null;
-
-        if (PageSourceDecision.WARP.equals(pageSourceDecision)) {
-            proxiedConnectorPageSourceProvider = EmptyPageSource::new;
-        }
-        else if (PageSourceDecision.MIXED.equals(pageSourceDecision)) {
-            proxiedConnectorPageSourceProvider = () -> createProxiedConnectorPageSource(
-                    Optional.empty(),
-                    connectorPageSourceProvider,
-                    transactionHandle,
-                    session,
-                    dispatcherSplit,
-                    dispatcherTableHandle,
-                    ImmutableList.copyOf(queryContext.getRemainingCollectColumns()),
-                    DynamicFilter.EMPTY,
-                    Optional.empty(),
-                    closeHandler,
-                    PageSourceDecision.MIXED);
-        }
-
-        boolean isMixedQuery = PageSourceDecision.MIXED.equals(pageSourceDecision);
-        String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
-        long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
-        QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime, isMixedQuery);
-        WarpPageSource warpPageSource = new WarpPageSource(
-                storageEngineConstants,
-                dispatcherTableHandle.getLimit().orElse(Long.MAX_VALUE),
-                queryParams,
-                predicatesCacheService,
-                customStatsContext,
-                globalConfig,
-                storageCollectorService,
-                lazyCollectorService,
-                matchService);
-
-        DispatcherPageSourceStats pageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        List<Type> warpWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
-                        queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
-                        queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
-                .collect(toImmutableList());
-        long deletedRowsCount = dispatcherProxiedConnectorTransformer.getDeletedRowsCount(dispatcherSplit.getProxyConnectorSplit());
-        return new DispatcherPageSource(proxiedConnectorPageSourceProvider,
-                queryClassifier,
-                warpWithoutPrefilledAndProxiedCollectTypes,
-                warpPageSource,
-                queryContext,
-                rowGroupData,
-                pageSourceDecision,
-                pageSourceStats,
-                closeHandler,
-                dispatcherSplit,
-                dispatcherTableHandle,
-                deletedRowsCount,
-                readErrorHandler,
-                globalConfig);
-    }
-
     // it is assumed that in case all match are proxied,
     // the warp collect is empty. this is done by the parse API
-    private PageSourceDecision getBasicPageSourceDecision(
+    protected PageSourceDecision getBasicPageSourceDecision(
             RowGroupData rowGroupData,
             DispatcherTableHandle dispatcherTableHandle,
             List<ColumnHandle> columns,
@@ -559,7 +183,7 @@ public class DispatcherPageSourceFactory
         return PageSourceDecision.UNKNOWN;
     }
 
-    private PageSourceDecision getPageSourceDecision(QueryContext queryContext)
+    protected PageSourceDecision getPageSourceDecision(QueryContext queryContext)
     {
         PageSourceDecision pageSourceDecision = PageSourceDecision.MIXED;
         if (queryContext.getMatchLeavesDFS().stream().anyMatch(x -> x.getWarmUpElement().getWarmUpType() == WarmUpType.WARM_UP_TYPE_DATA)) {
@@ -586,7 +210,7 @@ public class DispatcherPageSourceFactory
         return pageSourceDecision;
     }
 
-    private void increaseMixedCounters(DispatcherPageSourceStats stats,
+    protected void increaseMixedCounters(DispatcherPageSourceStats stats,
             QueryContext queryContext)
     {
         stats.addexternal_collect_columns(queryContext.getRemainingCollectColumnByBlockIndex().size());
@@ -626,7 +250,7 @@ public class DispatcherPageSourceFactory
         return (int) matchLeavesStream.count();
     }
 
-    private void addColumnStats(CustomStatsContext customStatsContext, QueryContext queryContext)
+    protected void addColumnStats(CustomStatsContext customStatsContext, QueryContext queryContext)
     {
         queryContext.getNativeQueryCollectDataList().forEach((collectData) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, collectData.getWarpColumn().getName(), collectData.getWarmUpElement().getWarmUpType()), 1));
         queryContext.getPrefilledQueryCollectDataByBlockIndex().values().forEach((prefilledData) -> customStatsContext.addFixedStat(createFixedStatKey(PREFILLED, prefilledData.getWarpColumn().getName()), 1));
@@ -640,36 +264,7 @@ public class DispatcherPageSourceFactory
                 .forEach(columnName -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_MATCH, columnName), 1));
     }
 
-    private void addProxiedColumnStats(DispatcherPageSourceStats globalPageSourceStats,
-            CustomStatsContext customStatsContext,
-            List<ColumnHandle> columns,
-            QueryContext queryContext)
-    {
-        long externalMatchSize = queryContext.getPredicateContextData()
-                .getRemainingColumns()
-                .stream()
-                .flatMap(x -> Stream.of(x.getName()))
-                .distinct()
-                .count();
-        if (columns.isEmpty()) { //couldn't find any representative column to get from warp
-            globalPageSourceStats.incexternal_collect_columns();
-        }
-        else {
-            globalPageSourceStats.addexternal_collect_columns(columns.size());
-            globalPageSourceStats.addexternal_match_columns(externalMatchSize);
-        }
-        customStatsContext.addFixedStat(EXTERNAL_MATCH, externalMatchSize);
-        queryContext.getPredicateContextData()
-                .getRemainingColumns()
-                .forEach(warpColumn -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_MATCH, warpColumn.getName()), 1));
-        ImmutableList<ColumnHandle> remainingCollectColumns = queryContext.getRemainingCollectColumns();
-        if (remainingCollectColumns != null) {
-            remainingCollectColumns.forEach(columnHandle ->
-                    customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName()), 1));
-        }
-    }
-
-    private void initializeCustomStats(CustomStatsContext customStatsContext)
+    protected void initializeCustomStats(CustomStatsContext customStatsContext)
     {
         customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
         customStatsContext.getOrRegister(new DictionaryStats(DictionaryCacheService.DICTIONARY_STAT_GROUP));
@@ -680,7 +275,7 @@ public class DispatcherPageSourceFactory
     /**
      * case we return emptyPageSource due to predicate filter we mark all collect and match columns as warp
      */
-    private void addStatsOnFilteredByPredicate(List<ColumnHandle> columns, CustomStatsContext customStatsContext, DispatcherPageSourceStats dispatcherPageSourceStats, QueryContext basicQueryContext)
+    protected void addStatsOnFilteredByPredicate(List<ColumnHandle> columns, CustomStatsContext customStatsContext, DispatcherPageSourceStats dispatcherPageSourceStats, QueryContext basicQueryContext)
     {
         dispatcherPageSourceStats.incfiltered_by_predicate();
         columns.forEach((columnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));
@@ -693,7 +288,7 @@ public class DispatcherPageSourceFactory
     /**
      * in prefill queryContext doesn't hold any WE. we take totalRecords from RG and validate its all the same
      */
-    private int getTotalRecords(RowGroupData rowGroupData)
+    protected int getTotalRecords(RowGroupData rowGroupData)
     {
         long count = rowGroupData.getValidWarmUpElements().stream().map(WarmUpElement::getTotalRecords).distinct().count();
         checkArgument(count == 1, "total records must be distinct");

@@ -20,9 +20,9 @@ import io.trino.plugin.warp.dictionary.AttachDictionaryService;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
-import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.warp.dispatcher.ReadErrorHandler;
+import io.trino.plugin.warp.dispatcher.WarpDispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.connectors.CoordinatorDispatcherConnector;
 import io.trino.plugin.warp.dispatcher.connectors.DispatcherConnectorBase;
 import io.trino.plugin.warp.dispatcher.connectors.SingleDispatcherConnector;
@@ -90,7 +90,7 @@ public class DispatcherMainModule
             binder.bind(RowGroupDataService.class);
             binder.bind(BlockFillersFactory.class);
             binder.bind(DictionaryWriterFactory.class);
-            binder.bind(DispatcherPageSourceFactory.class);
+            binder.bind(WarpDispatcherPageSourceFactory.class);
             binder.bind(DispatcherAlternativeChooser.class);
             binder.bind(DispatcherPageSinkProvider.class);
             binder.bind(StorageWarmerService.class);
@@ -113,7 +113,6 @@ public class DispatcherMainModule
             binder.bind(DictionaryCacheService.class);
             binder.bind(AttachDictionaryService.class);
             binder.bind(WarpPageSinkFactory.class);
-            binder.bind(DispatcherPageSourceFactory.class);
             binder.bind(ReadErrorHandler.class);
             binder.bind(RowGroupDataDao.class);
             binder.bind(CollectTxService.class);

@@ -49,6 +49,7 @@ import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -92,6 +93,7 @@ public class WorkerCacheManagerTest
 
         workerCacheManager = new WorkerCacheManager(
                 globalConfig,
+                cacheManagerConfig,
                 warpCachePageSourceFactory,
                 workerTaskExecutorService,
                 rowGroupDataService,
@@ -132,7 +134,8 @@ public class WorkerCacheManagerTest
         when(cacheWarmer.getWarmupElementWriteMetadatasToWarm(
                 any(),
                 any(),
-                any()))
+                any(),
+                anyBoolean()))
                 .thenReturn(toWarm);
         when(memoryContextService.add(any())).thenReturn(true);
 
@@ -168,7 +171,8 @@ public class WorkerCacheManagerTest
         when(cacheWarmer.getWarmupElementWriteMetadatasToWarm(
                 any(),
                 any(),
-                any()))
+                any(),
+                anyBoolean()))
                 .thenReturn(toWarm);
         when(memoryContextService.add(any())).thenReturn(true);
 

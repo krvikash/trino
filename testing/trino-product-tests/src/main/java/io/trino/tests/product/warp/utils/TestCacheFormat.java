@@ -22,6 +22,7 @@ public record TestCacheFormat(
         List<TestFormat.Column> structure,
         List<TestFormat.QueryData> queries_data,
         boolean default_warming,
+        String warm_query,
         int expected_row_group,
         int expected_warmup_elements)
 {
