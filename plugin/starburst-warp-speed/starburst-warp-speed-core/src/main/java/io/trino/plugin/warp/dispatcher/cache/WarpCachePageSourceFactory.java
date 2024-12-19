@@ -159,7 +159,8 @@ public class WarpCachePageSourceFactory
         if (PageSourceDecision.PREFILL.equals(pageSourceDecision) && columns.isEmpty()) {
             int totalRecords = getTotalRecords(rowGroupData);
             dispatcherPageSourceStats.incempty_collect_columns();
-            return Optional.of(new PrefilledPageSource(emptyMap(), dispatcherPageSourceStats, rowGroupData, totalRecords, Optional.empty()));
+            PrefilledPageSource prefilledPageSource = new PrefilledPageSource(emptyMap(), dispatcherPageSourceStats, rowGroupData, totalRecords, Optional.empty());
+            return Optional.of(new WarpCachePageSource(txService, prefilledPageSource, customStatsContext));
         }
         if (PageSourceDecision.PROXY.equals(pageSourceDecision)) {
             return Optional.empty();
@@ -201,11 +202,13 @@ public class WarpCachePageSourceFactory
                 queryClassifier.close(queryContext);
                 //in prefill queryContext doesn't hold any WE
                 int totalRecords = getTotalRecords(rowGroupData);
-                return Optional.of(new PrefilledPageSource(queryContext.getPrefilledQueryCollectDataByBlockIndex(),
+                PrefilledPageSource prefilledPageSource = new PrefilledPageSource(
+                        queryContext.getPrefilledQueryCollectDataByBlockIndex(),
                         dispatcherPageSourceStats,
                         afterLockRowGroupData,
                         totalRecords,
-                        Optional.of(closeHandler)));
+                        Optional.of(closeHandler));
+                return Optional.of(new WarpCachePageSource(txService, prefilledPageSource, customStatsContext));
             }
 
             if (pageSourceDecision != PageSourceDecision.WARP) {

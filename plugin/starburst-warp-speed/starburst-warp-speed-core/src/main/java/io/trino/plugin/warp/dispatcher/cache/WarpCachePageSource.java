@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher.cache;
 
 import io.trino.plugin.base.metrics.LongCount;
-import io.trino.plugin.warp.dispatcher.DispatcherPageSource;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.spi.Page;
@@ -29,13 +28,13 @@ import java.util.TreeMap;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
 
-record WarpCachePageSource(StorageEngineTxService txService, DispatcherPageSource dispatcherPageSource, CustomStatsContext customStatsContext)
+record WarpCachePageSource(StorageEngineTxService txService, ConnectorPageSource pageSource, CustomStatsContext customStatsContext)
         implements ConnectorPageSource
 {
-    public WarpCachePageSource(StorageEngineTxService txService, DispatcherPageSource dispatcherPageSource, CustomStatsContext customStatsContext)
+    public WarpCachePageSource(StorageEngineTxService txService, ConnectorPageSource pageSource, CustomStatsContext customStatsContext)
     {
         this.txService = requireNonNull(txService);
-        this.dispatcherPageSource = requireNonNull(dispatcherPageSource);
+        this.pageSource = requireNonNull(pageSource);
         this.customStatsContext = requireNonNull(customStatsContext);
         txService.updateRunningPageSourcesCount(true);
     }
@@ -43,31 +42,31 @@ record WarpCachePageSource(StorageEngineTxService txService, DispatcherPageSourc
     @Override
     public long getCompletedBytes()
     {
-        return dispatcherPageSource.getCompletedBytes();
+        return pageSource.getCompletedBytes();
     }
 
     @Override
     public long getReadTimeNanos()
     {
-        return dispatcherPageSource.getReadTimeNanos();
+        return pageSource.getReadTimeNanos();
     }
 
     @Override
     public boolean isFinished()
     {
-        return dispatcherPageSource.isFinished();
+        return pageSource.isFinished();
     }
 
     @Override
     public Page getNextPage()
     {
-        return dispatcherPageSource.getNextPage();
+        return pageSource.getNextPage();
     }
 
     @Override
     public long getMemoryUsage()
     {
-        return dispatcherPageSource.getMemoryUsage();
+        return pageSource.getMemoryUsage();
     }
 
     @Override
@@ -75,7 +74,7 @@ record WarpCachePageSource(StorageEngineTxService txService, DispatcherPageSourc
             throws IOException
     {
         try {
-            dispatcherPageSource.close();
+            pageSource.close();
         }
         finally {
             customStatsContext.copyStatsToGlobalMetricsManager();
@@ -95,7 +94,7 @@ record WarpCachePageSource(StorageEngineTxService txService, DispatcherPageSourc
                 Map.Entry::getKey,
                 entry -> new LongCount(entry.getValue())));
         result.add(new Metrics(metricsMap));
-        result.add(dispatcherPageSource.getMetrics());
+        result.add(pageSource.getMetrics());
         return result.get();
     }
 }
