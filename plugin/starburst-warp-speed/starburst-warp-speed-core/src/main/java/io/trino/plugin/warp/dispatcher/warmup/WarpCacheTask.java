@@ -443,9 +443,7 @@ public class WarpCacheTask
         }
         else if (localMemoryContext.trySetBytes(warmupCacheData.getRetainedSizeInBytes())) {
             finished = true;
-            for (int i = 0; i < warmupCacheData.connectorColumnIndexesSize(); i++) {
-                blocksToProcess.add(i);
-            }
+            blocksToProcess.addAll(warmupCacheData.getConnectorColumnIndexes());
             blocksToProcess.add(STOP_TRIGGER);
         }
         else {

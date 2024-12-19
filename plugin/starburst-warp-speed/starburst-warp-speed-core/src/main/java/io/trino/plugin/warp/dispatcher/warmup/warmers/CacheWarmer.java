@@ -59,6 +59,7 @@ import static java.util.Objects.requireNonNull;
 public class CacheWarmer
 {
     private static final Logger logger = Logger.get(CacheWarmer.class);
+    private static final UUID ORDER_DETERMINISTIC_UUID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     private final RowGroupDataService rowGroupDataService;
     private final WarmupElementsCreator warmupElementsCreator;
@@ -94,11 +95,13 @@ public class CacheWarmer
     public List<WarmupElementWriteMetadata> getWarmupElementWriteMetadatasToWarm(List<CacheColumnId> columns,
             List<Type> columnsTypes,
             RowGroupKey rowGroupKey,
-            boolean warmBasic)
+            boolean isOrderDeterministic,
+            boolean isBasicIndexEnabled)
     {
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         Set<String> permanentFailedWarmupElements = new HashSet<>();
         Map<String, WarmUpElement> temporaryFailedWarmupElements = new HashMap<>();
+        Set<String> existingColumnIds = new HashSet<>();
         if (rowGroupData != null) {
             for (WarmUpElement we : rowGroupData.getWarmUpElements()) {
                 WarmUpElementState weState = we.getState();
@@ -108,10 +111,16 @@ public class CacheWarmer
                 else if (weState.state().equals(WarmUpElementState.State.FAILED_TEMPORARILY)) {
                     temporaryFailedWarmupElements.put(we.getWarpColumn().getName(), we);
                 }
+                else if (weState.state().equals(WarmUpElementState.State.VALID) && isOrderDeterministic && ORDER_DETERMINISTIC_UUID.equals(we.getStoreId())) {
+                    // currently we always create both BASIC and DATA, so no need to check each one separately
+                    existingColumnIds.add(we.getWarpColumn().getName());
+                }
             }
         }
 
-        UUID storeId = UUID.randomUUID();
+        // when the order is deterministic, there's no need to use different storeIds
+        UUID storeId = isOrderDeterministic ? ORDER_DETERMINISTIC_UUID : UUID.randomUUID();
+
         ImmutableList.Builder<WarmupElementWriteMetadata> result = ImmutableList.builder();
         boolean hasPermanentFailedColumn = false;
         for (int i = 0; i < columns.size(); i++) {
@@ -119,6 +128,9 @@ public class CacheWarmer
             if (permanentFailedWarmupElements.contains(cacheColumnId)) {
                 hasPermanentFailedColumn = true;
                 break;
+            }
+            if (existingColumnIds.contains(cacheColumnId)) {
+                continue;
             }
             Type type = columnsTypes.get(i);
             Optional<WarmupElementWriteMetadata> writeMetadata = createCacheWarmupElements(rowGroupKey, cacheColumnId, type, i, storeId, temporaryFailedWarmupElements);
@@ -129,7 +141,8 @@ public class CacheWarmer
             }
             result.add(writeMetadata.get());
 
-            if (warmBasic && TypeUtils.isCacheWarmBasicSupported(type)) {
+            if (isOrderDeterministic && isBasicIndexEnabled && TypeUtils.isCacheWarmBasicSupported(type)) {
+                // in case of a full scan we warm BASIC in addition to DATA in order to optimize future queries with predicates
                 WarmUpElement warmUpElement = writeMetadata.get().warmUpElement();
                 int recTypeLength = warmUpElement.getRecTypeLength();
                 RecTypeCode recTypeCode = warmUpElement.getRecTypeCode();

@@ -23,10 +23,12 @@ import io.trino.spi.block.Block;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static io.airlift.slice.SizeOf.instanceSize;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
 
 public class WarmupCacheData
 {
@@ -83,9 +85,9 @@ public class WarmupCacheData
         connectorIndexToWarmColumns = null;
     }
 
-    public int connectorColumnIndexesSize()
+    public Set<Integer> getConnectorColumnIndexes()
     {
-        return isNull() ? 0 : connectorIndexToWarmColumns.size();
+        return isNull() ? emptySet() : connectorIndexToWarmColumns.keySet();
     }
 
     public boolean notAllDataFlushed()
@@ -107,7 +109,7 @@ public class WarmupCacheData
      */
     public boolean addBlock(Block block, int connectorBlockIndex)
     {
-        if (isNull()) {
+        if (isNull() || !connectorIndexToWarmColumns.containsKey(connectorBlockIndex)) {
             return false;
         }
         for (CacheWarmupElementArgs cacheWarmupElementArgs : connectorIndexToWarmColumns.get(connectorBlockIndex)) {

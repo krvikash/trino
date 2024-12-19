@@ -227,9 +227,9 @@ public class WorkerCacheManager
                     return Optional.empty();
                 }
 
-                boolean warmBasic = warmBasicQuery(predicate, unenforcedPredicate);
+                boolean isOrderDeterministic = isOrderDeterministic(predicate, unenforcedPredicate);
                 List<WarmupElementWriteMetadata> toWarm = cacheWarmer.getWarmupElementWriteMetadatasToWarm(
-                        planSignature.getColumns(), planSignature.getColumnsTypes(), rowGroupKey, warmBasic);
+                        planSignature.getColumns(), planSignature.getColumnsTypes(), rowGroupKey, isOrderDeterministic, cacheManagerConfig.isBasicIndexEnabled());
                 if (toWarm.isEmpty()) {
                     logger.debug("nothing to warm for %s", planSignature);
                     return Optional.empty();
@@ -271,11 +271,9 @@ public class WorkerCacheManager
             return !nativeStorageStateHandler.isStorageAvailable() || planSignature.getColumns().isEmpty();
         }
 
-        //in case of empty predicates we warm basic in addition to data in order to optimize similar queries that not fully match to rowGroupKey
-        private boolean warmBasicQuery(TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
+        private boolean isOrderDeterministic(TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
         {
-            return cacheManagerConfig.isBasicIndexEnabled() &&
-                    predicate.isAll() &&
+            return predicate.isAll() &&
                     unenforcedPredicate.isAll() &&
                     (planSignature.getGroupByColumns().isEmpty() || planSignature.getGroupByColumns().get().isEmpty());
         }

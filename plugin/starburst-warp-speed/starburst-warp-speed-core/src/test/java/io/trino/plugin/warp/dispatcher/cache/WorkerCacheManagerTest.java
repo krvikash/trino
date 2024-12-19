@@ -135,6 +135,7 @@ public class WorkerCacheManagerTest
                 any(),
                 any(),
                 any(),
+                anyBoolean(),
                 anyBoolean()))
                 .thenReturn(toWarm);
         when(memoryContextService.add(any())).thenReturn(true);
@@ -172,6 +173,7 @@ public class WorkerCacheManagerTest
                 any(),
                 any(),
                 any(),
+                anyBoolean(),
                 anyBoolean()))
                 .thenReturn(toWarm);
         when(memoryContextService.add(any())).thenReturn(true);
