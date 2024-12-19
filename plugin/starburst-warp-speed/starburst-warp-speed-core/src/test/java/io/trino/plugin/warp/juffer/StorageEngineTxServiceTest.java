@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
-import static io.trino.plugin.warp.juffer.StorageEngineTxService.STATS_GROUP_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -39,7 +38,7 @@ public class StorageEngineTxServiceTest
     {
         nativeConfig = new NativeConfig();
         metricsManager = mock(MetricsManager.class);
-        when(metricsManager.registerMetric(any())).thenReturn(TxServiceStats.create(STATS_GROUP_NAME));
+        when(metricsManager.registerMetric(any())).thenReturn(TxServiceStats.create());
         this.storageEngineTxService = new StorageEngineTxService(nativeConfig, metricsManager);
     }
 

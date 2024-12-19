@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class TxServiceStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from txService xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder currently_used = new LongAdder();
     private final LongAdder allocated = new LongAdder();
     private final LongAdder failed_allocated = new LongAdder();
@@ -44,18 +40,9 @@ public final class TxServiceStats
     private final LongAdder blocking_warmings = new LongAdder();
 
     @JsonCreator
-    public TxServiceStats(@JsonProperty("group") String group)
+    public TxServiceStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -219,14 +206,14 @@ public final class TxServiceStats
         addblocking_warmings(val);
     }
 
-    public static TxServiceStats create(String group)
+    public static TxServiceStats create()
     {
-        return new TxServiceStats(group);
+        return new TxServiceStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "txService";
     }
 
     @Override
@@ -276,13 +263,13 @@ public final class TxServiceStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":currently_used", currently_used.longValue());
-        res.put(getJmxKey() + ":allocated", allocated.longValue());
-        res.put(getJmxKey() + ":failed_allocated", failed_allocated.longValue());
-        res.put(getJmxKey() + ":released", released.longValue());
-        res.put(getJmxKey() + ":failed_released", failed_released.longValue());
-        res.put(getJmxKey() + ":running_page_source", running_page_source.longValue());
-        res.put(getJmxKey() + ":blocking_warmings", blocking_warmings.longValue());
+        res.put("txService:currently_used", currently_used.longValue());
+        res.put("txService:allocated", allocated.longValue());
+        res.put("txService:failed_allocated", failed_allocated.longValue());
+        res.put("txService:released", released.longValue());
+        res.put("txService:failed_released", failed_released.longValue());
+        res.put("txService:running_page_source", running_page_source.longValue());
+        res.put("txService:blocking_warmings", blocking_warmings.longValue());
         return res;
     }
 

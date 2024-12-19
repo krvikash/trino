@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static io.trino.plugin.warp.expression.rewrite.ExpressionService.PUSHDOWN_PREDICATES_STAT_GROUP;
 import static io.trino.spi.expression.StandardFunctions.AND_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.CAST_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME;
@@ -105,7 +104,7 @@ public class SupportedFunctions
     @Inject
     public SupportedFunctions(MetricsManager metricsManager)
     {
-        this.pushdownPredicatesStats = metricsManager.registerMetric(PushdownPredicatesStats.create(PUSHDOWN_PREDICATES_STAT_GROUP));
+        this.pushdownPredicatesStats = metricsManager.registerMetric(PushdownPredicatesStats.create());
 
         Map<String, Set<String>> typeClasses = new HashMap<>();
         typeClasses.put("valid_types", Set.of(StandardTypes.REAL, StandardTypes.DOUBLE));

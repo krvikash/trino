@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class PushdownPredicatesStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from pushdownPredicates xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder failed_rewrite_expression = new LongAdder();
     private final LongAdder failed_rewrite_to_native_expression = new LongAdder();
     private final LongAdder unsupported_or_functions = new LongAdder();
@@ -44,18 +40,9 @@ public final class PushdownPredicatesStats
     private final LongAdder unsupported_expression_depth = new LongAdder();
 
     @JsonCreator
-    public PushdownPredicatesStats(@JsonProperty("group") String group)
+    public PushdownPredicatesStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -219,14 +206,14 @@ public final class PushdownPredicatesStats
         addunsupported_expression_depth(val);
     }
 
-    public static PushdownPredicatesStats create(String group)
+    public static PushdownPredicatesStats create()
     {
-        return new PushdownPredicatesStats(group);
+        return new PushdownPredicatesStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "pushdownPredicates";
     }
 
     @Override
@@ -276,13 +263,13 @@ public final class PushdownPredicatesStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":failed_rewrite_expression", failed_rewrite_expression.longValue());
-        res.put(getJmxKey() + ":failed_rewrite_to_native_expression", failed_rewrite_to_native_expression.longValue());
-        res.put(getJmxKey() + ":unsupported_or_functions", unsupported_or_functions.longValue());
-        res.put(getJmxKey() + ":unsupported_functions", unsupported_functions.longValue());
-        res.put(getJmxKey() + ":unsupported_functions_composite", unsupported_functions_composite.longValue());
-        res.put(getJmxKey() + ":unsupported_functions_native", unsupported_functions_native.longValue());
-        res.put(getJmxKey() + ":unsupported_expression_depth", unsupported_expression_depth.longValue());
+        res.put("pushdownPredicates:failed_rewrite_expression", failed_rewrite_expression.longValue());
+        res.put("pushdownPredicates:failed_rewrite_to_native_expression", failed_rewrite_to_native_expression.longValue());
+        res.put("pushdownPredicates:unsupported_or_functions", unsupported_or_functions.longValue());
+        res.put("pushdownPredicates:unsupported_functions", unsupported_functions.longValue());
+        res.put("pushdownPredicates:unsupported_functions_composite", unsupported_functions_composite.longValue());
+        res.put("pushdownPredicates:unsupported_functions_native", unsupported_functions_native.longValue());
+        res.put("pushdownPredicates:unsupported_expression_depth", unsupported_expression_depth.longValue());
         return res;
     }
 

@@ -15,7 +15,6 @@ package io.trino.plugin.warp.dispatcher;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -61,9 +60,6 @@ public abstract class DispatcherPageSourceFactory
     public static final String EXTERNAL_COLLECT = "external-collect";
     public static final String EXTERNAL_MATCH = "external-match";
     public static final String PREFILLED = "prefilled";
-    public static final String STATS_DISPATCHER_KEY = "dispatcherPageSource";
-    public static final String STATS_LUCENE_PAGE_CACHE_KEY = "lucenePageCache";
-    public static final String STATS_NATIVE_KEY = "native";
 
     private static final Logger logger = Logger.get(DispatcherPageSourceFactory.class);
     private final ShapingLogger shapingLogger;
@@ -111,8 +107,8 @@ public abstract class DispatcherPageSourceFactory
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
         this.matchService = requireNonNull(matchService);
 
-        metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
-        metricsManager.registerMetric(LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY));
+        metricsManager.registerMetric(DispatcherPageSourceStats.create());
+        metricsManager.registerMetric(LucenePageCacheStats.create());
     }
 
     public static String createFixedStatKey(Object... parts)
@@ -266,10 +262,10 @@ public abstract class DispatcherPageSourceFactory
 
     protected void initializeCustomStats(CustomStatsContext customStatsContext)
     {
-        customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
-        customStatsContext.getOrRegister(new DictionaryStats(DictionaryCacheService.DICTIONARY_STAT_GROUP));
-        customStatsContext.getOrRegister(LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY));
-        customStatsContext.getOrRegister(NativeStats.create(STATS_NATIVE_KEY));
+        customStatsContext.getOrRegister(new DispatcherPageSourceStats());
+        customStatsContext.getOrRegister(new DictionaryStats());
+        customStatsContext.getOrRegister(LucenePageCacheStats.create());
+        customStatsContext.getOrRegister(NativeStats.create());
     }
 
     /**

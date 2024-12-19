@@ -25,7 +25,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -51,7 +50,7 @@ public class WorkerWarmingResource
     //@ApiOperation(value = "worker warming status", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public WorkerWarmingStatusData getStatus()
     {
-        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey(WARMING_SERVICE_STAT_GROUP));
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey());
         return new WorkerWarmingStatusData(warmingServiceStats.getwarm_started(), warmingServiceStats.getwarm_accomplished());
     }
 }

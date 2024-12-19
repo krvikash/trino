@@ -77,7 +77,7 @@ public class DispatcherPageSourceTest
     protected WarpStoragePageSource warpPageSource;
     protected ConnectorPageSource proxiedConnectorPageSource;
     protected RowGroupData rowGroupData;
-    protected final DispatcherPageSourceStats stats = new DispatcherPageSourceStats("test");
+    protected final DispatcherPageSourceStats stats = new DispatcherPageSourceStats();
     protected final Map<Integer, Type> proxiedCollectTypeByBlockIndex = Map.of(1, BIGINT);
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final GlobalConfig globalConfig = new GlobalConfig();

@@ -30,7 +30,6 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 
 import java.io.File;
 
-import static io.trino.plugin.warp.dispatcher.warmup.export.WarmupExportingService.WARMUP_EXPORTER_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 public class WarmupElementsCloudExporter
@@ -56,7 +55,7 @@ public class WarmupElementsCloudExporter
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cloudVendorService = cloudVendorService;
-        this.statsWarmupExportService = metricsManager.registerMetric(new WarmupExportServiceStats(WARMUP_EXPORTER_STAT_GROUP));
+        this.statsWarmupExportService = metricsManager.registerMetric(new WarmupExportServiceStats());
     }
 
     private RowGroupDataValidation getRowGroupDataValidation(String cloudPath)

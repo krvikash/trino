@@ -49,7 +49,7 @@ public class StorageEngineTxService
         this.nativeConfig = requireNonNull(nativeConfig);
         this.warmingBlockingFutures = new ConcurrentLinkedQueue<>();
 
-        statsTxService = metricsManager.registerMetric(TxServiceStats.create(STATS_GROUP_NAME));
+        statsTxService = metricsManager.registerMetric(TxServiceStats.create());
     }
 
     public boolean isLoaderAvailable()

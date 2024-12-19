@@ -42,7 +42,6 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.IntStream;
 
-import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -112,7 +111,7 @@ public class WarmupDemoterServiceTest
 
         CatalogName catalogName = new CatalogName("catalogTest");
         NodeManager nodeManager = NodeUtils.mockNodeManager();
-        FlowsSequencer flowsSequencer = new FlowsSequencer(metricsManager);
+        FlowsSequencer flowsSequencer = new FlowsSequencer();
 
         demoterSync = mock(DemoterSync.class);
         warmupDemoterConfig = new WarmupDemoterConfig();
@@ -137,7 +136,7 @@ public class WarmupDemoterServiceTest
         warmupDemoterService.initDemoteContext();
 
         assertThat(warmupDemoterService.tryDemoteStart()).isFalse();
-        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WarmupDemoterStats.createKey());
         assertThat(warmupDemoterStats.getnumber_of_runs()).isEqualTo(0);
         assertThat(warmupDemoterStats.getnot_executed_due_is_already_executing()).isEqualTo(1);
     }
@@ -145,7 +144,7 @@ public class WarmupDemoterServiceTest
     @Test
     public void testRunFail()
     {
-        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WarmupDemoterStats.createKey());
         warmupDemoterStats.setcurrentUsage(1000);
         setConfig(defaultMaxThreshold, defaultCleanThreshold, 0, 1, List.of());
         assertThat(warmupDemoterStats.getnumber_of_runs()).isEqualTo(0);
@@ -292,7 +291,7 @@ public class WarmupDemoterServiceTest
 
         assertThat(warmupDemoterService.initiateDemoteProcess()).isFalse();
 
-        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WarmupDemoterStats.createKey());
         assertThat(warmupDemoterStats.getnot_executed_due_sync_demote_start_rejected()).isEqualTo(1);
     }
 
@@ -307,7 +306,7 @@ public class WarmupDemoterServiceTest
         warmupDemoterService.initDemoteContext();
         assertThat(warmupDemoterService.initiateDemoteProcess()).isFalse();
 
-        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WarmupDemoterStats.createKey());
         assertThat(warmupDemoterStats.getnot_executed_due_is_already_executing()).isEqualTo(1);
     }
 

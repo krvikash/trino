@@ -40,7 +40,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
@@ -63,7 +62,7 @@ public class WorkerWarmupDemoterTaskTest
         eventBus = new EventBus();
         nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         Mockito.when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
-        WarmupDemoterStats warmupDemoterStats = WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP);
+        WarmupDemoterStats warmupDemoterStats = WarmupDemoterStats.create();
         MetricsManager metricsManager = Mockito.mock(MetricsManager.class);
         Mockito.when(metricsManager.registerMetric(ArgumentMatchers.any())).thenReturn(warmupDemoterStats);
         workerWarmupDemoterTask = new WorkerWarmupDemoterTask(warmupDemoterService,

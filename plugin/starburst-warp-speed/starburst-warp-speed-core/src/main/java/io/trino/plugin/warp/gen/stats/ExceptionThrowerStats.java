@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,24 +31,13 @@ public final class ExceptionThrowerStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from exceptionThrower xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder recoverable = new LongAdder();
     private final LongAdder nonRecoverable = new LongAdder();
 
     @JsonCreator
-    public ExceptionThrowerStats(@JsonProperty("group") String group)
+    public ExceptionThrowerStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -99,14 +86,14 @@ public final class ExceptionThrowerStats
         addnonRecoverable(val);
     }
 
-    public static ExceptionThrowerStats create(String group)
+    public static ExceptionThrowerStats create()
     {
-        return new ExceptionThrowerStats(group);
+        return new ExceptionThrowerStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "exceptionThrower";
     }
 
     @Override
@@ -141,8 +128,8 @@ public final class ExceptionThrowerStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":recoverable", recoverable.longValue());
-        res.put(getJmxKey() + ":nonRecoverable", nonRecoverable.longValue());
+        res.put("exceptionThrower:recoverable", recoverable.longValue());
+        res.put("exceptionThrower:nonRecoverable", nonRecoverable.longValue());
         return res;
     }
 

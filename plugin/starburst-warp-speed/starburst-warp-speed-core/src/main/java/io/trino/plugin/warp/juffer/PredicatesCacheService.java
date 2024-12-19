@@ -55,7 +55,6 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class PredicatesCacheService
 {
-    public static final String STATS_CACHE_PREDICATE_KEY = "cachePredicates";
     private static final Logger logger = Logger.get(PredicatesCacheService.class);
     private final ShapingLogger shapingLogger;
     private final Map<PredicateBufferPoolType, Map<Integer, PredicateCacheData>> predicateCachePool;
@@ -105,7 +104,7 @@ public class PredicatesCacheService
         this.predicateTypeToFiller = new HashMap<>();
         initPredicateCachePoll();
         initPredicateFillerMap();
-        this.cachePredicatesStats = metricsManager.registerMetric(CachePredicatesStats.create(STATS_CACHE_PREDICATE_KEY));
+        this.cachePredicatesStats = metricsManager.registerMetric(CachePredicatesStats.create());
         this.activePredicatesTiny = new AtomicInteger(0);
         this.activePredicatesSmall = new AtomicInteger(0);
         this.activePredicatesMedium = new AtomicInteger(0);

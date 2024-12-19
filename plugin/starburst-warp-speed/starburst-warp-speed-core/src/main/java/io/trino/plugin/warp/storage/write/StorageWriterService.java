@@ -73,7 +73,6 @@ import static java.util.Objects.requireNonNull;
 public class StorageWriterService
 {
     private static final Logger logger = Logger.get(StorageWriterService.class);
-    public static final String LUCENE_STATS_GROUP_NAME = "lucene_index";
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
@@ -105,7 +104,7 @@ public class StorageWriterService
         this.blockAppenderFactory = requireNonNull(blockAppenderFactory);
         this.warmupElementStatsService = requireNonNull(warmupElementStatsService);
         this.workerMemoryManager = requireNonNull(workerMemoryManager);
-        LuceneIndexerStats luceneIndexerStats = new LuceneIndexerStats(LUCENE_STATS_GROUP_NAME, "0");
+        LuceneIndexerStats luceneIndexerStats = new LuceneIndexerStats();
         this.statsLuceneIndexer = metricsManager.registerMetric(luceneIndexerStats);
         this.metricsTimerTask = requireNonNull(metricsTimerTask);
         this.globalConfig = requireNonNull(globalConfig);

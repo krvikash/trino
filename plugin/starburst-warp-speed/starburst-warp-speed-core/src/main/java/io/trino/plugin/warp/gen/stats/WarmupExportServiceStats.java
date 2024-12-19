@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class WarmupExportServiceStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from warmupExportService xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder empty_column_list = new LongAdder();
     private final LongAdder export_row_group_scheduled = new LongAdder();
     private final LongAdder export_row_group_started = new LongAdder();
@@ -52,18 +48,9 @@ public final class WarmupExportServiceStats
     private final LongAdder export_time = new LongAdder();
 
     @JsonCreator
-    public WarmupExportServiceStats(@JsonProperty("group") String group)
+    public WarmupExportServiceStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -394,14 +381,14 @@ public final class WarmupExportServiceStats
         export_time_Count.add(1);
     }
 
-    public static WarmupExportServiceStats create(String group)
+    public static WarmupExportServiceStats create()
     {
-        return new WarmupExportServiceStats(group);
+        return new WarmupExportServiceStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "warmup_exporter";
     }
 
     @Override
@@ -473,21 +460,21 @@ public final class WarmupExportServiceStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":empty_column_list", empty_column_list.longValue());
-        res.put(getJmxKey() + ":export_row_group_scheduled", export_row_group_scheduled.longValue());
-        res.put(getJmxKey() + ":export_row_group_started", export_row_group_started.longValue());
-        res.put(getJmxKey() + ":export_row_group_finished", export_row_group_finished.longValue());
-        res.put(getJmxKey() + ":export_row_group_accomplished", export_row_group_accomplished.longValue());
-        res.put(getJmxKey() + ":export_row_group_failed", export_row_group_failed.longValue());
-        res.put(getJmxKey() + ":export_row_group_1st_footer_validation", export_row_group_1st_footer_validation.longValue());
-        res.put(getJmxKey() + ":export_row_group_2nd_footer_validation", export_row_group_2nd_footer_validation.longValue());
-        res.put(getJmxKey() + ":export_row_group_failed_due_local_sparse", export_row_group_failed_due_local_sparse.longValue());
-        res.put(getJmxKey() + ":export_skipped_due_demoter", export_skipped_due_demoter.longValue());
-        res.put(getJmxKey() + ":export_skipped_due_row_group", export_skipped_due_row_group.longValue());
-        res.put(getJmxKey() + ":export_skipped_due_key_conflict", export_skipped_due_key_conflict.longValue());
-        res.put(getJmxKey() + ":export_skipped_due_key_demoted_row_group", export_skipped_due_key_demoted_row_group.longValue());
-        res.put(getJmxKey() + ":export_time", export_time.longValue());
-        res.put(getJmxKey() + ":export_time_Count", export_time_Count.longValue());
+        res.put("warmup_exporter:empty_column_list", empty_column_list.longValue());
+        res.put("warmup_exporter:export_row_group_scheduled", export_row_group_scheduled.longValue());
+        res.put("warmup_exporter:export_row_group_started", export_row_group_started.longValue());
+        res.put("warmup_exporter:export_row_group_finished", export_row_group_finished.longValue());
+        res.put("warmup_exporter:export_row_group_accomplished", export_row_group_accomplished.longValue());
+        res.put("warmup_exporter:export_row_group_failed", export_row_group_failed.longValue());
+        res.put("warmup_exporter:export_row_group_1st_footer_validation", export_row_group_1st_footer_validation.longValue());
+        res.put("warmup_exporter:export_row_group_2nd_footer_validation", export_row_group_2nd_footer_validation.longValue());
+        res.put("warmup_exporter:export_row_group_failed_due_local_sparse", export_row_group_failed_due_local_sparse.longValue());
+        res.put("warmup_exporter:export_skipped_due_demoter", export_skipped_due_demoter.longValue());
+        res.put("warmup_exporter:export_skipped_due_row_group", export_skipped_due_row_group.longValue());
+        res.put("warmup_exporter:export_skipped_due_key_conflict", export_skipped_due_key_conflict.longValue());
+        res.put("warmup_exporter:export_skipped_due_key_demoted_row_group", export_skipped_due_key_demoted_row_group.longValue());
+        res.put("warmup_exporter:export_time", export_time.longValue());
+        res.put("warmup_exporter:export_time_Count", export_time_Count.longValue());
         return res;
     }
 

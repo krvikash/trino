@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,9 +31,6 @@ public final class LuceneIndexerStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from luceneIndexer xml file for statistics and counters */
-    private final String group;
-    private final String weIx;
-
     private final LongAdder failedAddDoc = new LongAdder();
     private final LongAdder failedReset = new LongAdder();
     private final LongAdder local_fs_Count = new LongAdder();
@@ -48,26 +43,9 @@ public final class LuceneIndexerStats
     private final LongAdder copy = new LongAdder();
 
     @JsonCreator
-    public LuceneIndexerStats(@JsonProperty("group") String group, @JsonProperty("weIx") String weIx)
+    public LuceneIndexerStats()
     {
-        super(createKey(group, weIx), WarpStatType.Worker);
-
-        this.group = group;
-        this.weIx = weIx;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getWeIx()
-    {
-        return weIx;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -232,14 +210,14 @@ public final class LuceneIndexerStats
         copy_Count.add(1);
     }
 
-    public static LuceneIndexerStats create(String group, String weIx)
+    public static LuceneIndexerStats create()
     {
-        return new LuceneIndexerStats(group, weIx);
+        return new LuceneIndexerStats();
     }
 
-    public static String createKey(String group, String weIx)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).add(weIx).toString();
+        return "lucene_index";
     }
 
     @Override
@@ -290,16 +268,16 @@ public final class LuceneIndexerStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":failedAddDoc", failedAddDoc.longValue());
-        res.put(getJmxKey() + ":failedReset", failedReset.longValue());
-        res.put(getJmxKey() + ":local_fs", local_fs.longValue());
-        res.put(getJmxKey() + ":local_fs_Count", local_fs_Count.longValue());
-        res.put(getJmxKey() + ":merge", merge.longValue());
-        res.put(getJmxKey() + ":merge_Count", merge_Count.longValue());
-        res.put(getJmxKey() + ":addDoc", addDoc.longValue());
-        res.put(getJmxKey() + ":addDoc_Count", addDoc_Count.longValue());
-        res.put(getJmxKey() + ":copy", copy.longValue());
-        res.put(getJmxKey() + ":copy_Count", copy_Count.longValue());
+        res.put("lucene_index:failedAddDoc", failedAddDoc.longValue());
+        res.put("lucene_index:failedReset", failedReset.longValue());
+        res.put("lucene_index:local_fs", local_fs.longValue());
+        res.put("lucene_index:local_fs_Count", local_fs_Count.longValue());
+        res.put("lucene_index:merge", merge.longValue());
+        res.put("lucene_index:merge_Count", merge_Count.longValue());
+        res.put("lucene_index:addDoc", addDoc.longValue());
+        res.put("lucene_index:addDoc_Count", addDoc_Count.longValue());
+        res.put("lucene_index:copy", copy.longValue());
+        res.put("lucene_index:copy_Count", copy_Count.longValue());
         return res;
     }
 

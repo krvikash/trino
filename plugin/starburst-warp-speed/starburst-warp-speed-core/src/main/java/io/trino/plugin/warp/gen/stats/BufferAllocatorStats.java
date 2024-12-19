@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,26 +31,15 @@ public final class BufferAllocatorStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from bufferAllocator xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder predicate_buffer_tiny_alloc = new LongAdder();
     private final LongAdder predicate_buffer_small_alloc = new LongAdder();
     private final LongAdder predicate_buffer_medium_alloc = new LongAdder();
     private final LongAdder predicate_buffer_large_alloc = new LongAdder();
 
     @JsonCreator
-    public BufferAllocatorStats(@JsonProperty("group") String group)
+    public BufferAllocatorStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -147,14 +134,14 @@ public final class BufferAllocatorStats
         addpredicate_buffer_large_alloc(val);
     }
 
-    public static BufferAllocatorStats create(String group)
+    public static BufferAllocatorStats create()
     {
-        return new BufferAllocatorStats(group);
+        return new BufferAllocatorStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "BufferAllocator";
     }
 
     @Override
@@ -195,10 +182,10 @@ public final class BufferAllocatorStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":predicate_buffer_tiny_alloc", predicate_buffer_tiny_alloc.longValue());
-        res.put(getJmxKey() + ":predicate_buffer_small_alloc", predicate_buffer_small_alloc.longValue());
-        res.put(getJmxKey() + ":predicate_buffer_medium_alloc", predicate_buffer_medium_alloc.longValue());
-        res.put(getJmxKey() + ":predicate_buffer_large_alloc", predicate_buffer_large_alloc.longValue());
+        res.put("BufferAllocator:predicate_buffer_tiny_alloc", predicate_buffer_tiny_alloc.longValue());
+        res.put("BufferAllocator:predicate_buffer_small_alloc", predicate_buffer_small_alloc.longValue());
+        res.put("BufferAllocator:predicate_buffer_medium_alloc", predicate_buffer_medium_alloc.longValue());
+        res.put("BufferAllocator:predicate_buffer_large_alloc", predicate_buffer_large_alloc.longValue());
         return res;
     }
 

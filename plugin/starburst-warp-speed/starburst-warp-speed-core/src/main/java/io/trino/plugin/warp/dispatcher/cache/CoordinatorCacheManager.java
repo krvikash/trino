@@ -27,29 +27,20 @@ import io.trino.spi.NodeManager;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.PlanSignature;
 
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_DISPATCHER_KEY;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService.WORKER_TASK_EXECUTOR_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.warmup.export.WarmupExportingService.WARMUP_EXPORTER_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer.WARMUP_IMPORTER_STAT_GROUP;
-import static io.trino.plugin.warp.juffer.PredicatesCacheService.STATS_CACHE_PREDICATE_KEY;
-
 public class CoordinatorCacheManager
         implements CacheManager
 {
     @Inject
     public CoordinatorCacheManager(MetricsManager metricsManager)
     {
-        metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
-        metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
-        metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
-        metricsManager.registerMetric(WarmupImportServiceStats.create(WARMUP_IMPORTER_STAT_GROUP));
-        metricsManager.registerMetric(WarmupExportServiceStats.create(WARMUP_EXPORTER_STAT_GROUP));
-        metricsManager.registerMetric(WorkerTaskExecutorServiceStats.create(WORKER_TASK_EXECUTOR_STAT_GROUP));
-        metricsManager.registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
-        metricsManager.registerMetric(CachePredicatesStats.create(STATS_CACHE_PREDICATE_KEY));
+        metricsManager.registerMetric(DispatcherPageSourceStats.create());
+        metricsManager.registerMetric(WarmingServiceStats.create());
+        metricsManager.registerMetric(WarmupDemoterStats.create());
+        metricsManager.registerMetric(WarmupImportServiceStats.create());
+        metricsManager.registerMetric(WarmupExportServiceStats.create());
+        metricsManager.registerMetric(WorkerTaskExecutorServiceStats.create());
+        metricsManager.registerMetric(DictionaryStats.create());
+        metricsManager.registerMetric(CachePredicatesStats.create());
     }
 
     @Override

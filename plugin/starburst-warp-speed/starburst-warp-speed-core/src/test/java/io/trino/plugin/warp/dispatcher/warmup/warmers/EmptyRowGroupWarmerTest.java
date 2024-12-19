@@ -42,7 +42,6 @@ import java.util.List;
 
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createRequiredWarmUpTypes;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -61,7 +60,7 @@ public class EmptyRowGroupWarmerTest
     public void before()
     {
         metricsManager = mock(MetricsManager.class);
-        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
         when(metricsManager.registerMetric(any())).thenReturn(warmingServiceStats);
         when(metricsManager.get(any())).thenReturn(warmingServiceStats);
         schemaTableName = new SchemaTableName("schema", "table");

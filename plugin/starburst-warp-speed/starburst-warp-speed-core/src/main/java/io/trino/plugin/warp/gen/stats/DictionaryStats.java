@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class DictionaryStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from dictionary xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder dictionary_max_exception_count = new LongAdder();
     private final LongAdder dictionary_rejected_elements_count = new LongAdder();
     private final LongAdder dictionary_success_elements_count = new LongAdder();
@@ -52,18 +48,9 @@ public final class DictionaryStats
     private final LongAdder dictionary_pre_block_used = new LongAdder();
 
     @JsonCreator
-    public DictionaryStats(@JsonProperty("group") String group)
+    public DictionaryStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -411,14 +398,14 @@ public final class DictionaryStats
         adddictionary_pre_block_used(val);
     }
 
-    public static DictionaryStats create(String group)
+    public static DictionaryStats create()
     {
-        return new DictionaryStats(group);
+        return new DictionaryStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "dictionary";
     }
 
     @Override
@@ -492,10 +479,10 @@ public final class DictionaryStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":dictionary_read_elements_count", dictionary_read_elements_count.longValue());
-        res.put(getJmxKey() + ":dictionary_loaded_elements_count", dictionary_loaded_elements_count.longValue());
-        res.put(getJmxKey() + ":dictionary_active_size", dictionary_active_size.longValue());
-        res.put(getJmxKey() + ":dictionary_evicted_entries", dictionary_evicted_entries.longValue());
+        res.put("dictionary:dictionary_read_elements_count", dictionary_read_elements_count.longValue());
+        res.put("dictionary:dictionary_loaded_elements_count", dictionary_loaded_elements_count.longValue());
+        res.put("dictionary:dictionary_active_size", dictionary_active_size.longValue());
+        res.put("dictionary:dictionary_evicted_entries", dictionary_evicted_entries.longValue());
         return res;
     }
 

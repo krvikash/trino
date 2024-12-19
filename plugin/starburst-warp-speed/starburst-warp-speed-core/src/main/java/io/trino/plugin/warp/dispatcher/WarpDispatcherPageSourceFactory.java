@@ -129,7 +129,7 @@ public class WarpDispatcherPageSourceFactory
             CustomStatsContext customStatsContext)
     {
         initializeCustomStats(customStatsContext);
-        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 
         if ((!nativeStorageStateHandler.isStorageAvailable() && dispatcherTableHandle.isSubsumedPredicates())) {
             throw new TrinoException(WarpErrorCode.WARP_NATIVE_ERROR,
@@ -194,7 +194,7 @@ public class WarpDispatcherPageSourceFactory
             return new EmptyPageSource();
         }
 
-        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 
         RowGroupKey rowGroupKey = rowGroupDataService.createRowGroupKey(dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
@@ -441,7 +441,7 @@ public class WarpDispatcherPageSourceFactory
                 lazyCollectorService,
                 matchService);
 
-        DispatcherPageSourceStats pageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats pageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         List<Type> warpWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
                         queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))

@@ -42,7 +42,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -68,7 +67,7 @@ public class RowGroupDataService
         this.rowGroupDataDao = requireNonNull(rowGroupDataDao);
         this.storageEngine = requireNonNull(storageEngine);
         this.globalConfig = requireNonNull(globalConfig);
-        this.warmingServiceStats = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.warmingServiceStats = metricsManager.registerMetric(WarmingServiceStats.create());
         this.nodeIdentifier = requireNonNull(nodeManager).getCurrentNode().getNodeIdentifier();
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
     }

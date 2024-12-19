@@ -45,7 +45,6 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class WarmupDemoterService
 {
-    public static final String WARMUP_DEMOTER_STAT_GROUP = "warmupDemoter";
     public static final int MAX_SUPPORTED_BATCH_SIZE = 100;
     private static final Logger logger = Logger.get(WarmupDemoterService.class);
 
@@ -82,7 +81,7 @@ public class WarmupDemoterService
     {
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
-        this.globalStatsDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
+        this.globalStatsDemoter = metricsManager.registerMetric(WarmupDemoterStats.create());
         this.demoterSync = requireNonNull(demoterSync);
         this.catalogName = requireNonNull(catalogName);
         this.eventBus = requireNonNull(eventBus);

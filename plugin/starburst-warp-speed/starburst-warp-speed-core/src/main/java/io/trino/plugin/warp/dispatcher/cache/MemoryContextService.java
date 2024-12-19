@@ -38,7 +38,6 @@ import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 
 @Singleton
 public class MemoryContextService
@@ -71,7 +70,7 @@ public class MemoryContextService
             LocalMemoryContext localMemoryContext = memoryContext.newLocalMemoryContext("ignored");
             localMemoryContexts.add(localMemoryContext);
         }
-        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),

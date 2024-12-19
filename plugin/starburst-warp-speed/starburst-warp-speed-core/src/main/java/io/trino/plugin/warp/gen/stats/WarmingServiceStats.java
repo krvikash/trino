@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class WarmingServiceStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from warmingService xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder warming_disabled = new LongAdder();
     private final LongAdder empty_column_list = new LongAdder();
     private final LongAdder warm_scheduled = new LongAdder();
@@ -72,18 +68,9 @@ public final class WarmingServiceStats
     private final LongAdder execution_time_nano = new LongAdder();
 
     @JsonCreator
-    public WarmingServiceStats(@JsonProperty("group") String group)
+    public WarmingServiceStats()
     {
-        super(createKey(group), WarpStatType.Coordinator);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Coordinator);
     }
 
     @JsonIgnore
@@ -857,14 +844,14 @@ public final class WarmingServiceStats
         execution_time_nano_Count.add(1);
     }
 
-    public static WarmingServiceStats create(String group)
+    public static WarmingServiceStats create()
     {
-        return new WarmingServiceStats(group);
+        return new WarmingServiceStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "warming_service";
     }
 
     @Override
@@ -994,41 +981,41 @@ public final class WarmingServiceStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":warming_disabled", warming_disabled.longValue());
-        res.put(getJmxKey() + ":empty_column_list", empty_column_list.longValue());
-        res.put(getJmxKey() + ":warm_scheduled", warm_scheduled.longValue());
-        res.put(getJmxKey() + ":warm_started", warm_started.longValue());
-        res.put(getJmxKey() + ":warm_finished", warm_finished.longValue());
-        res.put(getJmxKey() + ":warm_accomplished", warm_accomplished.longValue());
-        res.put(getJmxKey() + ":warm_failed", warm_failed.longValue());
-        res.put(getJmxKey() + ":warm_skipped_due_demoter", warm_skipped_due_demoter.longValue());
-        res.put(getJmxKey() + ":warm_skipped_due_reaching_threshold", warm_skipped_due_reaching_threshold.longValue());
-        res.put(getJmxKey() + ":warm_skipped_due_queue_size", warm_skipped_due_queue_size.longValue());
-        res.put(getJmxKey() + ":warm_skipped_due_key_conflict", warm_skipped_due_key_conflict.longValue());
-        res.put(getJmxKey() + ":warm_skip_permanent_failed_warmup_element", warm_skip_permanent_failed_warmup_element.longValue());
-        res.put(getJmxKey() + ":warm_skip_temporary_failed_warmup_element", warm_skip_temporary_failed_warmup_element.longValue());
-        res.put(getJmxKey() + ":warm_begin_retry_warmup_element", warm_begin_retry_warmup_element.longValue());
-        res.put(getJmxKey() + ":warm_success_retry_warmup_element", warm_success_retry_warmup_element.longValue());
-        res.put(getJmxKey() + ":all_elements_warmed_or_skipped", all_elements_warmed_or_skipped.longValue());
-        res.put(getJmxKey() + ":row_group_count", row_group_count.longValue());
-        res.put(getJmxKey() + ":warm_warp_cache_started", warm_warp_cache_started.longValue());
-        res.put(getJmxKey() + ":warm_warp_cache_engine_aborted", warm_warp_cache_engine_aborted.longValue());
-        res.put(getJmxKey() + ":warm_warp_cache_skip_zero_columns", warm_warp_cache_skip_zero_columns.longValue());
-        res.put(getJmxKey() + ":warm_warp_cache_revoke_started", warm_warp_cache_revoke_started.longValue());
-        res.put(getJmxKey() + ":warm_warp_cache_revoke_accomplished", warm_warp_cache_revoke_accomplished.longValue());
-        res.put(getJmxKey() + ":warm_warp_cache_revoke_failed", warm_warp_cache_revoke_failed.longValue());
-        res.put(getJmxKey() + ":warm_warp_cache_accomplished", warm_warp_cache_accomplished.longValue());
-        res.put(getJmxKey() + ":warm_warp_cache_failed", warm_warp_cache_failed.longValue());
-        res.put(getJmxKey() + ":warm_warp_cache_invalid_type", warm_warp_cache_invalid_type.longValue());
-        res.put(getJmxKey() + ":warmup_elements_count", warmup_elements_count.longValue());
-        res.put(getJmxKey() + ":empty_row_group", empty_row_group.longValue());
-        res.put(getJmxKey() + ":deleted_warmup_elements_count", deleted_warmup_elements_count.longValue());
-        res.put(getJmxKey() + ":deleted_row_group_count", deleted_row_group_count.longValue());
-        res.put(getJmxKey() + ":failed_fetching_rules", failed_fetching_rules.longValue());
-        res.put(getJmxKey() + ":waiting_for_lock_nano", waiting_for_lock_nano.longValue());
-        res.put(getJmxKey() + ":waiting_for_lock_nano_Count", waiting_for_lock_nano_Count.longValue());
-        res.put(getJmxKey() + ":execution_time_nano", execution_time_nano.longValue());
-        res.put(getJmxKey() + ":execution_time_nano_Count", execution_time_nano_Count.longValue());
+        res.put("warming_service:warming_disabled", warming_disabled.longValue());
+        res.put("warming_service:empty_column_list", empty_column_list.longValue());
+        res.put("warming_service:warm_scheduled", warm_scheduled.longValue());
+        res.put("warming_service:warm_started", warm_started.longValue());
+        res.put("warming_service:warm_finished", warm_finished.longValue());
+        res.put("warming_service:warm_accomplished", warm_accomplished.longValue());
+        res.put("warming_service:warm_failed", warm_failed.longValue());
+        res.put("warming_service:warm_skipped_due_demoter", warm_skipped_due_demoter.longValue());
+        res.put("warming_service:warm_skipped_due_reaching_threshold", warm_skipped_due_reaching_threshold.longValue());
+        res.put("warming_service:warm_skipped_due_queue_size", warm_skipped_due_queue_size.longValue());
+        res.put("warming_service:warm_skipped_due_key_conflict", warm_skipped_due_key_conflict.longValue());
+        res.put("warming_service:warm_skip_permanent_failed_warmup_element", warm_skip_permanent_failed_warmup_element.longValue());
+        res.put("warming_service:warm_skip_temporary_failed_warmup_element", warm_skip_temporary_failed_warmup_element.longValue());
+        res.put("warming_service:warm_begin_retry_warmup_element", warm_begin_retry_warmup_element.longValue());
+        res.put("warming_service:warm_success_retry_warmup_element", warm_success_retry_warmup_element.longValue());
+        res.put("warming_service:all_elements_warmed_or_skipped", all_elements_warmed_or_skipped.longValue());
+        res.put("warming_service:row_group_count", row_group_count.longValue());
+        res.put("warming_service:warm_warp_cache_started", warm_warp_cache_started.longValue());
+        res.put("warming_service:warm_warp_cache_engine_aborted", warm_warp_cache_engine_aborted.longValue());
+        res.put("warming_service:warm_warp_cache_skip_zero_columns", warm_warp_cache_skip_zero_columns.longValue());
+        res.put("warming_service:warm_warp_cache_revoke_started", warm_warp_cache_revoke_started.longValue());
+        res.put("warming_service:warm_warp_cache_revoke_accomplished", warm_warp_cache_revoke_accomplished.longValue());
+        res.put("warming_service:warm_warp_cache_revoke_failed", warm_warp_cache_revoke_failed.longValue());
+        res.put("warming_service:warm_warp_cache_accomplished", warm_warp_cache_accomplished.longValue());
+        res.put("warming_service:warm_warp_cache_failed", warm_warp_cache_failed.longValue());
+        res.put("warming_service:warm_warp_cache_invalid_type", warm_warp_cache_invalid_type.longValue());
+        res.put("warming_service:warmup_elements_count", warmup_elements_count.longValue());
+        res.put("warming_service:empty_row_group", empty_row_group.longValue());
+        res.put("warming_service:deleted_warmup_elements_count", deleted_warmup_elements_count.longValue());
+        res.put("warming_service:deleted_row_group_count", deleted_row_group_count.longValue());
+        res.put("warming_service:failed_fetching_rules", failed_fetching_rules.longValue());
+        res.put("warming_service:waiting_for_lock_nano", waiting_for_lock_nano.longValue());
+        res.put("warming_service:waiting_for_lock_nano_Count", waiting_for_lock_nano_Count.longValue());
+        res.put("warming_service:execution_time_nano", execution_time_nano.longValue());
+        res.put("warming_service:execution_time_nano_Count", execution_time_nano_Count.longValue());
         return res;
     }
 

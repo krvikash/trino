@@ -45,7 +45,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_MOD_TIME;
@@ -94,7 +93,7 @@ public class StorageWarmerService
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.storageEngineTxService = requireNonNull(storageEngineTxService);
         this.flowsSequencer = requireNonNull(flowsSequencer);
-        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
     }

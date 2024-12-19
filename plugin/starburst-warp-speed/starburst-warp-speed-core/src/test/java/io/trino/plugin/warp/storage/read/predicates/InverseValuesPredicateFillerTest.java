@@ -62,7 +62,7 @@ class InverseValuesPredicateFillerTest
         when(bufferAllocator.memorySegment2PredicateBuff(any())).thenReturn(low);
         when(bufferAllocator.createBuffView(any())).thenReturn(high);
         storageEngineConstants = new StubsStorageEngineConstants();
-        cachePredicatesStats = CachePredicatesStats.create(PredicatesCacheService.STATS_CACHE_PREDICATE_KEY);
+        cachePredicatesStats = CachePredicatesStats.create();
         domainToMapBlockConvertor = new DomainToMapBlockConvertor(storageEngineConstants);
     }
 

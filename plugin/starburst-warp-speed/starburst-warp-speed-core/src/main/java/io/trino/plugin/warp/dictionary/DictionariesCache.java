@@ -45,7 +45,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -74,7 +73,7 @@ public class DictionariesCache
     {
         this.dictionaryConfig = requireNonNull(dictionaryConfig);
         this.attachDictionaryService = requireNonNull(attachDictionaryService);
-        this.globalDictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
+        this.globalDictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create());
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();

@@ -56,8 +56,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.base.cache.CacheUtils.normalizeTupleDomain;
-import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_DISPATCHER_KEY;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -124,8 +122,8 @@ public class WorkerCacheManager
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
         this.chunkSize = 1 << requireNonNull(storageEngineConstants).getChunkSizeShift();
-        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
-        this.statsPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
+        this.statsPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create());
         this.hashFunction = Hashing.farmHashFingerprint64();
     }
 

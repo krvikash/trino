@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class WarmupImportServiceStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from warmupImportService xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder import_row_group_count_started = new LongAdder();
     private final LongAdder import_row_group_count_accomplished = new LongAdder();
     private final LongAdder import_row_group_count_failed = new LongAdder();
@@ -52,18 +48,9 @@ public final class WarmupImportServiceStats
     private final LongAdder import_row_group_total_time = new LongAdder();
 
     @JsonCreator
-    public WarmupImportServiceStats(@JsonProperty("group") String group)
+    public WarmupImportServiceStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -394,14 +381,14 @@ public final class WarmupImportServiceStats
         import_row_group_total_time_Count.add(1);
     }
 
-    public static WarmupImportServiceStats create(String group)
+    public static WarmupImportServiceStats create()
     {
-        return new WarmupImportServiceStats(group);
+        return new WarmupImportServiceStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "import_service";
     }
 
     @Override
@@ -473,21 +460,21 @@ public final class WarmupImportServiceStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":import_row_group_count_started", import_row_group_count_started.longValue());
-        res.put(getJmxKey() + ":import_row_group_count_accomplished", import_row_group_count_accomplished.longValue());
-        res.put(getJmxKey() + ":import_row_group_count_failed", import_row_group_count_failed.longValue());
-        res.put(getJmxKey() + ":hiveWarmTime", hiveWarmTime.longValue());
-        res.put(getJmxKey() + ":import_we_group_download_started", import_we_group_download_started.longValue());
-        res.put(getJmxKey() + ":import_we_group_download_failed", import_we_group_download_failed.longValue());
-        res.put(getJmxKey() + ":import_we_group_download_accomplished", import_we_group_download_accomplished.longValue());
-        res.put(getJmxKey() + ":import_we_group_footer_validation", import_we_group_footer_validation.longValue());
-        res.put(getJmxKey() + ":import_elements_started", import_elements_started.longValue());
-        res.put(getJmxKey() + ":import_elements_failed", import_elements_failed.longValue());
-        res.put(getJmxKey() + ":import_elements_accomplished", import_elements_accomplished.longValue());
-        res.put(getJmxKey() + ":import_element_1st_footer_validation", import_element_1st_footer_validation.longValue());
-        res.put(getJmxKey() + ":import_element_2nd_footer_validation", import_element_2nd_footer_validation.longValue());
-        res.put(getJmxKey() + ":import_row_group_total_time", import_row_group_total_time.longValue());
-        res.put(getJmxKey() + ":import_row_group_total_time_Count", import_row_group_total_time_Count.longValue());
+        res.put("import_service:import_row_group_count_started", import_row_group_count_started.longValue());
+        res.put("import_service:import_row_group_count_accomplished", import_row_group_count_accomplished.longValue());
+        res.put("import_service:import_row_group_count_failed", import_row_group_count_failed.longValue());
+        res.put("import_service:hiveWarmTime", hiveWarmTime.longValue());
+        res.put("import_service:import_we_group_download_started", import_we_group_download_started.longValue());
+        res.put("import_service:import_we_group_download_failed", import_we_group_download_failed.longValue());
+        res.put("import_service:import_we_group_download_accomplished", import_we_group_download_accomplished.longValue());
+        res.put("import_service:import_we_group_footer_validation", import_we_group_footer_validation.longValue());
+        res.put("import_service:import_elements_started", import_elements_started.longValue());
+        res.put("import_service:import_elements_failed", import_elements_failed.longValue());
+        res.put("import_service:import_elements_accomplished", import_elements_accomplished.longValue());
+        res.put("import_service:import_element_1st_footer_validation", import_element_1st_footer_validation.longValue());
+        res.put("import_service:import_element_2nd_footer_validation", import_element_2nd_footer_validation.longValue());
+        res.put("import_service:import_row_group_total_time", import_row_group_total_time.longValue());
+        res.put("import_service:import_row_group_total_time_Count", import_row_group_total_time_Count.longValue());
         return res;
     }
 

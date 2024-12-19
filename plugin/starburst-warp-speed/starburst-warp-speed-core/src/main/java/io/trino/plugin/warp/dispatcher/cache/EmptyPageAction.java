@@ -29,7 +29,6 @@ import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 import java.util.Collections;
 import java.util.List;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -45,7 +44,7 @@ public class EmptyPageAction
                            EmptyRowGroupWarmer emptyRowGroupWarmer,
                            RowGroupDataService rowGroupDataService)
     {
-        this.statsWarmingService = requireNonNull(metricsManager).registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = requireNonNull(metricsManager).registerMetric(WarmingServiceStats.create());
         this.emptyRowGroupWarmer = requireNonNull(emptyRowGroupWarmer);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
     }

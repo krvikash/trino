@@ -264,7 +264,7 @@ public class DispatcherPageSourceFactoryTest
                         anyList(),
                         any(DynamicFilter.class));
         assertThat(pageSource).isNull(); //not mocked but not DispatcherPageSource
-        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 
         assertThat(stats.getcached_proxied_files()).isEqualTo(1);
         assertThat(stats.getcached_files()).isZero();
@@ -318,7 +318,7 @@ public class DispatcherPageSourceFactoryTest
                         anyList(),
                         any(DynamicFilter.class));
         assertThat(pageSource).isInstanceOf(EmptyPageSource.class);
-        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         assertThat(stats.getcached_proxied_files()).isZero();
         assertThat(stats.getcached_files()).isZero();
     }
@@ -412,7 +412,7 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         anyList(),
                         any(DynamicFilter.class));
-        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandleList.size());
         assertThat(stats.getexternal_match_columns()).isZero();
     }
@@ -457,7 +457,7 @@ public class DispatcherPageSourceFactoryTest
                 dispatcherTableHandle);
 
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
-        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandleList.size());
         assertThat(stats.getexternal_match_columns()).isZero();
         assertThat(stats.getwarp_collect_columns()).isEqualTo(warmedColumnHandleList.size());
@@ -504,7 +504,7 @@ public class DispatcherPageSourceFactoryTest
                 columnHandles,
                 dynamicFilter,
                 customStatsContext);
-        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandles.size()); // should be uncomment when committing to develop
 
         verify(connectorPageSourceProvider, times(1))
@@ -545,7 +545,7 @@ public class DispatcherPageSourceFactoryTest
                 dynamicFilter,
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
-        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         assertThat(stats.getexternal_collect_columns()).isEqualTo(0);
         assertThat(stats.getwarp_collect_columns()).isEqualTo(0);
         assertThat(stats.getempty_collect_columns()).isEqualTo(1);
@@ -581,7 +581,7 @@ public class DispatcherPageSourceFactoryTest
                 dynamicFilter,
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
-        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         assertThat(stats.getwarp_prefilled_collect_columns()).isEqualTo(1);
         assertThat(stats.getexternal_collect_columns()).isEqualTo(0);
         assertThat(stats.getwarp_collect_columns()).isEqualTo(0);

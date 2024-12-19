@@ -49,7 +49,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
 import static io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask.WARMUP_DEMOTER_PATH;
 import static java.util.Objects.requireNonNull;
 
@@ -64,18 +63,17 @@ public class WorkerWarmupDemoterTask
 {
     public static final String WARMUP_DEMOTER_START_TASK_NAME = "worker-warmup-demoter-start";
     public static final String WARMUP_DEMOTER_STATUS_TASK_NAME = "worker-warmup-demoter-status";
-    public static final String HIGHEST_PRIORITY_KEY = String.format("%s:highestPriority", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String MAX_USAGE_THRESHOLD_KEY = String.format("%s:maxUsageThresholdInPercentage", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String CLEANUP_USAGE_THRESHOLD_KEY = String.format("%s:cleanupUsageThresholdInPercentage", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String TOTAL_USAGE_THRESHOLD_KEY = String.format("%s:totalUsage", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String CURRENT_USAGE_THRESHOLD_KEY = String.format("%s:currentUsage", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String BATCH_SIZE_KEY = String.format("%s:batchSize", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String DEMOTE_SEQUENCE_KEY = String.format("%s:demoteSequence", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String EPSILON_KEY = String.format("%s:epsilon", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String MAX_ELEMENTS_TO_DEMOTE_ITERATION_KEY = String.format("%s:maxElementsDemoteInIteration", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String START_EXECUTION_KEY = String.format("%s:startExecution", WARMUP_DEMOTER_STAT_GROUP);
-    public static final String END_EXECUTION_KEY = String.format("%s:endExecution", WARMUP_DEMOTER_STAT_GROUP);
-
+    public static final String HIGHEST_PRIORITY_KEY = String.format("%s:highestPriority", WarmupDemoterStats.createKey());
+    public static final String MAX_USAGE_THRESHOLD_KEY = String.format("%s:maxUsageThresholdInPercentage", WarmupDemoterStats.createKey());
+    public static final String CLEANUP_USAGE_THRESHOLD_KEY = String.format("%s:cleanupUsageThresholdInPercentage", WarmupDemoterStats.createKey());
+    public static final String TOTAL_USAGE_THRESHOLD_KEY = String.format("%s:totalUsage", WarmupDemoterStats.createKey());
+    public static final String CURRENT_USAGE_THRESHOLD_KEY = String.format("%s:currentUsage", WarmupDemoterStats.createKey());
+    public static final String BATCH_SIZE_KEY = String.format("%s:batchSize", WarmupDemoterStats.createKey());
+    public static final String DEMOTE_SEQUENCE_KEY = String.format("%s:demoteSequence", WarmupDemoterStats.createKey());
+    public static final String EPSILON_KEY = String.format("%s:epsilon", WarmupDemoterStats.createKey());
+    public static final String MAX_ELEMENTS_TO_DEMOTE_ITERATION_KEY = String.format("%s:maxElementsDemoteInIteration", WarmupDemoterStats.createKey());
+    public static final String START_EXECUTION_KEY = String.format("%s:startExecution", WarmupDemoterStats.createKey());
+    public static final String END_EXECUTION_KEY = String.format("%s:endExecution", WarmupDemoterStats.createKey());
     private static final Logger logger = Logger.get(WorkerWarmupDemoterTask.class);
 
     private final WarmupDemoterService warmupDemoterService;
@@ -101,7 +99,7 @@ public class WorkerWarmupDemoterTask
         this.catalogName = catalogName;
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
 
-        this.globalStatsDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
+        this.globalStatsDemoter = metricsManager.registerMetric(WarmupDemoterStats.create());
         eventBus.register(this);
     }
 

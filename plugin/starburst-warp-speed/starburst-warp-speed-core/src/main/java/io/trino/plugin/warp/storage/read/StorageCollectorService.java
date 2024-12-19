@@ -18,7 +18,6 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
@@ -49,8 +48,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_NATIVE_KEY;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_MOD_TIME;
@@ -90,7 +87,7 @@ public class StorageCollectorService
         this.storageEngine = requireNonNull(storageEngine);
         this.collectTxService = requireNonNull(collectTxService);
         this.bufferAllocator = requireNonNull(bufferAllocator);
-        this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
+        this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create());
         this.rangeFillerService = requireNonNull(rangeFillerService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
@@ -379,8 +376,8 @@ public class StorageCollectorService
     public QueryArgs getQueryArgs(QueryParams queryParams, CustomStatsContext customStatsContext)
     {
         TxArgs txArgs = getTxArgs(queryParams);
-        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        NativeStats nativeStats = (NativeStats) customStatsContext.getStat(STATS_NATIVE_KEY);
+        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
+        NativeStats nativeStats = (NativeStats) customStatsContext.getStat(NativeStats.createKey());
 
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
         // number of chunks is number of records divided by the chunk size which is fixed. we round it up in case the last chunk is not full.

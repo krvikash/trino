@@ -129,7 +129,7 @@ public class WarpCachePageSourceFactory
     {
         CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, List.of());
         initializeCustomStats(customStatsContext);
-        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 
         if (queryStoreId.isEmpty()) {
             return Optional.empty();

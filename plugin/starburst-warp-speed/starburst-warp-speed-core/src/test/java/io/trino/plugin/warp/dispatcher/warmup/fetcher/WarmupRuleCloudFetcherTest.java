@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 
-import static io.trino.plugin.warp.dispatcher.warmup.fetcher.CacheMgrWarmupRuleCloudFetcher.WARM_FETCHER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -56,7 +55,7 @@ public class WarmupRuleCloudFetcherTest
         warmupRuleCloudFetcherConfig = new WarmupRuleCloudFetcherConfig();
         cloudVendorService = mock(CloudVendorService.class);
         warmupRuleService = mock(WarmupRuleService.class);
-        warmupRuleFetcherStats = new WarmupRuleFetcherStats(WARM_FETCHER_STAT_GROUP);
+        warmupRuleFetcherStats = new WarmupRuleFetcherStats();
         MetricsManager metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any())).thenReturn(warmupRuleFetcherStats);
 

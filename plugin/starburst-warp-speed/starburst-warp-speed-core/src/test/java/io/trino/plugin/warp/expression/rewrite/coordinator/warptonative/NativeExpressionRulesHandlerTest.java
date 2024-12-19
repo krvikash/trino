@@ -61,7 +61,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.expression.rewrite.ExpressionService.PUSHDOWN_PREDICATES_STAT_GROUP;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.ELEMENT_AT;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_RANGES;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_STRING_VALUES;
@@ -169,7 +168,7 @@ class NativeExpressionRulesHandlerTest
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(invalidWarpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.empty());
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getfailed_rewrite_to_native_expression()).isEqualTo(1);
     }
 
@@ -186,7 +185,7 @@ class NativeExpressionRulesHandlerTest
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.empty());
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
 
@@ -278,7 +277,7 @@ class NativeExpressionRulesHandlerTest
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
 
@@ -320,7 +319,7 @@ class NativeExpressionRulesHandlerTest
                         new WarpPrimitiveConstant(false, BOOLEAN)), BOOLEAN);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertPushdownStatsSum(1);
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
@@ -346,7 +345,7 @@ class NativeExpressionRulesHandlerTest
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, columnType.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
 
@@ -423,7 +422,7 @@ class NativeExpressionRulesHandlerTest
 
     private void assertPushdownStatsSum(int expectedCount)
     {
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getCounters().values().stream().mapToLong(LongAdder::longValue).sum()).isEqualTo(expectedCount);
     }
 }

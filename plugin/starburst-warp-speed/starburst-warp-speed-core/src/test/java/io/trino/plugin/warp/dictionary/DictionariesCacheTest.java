@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.Charset;
 import java.util.stream.IntStream;
 
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -60,7 +59,7 @@ class DictionariesCacheTest
                 dictionaryConfig,
                 metricsManager,
                 attachDictionaryService);
-        dictionaryStats = (DictionaryStats) metricsManager.get(DictionaryStats.createKey(DICTIONARY_STAT_GROUP));
+        dictionaryStats = (DictionaryStats) metricsManager.get(DictionaryStats.createKey());
     }
 
     @Test

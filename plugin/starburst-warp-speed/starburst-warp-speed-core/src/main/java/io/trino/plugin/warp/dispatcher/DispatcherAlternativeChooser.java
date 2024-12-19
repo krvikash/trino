@@ -108,7 +108,7 @@ public class DispatcherAlternativeChooser
         DispatcherTableHandle trivialAlternative = (DispatcherTableHandle) alternatives.get(trivialAlternativeIndex);
 
         CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, trivialAlternative.getCustomStats());
-        customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
+        customStatsContext.getOrRegister(new DispatcherPageSourceStats());
 
         Optional<RowGroupCloseHandler> closeHandler = Optional.empty();
         QueryContext queryContext = null;
@@ -143,7 +143,7 @@ public class DispatcherAlternativeChooser
                             queryContext = null;
                         }
                         else {
-                            DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+                            DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
                             dispatcherPageSourceStats.incnon_trivial_alternative_chosen();
                         }
                     }

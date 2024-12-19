@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.time.Instant;
 
-import static io.trino.plugin.warp.dispatcher.warmup.export.WarmupExportingService.WARMUP_EXPORTER_STAT_GROUP;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -56,7 +55,7 @@ public class WarmupElementsCloudExporterTest
         cloudVendorService = mock(CloudVendorService.class);
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
 
-        warmupExportServiceStats = new WarmupExportServiceStats(WARMUP_EXPORTER_STAT_GROUP);
+        warmupExportServiceStats = new WarmupExportServiceStats();
         MetricsManager metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any(WarmupExportServiceStats.class))).thenReturn(warmupExportServiceStats);
 

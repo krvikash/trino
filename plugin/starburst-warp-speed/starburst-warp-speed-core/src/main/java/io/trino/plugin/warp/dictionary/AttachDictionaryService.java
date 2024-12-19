@@ -33,7 +33,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -61,7 +60,7 @@ public class AttachDictionaryService
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.dictionaryConfig = requireNonNull(dictionaryConfig);
-        this.dictionaryStats = metricsManager.registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
+        this.dictionaryStats = metricsManager.registerMetric(DictionaryStats.create());
         this.dictionaryWriterFactory = requireNonNull(dictionaryWriterFactory);
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,

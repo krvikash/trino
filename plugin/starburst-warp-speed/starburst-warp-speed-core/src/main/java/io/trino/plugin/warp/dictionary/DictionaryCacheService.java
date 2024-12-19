@@ -38,7 +38,6 @@ import static java.util.Objects.requireNonNull;
 public class DictionaryCacheService
 {
     private final DictionaryStats dictionaryStats;
-    public static final String DICTIONARY_STAT_GROUP = "dictionary";
     public static final int MINIMUM_LEN_FOR_DICTIONARY = 4;
     public static final RecTypeCode DICTIONARY_REC_TYPE_CODE = RecTypeCode.REC_TYPE_SMALLINT;
     public static final int DICTIONARY_REC_TYPE_LENGTH = Short.BYTES;
@@ -57,7 +56,7 @@ public class DictionaryCacheService
         this.attachDictionaryService = requireNonNull(attachDictionaryService);
         this.dictionaryConfig = dictionaryConfig;
         this.dictionariesCache = new DictionariesCache(dictionaryConfig, metricsManager, attachDictionaryService);
-        this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
+        this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create());
     }
 
     public WriteDictionary computeWriteIfAbsent(DictionaryKey dictionaryKey, RecTypeCode recTypeCode)

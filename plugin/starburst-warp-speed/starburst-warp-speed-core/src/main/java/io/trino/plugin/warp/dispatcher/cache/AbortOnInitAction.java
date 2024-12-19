@@ -25,7 +25,6 @@ import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 
 import java.util.List;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -39,7 +38,7 @@ public class AbortOnInitAction
     public AbortOnInitAction(StorageWarmerService storageWarmerService, MetricsManager metricsManager)
     {
         this.storageWarmerService = requireNonNull(storageWarmerService);
-        this.warmingServiceStats = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.warmingServiceStats = metricsManager.registerMetric(WarmingServiceStats.create());
     }
 
     @Override

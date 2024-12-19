@@ -32,7 +32,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 
-import static io.trino.plugin.warp.expression.rewrite.ExpressionService.PUSHDOWN_PREDICATES_STAT_GROUP;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.CEIL;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.DAY;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.DAY_OF_MONTH;
@@ -70,7 +69,7 @@ public class NativeExpressionRulesHandler
     @Inject
     public NativeExpressionRulesHandler(StorageEngineConstants storageEngineConstants, MetricsManager metricsManager)
     {
-        this.pushdownPredicatesStats = metricsManager.registerMetric(PushdownPredicatesStats.create(PUSHDOWN_PREDICATES_STAT_GROUP));
+        this.pushdownPredicatesStats = metricsManager.registerMetric(PushdownPredicatesStats.create());
 
         VariableRewriter variableRewriter = new VariableRewriter(storageEngineConstants, pushdownPredicatesStats);
         InNativeRewriter inNativeRewriter = new InNativeRewriter(this, pushdownPredicatesStats);

@@ -58,7 +58,6 @@ public class BufferAllocator
         implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(BufferAllocator.class);
-    static final String BUFFER_ALLOCATOR_METRICS_GROUP = "BufferAllocator";
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
@@ -116,7 +115,7 @@ public class BufferAllocator
         this.queryStringNullValueSize = storageEngineConstants.getQueryStringNullValueSize();
 
         initBufferTypeSizes();
-        this.stats = BufferAllocatorStats.create(BUFFER_ALLOCATOR_METRICS_GROUP);
+        this.stats = BufferAllocatorStats.create();
     }
 
     @PreDestroy

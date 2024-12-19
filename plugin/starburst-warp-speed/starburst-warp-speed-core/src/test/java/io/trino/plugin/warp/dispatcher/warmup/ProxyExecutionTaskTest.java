@@ -63,7 +63,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -153,7 +152,7 @@ public class ProxyExecutionTaskTest
     @Test
     public void testWarmExecutionTask_warmDataIsEmpty()
     {
-        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
 
         when(workerWarmingService.getWarmData(eq(columnHandleList),
                 eq(rowGroupKey),
@@ -178,7 +177,7 @@ public class ProxyExecutionTaskTest
     @Test
     public void testFailedTypeShouldReleaseAllocation()
     {
-        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
         when(workerWarmingService.getWarmData(eq(columnHandleList),
                 eq(rowGroupKey),
                 eq(dispatcherSplit),
@@ -204,7 +203,7 @@ public class ProxyExecutionTaskTest
     @Test
     public void testWarmExecutionTask_SingleIteration_nothingToWarm()
     {
-        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
 
         WarmData warmData = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null);
         WarmData nothingToWarm = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.NOTHING_TO_WARM, false, queryContext, null);
@@ -225,7 +224,7 @@ public class ProxyExecutionTaskTest
     @Test
     public void testWarmExecutionTask_SingleIteration_emptyRowGroup()
     {
-        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
 
         WarmData emptyRowGroup = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.EMPTY_ROW_GROUP, false, queryContext, null);
         when(workerWarmingService.getWarmData(any(),
@@ -241,7 +240,7 @@ public class ProxyExecutionTaskTest
     @Test
     public void testWarmExecutionTask_max_warmup_iterations()
     {
-        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
         globalConfig.setMaxWarmupIterationsPerQuery(1);
         WarmData warmData = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null);
         when(workerWarmingService.getWarmData(any(),

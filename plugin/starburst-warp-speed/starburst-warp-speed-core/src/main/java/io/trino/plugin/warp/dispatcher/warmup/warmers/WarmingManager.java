@@ -44,7 +44,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isImportExportEnabled;
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer.WARMUP_IMPORTER_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -79,7 +78,7 @@ public class WarmingManager
         this.globalConfig = requireNonNull(globalConfig);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.warmupImportServiceStats = requireNonNull(metricsManager).registerMetric(new WarmupImportServiceStats(WARMUP_IMPORTER_STAT_GROUP));
+        this.warmupImportServiceStats = requireNonNull(metricsManager).registerMetric(new WarmupImportServiceStats());
 
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.weGroupWarmer = requireNonNull(weGroupWarmer);

@@ -21,7 +21,6 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -77,7 +76,7 @@ public class WorkerCapacityManager
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
-        statsWarmupDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP));
+        statsWarmupDemoter = metricsManager.registerMetric(WarmupDemoterStats.create());
     }
 
     @PreDestroy

@@ -118,7 +118,7 @@ public class WarmupRuleCloudFetcher
                 warmupRuleCloudFetcherConfig.getFetchDelayDuration().toMillis(),
                 warmupRuleCloudFetcherConfig.getFetchDuration().toMillis());
 
-        this.warmupRuleFetcherStats = requireNonNull(metricsManager).registerMetric(WarmupRuleFetcherStats.create(WARM_FETCHER_STAT_GROUP));
+        this.warmupRuleFetcherStats = requireNonNull(metricsManager).registerMetric(WarmupRuleFetcherStats.create());
     }
 
     @Override

@@ -39,7 +39,7 @@ public class TestStatsWrapper
     public void testSerializedStatObject()
             throws JsonProcessingException
     {
-        NativeStats dummyNotInNode = new NativeStats("group2");
+        NativeStats dummyNotInNode = new NativeStats();
         dummyNotInNode.addread_time_wait_nanos(9); //not persist
         dummyNotInNode.addread_cache_md_chunk_hits(9); //not persist
         JsonNode jsonNode = objectMapper.readerFor(List.class).readTree(objectMapper.writeValueAsString(dummyNotInNode));

@@ -42,8 +42,6 @@ import static java.util.Objects.requireNonNull;
 public class WarmupExportingService
         implements WarpInitializedServiceMarker
 {
-    public static final String WARMUP_EXPORTER_STAT_GROUP = "warmup_exporter";
-
     private final RowGroupDataService rowGroupDataService;
     private final WarmupElementsCloudExporter warmupElementsCloudExporter;
     private final GlobalConfig globalConfig;
@@ -71,7 +69,7 @@ public class WarmupExportingService
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         requireNonNull(eventBus).register(this);
-        this.statsWarmupExportService = requireNonNull(metricsManager).registerMetric(new WarmupExportServiceStats(WARMUP_EXPORTER_STAT_GROUP));
+        this.statsWarmupExportService = requireNonNull(metricsManager).registerMetric(new WarmupExportServiceStats());
         if (isImportExportEnabled(globalConfig, cloudVendorConfig, null)) {
             warpInitializedServiceRegistry.addService(this);
             validateS3ImportExportPath();

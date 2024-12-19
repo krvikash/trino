@@ -44,7 +44,6 @@ public class CacheMgrWarmupRuleCloudFetcher
         implements WarmupRuleFetcher<CacheManagerRule>
 {
     private static final Logger logger = Logger.get(CacheMgrWarmupRuleCloudFetcher.class);
-    public static final String WARM_FETCHER_STAT_GROUP = "CacheMgrWarmupRuleCloudFetcher";
 
     private static final ShapingLogger shapingLogger = ShapingLogger.getInstance(
             logger,
@@ -109,7 +108,7 @@ public class CacheMgrWarmupRuleCloudFetcher
                 warmupRuleCloudFetcherConfig.getFetchDuration().toMillis());
 
         this.warmupRuleFetcherStats = requireNonNull(metricsManager)
-                .registerMetric(WarmupRuleFetcherStats.create(WARM_FETCHER_STAT_GROUP));
+                .registerMetric(WarmupRuleFetcherStats.create());
     }
 
     @Override

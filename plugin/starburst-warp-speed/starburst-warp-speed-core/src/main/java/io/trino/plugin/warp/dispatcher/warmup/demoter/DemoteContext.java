@@ -23,8 +23,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
-
 public class DemoteContext
 {
     private final WarmupDemoterStats statsWarmupDemoter;
@@ -53,7 +51,7 @@ public class DemoteContext
         this.maxElementsToDemote = maxElementsToDemote;
         this.epsilon = epsilon;
         this.deleteEmptyRowGroups = deleteEmptyRowGroups;
-        statsWarmupDemoter = WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP);
+        statsWarmupDemoter = WarmupDemoterStats.create();
         failedRowGropDataSet = new HashSet<>();
     }
 

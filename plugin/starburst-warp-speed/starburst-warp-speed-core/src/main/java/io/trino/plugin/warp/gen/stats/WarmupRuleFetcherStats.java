@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,24 +31,13 @@ public final class WarmupRuleFetcherStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from warmupRuleFetcher xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder success = new LongAdder();
     private final LongAdder fail = new LongAdder();
 
     @JsonCreator
-    public WarmupRuleFetcherStats(@JsonProperty("group") String group)
+    public WarmupRuleFetcherStats()
     {
-        super(createKey(group), WarpStatType.Coordinator);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Coordinator);
     }
 
     @JsonIgnore
@@ -99,14 +86,14 @@ public final class WarmupRuleFetcherStats
         addfail(val);
     }
 
-    public static WarmupRuleFetcherStats create(String group)
+    public static WarmupRuleFetcherStats create()
     {
-        return new WarmupRuleFetcherStats(group);
+        return new WarmupRuleFetcherStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "WarmupRuleCloudFetcher";
     }
 
     @Override
@@ -141,8 +128,8 @@ public final class WarmupRuleFetcherStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":success", success.longValue());
-        res.put(getJmxKey() + ":fail", fail.longValue());
+        res.put("WarmupRuleCloudFetcher:success", success.longValue());
+        res.put("WarmupRuleCloudFetcher:fail", fail.longValue());
         return res;
     }
 

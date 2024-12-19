@@ -39,7 +39,6 @@ import io.trino.spi.connector.DynamicFilter;
 
 import java.util.List;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -77,7 +76,7 @@ public class WarmExecutionTaskFactory
         this.warmingManager = requireNonNull(warmingManager);
         this.queryClassifier = requireNonNull(queryClassifier);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
         this.globalConfig = requireNonNull(globalConfig);
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);

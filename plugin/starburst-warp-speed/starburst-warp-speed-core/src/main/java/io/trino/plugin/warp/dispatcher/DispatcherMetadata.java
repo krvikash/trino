@@ -19,6 +19,7 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.spi.RefreshType;
 import io.trino.spi.connector.AggregateFunction;
@@ -104,7 +105,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_DISPATCHER_KEY;
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.createFixedStatKey;
 import static java.util.Objects.requireNonNull;
 
@@ -959,7 +959,7 @@ public class DispatcherMetadata
     {
         Map<String, Long> allStatsMap = table.getCustomStats().stream()
                 .collect(Collectors.toMap(CustomStat::statName, CustomStat::statValue, (a, b) -> a, HashMap::new));
-        customStatsMap.forEach((key, value) -> allStatsMap.merge(createFixedStatKey(STATS_DISPATCHER_KEY, key), value, Long::sum));
+        customStatsMap.forEach((key, value) -> allStatsMap.merge(createFixedStatKey(DispatcherPageSourceStats.createKey(), key), value, Long::sum));
 
         List<CustomStat> customStats = allStatsMap.entrySet().stream()
                 .map(entry -> new CustomStat(entry.getKey(), entry.getValue()))

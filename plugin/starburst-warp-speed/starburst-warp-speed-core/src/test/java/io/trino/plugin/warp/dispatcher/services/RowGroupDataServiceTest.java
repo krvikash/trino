@@ -45,7 +45,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static io.trino.plugin.warp.util.NodeUtils.mockNodeManager;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -96,7 +95,7 @@ public class RowGroupDataServiceTest
         assertThat(savedRowGroupData.getPartitionKeys()).isEqualTo(partitionKeys);
         assertThat(savedRowGroupData.getWarmUpElements()).isEmpty();
 
-        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey());
         assertThat(warmingServiceStats.getrow_group_count()).isEqualTo(1);
     }
 
@@ -121,7 +120,7 @@ public class RowGroupDataServiceTest
         assertThat(savedRowGroupData.getWarmUpElements()).contains(existingValidWarmupElement);
         assertThat(savedRowGroupData.getWarmUpElements()).contains(updatedWarmupElement);
 
-        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey());
         assertThat(warmingServiceStats.getwarm_success_retry_warmup_element()).isEqualTo(1);
         assertThat(warmingServiceStats.getrow_group_count()).isZero();
         assertThat(warmingServiceStats.getwarmup_elements_count()).isEqualTo(1);
@@ -232,7 +231,7 @@ public class RowGroupDataServiceTest
         assertThat(outWarmUpElements.get(1).getWarmState()).isEqualTo(WarmState.WARM);
         assertThat(outWarmUpElements.get(3).getWarmState()).isEqualTo(WarmState.WARM);
 
-        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey());
         assertThat(warmingServiceStats.getdeleted_warmup_elements_count()).isEqualTo(2);
     }
 
@@ -269,7 +268,7 @@ public class RowGroupDataServiceTest
         assertThat(outWarmUpElements.stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count())
                 .isEqualTo(outWarmUpElements.size());
 
-        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey());
         assertThat(warmingServiceStats.getdeleted_warmup_elements_count()).isEqualTo(outWarmUpElements.size());
     }
 

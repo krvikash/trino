@@ -58,8 +58,6 @@ public class WeGroupWarmer
     private static final Logger logger = Logger.get(WeGroupWarmer.class);
     private final ShapingLogger shapingLogger;
 
-    public static final String WARMUP_IMPORTER_STAT_GROUP = "import_service";
-
     private final GlobalConfig globalConfig;
     private final CloudVendorConfig cloudVendorConfig;
     private final StorageEngineConstants storageEngineConstants;
@@ -86,7 +84,7 @@ public class WeGroupWarmer
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
 
-        warmupImportServiceStats = metricsManager.registerMetric(new WarmupImportServiceStats(WARMUP_IMPORTER_STAT_GROUP));
+        warmupImportServiceStats = metricsManager.registerMetric(new WarmupImportServiceStats());
         shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),

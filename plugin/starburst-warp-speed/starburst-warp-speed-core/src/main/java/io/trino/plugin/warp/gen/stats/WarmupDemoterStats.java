@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class WarmupDemoterStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from warmupDemoter xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder number_of_runs = new LongAdder();
     private final LongAdder number_of_runs_fail = new LongAdder();
     private final LongAdder number_of_calls = new LongAdder();
@@ -56,18 +52,9 @@ public final class WarmupDemoterStats
     private final LongAdder execution_time_nano = new LongAdder();
 
     @JsonCreator
-    public WarmupDemoterStats(@JsonProperty("group") String group)
+    public WarmupDemoterStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -473,14 +460,14 @@ public final class WarmupDemoterStats
         execution_time_nano_Count.add(1);
     }
 
-    public static WarmupDemoterStats create(String group)
+    public static WarmupDemoterStats create()
     {
-        return new WarmupDemoterStats(group);
+        return new WarmupDemoterStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "warmupDemoter";
     }
 
     @Override
@@ -562,25 +549,25 @@ public final class WarmupDemoterStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":number_of_runs", number_of_runs.longValue());
-        res.put(getJmxKey() + ":number_of_runs_fail", number_of_runs_fail.longValue());
-        res.put(getJmxKey() + ":number_of_calls", number_of_calls.longValue());
-        res.put(getJmxKey() + ":not_executed_due_threshold", not_executed_due_threshold.longValue());
-        res.put(getJmxKey() + ":not_executed_due_is_already_executing", not_executed_due_is_already_executing.longValue());
-        res.put(getJmxKey() + ":not_executed_due_sync_demote_start_rejected", not_executed_due_sync_demote_start_rejected.longValue());
-        res.put(getJmxKey() + ":dead_objects_deleted", dead_objects_deleted.longValue());
-        res.put(getJmxKey() + ":failed_objects_deleted", failed_objects_deleted.longValue());
-        res.put(getJmxKey() + ":deleted_by_low_priority", deleted_by_low_priority.longValue());
-        res.put(getJmxKey() + ":number_of_cycles", number_of_cycles.longValue());
-        res.put(getJmxKey() + ":number_fail_acquire", number_fail_acquire.longValue());
-        res.put(getJmxKey() + ":currentUsage", currentUsage.longValue());
-        res.put(getJmxKey() + ":totalUsage", totalUsage.longValue());
-        res.put(getJmxKey() + ":reserved_tx", reserved_tx.longValue());
-        res.put(getJmxKey() + ":failed_row_group_data", failed_row_group_data.longValue());
-        res.put(getJmxKey() + ":waiting_for_lock_nano", waiting_for_lock_nano.longValue());
-        res.put(getJmxKey() + ":waiting_for_lock_nano_Count", waiting_for_lock_nano_Count.longValue());
-        res.put(getJmxKey() + ":execution_time_nano", execution_time_nano.longValue());
-        res.put(getJmxKey() + ":execution_time_nano_Count", execution_time_nano_Count.longValue());
+        res.put("warmupDemoter:number_of_runs", number_of_runs.longValue());
+        res.put("warmupDemoter:number_of_runs_fail", number_of_runs_fail.longValue());
+        res.put("warmupDemoter:number_of_calls", number_of_calls.longValue());
+        res.put("warmupDemoter:not_executed_due_threshold", not_executed_due_threshold.longValue());
+        res.put("warmupDemoter:not_executed_due_is_already_executing", not_executed_due_is_already_executing.longValue());
+        res.put("warmupDemoter:not_executed_due_sync_demote_start_rejected", not_executed_due_sync_demote_start_rejected.longValue());
+        res.put("warmupDemoter:dead_objects_deleted", dead_objects_deleted.longValue());
+        res.put("warmupDemoter:failed_objects_deleted", failed_objects_deleted.longValue());
+        res.put("warmupDemoter:deleted_by_low_priority", deleted_by_low_priority.longValue());
+        res.put("warmupDemoter:number_of_cycles", number_of_cycles.longValue());
+        res.put("warmupDemoter:number_fail_acquire", number_fail_acquire.longValue());
+        res.put("warmupDemoter:currentUsage", currentUsage.longValue());
+        res.put("warmupDemoter:totalUsage", totalUsage.longValue());
+        res.put("warmupDemoter:reserved_tx", reserved_tx.longValue());
+        res.put("warmupDemoter:failed_row_group_data", failed_row_group_data.longValue());
+        res.put("warmupDemoter:waiting_for_lock_nano", waiting_for_lock_nano.longValue());
+        res.put("warmupDemoter:waiting_for_lock_nano_Count", waiting_for_lock_nano_Count.longValue());
+        res.put("warmupDemoter:execution_time_nano", execution_time_nano.longValue());
+        res.put("warmupDemoter:execution_time_nano_Count", execution_time_nano_Count.longValue());
         return res;
     }
 

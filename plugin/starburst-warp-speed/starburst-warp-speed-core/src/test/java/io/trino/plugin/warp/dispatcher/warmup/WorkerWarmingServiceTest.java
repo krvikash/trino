@@ -83,7 +83,6 @@ import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createWarmupRul
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.generateRowGroupData;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockConnectorSplit;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_BASIC;
 import static io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_DATA;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -119,7 +118,7 @@ public class WorkerWarmingServiceTest
     public void before()
     {
         metricsManager = mock(MetricsManager.class);
-        warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
+        warmingServiceStats = WarmingServiceStats.create();
         when(metricsManager.registerMetric(any())).thenReturn(warmingServiceStats);
         when(metricsManager.get(any())).thenReturn(warmingServiceStats);
         workerTaskExecutorService = mock(WorkerTaskExecutorService.class);

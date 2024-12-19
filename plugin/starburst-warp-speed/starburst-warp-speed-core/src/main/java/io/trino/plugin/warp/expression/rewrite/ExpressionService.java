@@ -79,7 +79,6 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class ExpressionService
 {
-    public static final String PUSHDOWN_PREDICATES_STAT_GROUP = "pushdown_predicates";
     private static final int MAX_TREE_LEVEL = 4;
 
     private static final Logger logger = Logger.get(ExpressionService.class);
@@ -104,7 +103,7 @@ public class ExpressionService
         this.nativeConfig = requireNonNull(nativeConfig);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.supportedFunctions = requireNonNull(supportedFunctions);
-        this.pushdownPredicatesStats = metricsManager.registerMetric(PushdownPredicatesStats.create(PUSHDOWN_PREDICATES_STAT_GROUP));
+        this.pushdownPredicatesStats = metricsManager.registerMetric(PushdownPredicatesStats.create());
         this.nativeExpressionRulesHandler = requireNonNull(nativeExpressionRulesHandler);
     }
 

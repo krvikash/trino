@@ -88,7 +88,6 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class WorkerWarmingService
 {
-    public static final String WARMING_SERVICE_STAT_GROUP = "warming_service";
     private static final int MAX_BATCH_SIZE = 1024;
 
     public static final Comparator<WarmupRule> warmupRuleComparator =
@@ -161,7 +160,7 @@ public class WorkerWarmingService
     {
         this.warmExecutionTaskFactory = warmExecutionTaskFactory;
         this.dispatcherProxiedConnectorTransformer = dispatcherProxiedConnectorTransformer;
-        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.workerCapacityManager = requireNonNull(workerCapacityManager);

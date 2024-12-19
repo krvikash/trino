@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class DispatcherPageSourceStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from dispatcherPageSource xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder cached_files = new LongAdder();
     private final LongAdder df_splits = new LongAdder();
     private final LongAdder cached_warp_success_files = new LongAdder();
@@ -77,18 +73,9 @@ public final class DispatcherPageSourceStats
     private final LongAdder execution_time = new LongAdder();
 
     @JsonCreator
-    public DispatcherPageSourceStats(@JsonProperty("group") String group)
+    public DispatcherPageSourceStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -977,14 +964,14 @@ public final class DispatcherPageSourceStats
         execution_time_Count.add(1);
     }
 
-    public static DispatcherPageSourceStats create(String group)
+    public static DispatcherPageSourceStats create()
     {
-        return new DispatcherPageSourceStats(group);
+        return new DispatcherPageSourceStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "dispatcherPageSource";
     }
 
     @Override
@@ -1129,45 +1116,45 @@ public final class DispatcherPageSourceStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":cached_files", cached_files.longValue());
-        res.put(getJmxKey() + ":df_splits", df_splits.longValue());
-        res.put(getJmxKey() + ":cached_warp_success_files", cached_warp_success_files.longValue());
-        res.put(getJmxKey() + ":cached_warp_failed_files", cached_warp_failed_files.longValue());
-        res.put(getJmxKey() + ":cached_warp_failed_pages", cached_warp_failed_pages.longValue());
-        res.put(getJmxKey() + ":cached_proxied_files", cached_proxied_files.longValue());
-        res.put(getJmxKey() + ":cached_total_rows", cached_total_rows.longValue());
-        res.put(getJmxKey() + ":cached_read_rows", cached_read_rows.longValue());
-        res.put(getJmxKey() + ":warp_match_columns", warp_match_columns.longValue());
-        res.put(getJmxKey() + ":warp_match_on_simplified_domain", warp_match_on_simplified_domain.longValue());
-        res.put(getJmxKey() + ":warp_collect_columns", warp_collect_columns.longValue());
-        res.put(getJmxKey() + ":warp_match_collect_columns", warp_match_collect_columns.longValue());
-        res.put(getJmxKey() + ":warp_mapped_match_collect_columns", warp_mapped_match_collect_columns.longValue());
-        res.put(getJmxKey() + ":warp_prefilled_collect_columns", warp_prefilled_collect_columns.longValue());
-        res.put(getJmxKey() + ":empty_collect_columns", empty_collect_columns.longValue());
-        res.put(getJmxKey() + ":external_match_columns", external_match_columns.longValue());
-        res.put(getJmxKey() + ":external_collect_columns", external_collect_columns.longValue());
-        res.put(getJmxKey() + ":filtered_by_predicate", filtered_by_predicate.longValue());
-        res.put(getJmxKey() + ":non_trivial_alternative_chosen", non_trivial_alternative_chosen.longValue());
-        res.put(getJmxKey() + ":empty_row_group", empty_row_group.longValue());
-        res.put(getJmxKey() + ":transformed_column", transformed_column.longValue());
-        res.put(getJmxKey() + ":empty_page_source", empty_page_source.longValue());
-        res.put(getJmxKey() + ":warp_cache_manager", warp_cache_manager.longValue());
-        res.put(getJmxKey() + ":skip_warp_cache_manager", skip_warp_cache_manager.longValue());
-        res.put(getJmxKey() + ":proxied_pages", proxied_pages.longValue());
-        res.put(getJmxKey() + ":proxied_time", proxied_time.longValue());
-        res.put(getJmxKey() + ":proxied_loaded_pages", proxied_loaded_pages.longValue());
-        res.put(getJmxKey() + ":proxied_loaded_pages_time", proxied_loaded_pages_time.longValue());
-        res.put(getJmxKey() + ":proxied_loaded_pages_bytes", proxied_loaded_pages_bytes.longValue());
-        res.put(getJmxKey() + ":lazy_collect_total_blocks", lazy_collect_total_blocks.longValue());
-        res.put(getJmxKey() + ":lazy_collect_loaded_blocks", lazy_collect_loaded_blocks.longValue());
-        res.put(getJmxKey() + ":wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks.longValue());
-        res.put(getJmxKey() + ":wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks.longValue());
-        res.put(getJmxKey() + ":native_read_time", native_read_time.longValue());
-        res.put(getJmxKey() + ":block_fillers_time", block_fillers_time.longValue());
-        res.put(getJmxKey() + ":lucene_execution_time", lucene_execution_time.longValue());
-        res.put(getJmxKey() + ":lucene_execution_time_Count", lucene_execution_time_Count.longValue());
-        res.put(getJmxKey() + ":execution_time", execution_time.longValue());
-        res.put(getJmxKey() + ":execution_time_Count", execution_time_Count.longValue());
+        res.put("dispatcherPageSource:cached_files", cached_files.longValue());
+        res.put("dispatcherPageSource:df_splits", df_splits.longValue());
+        res.put("dispatcherPageSource:cached_warp_success_files", cached_warp_success_files.longValue());
+        res.put("dispatcherPageSource:cached_warp_failed_files", cached_warp_failed_files.longValue());
+        res.put("dispatcherPageSource:cached_warp_failed_pages", cached_warp_failed_pages.longValue());
+        res.put("dispatcherPageSource:cached_proxied_files", cached_proxied_files.longValue());
+        res.put("dispatcherPageSource:cached_total_rows", cached_total_rows.longValue());
+        res.put("dispatcherPageSource:cached_read_rows", cached_read_rows.longValue());
+        res.put("dispatcherPageSource:warp_match_columns", warp_match_columns.longValue());
+        res.put("dispatcherPageSource:warp_match_on_simplified_domain", warp_match_on_simplified_domain.longValue());
+        res.put("dispatcherPageSource:warp_collect_columns", warp_collect_columns.longValue());
+        res.put("dispatcherPageSource:warp_match_collect_columns", warp_match_collect_columns.longValue());
+        res.put("dispatcherPageSource:warp_mapped_match_collect_columns", warp_mapped_match_collect_columns.longValue());
+        res.put("dispatcherPageSource:warp_prefilled_collect_columns", warp_prefilled_collect_columns.longValue());
+        res.put("dispatcherPageSource:empty_collect_columns", empty_collect_columns.longValue());
+        res.put("dispatcherPageSource:external_match_columns", external_match_columns.longValue());
+        res.put("dispatcherPageSource:external_collect_columns", external_collect_columns.longValue());
+        res.put("dispatcherPageSource:filtered_by_predicate", filtered_by_predicate.longValue());
+        res.put("dispatcherPageSource:non_trivial_alternative_chosen", non_trivial_alternative_chosen.longValue());
+        res.put("dispatcherPageSource:empty_row_group", empty_row_group.longValue());
+        res.put("dispatcherPageSource:transformed_column", transformed_column.longValue());
+        res.put("dispatcherPageSource:empty_page_source", empty_page_source.longValue());
+        res.put("dispatcherPageSource:warp_cache_manager", warp_cache_manager.longValue());
+        res.put("dispatcherPageSource:skip_warp_cache_manager", skip_warp_cache_manager.longValue());
+        res.put("dispatcherPageSource:proxied_pages", proxied_pages.longValue());
+        res.put("dispatcherPageSource:proxied_time", proxied_time.longValue());
+        res.put("dispatcherPageSource:proxied_loaded_pages", proxied_loaded_pages.longValue());
+        res.put("dispatcherPageSource:proxied_loaded_pages_time", proxied_loaded_pages_time.longValue());
+        res.put("dispatcherPageSource:proxied_loaded_pages_bytes", proxied_loaded_pages_bytes.longValue());
+        res.put("dispatcherPageSource:lazy_collect_total_blocks", lazy_collect_total_blocks.longValue());
+        res.put("dispatcherPageSource:lazy_collect_loaded_blocks", lazy_collect_loaded_blocks.longValue());
+        res.put("dispatcherPageSource:wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks.longValue());
+        res.put("dispatcherPageSource:wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks.longValue());
+        res.put("dispatcherPageSource:native_read_time", native_read_time.longValue());
+        res.put("dispatcherPageSource:block_fillers_time", block_fillers_time.longValue());
+        res.put("dispatcherPageSource:lucene_execution_time", lucene_execution_time.longValue());
+        res.put("dispatcherPageSource:lucene_execution_time_Count", lucene_execution_time_Count.longValue());
+        res.put("dispatcherPageSource:execution_time", execution_time.longValue());
+        res.put("dispatcherPageSource:execution_time_Count", execution_time_Count.longValue());
         return res;
     }
 

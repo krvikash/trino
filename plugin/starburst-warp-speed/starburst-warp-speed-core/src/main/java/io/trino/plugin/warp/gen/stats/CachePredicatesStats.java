@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class CachePredicatesStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from cachePredicates xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder in_use_tiny = new LongAdder();
     private final LongAdder in_use_small = new LongAdder();
     private final LongAdder in_use_medium = new LongAdder();
@@ -63,18 +59,9 @@ public final class CachePredicatesStats
     private final LongAdder size9_plus = new LongAdder();
 
     @JsonCreator
-    public CachePredicatesStats(@JsonProperty("group") String group)
+    public CachePredicatesStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -675,14 +662,14 @@ public final class CachePredicatesStats
         addsize9_plus(val);
     }
 
-    public static CachePredicatesStats create(String group)
+    public static CachePredicatesStats create()
     {
-        return new CachePredicatesStats(group);
+        return new CachePredicatesStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "cachePredicates";
     }
 
     @Override
@@ -789,32 +776,32 @@ public final class CachePredicatesStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":in_use_tiny", in_use_tiny.longValue());
-        res.put(getJmxKey() + ":in_use_small", in_use_small.longValue());
-        res.put(getJmxKey() + ":in_use_medium", in_use_medium.longValue());
-        res.put(getJmxKey() + ":in_use_large", in_use_large.longValue());
-        res.put(getJmxKey() + ":hit_tiny", hit_tiny.longValue());
-        res.put(getJmxKey() + ":hit_small", hit_small.longValue());
-        res.put(getJmxKey() + ":hit_medium", hit_medium.longValue());
-        res.put(getJmxKey() + ":hit_large", hit_large.longValue());
-        res.put(getJmxKey() + ":miss_tiny", miss_tiny.longValue());
-        res.put(getJmxKey() + ":miss_small", miss_small.longValue());
-        res.put(getJmxKey() + ":miss_medium", miss_medium.longValue());
-        res.put(getJmxKey() + ":miss_large", miss_large.longValue());
-        res.put(getJmxKey() + ":max_tiny", max_tiny.longValue());
-        res.put(getJmxKey() + ":max_small", max_small.longValue());
-        res.put(getJmxKey() + ":max_medium", max_medium.longValue());
-        res.put(getJmxKey() + ":max_large", max_large.longValue());
-        res.put(getJmxKey() + ":size1_minus", size1_minus.longValue());
-        res.put(getJmxKey() + ":size1_size2", size1_size2.longValue());
-        res.put(getJmxKey() + ":size2_size3", size2_size3.longValue());
-        res.put(getJmxKey() + ":size3_size4", size3_size4.longValue());
-        res.put(getJmxKey() + ":size4_size5", size4_size5.longValue());
-        res.put(getJmxKey() + ":size5_size6", size5_size6.longValue());
-        res.put(getJmxKey() + ":size6_size7", size6_size7.longValue());
-        res.put(getJmxKey() + ":size7_size8", size7_size8.longValue());
-        res.put(getJmxKey() + ":size8_size9", size8_size9.longValue());
-        res.put(getJmxKey() + ":size9_plus", size9_plus.longValue());
+        res.put("cachePredicates:in_use_tiny", in_use_tiny.longValue());
+        res.put("cachePredicates:in_use_small", in_use_small.longValue());
+        res.put("cachePredicates:in_use_medium", in_use_medium.longValue());
+        res.put("cachePredicates:in_use_large", in_use_large.longValue());
+        res.put("cachePredicates:hit_tiny", hit_tiny.longValue());
+        res.put("cachePredicates:hit_small", hit_small.longValue());
+        res.put("cachePredicates:hit_medium", hit_medium.longValue());
+        res.put("cachePredicates:hit_large", hit_large.longValue());
+        res.put("cachePredicates:miss_tiny", miss_tiny.longValue());
+        res.put("cachePredicates:miss_small", miss_small.longValue());
+        res.put("cachePredicates:miss_medium", miss_medium.longValue());
+        res.put("cachePredicates:miss_large", miss_large.longValue());
+        res.put("cachePredicates:max_tiny", max_tiny.longValue());
+        res.put("cachePredicates:max_small", max_small.longValue());
+        res.put("cachePredicates:max_medium", max_medium.longValue());
+        res.put("cachePredicates:max_large", max_large.longValue());
+        res.put("cachePredicates:size1_minus", size1_minus.longValue());
+        res.put("cachePredicates:size1_size2", size1_size2.longValue());
+        res.put("cachePredicates:size2_size3", size2_size3.longValue());
+        res.put("cachePredicates:size3_size4", size3_size4.longValue());
+        res.put("cachePredicates:size4_size5", size4_size5.longValue());
+        res.put("cachePredicates:size5_size6", size5_size6.longValue());
+        res.put("cachePredicates:size6_size7", size6_size7.longValue());
+        res.put("cachePredicates:size7_size8", size7_size8.longValue());
+        res.put("cachePredicates:size8_size9", size8_size9.longValue());
+        res.put("cachePredicates:size9_plus", size9_plus.longValue());
         return res;
     }
 

@@ -38,7 +38,6 @@ import org.mockito.ArgumentCaptor;
 import java.util.List;
 
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createRegularWarmupElements;
-import static io.trino.plugin.warp.dispatcher.warmup.export.WarmupExportingService.WARMUP_EXPORTER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -90,7 +89,7 @@ public class WeGroupCloudExporterTaskTest
         cloudVendorConfig.setStoreType("s3");
         cloudVendorConfig.setStorePath("s3://bucket/");
 
-        warmupExportServiceStats = new WarmupExportServiceStats(WARMUP_EXPORTER_STAT_GROUP);
+        warmupExportServiceStats = new WarmupExportServiceStats();
 
         CloudVendorService cloudVendorService = mock(CloudVendorService.class);
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();

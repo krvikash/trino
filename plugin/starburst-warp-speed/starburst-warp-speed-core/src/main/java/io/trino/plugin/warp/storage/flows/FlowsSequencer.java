@@ -16,15 +16,12 @@ package io.trino.plugin.warp.storage.flows;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.gen.stats.FlowSequencerStats;
-import io.trino.plugin.warp.metrics.MetricsManager;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
-import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class FlowsSequencer
@@ -32,27 +29,15 @@ public class FlowsSequencer
     public static final String STATS_GROUP_NAME = "flowsequencer";
 
     private final FlowPriorityQueue flowPriorityQueue;
-    private final MetricsManager metricsManager;
 
     @Inject
-    public FlowsSequencer(MetricsManager metricsManager)
+    public FlowsSequencer()
     {
-        this.metricsManager = requireNonNull(metricsManager);
         flowPriorityQueue = new FlowPriorityQueue();
-        initMetrics();
-    }
-
-    private void initMetrics()
-    {
-        for (FlowType flowType : FlowType.values()) {
-            metricsManager.registerMetric(new FlowSequencerStats(STATS_GROUP_NAME, flowType.name()));
-        }
     }
 
     public CompletableFuture<Boolean> tryRunningFlow(FlowType flowType, long flowId, Optional<String> additionalInfo)
     {
-        FlowSequencerStats stats = (FlowSequencerStats) metricsManager.get(FlowSequencerStats.createKey(STATS_GROUP_NAME, flowType.name()));
-        stats.incflow_started();
         return flowPriorityQueue.addFlow(flowType, flowId, additionalInfo);
     }
 
@@ -60,8 +45,6 @@ public class FlowsSequencer
     {
         if (flowId != INVALID_FLOW_ID) {
             flowPriorityQueue.removeFlow(flowType, flowId, force);
-            FlowSequencerStats stats = (FlowSequencerStats) metricsManager.get(FlowSequencerStats.createKey(STATS_GROUP_NAME, flowType.name()));
-            stats.incflow_finished();
             return true;
         }
         return false;

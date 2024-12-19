@@ -50,7 +50,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer.WARMUP_IMPORTER_STAT_GROUP;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -114,7 +113,7 @@ public class WeGroupWarmerTest
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
 
         MetricsManager metricsManager = mock(MetricsManager.class);
-        warmupImportServiceStats = WarmupImportServiceStats.create(WARMUP_IMPORTER_STAT_GROUP);
+        warmupImportServiceStats = WarmupImportServiceStats.create();
         when(metricsManager.registerMetric(any())).thenReturn(warmupImportServiceStats);
 
         weGroupWarmer = new WeGroupWarmer(globalConfig,

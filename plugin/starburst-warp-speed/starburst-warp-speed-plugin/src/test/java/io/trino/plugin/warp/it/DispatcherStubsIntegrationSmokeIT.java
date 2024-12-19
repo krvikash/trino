@@ -26,13 +26,13 @@ import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
 import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
-import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask;
 import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTask;
 import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryTask;
 import io.trino.plugin.warp.extension.execution.warmup.WarmupTask;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
@@ -65,7 +65,6 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.lang.String.format;
 import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
@@ -346,7 +345,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         }
         Map<String, Long> customMetrics = getCustomMetrics(resultWithQueryId.queryId(), (DistributedQueryRunner) getQueryRunner());
         for (Map.Entry<String, Long> expectedStat : expectedJmxCounters.entrySet()) {
-            String key = DispatcherPageSourceFactory.createFixedStatKey(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY, expectedStat.getKey());
+            String key = DispatcherPageSourceFactory.createFixedStatKey(DispatcherPageSourceStats.createKey(), expectedStat.getKey());
             Long actualResult = customMetrics.getOrDefault(key, 0L);
             Long expectedResult = expectedStat.getValue();
             assertThat(actualResult)
@@ -355,7 +354,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         }
         for (String stat : expectedPositiveQueryStats) {
             // STATS_DISPATCHER_KEY is default
-            String key = stat.contains(":") ? stat : DispatcherPageSourceFactory.createFixedStatKey(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY, stat);
+            String key = stat.contains(":") ? stat : DispatcherPageSourceFactory.createFixedStatKey(DispatcherPageSourceStats.createKey(), stat);
             Long actualResult = customMetrics.get(key);
             assertThat(actualResult)
                     .as("stat: %s, actualResult: %d, expectedResult: >0. query: %s", key, actualResult, query)
@@ -438,7 +437,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         String warmStatsTableName = "%s:catalog=%s,name=%s_%s_*,type=%s".formatted(
                 WarmingServiceStats.class.getPackageName(),
                 catalog,
-                WARMING_SERVICE_STAT_GROUP,
+                WarmingServiceStats.createKey(),
                 catalog,
                 WarmingServiceStats.class.getSimpleName().toLowerCase(Locale.ROOT));
         Session jmxSession = createJmxSession();
@@ -453,7 +452,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     rows.getMaterializedRows().size(),
                     rows.getMaterializedRows()
                             .stream()
-                            .filter(materializedRowTmp -> ((String) materializedRowTmp.getField(0)).contains(WorkerWarmingService.WARMING_SERVICE_STAT_GROUP))
+                            .filter(materializedRowTmp -> ((String) materializedRowTmp.getField(0)).contains(WarmingServiceStats.createKey()))
                             .collect(Collectors.toList()));
             fail("materializedRow is null", e);
         }
@@ -626,7 +625,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         String warmStatsTableName = "%s:catalog=%s,name=%s_%s_*,type=%s".formatted(
                 WarmingServiceStats.class.getPackageName(),
                 catalog,
-                WARMING_SERVICE_STAT_GROUP,
+                WarmingServiceStats.createKey(),
                 catalog,
                 WarmingServiceStats.class.getSimpleName().toLowerCase(Locale.ROOT));
 
@@ -654,7 +653,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     rows.getMaterializedRows().size(),
                     rows.getMaterializedRows()
                             .stream()
-                            .filter(materializedRowTmp -> ((String) materializedRowTmp.getField(0)).contains(WorkerWarmingService.WARMING_SERVICE_STAT_GROUP))
+                            .filter(materializedRowTmp -> ((String) materializedRowTmp.getField(0)).contains(WarmingServiceStats.createKey()))
                             .collect(Collectors.toList()));
             throw new RuntimeException("failed");
         }

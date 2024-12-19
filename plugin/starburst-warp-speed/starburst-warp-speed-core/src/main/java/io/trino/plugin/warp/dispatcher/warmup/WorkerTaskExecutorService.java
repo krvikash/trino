@@ -64,7 +64,6 @@ import static java.util.Objects.requireNonNull;
 public class WorkerTaskExecutorService
         implements WarpInitializedServiceMarker
 {
-    public static final String WORKER_TASK_EXECUTOR_STAT_GROUP = "worker_task_executor";
     private static final Logger logger = Logger.get(WorkerTaskExecutorService.class);
     private final ShapingLogger shapingLogger;
 
@@ -105,7 +104,7 @@ public class WorkerTaskExecutorService
                 globalConfig.getShapingLoggerNumberOfSamples());
         this.nativeConfig = requireNonNull(nativeConfig);
         this.connectorSync = requireNonNull(connectorSync);
-        this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new WorkerTaskExecutorServiceStats(WORKER_TASK_EXECUTOR_STAT_GROUP));
+        this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new WorkerTaskExecutorServiceStats());
         this.globalConfig = requireNonNull(globalConfig);
         requireNonNull(warmupDemoterConfig);
         this.queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();

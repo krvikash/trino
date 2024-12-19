@@ -27,7 +27,6 @@ import java.util.HashMap;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,7 +53,7 @@ public class WarpReadIndexInputTest
         luceneIndexReader = mock(LuceneIndexReader.class);
         when(luceneIndexReader.loadBigFilePage(anyInt())).thenReturn(allocateByteBuffer());
 
-        lucenePageCacheStats = LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY);
+        lucenePageCacheStats = LucenePageCacheStats.create();
 
         warpReadIndexInput = new WarpReadIndexInput(luceneIndexReader,
                 storageEngineConstants,

@@ -45,8 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_DISPATCHER_KEY;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -75,9 +73,9 @@ public class WorkerCacheManagerTest
 
         MetricsManager metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any(WarmingServiceStats.class)))
-                .thenReturn(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+                .thenReturn(WarmingServiceStats.create());
         when(metricsManager.registerMetric(any(DispatcherPageSourceStats.class)))
-                .thenReturn(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
+                .thenReturn(DispatcherPageSourceStats.create());
 
         cacheWarmer = mock(CacheWarmer.class);
         storageWarmerService = mock(StorageWarmerService.class);

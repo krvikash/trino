@@ -81,7 +81,6 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Stream;
 
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_OR_PUSHDOWN;
-import static io.trino.plugin.warp.expression.rewrite.ExpressionService.PUSHDOWN_PREDICATES_STAT_GROUP;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.CEIL;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.CONTAINS;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.IS_NAN;
@@ -215,7 +214,7 @@ public class ExpressionServiceTest
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, call, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -238,7 +237,7 @@ public class ExpressionServiceTest
         List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, isNanExpression.getKey(), assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual).isEqualTo(expectedResult);
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
 
@@ -347,7 +346,7 @@ public class ExpressionServiceTest
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, call, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -377,7 +376,7 @@ public class ExpressionServiceTest
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, connectorExpression, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -420,7 +419,7 @@ public class ExpressionServiceTest
         List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual).isEqualTo(expectedResult);
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -477,7 +476,7 @@ public class ExpressionServiceTest
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -948,7 +947,7 @@ public class ExpressionServiceTest
 
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, l1Expression, assignments, customStats);
         assertThat(result).isNotEmpty();
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_expression_depth()).isEqualTo(0);
 
         result = expressionService.convertToWarpExpression(connectorSession, l0Expression, assignments, customStats);
@@ -1086,7 +1085,7 @@ public class ExpressionServiceTest
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, expression, invalidAssignment, customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getfailed_rewrite_expression()).isEqualTo(1);
     }
 
@@ -1268,7 +1267,7 @@ public class ExpressionServiceTest
 
     private void assertPushdownStatsSum(int expectedCount)
     {
-        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getCounters().values().stream().mapToLong(LongAdder::longValue).sum()).isEqualTo(expectedCount);
     }
 }

@@ -17,14 +17,12 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,8 +31,6 @@ public final class WorkerTaskExecutorServiceStats
         extends WarpStatsBase
 {
     /* This class file is auto-generated from workerTaskExecutorService xml file for statistics and counters */
-    private final String group;
-
     private final LongAdder task_scheduled = new LongAdder();
     private final LongAdder task_finished = new LongAdder();
     private final LongAdder task_skipped_due_queue_size = new LongAdder();
@@ -43,18 +39,9 @@ public final class WorkerTaskExecutorServiceStats
     private final LongAdder task_delayed = new LongAdder();
 
     @JsonCreator
-    public WorkerTaskExecutorServiceStats(@JsonProperty("group") String group)
+    public WorkerTaskExecutorServiceStats()
     {
-        super(createKey(group), WarpStatType.Worker);
-
-        this.group = group;
-    }
-
-    @JsonProperty
-    @Managed
-    public String getGroup()
-    {
-        return group;
+        super(createKey(), WarpStatType.Worker);
     }
 
     @JsonIgnore
@@ -195,14 +182,14 @@ public final class WorkerTaskExecutorServiceStats
         addtask_delayed(val);
     }
 
-    public static WorkerTaskExecutorServiceStats create(String group)
+    public static WorkerTaskExecutorServiceStats create()
     {
-        return new WorkerTaskExecutorServiceStats(group);
+        return new WorkerTaskExecutorServiceStats();
     }
 
-    public static String createKey(String group)
+    public static String createKey()
     {
-        return new StringJoiner("_").add(group).toString();
+        return "worker_task_executor";
     }
 
     @Override
@@ -249,12 +236,12 @@ public final class WorkerTaskExecutorServiceStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put(getJmxKey() + ":task_scheduled", task_scheduled.longValue());
-        res.put(getJmxKey() + ":task_finished", task_finished.longValue());
-        res.put(getJmxKey() + ":task_skipped_due_queue_size", task_skipped_due_queue_size.longValue());
-        res.put(getJmxKey() + ":task_pended", task_pended.longValue());
-        res.put(getJmxKey() + ":task_resubmitted", task_resubmitted.longValue());
-        res.put(getJmxKey() + ":task_delayed", task_delayed.longValue());
+        res.put("worker_task_executor:task_scheduled", task_scheduled.longValue());
+        res.put("worker_task_executor:task_finished", task_finished.longValue());
+        res.put("worker_task_executor:task_skipped_due_queue_size", task_skipped_due_queue_size.longValue());
+        res.put("worker_task_executor:task_pended", task_pended.longValue());
+        res.put("worker_task_executor:task_resubmitted", task_resubmitted.longValue());
+        res.put("worker_task_executor:task_delayed", task_delayed.longValue());
         return res;
     }
 

@@ -26,11 +26,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_DISPATCHER_KEY;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.warmup.export.WarmupExportingService.WARMUP_EXPORTER_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer.WARMUP_IMPORTER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class PrintMetricsTimerTaskTest
@@ -61,27 +56,27 @@ public class PrintMetricsTimerTaskTest
     @Test
     public void testDumpStats()
     {
-        metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
-        WarmingServiceStats warmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
-        metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
-        metricsManager.registerMetric(WarmupExportServiceStats.create(WARMUP_EXPORTER_STAT_GROUP));
-        metricsManager.registerMetric(WarmupImportServiceStats.create(WARMUP_IMPORTER_STAT_GROUP));
+        metricsManager.registerMetric(WarmupDemoterStats.create());
+        WarmingServiceStats warmingService = metricsManager.registerMetric(WarmingServiceStats.create());
+        metricsManager.registerMetric(DispatcherPageSourceStats.create());
+        metricsManager.registerMetric(WarmupExportServiceStats.create());
+        metricsManager.registerMetric(WarmupImportServiceStats.create());
         warmingService.incdeleted_row_group_count();
         Map<String, Object> fullJson = printMetricsTimerTask.buildJsonDump();
         Map<String, Object> metrics = (Map<String, Object>) fullJson.get(PrintMetricsTimerTask.STATS);
-        assertThat(metrics.containsKey(metricsRegistry.getKey(WARMUP_DEMOTER_STAT_GROUP))).isTrue();
-        assertThat(metrics.containsKey(metricsRegistry.getKey(WARMING_SERVICE_STAT_GROUP))).isTrue();
+        assertThat(metrics.containsKey(metricsRegistry.getKey(WarmupExportServiceStats.createKey()))).isTrue();
+        assertThat(metrics.containsKey(metricsRegistry.getKey(WarmupImportServiceStats.createKey()))).isTrue();
         warmingService.incdeleted_row_group_count();
         warmingService.adddeleted_warmup_elements_count(-5);
         metrics = printMetricsTimerTask.getMetricsDump();
-        assertThat(metrics.containsKey(metricsRegistry.getKey(WARMING_SERVICE_STAT_GROUP))).isTrue();
-        Map<String, Map<String, Long>> m = (Map<String, Map<String, Long>>) metrics.get(metricsRegistry.getKey(WARMING_SERVICE_STAT_GROUP));
+        assertThat(metrics.containsKey(metricsRegistry.getKey(WarmingServiceStats.createKey()))).isTrue();
+        Map<String, Map<String, Long>> m = (Map<String, Map<String, Long>>) metrics.get(metricsRegistry.getKey(WarmingServiceStats.createKey()));
         Map<String, Long> diffPositive = m.get("deleted_row_group_count");
         assertThat(diffPositive.get("d").equals(1L)).isTrue();
         assertThat(diffPositive.get("t").equals(2L)).isTrue();
         Map<String, Long> diffNegative = m.get("deleted_warmup_elements_count");
         assertThat(diffNegative.get("d").equals(-5L)).isTrue();
         assertThat(diffNegative.get("t").equals(-5L)).isTrue();
-        assertThat(metrics.containsKey(metricsRegistry.getKey(WARMUP_EXPORTER_STAT_GROUP))).isTrue();
+        assertThat(metrics.containsKey(metricsRegistry.getKey(WarmupExportServiceStats.createKey()))).isTrue();
     }
 }

@@ -15,8 +15,6 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -66,8 +64,8 @@ public class WarpPageSourceTest
         when(storageEngineConstants.getMaxChunksInRange()).thenReturn(8);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         this.customStatsContext = new CustomStatsContext(metricsManager, Collections.emptyList());
-        customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
-        customStatsContext.getOrRegister(new DictionaryStats(DictionaryCacheService.DICTIONARY_STAT_GROUP));
+        customStatsContext.getOrRegister(new DispatcherPageSourceStats());
+        customStatsContext.getOrRegister(new DictionaryStats());
         globalConfig = new GlobalConfig();
     }
 

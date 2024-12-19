@@ -53,7 +53,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static io.trino.plugin.warp.dictionary.DataValueDictionary.MAX_DICTIONARY_SIZE;
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
 import static io.trino.plugin.warp.util.NodeUtils.mockNodeManager;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -92,7 +91,7 @@ public class DataValueDictionaryTest
         dictionaryCacheService = spy(new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
                 mock(AttachDictionaryService.class)));
-        dictionaryStats = (DictionaryStats) metricsManager.get(DictionaryStats.createKey(DICTIONARY_STAT_GROUP));
+        dictionaryStats = (DictionaryStats) metricsManager.get(DictionaryStats.createKey());
     }
 
     @RepeatedTest(10)

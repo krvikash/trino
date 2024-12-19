@@ -31,7 +31,6 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.storage.write.StorageWriterService.LUCENE_STATS_GROUP_NAME;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class LuceneIndexerTest
@@ -39,7 +38,7 @@ public class LuceneIndexerTest
     private static Path localStorePath;
 
     private final StubsStorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
-    private final LuceneIndexerStats stats = new LuceneIndexerStats(LUCENE_STATS_GROUP_NAME, "0");
+    private final LuceneIndexerStats stats = new LuceneIndexerStats();
     private final GlobalConfig globalConfig = new GlobalConfig();
 
     @BeforeAll

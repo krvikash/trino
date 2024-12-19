@@ -29,7 +29,7 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
-import io.trino.plugin.warp.dispatcher.warmup.fetcher.CacheMgrWarmupRuleCloudFetcher;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.plugin.warp.extension.execution.warmup.CacheMgrWarmupTask;
@@ -71,8 +71,6 @@ import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
-import static io.trino.plugin.warp.dispatcher.warmup.fetcher.CacheMgrWarmupRuleCloudFetcher.WARM_FETCHER_STAT_GROUP;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -325,7 +323,7 @@ public class TestHiveWarpCacheManager
         Session jmxSession = createJmxSession();
         String warmStatsTableName = "%s:name=%s_%s,type=%s".formatted(
                 WarmingServiceStats.class.getPackageName(),
-                WARMING_SERVICE_STAT_GROUP,
+                WarmingServiceStats.createKey(),
                 "warp_cache",
                 WarmingServiceStats.class.getSimpleName().toLowerCase(Locale.ROOT));
         List<String> jmxCounters = List.of("warm_warp_cache_started", "warm_warp_cache_accomplished");
@@ -434,8 +432,9 @@ public class TestHiveWarpCacheManager
     private long getFetcherSuccessStats()
     {
         List<String> stats = List.of("success");
-        String statsTableName = "name=%s_%s,type=%s".formatted(
-                CacheMgrWarmupRuleCloudFetcher.class.getSimpleName().toLowerCase(Locale.ROOT),
+        String statsTableName = "%s:name=%s_%s,type=%s".formatted(
+                WarmupRuleFetcherStats.class.getPackageName().toLowerCase(Locale.ROOT),
+                WarmupRuleCloudFetcher.class.getSimpleName().toLowerCase(Locale.ROOT),
                 "warp_cache",
                 WarmupRuleFetcherStats.class.getSimpleName().toLowerCase(Locale.ROOT));
         Session jmxSession = createJmxSession();
@@ -450,7 +449,7 @@ public class TestHiveWarpCacheManager
                     rows.getMaterializedRows().size(),
                     rows.getMaterializedRows()
                             .stream()
-                            .filter(materializedRowTmp -> ((String) materializedRowTmp.getField(0)).contains(WARM_FETCHER_STAT_GROUP))
+                            .filter(materializedRowTmp -> ((String) materializedRowTmp.getField(0)).contains(WarmupRuleFetcherStats.createKey()))
                             .collect(Collectors.toList()));
             fail("materializedRow is null", e);
         }

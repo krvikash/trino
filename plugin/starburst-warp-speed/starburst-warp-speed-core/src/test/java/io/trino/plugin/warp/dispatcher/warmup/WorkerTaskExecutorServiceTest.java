@@ -32,7 +32,6 @@ import org.opentest4j.AssertionFailedError;
 import java.time.Duration;
 import java.util.UUID;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService.WORKER_TASK_EXECUTOR_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -46,7 +45,7 @@ public class WorkerTaskExecutorServiceTest
     @BeforeEach
     public void before()
     {
-        this.statsWorkerTaskExecutorService = new WorkerTaskExecutorServiceStats(WORKER_TASK_EXECUTOR_STAT_GROUP);
+        this.statsWorkerTaskExecutorService = new WorkerTaskExecutorServiceStats();
         MetricsManager metricManager = mock(MetricsManager.class);
         when(metricManager.registerMetric(any())).thenReturn(statsWorkerTaskExecutorService);
         GlobalConfig globalConfig = new GlobalConfig();

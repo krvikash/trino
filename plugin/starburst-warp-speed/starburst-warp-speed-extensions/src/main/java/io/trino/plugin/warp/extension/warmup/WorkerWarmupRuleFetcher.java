@@ -39,7 +39,6 @@ import java.util.stream.Collectors;
 import static com.google.common.net.MediaType.JSON_UTF_8;
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
 import static io.airlift.http.client.Request.Builder.prepareGet;
-import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static jakarta.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 import static java.util.Objects.requireNonNull;
 
@@ -96,7 +95,7 @@ public class WorkerWarmupRuleFetcher
 
     private void handleFetchFailure()
     {
-        WarmingServiceStats warmingStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey(WARMING_SERVICE_STAT_GROUP));
+        WarmingServiceStats warmingStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey());
         warmingStats.incfailed_fetching_rules();
         warmingStats.incwarm_skipped_due_key_conflict(); // HACK HACK HACk until test will support the previous counter
         logger.warn("failed getting rules from coordinator");
