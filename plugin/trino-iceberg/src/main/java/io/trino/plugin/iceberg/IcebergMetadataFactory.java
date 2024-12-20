@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
+import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.metastore.HiveMetastoreFactory;
@@ -26,9 +27,11 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
 
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static java.util.Objects.requireNonNull;
 
 public class IcebergMetadataFactory
@@ -44,6 +47,7 @@ public class IcebergMetadataFactory
     private final boolean addFilesProcedureEnabled;
     private final Predicate<String> allowedExtraProperties;
     private final ExecutorService icebergScanExecutor;
+    private final Executor metadataFetchingExecutor;
 
     @Inject
     public IcebergMetadataFactory(
@@ -56,6 +60,7 @@ public class IcebergMetadataFactory
             TableStatisticsWriter tableStatisticsWriter,
             @RawHiveMetastoreFactory Optional<HiveMetastoreFactory> metastoreFactory,
             @ForIcebergScanPlanning ExecutorService icebergScanExecutor,
+            @ForIcebergMetadata ExecutorService metadataExecutorService,
             IcebergConfig config)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
@@ -74,6 +79,13 @@ public class IcebergMetadataFactory
         else {
             this.allowedExtraProperties = ImmutableSet.copyOf(requireNonNull(config.getAllowedExtraProperties(), "allowedExtraProperties is null"))::contains;
         }
+
+        if (config.getMetadataParallelism() == 1) {
+            this.metadataFetchingExecutor = directExecutor();
+        }
+        else {
+            this.metadataFetchingExecutor = new BoundedExecutor(metadataExecutorService, config.getMetadataParallelism());
+        }
     }
 
     public IcebergMetadata create(ConnectorIdentity identity)
@@ -89,6 +101,7 @@ public class IcebergMetadataFactory
                 metastoreFactory,
                 addFilesProcedureEnabled,
                 allowedExtraProperties,
-                icebergScanExecutor);
+                icebergScanExecutor,
+                metadataFetchingExecutor);
     }
 }
