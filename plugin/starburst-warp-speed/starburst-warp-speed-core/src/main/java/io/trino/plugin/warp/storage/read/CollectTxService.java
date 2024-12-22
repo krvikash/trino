@@ -73,12 +73,11 @@ public class CollectTxService
 
         QueryMemory queryMemory = allocQueryMemory();
         int queryMemoryId = queryMemory.id();
-        SegmentAllocator queryMemoryAllocator = getQueryMemoryAllocator(queryMemory);
 
         // if there are no match elements we are lazy collecting and do not need to allocate all the buffers per element
         if ((queryParams.getNumMatchElements() > 0) && (numCollectElements > 0)) {
             allocCollectBuffers(collectParamsList,
-                    queryMemoryAllocator,
+                    getQueryMemoryAllocator(queryMemory),
                     queryArgs.txArgs().collectBuffers(),
                     aggregatorArgs.collectJuffersWE());
         }
@@ -127,7 +126,6 @@ public class CollectTxService
         return new AggregatorPageArgs(queryMemoryId,
                 rowsLimit,
                 numCollectedInPrevRounds,
-                queryMemoryAllocator,
                 rangeData,
                 warmupElementRecordBufferStates);
     }

@@ -526,7 +526,7 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
+    public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
             int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset, boolean isFullScan,
             long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers);
 

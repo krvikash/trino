@@ -13,13 +13,11 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import java.lang.foreign.SegmentAllocator;
 import java.util.List;
 
 public record AggregatorPageArgs(int queryMemoryId,
                          int rowsLimit,
                          int numCollectedInPreviousRounds,
-                         SegmentAllocator queryMemoryAllocator,
                          RangeData rangeData,
                          List<WarmupElementRecordBufferState> warmupElementRecordBufferStates)
 {

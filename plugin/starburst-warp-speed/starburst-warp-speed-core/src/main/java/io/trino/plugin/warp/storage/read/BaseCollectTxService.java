@@ -91,11 +91,9 @@ public abstract class BaseCollectTxService
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         long startTime = System.nanoTime();
-        byte[] tempParsingBuffer = new byte[64 * 1024]; // this is a temporary solution
         storageEngine.collectOpen(queryParams.getTotalNumRecords(),
                 txArgs.fileCookie(),
                 collectTxId,
-                tempParsingBuffer,
                 numCollectElements,
                 numChunksInRange,
                 reopenChunkIndex,

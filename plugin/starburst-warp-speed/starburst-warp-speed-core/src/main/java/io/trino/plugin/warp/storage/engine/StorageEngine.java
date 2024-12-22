@@ -190,13 +190,12 @@ public interface StorageEngine
      * @param totalNumRecords - total number of records in the warm up element
      * @param fileCookie - hot file to read from
      * @param collectTxId - transaction id
-     * @param parsingBuff - buffer for native to parse the collect parameters
      * @param numCollectWes - number of collect warm up elements
      * @param weCollectParams - parameters for collect warmup elements dumped into an array
      * @param catalogContext - connector context used for callbacks handles
      * @param collectBuffers - buffer for data and nulls per warm up element
      */
-    default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
+    default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
             int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset, boolean isFullScan,
             long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
     {
