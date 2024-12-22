@@ -30,12 +30,12 @@ public interface ConnectorSync
         throw new UnsupportedOperationException();
     }
 
-    default QueryMemory allocQueryMemory()
+    default int allocReaderId()
     {
         throw new UnsupportedOperationException();
     }
 
-    default void freeQueryMemory(int queryMemoryId)
+    default void freeReaderId(int readerId)
     {
         throw new UnsupportedOperationException();
     }

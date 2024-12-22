@@ -72,17 +72,17 @@ public class LazyCollectorLoader
         int chunkIndexToCollect = lazyCollectorLoaderArgs.lazyCollectStartRowIndex() / lazyCollectorLoaderArgs.chunkSize();
         int startRowIndexInChunk = lazyCollectorLoaderArgs.lazyCollectStartRowIndex() % lazyCollectorLoaderArgs.chunkSize();
         int numRowsToCollect = lazyCollectorLoaderArgs.numToCollect();
-        int queryMemoryId = BaseCollectTxService.INVALID_TX_ID;
+        int readerId = BaseCollectTxService.INVALID_READER_ID;
         LazyCollectOpenResult collectOpenResult = null;
         try {
             // open
             collectOpenResult = collectTxService.collectOpen(numRowsToCollect, lazyCollectorLoaderArgs, dispatcherPageSourceStats);
-            queryMemoryId = collectOpenResult.queryMemoryId();
+            readerId = collectOpenResult.readerId();
 
             // prepare and collect
             MemorySegment queryResultTypeMem = lazyCollectorLoaderArgs.queryResultTypes();
-            collectTxService.prepareChunkFullScan(queryMemoryId, chunkIndexToCollect, numRowsToCollect, startRowIndexInChunk, dispatcherPageSourceStats);
-            collectTxService.collectChunk(queryMemoryId, 1, chunkIndexToCollect, numRowsToCollect, queryResultTypeMem, dispatcherPageSourceStats);
+            collectTxService.prepareChunkFullScan(readerId, chunkIndexToCollect, numRowsToCollect, startRowIndexInChunk, dispatcherPageSourceStats);
+            collectTxService.collectChunk(readerId, 1, chunkIndexToCollect, numRowsToCollect, queryResultTypeMem, dispatcherPageSourceStats);
 
             // fill block
             WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
@@ -94,13 +94,13 @@ public class LazyCollectorLoader
             shapingLogger.error(e, "lazy collect failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
                     lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
             dispatcherPageSourceStats.inclazy_collect_failed_load();
-            collectTxService.collectAbort(e, queryMemoryId, dispatcherPageSourceStats);
+            collectTxService.collectAbort(e, readerId, dispatcherPageSourceStats);
             throw e;
         }
 
         try {
             // close
-            collectTxService.collectClose(collectOpenResult.queryMemoryId(), nativeStats, dispatcherPageSourceStats);
+            collectTxService.collectClose(collectOpenResult, nativeStats, dispatcherPageSourceStats);
             dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
         }
         catch (Exception e) {

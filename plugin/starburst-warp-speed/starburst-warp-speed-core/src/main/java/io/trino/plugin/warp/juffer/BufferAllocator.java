@@ -461,10 +461,10 @@ public class BufferAllocator
 
     public int getCollectRecordBufferSizeOptional(RecTypeCode recTypeCode, int recTypeLength)
     {
-        if (TypeUtils.isVarlenStr(recTypeCode)) {
+        if (TypeUtils.isVarlenStr(recTypeCode) || (recTypeCode == RecTypeCode.REC_TYPE_DECIMAL_LONG)) {
             final int recordBufferSize = getCollectRecordBufferSize(recTypeCode, recTypeLength);
             if (recordBufferSize <= storageEngineConstants.getRecordBufferMaxSize()) {
-                // no extra needed
+                // no extra needed for this varchar
                 return 0;
             }
             // extra is limited by max juffer size

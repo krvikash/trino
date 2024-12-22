@@ -22,7 +22,6 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
-import io.trino.plugin.warp.storage.engine.QueryMemory;
 import io.trino.spi.catalog.CatalogName;
 import jakarta.annotation.PreDestroy;
 
@@ -30,7 +29,6 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
@@ -51,14 +49,14 @@ public class NativeConnectorSync
     private final NativeConfig nativeConfig;
     private WarmupDemoterService warmupDemoterService;
 
+    private int numWorkerThreads;
     private MemorySegment catalogContext;
-    private MemorySegment sharedConnectorMemory;
-    private MemorySegment[] queryMemories;
 
-    private final MethodHandle mSetSharedConnectorMemory;
+    // syncher API
+    private final MethodHandle mGetContextSize;
     private final MethodHandle mUnregister;
-    private final MethodHandle mAllocQueryMemoryId;
-    private final MethodHandle mFreeQueryMemoryId;
+    private final MethodHandle mAllocReaderId;
+    private final MethodHandle mFreeReaderId;
 
     @Inject
     public NativeConnectorSync(
@@ -72,15 +70,13 @@ public class NativeConnectorSync
             Linker linker = Linker.nativeLinker();
 
             // syncher API
-            MethodHandle mGetContextSize = linker.downcallHandle(libraryHandle.find("syncher_get_context_size").orElseThrow(),
+            mGetContextSize = linker.downcallHandle(libraryHandle.find("syncher_get_context_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
-            mSetSharedConnectorMemory = linker.downcallHandle(libraryHandle.find("syncher_set_shared_connector_memory").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS));
             mUnregister = linker.downcallHandle(libraryHandle.find("syncher_unregister").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
-            mAllocQueryMemoryId = linker.downcallHandle(libraryHandle.find("syncher_alloc_reader_id").orElseThrow(),
+            mAllocReaderId = linker.downcallHandle(libraryHandle.find("syncher_alloc_reader_id").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
-            mFreeQueryMemoryId = linker.downcallHandle(libraryHandle.find("syncher_free_reader_id").orElseThrow(),
+            mFreeReaderId = linker.downcallHandle(libraryHandle.find("syncher_free_reader_id").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.JAVA_INT));
 
             this.catalogName = catalogName;
@@ -103,42 +99,14 @@ public class NativeConnectorSync
     public void init()
     {
         try {
-            final int numWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
+            this.numWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
             checkArgument(numWorkerThreads > 0, "no segments configured for match bitmaps");
-            final long memorySizePerWorker = (long) globalConfig.getMatchMemorySize() + (long) globalConfig.getCollectMemorySize();
-            final long sharedConnectorMemorySize = memorySizePerWorker * (long) numWorkerThreads;
             // register and get memory address. note that the name is not passed to native. no need.
-            long sharedConnectorMemoryAddress = register(catalogContext.address());
-            if (sharedConnectorMemoryAddress == -1) {
+            if (register(catalogContext.address()) < 0) {
                 throw new RuntimeException("catalog failed to register on too many catalogs");
             }
-
-            // in case no memory was allocated yet, allocate it
-            if (sharedConnectorMemoryAddress == 0) {
-                // allocate the memory as global so it will leave even if this connector is unregistered
-                sharedConnectorMemory = Arena.global().allocate(sharedConnectorMemorySize + ALLOC_ALIGNMENT, ALLOC_ALIGNMENT);
-                // set the address and check if it was the one taken
-                sharedConnectorMemoryAddress = (long) mSetSharedConnectorMemory.invokeExact(sharedConnectorMemory);
-                if (sharedConnectorMemoryAddress != sharedConnectorMemory.address()) {
-                    sharedConnectorMemory = null; // throwing it away since another one was kept in storage engine
-                }
-            }
-
-            // create the memory segment if needed
-            if (sharedConnectorMemory == null) {
-                // can happen if we never allocated it or threw it away
-                sharedConnectorMemory = MemorySegment.ofAddress(sharedConnectorMemoryAddress).reinterpret(sharedConnectorMemorySize);
-            }
-
-            // create the native resources queue
-            SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(sharedConnectorMemory);
-            queryMemories = new MemorySegment[numWorkerThreads];
-            for (int id = 0; id < queryMemories.length; id++) {
-                queryMemories[id] = nativeAllocator.allocate(memorySizePerWorker, ALLOC_ALIGNMENT);
-            }
-
-            // complete the registration
-            logger.info("catalog name %s sharedConnectorMemory %s", catalogName, sharedConnectorMemory);
+            // complete the regisgtration
+            logger.info("catalog name %s registered", catalogName);
             eventBus.post(new ConnectorSyncInitializedEvent(true));
         }
         catch (Throwable t) {
@@ -155,12 +123,10 @@ public class NativeConnectorSync
             boolean success = (boolean) mUnregister.invokeExact(catalogContext);
             if (!success) {
                 catalogContext = null;
-                sharedConnectorMemory = null;
                 logger.error("syncer failed to unregister");
                 return;
             }
             catalogContext = null;
-            sharedConnectorMemory = null;
             logger.info("unregister catalog name %s", catalogName);
         }
         catch (Throwable t) {
@@ -193,12 +159,12 @@ public class NativeConnectorSync
 
     // native resources API
     @Override
-    public QueryMemory allocQueryMemory()
+    public int allocReaderId()
     {
         try {
-            int queryMemoryId = (int) mAllocQueryMemoryId.invokeExact();
-            if ((queryMemoryId >= 0) && (queryMemoryId < queryMemories.length)) {
-                return new QueryMemory(queryMemoryId, queryMemories[queryMemoryId]);
+            int readerId = (int) mAllocReaderId.invokeExact();
+            if ((readerId >= 0) && (readerId < numWorkerThreads)) {
+                return readerId;
             }
         }
         catch (Throwable t) {
@@ -208,11 +174,11 @@ public class NativeConnectorSync
     }
 
     @Override
-    public void freeQueryMemory(int queryMemoryId)
+    public void freeReaderId(int readerId)
     {
         long result = -1;
         try {
-            result = (long) mFreeQueryMemoryId.invokeExact(queryMemoryId);
+            result = (long) mFreeReaderId.invokeExact(readerId);
             if (result > 0) {
                 logger.warn("query memory was held too long %d millis", result);
             }
@@ -227,11 +193,4 @@ public class NativeConnectorSync
     }
 
     private native long register(long context);
-
-    // demote callbacks
-    public void callback_GetLowestPriority(int demoteSequence) {}
-
-    public void callback_DemoteStart(int demoteSequence, double maxPriorityToDemote, boolean isSingleConnector) {}
-
-    public void callback_DemoteEnd(int demoteSequence, double highestPriority) {}
 }

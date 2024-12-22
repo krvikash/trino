@@ -167,7 +167,7 @@ public class StorageCollectorService
     {
         int resetPoint = chunksQueue.getCurrentBitmapResetPoint();
         int numRecordsInChunk = chunksQueue.prepareCurRecList(aggregatorArgs.recordIndexes(), resetPoint);
-        collectTxService.prepareChunk(aggregatorPageArgs.queryMemoryId(),
+        collectTxService.prepareChunk(aggregatorPageArgs.readerId(),
                 chunksQueue.getCurrent(),
                 min(numRecordsInChunk, aggregatorPageArgs.rowsLimit() - numCollectedRows),
                 resetPoint,
@@ -215,7 +215,7 @@ public class StorageCollectorService
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        collectTxService.collectChunk(aggregatorPageArgs.queryMemoryId(),
+        collectTxService.collectChunk(aggregatorPageArgs.readerId(),
                 numWes,
                 chunkIndex,
                 numToCollect,

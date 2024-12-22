@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.constants.CollectStats;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -24,49 +23,64 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
-import io.trino.plugin.warp.storage.engine.QueryMemory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 
 public class LazyCollectTxService
         extends BaseCollectTxService
 {
-    private static final Logger logger = Logger.get(LazyCollectorLoader.class);
-    private final NativeConfig nativeConfig;
+    private static final Logger logger = Logger.get(LazyCollectTxService.class);
 
     @Inject
     public LazyCollectTxService(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
-            GlobalConfig globalConfig,
-            NativeConfig nativeConfig)
+            GlobalConfig globalConfig)
     {
         super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
-        this.nativeConfig = nativeConfig;
     }
 
     LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        QueryMemory queryMemory = allocQueryMemory();
-        SegmentAllocator queryMemoryAllocator = getQueryMemoryAllocator(queryMemory);
-        int queryMemoryId = queryMemory.id();
+        // initialize warm up element properties
         WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
+        final RecTypeCode recTypeCode = collectParams.getRecTypeCode();
+        final int recTypeLength = collectParams.getRecTypeLength();
 
+        // initialize memory parameters
+        final int readerId = allocReaderId();
+        final int recordBufferSize = bufferAllocator.getCollectRecordBufferSizeMust(recTypeCode, recTypeLength) + bufferAllocator.getCollectRecordBufferSizeOptional(recTypeCode, recTypeLength);
+        final int nullBufferSize = bufferAllocator.getQueryNullBufferSize(recTypeCode);
+
+        // allocate memory
+        Arena pageArena = openPageArena();
+        MemorySegment collectMemory;
+        try {
+            final int pageSize = storageEngineConstants.getPageSize();
+            collectMemory = pageArena.allocate(recordBufferSize + nullBufferSize + pageSize, pageSize);
+        }
+        catch (Throwable t) {
+            throw new RuntimeException("no memory available for lazy collect size recordBufferSize " + recordBufferSize + " nullBufferSize " + nullBufferSize);
+        }
+        SegmentAllocator queryMemoryAllocator = SegmentAllocator.slicingAllocator(collectMemory);
+
+        // allcoate buffers
         long[] collectBuffers = lazyCollectorLoaderArgs.txArgs().collectBuffers()[0];
         MemorySegment[] collectSegments = new MemorySegment[collectBuffers.length];
-        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_REC, nativeConfig.getMaxRecJufferSize(), collectSegments, collectBuffers);
-        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_NULL, bufferAllocator.getQueryNullBufferSize(RecTypeCode.REC_TYPE_VARCHAR), collectSegments, collectBuffers);
-        lazyCollectorLoaderArgs.collectJufferWE().createBuffers(collectParams.getRecTypeCode(), collectParams.getRecTypeLength(), collectParams.hasDictionary(), collectSegments);
+        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_REC, recordBufferSize, collectSegments, collectBuffers);
+        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_NULL, nullBufferSize, collectSegments, collectBuffers);
+        lazyCollectorLoaderArgs.collectJufferWE().createBuffers(recTypeCode, recTypeLength, collectParams.hasDictionary(), collectSegments);
 
         RecordIndexes recordIndexes = lazyCollectorLoaderArgs.recordIndexes();
         recordIndexes.setMemory(lazyCollectorLoaderArgs.queryParams().getArena());
         collectOpen(lazyCollectorLoaderArgs.queryParams(),
                 lazyCollectorLoaderArgs.txArgs(),
-                queryMemoryId,
+                readerId,
                 1,
                 lazyCollectorLoaderArgs.numChunksInRange(),
                 -1, // invalid reopen chunk index
@@ -76,16 +90,16 @@ public class LazyCollectTxService
                 0,
                 dispatcherPageSourceStats);
 
-        logger.debug("collectOpen queryMemoryId %d rowsLimit %d", queryMemoryId, rowsLimit);
-        return new LazyCollectOpenResult(queryMemoryId);
+        logger.debug("collectOpen queryMemoryId %d rowsLimit %d", readerId, rowsLimit);
+        return new LazyCollectOpenResult(readerId, pageArena, recordIndexes);
     }
 
     // Lazy collect doesn't use store/restore mechanism, so store/restore params are not initialized
-    void collectClose(int queryMemoryId, NativeStats nativeStats, DispatcherPageSourceStats dispatcherPageSourceStats)
+    void collectClose(LazyCollectOpenResult collectOpenResult, NativeStats nativeStats, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
         long startTime = System.nanoTime();
-        storageEngine.collectClose(queryMemoryId, collectStats);
+        storageEngine.collectClose(collectOpenResult.readerId(), collectStats);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
 
         nativeStats.addread_cache_md_chunk_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_HITS.ordinal()]);
@@ -101,6 +115,7 @@ public class LazyCollectTxService
         nativeStats.addread_uncache_ext_data_misses(collectStats[CollectStats.COLLECT_STATS_UNCACHE_EXT_DATA_MISSES.ordinal()]);
         nativeStats.addread_time_wait_nanos(collectStats[CollectStats.COLLECT_STATS_READ_TIME_WAIT_NANOS.ordinal()]);
 
-        freeQueryMemory(queryMemoryId);
+        closePageArena(collectOpenResult.pageArena());
+        freeQueryMemory(collectOpenResult.readerId());
     }
 }

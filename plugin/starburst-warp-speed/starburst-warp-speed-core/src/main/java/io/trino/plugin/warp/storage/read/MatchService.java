@@ -133,7 +133,7 @@ public class MatchService
                 // at this point we still keep setMemory and setState as separate APIs allthough they are called one after the other
                 // we can revisit this when we are done refactoring the memory usage
                 matchState.setMemory(queryArgs);
-                matchState.setState(queryArgs, aggregatorPageArgs.queryMemoryId());
+                matchState.setState(queryArgs, aggregatorPageArgs.readerId());
                 storageEngine.matchOpen(matchState.getStateMemory());
                 matchStateOpt = Optional.of(matchState);
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);

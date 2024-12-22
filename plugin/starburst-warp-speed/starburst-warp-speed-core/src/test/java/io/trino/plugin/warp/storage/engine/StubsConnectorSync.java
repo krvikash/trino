@@ -16,8 +16,6 @@ package io.trino.plugin.warp.storage.engine;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import java.lang.foreign.Arena;
-
 @Singleton
 public class StubsConnectorSync
         implements ConnectorSync
@@ -44,11 +42,13 @@ public class StubsConnectorSync
     }
 
     @Override
-    public QueryMemory allocQueryMemory()
+    public int allocReaderId()
     {
-        return new QueryMemory(0, Arena.ofAuto().allocate(1024 * 1024, 4));
+        return 0;
     }
 
     @Override
-    public void freeQueryMemory(int queryMemoryId) {}
+    public void freeReaderId(int readerId)
+    {
+    }
 }

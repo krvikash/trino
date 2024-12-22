@@ -38,14 +38,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-class NativeCollectClassifier
+public class NativeCollectClassifier
         implements Classifier
 {
     private static final Logger logger = Logger.get(NativeCollectClassifier.class);
+    public static final int COLLECT_BUFFER_MAX_MEMORY = 13000 * 1024;
 
     private final int matchCollectBufferSize;
     private final int matchCollectRecSizeFactor;
-    private final int collectRecordBufferMaxMemory;
     private final int collectTxMaxMemoryConfig;
     private final int matchTxSize;
     private final int maxMatchColumns;
@@ -56,7 +56,6 @@ class NativeCollectClassifier
     // collectTxMaxMemory is the maximal memory we can use for native tx for all collect colulmns
     NativeCollectClassifier(int matchCollectBufferSize,
             int matchCollectRecSizeFactor,
-            int collectRecordBufferMaxMemory,
             int collectTxMaxMemory,
             int matchTxSize,
             int maxMatchColumns,
@@ -65,7 +64,6 @@ class NativeCollectClassifier
     {
         this.matchCollectBufferSize = matchCollectBufferSize;
         this.matchCollectRecSizeFactor = matchCollectRecSizeFactor;
-        this.collectRecordBufferMaxMemory = collectRecordBufferMaxMemory;
         this.collectTxMaxMemoryConfig = collectTxMaxMemory;
         this.matchTxSize = matchTxSize;
         this.maxMatchColumns = maxMatchColumns;
@@ -206,7 +204,7 @@ class NativeCollectClassifier
         // start with those who are already in the list of the context
         for (NativeQueryCollectData nativeQueryCollectData : queryContext.getNativeQueryCollectDataList()) {
             collectRecordBufferMemory += getCollectBufferSize(nativeQueryCollectData.getWarmUpElement());
-            if (collectRecordBufferMemory > collectRecordBufferMaxMemory) {
+            if (collectRecordBufferMemory > COLLECT_BUFFER_MAX_MEMORY) {
                 return nativeQueryCollectDataList;
             }
             collectTxMemory += getCollectTxSize(nativeQueryCollectData.getWarmUpElement());
@@ -231,7 +229,7 @@ class NativeCollectClassifier
 
             for (NativeQueryCollectData nativeQueryCollectData : nativeQueryCollectDataCategoryList) {
                 collectRecordBufferMemory += getCollectBufferSize(nativeQueryCollectData.getWarmUpElement());
-                if (collectRecordBufferMemory > collectRecordBufferMaxMemory) {
+                if (collectRecordBufferMemory > COLLECT_BUFFER_MAX_MEMORY) {
                     return nativeQueryCollectDataList;
                 }
                 collectTxMemory += getCollectTxSize(nativeQueryCollectData.getWarmUpElement());
@@ -362,7 +360,7 @@ class NativeCollectClassifier
             final int updatedCollectRecordBufferMemory = collectRecordBufferMemoryPerCategory.get(collectCategory) + collectBufferUpdate;
             final int updatedCollectTxMemory = collectTxMemoryPerCategory.get(collectCategory) + collectTxUpdate;
             final int updatedMatchCollectMemory = matchCollectMemory + matchCollectBufferUpdate;
-            if ((updatedCollectRecordBufferMemory > collectRecordBufferMaxMemory) ||
+            if ((updatedCollectRecordBufferMemory > COLLECT_BUFFER_MAX_MEMORY) ||
                     (updatedMatchCollectMemory > matchCollectBufferSize) ||
                     (updatedCollectTxMemory > collectTxMaxMemory)) {
                 return false;
@@ -389,7 +387,7 @@ class NativeCollectClassifier
         // collect elements (match collect in this case). we use this method to know when to stop the main loop
         boolean isCollectMemoryAvailable()
         {
-            return (collectRecordBufferMemoryPerCategory.get(CollectCategory.MATCH_COLLECT) < collectRecordBufferMaxMemory) &&
+            return (collectRecordBufferMemoryPerCategory.get(CollectCategory.MATCH_COLLECT) < COLLECT_BUFFER_MAX_MEMORY) &&
                     (collectTxMemoryPerCategory.get(CollectCategory.MATCH_COLLECT) < collectTxMaxMemory);
         }
 

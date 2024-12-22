@@ -23,22 +23,27 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
-import io.trino.plugin.warp.storage.engine.QueryMemory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import jakarta.annotation.PreDestroy;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.plugin.warp.dispatcher.query.classifier.NativeCollectClassifier.COLLECT_BUFFER_MAX_MEMORY;
+
 public class CollectTxService
         extends BaseCollectTxService
 {
+    private static final long EXTRA_BUFFER_SIZE = 200000;
+
     private final RangeFillerService rangeFillerService;
 
     @Inject
@@ -71,15 +76,11 @@ public class CollectTxService
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
         int numCollectElements = collectParamsList.size();
 
-        QueryMemory queryMemory = allocQueryMemory();
-        int queryMemoryId = queryMemory.id();
-
+        int readerId = allocReaderId();
+        Arena pageArena = openPageArena();
         // if there are no match elements we are lazy collecting and do not need to allocate all the buffers per element
         if ((queryParams.getNumMatchElements() > 0) && (numCollectElements > 0)) {
-            allocCollectBuffers(collectParamsList,
-                    getQueryMemoryAllocator(queryMemory),
-                    queryArgs.txArgs().collectBuffers(),
-                    aggregatorArgs.collectJuffersWE());
+            allocCollectBuffers(collectParamsList, pageArena, queryArgs.txArgs().collectBuffers(), aggregatorArgs.collectJuffersWE());
         }
 
         RecordIndexes recordIndexes = aggregatorArgs.recordIndexes();
@@ -114,7 +115,7 @@ public class CollectTxService
 
         collectOpen(queryArgs.queryParams(),
                 queryArgs.txArgs(),
-                queryMemoryId,
+                readerId,
                 numCollectElements,
                 queryArgs.numChunksInRange(),
                 storeRowListResult.map(StoreRowListResult::storedChunkIx).orElse(-1),
@@ -123,7 +124,8 @@ public class CollectTxService
                 recordIndexes.getAddress(),
                 queryArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L),
                 queryArgs.dispatcherPageSourceStats());
-        return new AggregatorPageArgs(queryMemoryId,
+        return new AggregatorPageArgs(readerId,
+                pageArena,
                 rowsLimit,
                 numCollectedInPrevRounds,
                 rangeData,
@@ -147,7 +149,7 @@ public class CollectTxService
 
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
         long startTime = System.nanoTime();
-        storageEngine.collectClose(aggregatorPageArgs.queryMemoryId(), collectStats);
+        storageEngine.collectClose(aggregatorPageArgs.readerId(), collectStats);
         queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
 
         int totalReadPages = 0;
@@ -176,28 +178,26 @@ public class CollectTxService
         totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_UNCACHE_EXT_DATA_MISSES.ordinal()];
         nativeStats.addread_time_wait_nanos(collectStats[CollectStats.COLLECT_STATS_READ_TIME_WAIT_NANOS.ordinal()]);
 
-        freeQueryMemory(aggregatorPageArgs.queryMemoryId());
+        closePageArena(aggregatorPageArgs.pageArena());
+        freeQueryMemory(aggregatorPageArgs.readerId());
         return new CollectCloseResult(storeRowListResult, totalReadPages);
     }
 
     void collectAbort(AggregatorPageArgs aggregatorPageArgs, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        collectAbort(e, aggregatorPageArgs.queryMemoryId(), dispatcherPageSourceStats);
-        freeQueryMemory(aggregatorPageArgs.queryMemoryId());
+        collectAbort(e, aggregatorPageArgs.readerId(), dispatcherPageSourceStats);
+        closePageArena(aggregatorPageArgs.pageArena());
+        freeQueryMemory(aggregatorPageArgs.readerId());
     }
 
     private void allocCollectBuffers(List<WarmupElementCollectParams> collectParamsList,
-            SegmentAllocator queryMemoryAllocator,
+            Arena pageArena,
             long[][] outCollectBuffers,
             List<ReadJuffersWarmUpElement> outCollectJuffersWE)
     {
-        final long queryMemorySize = globalConfig.getCollectMemorySize();
-        final int numCollectElements = collectParamsList.size();
-        int collectIx = 0;
-
         // fill allocation parameters and count total buffer sizes and how much of it is optional record buffer
-        CollectAllocPararms[] allocParams = new CollectAllocPararms[numCollectElements];
-        long totalRecordBufferSizeMust = 0;
+        ArrayList<CollectAllocPararms> allocParamsList = new ArrayList<>(collectParamsList.size());
+        long totalBufferSizeMust = 0;
         long totalRecordBufferSizeOptional = 0;
         for (WarmupElementCollectParams collectParams : collectParamsList) {
             // consider mapped match collect when calculating rec type code and length
@@ -205,48 +205,78 @@ public class CollectTxService
             final int recTypeLength = collectParams.mappedMatchCollect() ? 1 : collectParams.getRecTypeLength();
             final int recordBufferSizeMust = bufferAllocator.getCollectRecordBufferSizeMust(recTypeCode, recTypeLength);
             final int recordBufferSizeOptional = bufferAllocator.getCollectRecordBufferSizeOptional(recTypeCode, recTypeLength);
+            final int nullBufferSize = bufferAllocator.getQueryNullBufferSize(collectParams.getRecTypeCode());
             // save all parameters in a record array
-            allocParams[collectIx] = new CollectAllocPararms(recTypeCode,
+            allocParamsList.add(new CollectAllocPararms(recTypeCode,
                     recTypeLength,
                     recordBufferSizeMust,
                     recordBufferSizeOptional,
-                    bufferAllocator.getQueryNullBufferSize(collectParams.getRecTypeCode()),
-                    collectParams.hasDictionary());
+                    nullBufferSize,
+                    collectParams.hasDictionary()));
             // update total counts
-            totalRecordBufferSizeMust += (recordBufferSizeMust + allocParams[collectIx].nullBufferSize()); // including extras inside and nulls
+            totalBufferSizeMust += (recordBufferSizeMust + nullBufferSize); // including extras inside and nulls
             totalRecordBufferSizeOptional += recordBufferSizeOptional;
-            // advance
-            collectIx++;
         }
 
+        final int pageSize = storageEngineConstants.getPageSize();
         // size left for optional record buffer is total memory minus the must to allocate without optional
-        // we reduce 1 byte for each element to avoid over allocation due to floating point roundings
-        long queryMemoryOptional = queryMemorySize - totalRecordBufferSizeMust - numCollectElements;
+        long queryMemoryOptional = COLLECT_BUFFER_MAX_MEMORY - totalBufferSizeMust;
         // make sure each juffer that needs extra will get same fair
         double satisfyPrecentage = (queryMemoryOptional >= totalRecordBufferSizeOptional) ? 1.0 : ((double) queryMemoryOptional / (double) totalRecordBufferSizeOptional);
 
-        // perform actual allocation of record and null buffers and create the juffers
-        for (collectIx = 0; collectIx < numCollectElements; collectIx++) {
-            long[] collectBuffers = outCollectBuffers[collectIx]; // save the addresses here for native
-            MemorySegment[] collectSegments = new MemorySegment[collectBuffers.length]; // used to create the juffers below
-            // record buffer size including the optional part which is calculated using the precentage
-            final int recordBufferSizeOptional = (int) (satisfyPrecentage * allocParams[collectIx].recordBufferSizeOptional());
-            allocCollectBuffer(queryMemoryAllocator,
-                    JbufType.JBUF_TYPE_REC,
-                    allocParams[collectIx].recordBufferSizeMust() + recordBufferSizeOptional,
-                    collectSegments,
-                    collectBuffers);
-            // null buffer
-            allocCollectBuffer(queryMemoryAllocator,
-                    JbufType.JBUF_TYPE_NULL,
-                    allocParams[collectIx].nullBufferSize(),
-                    collectSegments,
-                    collectBuffers);
-            // create the juffers from the segments
-            outCollectJuffersWE.get(collectIx).createBuffers(allocParams[collectIx].recTypeCode(),
-                    allocParams[collectIx].recTypeLength(),
-                    allocParams[collectIx].hasDictionary(),
-                    collectSegments);
+        // allocate total memory for records and nulls
+        MemorySegment collectMemory;
+        try {
+            collectMemory = pageArena.allocate(totalBufferSizeMust + Math.min(queryMemoryOptional, totalRecordBufferSizeOptional) + EXTRA_BUFFER_SIZE, pageSize);
+        }
+        catch (Throwable t) {
+            throw new RuntimeException("no memory available for lazy collect size totalBufferSizeMust " + totalBufferSizeMust + " totalRecordBufferSizeOptional " + totalRecordBufferSizeOptional);
+        }
+        SegmentAllocator queryMemoryAllocator = SegmentAllocator.slicingAllocator(collectMemory);
+
+        int collectIx = 0;
+        ArrayList<Integer> optionalSizes = new ArrayList<>();
+        try {
+            // perform actual allocation of record and null buffers and create the juffers
+            for (CollectAllocPararms allocParams : allocParamsList) {
+                long[] collectBuffers = outCollectBuffers[collectIx]; // save the addresses here for native
+                MemorySegment[] collectSegments = new MemorySegment[collectBuffers.length]; // used to create the juffers below
+                // record buffer size including the optional part which is calculated using the precentage and rounded to page size
+                int recordBufferSizeOptional = (int) (satisfyPrecentage * allocParams.recordBufferSizeOptional());
+                recordBufferSizeOptional = ((recordBufferSizeOptional + pageSize - 1) / pageSize) * pageSize;
+                optionalSizes.add(recordBufferSizeOptional);
+                allocCollectBuffer(queryMemoryAllocator,
+                        JbufType.JBUF_TYPE_REC,
+                        allocParams.recordBufferSizeMust() + recordBufferSizeOptional,
+                        collectSegments,
+                        collectBuffers);
+                // null buffer
+                allocCollectBuffer(queryMemoryAllocator,
+                        JbufType.JBUF_TYPE_NULL,
+                        allocParams.nullBufferSize(),
+                        collectSegments,
+                        collectBuffers);
+                // create the juffers from the segments
+                outCollectJuffersWE.get(collectIx).createBuffers(allocParams.recTypeCode(),
+                        allocParams.recTypeLength(),
+                        allocParams.hasDictionary(),
+                        collectSegments);
+                // advance
+                collectIx++;
+            }
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to allocate record and null buffers totalBufferSizeMust %d totalRecordBufferSizeOptional %d",
+                    totalBufferSizeMust, totalRecordBufferSizeOptional);
+            throw new RuntimeException("failed to allocate record and null buffers" +
+                    " totalBufferSizeMust " + totalBufferSizeMust +
+                    " totalRecordBufferSizeOptional " + totalRecordBufferSizeOptional +
+                    " queryMemoryOptional " + queryMemoryOptional +
+                    " satisfyPrecentage " + satisfyPrecentage +
+                    " collectIx " + collectIx +
+                    " numCollectElements " + allocParamsList.size() +
+                    " allocParamsList " + allocParamsList +
+                    " optionalSizes " + optionalSizes);
         }
     }
 
