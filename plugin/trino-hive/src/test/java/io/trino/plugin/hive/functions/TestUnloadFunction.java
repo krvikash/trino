@@ -649,10 +649,9 @@ class TestUnloadFunction
         testUnloadColumnType(format, "real", "3.14");
         testUnloadColumnType(format, "real", "10.3e0");
         if (format == JSON) {
-            // TODO https://github.com/trinodb/trino/issues/20395 Hive connector can write numeric NaN and ±infinity with JSON format, but can't read the value
-            assertThatThrownBy(() -> testUnloadColumnType(format, "real", "nan()")).hasMessageContaining("Failed to read file");
-            assertThatThrownBy(() -> testUnloadColumnType(format, "real", "-infinity()")).hasMessageContaining("Failed to read file");
-            assertThatThrownBy(() -> testUnloadColumnType(format, "real", "+infinity()")).hasMessageContaining("Failed to read file");
+            assertThatThrownBy(() -> testUnloadColumnType(format, "real", "nan()")).hasMessageContaining("Invalid value to Insert");
+            assertThatThrownBy(() -> testUnloadColumnType(format, "real", "-infinity()")).hasMessageContaining("Invalid value to Insert");
+            assertThatThrownBy(() -> testUnloadColumnType(format, "real", "+infinity()")).hasMessageContaining("Invalid value to Insert");
         }
         else {
             testUnloadColumnType(format, "real", "nan()");
@@ -671,10 +670,9 @@ class TestUnloadFunction
         testUnloadColumnType(format, "double", "1.0E100");
         testUnloadColumnType(format, "double", "1.23456E12");
         if (format == JSON) {
-            // TODO https://github.com/trinodb/trino/issues/20395 Hive connector can write numeric NaN and ±infinity with JSON format, but can't read the value
-            assertThatThrownBy(() -> testUnloadColumnType(format, "double", "nan()")).hasMessageContaining("Failed to read file");
-            assertThatThrownBy(() -> testUnloadColumnType(format, "double", "-infinity()")).hasMessageContaining("Failed to read file");
-            assertThatThrownBy(() -> testUnloadColumnType(format, "double", "+infinity()")).hasMessageContaining("Failed to read file");
+            assertThatThrownBy(() -> testUnloadColumnType(format, "double", "nan()")).hasMessageContaining("Invalid value to Insert");
+            assertThatThrownBy(() -> testUnloadColumnType(format, "double", "-infinity()")).hasMessageContaining("Invalid value to Insert");
+            assertThatThrownBy(() -> testUnloadColumnType(format, "double", "+infinity()")).hasMessageContaining("Invalid value to Insert");
         }
         else {
             testUnloadColumnType(format, "double", "nan()");
