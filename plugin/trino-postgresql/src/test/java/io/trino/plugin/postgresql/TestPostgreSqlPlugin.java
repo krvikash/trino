@@ -25,7 +25,11 @@ import io.trino.testing.TestingConnectorContext;
 import io.trino.type.InternalTypeManager;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+import java.util.Set;
+
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestPostgreSqlPlugin
 {
@@ -48,5 +52,23 @@ public class TestPostgreSqlPlugin
                         "connection-url", "jdbc:postgresql:test",
                         "bootstrap.quiet", "true"),
                 TestingConnectorContext.builder().withTypeManager(TESTING_POSTGRESQL_TYPE_MANAGER).build()).shutdown();
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new PostgreSqlPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "credential-provider.type", "inline",
+                "connection-user", "user",
+                "connection-password", "password", // Conditionally bound security-sensitive property
+                "dynamic-filtering.enabled", "shouldBeBoolean",
+                "postgresql.array-mapping", "as_array");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties).containsExactlyInAnyOrder("non-existent-property", "connection-password");
     }
 }
