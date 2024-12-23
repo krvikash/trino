@@ -32,7 +32,6 @@ import io.trino.filesystem.azure.AzureAuthOAuthConfig;
 import io.trino.filesystem.azure.AzureAuthOauth;
 import io.trino.filesystem.azure.AzureFileSystemConfig;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
-import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.lang.annotation.Annotation;
@@ -64,7 +63,6 @@ public class AzureCloudStorageModule
         configBinder(binder).bindConfig(AzureFileSystemConfig.class);
 
         binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
-        binder.bind(CatalogHandle.class).toInstance(context.getCatalogHandle());
         binder.bind(AzureFileSystemFactory.class);
 
         AzureFileSystemConfig config = configFactory.build(AzureFileSystemConfig.class);
