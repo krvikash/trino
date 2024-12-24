@@ -17,9 +17,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
 import io.trino.spi.catalog.CatalogName;
@@ -45,15 +43,14 @@ public class NativeConnectorSync
 
     private final CatalogName catalogName;
     private final EventBus eventBus;
-    private final GlobalConfig globalConfig;
     private final NativeConfig nativeConfig;
-    private WarmupDemoterService warmupDemoterService;
 
     private int numWorkerThreads;
     private MemorySegment catalogContext;
 
     // syncher API
     private final MethodHandle mGetContextSize;
+    private final MethodHandle mRegister;
     private final MethodHandle mUnregister;
     private final MethodHandle mAllocReaderId;
     private final MethodHandle mFreeReaderId;
@@ -62,7 +59,6 @@ public class NativeConnectorSync
     public NativeConnectorSync(
             CatalogName catalogName,
             EventBus eventBus,
-            GlobalConfig globalConfig,
             NativeConfig nativeConfig)
     {
         try {
@@ -72,6 +68,8 @@ public class NativeConnectorSync
             // syncher API
             mGetContextSize = linker.downcallHandle(libraryHandle.find("syncher_get_context_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
+            mRegister = linker.downcallHandle(libraryHandle.find("syncher_register").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
             mUnregister = linker.downcallHandle(libraryHandle.find("syncher_unregister").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
             mAllocReaderId = linker.downcallHandle(libraryHandle.find("syncher_alloc_reader_id").orElseThrow(),
@@ -81,7 +79,6 @@ public class NativeConnectorSync
 
             this.catalogName = catalogName;
             this.eventBus = requireNonNull(eventBus);
-            this.globalConfig = requireNonNull(globalConfig);
             this.nativeConfig = requireNonNull(nativeConfig);
 
             int contextSize = (int) mGetContextSize.invokeExact();
@@ -102,18 +99,20 @@ public class NativeConnectorSync
             this.numWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
             checkArgument(numWorkerThreads > 0, "no segments configured for match bitmaps");
             // register and get memory address. note that the name is not passed to native. no need.
-            if (register(catalogContext.address()) < 0) {
-                throw new RuntimeException("catalog failed to register on too many catalogs");
+
+            boolean success = (boolean) mRegister.invokeExact(catalogContext);
+            if (success) {
+                // complete the regisgtration
+                logger.info("catalog %s registered", catalogName);
+                eventBus.post(new ConnectorSyncInitializedEvent(true));
+                return;
             }
-            // complete the regisgtration
-            logger.info("catalog name %s registered", catalogName);
-            eventBus.post(new ConnectorSyncInitializedEvent(true));
         }
         catch (Throwable t) {
-            logger.error(t, "failed to register");
-            shutdown();
-            throw new RuntimeException(t);
+            logger.error(t, "failed to call register");
         }
+        shutdown();
+        throw new RuntimeException("failed to register catalog " + catalogName);
     }
 
     @PreDestroy
@@ -127,10 +126,10 @@ public class NativeConnectorSync
                 return;
             }
             catalogContext = null;
-            logger.info("unregister catalog name %s", catalogName);
+            logger.info("catalog %s unreigtered", catalogName);
         }
         catch (Throwable t) {
-            logger.error(t, "failed to unregister");
+            logger.error(t, "failed to call unregister");
         }
     }
 
@@ -191,6 +190,4 @@ public class NativeConnectorSync
         }
         throw new RuntimeException("failed to free query memory");
     }
-
-    private native long register(long context);
 }
