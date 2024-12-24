@@ -340,6 +340,10 @@ class TestAsyncResultIterator
                         100,
                         100,
                         100,
+                        100,
+                        100,
+                        100,
+                        100,
                         StageStats.builder()
                                 .setStageId("id")
                                 .setDone(false)
