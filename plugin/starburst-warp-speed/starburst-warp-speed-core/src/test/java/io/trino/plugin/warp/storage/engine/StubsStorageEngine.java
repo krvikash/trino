@@ -34,19 +34,19 @@ public class StubsStorageEngine
     @Override
     public int getWarmupRecordBufferSize(int recTypeLength)
     {
-        return 1024 * recTypeLength;
+        return 8192 * recTypeLength;
     }
 
     @Override
     public int getFixedCollectRecordBufferSize(int recTypeLength)
     {
-        return 1024 * recTypeLength;
+        return 8192 * recTypeLength;
     }
 
     @Override
     public int getVarlenCollectRecordBufferSize(int recTypeLength)
     {
-        return 1024 * recTypeLength;
+        return 8192 * recTypeLength;
     }
 
     @Override

@@ -49,7 +49,7 @@ public class StubsStorageEngineConstants
     @Override
     public int getPageSizeMask()
     {
-        return -8192;
+        return ~8191;
     }
 
     @Override
@@ -145,13 +145,13 @@ public class StubsStorageEngineConstants
     @Override
     public int getVarlenMdGranularity()
     {
-        return 16;
+        return 32;
     }
 
     @Override
     public int getChunkSizeShift()
     {
-        return 10;
+        return 13;
     }
 
     @Override

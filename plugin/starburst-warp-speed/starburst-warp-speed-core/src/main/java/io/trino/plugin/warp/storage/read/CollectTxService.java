@@ -43,8 +43,6 @@ import static io.trino.plugin.warp.dispatcher.query.classifier.NativeCollectClas
 public class CollectTxService
         extends BaseCollectTxService
 {
-    private static final long EXTRA_BUFFER_SIZE = 200000;
-
     private final RangeFillerService rangeFillerService;
 
     @Inject
@@ -221,6 +219,7 @@ public class CollectTxService
         }
 
         final int pageSize = storageEngineConstants.getPageSize();
+        final int pageSizeMask = storageEngineConstants.getPageSizeMask();
         // size left for optional record buffer is total memory minus the must to allocate without optional
         long queryMemoryOptional = COLLECT_BUFFER_MAX_MEMORY - totalBufferSizeMust;
         // make sure each juffer that needs extra will get same fair
@@ -229,7 +228,7 @@ public class CollectTxService
         // allocate total memory for records and nulls
         MemorySegment collectMemory;
         try {
-            collectMemory = pageArena.allocate(totalBufferSizeMust + Math.min(queryMemoryOptional, totalRecordBufferSizeOptional) + EXTRA_BUFFER_SIZE, pageSize);
+            collectMemory = pageArena.allocate(totalBufferSizeMust + Math.min(queryMemoryOptional, totalRecordBufferSizeOptional), pageSize);
         }
         catch (Throwable t) {
             throw new RuntimeException("no memory available for lazy collect size totalBufferSizeMust " + totalBufferSizeMust + " totalRecordBufferSizeOptional " + totalRecordBufferSizeOptional);
@@ -243,9 +242,9 @@ public class CollectTxService
             for (CollectAllocPararms allocParams : allocParamsList) {
                 long[] collectBuffers = outCollectBuffers[collectIx]; // save the addresses here for native
                 MemorySegment[] collectSegments = new MemorySegment[collectBuffers.length]; // used to create the juffers below
-                // record buffer size including the optional part which is calculated using the precentage and rounded to page size
+                // record buffer size including the optional part which is calculated using the precentage and masked to page size
                 int recordBufferSizeOptional = (int) (satisfyPrecentage * allocParams.recordBufferSizeOptional());
-                recordBufferSizeOptional = ((recordBufferSizeOptional + pageSize - 1) / pageSize) * pageSize;
+                recordBufferSizeOptional &= pageSizeMask;
                 optionalSizes.add(recordBufferSizeOptional);
                 allocCollectBuffer(queryMemoryAllocator,
                         JbufType.JBUF_TYPE_REC,
@@ -278,7 +277,8 @@ public class CollectTxService
                     " collectIx " + collectIx +
                     " numCollectElements " + allocParamsList.size() +
                     " allocParamsList " + allocParamsList +
-                    " optionalSizes " + optionalSizes);
+                    " optionalSizes " + optionalSizes +
+                    " collectMemory " + collectMemory);
         }
     }
 
