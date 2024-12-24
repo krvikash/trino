@@ -16,6 +16,7 @@ package io.trino.plugin.warp.metrics;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.LongAdder;
@@ -26,8 +27,7 @@ public class WarpStatsBase
     @JsonIgnore
     private final String jmxKey;
     private final WarpStatType warpStatType;
-    @JsonIgnore
-    private Map<String, Long> auditMap = Map.of();
+    private Map auditMap = Collections.emptyMap();
 
     protected WarpStatsBase(String jmxKey, WarpStatType warpStatType)
     {
@@ -41,13 +41,24 @@ public class WarpStatsBase
         return jmxKey;
     }
 
+    @JsonIgnore
+    public Map getAuditMap()
+    {
+        return auditMap;
+    }
+
     public Map<String, LongAdder> getCounters()
     {
-        return Map.of();
+        return Collections.emptyMap();
     }
 
     public void reset()
     {
+    }
+
+    public void merge(WarpStatsBase warpStatsBase)
+    {
+        throw new UnsupportedOperationException();
     }
 
     public void mergeStats(WarpStatsBase warpStatsBase)
@@ -57,17 +68,17 @@ public class WarpStatsBase
 
     public Map<String, Long> statsCounterMapper()
     {
-        return Map.of();
+        return Collections.emptyMap();
     }
 
     protected Map<String, Long> deltaPrintFields()
     {
-        return Map.of();
+        return Collections.emptyMap();
     }
 
     protected Map<String, Long> statePrintFields()
     {
-        return Map.of();
+        return Collections.emptyMap();
     }
 
     public WarpStatType getWarpStatType()
@@ -75,14 +86,14 @@ public class WarpStatsBase
         return warpStatType;
     }
 
-    public Map<String, Object> printStatsMap()
+    public <K, V> Map<K, V> printStatsMap()
     {
-        Map<String, Long> newAuditMap = deltaPrintFields();
-        Map<String, Object> res = new HashMap<>();
+        Map newAuditMap = deltaPrintFields();
+        Map res = new HashMap();
         newAuditMap.forEach((k, v) -> {
             Long prevVal = (Long) auditMap.get(k);
             if (prevVal == null || !prevVal.equals(v)) {
-                res.put(k, formatDeltaValue(v, prevVal));
+                res.put(k, formatDeltaValue((Long) v, prevVal));
             }
         });
         res.putAll(statePrintFields());
