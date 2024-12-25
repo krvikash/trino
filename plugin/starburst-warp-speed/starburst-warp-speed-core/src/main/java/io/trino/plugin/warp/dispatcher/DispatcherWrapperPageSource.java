@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.TreeMap;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -43,6 +44,24 @@ public class DispatcherWrapperPageSource
     private static final String CUSTOM_METRIC_TABLE_NAME = "TABLE_NAME:";
     private static final String CUSTOM_METRIC_SCHEMA_NAME = "SCHEMA_NAME:";
     private static final String CUSTOM_METRIC_CATALOG_NAME = "CATALOG_NAME:";
+    private static final Set<String> MANDATORY_STATS = Set.of(
+            "dispatcherPageSource:external_match_columns",
+            "dispatcherPageSource:external_collect_columns",
+            "dispatcherPageSource:warp_match_columns",
+            "dispatcherPageSource:warp_collect_columns",
+            "dispatcherPageSource:empty_collect_columns",
+            "dispatcherPageSource:warp_mapped_match_collect_columns",
+            "dispatcherPageSource:warp_match_collect_columns",
+            "dispatcherPageSource:warp_prefilled_collect_columns",
+            "dispatcherPageSource:cached_proxied_files",
+            "dispatcherPageSource:cached_warp_failed_pages",
+            "dispatcherPageSource:cached_warp_failed_files",
+            "dispatcherPageSource:cached_warp_success_files",
+            "dispatcherPageSource:filtered_by_predicate",
+            "dispatcherPageSource:warp_match_on_simplified_domain",
+            "dispatcherPageSource:lazy_collect_total_blocks",
+            "dispatcherPageSource:lazy_collect_loaded_blocks",
+            "dispatcherPageSource:non_trivial_alternative_chosen");
 
     private final ConnectorPageSourceProvider connectorPageSourceProvider;
     private final WarpDispatcherPageSourceFactory pageSourceFactory;
@@ -160,15 +179,18 @@ public class DispatcherWrapperPageSource
         Metrics.Accumulator result = Metrics.accumulator();
         if (closed) {
             Map<String, Long> statsMap = new TreeMap<>();
-            customStatsContext.getRegisteredStats().forEach((key, value) -> statsMap.putAll(value.statsCounterMapper()));
+            customStatsContext.getRegisteredStats().forEach((_, value) -> statsMap.putAll(value.statsCounterMapper()));
             statsMap.putAll(customStatsContext.getFixedStats());
-            statsMap.put(CUSTOM_METRIC_SCHEMA_NAME + dispatcherTableHandle.getSchemaTableName().getSchemaName(), 0L);
-            statsMap.put(CUSTOM_METRIC_TABLE_NAME + dispatcherTableHandle.getSchemaTableName().getTableName(), 0L);
-            statsMap.put(CUSTOM_METRIC_CATALOG_NAME + catalogName, 0L);
+            statsMap.put(CUSTOM_METRIC_SCHEMA_NAME + dispatcherTableHandle.getSchemaTableName().getSchemaName(), 1L);
+            statsMap.put(CUSTOM_METRIC_TABLE_NAME + dispatcherTableHandle.getSchemaTableName().getTableName(), 1L);
+            statsMap.put(CUSTOM_METRIC_CATALOG_NAME + catalogName, 1L);
 
-            Map<String, Metric<?>> metricsMap = statsMap.entrySet().stream().collect(toImmutableMap(
-                    Map.Entry::getKey,
-                    entry -> new LongCount(entry.getValue())));
+            Map<String, Metric<?>> metricsMap = statsMap.entrySet()
+                    .stream()
+                    .filter(entry -> MANDATORY_STATS.contains(entry.getKey()) || entry.getValue() > 0)
+                    .collect(toImmutableMap(
+                            Map.Entry::getKey,
+                            entry -> new LongCount(entry.getValue())));
             result.add(new Metrics(metricsMap));
         }
         if (connectorPageSource != null) {
