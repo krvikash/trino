@@ -140,32 +140,31 @@ public class WarpCacheTask
             return;
         }
         try {
-            try {
-                loadFromWarmingThread = storageWarmerService.isLoaderAvailable();
-                if (!loadFromWarmingThread) {
-                    storageWarmerService.waitForLoaders();
-                }
-                statsWarmingService.incwarm_started();
+            loadFromWarmingThread = storageWarmerService.isLoaderAvailable();
+            if (!loadFromWarmingThread) {
+                storageWarmerService.waitForLoaders();
+            }
+            statsWarmingService.incwarm_started();
+            synchronized (this) {
                 if (isAborted()) {
                     return;
                 }
-                cacheWarmState = init();
-                if (engineAbort) {
-                    cacheWarmState = CacheWarmState.ABORT_FROM_ENGINE;
-                    return;
-                }
-                if (cacheWarmState == CacheWarmState.RUNNING) {
-                    cacheWarmState = processAll(loadFromWarmingThread);
+                if (initWarmUpProcess()) {
+                    storageWriterSplitConfig = cacheWarmer.startWarming(rowGroupKey);
+                    warmStarted = true;
+                    cacheWarmState = initCandidates() ? CacheWarmState.RUNNING : CacheWarmState.ABORTING;
                 }
             }
-            catch (InterruptedException e) {
-                setWarpAbort();
+            if (engineAbort) {
+                cacheWarmState = CacheWarmState.ABORT_FROM_ENGINE;
+                return;
             }
-            finally {
-                closeAndSave(cacheWarmState);
+            if (cacheWarmState == CacheWarmState.RUNNING) {
+                cacheWarmState = processAll(loadFromWarmingThread);
             }
         }
         finally {
+            closeAndSave(cacheWarmState);
             try {
                 cacheWarmer.finishWarming(storageWriterSplitConfig);
             }
@@ -299,19 +298,6 @@ public class WarpCacheTask
                 shapingLogger.error(e, "failed to clean storage for cache key=%s", rowGroupKey);
             }
         }
-    }
-
-    private CacheWarmState init()
-            throws InterruptedException
-    {
-        if (!initWarmUpProcess()) {
-            return CacheWarmState.ABORT_ON_INIT_PROCESS;
-        }
-
-        storageWriterSplitConfig = cacheWarmer.startWarming(rowGroupKey);
-        warmStarted = true;
-
-        return initCandidates() ? CacheWarmState.RUNNING : CacheWarmState.ABORTING;
     }
 
     private boolean initWarmUpProcess()
