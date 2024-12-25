@@ -59,8 +59,7 @@ public class DispatcherWrapperPageSource
             "dispatcherPageSource:filtered_by_predicate",
             "dispatcherPageSource:warp_match_on_simplified_domain",
             "dispatcherPageSource:lazy_collect_total_blocks",
-            "dispatcherPageSource:lazy_collect_loaded_blocks",
-            "dispatcherPageSource:non_trivial_alternative_chosen");
+            "dispatcherPageSource:lazy_collect_loaded_blocks");
 
     private final ConnectorPageSourceProvider connectorPageSourceProvider;
     private final WarpDispatcherPageSourceFactory pageSourceFactory;
