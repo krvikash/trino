@@ -129,9 +129,13 @@ public class DispatcherCacheManagerModule
         binder.bind(MetricsManager.class);
         configBinder(binder).bindConfig(MetricsConfig.class);
         binder.bind(WarpInitializedServiceRegistry.class);
+
         binder.bind(NodeManager.class).toInstance(warpCacheMgrConnectorContext.getNodeManager());
         binder.bind(EventBus.class).asEagerSingleton();
         configBinder(binder).bindConfig(GlobalConfig.class);
+        configBinder(binder).bindConfig(CacheManagerConfig.class);
+        binder.bind(CacheMgrWarmupRuleService.class);
+
         if (!WarpBaseModule.isWorker(warpCacheMgrConnectorContext, config)) {
             return;
         }
@@ -139,7 +143,6 @@ public class DispatcherCacheManagerModule
         configBinder(binder).bindConfig(DictionaryConfig.class);
         configBinder(binder).bindConfig(NativeConfig.class);
         configBinder(binder).bindConfig(WarmupDemoterConfig.class);
-        configBinder(binder).bindConfig(CacheManagerConfig.class);
 
         // bind block serializers for the purpose of TupleDomain serde
         binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
@@ -153,7 +156,6 @@ public class DispatcherCacheManagerModule
         binder.bind(BlockFillersFactory.class);
         binder.bind(BlockTransformerFactory.class);
         binder.bind(BufferAllocator.class);
-        binder.bind(CacheMgrWarmupRuleService.class);
         binder.bind(ClassifierFactory.class);
         binder.bind(CollectTxService.class);
         binder.bind(DictionaryCacheService.class);

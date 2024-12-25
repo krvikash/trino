@@ -88,7 +88,7 @@ public class WarpConnectorFactory
 
         List<Class<? extends InitializationModule>> extraModules = !this.extraModules.isEmpty() ?
                 this.extraModules :
-                List.of(WarpModule.class);
+                List.of(WarpExtensionHandlerModule.class);
         return new StarburstWarpConnector(dispatcherConnectorFactory.create(
                 catalogName,
                 configMap,

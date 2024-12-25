@@ -18,8 +18,6 @@ import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.warp.annotation.Audit;
-import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
-import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
@@ -54,16 +52,14 @@ public class CacheMgrWarmupTask
     public static final String CACHE_MANAGER_WARMUP_PATH = "cache-manager-warmup";
     public static final String TASK_NAME_FETCH = "run-fetcher";
 
-    private final WarmupRuleFetcher<CacheManagerRule> warmupRuleFetcher;
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final WarpClient warpClient;
 
     @Inject
-    public CacheMgrWarmupTask(WarmupRuleFetcher<CacheManagerRule> warmupRuleFetcher,
+    public CacheMgrWarmupTask(
             CoordinatorNodeManager coordinatorNodeManager,
             WarpClient warpClient)
     {
-        this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
         this.warpClient = requireNonNull(warpClient);
     }
@@ -71,9 +67,8 @@ public class CacheMgrWarmupTask
     @Path(TASK_NAME_FETCH)
     @GET
     @Audit
-    public Map<String, List<WarmupColRuleData>> fetch()
+    public Map<String, List<CacheManagerRule>> fetch()
     {
-        warmupRuleFetcher.fetch();
         List<Node> workers = coordinatorNodeManager.getWorkerNodes();
         return workers.stream()
                 .parallel()
@@ -85,7 +80,7 @@ public class CacheMgrWarmupTask
                             .setUri(uriBuilder.build())
                             .setHeader(CONTENT_TYPE, JSON_UTF_8.toString())
                             .build();
-                    List<WarmupColRuleData> warmupRules = warpClient.sendWithRetry(request, createFullJsonResponseHandler(JsonCodec.listJsonCodec(WarmupColRuleData.class)));
+                    List<CacheManagerRule> warmupRules = warpClient.sendWithRetry(request, createFullJsonResponseHandler(JsonCodec.listJsonCodec(CacheManagerRule.class)));
                     return Pair.of(node.getNodeIdentifier(), warmupRules);
                 }).collect(Collectors.toMap(Pair::getKey, Pair::getValue));
     }

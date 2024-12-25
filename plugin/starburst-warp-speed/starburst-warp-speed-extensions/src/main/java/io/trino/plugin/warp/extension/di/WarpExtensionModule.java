@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
+import com.google.inject.multibindings.OptionalBinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.http.server.HttpServerModule;
@@ -90,9 +91,14 @@ public class WarpExtensionModule
             configureHttpServer();
         }
 
-        binder.bind(CallHomeService.class);
-        configBinder(binder).bindConfig(WarpExtensionConfig.class);
         configBinder(binder).bindConfig(CallHomeConfig.class);
+        CallHomeConfig callHomeConfig = configFactory.build(CallHomeConfig.class);
+        OptionalBinder.newOptionalBinder(binder, CallHomeService.class);
+        if (callHomeConfig.isEnable()) {
+            binder.bind(CallHomeService.class);
+        }
+
+        configBinder(binder).bindConfig(WarpExtensionConfig.class);
 
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
         if (WarpBaseModule.isWorker(connectorContext, config) &&

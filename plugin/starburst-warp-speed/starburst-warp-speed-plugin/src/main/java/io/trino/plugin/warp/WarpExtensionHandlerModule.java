@@ -27,7 +27,7 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-public class WarpModule
+public class WarpExtensionHandlerModule
         extends AbstractConfigurationAwareModule
         implements InitializationModule
 {
@@ -36,9 +36,9 @@ public class WarpModule
     private String catalogName;
 
     @SuppressWarnings("unused")
-    public WarpModule() {}
+    public WarpExtensionHandlerModule() {}
 
-    public WarpModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)
+    public WarpExtensionHandlerModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)
     {
         this.config = requireNonNull(config);
         this.connectorContext = requireNonNull(connectorContext);
@@ -48,7 +48,7 @@ public class WarpModule
     @Override
     public Module createModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)
     {
-        return new WarpModule(config, connectorContext, catalogName);
+        return new WarpExtensionHandlerModule(config, connectorContext, catalogName);
     }
 
     @Override
@@ -56,7 +56,6 @@ public class WarpModule
     {
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarpExtensionConfig warpExtensionConfig = configFactory.build(WarpExtensionConfig.class);
-
         if (warpExtensionConfig.isEnabled()) {
             install(new WarpExtensionModule(config, connectorContext, catalogName));
         }

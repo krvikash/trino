@@ -76,6 +76,6 @@ public class WarpCacheManagerFactory
                 configMap,
                 context,
                 warpCacheMgrConnectorContext,
-                Optional.of(List.of(WarpModule.class)));
+                Optional.of(List.of(WarpExtensionHandlerModule.class)));
     }
 }

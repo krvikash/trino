@@ -15,12 +15,10 @@ package io.trino.plugin.warp.extension.execution.warmup;
 
 import com.google.inject.Inject;
 import io.trino.plugin.warp.annotation.Audit;
-import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
+import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
-import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -44,12 +42,12 @@ public class WorkerCacheMgrWarmupTask
     public static final String TASK_NAME_FETCH = "run-fetcher";
 
     private final WarmupRuleFetcher<CacheManagerRule> warmupRuleFetcher;
-    private final WarmupRuleProvider warmupRuleProvider;
+    private final CacheMgrWarmupRuleService warmupRuleProvider;
 
     @Inject
     public WorkerCacheMgrWarmupTask(
             WarmupRuleFetcher<CacheManagerRule> warmupRuleFetcher,
-            WarmupRuleProvider warmupRuleProvider)
+            CacheMgrWarmupRuleService warmupRuleProvider)
     {
         this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
         this.warmupRuleProvider = requireNonNull(warmupRuleProvider);
@@ -58,12 +56,12 @@ public class WorkerCacheMgrWarmupTask
     @Path(TASK_NAME_FETCH)
     @GET
     @Audit
-    public List<WarmupColRuleData> fetch()
+    public List<CacheManagerRule> fetch()
     {
         warmupRuleFetcher.fetch();
         return warmupRuleProvider.getAll()
+                .values()
                 .stream()
-                .map(WarmupRuleApiMapper::fromModel)
                 .toList();
     }
 }

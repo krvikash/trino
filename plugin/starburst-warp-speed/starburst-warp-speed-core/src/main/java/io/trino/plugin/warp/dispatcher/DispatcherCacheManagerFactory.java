@@ -67,7 +67,8 @@ public class DispatcherCacheManagerFactory
                             moduleClass,
                             CacheManagerContext.class,
                             WarpCacheMgrConnectorContext.class)
-                    .invoke(null,
+                    .invoke(
+                            null,
                             DISPATCHER_CACHE_MANAGER_NAME,
                             config,
                             optionalModuleInstances,

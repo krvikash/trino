@@ -40,12 +40,12 @@ public class CallHomeResource
 {
     public static final String CALL_HOME_PATH = "call-home";
 
-    private final CallHomeService callHomeService;
+    private final Optional<CallHomeService> optionalCallHomeService;
 
     @Inject
-    public CallHomeResource(CallHomeService callHomeService)
+    public CallHomeResource(Optional<CallHomeService> optionalCallHomeService)
     {
-        this.callHomeService = requireNonNull(callHomeService);
+        this.optionalCallHomeService = requireNonNull(optionalCallHomeService);
     }
 
     @POST
@@ -53,11 +53,14 @@ public class CallHomeResource
     ////@ApiOperation(value = "call-home", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public Map<String, Object> triggerCallHome(CallHomeData callHomeData)
     {
-        Optional<Integer> optionalResult = callHomeService.triggerCallHome(
-                callHomeData.storePath(),
-                callHomeData.collectThreadDumps(),
-                callHomeData.waitToFinish());
-
+        Optional<Integer> optionalResult = Optional.empty();
+        if (optionalCallHomeService.isPresent()) {
+            optionalResult = optionalCallHomeService.get()
+                    .triggerCallHome(
+                            callHomeData.storePath(),
+                            callHomeData.collectThreadDumps(),
+                            callHomeData.waitToFinish());
+        }
         return Map.of("numberOfUploaded", optionalResult.orElse(0));
     }
 }

@@ -54,7 +54,7 @@ public class InternalDispatcherCacheManagerFactory
     @SuppressWarnings("unused")
     public static CacheManager createCacheManager(String cacheManagerName,
             Map<String, String> config,
-            Optional<List<Module>> optionalWorkerModule,
+            Optional<List<Module>> optionalModules,
             Module storageEngineModule,
             CacheManagerContext context,
             WarpCacheMgrConnectorContext warpCacheMgrConnectorContext)
@@ -86,9 +86,7 @@ public class InternalDispatcherCacheManagerFactory
                     binder.bind(DemoterSync.class).toInstance(warpCacheMgrConnectorContext.getDemoterSync());
                 }));
 
-        if (isWorker) {
-            optionalWorkerModule.ifPresent(modules::addAll);
-        }
+        optionalModules.ifPresent(modules::addAll);
 
         Bootstrap app = new Bootstrap(modules);
         Injector injector = app
