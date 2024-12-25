@@ -54,6 +54,7 @@ import io.trino.plugin.iceberg.procedure.OptimizeTableProcedure;
 import io.trino.plugin.iceberg.procedure.RegisterTableProcedure;
 import io.trino.plugin.iceberg.procedure.RemoveOrphanFilesTableProcedure;
 import io.trino.plugin.iceberg.procedure.RollbackToSnapshotProcedure;
+import io.trino.plugin.iceberg.procedure.RollbackToSnapshotTableProcedure;
 import io.trino.plugin.iceberg.procedure.UnregisterTableProcedure;
 import io.trino.spi.block.Block;
 import io.trino.spi.cache.ConnectorCacheMetadata;
@@ -153,6 +154,7 @@ public class IcebergModule
         Multibinder<TableProcedureMetadata> tableProcedures = newSetBinder(binder, TableProcedureMetadata.class);
         tableProcedures.addBinding().toProvider(OptimizeTableProcedure.class).in(Scopes.SINGLETON);
         tableProcedures.addBinding().toProvider(DropExtendedStatsTableProcedure.class).in(Scopes.SINGLETON);
+        tableProcedures.addBinding().toProvider(RollbackToSnapshotTableProcedure.class).in(Scopes.SINGLETON);
         tableProcedures.addBinding().toProvider(ExpireSnapshotsTableProcedure.class).in(Scopes.SINGLETON);
         tableProcedures.addBinding().toProvider(RemoveOrphanFilesTableProcedure.class).in(Scopes.SINGLETON);
         tableProcedures.addBinding().toProvider(AddFilesTableProcedure.class).in(Scopes.SINGLETON);
