@@ -91,11 +91,7 @@ public class WarpCacheTask
         this.cacheActions = requireNonNull(cacheActions);
         this.memoryContextService = requireNonNull(memoryContextService);
         this.id = UUID.randomUUID();
-        this.warpAbort = false;
-        this.engineAbort = false;
         this.blocksToProcess = new LinkedBlockingDeque<>();
-        this.taskStarted = false;
-        this.revoked = false;
         this.flowId = INVALID_FLOW_ID;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -134,7 +130,7 @@ public class WarpCacheTask
         taskStarted = true;
         CacheWarmState cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
         boolean loadFromWarmingThread = false;
-        if (isRevoked()) {
+        if (revoked) {
             //all resources already released by @revoke
             return;
         }
@@ -154,7 +150,7 @@ public class WarpCacheTask
                     return;
                 }
                 cacheWarmState = init();
-                if (isEngineAbort()) {
+                if (engineAbort) {
                     cacheWarmState = CacheWarmState.ABORT_FROM_ENGINE;
                     return;
                 }
@@ -222,10 +218,10 @@ public class WarpCacheTask
             setWarpAbort();
         }
         if (cacheWarmState == CacheWarmState.RUNNING) {
-            if (isEngineAbort()) {
+            if (engineAbort) {
                 cacheWarmState = CacheWarmState.ABORT_FROM_ENGINE;
             }
-            else if (isWarpAbort()) {
+            else if (warpAbort) {
                 cacheWarmState = CacheWarmState.ABORTING;
             }
             else {
@@ -407,7 +403,7 @@ public class WarpCacheTask
             return;
         }
         revoked = true;
-        if (isWarmStarted()) {
+        if (warmStarted) {
             //let flow to clean the data
             setEngineAbort();
             return;
@@ -472,16 +468,6 @@ public class WarpCacheTask
         }
         this.engineAbort = true;
         blocksToProcess.add(STOP_TRIGGER);
-    }
-
-    private boolean isWarpAbort()
-    {
-        return warpAbort;
-    }
-
-    private boolean isEngineAbort()
-    {
-        return engineAbort;
     }
 
     private boolean isAborted()
