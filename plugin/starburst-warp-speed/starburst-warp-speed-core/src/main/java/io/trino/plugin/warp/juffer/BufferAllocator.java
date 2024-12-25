@@ -29,6 +29,7 @@ import io.trino.plugin.warp.gen.stats.BufferAllocatorStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
@@ -251,7 +252,7 @@ public class BufferAllocator
         return predicateBufferPools[predicateBufferPoolType.ordinal()].getBufSize();
     }
 
-    public Optional<SegmentAllocator> createWarmMemoryAllocator(Arena arena, boolean allocateCommonWarmUpState)
+    public Optional<SegmentAllocator> createWarmMemoryAllocator(ThreadArena arena, boolean allocateCommonWarmUpState)
     {
         try {
             final long alignment = storageEngineConstants.getPageSize();

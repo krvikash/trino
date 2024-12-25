@@ -33,6 +33,7 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.BaseJuffer;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.spi.Page;
 import io.trino.spi.block.ArrayBlockBuilder;
@@ -144,6 +145,7 @@ public class StorageWriterServiceTest
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, globalConfig, blockTransformerFactory);
         WarmupElementStatsService warmupElementStatsService = new WarmupElementStatsService(globalConfig);
+        WorkerMemoryManager workerMemoryManager = new WorkerMemoryManager(globalConfig);
         storageWriterService = new StorageWriterService(storageEngine,
                 storageEngineConstants,
                 bufferAllocator,
@@ -152,6 +154,7 @@ public class StorageWriterServiceTest
                 mock(PrintMetricsTimerTask.class),
                 blockAppenderFactory,
                 warmupElementStatsService,
+                workerMemoryManager,
                 globalConfig);
     }
 

@@ -41,6 +41,7 @@ import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
@@ -79,6 +80,7 @@ public class WarpCachePageSourceFactory
 {
     private final MetricsManager metricsManager;
     private final StorageEngineTxService txService;
+    private final WorkerMemoryManager workerMemoryManager;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
 
     @Inject
@@ -96,6 +98,7 @@ public class WarpCachePageSourceFactory
             LazyCollectorService lazyCollectorService,
             MatchService matchService,
             StorageEngineTxService txService,
+            WorkerMemoryManager workerMemoryManager,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider)
     {
         super(storageEngineConstants,
@@ -113,6 +116,7 @@ public class WarpCachePageSourceFactory
 
         this.metricsManager = requireNonNull(metricsManager);
         this.txService = requireNonNull(txService);
+        this.workerMemoryManager = requireNonNull(workerMemoryManager);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
     }
 
@@ -220,7 +224,7 @@ public class WarpCachePageSourceFactory
 
             String filePath = afterLockRowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
             long fileModTime = afterLockRowGroupData.getRowGroupKey().fileModifiedTime();
-            QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime, false);
+            QueryParams queryParams = createQueryParams(workerMemoryManager, queryContext, filePath, fileModTime, false);
             WarpPageSource warpPageSource = new WarpPageSource(
                     storageEngineConstants,
                     Long.MAX_VALUE,

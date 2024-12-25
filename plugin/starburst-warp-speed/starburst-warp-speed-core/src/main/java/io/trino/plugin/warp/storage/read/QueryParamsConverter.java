@@ -27,9 +27,10 @@ import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.gen.constants.MatchCollectOp;
 import io.trino.plugin.warp.gen.constants.MatchNodeType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
+import io.trino.plugin.warp.storage.memory.GcArena;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.block.Block;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SequenceLayout;
@@ -57,7 +58,8 @@ public class QueryParamsConverter
 
     private QueryParamsConverter() {}
 
-    public static QueryParams createQueryParams(QueryContext queryContext,
+    public static QueryParams createQueryParams(WorkerMemoryManager workerMemoryManager,
+            QueryContext queryContext,
             String filePath,
             long fileModTime,
             boolean rangesRequired)
@@ -67,7 +69,7 @@ public class QueryParamsConverter
         Optional<MatchData> matchData = queryContext.getMatchData();
         ImmutableList.Builder<PredicateCacheData> predicateCacheDataBuilder = ImmutableList.builder();
 
-        Arena arena = Arena.ofAuto();
+        GcArena arena = workerMemoryManager.getGcArena();
         long lastUsedTimestamp = Instant.now().toEpochMilli();
         int[] minOffsets = new int[2];
         minOffsets[COLLECT] = Integer.MAX_VALUE;
@@ -130,7 +132,7 @@ public class QueryParamsConverter
                 arena);
     }
 
-    private static MemorySegment allocateWarmUpElementMatchParamsMemory(Arena arena, int numLeaves)
+    private static MemorySegment allocateWarmUpElementMatchParamsMemory(GcArena arena, int numLeaves)
     {
         SequenceLayout warmUpElementMatchParamsLayout = MemoryLayout.sequenceLayout(numLeaves, WarmupElementMatchParams.WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT);
         return arena.allocate(warmUpElementMatchParamsLayout.byteSize(), ValueLayout.JAVA_INT.byteSize());
@@ -145,7 +147,7 @@ public class QueryParamsConverter
         return warmUpElementMatchParamsQueue;
     }
 
-    private static MemorySegment allocateMatchNodeAttsMemory(Arena arena, int subtreeSize)
+    private static MemorySegment allocateMatchNodeAttsMemory(GcArena arena, int subtreeSize)
     {
         SequenceLayout matchNodeAttsLayout = MemoryLayout.sequenceLayout(subtreeSize, MatchNodeAtt.MATCH_NODE_ATT_LAYOUT);
         return arena.allocate(matchNodeAttsLayout.byteSize(), ValueLayout.JAVA_BYTE.byteSize());

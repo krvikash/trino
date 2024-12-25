@@ -47,6 +47,7 @@ import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.plugin.warp.node.WorkerNodeManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.util.json.SliceSerializer;
 import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
@@ -134,6 +135,7 @@ public class WarpMainModule
 
         binder.bind(WorkerNodeManager.class);
         binder.bind(WorkerCapacityManager.class);
+        binder.bind(WorkerMemoryManager.class);
     }
 
     private void bindMetricsServices(Binder binder)

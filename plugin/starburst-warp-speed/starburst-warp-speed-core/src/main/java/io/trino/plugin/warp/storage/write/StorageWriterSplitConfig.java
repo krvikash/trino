@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.storage.write;
 
 import io.trino.plugin.warp.storage.juffers.RecordBufferParams;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.util.Optional;
@@ -31,6 +31,6 @@ public record StorageWriterSplitConfig(String nodeIdentifier,
         RecordBufferParams recordBufferParams,  // record buffer parameters used for every commit call
         Optional<CompressionState> compressionStateOpt, // compression state used during a single element warming, if not present will be allocated per WE
         Boolean dictionaryEnabled,
-        Arena arena)
+        ThreadArena arena)
 {
 }

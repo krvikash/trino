@@ -36,6 +36,7 @@ import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
@@ -72,6 +73,7 @@ public class WarpDispatcherPageSourceFactory
     private static final Logger logger = Logger.get(WarpCachePageSourceFactory.class);
     private final ShapingLogger shapingLogger;
     private final WorkerWarmingService workerWarmingService;
+    private final WorkerMemoryManager workerMemoryManager;
     private final NativeStorageStateHandler nativeStorageStateHandler;
 
     @Inject
@@ -89,6 +91,7 @@ public class WarpDispatcherPageSourceFactory
             LazyCollectorService lazyCollectorService,
             MatchService matchService,
             WorkerWarmingService workerWarmingService,
+            WorkerMemoryManager workerMemoryManager,
             NativeStorageStateHandler nativeStorageStateHandler)
     {
         super(
@@ -111,6 +114,7 @@ public class WarpDispatcherPageSourceFactory
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
         this.workerWarmingService = requireNonNull(workerWarmingService);
+        this.workerMemoryManager = requireNonNull(workerMemoryManager);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
     }
 
@@ -425,7 +429,7 @@ public class WarpDispatcherPageSourceFactory
         boolean isMixedQuery = PageSourceDecision.MIXED.equals(pageSourceDecision);
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
-        QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime, isMixedQuery);
+        QueryParams queryParams = createQueryParams(workerMemoryManager, queryContext, filePath, fileModTime, isMixedQuery);
         WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 dispatcherTableHandle.getLimit().orElse(Long.MAX_VALUE),

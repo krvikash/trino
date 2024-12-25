@@ -15,8 +15,8 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
+import io.trino.plugin.warp.storage.memory.GcArena;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -45,7 +45,7 @@ public class QueryParams
     private final int minCollectOffset;
     private final ImmutableList<PredicateCacheData> predicateCacheData;
     private final boolean rangesRequired;
-    private final Arena arena;
+    private final GcArena arena;
 
     private final String filePath;
     private final long fileModTime;
@@ -65,7 +65,7 @@ public class QueryParams
             long fileModTime,
             ImmutableList<PredicateCacheData> predicateCacheData,
             boolean rangesRequired,
-            Arena arena)
+            GcArena arena)
     {
         this.rootMatchNode = requireNonNull(rootMatchNode, "rootMatchNode is null");
         this.warmUpElementMatchParams = requireNonNull(warmUpElementMatchParams);
@@ -180,7 +180,7 @@ public class QueryParams
         return minCollectOffset;
     }
 
-    public Arena getArena()
+    public GcArena getArena()
     {
         return arena;
     }

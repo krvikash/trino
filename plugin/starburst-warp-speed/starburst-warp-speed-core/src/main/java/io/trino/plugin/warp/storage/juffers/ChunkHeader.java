@@ -15,8 +15,8 @@ package io.trino.plugin.warp.storage.juffers;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.trino.plugin.warp.gen.constants.StorageLocHomogeneous;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
@@ -54,7 +54,7 @@ public class ChunkHeader
         CHUNK_HEADER_OFFSET_MIN = CHUNK_HEADER_LAYOUT.byteOffset(PathElement.groupElement("min"));
     }
 
-    public ChunkHeader(Arena arena, boolean withAggregates)
+    public ChunkHeader(ThreadArena arena, boolean withAggregates)
     {
         int size = withAggregates ? getHeaderSizeWithAgg() : getHeaderSizeWithoutAgg();
         // one chunk header is used to pass to storage engine to be filled copied back to a list held in java layer

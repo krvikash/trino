@@ -50,6 +50,7 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
@@ -215,6 +216,7 @@ public class DispatcherPageSourceFactoryTest
         QueryArgs queryArgs = mock(QueryArgs.class);
         StorageCollectorService storageCollectorService = mock(StorageCollectorService.class);
         when(storageCollectorService.getQueryArgs(any(), any())).thenReturn(queryArgs);
+        GlobalConfig globalConfig2 = new GlobalConfig();
         pageSourceFactory = new WarpDispatcherPageSourceFactory(
                 storageEngineConstants,
                 rowGroupDataService,
@@ -222,13 +224,14 @@ public class DispatcherPageSourceFactoryTest
                 dispatcherProxiedConnectorTransformer,
                 predicatesCacheService,
                 queryClassifier,
-                new GlobalConfig(),
+                globalConfig2,
                 new ReadErrorHandler(rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),
                 storageCollectorService,
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 workerWarmingService,
+                new WorkerMemoryManager(globalConfig2),
                 nativeStorageStateHandler);
     }
 

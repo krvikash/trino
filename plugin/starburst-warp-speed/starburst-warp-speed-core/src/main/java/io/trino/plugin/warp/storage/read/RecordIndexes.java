@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
+import io.trino.plugin.warp.storage.memory.GcArena;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
@@ -82,7 +82,7 @@ public class RecordIndexes
         this.bytesInChunk = chunkSize / Byte.SIZE;
     }
 
-    public MemorySegment setMemory(Arena arena)
+    public MemorySegment setMemory(GcArena arena)
     {
         if (recordIndexes == null) {
             recordIndexes = arena.allocate(byteSize(), ValueLayout.JAVA_SHORT.byteSize());

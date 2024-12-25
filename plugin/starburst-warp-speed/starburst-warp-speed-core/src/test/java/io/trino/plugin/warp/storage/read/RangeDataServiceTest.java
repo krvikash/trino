@@ -14,13 +14,14 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
+import io.trino.plugin.warp.storage.memory.GcArena;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -36,12 +37,14 @@ public class RangeDataServiceTest
     private StorageCollectorService storageCollectorService;
     private MemorySegment recordIndexesList;
     private RecordIndexes recordIndexes;
+    private AtomicLong numAllocatedBytes;
 
     @BeforeEach
     public void before()
     {
         recordIndexes = new RecordIndexes((int) Math.pow(2, 16));
-        MemorySegment recordIndexesMem = recordIndexes.setMemory(Arena.ofAuto());
+        numAllocatedBytes = new AtomicLong();
+        MemorySegment recordIndexesMem = recordIndexes.setMemory(new GcArena(this::onClose, numAllocatedBytes, null));
         recordIndexesList = recordIndexesMem.asSlice(RecordIndexes.RECORD_INDEXES_OFFSET_LIST, RecordIndexes.RECORD_INDEXES_LIST_LAYOUT);
 
         queryArgs = mock(QueryArgs.class);
@@ -78,6 +81,11 @@ public class RangeDataServiceTest
         assertThat(ranges.getRangesCount()).isEqualTo(1);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(0);
         assertThat(ranges.getUpperExclusive(0)).isEqualTo(64);
+    }
+
+    public Void onClose(Void v)
+    {
+        return null;
     }
 
     @Test

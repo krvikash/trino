@@ -23,9 +23,10 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.TrinoException;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 
@@ -40,6 +41,7 @@ public abstract class BaseCollectTxService
     protected final StorageEngineConstants storageEngineConstants;
     protected final ConnectorSync connectorSync;
     protected final BufferAllocator bufferAllocator;
+    protected final WorkerMemoryManager workerMemoryManager;
     protected final GlobalConfig globalConfig;
     protected final ShapingLogger shapingLogger;
 
@@ -47,12 +49,14 @@ public abstract class BaseCollectTxService
             StorageEngineConstants storageEngineConstants,
             ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
+            WorkerMemoryManager workerMemoryManager,
             GlobalConfig globalConfig)
     {
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
         this.connectorSync = connectorSync;
         this.bufferAllocator = bufferAllocator;
+        this.workerMemoryManager = workerMemoryManager;
         this.globalConfig = globalConfig;
         this.shapingLogger = ShapingLogger.getInstance(logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -72,20 +76,14 @@ public abstract class BaseCollectTxService
         }
     }
 
-    protected Arena openPageArena()
+    protected ThreadArena openPageArena()
     {
-        return Arena.ofConfined();
+        return workerMemoryManager.getThreadArena();
     }
 
-    protected void closePageArena(Arena pageArena)
+    protected void closePageArena(ThreadArena pageArena)
     {
-        try {
-            pageArena.close();
-        }
-        catch (Throwable t) {
-            logger.error(t, "failed to close collect memory arena");
-            throw new RuntimeException("ailed to close collect memory arena");
-        }
+        pageArena.close();
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()

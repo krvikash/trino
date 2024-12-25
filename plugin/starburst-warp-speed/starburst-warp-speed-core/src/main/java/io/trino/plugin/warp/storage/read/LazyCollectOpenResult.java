@@ -13,8 +13,8 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import java.lang.foreign.Arena;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 
-public record LazyCollectOpenResult(int readerId, Arena pageArena, RecordIndexes recordIndexes)
+public record LazyCollectOpenResult(int readerId, ThreadArena pageArena, RecordIndexes recordIndexes)
 {
 }

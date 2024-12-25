@@ -28,6 +28,7 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.juffers.RecordBufferParams;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.plugin.warp.storage.read.fill.BigIntArrayBlockFiller;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 import io.trino.plugin.warp.storage.read.fill.BooleanArrayBlockFiller;
@@ -57,7 +58,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
@@ -65,6 +65,7 @@ import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -82,13 +83,15 @@ public class ArrayReadWriteTest
     private ArrayBlockAppender appender;
     private BlockFiller filler;
     private ReadJuffersWarmUpElement juffersWE;
-    private Arena arena;
+    private AtomicLong numAllocatedBytes;
+    private ThreadArena arena;
 
     @BeforeEach
     public void before()
     {
         storageEngineConstants = new StubsStorageEngineConstants();
-        arena = Arena.ofConfined();
+        numAllocatedBytes = new AtomicLong();
+        arena = new ThreadArena(this::onClose, numAllocatedBytes, null);
 
         ByteBuffer nullBuffer = ByteBuffer.allocate(1000);
         ByteBuffer recordBuffer = ByteBuffer.allocate(1000);
@@ -114,6 +117,11 @@ public class ArrayReadWriteTest
         catch (Throwable t) {
             throw new RuntimeException("failed closing arena");
         }
+    }
+
+    public Void onClose(Void v)
+    {
+        return null;
     }
 
     static Stream<Arguments> params()

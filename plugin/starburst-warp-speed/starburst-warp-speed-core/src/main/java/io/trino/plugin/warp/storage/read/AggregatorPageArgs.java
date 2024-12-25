@@ -13,11 +13,12 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import java.lang.foreign.Arena;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
+
 import java.util.List;
 
 public record AggregatorPageArgs(int readerId,
-                         Arena pageArena,
+                         ThreadArena pageArena,
                          int rowsLimit,
                          int numCollectedInPreviousRounds,
                          RangeData rangeData,

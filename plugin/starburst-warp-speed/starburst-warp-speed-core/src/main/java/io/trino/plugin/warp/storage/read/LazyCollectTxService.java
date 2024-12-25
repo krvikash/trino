@@ -25,8 +25,9 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 
@@ -40,9 +41,10 @@ public class LazyCollectTxService
             StorageEngineConstants storageEngineConstants,
             ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
+            WorkerMemoryManager workerMemoryManager,
             GlobalConfig globalConfig)
     {
-        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
+        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, workerMemoryManager, globalConfig);
     }
 
     LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs, DispatcherPageSourceStats dispatcherPageSourceStats)
@@ -58,7 +60,7 @@ public class LazyCollectTxService
         final int nullBufferSize = bufferAllocator.getQueryNullBufferSize(recTypeCode);
 
         // allocate memory
-        Arena pageArena = openPageArena();
+        ThreadArena pageArena = openPageArena();
         MemorySegment collectMemory;
         try {
             final int pageSize = storageEngineConstants.getPageSize();

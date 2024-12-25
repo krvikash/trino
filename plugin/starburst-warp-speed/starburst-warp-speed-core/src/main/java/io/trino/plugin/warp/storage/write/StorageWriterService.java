@@ -43,6 +43,8 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.RecordBufferParams;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.appenders.AppendResult;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppender;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
@@ -54,7 +56,6 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.Type;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.ValueLayout;
@@ -80,6 +81,7 @@ public class StorageWriterService
     private final DictionaryCacheService dictionaryCacheService;
     private final BlockAppenderFactory blockAppenderFactory;
     private final WarmupElementStatsService warmupElementStatsService;
+    private final WorkerMemoryManager workerMemoryManager;
     private final PrintMetricsTimerTask metricsTimerTask;
     private final LuceneIndexerStats statsLuceneIndexer;
     private final GlobalConfig globalConfig;
@@ -93,6 +95,7 @@ public class StorageWriterService
             PrintMetricsTimerTask metricsTimerTask,
             BlockAppenderFactory blockAppenderFactory,
             WarmupElementStatsService warmupElementStatsService,
+            WorkerMemoryManager workerMemoryManager,
             GlobalConfig globalConfig)
     {
         this.storageEngine = requireNonNull(storageEngine);
@@ -101,6 +104,7 @@ public class StorageWriterService
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.blockAppenderFactory = requireNonNull(blockAppenderFactory);
         this.warmupElementStatsService = requireNonNull(warmupElementStatsService);
+        this.workerMemoryManager = requireNonNull(workerMemoryManager);
         LuceneIndexerStats luceneIndexerStats = new LuceneIndexerStats(LUCENE_STATS_GROUP_NAME, "0");
         this.statsLuceneIndexer = metricsManager.registerMetric(luceneIndexerStats);
         this.metricsTimerTask = requireNonNull(metricsTimerTask);
@@ -113,7 +117,7 @@ public class StorageWriterService
             boolean allocateCommonWarmUpState)
     {
         /* allocate memory resources */
-        Arena arena = Arena.ofConfined();
+        ThreadArena arena = workerMemoryManager.getThreadArena();
         Optional<SegmentAllocator> warmMemoryAllocatorOpt = bufferAllocator.createWarmMemoryAllocator(arena, allocateCommonWarmUpState);
         if (!warmMemoryAllocatorOpt.isPresent()) {
             throw new RuntimeException("no memory available for warming");
@@ -222,12 +226,12 @@ public class StorageWriterService
         return new WriteOpenResult(storageWriterContext, dictionaryWarmInfo);
     }
 
-    private WarmUpState allocateWarmUpState(Arena arena)
+    private WarmUpState allocateWarmUpState(ThreadArena arena)
     {
         return new WarmUpState(arena.allocate(WarmUpState.WARMUP_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
     }
 
-    private CompressionState allocateCompressionState(Arena arena)
+    private CompressionState allocateCompressionState(ThreadArena arena)
     {
         return new CompressionState(arena.allocate(CompressionState.COMPRESSION_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
     }
@@ -238,7 +242,7 @@ public class StorageWriterService
             WarmUpElementAllocationParams allocParams,
             CompressionState compressionState,
             byte warmId,
-            Arena arena)
+            ThreadArena arena)
     {
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(storageEngine,
                 storageEngineConstants,

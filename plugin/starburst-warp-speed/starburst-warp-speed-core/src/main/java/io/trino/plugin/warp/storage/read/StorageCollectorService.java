@@ -33,13 +33,13 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.plugin.warp.storage.memory.GcArena;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.util.StorageUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlock;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SequenceLayout;
@@ -448,7 +448,7 @@ public class StorageCollectorService
         SequenceLayout warmUpElementAttsLayout =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
 
-        Arena arena = queryParams.getArena();
+        GcArena arena = queryParams.getArena();
         return new AggregatorArgs(blockFillers,
                 collectJuffersWE,
                 storeRowListBuff,

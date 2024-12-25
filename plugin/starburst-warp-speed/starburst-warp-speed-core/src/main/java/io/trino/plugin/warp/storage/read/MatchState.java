@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
+import io.trino.plugin.warp.storage.memory.GcArena;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
@@ -142,7 +142,7 @@ public class MatchState
     public void setMemory(QueryArgs queryArgs)
     {
         if (matchStateWithPayload == null) {
-            Arena arena = queryArgs.queryParams().getArena();
+            GcArena arena = queryArgs.queryParams().getArena();
             if (numBitmaps > 0) {
                 matchBitmaps = Optional.of(arena.allocate((long) numBitmaps * (long) pageSize, PAGE_BM_ALIGN));
                 matchBitmapsDescriptors = Optional.of(arena.allocate(MemoryLayout.sequenceLayout(numBitmaps, MATCH_BITMAP_DESC_LAYOUT).byteSize(), ValueLayout.JAVA_INT.byteSize()));

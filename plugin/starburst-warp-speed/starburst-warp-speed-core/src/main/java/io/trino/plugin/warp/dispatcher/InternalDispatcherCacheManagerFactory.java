@@ -30,6 +30,7 @@ import io.trino.plugin.warp.node.CoordinatorInitializedEventHandler;
 import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.plugin.warp.node.WorkerNodeManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
 import org.weakref.jmx.guice.MBeanModule;
@@ -80,6 +81,7 @@ public class InternalDispatcherCacheManagerFactory
                     if (isWorker) {
                         binder.bind(WorkerNodeManager.class);
                         binder.bind(WorkerCapacityManager.class);
+                        binder.bind(WorkerMemoryManager.class);
                     }
                     binder.bind(DemoterSync.class).toInstance(warpCacheMgrConnectorContext.getDemoterSync());
                 }));

@@ -26,9 +26,10 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import jakarta.annotation.PreDestroy;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.util.ArrayList;
@@ -51,10 +52,11 @@ public class CollectTxService
             StorageEngineConstants storageEngineConstants,
             ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
+            WorkerMemoryManager workerMemoryManager,
             RangeFillerService rangeFillerService,
             GlobalConfig globalConfig)
     {
-        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
+        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, workerMemoryManager, globalConfig);
         this.rangeFillerService = rangeFillerService;
     }
 
@@ -77,7 +79,7 @@ public class CollectTxService
         int numCollectElements = collectParamsList.size();
 
         int readerId = allocReaderId();
-        Arena pageArena = openPageArena();
+        ThreadArena pageArena = openPageArena();
         // if there are no match elements we are lazy collecting and do not need to allocate all the buffers per element
         if ((queryParams.getNumMatchElements() > 0) && (numCollectElements > 0)) {
             allocCollectBuffers(collectParamsList, pageArena, queryArgs.txArgs().collectBuffers(), aggregatorArgs.collectJuffersWE());
@@ -191,7 +193,7 @@ public class CollectTxService
     }
 
     private void allocCollectBuffers(List<WarmupElementCollectParams> collectParamsList,
-            Arena pageArena,
+            ThreadArena pageArena,
             long[][] outCollectBuffers,
             List<ReadJuffersWarmUpElement> outCollectJuffersWE)
     {

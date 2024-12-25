@@ -19,13 +19,13 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.WarmUpElementAllocationParams;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.plugin.warp.storage.write.CompressionState;
 import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.type.Int128;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.nio.Buffer;
@@ -77,7 +77,7 @@ public class WriteJuffersWarmUpElement
             WarmUpElementAllocationParams allocParams,
             CompressionState compressionState,
             byte warmId,
-            Arena arena)
+            ThreadArena arena)
     {
         super();
 
