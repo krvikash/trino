@@ -876,7 +876,7 @@ public final class IcebergUtil
         List<String> orcBloomFilterColumns = IcebergTableProperties.getOrcBloomFilterColumns(tableMetadata.getProperties());
         if (!orcBloomFilterColumns.isEmpty()) {
             checkFormatForProperty(fileFormat.toIceberg(), FileFormat.ORC, ORC_BLOOM_FILTER_COLUMNS_PROPERTY);
-            validateOrcBloomFilterColumns(tableMetadata, orcBloomFilterColumns);
+            validateOrcBloomFilterColumns(tableMetadata.getColumns(), orcBloomFilterColumns);
             propertiesBuilder.put(ORC_BLOOM_FILTER_COLUMNS, Joiner.on(",").join(orcBloomFilterColumns));
             propertiesBuilder.put(ORC_BLOOM_FILTER_FPP, String.valueOf(IcebergTableProperties.getOrcBloomFilterFpp(tableMetadata.getProperties())));
         }
@@ -1002,9 +1002,9 @@ public final class IcebergUtil
         }
     }
 
-    private static void validateOrcBloomFilterColumns(ConnectorTableMetadata tableMetadata, List<String> orcBloomFilterColumns)
+    public static void validateOrcBloomFilterColumns(List<ColumnMetadata> columns, List<String> orcBloomFilterColumns)
     {
-        Set<String> allColumns = tableMetadata.getColumns().stream()
+        Set<String> allColumns = columns.stream()
                 .map(ColumnMetadata::getName)
                 .collect(toImmutableSet());
         if (!allColumns.containsAll(orcBloomFilterColumns)) {
