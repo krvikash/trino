@@ -325,7 +325,7 @@ public class WarmupDemoterService
             maxPriorityToDemote = isSingleConnector ? Integer.MAX_VALUE : maxPriorityToDemote;
 
             if (!hasElementsToDemote(maxPriorityToDemote)) {
-                logger.error("should not call demote to on catalog[%s] -> tupleRankList[%s], lowestPriority[%s], maxPriorityToDemote[%s]",
+                logger.warn("should not call demote to on catalog[%s] -> tupleRankList[%s], lowestPriority[%s], maxPriorityToDemote[%s]",
                         catalogName,
                         demoteContext.get().getTupleRankList().isEmpty(),
                         demoteContext.get().getLowestPriority(),

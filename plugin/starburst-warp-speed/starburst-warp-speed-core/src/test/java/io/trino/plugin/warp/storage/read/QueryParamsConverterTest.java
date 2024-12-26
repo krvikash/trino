@@ -29,6 +29,7 @@ import io.trino.plugin.warp.juffer.PredicateBufferInfo;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.foreign.Arena;
@@ -56,7 +57,7 @@ public class QueryParamsConverterTest
         when(queryContext.getMatchData()).thenReturn(Optional.of(matchData));
         when(queryContext.getNativeQueryCollectDataList()).thenReturn(ImmutableList.of());
         when(queryContext.getTotalRecords()).thenReturn(100);
-        QueryParams queryParams = QueryParamsConverter.createQueryParams(new WorkerMemoryManager(mock(GlobalConfig.class)), queryContext, "filePath", 0x40302010, false);
+        QueryParams queryParams = QueryParamsConverter.createQueryParams(new WorkerMemoryManager(new GlobalConfig(), new CatalogName("f")), queryContext, "filePath", 0x40302010, false);
         List<MatchNode> es = List.of(new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND,
                 List.of(convertLuceneMatchDataToMatchParams(luceneQueryMatchData0, 0),
                         new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_OR,

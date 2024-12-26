@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.juffer;
 
 import io.trino.plugin.warp.WarmColumnDataTestUtil;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
@@ -23,6 +24,7 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.AfterEach;
@@ -61,12 +63,14 @@ public class BufferAllocatorTest
 
         StorageEngine storageEngine = mock(StorageEngine.class);
 
+        CatalogName catalogName = new CatalogName("f");
         bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
                 nativeConfig,
+                new WorkerMemoryManager(new GlobalConfig(), catalogName),
                 mock(MetricsManager.class),
                 new WarpInitializedServiceRegistry(),
-                new CatalogName("f"));
+                catalogName);
     }
 
     @AfterEach
@@ -99,12 +103,14 @@ public class BufferAllocatorTest
     public void testPredicateBufferAllocation()
     {
         StorageEngine storageEngine = mock(StorageEngine.class);
+        CatalogName catalogName = new CatalogName("f");
         BufferAllocator bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
                 nativeConfig,
+                new WorkerMemoryManager(new GlobalConfig(), catalogName),
                 mock(MetricsManager.class),
                 new WarpInitializedServiceRegistry(),
-                new CatalogName("f"));
+                catalogName);
         // pre-alloc
         bufferAllocator.init();
         PredicateBufferInfo predicateBufferInfo = requireNonNull(bufferAllocator.allocPredicateBuffer(10));

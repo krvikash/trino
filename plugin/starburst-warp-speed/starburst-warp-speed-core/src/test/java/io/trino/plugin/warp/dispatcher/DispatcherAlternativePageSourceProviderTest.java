@@ -516,7 +516,7 @@ public class DispatcherAlternativePageSourceProviderTest
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 workerWarmingService,
-                new WorkerMemoryManager(globalConfig),
+                new WorkerMemoryManager(globalConfig, new CatalogName("f")),
                 nativeStorageStateHandler);
 
         return new DispatcherAlternativePageSourceProvider(proxiedPageSourceProvider,

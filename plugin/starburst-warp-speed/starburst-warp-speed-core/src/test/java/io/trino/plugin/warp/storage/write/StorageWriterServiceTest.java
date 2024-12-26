@@ -43,6 +43,7 @@ import io.trino.spi.block.IntArrayBlockBuilder;
 import io.trino.spi.block.LazyBlock;
 import io.trino.spi.block.LongArrayBlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
@@ -145,7 +146,7 @@ public class StorageWriterServiceTest
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, globalConfig, blockTransformerFactory);
         WarmupElementStatsService warmupElementStatsService = new WarmupElementStatsService(globalConfig);
-        WorkerMemoryManager workerMemoryManager = new WorkerMemoryManager(globalConfig);
+        WorkerMemoryManager workerMemoryManager = new WorkerMemoryManager(globalConfig, new CatalogName("f"));
         storageWriterService = new StorageWriterService(storageEngine,
                 storageEngineConstants,
                 bufferAllocator,

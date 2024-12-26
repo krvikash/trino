@@ -29,7 +29,9 @@ import io.trino.plugin.warp.gen.stats.BufferAllocatorStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.memory.PinnedGcArena;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
@@ -38,7 +40,6 @@ import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.type.TinyintType;
 import jakarta.annotation.PreDestroy;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.ValueLayout;
@@ -61,6 +62,7 @@ public class BufferAllocator
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
+    private final WorkerMemoryManager workerMemoryManager;
     private final MetricsManager metricsManager;
     private final NativeConfig nativeConfig;
     private final CatalogName catalogName;
@@ -78,6 +80,7 @@ public class BufferAllocator
     private final BufferAllocatorStats stats;
     private MemorySegment predicateBundleMem;
     private PredicateBufferPool[] predicateBufferPools;
+    private PinnedGcArena arena;
     private int[] buffTypeSizes;
     private int[] warmupRecordBufferSizes;
     private int[] collectFixedRecordBufferSizes;
@@ -92,6 +95,7 @@ public class BufferAllocator
     public BufferAllocator(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig,
+            WorkerMemoryManager workerMemoryManager,
             MetricsManager metricsManager,
             WarpInitializedServiceRegistry warpInitializedServiceRegistry,
             CatalogName catalogName)
@@ -101,6 +105,7 @@ public class BufferAllocator
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.metricsManager = requireNonNull(metricsManager);
         this.nativeConfig = requireNonNull(nativeConfig);
+        this.workerMemoryManager = requireNonNull(workerMemoryManager);
         this.catalogName = requireNonNull(catalogName);
         warpInitializedServiceRegistry.addService(this);
 
@@ -118,6 +123,7 @@ public class BufferAllocator
     public void shutdown()
     {
         predicateBundleMem = null;
+        arena.close();
     }
 
     private long initPredicateBundle()
@@ -136,7 +142,9 @@ public class BufferAllocator
         for (PredicateBufferPoolType type : bufferTypes) {
             totalPoolSize += poolSizes[type.ordinal()] * bufferSizes[type.ordinal()];
         }
-        predicateBundleMem = Arena.ofAuto().allocate(totalPoolSize, alignment);
+
+        arena = workerMemoryManager.getPinnedGcArena();
+        predicateBundleMem = arena.allocate(totalPoolSize, alignment);
         SegmentAllocator poolSlicer = SegmentAllocator.slicingAllocator(predicateBundleMem);
 
         // do another loop to actually create the pools

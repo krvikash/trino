@@ -231,7 +231,7 @@ public class DispatcherPageSourceFactoryTest
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 workerWarmingService,
-                new WorkerMemoryManager(globalConfig2),
+                new WorkerMemoryManager(globalConfig2, new CatalogName("f")),
                 nativeStorageStateHandler);
     }
 
