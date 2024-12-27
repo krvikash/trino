@@ -10,7 +10,7 @@ IR version = 1
                 %19429 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19430 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8956]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8960]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19431 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19432 = constant() : () -> "integer" ()
@@ -22,7 +22,7 @@ IR version = 1
                 %19436 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19437 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8957]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8961]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19438 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19439 = constant() : () -> "integer" ()
@@ -34,7 +34,7 @@ IR version = 1
                 %19443 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19444 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8959]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8963]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19445 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19446 = constant() : () -> "integer" ()
@@ -46,7 +46,7 @@ IR version = 1
                 %19450 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19451 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8960]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8964]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19452 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19453 = constant() : () -> "integer" ()
@@ -58,7 +58,7 @@ IR version = 1
                 %19457 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19458 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8961]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8965]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19459 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19460 = constant() : () -> "integer" ()
@@ -70,7 +70,7 @@ IR version = 1
                 %19464 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19465 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8962]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8966]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19466 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19467 = constant() : () -> "integer" ()
@@ -82,7 +82,7 @@ IR version = 1
                 %19471 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19472 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8963]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8967]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19473 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19474 = constant() : () -> "integer" ()
@@ -94,7 +94,7 @@ IR version = 1
                 %19478 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19479 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8964]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8968]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19480 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19481 = constant() : () -> "integer" ()
@@ -106,7 +106,7 @@ IR version = 1
                 %19485 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19486 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8965]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8969]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19487 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19488 = constant() : () -> "integer" ()
@@ -118,7 +118,7 @@ IR version = 1
                 %19492 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19493 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8966]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8970]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19494 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19495 = constant() : () -> "integer" ()
@@ -130,7 +130,7 @@ IR version = 1
                 %19499 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19500 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8967]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8971]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19501 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19502 = constant() : () -> "integer" ()
@@ -199,7 +199,7 @@ IR version = 1
                 %19580 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19581 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8957]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8961]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19582 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19583 = constant() : () -> "integer" ()
@@ -211,7 +211,7 @@ IR version = 1
                 %19587 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19588 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8965]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8969]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19589 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19590 = constant() : () -> "integer" ()
@@ -345,7 +345,7 @@ IR version = 1
                 %19852 = return(%19851) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8966"",""df_8967""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8970"",""df_8971""]"}
         %6925 = table_scan() : () -> "multiset(row(bigint,bigint,decimal(7,2)))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.catalog_sales$data@1524015146186969396", table_scan:column_handles = "15:cs_item_sk:bigint, 17:cs_order_number:bigint, 25:cs_ext_list_price:decimal(7,2)", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint,decimal(7,2))", ir.has_side_effects = "false", ir.safe = "true"}
         %7323 = filter(%6925) : ("multiset(row(bigint,bigint,decimal(7,2)))") -> "multiset(row(bigint,bigint,decimal(7,2)))" ({
@@ -355,7 +355,7 @@ IR version = 1
                 %19686 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19687 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8957]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8961]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19688 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19689 = constant() : () -> "integer" ()
@@ -367,7 +367,7 @@ IR version = 1
                 %19693 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19694 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8973]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8977]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19695 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19696 = constant() : () -> "integer" ()
@@ -379,7 +379,7 @@ IR version = 1
                 %19700 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19701 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8974]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8978]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19702 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19703 = constant() : () -> "integer" ()
@@ -430,7 +430,7 @@ IR version = 1
                 %19750 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19751 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8957]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8961]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19752 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19753 = constant() : () -> "integer" ()
@@ -562,7 +562,7 @@ IR version = 1
                 %19854 = return(%19853) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8973"",""df_8974""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8977"",""df_8978""]"}
         %8271 = project(%8167) : ("multiset(row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2)))") -> "multiset(row(decimal(7,2),decimal(9,2),bigint))" ({
             ^assignments (%313 : "row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2))")
                 %8272 = field_reference(%313) : ("row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2))") -> "decimal(7,2)" ()
@@ -907,7 +907,7 @@ IR version = 1
                 %19856 = return(%19855) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8965""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8969""]"}
         %9435 = table_scan() : () -> "multiset(row(bigint,integer))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.date_dim$data@879409309086531902", table_scan:column_handles = "1:d_date_sk:bigint, 7:d_year:integer", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,integer)", ir.has_side_effects = "false", ir.safe = "true"}
         %9547 = filter(%9435) : ("multiset(row(bigint,integer))") -> "multiset(row(bigint,integer))" ({
@@ -1041,7 +1041,7 @@ IR version = 1
                 %19858 = return(%19857) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8964""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8968""]"}
         %10642 = table_scan() : () -> "multiset(row(bigint,varchar))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.customer_demographics$data@7513288259375812719", table_scan:column_handles = "1:cd_demo_sk:bigint, 3:cd_marital_status:varchar", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,varchar)", ir.has_side_effects = "false", ir.safe = "true"}
         %10721 = exchange(%10642) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
@@ -1156,7 +1156,7 @@ IR version = 1
                 %19860 = return(%19859) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8963""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8967""]"}
         %11235 = table_scan() : () -> "multiset(row(bigint,varchar,varchar))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.store$data@5538226458318650132", table_scan:column_handles = "1:s_store_sk:bigint, 6:s_store_name:varchar, 26:s_zip:varchar", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,varchar,varchar)", ir.has_side_effects = "false", ir.safe = "true"}
         %11397 = exchange(%11235) : ("multiset(row(bigint,varchar,varchar))") -> "multiset(row(bigint,varchar,varchar))" ({
@@ -1277,7 +1277,7 @@ IR version = 1
                 %19862 = return(%19861) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8962""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8966""]"}
         %11754 = exchange(%11554) : ("multiset(row(bigint,bigint,bigint,bigint,bigint,decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,varchar,varchar))") -> "multiset(row(bigint,bigint,bigint,bigint,bigint,decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,varchar,varchar))" ({
             ^inputSelector (%11739 : "row(bigint,bigint,bigint,bigint,bigint,decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,varchar,varchar)")
                 %11740 = field_reference(%11739) : ("row(bigint,bigint,bigint,bigint,bigint,decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,varchar,varchar)") -> "bigint" ()
@@ -1333,7 +1333,7 @@ IR version = 1
                 %19772 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19773 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8955]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8959]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19774 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19775 = constant() : () -> "integer" ()
@@ -1345,7 +1345,7 @@ IR version = 1
                 %19779 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19780 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8958]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8962]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19781 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19782 = constant() : () -> "integer" ()
@@ -1357,7 +1357,7 @@ IR version = 1
                 %19786 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19787 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8995]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8999]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19788 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19789 = constant() : () -> "integer" ()
@@ -1369,7 +1369,7 @@ IR version = 1
                 %19793 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19794 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8996]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_9000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19795 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19796 = constant() : () -> "integer" ()
@@ -1381,7 +1381,7 @@ IR version = 1
                 %19800 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19801 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_8997]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_9001]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19802 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19803 = constant() : () -> "integer" ()
@@ -1497,7 +1497,7 @@ IR version = 1
                 %19864 = return(%19863) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8997""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_9001""]"}
         %12592 = table_scan() : () -> "multiset(row(bigint,integer))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.date_dim$data@879409309086531902", table_scan:column_handles = "1:d_date_sk:bigint, 7:d_year:integer", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,integer)", ir.has_side_effects = "false", ir.safe = "true"}
         %12671 = exchange(%12592) : ("multiset(row(bigint,integer))") -> "multiset(row(bigint,integer))" ({
@@ -1602,7 +1602,7 @@ IR version = 1
                 %19866 = return(%19865) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8996""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_9000""]"}
         %12797 = table_scan() : () -> "multiset(row(bigint,integer))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.date_dim$data@879409309086531902", table_scan:column_handles = "1:d_date_sk:bigint, 7:d_year:integer", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,integer)", ir.has_side_effects = "false", ir.safe = "true"}
         %12876 = exchange(%12797) : ("multiset(row(bigint,integer))") -> "multiset(row(bigint,integer))" ({
@@ -1707,7 +1707,7 @@ IR version = 1
                 %19868 = return(%19867) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8995""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8999""]"}
         %13250 = exchange(%13136) : ("multiset(row(bigint,bigint,bigint,varchar,integer,integer))") -> "multiset(row(bigint,bigint,bigint,varchar,integer,integer))" ({
             ^inputSelector (%13241 : "row(bigint,bigint,bigint,varchar,integer,integer)")
                 %13242 = field_reference(%13241) : ("row(bigint,bigint,bigint,varchar,integer,integer)") -> "bigint" ()
@@ -1850,7 +1850,7 @@ IR version = 1
                 %19870 = return(%19869) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8961""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8965""]"}
         %13574 = table_scan() : () -> "multiset(row(bigint))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.promotion$data@6100987187671647433", table_scan:column_handles = "1:p_promo_sk:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint)", ir.has_side_effects = "false", ir.safe = "true"}
         %13650 = exchange(%13574) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
@@ -1965,7 +1965,7 @@ IR version = 1
                 %19872 = return(%19871) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8960""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8964""]"}
         %13958 = table_scan() : () -> "multiset(row(bigint,bigint))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.household_demographics$data@6765154030047008235", table_scan:column_handles = "1:hd_demo_sk:bigint, 2:hd_income_band_sk:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint)", ir.has_side_effects = "false", ir.safe = "true"}
         %14226 = filter(%13958) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
@@ -1975,7 +1975,7 @@ IR version = 1
                 %19813 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19814 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_9014]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_9018]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19815 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19816 = constant() : () -> "integer" ()
@@ -2075,7 +2075,7 @@ IR version = 1
                 %19874 = return(%19873) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_9014""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_9018""]"}
         %14785 = exchange(%14604) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%14781 : "row(bigint)")
                 %14782 = field_reference(%14781) : ("row(bigint)") -> "bigint" ()
@@ -2186,7 +2186,7 @@ IR version = 1
                 %19876 = return(%19875) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8959""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8963""]"}
         %15358 = exchange(%14785) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%15354 : "row(bigint)")
                 %15355 = field_reference(%15354) : ("row(bigint)") -> "bigint" ()
@@ -2273,7 +2273,7 @@ IR version = 1
                 %19878 = return(%19877) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8958""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8962""]"}
         %15660 = aggregation(%15452) : ("multiset(row(bigint,bigint,decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,varchar,bigint,integer,integer))") -> "multiset(row(bigint,varchar,varchar,integer,integer,integer,bigint,bigint,bigint,varbinary,varbinary,varbinary))" ({
             ^aggregates (%15618 : "multiset(row(bigint,bigint,decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,varchar,bigint,integer,integer))")
                 %15661 = aggregate_call(%15618) : ("multiset(row(bigint,bigint,decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,varchar,bigint,integer,integer))") -> "bigint" ({
@@ -2573,7 +2573,7 @@ IR version = 1
                 %19880 = return(%19879) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8957""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8961""]"}
         %16609 = exchange(%16406) : ("multiset(row(bigint,varchar,varchar,integer,integer,integer,bigint,bigint,bigint,varbinary,varbinary,varbinary,varchar))") -> "multiset(row(bigint,varchar,varchar,integer,integer,integer,bigint,bigint,bigint,varbinary,varbinary,varbinary,varchar))" ({
             ^inputSelector (%16593 : "row(bigint,varchar,varchar,integer,integer,integer,bigint,bigint,bigint,varbinary,varbinary,varbinary,varchar)")
                 %16594 = field_reference(%16593) : ("row(bigint,varchar,varchar,integer,integer,integer,bigint,bigint,bigint,varbinary,varbinary,varbinary,varchar)") -> "bigint" ()
@@ -2760,7 +2760,7 @@ IR version = 1
                 %19882 = return(%19881) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8956""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8960""]"}
         %17535 = aggregation(%17327) : ("multiset(row(bigint,varchar,varchar,integer,integer,integer,bigint,bigint,varbinary,varbinary,varbinary,varchar,varchar,varchar,varchar,varchar))") -> "multiset(row(varchar,bigint,varchar,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,bigint,bigint,varbinary,varbinary,varbinary))" ({
             ^aggregates (%17493 : "multiset(row(bigint,varchar,varchar,integer,integer,integer,bigint,bigint,varbinary,varbinary,varbinary,varchar,varchar,varchar,varchar,varchar))")
                 %17536 = aggregate_call(%17493) : ("multiset(row(bigint,varchar,varchar,integer,integer,integer,bigint,bigint,varbinary,varbinary,varbinary,varchar,varchar,varchar,varchar,varchar))") -> "bigint" ({
@@ -3104,7 +3104,7 @@ IR version = 1
                 %19884 = return(%19883) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8955""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8959""]"}
         %18288 = aggregation(%18115) : ("multiset(row(varchar,bigint,varchar,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,bigint,varbinary,varbinary,varbinary,varchar,varchar,varchar,varchar))") -> "multiset(row(varchar,bigint,varchar,varchar,varchar,varchar,varchar,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,bigint,varbinary,varbinary,varbinary))" ({
             ^aggregates (%18278 : "multiset(row(varchar,bigint,varchar,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,bigint,varbinary,varbinary,varbinary,varchar,varchar,varchar,varchar))")
                 %18289 = aggregate_call(%18278) : ("multiset(row(varchar,bigint,varchar,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,bigint,varbinary,varbinary,varbinary,varchar,varchar,varchar,varchar))") -> "bigint" ({
