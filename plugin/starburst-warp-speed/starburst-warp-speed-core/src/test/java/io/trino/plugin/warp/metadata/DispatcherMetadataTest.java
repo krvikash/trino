@@ -19,6 +19,7 @@ import io.airlift.slice.Slices;
 import io.trino.plugin.base.expression.ConnectorExpressions;
 import io.trino.plugin.hive.HiveMetadata;
 import io.trino.plugin.hive.HiveStorageFormat;
+import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.hive.HiveTableProperties;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.DictionaryConfig;
@@ -55,6 +56,7 @@ import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.RetryMode;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
@@ -88,9 +90,14 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class DispatcherMetadataTest
@@ -496,5 +503,35 @@ public class DispatcherMetadataTest
                 .thenReturn(Optional.of(new ConstraintApplicationResult<>(
                         false,
                         List.of(new ConstraintApplicationResult.Alternative<>(tableHandle, predicate, Optional.empty(), false)))));
+    }
+
+    @Test
+    void testColumnsNotFitForDictionary()
+    {
+        HiveTableHandle hiveTableHandle = mock(HiveTableHandle.class);
+        ConnectorMetadata hiveMetadata = mockHiveMetadata();
+        when(hiveMetadata.getTableHandle(any(ConnectorSession.class), any(SchemaTableName.class), any(Optional.class), any(Optional.class)))
+                .thenReturn(hiveTableHandle);
+        DispatcherStatisticsProvider spyDispatcherStatisticsProvider = spy(dispatcherStatisticsProvider);
+        SchemaTableName schemaTableName = new SchemaTableName(schemaName, tableName);
+        DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
+        when(dispatcherProxiedConnectorTransformer.getSchemaTableName(any(ConnectorTableHandle.class))).thenReturn(schemaTableName);
+        when(dispatcherProxiedConnectorTransformer.getSimplifiedColumns(any(ConnectorTableHandle.class), any(TupleDomain.class), anyInt()))
+                .thenReturn(new SimplifiedColumns(Set.of()));
+        DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider = new DispatcherTableHandleBuilderProvider(dispatcherProxiedConnectorTransformer);
+        DispatcherMetadata dispatcherMetadata = new DispatcherMetadata(
+                hiveMetadata,
+                expressionService,
+                spyDispatcherStatisticsProvider,
+                dispatcherTableHandleBuilderProvider,
+                globalConfig);
+
+        dispatcherMetadata.getTableHandle(session, schemaTableName, Optional.empty(), Optional.empty());
+        dispatcherMetadata.getTableHandle(session, schemaTableName, Optional.empty(), Optional.empty());
+        dispatcherMetadata.getTableHandle(session, schemaTableName, Optional.empty(), Optional.empty());
+
+        verify(hiveMetadata, times(1)).getTableStatistics(any(ConnectorSession.class), any(ConnectorTableHandle.class));
+        verify(spyDispatcherStatisticsProvider, times(3)).getColumnsNotFitForDictionary(any(SchemaTableName.class));
+        verify(spyDispatcherStatisticsProvider, times(1)).putColumnsNotFitForDictionary(any(SchemaTableName.class), anyMap());
     }
 }
