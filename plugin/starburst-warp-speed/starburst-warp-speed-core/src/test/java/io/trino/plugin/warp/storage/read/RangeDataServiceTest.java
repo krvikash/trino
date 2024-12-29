@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
-import io.trino.plugin.warp.storage.memory.GcArena;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -42,9 +42,9 @@ public class RangeDataServiceTest
     @BeforeEach
     public void before()
     {
-        recordIndexes = new RecordIndexes((int) Math.pow(2, 16));
         numAllocatedBytes = new AtomicLong();
-        MemorySegment recordIndexesMem = recordIndexes.setMemory(new GcArena(this::onClose, numAllocatedBytes, null));
+        recordIndexes = new RecordIndexes(new ThreadArena(this::onClose, numAllocatedBytes, null), (int) Math.pow(2, 16));
+        MemorySegment recordIndexesMem = recordIndexes.getMemory();
         recordIndexesList = recordIndexesMem.asSlice(RecordIndexes.RECORD_INDEXES_OFFSET_LIST, RecordIndexes.RECORD_INDEXES_LIST_LAYOUT);
 
         queryArgs = mock(QueryArgs.class);

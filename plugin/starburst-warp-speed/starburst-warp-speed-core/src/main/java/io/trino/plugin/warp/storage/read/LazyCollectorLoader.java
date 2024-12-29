@@ -80,7 +80,7 @@ public class LazyCollectorLoader
             readerId = collectOpenResult.readerId();
 
             // prepare and collect
-            MemorySegment queryResultTypeMem = lazyCollectorLoaderArgs.queryResultTypes();
+            MemorySegment queryResultTypeMem = collectOpenResult.pageArena().allocate(ValueLayout.JAVA_INT.byteSize(), ValueLayout.JAVA_INT.byteSize());
             collectTxService.prepareChunkFullScan(readerId, chunkIndexToCollect, numRowsToCollect, startRowIndexInChunk, dispatcherPageSourceStats);
             collectTxService.collectChunk(readerId, 1, chunkIndexToCollect, numRowsToCollect, queryResultTypeMem, dispatcherPageSourceStats);
 

@@ -30,8 +30,10 @@ import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import jakarta.annotation.PreDestroy;
 
+import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
+import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -83,25 +85,32 @@ public class CollectTxService
             allocCollectBuffers(collectParamsList, pageArena, queryArgs.txArgs().collectBuffers(), aggregatorArgs.collectJuffersWE());
         }
 
-        RecordIndexes recordIndexes = aggregatorArgs.recordIndexes();
-        recordIndexes.setMemory(queryParams.getArena());
+        RecordIndexes recordIndexes = new RecordIndexes(pageArena, queryArgs.chunkSize());
         RangeData rangeData = new RangeData(recordIndexes);
+        Optional<MemorySegment> recordBufferStatesOpt = Optional.empty();
+        Optional<MemorySegment> warmUpElementAttsOpt = Optional.empty();
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = Collections.emptyList();
         if (numCollectElements > 0) {
-            warmupElementRecordBufferStates = aggregatorArgs.recordBufferStates()
-                    .elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT)
+            final long recordBufferStatesSize =
+                    MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT).byteSize();
+            MemorySegment recordBufferStates = pageArena.allocate(recordBufferStatesSize, ValueLayout.JAVA_INT.byteSize());
+            warmupElementRecordBufferStates = recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT)
                     .map(recordBufferState -> new WarmupElementRecordBufferState(recordBufferState))
                     .toList();
+            recordBufferStatesOpt = Optional.of(recordBufferStates);
 
+            final long warmUpElementAttsSize =
+                    MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT).byteSize();
+            MemorySegment warmUpElementAtts = pageArena.allocate(warmUpElementAttsSize, ValueLayout.JAVA_BYTE.byteSize());
             Iterator<WarmupElementCollectParams> collectParamsListItr = collectParamsList.iterator();
-            aggregatorArgs.warmUpElementAtts()
-                    .elements(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT)
+            warmUpElementAtts.elements(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT)
                     .forEach(warmupElementAtt -> {
                         WarmupElementCollectParams collectParams = collectParamsListItr.next();
                         WarmUpElement.setRecTypeCode(warmupElementAtt, collectParams.getRecTypeCode());
                         WarmUpElement.setRecTypeLength(warmupElementAtt, collectParams.getRecTypeLength());
                         WarmUpElement.setWarmUpType(warmupElementAtt, collectParams.getWarmUpType());
                     });
+            warmUpElementAttsOpt = Optional.of(warmUpElementAtts);
         }
 
         if (storeRowListResult.isPresent()) {
@@ -119,17 +128,22 @@ public class CollectTxService
                 numCollectElements,
                 queryArgs.numChunksInRange(),
                 storeRowListResult.map(StoreRowListResult::storedChunkIx).orElse(-1),
-                aggregatorArgs.warmUpElementAtts().address(),
-                aggregatorArgs.recordBufferStates().address(),
+                warmUpElementAttsOpt.map(m -> m.address()).orElse(0L),
+                recordBufferStatesOpt.map(m -> m.address()).orElse(0L),
                 recordIndexes.getAddress(),
                 queryArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L),
                 queryArgs.dispatcherPageSourceStats());
+
+        final long queryResultTypesSize = MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT).byteSize();
         return new AggregatorPageArgs(readerId,
                 pageArena,
                 rowsLimit,
                 numCollectedInPrevRounds,
                 rangeData,
-                warmupElementRecordBufferStates);
+                warmupElementRecordBufferStates,
+                pageArena.allocate(queryResultTypesSize, ValueLayout.JAVA_INT.byteSize()),
+                pageArena.allocate(queryResultTypesSize, ValueLayout.JAVA_INT.byteSize()),
+                warmUpElementAttsOpt);
     }
 
     CollectCloseResult collectStoreAndClose(QueryArgs queryArgs,

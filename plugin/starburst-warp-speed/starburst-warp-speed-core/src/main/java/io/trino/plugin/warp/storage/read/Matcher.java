@@ -26,6 +26,4 @@ public interface Matcher
     void closePage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs);
 
     void abortPage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs, Exception e);
-
-    long getOffHeapMemoryUsage(QueryArgs queryArgs, MatcherArgs matcherArgs);
 }

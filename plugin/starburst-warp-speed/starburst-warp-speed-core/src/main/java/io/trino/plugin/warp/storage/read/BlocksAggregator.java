@@ -29,11 +29,13 @@ public interface BlocksAggregator
 
     boolean prepareBlocks(ChunksQueue chunksQueue,
             QueryArgs queryArgs,
-            AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState);
 
-    Block[] aggregateBlocks(QueryArgs queryArgs, AggregatorArgs aggregatorArgs, WarpQueryState queryState);
+    Block[] aggregateBlocks(QueryArgs queryArgs,
+            AggregatorArgs aggregatorArgs,
+            AggregatorPageArgs aggregatorPageArgs,
+            WarpQueryState queryState);
 
     WarpStoragePageSource.RowRanges getRanges(AggregatorPageArgs aggregatorPageArgs);
 
@@ -46,6 +48,4 @@ public interface BlocksAggregator
     void abortPage(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Exception e);
 
     void close(QueryArgs queryArgs);
-
-    long getOffHeapMemoryUsage(AggregatorArgs aggregatorArgs);
 }

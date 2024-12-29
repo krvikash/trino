@@ -272,11 +272,4 @@ public class MatchService
             queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
         }
     }
-
-    public long getOffHeapMemoryUsage(QueryArgs queryArgs, MatcherArgs matcherArgs)
-    {
-        return queryArgs.queryParams().getWarmUpElementMatchParams().map(m -> m.byteSize()).orElse(0L) +
-                queryArgs.queryParams().getMatchNodeAtts().byteSize() +
-                matcherArgs.matchState().byteSize();
-    }
 }

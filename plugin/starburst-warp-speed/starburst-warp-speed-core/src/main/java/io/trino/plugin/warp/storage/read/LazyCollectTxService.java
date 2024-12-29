@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.CollectStats;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -30,6 +31,7 @@ import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
+import java.lang.foreign.ValueLayout;
 
 public class LazyCollectTxService
         extends BaseCollectTxService
@@ -78,22 +80,26 @@ public class LazyCollectTxService
         allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_NULL, nullBufferSize, collectSegments, collectBuffers);
         lazyCollectorLoaderArgs.collectJufferWE().createBuffers(recTypeCode, recTypeLength, collectParams.hasDictionary(), collectSegments);
 
-        RecordIndexes recordIndexes = lazyCollectorLoaderArgs.recordIndexes();
-        recordIndexes.setMemory(lazyCollectorLoaderArgs.queryParams().getArena());
+        RecordIndexes recordIndexes = new RecordIndexes(pageArena, lazyCollectorLoaderArgs.chunkSize());
+        MemorySegment warmupElementAtt = pageArena.allocate(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
+        WarmUpElement.setRecTypeCode(warmupElementAtt, recTypeCode);
+        WarmUpElement.setRecTypeLength(warmupElementAtt, recTypeLength);
+        WarmUpElement.setWarmUpType(warmupElementAtt, collectParams.getWarmUpType());
+        MemorySegment recordBufferStates = pageArena.allocate(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
         collectOpen(lazyCollectorLoaderArgs.queryParams(),
                 lazyCollectorLoaderArgs.txArgs(),
                 readerId,
                 1,
                 lazyCollectorLoaderArgs.numChunksInRange(),
                 -1, // invalid reopen chunk index
-                lazyCollectorLoaderArgs.warmUpElementAtt().address(),
-                lazyCollectorLoaderArgs.recordBufferStates().address(),
+                warmupElementAtt.address(),
+                recordBufferStates.address(),
                 recordIndexes.getAddress(),
                 0,
                 dispatcherPageSourceStats);
 
         logger.debug("collectOpen queryMemoryId %d rowsLimit %d", readerId, rowsLimit);
-        return new LazyCollectOpenResult(readerId, pageArena, recordIndexes);
+        return new LazyCollectOpenResult(readerId, pageArena, recordIndexes, warmupElementAtt, recordBufferStates);
     }
 
     // Lazy collect doesn't use store/restore mechanism, so store/restore params are not initialized

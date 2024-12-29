@@ -18,7 +18,6 @@ import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -30,7 +29,6 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlock;
 
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.StructLayout;
 import java.util.List;
 
 @Singleton
@@ -92,17 +90,11 @@ public class LazyCollectorService
                 queryArgs.txArgs().fileCookie());
 
         ReadJuffersWarmUpElement juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true);
-        StructLayout warmupElementAttLayout = WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT;
-        return new LazyCollectorLoaderArgs(
-                queryParams,
+        return new LazyCollectorLoaderArgs(queryParams,
                 txArgs,
                 collectParams,
                 juffersWE,
                 aggregatorArgs.blockFillers().get(weIx),
-                aggregatorArgs.warmUpElementAtts().asSlice(warmupElementAttLayout.byteSize() * weIx, warmupElementAttLayout),
-                aggregatorArgs.recordBufferStates(),
-                aggregatorArgs.recordIndexes(),
-                aggregatorArgs.queryResultTypes(),
                 lazyCollectStartRowIndex,
                 numRows,
                 queryArgs.numChunksInRange(),
@@ -131,6 +123,7 @@ public class LazyCollectorService
     @Override
     public Block[] aggregateBlocks(QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
+            AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
@@ -139,7 +132,11 @@ public class LazyCollectorService
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(queryArgs, aggregatorArgs, weIx, queryState.getTotalNumReadRecords(), rowsToFill);
+            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(queryArgs,
+                    aggregatorArgs,
+                    weIx,
+                    queryState.getTotalNumReadRecords(),
+                    rowsToFill);
             blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, new LazyCollectorLoader(
                     lazyCollectTxService,
                     lazyCollectorLoaderArgs,

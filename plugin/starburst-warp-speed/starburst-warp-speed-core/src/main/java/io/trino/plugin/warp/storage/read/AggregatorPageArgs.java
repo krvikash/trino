@@ -15,13 +15,18 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.storage.memory.ThreadArena;
 
+import java.lang.foreign.MemorySegment;
 import java.util.List;
+import java.util.Optional;
 
 public record AggregatorPageArgs(int readerId,
                          ThreadArena pageArena,
                          int rowsLimit,
                          int numCollectedInPreviousRounds,
                          RangeData rangeData,
-                         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates)
+                         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates,
+                         MemorySegment queryResultTypes,
+                         MemorySegment prepareQueryResultTypes,
+                         Optional<MemorySegment> warmUpElementAtts)
 {
 }
