@@ -15,29 +15,32 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.DataWarmEvents;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.block.Block;
 
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemoryLayout.PathElement;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.StructLayout;
+import java.lang.foreign.ValueLayout;
 import java.util.Objects;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_FILE_OFFSET;
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_FILE_READ_SIZE;
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_IS_COLLECT_NULLS;
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_MATCH_COLLECT_INDEX;
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_WARM_ID;
-
 public class WarmupElementCollectParams
 {
-    private final int fileOffset;
-    private final int fileReadSize;
-    private final WarmUpType warmUpType;
-    // the record type code and length as passed to the storage reader and should be kept in native
-    private final RecTypeCode recTypeCode;
-    private final int recTypeLength;
+    static final StructLayout WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT;
+    private static final long WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_OFFSET;
+    private static final long WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_UP_ELEMENT_ATT;
+    private static final long WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_READ_SIZE;
+    private static final long WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_MATCH_COLLECT_INDEX;
+    private static final long WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_IS_COLLECT_NULLS;
+    private static final long WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_ID;
+
+    private final MemorySegment collectParamsMem;
     // the record type code and length for the page block returned to trino
     private final RecTypeCode blockRecTypeCode;
     private final int blockRecTypeLength;
@@ -45,33 +48,57 @@ public class WarmupElementCollectParams
     private final boolean isImported;
     private final Optional<WarmupElementDictionaryParams> dictionaryParams;
     private final int blockIndex;
-    private final int matchCollectIndex;
-    private final boolean isCollectNulls;
-    private final int warmId;
     private final Optional<Block> valuesDictBlock;
     private Optional<ReadDictionary> dictionary;
 
-    public WarmupElementCollectParams(int fileOffset,
-            int fileReadSize,
-            WarmUpType warmUpType,
+    static {
+        WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT = MemoryLayout.structLayout(
+                ValueLayout.JAVA_INT.withName("entry_loc"),
+                WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.withName("we_attr"),
+                ValueLayout.JAVA_SHORT.withName("read_size"),
+                ValueLayout.JAVA_BYTE.withName("match_collect_ix"),
+                ValueLayout.JAVA_BYTE.withName("collect_nulls"),
+                ValueLayout.JAVA_BYTE.withName("warm_id"),
+                ValueLayout.JAVA_BYTE.withName("padding"),
+                ValueLayout.JAVA_BYTE.withName("padding"),
+                ValueLayout.JAVA_BYTE.withName("padding")).withName("we_collect_params_t");
+        WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_OFFSET = WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("entry_loc"));
+        WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_UP_ELEMENT_ATT = WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("we_attr"));
+        WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_READ_SIZE = WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("read_size"));
+        WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_MATCH_COLLECT_INDEX = WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("match_collect_ix"));
+        WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_IS_COLLECT_NULLS = WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("collect_nulls"));
+        WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_ID = WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("warm_id"));
+    }
+
+    public WarmupElementCollectParams(MemorySegment collectParamsMem,
+            int fileOffset,
             RecTypeCode recTypeCode,
             int recTypeLength,
+            WarmUpType warmUpType,
+            int fileReadSize,
+            int matchCollectIndex,
+            boolean isCollectNulls,
+            int warmId,
             RecTypeCode blockRecTypeCode,
             int blockRecTypeLength,
             int warmEvents,
             boolean isImported,
             Optional<WarmupElementDictionaryParams> dictionaryParams,
             int blockIndex,
-            int matchCollectIndex,
-            boolean isCollectNulls,
-            int warmId,
             Optional<Block> valuesDictBlock)
     {
-        this.fileOffset = fileOffset;
-        this.fileReadSize = fileReadSize;
-        this.warmUpType = warmUpType;
-        this.recTypeCode = TypeUtils.nativeRecTypeCode(recTypeCode);
-        this.recTypeLength = recTypeLength;
+        this.collectParamsMem = collectParamsMem;
+        collectParamsMem.set(ValueLayout.JAVA_INT, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_OFFSET, fileOffset);
+        collectParamsMem.set(ValueLayout.JAVA_SHORT, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_READ_SIZE, (short) fileReadSize);
+        collectParamsMem.set(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_MATCH_COLLECT_INDEX, (byte) matchCollectIndex);
+        collectParamsMem.set(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_IS_COLLECT_NULLS, isCollectNulls ? (byte) 1 : (byte) 0);
+        collectParamsMem.set(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_ID, (byte) warmId);
+
+        MemorySegment warmupElementAtt = getWarmupElementAtt();
+        WarmUpElement.setRecTypeCode(warmupElementAtt, TypeUtils.nativeRecTypeCode(recTypeCode));
+        WarmUpElement.setRecTypeLength(warmupElementAtt, recTypeLength);
+        WarmUpElement.setWarmUpType(warmupElementAtt, warmUpType);
+
         this.blockRecTypeCode = blockRecTypeCode;
         this.blockRecTypeLength = blockRecTypeLength;
         this.warmEvents = warmEvents;
@@ -79,25 +106,27 @@ public class WarmupElementCollectParams
         this.dictionaryParams = dictionaryParams;
         this.dictionary = Optional.empty();
         this.blockIndex = blockIndex;
-        this.matchCollectIndex = matchCollectIndex;
-        this.isCollectNulls = isCollectNulls;
-        this.warmId = warmId;
         this.valuesDictBlock = valuesDictBlock;
     }
 
-    public WarmUpType getWarmUpType()
+    public MemorySegment getMemory()
     {
-        return warmUpType;
+        return collectParamsMem;
     }
 
-    public RecTypeCode getRecTypeCode()
+    public MemorySegment getWarmupElementAtt()
     {
-        return recTypeCode;
+        return collectParamsMem.asSlice(WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_UP_ELEMENT_ATT, WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
     }
 
-    public int getRecTypeLength()
+    public boolean isCollectNulls()
     {
-        return recTypeLength;
+        return collectParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_IS_COLLECT_NULLS) != 0;
+    }
+
+    public boolean hasMatchCollect()
+    {
+        return collectParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_MATCH_COLLECT_INDEX) != -1;
     }
 
     public RecTypeCode getBlockRecTypeCode()
@@ -170,29 +199,14 @@ public class WarmupElementCollectParams
         return blockIndex;
     }
 
-    public boolean isCollectNulls()
-    {
-        return isCollectNulls;
-    }
-
-    public boolean hasMatchCollect()
-    {
-        return (matchCollectIndex != -1);
-    }
-
-    public void dump(int[] output, int offset)
-    {
-        output[offset + WE_COLLECT_JPARAMS_FILE_OFFSET.ordinal()] = fileOffset;
-        output[offset + WE_COLLECT_JPARAMS_FILE_READ_SIZE.ordinal()] = fileReadSize;
-        output[offset + WE_COLLECT_JPARAMS_MATCH_COLLECT_INDEX.ordinal()] = matchCollectIndex;
-        output[offset + WE_COLLECT_JPARAMS_IS_COLLECT_NULLS.ordinal()] = isCollectNulls ? 1 : 0;
-        output[offset + WE_COLLECT_JPARAMS_WARM_ID.ordinal()] = warmId;
-    }
-
     @Override
     public int hashCode()
     {
-        return Objects.hash(fileOffset, fileReadSize, warmUpType, recTypeCode, recTypeLength, isCollectNulls, warmId);
+        MemorySegment warmupElementAtt = getWarmupElementAtt();
+        return Objects.hash(WarmUpElement.getRecTypeCode(warmupElementAtt),
+                WarmUpElement.getRecTypeLength(warmupElementAtt),
+                WarmUpElement.getWarmUpType(warmupElementAtt),
+                getFileOffset());
     }
 
     @Override
@@ -205,37 +219,43 @@ public class WarmupElementCollectParams
             return false;
         }
 
-        return fileOffset == o.fileOffset &&
-                fileReadSize == o.fileReadSize &&
-                warmUpType == o.warmUpType &&
-                recTypeCode == o.recTypeCode &&
-                recTypeLength == o.recTypeLength &&
-                warmId == o.warmId &&
-                isCollectNulls == o.isCollectNulls;
+        MemorySegment warmupElementAtt = getWarmupElementAtt();
+        MemorySegment otherWarmupElementAtt = o.getWarmupElementAtt();
+        return getFileOffset() == o.getFileOffset() &&
+                WarmUpElement.getRecTypeCode(warmupElementAtt) == WarmUpElement.getRecTypeCode(otherWarmupElementAtt) &&
+                WarmUpElement.getRecTypeLength(warmupElementAtt) == WarmUpElement.getRecTypeLength(otherWarmupElementAtt) &&
+                WarmUpElement.getWarmUpType(warmupElementAtt) == WarmUpElement.getWarmUpType(otherWarmupElementAtt);
     }
 
     @Override
     public String toString()
     {
+        MemorySegment warmupElementAtt = getWarmupElementAtt();
+        WarmUpType warmUpType = WarmUpElement.getWarmUpType(warmupElementAtt);
         return "WarmupElementCollectParams{" +
-                "fileOffset=" + fileOffset +
-                ", fileReadSize=" + fileReadSize +
+                "fileOffset=" + collectParamsMem.get(ValueLayout.JAVA_INT, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_OFFSET) +
+                ", recTypeCode=" + WarmUpElement.getRecTypeCode(warmupElementAtt) +
+                ", recTypeLength=" + WarmUpElement.getRecTypeLength(warmupElementAtt) +
                 ", warmUpType=" + warmUpType +
-                ", recTypeCode=" + recTypeCode +
-                ", recTypeLength=" + recTypeLength +
-                ", blockRecTypeCode=" + recTypeCode +
-                ", blockRecTypeLength=" + recTypeLength +
-                ", warmEvents=" + warmEventsToString() +
+                ", fileReadSize=" + collectParamsMem.get(ValueLayout.JAVA_SHORT, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_READ_SIZE) +
+                ", matchCollectIndex=" + collectParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_MATCH_COLLECT_INDEX) +
+                ", isCollectNulls=" + collectParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_IS_COLLECT_NULLS) +
+                ", warmId=" + collectParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_ID) +
+                ", blockRecTypeCode=" + blockRecTypeCode +
+                ", blockRecTypeLength=" + blockRecTypeLength +
+                ", warmEvents=" + warmEventsToString(warmUpType) +
                 ", isImported=" + isImported +
                 ", dictionaryParams=" + (dictionaryParams.isPresent() ? dictionaryParams : "none") +
                 ", blockIndex=" + blockIndex +
-                ", matchCollectIndex=" + matchCollectIndex +
-                ", isCollectNulls=" + isCollectNulls +
-                ", warmId=" + warmId +
                 '}';
     }
 
-    private String warmEventsToString()
+    private int getFileOffset()
+    {
+        return collectParamsMem.get(ValueLayout.JAVA_INT, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_OFFSET);
+    }
+
+    private String warmEventsToString(WarmUpType warmUpType)
     {
         if (warmUpType == WarmUpType.WARM_UP_TYPE_DATA) {
             return "data" +

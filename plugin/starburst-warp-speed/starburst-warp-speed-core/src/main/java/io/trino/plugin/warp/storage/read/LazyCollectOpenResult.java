@@ -18,9 +18,11 @@ import io.trino.plugin.warp.storage.memory.ThreadArena;
 import java.lang.foreign.MemorySegment;
 
 public record LazyCollectOpenResult(int readerId,
+        CollectState collectState,
         ThreadArena pageArena,
         RecordIndexes recordIndexes,
-        MemorySegment warmupElementAtt,
-        MemorySegment recordBufferStates)
+        MemorySegment collectBuffers,
+        MemorySegment recordBufferStates,
+        ReadStats readStats)
 {
 }

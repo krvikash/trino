@@ -23,6 +23,7 @@ import java.lang.foreign.ValueLayout;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -57,13 +58,12 @@ public class RangeDataServiceTest
                     return rangeFillerService.getMinForTypeAll(0, aggregatorPageArgs, currentNumCollectedRows);
                 });
 
-        TxArgs txArgs = mock(TxArgs.class);
         QueryParams queryParams = mock(QueryParams.class);
         when(queryParams.isRangesRequired()).thenReturn(true);
         when(queryParams.getTotalNumRecords()).thenReturn(80);
         when(queryParams.getNumCollectElements()).thenReturn(1);
         when(queryParams.getCollectElementsParamsList()).thenReturn(Collections.emptyList());
-        when(queryArgs.txArgs()).thenReturn(txArgs);
+        when(queryArgs.fileCookie()).thenReturn(new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()]);
         when(queryArgs.queryParams()).thenReturn(queryParams);
         rangeFillerService = new NativeRangeFillerService();
     }

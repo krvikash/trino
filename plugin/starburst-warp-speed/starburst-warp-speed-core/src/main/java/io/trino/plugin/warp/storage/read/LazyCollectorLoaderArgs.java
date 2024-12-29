@@ -17,7 +17,7 @@ import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 
 public record LazyCollectorLoaderArgs(QueryParams queryParams,
-        TxArgs txArgs,
+        long[] fileCookie,
         WarmupElementCollectParams collectParams,
         ReadJuffersWarmUpElement collectJufferWE,
         BlockFiller<?> blockFiller,

@@ -33,7 +33,6 @@ import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAIL
 public abstract class BaseCollectTxService
 {
     protected static final Logger logger = Logger.get(BaseCollectTxService.class);
-    protected static final int INVALID_READER_ID = -1;
 
     protected final StorageEngine storageEngine;
     protected final StorageEngineConstants storageEngineConstants;
@@ -66,45 +65,19 @@ public abstract class BaseCollectTxService
 
     protected void freeQueryMemory(int readerId)
     {
-        if (readerId != INVALID_READER_ID) {
-            connectorSync.freeReaderId(readerId);
-        }
+        connectorSync.freeReaderId(readerId);
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()
-    void collectOpen(QueryParams queryParams,
-            TxArgs txArgs,
-            int readerId,
-            int numCollectElements,
-            int numChunksInRange,
-            int reopenChunkIndex,
-            long warmUpElementAttsAddr,
-            long recordBufferStatesAddr,
-            long recordIndexesAddr,
-            long matchCollectMetadataAddress,
-            DispatcherPageSourceStats dispatcherPageSourceStats)
+    void collectOpen(CollectState collectState, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         long startTime = System.nanoTime();
-        storageEngine.collectOpen(queryParams.getTotalNumRecords(),
-                txArgs.fileCookie(),
-                readerId,
-                numCollectElements,
-                numChunksInRange,
-                reopenChunkIndex,
-                txArgs.weCollectParams(),
-                warmUpElementAttsAddr,
-                queryParams.getCatalogContext(),
-                queryParams.getMinCollectOffset(),
-                queryParams.getNumMatchElements() == 0,
-                recordBufferStatesAddr,
-                recordIndexesAddr,
-                matchCollectMetadataAddress,
-                txArgs.collectBuffers());
+        storageEngine.collectOpen(collectState.getStateMemory());
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
     }
 
     // prepare chunk with match result, error throws and exception
-    void prepareChunk(int readerId,
+    void prepareChunk(CollectState collectState,
             int chunkIndex,
             int numRowsToCollect,
             int bitmapResetPoint,
@@ -113,38 +86,36 @@ public abstract class BaseCollectTxService
     {
         logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d", chunkIndex, numRowsToCollect);
         long startTime = System.nanoTime();
-        boolean success = storageEngine.processMatchResult(readerId,
+        boolean success = storageEngine.processMatchResult(collectState.getStateMemory(),
                 chunkIndex,
                 bitmapResetPoint,
                 numRowsToCollect,
                 outQueryResultTypes);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         if (!success) {
-            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
-                    String.format("prepareChunk failed unexpectedly readerId %d chunkIndex %d numRowsToCollect %d",
-                            readerId, chunkIndex, numRowsToCollect));
+            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, String.format("prepareChunk failed unexpectedly chunkIndex %d numRowsToCollect %d",
+                    chunkIndex, numRowsToCollect));
         }
     }
 
     // prepare chunk for full scan case, also used by lazy collect, throws exception if error
-    void prepareChunkFullScan(int readerId, int chunkIndex, int numRowsToCollect, int startRowIndex, DispatcherPageSourceStats dispatcherPageSourceStats)
+    void prepareChunkFullScan(CollectState collectState, int chunkIndex, int numRowsToCollect, int startRowIndex, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d startRowIndex %d", chunkIndex, numRowsToCollect, startRowIndex);
         long startTime = System.nanoTime();
-        long result = storageEngine.processFullScanChunk(readerId, chunkIndex, startRowIndex, numRowsToCollect);
+        boolean success = storageEngine.processFullScanChunk(collectState.getStateMemory(), chunkIndex, startRowIndex, numRowsToCollect);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
-        if (result < 0) {
-            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
-                    String.format("prepareChunk failed unexpectedly readerId %d chunkIndex %d startRowIndex %d numRowsToCollect %d",
-                            readerId, chunkIndex, startRowIndex, numRowsToCollect));
+        if (!success) {
+            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, String.format("prepareChunk failed unexpectedly chunkIndex %d startRowIndex %d numRowsToCollect %d",
+                    chunkIndex, startRowIndex, numRowsToCollect));
         }
     }
 
-    void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes, DispatcherPageSourceStats dispatcherPageSourceStats)
+    void collectChunk(CollectState collectState, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         try {
             long startTime = System.nanoTime();
-            storageEngine.collectChunk(txId, numWes, chunkIndex, numToCollect, outQueryResultTypes);
+            storageEngine.collectChunk(collectState.getStateMemory(), chunkIndex, numToCollect, outQueryResultTypes);
             dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         }
         catch (Exception e) {
@@ -153,29 +124,27 @@ public abstract class BaseCollectTxService
         }
     }
 
-    void collectAbort(Exception e, int readerId, DispatcherPageSourceStats dispatcherPageSourceStats)
+    void collectAbort(Exception e, CollectState collectState, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        if (readerId != BaseCollectTxService.INVALID_READER_ID) {
-            boolean nativeThrowed = false;
-            if (e instanceof TrinoException) {
-                nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e);
+        boolean nativeThrowed = false;
+        if (e instanceof TrinoException) {
+            nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e);
+        }
+        if (!nativeThrowed) {
+            long startTime = System.nanoTime();
+            if (collectState != null) {
+                storageEngine.collectClose(collectState.getStateMemory(), MemorySegment.NULL);
             }
-            if (!nativeThrowed) {
-                long startTime = System.nanoTime();
-                storageEngine.collectClose(readerId, null);
-                dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
-            }
+            dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         }
     }
 
     void allocCollectBuffer(SegmentAllocator allocator,
             JbufType bufType,
             int bufferSize,
-            MemorySegment[] outCollectSegments,
-            long[] outCollectBuffers)
+            MemorySegment[] outCollectSegments)
     {
         final int alignment = storageEngineConstants.getPageSize();
         outCollectSegments[bufType.ordinal()] = allocator.allocate(bufferSize, alignment);
-        outCollectBuffers[bufType.ordinal()] = outCollectSegments[bufType.ordinal()].address();
     }
 }

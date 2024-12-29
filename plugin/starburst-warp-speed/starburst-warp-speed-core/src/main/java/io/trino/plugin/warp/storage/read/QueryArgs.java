@@ -21,7 +21,7 @@ import java.util.Optional;
 public record QueryArgs(QueryParams queryParams,
         DispatcherPageSourceStats dispatcherPageSourceStats,
         NativeStats nativeStats,
-        TxArgs txArgs,
+        long[] fileCookie,
         int chunkSize,
         int numChunks,
         int numChunksInRange,

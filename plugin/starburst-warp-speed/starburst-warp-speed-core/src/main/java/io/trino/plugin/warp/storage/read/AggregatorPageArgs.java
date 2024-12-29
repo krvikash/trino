@@ -17,14 +17,18 @@ import java.lang.foreign.MemorySegment;
 import java.util.List;
 import java.util.Optional;
 
-public record AggregatorPageArgs(int readerId,
+public record AggregatorPageArgs(CollectState collectState,
+        int readerId,
         int rowsLimit,
         int numCollectedInPreviousRounds,
+        Optional<MemorySegment> collectMemory,
         RangeData rangeData,
+        Optional<MemorySegment> collectBuffers,
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates,
+        Optional<MemorySegment> recordBufferStates,
         Optional<MemorySegment> queryResultTypes,
         Optional<MemorySegment> prepareQueryResultTypes,
-        Optional<MemorySegment> warmUpElementAtts,
-        Optional<MemorySegment> matchCollectMetadata)
+        Optional<MemorySegment> matchCollectMetadata,
+        ReadStats readStats)
 {
 }

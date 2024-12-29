@@ -193,6 +193,12 @@ public class StubsStorageEngineConstants
     @Override
     public int getMatchStatePayload()
     {
-        return 8192;
+        return 32;
+    }
+
+    @Override
+    public int getCollectStatePayload()
+    {
+        return 32;
     }
 }

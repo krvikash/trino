@@ -19,7 +19,7 @@ import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 import java.util.List;
 
 public record AggregatorArgs(List<BlockFiller<?>> blockFillers,
-                             List<ReadJuffersWarmUpElement> collectJuffersWE,
-                             byte[] storeRowListBuff)
+        List<ReadJuffersWarmUpElement> collectJuffersWE,
+        byte[] storeRowListBuff)
 {
 }

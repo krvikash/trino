@@ -73,4 +73,6 @@ public interface StorageEngineConstants
     int getMatchTxSize();
 
     int getMatchStatePayload();
+
+    int getCollectStatePayload();
 }

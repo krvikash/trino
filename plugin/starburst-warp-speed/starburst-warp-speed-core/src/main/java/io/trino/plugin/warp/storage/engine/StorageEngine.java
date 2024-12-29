@@ -186,18 +186,8 @@ public interface StorageEngine
 
     /**
      * open a collect transaction
-     *
-     * @param totalNumRecords - total number of records in the warm up element
-     * @param fileCookie - hot file to read from
-     * @param collectTxId - transaction id
-     * @param numCollectWes - number of collect warm up elements
-     * @param weCollectParams - parameters for collect warmup elements dumped into an array
-     * @param catalogContext - connector context used for callbacks handles
-     * @param collectBuffers - buffer for data and nulls per warm up element
      */
-    default void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
-            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset, boolean isFullScan,
-            long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
+    default void collectOpen(MemorySegment collectState)
     {
         throw new UnsupportedOperationException();
     }
@@ -205,14 +195,14 @@ public interface StorageEngine
     /**
      * process match result on a chunk before collect
      *
-     * @param txId - identifies tx, passed from native to java during import_create
+     * @param collectState - collect state
      * @param chunkIndex - chunk to collect from
      * @param bmResetPoint - match reset point
      * @param rowsLimit - optional limit on the number of rows to collect from this chunk
      *
      * @return TRUE for success, FALSE for error
      */
-    default boolean processMatchResult(int txId, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
+    default boolean processMatchResult(MemorySegment collectState, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
     {
         throw new UnsupportedOperationException();
     }
@@ -220,14 +210,14 @@ public interface StorageEngine
     /**
      * process full scan chunk before collect
      *
-     * @param txId - identifies tx, passed from native to java during import_create
+     * @param collectState - collect state
      * @param chunkIndex - chunk to collect from
      * @param startRowIx - start row in chunk
      * @param rowsLimit - optional limit on the number of rows to collect from this chunk
      *
-     * @return > 0 if buffer is full and we need to close collect, 0 if not, -1 for error
+     * @return TRUE for success, FALSE for error
      */
-    default long processFullScanChunk(int txId, int chunkIndex, int startRowIx, int rowsLimit)
+    default boolean processFullScanChunk(MemorySegment collectState, int chunkIndex, int startRowIx, int rowsLimit)
     {
         throw new UnsupportedOperationException();
     }
@@ -235,18 +225,17 @@ public interface StorageEngine
     /**
      * Collect from the provided chunk according to the processMatchResult result
      *
-     * @param txId - identifies tx, passed from native to java during import_create
-     * @param numWes - number of WEs to collect
+     * @param collectState - collect state
      * @param chunkIndex - chunk to collect from
      * @param numToCollect - how many rows to collect
      * @param outQueryResultTypes - array to hold updated result type for each collected WE for java to process the collect buffers
      */
-    default void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
+    default void collectChunk(MemorySegment collectState, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void collectClose(int txId, long[] outCollectStats)
+    default void collectClose(MemorySegment collectState, MemorySegment readStats)
     {
         throw new UnsupportedOperationException();
     }
@@ -257,18 +246,8 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default String executeDebugCommand(String commandName, int numParams, String[] paramNames, String[] paramValues)
-    {
-        throw new UnsupportedOperationException();
-    }
-
     default boolean isLoaded()
     {
         return true;
-    }
-
-    default void cleanStorageCache()
-    {
-        throw new UnsupportedOperationException();
     }
 }

@@ -86,9 +86,14 @@ public class QueryParamsConverter
             subtreeSize++; // one more for an AND root we will add above
         }
 
-        // collect
+        // collect allocate parameters
+        int numCollectElements = queryContext.getNativeQueryCollectDataList().size();
+        Optional<MemorySegment> warmUpElementCollectParams = (numCollectElements > 0) ? Optional.of(allocateWarmUpElementCollectParamsMemory(arena, numCollectElements)) : Optional.empty();
+        ArrayDeque<MemorySegment> warmUpElementCollectParamsQueue = sliceWarmUpElementCollectParamsMemory(warmUpElementCollectParams, numCollectElements);
+        // collect create paramters
         CollectAndMatchCollectParams collectAndMatchCollectParams = getCollectAndMatchCollectParams(queryMatchDataLeaves,
                 queryContext.getNativeQueryCollectDataList(),
+                warmUpElementCollectParamsQueue,
                 lastUsedTimestamp,
                 minOffsets);
 
@@ -118,6 +123,7 @@ public class QueryParamsConverter
         return new QueryParams(rootMatchNode,
                 warmUpElementMatchParams,
                 matchNodeAtts,
+                warmUpElementCollectParams,
                 matchNodes.numLucene(),
                 collectAndMatchCollectParams.matchCollectId(),
                 collectAndMatchCollectParams.collectParamsList(),
@@ -130,6 +136,21 @@ public class QueryParamsConverter
                 predicateCacheDataBuilder.build(),
                 rangesRequired,
                 arena);
+    }
+
+    private static MemorySegment allocateWarmUpElementCollectParamsMemory(GcArena arena, int numElements)
+    {
+        SequenceLayout warmUpElementCollectParamsLayout = MemoryLayout.sequenceLayout(numElements, WarmupElementCollectParams.WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT);
+        return arena.allocate(warmUpElementCollectParamsLayout.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
+    }
+
+    private static ArrayDeque<MemorySegment> sliceWarmUpElementCollectParamsMemory(Optional<MemorySegment> warmUpElementCollectParams, int numElements)
+    {
+        ArrayDeque<MemorySegment> warmUpElementCollectParamsQueue = new ArrayDeque<>(numElements);
+        if (warmUpElementCollectParams.isPresent()) {
+            warmUpElementCollectParams.get().elements(WarmupElementCollectParams.WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT).forEach(m -> warmUpElementCollectParamsQueue.add(m));
+        }
+        return warmUpElementCollectParamsQueue;
     }
 
     private static MemorySegment allocateWarmUpElementMatchParamsMemory(GcArena arena, int numLeaves)
@@ -248,6 +269,7 @@ public class QueryParamsConverter
 
     private static CollectAndMatchCollectParams getCollectAndMatchCollectParams(List<QueryMatchData> queryMatchDataLeaves,
             ImmutableList<NativeQueryCollectData> nativeQueryCollectDataList,
+            ArrayDeque<MemorySegment> warmUpElementCollectParamsQueue,
             long lastUsedTimestamp,
             int[] minOffsets)
     {
@@ -296,13 +318,15 @@ public class QueryParamsConverter
                         collectDataWarmUpElement.getDictionaryInfo().dataValuesRecTypeLength(),
                         collectDataWarmUpElement.getDictionaryInfo().dictionaryOffset());
                 collectParamsList.add(
-                        new WarmupElementCollectParams(
+                        new WarmupElementCollectParams(warmUpElementCollectParamsQueue.remove(),
                                 collectDataWarmUpElement.getQueryOffset(),
-                                collectDataWarmUpElement.getQueryReadSize(),
+                                DICTIONARY_REC_TYPE_CODE,   // native should keep this warm up element with the dictionary code
+                                DICTIONARY_REC_TYPE_LENGTH, // native should keep this warm up element with the dictionary length
                                 collectDataWarmUpElement.getWarmUpType(),
-                                // native should keep this warm up element with the dictionary code and length
-                                DICTIONARY_REC_TYPE_CODE,
-                                DICTIONARY_REC_TYPE_LENGTH,
+                                collectDataWarmUpElement.getQueryReadSize(),
+                                matchCollectIndex,
+                                isCollectNulls,
+                                collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 // page block should hold the original code and length
                                 collectDataWarmUpElement.getRecTypeCode(),
                                 Math.min(collectDataWarmUpElement.getRecTypeLength(), dictionaryParams.dataValuesRecTypeLength()),
@@ -310,20 +334,19 @@ public class QueryParamsConverter
                                 collectDataWarmUpElement.isImported(),
                                 Optional.of(dictionaryParams),
                                 blockIndex,
-                                matchCollectIndex,
-                                isCollectNulls,
-                                collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
             }
             else {
                 collectParamsList.add(
-                        new WarmupElementCollectParams(
+                        new WarmupElementCollectParams(warmUpElementCollectParamsQueue.remove(),
                                 collectDataWarmUpElement.getQueryOffset(),
-                                collectDataWarmUpElement.getQueryReadSize(),
+                                collectDataWarmUpElement.getRecTypeCode(),   // native will use the original code
+                                collectDataWarmUpElement.getRecTypeLength(), // native will use the original length
                                 collectDataWarmUpElement.getWarmUpType(),
-                                // native will use the original code the length
-                                collectDataWarmUpElement.getRecTypeCode(),
-                                collectDataWarmUpElement.getRecTypeLength(),
+                                collectDataWarmUpElement.getQueryReadSize(),
+                                matchCollectIndex,
+                                isCollectNulls,
+                                collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 // page block should hold the original code and length
                                 collectDataWarmUpElement.getRecTypeCode(),
                                 collectDataWarmUpElement.getRecTypeLength(),
@@ -331,9 +354,6 @@ public class QueryParamsConverter
                                 collectDataWarmUpElement.isImported(),
                                 Optional.empty(), // no dictionary we put invalid
                                 blockIndex,
-                                matchCollectIndex,
-                                isCollectNulls,
-                                collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
             }
         }

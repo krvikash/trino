@@ -326,11 +326,6 @@ public class BufferAllocator
         warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_CHUNKS, slicer.allocate(buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS.ordinal()], alignment));
     }
 
-    public long[] getCollectBuffersArray()
-    {
-        return new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()];
-    }
-
     public ByteBuffer memorySegment2RecBuff(MemorySegment[] buffs)
     {
         return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_REC.ordinal()]);

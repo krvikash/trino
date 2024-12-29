@@ -165,7 +165,7 @@ public class MatchState
     private void setState(QueryArgs queryArgs, int readerId, Optional<MemorySegment> matchCollectMetadata)
     {
         QueryParams queryParams = queryArgs.queryParams();
-
+        long[] fileCookie = queryArgs.fileCookie();
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_MATCH_TREE, queryParams.getMatchNodeAtts().address());
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_WARMUP_ELEMENT_PARAMS, queryParams.getWarmUpElementMatchParams().get().address());
 
@@ -204,9 +204,9 @@ public class MatchState
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_LUCENE_BM, luceneBitmaps.map(m -> m.address()).orElse(0L));
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_MATCH_COLLECT_MD, matchCollectMetadata.map(m -> m.address()).orElse(0L));
         RowGroupData.setFileCookie(matchState.asSlice(MATCH_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
-                (int) queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()],
-                queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
-                queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
+                (int) fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()],
+                fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
+                fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinMatchOffset());
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_MATCH_COLLECT_ID, queryParams.getMatchCollectId());

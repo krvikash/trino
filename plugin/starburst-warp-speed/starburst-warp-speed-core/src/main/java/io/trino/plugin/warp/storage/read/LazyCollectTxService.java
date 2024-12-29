@@ -14,10 +14,8 @@
 package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
-import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
-import io.trino.plugin.warp.gen.constants.CollectStats;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
@@ -36,7 +34,6 @@ import java.lang.foreign.ValueLayout;
 public class LazyCollectTxService
         extends BaseCollectTxService
 {
-    private static final Logger logger = Logger.get(LazyCollectTxService.class);
     private final WorkerMemoryManager workerMemoryManager;
 
     @Inject
@@ -51,12 +48,13 @@ public class LazyCollectTxService
         this.workerMemoryManager = workerMemoryManager;
     }
 
-    LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs, DispatcherPageSourceStats dispatcherPageSourceStats)
+    LazyCollectOpenResult collectOpen(LazyCollectorLoaderArgs lazyCollectorLoaderArgs, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         // initialize warm up element properties
         WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
-        final RecTypeCode recTypeCode = collectParams.getRecTypeCode();
-        final int recTypeLength = collectParams.getRecTypeLength();
+        MemorySegment warmupElementAtt = collectParams.getWarmupElementAtt();
+        final RecTypeCode recTypeCode = WarmUpElement.getRecTypeCode(warmupElementAtt);
+        final int recTypeLength = WarmUpElement.getRecTypeLength(warmupElementAtt);
 
         // initialize memory parameters
         final int readerId = allocReaderId();
@@ -71,9 +69,9 @@ public class LazyCollectTxService
             final int pageSize = storageEngineConstants.getPageSize();
             collectMemory = pageArena.allocate(recordBufferSize + nullBufferSize + pageSize, pageSize);
             metadataMemory = pageArena.allocate(RecordIndexes.RECORD_INDEXES_LAYOUT.byteSize() +
-                    WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.byteSize() +
+                    JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize() +
                     WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize() +
-                    ValueLayout.JAVA_INT.byteSize(), ValueLayout.JAVA_INT.byteSize());
+                    ValueLayout.JAVA_LONG.byteSize(), ValueLayout.JAVA_LONG.byteSize());
         }
         catch (Throwable t) {
             throw new RuntimeException("no memory available for lazy collect size recordBufferSize " + recordBufferSize + " nullBufferSize " + nullBufferSize);
@@ -81,56 +79,46 @@ public class LazyCollectTxService
         SegmentAllocator queryMemoryAllocator = SegmentAllocator.slicingAllocator(collectMemory);
         SegmentAllocator metadataAllocator = SegmentAllocator.slicingAllocator(metadataMemory);
 
-        // allcoate buffers
-        long[] collectBuffers = lazyCollectorLoaderArgs.txArgs().collectBuffers()[0];
-        MemorySegment[] collectSegments = new MemorySegment[collectBuffers.length];
-        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_REC, recordBufferSize, collectSegments, collectBuffers);
-        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_NULL, nullBufferSize, collectSegments, collectBuffers);
-        lazyCollectorLoaderArgs.collectJufferWE().createBuffers(recTypeCode, recTypeLength, collectParams.hasDictionary(), collectSegments);
-
+        // allocate metadata
         RecordIndexes recordIndexes = new RecordIndexes(metadataAllocator);
-        MemorySegment warmupElementAtt = metadataAllocator.allocate(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
-        WarmUpElement.setRecTypeCode(warmupElementAtt, recTypeCode);
-        WarmUpElement.setRecTypeLength(warmupElementAtt, recTypeLength);
-        WarmUpElement.setWarmUpType(warmupElementAtt, collectParams.getWarmUpType());
+        MemorySegment collectBuffers = metadataAllocator.allocate(JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize(), ValueLayout.JAVA_LONG.byteSize());
         MemorySegment recordBufferStates = metadataAllocator.allocate(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
-        collectOpen(lazyCollectorLoaderArgs.queryParams(),
-                lazyCollectorLoaderArgs.txArgs(),
-                readerId,
-                1,
-                lazyCollectorLoaderArgs.numChunksInRange(),
-                -1, // invalid reopen chunk index
-                warmupElementAtt.address(),
-                recordBufferStates.address(),
-                recordIndexes.getAddress(),
-                0,
-                dispatcherPageSourceStats);
 
-        logger.debug("collectOpen queryMemoryId %d rowsLimit %d", readerId, rowsLimit);
-        return new LazyCollectOpenResult(readerId, pageArena, recordIndexes, warmupElementAtt, recordBufferStates);
+        // allcoate buffers
+        MemorySegment[] collectSegments = new MemorySegment[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()];
+        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_REC, recordBufferSize, collectSegments);
+        allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_NULL, nullBufferSize, collectSegments);
+        lazyCollectorLoaderArgs.collectJufferWE().createBuffers(recTypeCode, recTypeLength, collectParams.hasDictionary(), collectSegments);
+        collectBuffers.setAtIndex(ValueLayout.JAVA_LONG, JbufType.JBUF_TYPE_REC.ordinal(), collectSegments[JbufType.JBUF_TYPE_REC.ordinal()].address());
+        collectBuffers.setAtIndex(ValueLayout.JAVA_LONG, JbufType.JBUF_TYPE_NULL.ordinal(), collectSegments[JbufType.JBUF_TYPE_NULL.ordinal()].address());
+
+        CollectState collectState = new CollectState(pageArena, storageEngineConstants.getCollectStatePayload());
+        collectState.setLazyState(lazyCollectorLoaderArgs.queryParams(),
+                lazyCollectorLoaderArgs.fileCookie(),
+                readerId,
+                lazyCollectorLoaderArgs.numChunksInRange(),
+                recordBufferStates,
+                recordIndexes,
+                collectBuffers,
+                collectParams.getMemory());
+        collectOpen(collectState, dispatcherPageSourceStats);
+        return new LazyCollectOpenResult(readerId,
+                collectState,
+                pageArena,
+                recordIndexes,
+                collectBuffers,
+                recordBufferStates,
+                new ReadStats(pageArena));
     }
 
     // Lazy collect doesn't use store/restore mechanism, so store/restore params are not initialized
     void collectClose(LazyCollectOpenResult collectOpenResult, NativeStats nativeStats, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
         long startTime = System.nanoTime();
-        storageEngine.collectClose(collectOpenResult.readerId(), collectStats);
+        storageEngine.collectClose(collectOpenResult.collectState().getStateMemory(), collectOpenResult.readStats().getMemory());
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
 
-        nativeStats.addread_cache_md_chunk_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_HITS.ordinal()]);
-        nativeStats.addread_cache_md_basic_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_BASIC_HITS.ordinal()]);
-        nativeStats.addread_cache_md_data_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_DATA_HITS.ordinal()]);
-        nativeStats.addread_cache_md_nulls_hits(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_NULLS_HITS.ordinal()]);
-        nativeStats.addread_cache_md_chunk_misses(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_CHUNK_MISSES.ordinal()]);
-        nativeStats.addread_cache_md_basic_misses(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_BASIC_MISSES.ordinal()]);
-        nativeStats.addread_cache_md_data_misses(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_DATA_MISSES.ordinal()]);
-        nativeStats.addread_cache_md_nulls_misses(collectStats[CollectStats.COLLECT_STATS_CACHE_MD_NULLS_MISSES.ordinal()]);
-        nativeStats.addread_uncache_misses(collectStats[CollectStats.COLLECT_STATS_UNCACHE_MISSES.ordinal()]);
-        nativeStats.addread_uncache_data_misses(collectStats[CollectStats.COLLECT_STATS_UNCACHE_DATA_MISSES.ordinal()]);
-        nativeStats.addread_uncache_ext_data_misses(collectStats[CollectStats.COLLECT_STATS_UNCACHE_EXT_DATA_MISSES.ordinal()]);
-        nativeStats.addread_time_wait_nanos(collectStats[CollectStats.COLLECT_STATS_READ_TIME_WAIT_NANOS.ordinal()]);
-
+        collectOpenResult.readStats().fillStats(nativeStats);
         collectOpenResult.pageArena().close();
         freeQueryMemory(collectOpenResult.readerId());
     }

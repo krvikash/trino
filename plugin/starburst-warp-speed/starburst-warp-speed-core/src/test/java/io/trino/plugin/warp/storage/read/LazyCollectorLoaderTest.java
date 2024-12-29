@@ -28,7 +28,6 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -64,7 +63,7 @@ class LazyCollectorLoaderTest
                 dispatcherPageSourceStats,
                 globalConfig,
                 mock(NativeStats.class));
-        when(lazyCollectTxService.collectOpen(anyInt(), any(), any())).thenThrow(new RuntimeException());
+        when(lazyCollectTxService.collectOpen(any(LazyCollectorLoaderArgs.class), any())).thenThrow(new RuntimeException());
 
         Assertions.assertThrows(RuntimeException.class, lazyCollectorLoader::load);
         assertThat(dispatcherPageSourceStats.getlazy_collect_failed_load()).isEqualTo(1);

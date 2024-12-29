@@ -76,8 +76,11 @@ public class NativeStorageEngine
     private final MethodHandle mMatch;
     private final MethodHandle mMatchClose;
     // collect API
+    private final MethodHandle mCollectOpen;
     private final MethodHandle mCollectProcessMatchResult;
+    private final MethodHandle mCollectProcessFullScanChunk;
     private final MethodHandle mCollectCollectChunk;
+    private final MethodHandle mCollectClose;
 
     public NativeStorageEngine(
             NativeConfig nativeConfig,
@@ -160,10 +163,16 @@ public class NativeStorageEngine
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
             // collect API
+            mCollectOpen = linker.downcallHandle(libraryHandle.find("warp_speed_collect_open").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
             mCollectProcessMatchResult = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_match_result").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.JAVA_INT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+            mCollectProcessFullScanChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_full_scan_chunk").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT));
             mCollectCollectChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_collect_chunk").orElseThrow(),
-                    FunctionDescriptor.ofVoid(ValueLayout.JAVA_INT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+            mCollectClose = linker.downcallHandle(libraryHandle.find("warp_speed_collect_close").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
 
             nativeInit(taskMaxWorkerThreads,
                     Runtime.getRuntime().maxMemory(),
@@ -530,46 +539,65 @@ public class NativeStorageEngine
     }
 
     @Override
-    public native void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
-            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset, boolean isFullScan,
-            long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers);
-
-    @Override
-    public boolean processMatchResult(int txId, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
+    public void collectOpen(MemorySegment collectState)
     {
         try {
-            return (boolean) mCollectProcessMatchResult.invokeExact(txId, (short) chunkIndex, bmResetPoint, rowsLimit, outQueryResultTypes);
+            mCollectOpen.invokeExact(collectState);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to collectOpen");
+            throw new RuntimeException("failed to collect open");
+        }
+    }
+
+    @Override
+    public boolean processMatchResult(MemorySegment collectState, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
+    {
+        try {
+            return (boolean) mCollectProcessMatchResult.invokeExact(collectState, (short) chunkIndex, bmResetPoint, rowsLimit, outQueryResultTypes);
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to processMatchResult");
+            throw new RuntimeException("failed to process match result");
         }
-        return false; // error is thrown by the caller in a trino exception with a specific code
     }
 
     @Override
-    public native long processFullScanChunk(int txId, int chunkIndex, int startRowIx, int rowsLimit);
-
-    @Override
-    public void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
+    public boolean processFullScanChunk(MemorySegment collectState, int chunkIndex, int startRowIx, int rowsLimit)
     {
         try {
-            mCollectCollectChunk.invokeExact(txId, (short) numWes, (short) chunkIndex, numToCollect, outQueryResultTypes);
+            return (boolean) mCollectProcessFullScanChunk.invokeExact(collectState, (short) chunkIndex, (short) startRowIx, rowsLimit);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to processFullScanChunk");
+            throw new RuntimeException("failed to process full scan chunk");
+        }
+    }
+
+    @Override
+    public void collectChunk(MemorySegment collectState, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
+    {
+        try {
+            mCollectCollectChunk.invokeExact(collectState, (short) chunkIndex, numToCollect, outQueryResultTypes);
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to collectChunk");
-            throw new RuntimeException("failed to collectChunk txId " + txId + " chunkIndex " + chunkIndex);
+            throw new RuntimeException("failed to collectChunk chunkIndex " + chunkIndex);
         }
     }
 
     @Override
-    public native void collectClose(int txId, long[] outCollectStats);
+    public void collectClose(MemorySegment collectState, MemorySegment readStats)
+    {
+        try {
+            mCollectClose.invokeExact(collectState, readStats);
+        }
+        catch (Throwable t) {
+            shapingLogger.error(t, "failed to collectClose");
+            throw new RuntimeException("failed to collect close");
+        }
+    }
 
     @Override
     public native void setDebugThrowPolicy(int numElements, int[] panicID, int[] repetitionMode, int[] ratio);
-
-    @Override
-    public native String executeDebugCommand(String commandName, int numParams, String[] paramNames, String[] paramValues);
-
-    @Override
-    public native void cleanStorageCache();
 }

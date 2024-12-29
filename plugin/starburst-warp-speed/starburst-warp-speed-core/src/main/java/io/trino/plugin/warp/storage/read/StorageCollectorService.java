@@ -127,9 +127,9 @@ public class StorageCollectorService
 
     private void fileOpen(QueryArgs queryArgs)
     {
-        queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()] = storageEngine.fileOpen(queryArgs.queryParams().getFilePath());
-        queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(queryArgs.queryParams().getFilePath());
-        queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = queryArgs.queryParams().getFileModTime();
+        queryArgs.fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()] = storageEngine.fileOpen(queryArgs.queryParams().getFilePath());
+        queryArgs.fileCookie()[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(queryArgs.queryParams().getFilePath());
+        queryArgs.fileCookie()[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = queryArgs.queryParams().getFileModTime();
     }
 
     public AggregatorArgs open(QueryArgs queryArgs)
@@ -161,7 +161,7 @@ public class StorageCollectorService
     {
         int resetPoint = chunksQueue.getCurrentBitmapResetPoint();
         int numRecordsInChunk = chunksQueue.prepareCurRecList(aggregatorPageArgs.rangeData().getRecordIndexes(), resetPoint);
-        collectTxService.prepareChunk(aggregatorPageArgs.readerId(),
+        collectTxService.prepareChunk(aggregatorPageArgs.collectState(),
                 chunksQueue.getCurrent(),
                 min(numRecordsInChunk, aggregatorPageArgs.rowsLimit() - numCollectedRows),
                 resetPoint,
@@ -209,14 +209,12 @@ public class StorageCollectorService
     }
 
     void collectChunk(AggregatorPageArgs aggregatorPageArgs,
-            int numWes,
             int chunkIndex,
             int numToCollect,
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        collectTxService.collectChunk(aggregatorPageArgs.readerId(),
-                numWes,
+        collectTxService.collectChunk(aggregatorPageArgs.collectState(),
                 chunkIndex,
                 numToCollect,
                 outQueryResultTypes,
@@ -254,7 +252,6 @@ public class StorageCollectorService
                 int numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, aggregatorPageArgs, numCollectedRows);
                 if (numToCollect > 0) {
                     collectChunk(aggregatorPageArgs,
-                            queryParams.getNumCollectElements(),
                             chunkIndex,
                             numToCollect,
                             aggregatorPageArgs.queryResultTypes().get(),
@@ -378,7 +375,6 @@ public class StorageCollectorService
 
     public QueryArgs getQueryArgs(QueryParams queryParams, CustomStatsContext customStatsContext)
     {
-        TxArgs txArgs = getTxArgs(queryParams);
         DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         NativeStats nativeStats = (NativeStats) customStatsContext.getStat(NativeStats.createKey());
 
@@ -398,23 +394,11 @@ public class StorageCollectorService
         return new QueryArgs(queryParams,
                 dispatcherPageSourceStats,
                 nativeStats,
-                txArgs,
+                new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()],
                 chunkSize,
                 numChunks,
                 numChunksInRange,
                 storeMatchCollectMetadataBuff);
-    }
-
-    TxArgs getTxArgs(QueryParams queryParams)
-    {
-        int[] weCollectParams = queryParams.dumpCollectParams();
-        long[][] collectBuffers = new long[queryParams.getNumCollectElements()][];
-        for (int collectIx = 0; collectIx < queryParams.getNumCollectElements(); collectIx++) {
-            collectBuffers[collectIx] = bufferAllocator.getCollectBuffersArray();
-        }
-        return new TxArgs(weCollectParams,
-                collectBuffers,
-                new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()]);
     }
 
     private AggregatorArgs getStorageCollectorArgs(QueryArgs queryArgs)
@@ -438,7 +422,9 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
 
-        return new AggregatorArgs(blockFillers, collectJuffersWE, storeRowListBuff);
+        return new AggregatorArgs(blockFillers,
+                collectJuffersWE,
+                storeRowListBuff);
     }
 
     private int getNumChunksInRange(QueryParams queryParams)
@@ -488,11 +474,6 @@ public class StorageCollectorService
 
     public void close(QueryArgs queryArgs)
     {
-        storageEngine.fileClose((int) queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
-    }
-
-    public void cleanStorageCache()
-    {
-        storageEngine.cleanStorageCache();
+        storageEngine.fileClose((int) queryArgs.fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
     }
 }

@@ -35,7 +35,6 @@ import io.trino.plugin.warp.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.FunctionType;
-import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -341,7 +340,6 @@ public class WarmupTestDataUtil
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2ExtRecsBuff(any());
         doReturn(allocateIntBuffer(defaultSize)).when(bufferAllocator).memorySegment2VarlenMdBuff(any());
 
-        doReturn(new long[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()]).when(bufferAllocator).getCollectBuffersArray();
         return bufferAllocator;
     }
 

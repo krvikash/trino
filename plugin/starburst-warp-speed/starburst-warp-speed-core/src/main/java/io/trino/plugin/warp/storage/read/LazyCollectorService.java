@@ -78,22 +78,10 @@ public class LazyCollectorService
             int numRows)
     {
         QueryParams queryParams = queryArgs.queryParams();
-        WarmupElementCollectParams collectParams = queryParams.getCollectElementsParamsList().get(weIx);
-
-        int[] weCollectParams = queryParams.dumpSingleCollectParams(collectParams);
-        long[][] collectBuffers = new long[1][];
-        collectBuffers[0] = bufferAllocator.getCollectBuffersArray();
-
-        TxArgs txArgs = new TxArgs(
-                weCollectParams,
-                collectBuffers,
-                queryArgs.txArgs().fileCookie());
-
-        ReadJuffersWarmUpElement juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true);
         return new LazyCollectorLoaderArgs(queryParams,
-                txArgs,
-                collectParams,
-                juffersWE,
+                queryArgs.fileCookie(),
+                queryParams.getCollectElementsParamsList().get(weIx),
+                new ReadJuffersWarmUpElement(bufferAllocator, true),
                 aggregatorArgs.blockFillers().get(weIx),
                 lazyCollectStartRowIndex,
                 numRows,
@@ -103,7 +91,6 @@ public class LazyCollectorService
 
     @Override
     void collectChunk(AggregatorPageArgs aggregatorPageArgs,
-            int numCollectElements,
             int chunkIndex,
             int numToCollect,
             MemorySegment outQueryResultTypes,

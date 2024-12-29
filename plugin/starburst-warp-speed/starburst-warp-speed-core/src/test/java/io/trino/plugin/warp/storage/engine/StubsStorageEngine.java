@@ -179,26 +179,24 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void collectOpen(int totalNumRecords, long[] fileCookie, int collectTxId, int numCollectWes, int numChunksInRange, int reopenChunkIndex,
-            int[] weCollectParams, long warmUpElementAttsAddress, long catalogContext, int minOffset, boolean isFullScan,
-            long recordBufferStatesAddress, long recordIndexesAddress, long matchCollectMetadataAddress, long[][] collectBuffers)
+    public void collectOpen(MemorySegment collectState)
     {
     }
 
     @Override
-    public boolean processMatchResult(int txId, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
+    public boolean processMatchResult(MemorySegment collectState, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
     {
         return true;
     }
 
     @Override
-    public long processFullScanChunk(int txId, int chunkIndex, int startRowIx, int rowsLimit)
+    public boolean processFullScanChunk(MemorySegment collectState, int chunkIndex, int startRowIx, int rowsLimit)
     {
-        return 0;
+        return true;
     }
 
     @Override
-    public void collectChunk(int txId, int numWes, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
+    public void collectChunk(MemorySegment collectState, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
     {
         if (!throwOnColletRuntimeExceptionList.isEmpty()) {
             throw throwOnColletRuntimeExceptionList.removeFirst();
@@ -206,19 +204,13 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void collectClose(int txId, long[] outCollectStats)
+    public void collectClose(MemorySegment collectState, MemorySegment readStats)
     {
     }
 
     @Override
     public void setDebugThrowPolicy(int numElements, int[] panicID, int[] repetitionMode, int[] ratio)
     {
-    }
-
-    @Override
-    public String executeDebugCommand(String commandName, int numParams, String[] paramNames, String[] paramValues)
-    {
-        return "";
     }
 
     @Override
@@ -235,10 +227,5 @@ public class StubsStorageEngine
     public void setThrowOnCollect(RuntimeException... e)
     {
         throwOnColletRuntimeExceptionList.addAll(Arrays.asList(e));
-    }
-
-    @Override
-    public void cleanStorageCache()
-    {
     }
 }

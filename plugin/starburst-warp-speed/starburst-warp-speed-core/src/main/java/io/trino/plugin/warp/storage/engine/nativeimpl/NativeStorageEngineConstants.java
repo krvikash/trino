@@ -62,6 +62,7 @@ public class NativeStorageEngineConstants
     private final int maxMatchColumns;
     private final int matchTxSize;
     private final int matchStatePayload;
+    private final int collectStatePayload;
 
     @Inject
     public NativeStorageEngineConstants(StorageEngine storageEngine)
@@ -108,6 +109,7 @@ public class NativeStorageEngineConstants
             maxMatchColumns = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_match_columns");
             matchTxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_match_tx_size");
             matchStatePayload = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_match_state_payload");
+            collectStatePayload = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_collect_state_payload");
         }
         catch (Throwable t) {
             logger.error(t, "failed to retrieve constants from native library");
@@ -287,5 +289,11 @@ public class NativeStorageEngineConstants
     public int getMatchStatePayload()
     {
         return matchStatePayload;
+    }
+
+    @Override
+    public int getCollectStatePayload()
+    {
+        return collectStatePayload;
     }
 }

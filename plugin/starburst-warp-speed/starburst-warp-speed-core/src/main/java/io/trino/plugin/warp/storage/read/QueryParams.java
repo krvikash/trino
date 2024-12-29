@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_NUM_OF;
 import static java.util.Objects.requireNonNull;
 
 public class QueryParams
@@ -33,6 +32,7 @@ public class QueryParams
     private final Optional<MatchNode> rootMatchNode;
     private final Optional<MemorySegment> warmUpElementMatchParams;
     private final MemorySegment matchNodeAtts;
+    private final Optional<MemorySegment> warmUpElementCollectParams;
     private final List<WarmupElementMatchParams> leaves;
     private final int numLucene;
     private final int matchCollectId;
@@ -54,6 +54,7 @@ public class QueryParams
     public QueryParams(Optional<MatchNode> rootMatchNode,
             Optional<MemorySegment> warmUpElementMatchParams,
             MemorySegment matchNodeAtts,
+            Optional<MemorySegment> warmUpElementCollectParams,
             int numLucene,
             int matchCollectId,
             List<WarmupElementCollectParams> collectParams,
@@ -70,6 +71,7 @@ public class QueryParams
         this.rootMatchNode = requireNonNull(rootMatchNode, "rootMatchNode is null");
         this.warmUpElementMatchParams = requireNonNull(warmUpElementMatchParams);
         this.matchNodeAtts = requireNonNull(matchNodeAtts);
+        this.warmUpElementCollectParams = requireNonNull(warmUpElementCollectParams);
         this.leaves = rootMatchNode.map(this::getLeaves).orElse(Collections.emptyList());
         this.numLucene = numLucene;
         this.matchCollectId = matchCollectId;
@@ -190,6 +192,11 @@ public class QueryParams
         return warmUpElementMatchParams;
     }
 
+    public Optional<MemorySegment> getWarmUpElementCollectParams()
+    {
+        return warmUpElementCollectParams;
+    }
+
     public MemorySegment getMatchNodeAtts()
     {
         return matchNodeAtts;
@@ -198,27 +205,6 @@ public class QueryParams
     public int getMatchTreeHeight()
     {
         return rootMatchNode.map(r -> r.getHeight()).orElse(0);
-    }
-
-    public int[] dumpCollectParams()
-    {
-        int[] dump = new int[WE_COLLECT_JPARAMS_NUM_OF.ordinal() * collectParams.size()];
-        int collectOffset = 0;
-        for (WarmupElementCollectParams collectParams : collectParams) {
-            // in case the record length we put in the output page is larger than the one used for warming (dictionary case),
-            // storage engine needs it to calculate the number of records passed in a single call to match and collect
-            // it must be passed in txQueryCreate to allow native to prepare the metadata once in advance and not on every call to collect
-            collectParams.dump(dump, collectOffset);
-            collectOffset += WE_COLLECT_JPARAMS_NUM_OF.ordinal();
-        }
-        return dump;
-    }
-
-    public int[] dumpSingleCollectParams(WarmupElementCollectParams collectParams)
-    {
-        int[] dump = new int[WE_COLLECT_JPARAMS_NUM_OF.ordinal()];
-        collectParams.dump(dump, 0);
-        return dump;
     }
 
     public ImmutableList<PredicateCacheData> getPredicateCacheData()

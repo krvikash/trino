@@ -191,7 +191,6 @@ public class WarpDispatcherPageSourceFactory
     {
         // nice tweak to make load a bit faster in POCs and tests (from the old varada days)
         if (WarpSessionProperties.isEmptyQuery(session)) {
-            storageCollectorService.cleanStorageCache();
             return new EmptyPageSource();
         }
 
