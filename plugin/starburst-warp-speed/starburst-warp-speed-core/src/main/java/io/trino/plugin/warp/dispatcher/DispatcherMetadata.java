@@ -1184,6 +1184,12 @@ public class DispatcherMetadata
     }
 
     @Override
+    public void setMaterializedViewAuthorization(ConnectorSession session, SchemaTableName viewName, TrinoPrincipal principal)
+    {
+        proxiedConnectorMetadata.setMaterializedViewAuthorization(session, viewName, principal);
+    }
+
+    @Override
     public Map<SchemaTableName, ConnectorMaterializedViewDefinition> getMaterializedViews(ConnectorSession session, Optional<String> schemaName)
     {
         return proxiedConnectorMetadata.getMaterializedViews(session, schemaName);
