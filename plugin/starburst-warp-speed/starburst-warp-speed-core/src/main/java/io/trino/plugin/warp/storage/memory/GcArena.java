@@ -24,7 +24,7 @@ import java.util.function.Function;
 public class GcArena
         extends ArenaBase
 {
-    static final long MAX_ALLOCATED_BYTES = DataSize.of(800, DataSize.Unit.MEGABYTE).toBytes();
+    static final long MAX_ALLOCATED_BYTES = DataSize.of(200, DataSize.Unit.MEGABYTE).toBytes();
 
     private Function<Void, Void> limitFunc;
 

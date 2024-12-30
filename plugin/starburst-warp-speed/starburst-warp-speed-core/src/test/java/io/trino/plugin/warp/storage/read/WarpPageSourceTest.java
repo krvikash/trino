@@ -34,6 +34,7 @@ import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.Page;
 import io.trino.spi.connector.SchemaTableName;
@@ -83,7 +84,8 @@ public class WarpPageSourceTest
                 globalConfig,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
-                mock(MatchService.class));
+                mock(MatchService.class),
+                mock(WorkerMemoryManager.class));
         Page nextPage = warpPageSource.getNextPage();
         assertThat(nextPage).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
@@ -133,7 +135,8 @@ public class WarpPageSourceTest
                 globalConfig,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
-                mock(MatchService.class));
+                mock(MatchService.class),
+                mock(WorkerMemoryManager.class));
         assertThat(warpPageSource.getNextPage()).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
     }
@@ -175,7 +178,8 @@ public class WarpPageSourceTest
                 globalConfig,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
-                mock(MatchService.class));
+                mock(MatchService.class),
+                mock(WorkerMemoryManager.class));
         assertThat(warpPageSource.getNextPage()).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
     }
@@ -208,7 +212,8 @@ public class WarpPageSourceTest
                 globalConfig,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
-                mock(MatchService.class));
+                mock(MatchService.class),
+                mock(WorkerMemoryManager.class));
         Page nextPage = warpPageSource.getNextPage();
         assertThat(nextPage).isNotNull();
         assertThat(nextPage.getPositionCount()).isEqualTo(10);
@@ -264,7 +269,8 @@ public class WarpPageSourceTest
                 globalConfig,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
-                mock(MatchService.class));
+                mock(MatchService.class),
+                mock(WorkerMemoryManager.class));
         assertThat(warpPageSource.getNextPage()).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
     }

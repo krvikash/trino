@@ -28,6 +28,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
 
@@ -49,7 +50,7 @@ public class MatchService
     private static final Logger logger = Logger.get(MatchService.class);
     private final ShapingLogger shapingLogger;
 
-    BufferAllocator bufferAllocator;
+    private final BufferAllocator bufferAllocator;
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
     private final GlobalConfig globalConfig;
@@ -80,14 +81,7 @@ public class MatchService
                 .map(we -> we.hasLuceneParams() ? new ReadJuffersWarmUpElement(bufferAllocator, false) : new ReadJuffersWarmUpElement())
                 .collect(Collectors.toList());
 
-        // +1 below is for the current bitmaps set that is used as an intermediate bitmap by native layer
-        final int matchTreeHeight = queryParams.getRootMatchNode().map(r -> r.getHeight() + 1).orElse(0);
-        MatcherArgs matcherArgs = new MatcherArgs(matchJuffersWe,
-                new LuceneMatcher[queryParams.getNumLucene()],
-                new MatchState(storageEngineConstants.getMatchStatePayload(),
-                        storageEngineConstants.getPageSize(),
-                        queryArgs.numChunksInRange() * matchTreeHeight,
-                        queryArgs.numChunksInRange() * queryParams.getNumLucene()));
+        MatcherArgs matcherArgs = new MatcherArgs(matchJuffersWe, new LuceneMatcher[queryParams.getNumLucene()]);
         createLuceneMatchers(queryArgs, matcherArgs, customStatsContext); // this call must be after creating the matchJuffersWE
         return matcherArgs;
     }
@@ -119,20 +113,24 @@ public class MatchService
         }
     }
 
-    public MatcherPageArgs openPage(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, AggregatorPageArgs aggregatorPageArgs)
+    public MatcherPageArgs openPage(ChunksQueue chunksQueue,
+            ThreadArena pageArena,
+            QueryArgs queryArgs,
+            MatcherArgs matcherArgs,
+            AggregatorPageArgs aggregatorPageArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
         chunksQueue.initRootBitmaps();
 
         Optional<MatchState> matchStateOpt = Optional.empty();
         if (queryParams.getNumMatchElements() > 0) {
-            MatchState matchState = matcherArgs.matchState();
             try {
                 long startTime = System.nanoTime();
-                // at this point we still keep setMemory and setState as separate APIs allthough they are called one after the other
-                // we can revisit this when we are done refactoring the memory usage
-                matchState.setMemory(queryArgs);
-                matchState.setState(queryArgs, aggregatorPageArgs.readerId());
+                MatchState matchState = new MatchState(queryArgs,
+                        pageArena,
+                        aggregatorPageArgs.readerId(),
+                        storageEngineConstants.getMatchStatePayload(),
+                        storageEngineConstants.getPageSize());
                 storageEngine.matchOpen(matchState.getStateMemory());
                 matchStateOpt = Optional.of(matchState);
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
@@ -151,7 +149,7 @@ public class MatchService
             int matchIx = 0;
             for (WarmupElementMatchParams matchParams : queryParams.getMatchElementsParamsList()) {
                 // only for lucene
-                matcherArgs.matchJuffersWe().get(matchIx).createLuceneBuffers(matchState.getLuceneBitmaps().orElse(null),
+                matcherArgs.matchJuffersWe().get(matchIx).createLuceneBuffers(matchStateOpt.map(m -> m.getLuceneBitmaps().orElse(null)).orElse(null),
                         matchParams.hasLuceneParams() ? luceneBitmapSizePerWE * matchParams.getLuceneIx() : 0);
                 matchIx++;
             }

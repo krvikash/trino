@@ -99,17 +99,18 @@ public class ChunksQueue
 
         // lazy restore
         MatchChunkState matchChunkState = chunksToCollect.getFirst();
-        Optional<MemorySegment> bitmapDescriptor = matchChunkState.getBitmapDescriptor();
         if (matchChunkState.shouldRestore()) {
-            bitmapResetPoint = matchChunkState.restored();
+            final int chunkIndex = matchChunkState.getChunkIndex();
+            Optional<MemorySegment> bitmapDescriptor = rootBitmapsDescriptors.map(l -> Optional.of(l.get(calcMatchBitmapIndex(chunkIndex)))).orElse(Optional.empty());
+            bitmapResetPoint = matchChunkState.restored(bitmapDescriptor);
             bitmapDescriptor.ifPresent(bm -> bm.set(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT, bitmapResetPoint));
             if (bitmapResetPoint > allSet) {
-                final int offsetInBuff = calcMatchBitmapOffset(matchChunkState.getChunkIndex());
+                final int offsetInBuff = calcMatchBitmapOffset(chunkIndex);
                 MemorySegment.copy(MemorySegment.ofArray(matchChunkState.getBitmapBuffer()), 0, rootBitmaps.get(), offsetInBuff, pageSize);
             }
             return bitmapResetPoint;
         }
-        return bitmapDescriptor.map(bm -> bm.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT)).orElse(allSet);
+        return matchChunkState.getBitmapDescriptor().map(bm -> bm.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT)).orElse(allSet);
     }
 
     private Optional<MemorySegment> getBmOfChunkIx(int chunkIndex)
@@ -154,10 +155,15 @@ public class ChunksQueue
         }
     }
 
-    // we assume that numChunksInRange is a power of 2
-    private int calcMatchBitmapOffset(int chunkIx)
+    private int calcMatchBitmapIndex(int chunkIndex)
     {
-        return (chunkIx & (maxChunks - 1)) * pageSize;
+        return chunkIndex & (maxChunks - 1);
+    }
+
+    // we assume that numChunksInRange is a power of 2
+    private int calcMatchBitmapOffset(int chunkIndex)
+    {
+        return calcMatchBitmapIndex(chunkIndex) * pageSize;
     }
 
     // advance to the next chunk to collect
@@ -248,15 +254,17 @@ public class ChunksQueue
 
         void stored(int bitmapResetPoint, Optional<byte[]> bitmapBuffer)
         {
-            storeBitmapResetPoint = bitmapResetPoint;
-            storeBitmapBuffer = bitmapBuffer;
-            isLoaded = false;
+            this.storeBitmapResetPoint = bitmapResetPoint;
+            this.storeBitmapBuffer = bitmapBuffer;
+            this.bitmapDescriptor = Optional.empty();
+            this.isLoaded = false;
         }
 
-        int restored()
+        int restored(Optional<MemorySegment> bitmapDescriptor)
         {
-            isLoaded = true;
-            return storeBitmapResetPoint;
+            this.bitmapDescriptor = bitmapDescriptor;
+            this.isLoaded = true;
+            return this.storeBitmapResetPoint;
         }
 
         boolean shouldStore()

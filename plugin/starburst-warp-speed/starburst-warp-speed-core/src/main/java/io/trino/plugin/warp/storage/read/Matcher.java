@@ -14,14 +14,22 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.metrics.CustomStatsContext;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 
 public interface Matcher
 {
     MatcherArgs open(QueryArgs queryArgs, CustomStatsContext customStatsContext);
 
-    MatcherPageArgs openPage(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, AggregatorPageArgs aggregatorPageArgs);
+    MatcherPageArgs openPage(ChunksQueue chunksQueue,
+            ThreadArena pageArena,
+            QueryArgs queryArgs,
+            MatcherArgs matcherArgs,
+            AggregatorPageArgs aggregatorPageArgs);
 
-    boolean match(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs);
+    boolean match(ChunksQueue chunksQueue,
+            QueryArgs queryArgs,
+            MatcherArgs matcherArgs,
+            MatcherPageArgs matcherPageArgs);
 
     void closePage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs);
 

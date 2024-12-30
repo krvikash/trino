@@ -19,6 +19,7 @@ import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 
@@ -54,7 +55,8 @@ public class WarpPageSource
             GlobalConfig globalConfig,
             StorageCollectorService storageCollectorService,
             LazyCollectorService lazyCollectorService,
-            MatchService matchService)
+            MatchService matchService,
+            WorkerMemoryManager workerMemoryManager)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.predicatesCacheService = predicatesCacheService;
@@ -72,6 +74,7 @@ public class WarpPageSource
                 customStatsContext,
                 collectorService,
                 matchService,
+                workerMemoryManager,
                 globalConfig,
                 storageEngineConstants.getPageSize(),
                 rowsLimit);

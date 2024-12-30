@@ -37,6 +37,7 @@ public class LazyCollectTxService
         extends BaseCollectTxService
 {
     private static final Logger logger = Logger.get(LazyCollectTxService.class);
+    private final WorkerMemoryManager workerMemoryManager;
 
     @Inject
     public LazyCollectTxService(StorageEngine storageEngine,
@@ -46,7 +47,8 @@ public class LazyCollectTxService
             WorkerMemoryManager workerMemoryManager,
             GlobalConfig globalConfig)
     {
-        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, workerMemoryManager, globalConfig);
+        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
+        this.workerMemoryManager = workerMemoryManager;
     }
 
     LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs, DispatcherPageSourceStats dispatcherPageSourceStats)
@@ -62,7 +64,7 @@ public class LazyCollectTxService
         final int nullBufferSize = bufferAllocator.getQueryNullBufferSize(recTypeCode);
 
         // allocate memory
-        ThreadArena pageArena = openPageArena();
+        ThreadArena pageArena = workerMemoryManager.getThreadArena();
         MemorySegment collectMemory;
         try {
             final int pageSize = storageEngineConstants.getPageSize();
@@ -123,7 +125,7 @@ public class LazyCollectTxService
         nativeStats.addread_uncache_ext_data_misses(collectStats[CollectStats.COLLECT_STATS_UNCACHE_EXT_DATA_MISSES.ordinal()]);
         nativeStats.addread_time_wait_nanos(collectStats[CollectStats.COLLECT_STATS_READ_TIME_WAIT_NANOS.ordinal()]);
 
-        closePageArena(collectOpenResult.pageArena());
+        collectOpenResult.pageArena().close();
         freeQueryMemory(collectOpenResult.readerId());
     }
 }

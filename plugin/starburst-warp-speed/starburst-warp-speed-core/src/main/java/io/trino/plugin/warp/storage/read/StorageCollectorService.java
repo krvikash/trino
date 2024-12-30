@@ -31,6 +31,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.util.StorageUtils;
@@ -141,12 +142,14 @@ public class StorageCollectorService
     }
 
     public AggregatorPageArgs openPage(QueryArgs queryArgs,
+            ThreadArena pageArena,
             AggregatorArgs aggregatorArgs,
             WarpQueryState queryState,
             int rowsLimit)
     {
         queryState.resetNumRecordsInCurPage();
         return collectTxService.collectOpenAndRestore(queryArgs,
+                pageArena,
                 rowsLimit,
                 queryState.getTotalNumReadRecords(),
                 aggregatorArgs,

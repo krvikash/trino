@@ -18,6 +18,8 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
+import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 
@@ -30,11 +32,12 @@ public class WarpReader
 
     // parameters
     private final ShapingLogger shapingLogger;
-
+    private final WorkerMemoryManager workerMemoryManager;
     private final QueryArgs queryArgs;
     private final WarpQueryState queryState;
     private final long rowsLimit;
     private final ChunksQueue chunksQueue;
+    private ThreadArena pageArena;
 
     private final AggregatorArgs aggregatorArgs;
     private final BlocksAggregator blocksAggregator;
@@ -48,14 +51,15 @@ public class WarpReader
             CustomStatsContext customStatsContext,
             BlocksAggregator blocksAggregator,
             Matcher matcher,
+            WorkerMemoryManager workerMemoryManager,
             GlobalConfig globalConfig,
             int pageSize,
             long rowsLimit)
     {
+        this.workerMemoryManager = requireNonNull(workerMemoryManager);
         this.blocksAggregator = requireNonNull(blocksAggregator);
         this.matcher = requireNonNull(matcher);
         this.rowsLimit = rowsLimit;
-
         this.queryArgs = blocksAggregator.getQueryArgs(queryParams, customStatsContext);
         this.aggregatorArgs = blocksAggregator.open(queryArgs);
         this.matcherArgs = matcher.open(queryArgs, customStatsContext);
@@ -86,13 +90,20 @@ public class WarpReader
     @NativeInterrupt
     private void openPage()
     {
+        pageArena = workerMemoryManager.getThreadArena();
+
         // each API call will throw exception if failed
         aggregatorPageArgs = blocksAggregator.openPage(queryArgs,
+                pageArena,
                 aggregatorArgs,
                 queryState,
                 (int) Math.min(rowsLimit - queryState.getTotalNumReadRecords(), Integer.MAX_VALUE));
 
-        matcherPageArgs = matcher.openPage(chunksQueue, queryArgs, matcherArgs, aggregatorPageArgs);
+        matcherPageArgs = matcher.openPage(chunksQueue,
+                pageArena,
+                queryArgs,
+                matcherArgs,
+                aggregatorPageArgs);
     }
 
     /**
@@ -175,14 +186,18 @@ public class WarpReader
                         queryState,
                         chunksQueue);
             }
+
+            if (pageArena != null) {
+                pageArena.close();
+            }
         }
         catch (Exception e) {
             shapingLogger.error(e, "failed to close page");
         }
         finally {
+            pageArena = null;
             matcherPageArgs = null;
             aggregatorPageArgs = null;
-            resetMemory();
         }
 
         return readPages;
@@ -197,19 +212,17 @@ public class WarpReader
             if (aggregatorPageArgs != null) {
                 blocksAggregator.abortPage(queryArgs, aggregatorPageArgs, e);
             }
+            if (pageArena != null) {
+                pageArena.close();
+            }
         }
         catch (Exception e2) {
             shapingLogger.error(e2, "failed to abort page");
         }
         finally {
+            pageArena = null;
             matcherPageArgs = null;
             aggregatorPageArgs = null;
-            resetMemory();
         }
-    }
-
-    private void resetMemory()
-    {
-        matcherArgs.matchState().resetMemory();
     }
 }

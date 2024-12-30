@@ -23,8 +23,6 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.memory.ThreadArena;
-import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.TrinoException;
 
 import java.lang.foreign.MemorySegment;
@@ -41,7 +39,6 @@ public abstract class BaseCollectTxService
     protected final StorageEngineConstants storageEngineConstants;
     protected final ConnectorSync connectorSync;
     protected final BufferAllocator bufferAllocator;
-    protected final WorkerMemoryManager workerMemoryManager;
     protected final GlobalConfig globalConfig;
     protected final ShapingLogger shapingLogger;
 
@@ -49,14 +46,12 @@ public abstract class BaseCollectTxService
             StorageEngineConstants storageEngineConstants,
             ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
-            WorkerMemoryManager workerMemoryManager,
             GlobalConfig globalConfig)
     {
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
         this.connectorSync = connectorSync;
         this.bufferAllocator = bufferAllocator;
-        this.workerMemoryManager = workerMemoryManager;
         this.globalConfig = globalConfig;
         this.shapingLogger = ShapingLogger.getInstance(logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -74,16 +69,6 @@ public abstract class BaseCollectTxService
         if (readerId != INVALID_READER_ID) {
             connectorSync.freeReaderId(readerId);
         }
-    }
-
-    protected ThreadArena openPageArena()
-    {
-        return workerMemoryManager.getThreadArena();
-    }
-
-    protected void closePageArena(ThreadArena pageArena)
-    {
-        pageArena.close();
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()

@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.metrics.CustomStatsContext;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.spi.block.Block;
 
 public interface BlocksAggregator
@@ -23,6 +24,7 @@ public interface BlocksAggregator
     AggregatorArgs open(QueryArgs queryArgs);
 
     AggregatorPageArgs openPage(QueryArgs queryArgs,
+            ThreadArena pageArena,
             AggregatorArgs aggregatorArgs,
             WarpQueryState queryState,
             int rowsLimit);

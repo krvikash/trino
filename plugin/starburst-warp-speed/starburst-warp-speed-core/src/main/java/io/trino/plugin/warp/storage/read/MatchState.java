@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.storage.memory.GcArena;
+import io.trino.plugin.warp.storage.memory.ThreadArena;
 
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
@@ -127,36 +127,41 @@ public class MatchState
         MATCH_STATE_OFFSET_MAX_TREE_HEIGHT = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("max_height"));
     }
 
-    public MatchState(int payloadSize, // payload is taken at the begining of the memory layout
-            int pageSize,
-            int numBitmaps,
-            int numLuceneBitmaps)
+    public MatchState(QueryArgs queryArgs,
+            ThreadArena arena,
+            int queryMemoryId,
+            int payloadSize, // payload is taken at the begining of the memory layout
+            int pageSize)
     {
+        QueryParams queryParams = queryArgs.queryParams();
+        // +1 below is for the current bitmaps set that is used as an intermediate bitmap by native layer
+        final int matchTreeHeight = queryParams.getRootMatchNode().map(r -> r.getHeight() + 1).orElse(0);
         this.payloadSize = payloadSize;
         this.pageSize = pageSize;
-        this.numBitmaps = numBitmaps;
-        this.numLuceneBitmaps = numLuceneBitmaps;
-        resetMemory();
+        this.numBitmaps = queryArgs.numChunksInRange() * matchTreeHeight;
+        this.numLuceneBitmaps = queryArgs.numChunksInRange() * queryParams.getNumLucene();
+        this.matchBitmaps = Optional.empty();
+        this.matchBitmapsDescriptors = Optional.empty();
+        this.luceneBitmaps = Optional.empty();
+        setMemory(arena, queryArgs.numChunksInRange());
+        setState(queryArgs, queryMemoryId);
     }
 
-    public void setMemory(QueryArgs queryArgs)
+    private void setMemory(ThreadArena arena, int numChunksInRange)
     {
-        if (matchStateWithPayload == null) {
-            GcArena arena = queryArgs.queryParams().getArena();
-            if (numBitmaps > 0) {
-                matchBitmaps = Optional.of(arena.allocate((long) numBitmaps * (long) pageSize, PAGE_BM_ALIGN));
-                matchBitmapsDescriptors = Optional.of(arena.allocate(MemoryLayout.sequenceLayout(numBitmaps, MATCH_BITMAP_DESC_LAYOUT).byteSize(), ValueLayout.JAVA_INT.byteSize()));
-                flatLevelBitmapsLayout = Optional.of(MemoryLayout.sequenceLayout(queryArgs.numChunksInRange(), MATCH_BITMAP_DESC_LAYOUT));
-            }
-            if (numLuceneBitmaps > 0) {
-                luceneBitmaps = Optional.of(arena.allocate((long) numLuceneBitmaps * (long) pageSize, PAGE_BM_ALIGN));
-            }
-            this.matchStateWithPayload = arena.allocate(payloadSize + MATCH_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_LONG.byteSize());
-            this.matchState = matchStateWithPayload.asSlice(payloadSize, MATCH_STATE_LAYOUT);
+        if (numBitmaps > 0) {
+            matchBitmaps = Optional.of(arena.allocate((long) numBitmaps * (long) pageSize, PAGE_BM_ALIGN));
+            matchBitmapsDescriptors = Optional.of(arena.allocate(MemoryLayout.sequenceLayout(numBitmaps, MATCH_BITMAP_DESC_LAYOUT).byteSize(), ValueLayout.JAVA_INT.byteSize()));
+            flatLevelBitmapsLayout = Optional.of(MemoryLayout.sequenceLayout(numChunksInRange, MATCH_BITMAP_DESC_LAYOUT));
         }
+        if (numLuceneBitmaps > 0) {
+            luceneBitmaps = Optional.of(arena.allocate((long) numLuceneBitmaps * (long) pageSize, PAGE_BM_ALIGN));
+        }
+        this.matchStateWithPayload = arena.allocate(payloadSize + MATCH_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_LONG.byteSize());
+        this.matchState = matchStateWithPayload.asSlice(payloadSize, MATCH_STATE_LAYOUT);
     }
 
-    public void setState(QueryArgs queryArgs, int queryMemoryId)
+    private void setState(QueryArgs queryArgs, int queryMemoryId)
     {
         QueryParams queryParams = queryArgs.queryParams();
 
@@ -209,15 +214,6 @@ public class MatchState
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) queryParams.getNumMatchCollect());
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) queryArgs.numChunksInRange());
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_MAX_TREE_HEIGHT, (byte) queryParams.getMatchTreeHeight());
-    }
-
-    public void resetMemory()
-    {
-        matchStateWithPayload = null;
-        matchState = null;
-        this.matchBitmaps = Optional.empty();
-        this.matchBitmapsDescriptors = Optional.empty();
-        this.luceneBitmaps = Optional.empty();
     }
 
     // returns the main memory with the payload

@@ -27,7 +27,6 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
-import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import jakarta.annotation.PreDestroy;
 
 import java.lang.foreign.MemoryLayout;
@@ -52,11 +51,10 @@ public class CollectTxService
             StorageEngineConstants storageEngineConstants,
             ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
-            WorkerMemoryManager workerMemoryManager,
             RangeFillerService rangeFillerService,
             GlobalConfig globalConfig)
     {
-        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, workerMemoryManager, globalConfig);
+        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
         this.rangeFillerService = rangeFillerService;
     }
 
@@ -69,6 +67,7 @@ public class CollectTxService
      * prepare buffers for filling
      */
     AggregatorPageArgs collectOpenAndRestore(QueryArgs queryArgs,
+            ThreadArena pageArena,
             int rowsLimit,
             int numCollectedInPrevRounds,
             AggregatorArgs aggregatorArgs,
@@ -79,7 +78,6 @@ public class CollectTxService
         int numCollectElements = collectParamsList.size();
 
         int readerId = allocReaderId();
-        ThreadArena pageArena = openPageArena();
         // if there are no match elements we are lazy collecting and do not need to allocate all the buffers per element
         if ((queryParams.getNumMatchElements() > 0) && (numCollectElements > 0)) {
             allocCollectBuffers(collectParamsList, pageArena, queryArgs.txArgs().collectBuffers(), aggregatorArgs.collectJuffersWE());
@@ -136,7 +134,6 @@ public class CollectTxService
 
         final long queryResultTypesSize = MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT).byteSize();
         return new AggregatorPageArgs(readerId,
-                pageArena,
                 rowsLimit,
                 numCollectedInPrevRounds,
                 rangeData,
@@ -192,7 +189,6 @@ public class CollectTxService
         totalReadPages += (int) collectStats[CollectStats.COLLECT_STATS_UNCACHE_EXT_DATA_MISSES.ordinal()];
         nativeStats.addread_time_wait_nanos(collectStats[CollectStats.COLLECT_STATS_READ_TIME_WAIT_NANOS.ordinal()]);
 
-        closePageArena(aggregatorPageArgs.pageArena());
         freeQueryMemory(aggregatorPageArgs.readerId());
         return new CollectCloseResult(storeRowListResult, totalReadPages);
     }
@@ -200,7 +196,6 @@ public class CollectTxService
     void collectAbort(AggregatorPageArgs aggregatorPageArgs, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         collectAbort(e, aggregatorPageArgs.readerId(), dispatcherPageSourceStats);
-        closePageArena(aggregatorPageArgs.pageArena());
         freeQueryMemory(aggregatorPageArgs.readerId());
     }
 

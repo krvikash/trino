@@ -20,14 +20,14 @@ import java.lang.foreign.MemorySegment;
 import java.util.Optional;
 
 public record QueryArgs(QueryParams queryParams,
-                        DispatcherPageSourceStats dispatcherPageSourceStats,
-                        NativeStats nativeStats,
-                        TxArgs txArgs,
-                        int chunkSize,
-                        int numChunks,
-                        int numChunksInRange,
-                        Optional<byte[]> storeMatchCollectMetadataBuff,
-                        Optional<MemorySegment> matchCollectMetadata)
+        DispatcherPageSourceStats dispatcherPageSourceStats,
+        NativeStats nativeStats,
+        TxArgs txArgs,
+        int chunkSize,
+        int numChunks,
+        int numChunksInRange,
+        Optional<byte[]> storeMatchCollectMetadataBuff,
+        Optional<MemorySegment> matchCollectMetadata)
 {
     int maxMatchedChunks()
     {

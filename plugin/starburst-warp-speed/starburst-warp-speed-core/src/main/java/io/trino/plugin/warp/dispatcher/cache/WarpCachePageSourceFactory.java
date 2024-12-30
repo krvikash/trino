@@ -234,7 +234,8 @@ public class WarpCachePageSourceFactory
                     globalConfig,
                     storageCollectorService,
                     lazyCollectorService,
-                    matchService);
+                    matchService,
+                    workerMemoryManager);
             DispatcherPageSource dispatcherPageSource = new DispatcherPageSource(EmptyPageSource::new,
                     queryClassifier,
                     Collections.emptyList(), // no proxied in case of cache
