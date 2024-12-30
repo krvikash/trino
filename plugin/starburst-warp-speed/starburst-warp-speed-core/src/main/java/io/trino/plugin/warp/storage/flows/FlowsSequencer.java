@@ -20,13 +20,15 @@ import com.google.inject.Singleton;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
-import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Singleton
 public class FlowsSequencer
 {
     public static final String STATS_GROUP_NAME = "flowsequencer";
+    public static final long INVALID_FLOW_ID = Long.MIN_VALUE;
+
+    private static final AtomicLong flowIdGen = new AtomicLong(Long.MIN_VALUE);
 
     private final FlowPriorityQueue flowPriorityQueue;
 
@@ -36,9 +38,9 @@ public class FlowsSequencer
         flowPriorityQueue = new FlowPriorityQueue();
     }
 
-    public CompletableFuture<Boolean> tryRunningFlow(FlowType flowType, long flowId, Optional<String> additionalInfo)
+    public CompletableFuture<Long> tryRunningFlow(FlowType flowType, Optional<String> additionalInfo)
     {
-        return flowPriorityQueue.addFlow(flowType, flowId, additionalInfo);
+        return flowPriorityQueue.addFlow(flowType, flowIdGen.incrementAndGet(), additionalInfo);
     }
 
     public boolean flowFinished(FlowType flowType, long flowId, boolean force)
@@ -51,13 +53,13 @@ public class FlowsSequencer
     }
 
     @VisibleForTesting
-    public Map getRunningFlows()
+    public Map<String, ?> getRunningFlows()
     {
         return flowPriorityQueue.getRunningFlows();
     }
 
     @VisibleForTesting
-    public Map getPendingFlows()
+    public Map<String, ?> getPendingFlows()
     {
         return flowPriorityQueue.getPendingFlows();
     }

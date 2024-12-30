@@ -57,8 +57,8 @@ public class FlowSequencerDebugToolTask
     //@ApiOperation(value = "dump-flows", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public FlowSequencerDumpResult dump()
     {
-        List<String> runningFlows = (List<String>) flowsSequencer.getRunningFlows().values().stream().map(Object::toString).collect(Collectors.toList());
-        List<String> pendingFlows = (List<String>) flowsSequencer.getPendingFlows().values().stream().map(Object::toString).collect(Collectors.toList());
+        List<String> runningFlows = flowsSequencer.getRunningFlows().values().stream().map(Object::toString).collect(Collectors.toList());
+        List<String> pendingFlows = flowsSequencer.getPendingFlows().values().stream().map(Object::toString).collect(Collectors.toList());
         return new FlowSequencerDumpResult(runningFlows, pendingFlows);
     }
 

@@ -31,7 +31,7 @@ class FlowPriorityQueue
     private final Map<String, Flow> pendingFlows = new HashMap<>();
     private final Map<String, Flow> runningFlows = new HashMap<>();
 
-    synchronized CompletableFuture<Boolean> addFlow(FlowType flowType, long flowId, Optional<String> additionalInfo)
+    synchronized CompletableFuture<Long> addFlow(FlowType flowType, long flowId, Optional<String> additionalInfo)
     {
         String flowKey = createKey(flowType, flowId);
         if (pendingFlows.containsKey(flowKey)) {
@@ -89,7 +89,7 @@ class FlowPriorityQueue
     private void executeFlow(Flow nextToRun)
     {
         nextToRun.setExecutionTime();
-        nextToRun.waitingFuture.complete(true);
+        nextToRun.waitingFuture.complete(nextToRun.id);
         runningFlows.put(createKey(nextToRun.flowType, nextToRun.id), nextToRun);
     }
 
@@ -113,14 +113,14 @@ class FlowPriorityQueue
     protected static class Flow
             implements Comparable<Flow>
     {
-        private final CompletableFuture<Boolean> waitingFuture;
+        private final CompletableFuture<Long> waitingFuture;
         private final long id;
         private final FlowType flowType;
         private final long schedulingTime = System.currentTimeMillis();
         private final Optional<String> additionalInfo;
         private long executionTime = schedulingTime;
 
-        Flow(CompletableFuture<Boolean> waitingFuture, long id, FlowType flowType, Optional<String> additionalInfo)
+        Flow(CompletableFuture<Long> waitingFuture, long id, FlowType flowType, Optional<String> additionalInfo)
         {
             this.waitingFuture = waitingFuture;
             this.id = id;

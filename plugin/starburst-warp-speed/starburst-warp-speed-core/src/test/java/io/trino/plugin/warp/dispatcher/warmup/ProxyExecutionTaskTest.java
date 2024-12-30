@@ -61,6 +61,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -186,7 +187,8 @@ public class ProxyExecutionTaskTest
                 anyBoolean()
         )).thenReturn(new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null),
                 new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.NOTHING_TO_WARM, true, queryContext, null));
-        when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), anyLong(), any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(true));
+        when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), any()))
+                .thenReturn(CompletableFuture.completedFuture(1L));
 
         EventBus eventBus = mock(EventBus.class);
         ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
@@ -262,7 +264,8 @@ public class ProxyExecutionTaskTest
 
     private void testAndAssertNoIterations(WarmingServiceStats warmingServiceStats)
     {
-        when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), anyLong(), any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(true));
+        when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), any()))
+                .thenReturn(CompletableFuture.completedFuture(1L));
         EventBus eventBus = mock(EventBus.class);
         ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
 
@@ -279,7 +282,8 @@ public class ProxyExecutionTaskTest
 
     private void testAndAssert2Iterations(WarmingServiceStats warmingServiceStats)
     {
-        when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), anyLong(), any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(true));
+        when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), any()))
+                .thenReturn(CompletableFuture.completedFuture(1L));
         EventBus eventBus = mock(EventBus.class);
         ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
 

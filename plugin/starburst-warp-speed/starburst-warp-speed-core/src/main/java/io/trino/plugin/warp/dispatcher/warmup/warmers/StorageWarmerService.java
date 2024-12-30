@@ -30,7 +30,6 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
-import io.trino.plugin.warp.storage.flows.FlowIdGenerator;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.PageSink;
@@ -50,7 +49,6 @@ import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PA
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_MOD_TIME;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
 import static io.trino.plugin.warp.gen.errorcodes.ErrorCodes.ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR;
-import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -237,11 +235,6 @@ public class StorageWarmerService
         rowGroupData.getLock().writeLock();
     }
 
-    public void finishWarm(boolean releaseTx)
-    {
-        finishWarm(INVALID_FLOW_ID, releaseTx, false, false);
-    }
-
     public void releaseLoaderThread(boolean skipWait)
     {
         storageEngineTxService.doneWarming(skipWait);
@@ -294,13 +287,10 @@ public class StorageWarmerService
     public long tryRunningWarmFlow(RowGroupKey rowGroupKey)
             throws ExecutionException, InterruptedException
     {
-        long flowId = FlowIdGenerator.generateFlowId();
-        CompletableFuture<Boolean> flowFuture = flowsSequencer.tryRunningFlow(
-                FlowType.WARMUP,
-                flowId,
-                Optional.of(rowGroupKey.toString()));
-        flowFuture.get();
-        return flowId;
+        return flowsSequencer.tryRunningFlow(
+                        FlowType.WARMUP,
+                        Optional.of(rowGroupKey.toString()))
+                .get();
     }
 
     public boolean tryAllocateNativeResourceForWarmup()

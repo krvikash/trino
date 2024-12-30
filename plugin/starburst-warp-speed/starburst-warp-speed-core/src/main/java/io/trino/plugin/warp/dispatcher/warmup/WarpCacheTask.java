@@ -41,7 +41,7 @@ import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
-import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
+import static io.trino.plugin.warp.storage.flows.FlowsSequencer.INVALID_FLOW_ID;
 import static java.util.Objects.requireNonNull;
 
 public class WarpCacheTask

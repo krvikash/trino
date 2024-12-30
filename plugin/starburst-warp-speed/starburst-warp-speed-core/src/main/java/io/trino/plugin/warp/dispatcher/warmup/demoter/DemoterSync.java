@@ -18,7 +18,6 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
-import io.trino.plugin.warp.storage.flows.FlowIdGenerator;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.tools.util.StopWatch;
@@ -315,10 +314,10 @@ public class DemoterSync
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
 
-        long flowId = FlowIdGenerator.generateFlowId();
+        long flowId;
         try {
-            demoteContext.flowsSequencer()
-                    .tryRunningFlow(FlowType.WARMUP_DEMOTER, flowId, Optional.empty())
+            flowId = demoteContext.flowsSequencer()
+                    .tryRunningFlow(FlowType.WARMUP_DEMOTER, Optional.empty())
                     .get();
         }
         catch (InterruptedException | ExecutionException e) {

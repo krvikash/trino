@@ -47,7 +47,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.storage.flows.FlowIdGenerator.INVALID_FLOW_ID;
+import static io.trino.plugin.warp.storage.flows.FlowsSequencer.INVALID_FLOW_ID;
 import static java.util.Objects.requireNonNull;
 
 public class ProxyExecutionTask
@@ -126,16 +126,12 @@ public class ProxyExecutionTask
         catch (Exception e) {
             logFailure(e);
             statsWarmingService.incwarm_failed();
-            boolean releaseTx = dataToWarm != null && dataToWarm.txMemoryReserved();
-            storageWarmerService.finishWarm(releaseTx);
-            workerWarmingService.warmTaskFinished();
+            abortWarm(dataToWarm != null && dataToWarm.txMemoryReserved());
             return;
         }
 
         if (warmupElements.isEmpty()) {
-            boolean releaseTx = dataToWarm.txMemoryReserved();
-            storageWarmerService.finishWarm(releaseTx);
-            workerWarmingService.warmTaskFinished();
+            abortWarm(dataToWarm.txMemoryReserved());
             return;
         }
         Map<WarpColumn, String> partitionKeys = getPartitionKeys(dispatcherSplit);
@@ -156,13 +152,11 @@ public class ProxyExecutionTask
                 warmSuccess = false;
             }
             finally {
-                boolean releaseTx = dataToWarm.txMemoryReserved();
-                storageWarmerService.finishWarm(releaseTx);
+                abortWarm(dataToWarm.txMemoryReserved());
                 if (warmSuccess) {
                     eventBus.post(new WarmingFinishedEvent(rowGroupKey, session));
                 }
                 statsWarmingService.incwarm_accomplished();
-                workerWarmingService.warmTaskFinished();
             }
             return;
         }
@@ -256,5 +250,11 @@ public class ProxyExecutionTask
         if (!(e instanceof TrinoException || e instanceof UnsupportedOperationException)) {
             shapingLogger.error(e, "warm failed %s", rowGroupKey);
         }
+    }
+
+    private void abortWarm(boolean releaseTx)
+    {
+        storageWarmerService.finishWarm(INVALID_FLOW_ID, releaseTx, false, false);
+        workerWarmingService.warmTaskFinished();
     }
 }
