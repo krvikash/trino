@@ -18,6 +18,7 @@ import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.AnnotationParameterValueList;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
+import io.trino.server.PluginClassLoader;
 import io.trino.server.PluginLoader;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,9 +38,11 @@ import java.util.Properties;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
 import static com.starburstdata.presto.testing.FileUtils.findRepositoryRoot;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 @ExtendWith(SoftAssertionsExtension.class)
@@ -81,18 +85,39 @@ public class TestConnectorSensitiveProperties
         for (Plugin plugin : plugins) {
             for (ConnectorFactory connectorFactory : plugin.getConnectorFactories()) {
                 String connectorName = connectorFactory.getName();
-                ClassLoader classLoader = connectorFactory.getClass().getClassLoader();
-                Set<String> properties = findSensitiveProperties(classLoader);
+                Set<File> classpath = buildClasspath(connectorFactory);
+                Set<String> properties = findSensitiveProperties(classpath);
                 checkState(sensitiveProperties.putIfAbsent(connectorName, properties) == null, "Multiple connectors with the name \"%s\".", connectorName);
             }
         }
         return sensitiveProperties;
     }
 
-    private static Set<String> findSensitiveProperties(ClassLoader classLoader)
+    private static Set<File> buildClasspath(ConnectorFactory connectorFactory)
+    {
+        ClassLoader classLoader = connectorFactory.getClass().getClassLoader();
+        if (!(classLoader instanceof PluginClassLoader pluginClassLoader)) {
+            throw new UnsupportedOperationException("Unsupported classloader type: " + classLoader.getClass().getName());
+        }
+        ImmutableSet.Builder<File> classpath = ImmutableSet.builder();
+        List<File> pluginClasspath = Arrays.stream(pluginClassLoader.getURLs())
+                .map(url -> new File(url.getPath()))
+                .collect(toImmutableList());
+        classpath.addAll(pluginClasspath);
+        if (!pluginClasspath.isEmpty()) {
+            File hdfsDirectory = new File(pluginClasspath.getFirst().getParentFile(), "hdfs");
+            if (hdfsDirectory.exists() && hdfsDirectory.isDirectory()) {
+                File[] hdfsClasspath = hdfsDirectory.listFiles();
+                classpath.add(requireNonNull(hdfsClasspath, "hdfsClasspath is null"));
+            }
+        }
+        return classpath.build();
+    }
+
+    private static Set<String> findSensitiveProperties(Set<File> classpath)
     {
         try (ScanResult scanResult = new ClassGraph()
-                .overrideClassLoaders(classLoader)
+                .overrideClasspath(classpath)
                 .enableAllInfo()
                 .scan()) {
             return scanResult.getClassesWithMethodAnnotation(ConfigSecuritySensitive.class).stream()
