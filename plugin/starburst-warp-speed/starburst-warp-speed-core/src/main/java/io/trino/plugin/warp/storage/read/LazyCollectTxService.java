@@ -66,14 +66,20 @@ public class LazyCollectTxService
         // allocate memory
         ThreadArena pageArena = workerMemoryManager.getThreadArena();
         MemorySegment collectMemory;
+        MemorySegment metadataMemory;
         try {
             final int pageSize = storageEngineConstants.getPageSize();
             collectMemory = pageArena.allocate(recordBufferSize + nullBufferSize + pageSize, pageSize);
+            metadataMemory = pageArena.allocate(RecordIndexes.RECORD_INDEXES_LAYOUT.byteSize() +
+                    WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.byteSize() +
+                    WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize() +
+                    ValueLayout.JAVA_INT.byteSize(), ValueLayout.JAVA_INT.byteSize());
         }
         catch (Throwable t) {
             throw new RuntimeException("no memory available for lazy collect size recordBufferSize " + recordBufferSize + " nullBufferSize " + nullBufferSize);
         }
         SegmentAllocator queryMemoryAllocator = SegmentAllocator.slicingAllocator(collectMemory);
+        SegmentAllocator metadataAllocator = SegmentAllocator.slicingAllocator(metadataMemory);
 
         // allcoate buffers
         long[] collectBuffers = lazyCollectorLoaderArgs.txArgs().collectBuffers()[0];
@@ -82,12 +88,12 @@ public class LazyCollectTxService
         allocCollectBuffer(queryMemoryAllocator, JbufType.JBUF_TYPE_NULL, nullBufferSize, collectSegments, collectBuffers);
         lazyCollectorLoaderArgs.collectJufferWE().createBuffers(recTypeCode, recTypeLength, collectParams.hasDictionary(), collectSegments);
 
-        RecordIndexes recordIndexes = new RecordIndexes(pageArena, lazyCollectorLoaderArgs.chunkSize());
-        MemorySegment warmupElementAtt = pageArena.allocate(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
+        RecordIndexes recordIndexes = new RecordIndexes(metadataAllocator);
+        MemorySegment warmupElementAtt = metadataAllocator.allocate(WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
         WarmUpElement.setRecTypeCode(warmupElementAtt, recTypeCode);
         WarmUpElement.setRecTypeLength(warmupElementAtt, recTypeLength);
         WarmUpElement.setWarmUpType(warmupElementAtt, collectParams.getWarmUpType());
-        MemorySegment recordBufferStates = pageArena.allocate(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
+        MemorySegment recordBufferStates = metadataAllocator.allocate(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
         collectOpen(lazyCollectorLoaderArgs.queryParams(),
                 lazyCollectorLoaderArgs.txArgs(),
                 readerId,

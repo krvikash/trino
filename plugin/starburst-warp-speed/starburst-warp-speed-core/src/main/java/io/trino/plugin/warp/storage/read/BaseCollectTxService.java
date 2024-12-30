@@ -168,14 +168,14 @@ public abstract class BaseCollectTxService
         }
     }
 
-    void allocCollectBuffer(SegmentAllocator queryMemoryAllocator,
+    void allocCollectBuffer(SegmentAllocator allocator,
             JbufType bufType,
             int bufferSize,
             MemorySegment[] outCollectSegments,
             long[] outCollectBuffers)
     {
         final int alignment = storageEngineConstants.getPageSize();
-        outCollectSegments[bufType.ordinal()] = queryMemoryAllocator.allocate(bufferSize, alignment);
+        outCollectSegments[bufType.ordinal()] = allocator.allocate(bufferSize, alignment);
         outCollectBuffers[bufType.ordinal()] = outCollectSegments[bufType.ordinal()].address();
     }
 }

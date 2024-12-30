@@ -167,7 +167,7 @@ public class StorageCollectorService
                 chunksQueue.getCurrent(),
                 min(numRecordsInChunk, aggregatorPageArgs.rowsLimit() - numCollectedRows),
                 resetPoint,
-                aggregatorPageArgs.prepareQueryResultTypes(),
+                aggregatorPageArgs.prepareQueryResultTypes().orElse(MemorySegment.NULL),
                 queryArgs.dispatcherPageSourceStats());
         chunksQueue.setFirstChunkAsPrepared();
     }
@@ -194,9 +194,15 @@ public class StorageCollectorService
 
     boolean stopForOptimization(AggregatorPageArgs aggregatorPageArgs, int numWes)
     {
+        if (numWes == 0) {
+            return false;
+        }
+
+        MemorySegment currQueryResultTypes = aggregatorPageArgs.prepareQueryResultTypes().get();
+        MemorySegment prevQueryResultTypes = aggregatorPageArgs.queryResultTypes().get();
         for (int weIx = 0; weIx < numWes; weIx++) {
-            QueryResultType currResultType = QueryResultType.values()[aggregatorPageArgs.prepareQueryResultTypes().getAtIndex(ValueLayout.JAVA_INT, weIx)];
-            QueryResultType prevResultType = QueryResultType.values()[aggregatorPageArgs.queryResultTypes().getAtIndex(ValueLayout.JAVA_INT, weIx)];
+            QueryResultType currResultType = QueryResultType.values()[currQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
+            QueryResultType prevResultType = QueryResultType.values()[prevQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
             if (isSingle(currResultType) || isSingle(prevResultType)) {
                 return true;
             }
@@ -249,12 +255,11 @@ public class StorageCollectorService
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, aggregatorPageArgs.rangeData());
                 int numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, aggregatorPageArgs, numCollectedRows);
                 if (numToCollect > 0) {
-                    collectChunk(
-                            aggregatorPageArgs,
+                    collectChunk(aggregatorPageArgs,
                             queryParams.getNumCollectElements(),
                             chunkIndex,
                             numToCollect,
-                            aggregatorPageArgs.queryResultTypes(),
+                            aggregatorPageArgs.queryResultTypes().get(),
                             queryArgs.dispatcherPageSourceStats());
                 }
                 else {
@@ -289,12 +294,13 @@ public class StorageCollectorService
             WarpQueryState queryState)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
+        MemorySegment queryResultTypes = aggregatorPageArgs.queryResultTypes().orElse(MemorySegment.NULL);
         int rowsToFill = queryState.getNumRecordsInCurPage();
         Block[] blocks = new Block[collectElementsParamsList.size()];
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            QueryResultType queryResultType = QueryResultType.values()[aggregatorPageArgs.queryResultTypes().getAtIndex(ValueLayout.JAVA_INT, weIx)];
+            QueryResultType queryResultType = QueryResultType.values()[queryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
             BlockFiller<?> blockFiller = aggregatorArgs.blockFillers().get(weIx);
             ReadJuffersWarmUpElement readJuffersWarmUpElement = aggregatorArgs.collectJuffersWE().get(weIx);
             Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats, queryArgs.dispatcherPageSourceStats());
@@ -389,8 +395,8 @@ public class StorageCollectorService
         Optional<byte[]> storeMatchCollectMetadataBuff = Optional.empty();
         Optional<SequenceLayout> matchCollectMetadataLayout = Optional.empty();
         if (queryParams.getNumMatchCollect() > 0) {
-            storeMatchCollectMetadataBuff = Optional.of(new byte[storageEngineConstants.getMatchCollectBufferSize() * queryParams.getNumMatchCollect()]);
-            matchCollectMetadataLayout = Optional.of(MemoryLayout.sequenceLayout(queryParams.getNumMatchCollect(), MemoryLayout.paddingLayout(storageEngineConstants.getMatchCollectBufferSize())));
+            storeMatchCollectMetadataBuff = Optional.of(new byte[storageEngineConstants.getMatchCollectMetadataSize() * queryParams.getNumMatchCollect()]);
+            matchCollectMetadataLayout = Optional.of(MemoryLayout.sequenceLayout(queryParams.getNumMatchCollect(), MemoryLayout.paddingLayout(storageEngineConstants.getMatchCollectMetadataSize())));
         }
 
         return new QueryArgs(queryParams,

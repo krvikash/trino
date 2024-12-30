@@ -19,6 +19,7 @@ import io.trino.plugin.warp.storage.memory.ThreadArena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
@@ -77,10 +78,18 @@ public class RecordIndexes
         return indices;
     }
 
+    // CTOR for supporting a full indexes list
     public RecordIndexes(ThreadArena arena, int chunkSize)
     {
         this.bytesInChunk = chunkSize / Byte.SIZE;
-        this.recordIndexes = arena.allocate(byteSize(), ValueLayout.JAVA_SHORT.byteSize());
+        this.recordIndexes = arena.allocate(RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
+    }
+
+    // CTOR for full scan case where only the header is required
+    public RecordIndexes(SegmentAllocator allocator)
+    {
+        this.bytesInChunk = 0;
+        this.recordIndexes = allocator.allocate(RECORD_INDEXES_OFFSET_LIST, ValueLayout.JAVA_SHORT.byteSize());
     }
 
     public MemorySegment getMemory()
@@ -91,11 +100,6 @@ public class RecordIndexes
     public long getAddress()
     {
         return recordIndexes.address();
-    }
-
-    public long byteSize()
-    {
-        return RECORD_INDEXES_LAYOUT.byteSize();
     }
 
     public int getSize()
@@ -130,6 +134,9 @@ public class RecordIndexes
 
     public MemorySegment getList()
     {
+        if (bytesInChunk == 0) {
+            throw new RuntimeException("record indexes list requested on full scan case");
+        }
         return recordIndexes.asSlice(RECORD_INDEXES_OFFSET_LIST, RECORD_INDEXES_LIST_LAYOUT);
     }
 

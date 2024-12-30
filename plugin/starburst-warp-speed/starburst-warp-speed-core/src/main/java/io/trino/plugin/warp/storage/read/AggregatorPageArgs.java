@@ -22,8 +22,8 @@ public record AggregatorPageArgs(int readerId,
         int numCollectedInPreviousRounds,
         RangeData rangeData,
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates,
-        MemorySegment queryResultTypes,
-        MemorySegment prepareQueryResultTypes,
+        Optional<MemorySegment> queryResultTypes,
+        Optional<MemorySegment> prepareQueryResultTypes,
         Optional<MemorySegment> warmUpElementAtts)
 {
 }
