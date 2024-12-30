@@ -17,11 +17,11 @@ import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.spi.HostAddress;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,16 +48,16 @@ public class CallHomeJobTest
         Path testBaseDirPath = Files.createTempDirectory("callhome" + UUID.randomUUID());
 
         String logPath = testBaseDirPath.toFile().getAbsolutePath() + "/logs";
-        Files.createDirectory(new File(logPath).toPath());
+        Files.createDirectory(Paths.get(logPath));
 
         List<String> serverLogFiles = List.of("server.log", "launcher.log", "gc.log");
 
         Stream.concat(serverLogFiles.stream(), Stream.of(UUID.randomUUID().toString()))
                 .forEach(fileName -> createFile(logPath, fileName));
 
-        Files.createFile(new File(testBaseDirPath.toFile().getAbsolutePath(), "prop1.properties").toPath());
+        Files.createFile(Paths.get(testBaseDirPath.toFile().getAbsolutePath(), "prop1.properties"));
         String catalogPath = testBaseDirPath.toFile().getAbsolutePath() + "/catalogs";
-        Files.createDirectory(new File(catalogPath).toPath());
+        Files.createDirectory(Paths.get(catalogPath));
 
         List<String> catalogFiles = List.of("prop2.properties", "prop3.properties");
         catalogFiles.forEach(fileName -> createFile(catalogPath, fileName));
@@ -81,7 +81,7 @@ public class CallHomeJobTest
     private void createFile(String catalogPath, String fileName)
     {
         try {
-            Files.createFile(new File(catalogPath, fileName).toPath());
+            Files.createFile(Paths.get(catalogPath, fileName));
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
