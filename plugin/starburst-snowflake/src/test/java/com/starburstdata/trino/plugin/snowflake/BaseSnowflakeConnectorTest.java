@@ -805,6 +805,32 @@ public abstract class BaseSnowflakeConnectorTest
         abort("https://starburstdata.atlassian.net/browse/SEP-9733");
     }
 
+    @Test
+    public void testJoinPushdownWithImplicitCast()
+    {
+        try (TestTable leftTable = new TestTable(
+                getQueryRunner()::execute,
+                "left_table",
+                "(id INT, c_tinyint tinyint, c_varchar_10 VARCHAR(10))",
+                ImmutableList.of("(1, 11, 'abc')", "(2, 22, 'def')"));
+                TestTable rightTable = new TestTable(
+                        getQueryRunner()::execute,
+                        "right_table_",
+                        "(c_bigint bigint, c_varchar_50 VARCHAR(50))",
+                        ImmutableList.of("(11, 'abc')", "(44, 'ghi')"))) {
+            Session session = joinPushdownEnabled(getSession());
+
+            for (String joinType : List.of("LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "FULL JOIN")) {
+                // Implicit cast between integer types - tinyint is upcasted to bigint during query optimization
+                assertThat(query(session, "SELECT id FROM %s l %s %s r ON l.c_tinyint = r.c_bigint".formatted(leftTable.getName(), joinType, rightTable.getName())))
+                        .isFullyPushedDown();
+                // Implicit cast between varchar - varchar(10) is upcasted to varchar(50) during query optimization
+                assertThat(query(session, "SELECT id FROM %s l %s %s r ON l.c_varchar_10 = r.c_varchar_50".formatted(leftTable.getName(), joinType, rightTable.getName())))
+                        .isFullyPushedDown();
+            }
+        }
+    }
+
     @Override
     protected OptionalInt maxSchemaNameLength()
     {
