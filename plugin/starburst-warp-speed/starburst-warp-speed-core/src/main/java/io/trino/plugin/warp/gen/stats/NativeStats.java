@@ -398,17 +398,39 @@ public final class NativeStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put("native:read_cache_md_chunk_hits", read_cache_md_chunk_hits.longValue());
-        res.put("native:read_cache_md_basic_hits", read_cache_md_basic_hits.longValue());
-        res.put("native:read_cache_md_data_hits", read_cache_md_data_hits.longValue());
-        res.put("native:read_cache_md_nulls_hits", read_cache_md_nulls_hits.longValue());
-        res.put("native:read_cache_md_chunk_misses", read_cache_md_chunk_misses.longValue());
-        res.put("native:read_cache_md_basic_misses", read_cache_md_basic_misses.longValue());
-        res.put("native:read_cache_md_data_misses", read_cache_md_data_misses.longValue());
-        res.put("native:read_cache_md_nulls_misses", read_cache_md_nulls_misses.longValue());
-        res.put("native:read_uncache_misses", read_uncache_misses.longValue());
-        res.put("native:read_uncache_data_misses", read_uncache_data_misses.longValue());
-        res.put("native:read_uncache_ext_data_misses", read_uncache_ext_data_misses.longValue());
+        if (read_cache_md_chunk_hits.longValue() > 0) {
+            res.put("native:read_cache_md_chunk_hits", read_cache_md_chunk_hits.longValue());
+        }
+        if (read_cache_md_basic_hits.longValue() > 0) {
+            res.put("native:read_cache_md_basic_hits", read_cache_md_basic_hits.longValue());
+        }
+        if (read_cache_md_data_hits.longValue() > 0) {
+            res.put("native:read_cache_md_data_hits", read_cache_md_data_hits.longValue());
+        }
+        if (read_cache_md_nulls_hits.longValue() > 0) {
+            res.put("native:read_cache_md_nulls_hits", read_cache_md_nulls_hits.longValue());
+        }
+        if (read_cache_md_chunk_misses.longValue() > 0) {
+            res.put("native:read_cache_md_chunk_misses", read_cache_md_chunk_misses.longValue());
+        }
+        if (read_cache_md_basic_misses.longValue() > 0) {
+            res.put("native:read_cache_md_basic_misses", read_cache_md_basic_misses.longValue());
+        }
+        if (read_cache_md_data_misses.longValue() > 0) {
+            res.put("native:read_cache_md_data_misses", read_cache_md_data_misses.longValue());
+        }
+        if (read_cache_md_nulls_misses.longValue() > 0) {
+            res.put("native:read_cache_md_nulls_misses", read_cache_md_nulls_misses.longValue());
+        }
+        if (read_uncache_misses.longValue() > 0) {
+            res.put("native:read_uncache_misses", read_uncache_misses.longValue());
+        }
+        if (read_uncache_data_misses.longValue() > 0) {
+            res.put("native:read_uncache_data_misses", read_uncache_data_misses.longValue());
+        }
+        if (read_uncache_ext_data_misses.longValue() > 0) {
+            res.put("native:read_uncache_ext_data_misses", read_uncache_ext_data_misses.longValue());
+        }
         res.put("native:read_time_wait_nanos", read_time_wait_nanos.longValue());
         return res;
     }

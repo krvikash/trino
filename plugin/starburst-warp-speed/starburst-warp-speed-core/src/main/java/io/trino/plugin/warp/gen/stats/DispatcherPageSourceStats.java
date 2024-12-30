@@ -1116,14 +1116,22 @@ public final class DispatcherPageSourceStats
     public Map<String, Long> statsCounterMapper()
     {
         Map<String, Long> res = new HashMap<>();
-        res.put("dispatcherPageSource:cached_files", cached_files.longValue());
-        res.put("dispatcherPageSource:df_splits", df_splits.longValue());
+        if (cached_files.longValue() > 0) {
+            res.put("dispatcherPageSource:cached_files", cached_files.longValue());
+        }
+        if (df_splits.longValue() > 0) {
+            res.put("dispatcherPageSource:df_splits", df_splits.longValue());
+        }
         res.put("dispatcherPageSource:cached_warp_success_files", cached_warp_success_files.longValue());
         res.put("dispatcherPageSource:cached_warp_failed_files", cached_warp_failed_files.longValue());
         res.put("dispatcherPageSource:cached_warp_failed_pages", cached_warp_failed_pages.longValue());
         res.put("dispatcherPageSource:cached_proxied_files", cached_proxied_files.longValue());
-        res.put("dispatcherPageSource:cached_total_rows", cached_total_rows.longValue());
-        res.put("dispatcherPageSource:cached_read_rows", cached_read_rows.longValue());
+        if (cached_total_rows.longValue() > 0) {
+            res.put("dispatcherPageSource:cached_total_rows", cached_total_rows.longValue());
+        }
+        if (cached_read_rows.longValue() > 0) {
+            res.put("dispatcherPageSource:cached_read_rows", cached_read_rows.longValue());
+        }
         res.put("dispatcherPageSource:warp_match_columns", warp_match_columns.longValue());
         res.put("dispatcherPageSource:warp_match_on_simplified_domain", warp_match_on_simplified_domain.longValue());
         res.put("dispatcherPageSource:warp_collect_columns", warp_collect_columns.longValue());
@@ -1135,26 +1143,62 @@ public final class DispatcherPageSourceStats
         res.put("dispatcherPageSource:external_collect_columns", external_collect_columns.longValue());
         res.put("dispatcherPageSource:filtered_by_predicate", filtered_by_predicate.longValue());
         res.put("dispatcherPageSource:non_trivial_alternative_chosen", non_trivial_alternative_chosen.longValue());
-        res.put("dispatcherPageSource:empty_row_group", empty_row_group.longValue());
-        res.put("dispatcherPageSource:transformed_column", transformed_column.longValue());
-        res.put("dispatcherPageSource:empty_page_source", empty_page_source.longValue());
-        res.put("dispatcherPageSource:warp_cache_manager", warp_cache_manager.longValue());
-        res.put("dispatcherPageSource:skip_warp_cache_manager", skip_warp_cache_manager.longValue());
-        res.put("dispatcherPageSource:proxied_pages", proxied_pages.longValue());
-        res.put("dispatcherPageSource:proxied_time", proxied_time.longValue());
-        res.put("dispatcherPageSource:proxied_loaded_pages", proxied_loaded_pages.longValue());
-        res.put("dispatcherPageSource:proxied_loaded_pages_time", proxied_loaded_pages_time.longValue());
-        res.put("dispatcherPageSource:proxied_loaded_pages_bytes", proxied_loaded_pages_bytes.longValue());
+        if (empty_row_group.longValue() > 0) {
+            res.put("dispatcherPageSource:empty_row_group", empty_row_group.longValue());
+        }
+        if (transformed_column.longValue() > 0) {
+            res.put("dispatcherPageSource:transformed_column", transformed_column.longValue());
+        }
+        if (empty_page_source.longValue() > 0) {
+            res.put("dispatcherPageSource:empty_page_source", empty_page_source.longValue());
+        }
+        if (warp_cache_manager.longValue() > 0) {
+            res.put("dispatcherPageSource:warp_cache_manager", warp_cache_manager.longValue());
+        }
+        if (skip_warp_cache_manager.longValue() > 0) {
+            res.put("dispatcherPageSource:skip_warp_cache_manager", skip_warp_cache_manager.longValue());
+        }
+        if (proxied_pages.longValue() > 0) {
+            res.put("dispatcherPageSource:proxied_pages", proxied_pages.longValue());
+        }
+        if (proxied_time.longValue() > 0) {
+            res.put("dispatcherPageSource:proxied_time", proxied_time.longValue());
+        }
+        if (proxied_loaded_pages.longValue() > 0) {
+            res.put("dispatcherPageSource:proxied_loaded_pages", proxied_loaded_pages.longValue());
+        }
+        if (proxied_loaded_pages_time.longValue() > 0) {
+            res.put("dispatcherPageSource:proxied_loaded_pages_time", proxied_loaded_pages_time.longValue());
+        }
+        if (proxied_loaded_pages_bytes.longValue() > 0) {
+            res.put("dispatcherPageSource:proxied_loaded_pages_bytes", proxied_loaded_pages_bytes.longValue());
+        }
         res.put("dispatcherPageSource:lazy_collect_total_blocks", lazy_collect_total_blocks.longValue());
         res.put("dispatcherPageSource:lazy_collect_loaded_blocks", lazy_collect_loaded_blocks.longValue());
-        res.put("dispatcherPageSource:wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks.longValue());
-        res.put("dispatcherPageSource:wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks.longValue());
-        res.put("dispatcherPageSource:native_read_time", native_read_time.longValue());
-        res.put("dispatcherPageSource:block_fillers_time", block_fillers_time.longValue());
-        res.put("dispatcherPageSource:lucene_execution_time", lucene_execution_time.longValue());
-        res.put("dispatcherPageSource:lucene_execution_time_Count", lucene_execution_time_Count.longValue());
-        res.put("dispatcherPageSource:execution_time", execution_time.longValue());
-        res.put("dispatcherPageSource:execution_time_Count", execution_time_Count.longValue());
+        if (wrapped_collect_total_lazy_blocks.longValue() > 0) {
+            res.put("dispatcherPageSource:wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks.longValue());
+        }
+        if (wrapped_collect_loaded_lazy_blocks.longValue() > 0) {
+            res.put("dispatcherPageSource:wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks.longValue());
+        }
+        if (native_read_time.longValue() > 0) {
+            res.put("dispatcherPageSource:native_read_time", native_read_time.longValue());
+        }
+        if (block_fillers_time.longValue() > 0) {
+            res.put("dispatcherPageSource:block_fillers_time", block_fillers_time.longValue());
+        }
+        if (lucene_execution_time.longValue() > 0) {
+            res.put("dispatcherPageSource:lucene_execution_time", lucene_execution_time.longValue());
+        }
+        if (lucene_execution_time.longValue() > 0) {
+            res.put("dispatcherPageSource:lucene_execution_time_Count", lucene_execution_time_Count.longValue());
+        }
+        if (execution_time.longValue() > 0) {
+            res.put("dispatcherPageSource:execution_time", execution_time.longValue());
+        }
+        if (execution_time.longValue() > 0) {
+            res.put("dispatcherPageSource:execution_time_Count", execution_time_Count.longValue());
+        }
         return res;
     }
 
