@@ -129,7 +129,8 @@ public class MatchState
 
     public MatchState(QueryArgs queryArgs,
             ThreadArena arena,
-            int queryMemoryId,
+            int readerId,
+            Optional<MemorySegment> matchCollectMetadata,
             int payloadSize, // payload is taken at the begining of the memory layout
             int pageSize)
     {
@@ -144,7 +145,7 @@ public class MatchState
         this.matchBitmapsDescriptors = Optional.empty();
         this.luceneBitmaps = Optional.empty();
         setMemory(arena, queryArgs.numChunksInRange());
-        setState(queryArgs, queryMemoryId);
+        setState(queryArgs, readerId, matchCollectMetadata);
     }
 
     private void setMemory(ThreadArena arena, int numChunksInRange)
@@ -161,7 +162,7 @@ public class MatchState
         this.matchState = matchStateWithPayload.asSlice(payloadSize, MATCH_STATE_LAYOUT);
     }
 
-    private void setState(QueryArgs queryArgs, int queryMemoryId)
+    private void setState(QueryArgs queryArgs, int readerId, Optional<MemorySegment> matchCollectMetadata)
     {
         QueryParams queryParams = queryArgs.queryParams();
 
@@ -201,7 +202,7 @@ public class MatchState
         }
 
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_LUCENE_BM, luceneBitmaps.map(m -> m.address()).orElse(0L));
-        matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_MATCH_COLLECT_MD, queryArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L));
+        matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_MATCH_COLLECT_MD, matchCollectMetadata.map(m -> m.address()).orElse(0L));
         RowGroupData.setFileCookie(matchState.asSlice(MATCH_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
                 (int) queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()],
                 queryArgs.txArgs().fileCookie()[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
@@ -209,7 +210,7 @@ public class MatchState
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinMatchOffset());
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_MATCH_COLLECT_ID, queryParams.getMatchCollectId());
-        matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_TX_ID, queryMemoryId);
+        matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_TX_ID, readerId);
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) queryParams.getNumMatchElements());
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) queryParams.getNumMatchCollect());
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) queryArgs.numChunksInRange());

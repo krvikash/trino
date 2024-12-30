@@ -88,9 +88,14 @@ public class CollectTxService
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
+                Optional.empty(),
                 Collections.emptyList());
         if (numCollectElements > 0) {
-            collectMetadataMemory = allocCollectMetadataMemory(collectMetadataMemory, queryParams, collectParamsList, pageArena);
+            collectMetadataMemory = allocCollectMetadataMemory(collectMetadataMemory,
+                    queryParams,
+                    collectParamsList,
+                    queryArgs.storeMatchCollectMetadataBuff(),
+                    pageArena);
         }
 
         if (storeRowListResult.isPresent()) {
@@ -98,8 +103,8 @@ public class CollectTxService
             rangeFillerService.restoreRowList(collectMetadataMemory.recordIndexes(), storeRowListResult.get(), aggregatorArgs.storeRowListBuff());
 
             // restore match collect metadata
-            queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
-                    MemorySegment.copy(MemorySegment.ofArray(s), 0, queryArgs.matchCollectMetadata().get(), 0, s.length));
+            Optional<MemorySegment> matchCollectMetadataOpt = collectMetadataMemory.matchCollectMetadataOpt();
+            queryArgs.storeMatchCollectMetadataBuff().ifPresent(s -> MemorySegment.copy(MemorySegment.ofArray(s), 0, matchCollectMetadataOpt.get(), 0, s.length));
         }
 
         collectOpen(queryArgs.queryParams(),
@@ -111,7 +116,7 @@ public class CollectTxService
                 collectMetadataMemory.warmUpElementAttsOpt().map(m -> m.address()).orElse(0L),
                 collectMetadataMemory.recordBufferStatesOpt().map(m -> m.address()).orElse(0L),
                 collectMetadataMemory.recordIndexes().getAddress(),
-                queryArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L),
+                collectMetadataMemory.matchCollectMetadataOpt().map(m -> m.address()).orElse(0L),
                 queryArgs.dispatcherPageSourceStats());
 
         return new AggregatorPageArgs(readerId,
@@ -121,7 +126,8 @@ public class CollectTxService
                 collectMetadataMemory.warmupElementRecordBufferStates(),
                 collectMetadataMemory.queryResultTypesOpt(),
                 collectMetadataMemory.prepareQueryResultTypesOpt(),
-                collectMetadataMemory.warmUpElementAttsOpt());
+                collectMetadataMemory.warmUpElementAttsOpt(),
+                collectMetadataMemory.matchCollectMetadataOpt());
     }
 
     CollectCloseResult collectStoreAndClose(QueryArgs queryArgs,
@@ -136,7 +142,7 @@ public class CollectTxService
 
             // store match collect metadata
             queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
-                    MemorySegment.copy(queryArgs.matchCollectMetadata().get(), 0, MemorySegment.ofArray(s), 0, s.length));
+                    MemorySegment.copy(aggregatorPageArgs.matchCollectMetadata().get(), 0, MemorySegment.ofArray(s), 0, s.length));
         }
 
         long[] collectStats = new long[CollectStats.COLLECT_STATS_NUM_OF.ordinal()];
@@ -275,6 +281,7 @@ public class CollectTxService
     private CollectMetadataMemory allocCollectMetadataMemory(CollectMetadataMemory collectMetadataMemory,
             QueryParams queryParams,
             List<WarmupElementCollectParams> collectParamsList,
+            Optional<byte[]> storeMatchCollectMetadataBuff,
             ThreadArena pageArena)
     {
         final long recordBufferStatesSize =
@@ -283,8 +290,8 @@ public class CollectTxService
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT).byteSize();
         final long queryResultTypesSize =
                 MemoryLayout.sequenceLayout(queryParams.getNumCollectElements(), ValueLayout.JAVA_INT).byteSize();
-
-        final long totalSize = recordBufferStatesSize + warmUpElementAttsSize + queryResultTypesSize * 2 + ValueLayout.JAVA_INT.byteSize();
+        final long matchCollectMetadataSize = storeMatchCollectMetadataBuff.map(s -> s.length).orElse(0);
+        final long totalSize = recordBufferStatesSize + warmUpElementAttsSize + queryResultTypesSize * 2 + matchCollectMetadataSize + ValueLayout.JAVA_INT.byteSize();
         MemorySegment collectMemory;
         try {
             collectMemory = pageArena.allocate(totalSize, ValueLayout.JAVA_INT.byteSize());
@@ -315,6 +322,7 @@ public class CollectTxService
                 Optional.of(warmUpElementAtts),
                 Optional.of(allocator.allocate(queryResultTypesSize, ValueLayout.JAVA_INT.byteSize())),
                 Optional.of(allocator.allocate(queryResultTypesSize, ValueLayout.JAVA_INT.byteSize())),
+                (matchCollectMetadataSize > 0) ? Optional.of(allocator.allocate(matchCollectMetadataSize, ValueLayout.JAVA_INT.byteSize())) : Optional.empty(),
                 warmupElementRecordBufferStates);
     }
 
@@ -332,6 +340,7 @@ public class CollectTxService
             Optional<MemorySegment> warmUpElementAttsOpt,
             Optional<MemorySegment> queryResultTypesOpt,
             Optional<MemorySegment> prepareQueryResultTypesOpt,
+            Optional<MemorySegment> matchCollectMetadataOpt,
             List<WarmupElementRecordBufferState> warmupElementRecordBufferStates)
     {
     }

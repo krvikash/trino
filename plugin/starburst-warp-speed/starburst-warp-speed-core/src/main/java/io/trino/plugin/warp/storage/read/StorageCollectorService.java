@@ -38,9 +38,7 @@ import io.trino.plugin.warp.util.StorageUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlock;
 
-import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.List;
@@ -393,10 +391,8 @@ public class StorageCollectorService
         int numChunksInRange = getNumChunksInRange(queryParams);
 
         Optional<byte[]> storeMatchCollectMetadataBuff = Optional.empty();
-        Optional<SequenceLayout> matchCollectMetadataLayout = Optional.empty();
         if (queryParams.getNumMatchCollect() > 0) {
             storeMatchCollectMetadataBuff = Optional.of(new byte[storageEngineConstants.getMatchCollectMetadataSize() * queryParams.getNumMatchCollect()]);
-            matchCollectMetadataLayout = Optional.of(MemoryLayout.sequenceLayout(queryParams.getNumMatchCollect(), MemoryLayout.paddingLayout(storageEngineConstants.getMatchCollectMetadataSize())));
         }
 
         return new QueryArgs(queryParams,
@@ -406,8 +402,7 @@ public class StorageCollectorService
                 chunkSize,
                 numChunks,
                 numChunksInRange,
-                storeMatchCollectMetadataBuff,
-                matchCollectMetadataLayout.map(m -> queryParams.getArena().allocate(m.byteSize(), ValueLayout.JAVA_INT.byteSize())));
+                storeMatchCollectMetadataBuff);
     }
 
     TxArgs getTxArgs(QueryParams queryParams)

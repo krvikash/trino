@@ -129,6 +129,7 @@ public class MatchService
                 MatchState matchState = new MatchState(queryArgs,
                         pageArena,
                         aggregatorPageArgs.readerId(),
+                        aggregatorPageArgs.matchCollectMetadata(),
                         storageEngineConstants.getMatchStatePayload(),
                         storageEngineConstants.getPageSize());
                 storageEngine.matchOpen(matchState.getStateMemory());

@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.read;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 
-import java.lang.foreign.MemorySegment;
 import java.util.Optional;
 
 public record QueryArgs(QueryParams queryParams,
@@ -26,8 +25,7 @@ public record QueryArgs(QueryParams queryParams,
         int chunkSize,
         int numChunks,
         int numChunksInRange,
-        Optional<byte[]> storeMatchCollectMetadataBuff,
-        Optional<MemorySegment> matchCollectMetadata)
+        Optional<byte[]> storeMatchCollectMetadataBuff)
 {
     int maxMatchedChunks()
     {
