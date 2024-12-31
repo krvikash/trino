@@ -13,13 +13,9 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public record TupleRankResult(List<TupleRank> tupleRankList, List<TupleRank> immediateObjects, List<TupleRank> failedObjects)
-{
-    public TupleRankResult()
-    {
-        this(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
-    }
-}
+public record TupleRankResult(
+        List<TupleRank> tupleRankList,
+        List<TupleRank> immediateObjects,
+        List<TupleRank> failedObjects) {}

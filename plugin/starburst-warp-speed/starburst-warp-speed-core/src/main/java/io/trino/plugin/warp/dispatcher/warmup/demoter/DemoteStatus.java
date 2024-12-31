@@ -17,11 +17,8 @@ package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
 public enum DemoteStatus
 {
-    DEMOTE_STATUS_NOT_COMPLETED,
-    DEMOTE_STATUS_REACHED_THRESHOLD,
-    DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE;
-
-    DemoteStatus()
-    {
-    }
+    UNKNOWN,
+    NOT_COMPLETED,
+    REACHED_THRESHOLD,
+    NO_ELEMENTS_TO_DEMOTE;
 }

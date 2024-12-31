@@ -28,6 +28,7 @@ import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -83,12 +84,20 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
     public void testWarmupDemoteAutomatic()
             throws IOException
     {
+        @Language("SQL") String statQuery =
+                """
+                        select sum(number_of_runs),
+                        sum(deleted_by_low_priority),
+                        sum(number_of_calls),
+                        sum(number_of_runs_fail)
+                        from "%s*%s"
+                        """
+                        .formatted(
+                                WarmupDemoterStats.class.getPackageName(),
+                                WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT));
         Session jmxSession = createJmxSession();
-        MaterializedRow materializedRow0 = computeActual(
-                jmxSession,
-                "select sum(number_of_runs), sum(deleted_by_low_priority) from \"%s*%s\"".formatted(
-                        WarmupDemoterStats.class.getPackageName(),
-                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)))
+
+        MaterializedRow materializedRow0 = computeActual(jmxSession, statQuery)
                 .getMaterializedRows()
                 .getFirst();
         long numOfRuns0 = (long) materializedRow0.getField(0);
@@ -102,11 +111,7 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
                 .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.6))
                 .build());
 
-        MaterializedRow materializedRow1 = computeActual(
-                jmxSession,
-                "select sum(number_of_runs), sum(deleted_by_low_priority), sum(number_of_calls), sum(number_of_runs_fail) from \"%s*%s\"".formatted(
-                        WarmupDemoterStats.class.getPackageName(),
-                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)))
+        MaterializedRow materializedRow1 = computeActual(jmxSession, statQuery)
                 .getMaterializedRows()
                 .getFirst();
         long numOfRuns1 = (long) materializedRow1.getField(0);
@@ -120,23 +125,25 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
 
         warmAndValidateLazyDemote("select * from t", true);
 
-        runWithRetries(() -> {
-            MaterializedRow materializedRow2 = computeActual(
-                    jmxSession,
-                    "select sum(number_of_runs), sum(deleted_by_low_priority), sum(number_of_calls), sum(number_of_runs_fail) from \"%s*%s\"".formatted(
-                            WarmupDemoterStats.class.getPackageName(),
-                            WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)))
-                    .getMaterializedRows()
-                    .getFirst();
-            long numOfRuns2 = (long) materializedRow2.getField(0);
-            long numberOfCalls2 = (long) materializedRow2.getField(2);
-            long numberOfDeletedByLowPrio2 = (long) materializedRow2.getField(1);
-            long numberOfFails2 = (long) materializedRow2.getField(3);
-            assertThat(numberOfFails2).isEqualTo(numberOfFails1);
-            assertThat(numberOfDeletedByLowPrio2).isGreaterThan(numberOfDeletedByLowPrio1);
-            assertThat(numberOfCalls2).isGreaterThan(numberOfCalls1);
-            assertThat(numOfRuns2 - 1).isEqualTo(numOfRuns1);
-        });
+        MaterializedRow materializedRow2 = computeActual(jmxSession, statQuery)
+                .getMaterializedRows()
+                .getFirst();
+        long numOfRuns2 = (long) materializedRow2.getField(0);
+        long numberOfCalls2 = (long) materializedRow2.getField(2);
+        long numberOfDeletedByLowPrio2 = (long) materializedRow2.getField(1);
+        long numberOfFails2 = (long) materializedRow2.getField(3);
+        assertThat(numberOfFails2)
+                .describedAs("numberOfFails")
+                .isEqualTo(numberOfFails1);
+        assertThat(numberOfDeletedByLowPrio2)
+                .describedAs("numberOfDeletedByLowPrio")
+                .isGreaterThan(numberOfDeletedByLowPrio1);
+        assertThat(numberOfCalls2)
+                .describedAs("numberOfCalls")
+                .isGreaterThan(numberOfCalls1);
+        assertThat(numOfRuns2)
+                .describedAs("numOfRuns")
+                .isEqualTo(numOfRuns1 + 1);
     }
 
     @Test

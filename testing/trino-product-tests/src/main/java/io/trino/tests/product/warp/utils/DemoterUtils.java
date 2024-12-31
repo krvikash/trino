@@ -129,7 +129,7 @@ public class DemoterUtils
             verifyNoWarmups();
             verifyNoImports();
             QueryResult demoterStatsBefore = JMXCachingManager.getDemoterStats();
-            logger.info("execute demote: %s", warmupDemoterData.getSchemaTableName());
+            logger.info("execute demote: SchemaTableName=%s", warmupDemoterData.getSchemaTableName());
             logger.debug("demote: warmupDemoterData %s", warmupDemoterData);
             String result;
             if (isCache) {
@@ -139,7 +139,7 @@ public class DemoterUtils
                 result = restUtils.executePostCommandWithReturnValue(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
             }
             res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
-            logger.debug(res.toString());
+            logger.debug("%s", res);
             QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();
             assertDemoteCompleted(demoterStatsAfter, demoterStatsBefore);
         }
@@ -221,10 +221,10 @@ public class DemoterUtils
 
         long deletedByLowPriority = (long) (Integer) demoteResultStats.get("warmupDemoter:" + JMXCachingConstants.WarmupDemoter.DELETED_BY_LOW_PRIORITY);
         logger.info("demote according to max usage: deletedByLowPriority=%s", deletedByLowPriority);
-        assertThat(deletedByLowPriority).isPositive();
+        assertThat(deletedByLowPriority).describedAs("deletedByLowPriority").isPositive();
 
         QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();
         deletedByLowPriority = getDiffFromInitial(demoterStatsAfter, demoterStatsBefore, JMXCachingConstants.WarmupDemoter.DELETED_BY_LOW_PRIORITY);
-        assertThat(deletedByLowPriority).isPositive();
+        assertThat(deletedByLowPriority).describedAs("deletedByLowPriority").isPositive();
     }
 }

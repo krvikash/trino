@@ -26,17 +26,19 @@ import io.trino.operator.ScanFilterAndProjectOperator;
 import io.trino.operator.TableScanOperator;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.WarpSessionProperties;
+import io.trino.plugin.warp.api.warmup.WarmUpType;
+import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
 import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.TupleRankResult;
-import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
+import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask;
+import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterThreshold;
 import io.trino.plugin.warp.extension.execution.warmup.CacheMgrWarmupTask;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
-import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
@@ -45,12 +47,13 @@ import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 import io.trino.spi.cache.PlanSignature;
 import io.trino.sql.planner.plan.LoadCachedDataPlanNode;
 import io.trino.testing.DistributedQueryRunner;
-import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import jakarta.ws.rs.HttpMethod;
+import org.apache.commons.io.FileUtils;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -68,15 +71,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
+import static io.trino.plugin.warp.dispatcher.DispatcherCacheManagerFactory.DISPATCHER_CACHE_MANAGER_NAME;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 public class TestHiveWarpCacheManager
         extends DispatcherStubsIntegrationSmokeIT
@@ -89,6 +91,8 @@ public class TestHiveWarpCacheManager
     private static final String scanFilterAndProjectOperatorName = ScanFilterAndProjectOperator.class.getSimpleName();
     private static final String tableScanOperatorName = TableScanOperator.class.getSimpleName();
     private static final String loadCachedDataOperatorName = LoadCachedDataOperator.class.getSimpleName();
+    private static final String COL_INT_1 = "int1";
+    private static final String COL_V_1 = "v1";
 
     private int coordinatorPort;
     private final Path cacheMgrPath;
@@ -126,12 +130,9 @@ public class TestHiveWarpCacheManager
                 new WarpPlugin(),
                 Map.of("cache.enabled", "true"));
 
-        String fetcherDelay = new io.airlift.units.Duration(500, TimeUnit.MILLISECONDS).toString();
-
         ((DistributedQueryRunner) queryRunner).getServers()
                 .forEach(server -> {
                     WarpExtensionConfig warpExtensionConfig = new WarpExtensionConfig();
-                    warpExtensionConfig.setUseHttpServerPort(false);
                     warpExtensionConfig.setUseHttpServerPort(false);
                     warpExtensionConfig.setRestHttpPort(server.getBaseUrl().getPort() + 3);
 
@@ -141,13 +142,11 @@ public class TestHiveWarpCacheManager
 
                     ImmutableMap.Builder<String, String> cacheConfigBuilder = ImmutableMap.builder();
                     server.getCacheManagerRegistry(
-                            "warp_cache",
+                            DISPATCHER_CACHE_MANAGER_NAME,
                             cacheConfigBuilder
                                     .put(GlobalConfig.CONFIG_IS_SINGLE, Boolean.valueOf(numNodes == 1).toString())
                                     .put(GlobalConfig.LOCAL_STORE_PATH, "file://" + cacheMgrPath.toAbsolutePath())
                                     .put(WarmupRuleCloudFetcherConfig.STORE_PATH, "file://%s/rules".formatted(cacheMgrFetcherPath.toAbsolutePath()))
-                                    .put(WarmupRuleCloudFetcherConfig.WARMUP_FETCH_DURATION, fetcherDelay)
-                                    .put(WarmupRuleCloudFetcherConfig.WARMUP_FETCH_DELAY_DURATION, fetcherDelay)
                                     .put(CacheManagerConfig.CACHE_MANAGER_RULES_ENABLED, Boolean.TRUE.toString())
                                     .put(WarpExtensionConfig.ENABLED, Boolean.TRUE.toString())
                                     .put(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.toString(warpExtensionConfig.isUseHttpServerPort()))
@@ -167,6 +166,14 @@ public class TestHiveWarpCacheManager
         prepare();
     }
 
+    @AfterEach
+    @Override
+    public void afterMethod(TestInfo testInfo)
+    {
+        deleteCacheRulesFile(getCacheRulesPath());
+        super.afterMethod(testInfo);
+    }
+
     @Override
     @Test
     @Disabled
@@ -174,16 +181,19 @@ public class TestHiveWarpCacheManager
 
     @Test
     public void testWithoutRules()
+            throws IOException
     {
         DistributedQueryRunner queryRunner = getDistributedQueryRunner();
 
-        @Language("SQL") String query = "select int1, v1 from " + TABLE_1 + " where v1 like '%shlomi%'";
+        prepareCacheMgrRules(List.of());
+
+        @Language("SQL") String query = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_1 + " where " + COL_V_1 + " like '%shlomi%'";
         runQueryAndValidateReadFromCache(queryRunner, query);
 
-        @Language("SQL") String query2 = "select int1, v1 from " + TABLE_2 + " where v1 like '%shlomi%'";
+        @Language("SQL") String query2 = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_2 + " where " + COL_V_1 + " like '%shlomi%'";
         runQueryAndValidateReadFromCache(queryRunner, query2);
 
-        @Language("SQL") String unionQuery = "select * from %s b where b.int1 > 0 union all select * from %s".formatted(TABLE_1, TABLE_2);
+        @Language("SQL") String unionQuery = ("select * from %s b where b." + COL_INT_1 + " > 0 union all select * from %s").formatted(TABLE_1, TABLE_2);
         runQueryAndValidateReadFromCache(queryRunner, unionQuery);
         assertExplain("explain " + unionQuery, "CacheData\\[\\]\n.*\n.*TableScan.*");
     }
@@ -196,13 +206,13 @@ public class TestHiveWarpCacheManager
 
         prepareCacheMgrRules(List.of("key"));
 
-        @Language("SQL") String query = "select int1, v1 from " + TABLE_1 + " where v1 like '%shlomi%'";
+        @Language("SQL") String query = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_1 + " where " + COL_V_1 + " like '%shlomi%'";
         runQueryAndValidateReadFromCache(queryRunner, query, false);
 
-        @Language("SQL") String query2 = "select int1, v1 from " + TABLE_2 + " where v1 like '%shlomi%'";
+        @Language("SQL") String query2 = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_2 + " where " + COL_V_1 + " like '%shlomi%'";
         runQueryAndValidateReadFromCache(queryRunner, query2, false);
 
-        @Language("SQL") String unionQuery = "select * from %s b where b.int1 > 0 union all select * from %s".formatted(TABLE_1, TABLE_2);
+        @Language("SQL") String unionQuery = ("select * from %s b where b." + COL_INT_1 + " > 0 union all select * from %s").formatted(TABLE_1, TABLE_2);
         runQueryAndValidateReadFromCache(queryRunner, unionQuery, false);
         assertExplain("explain " + unionQuery, "CacheData\\[\\]\n.*\n.*TableScan.*");
     }
@@ -216,15 +226,38 @@ public class TestHiveWarpCacheManager
         //prepare irrelevant warmup rules so the initial list is not empty
         prepareCacheMgrRules(List.of("dummy"));
 
-        @Language("SQL") String query = "select int1, v1 from " + TABLE_1 + " where v1 like '%shlomi%'";
+        @Language("SQL") String query = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_1 + " where " + COL_V_1 + " like '%shlomi%'";
         runQueryAndValidateReadFromCache(queryRunner, query, true);
 
-        @Language("SQL") String query2 = "select int1, v1 from " + TABLE_2 + " where v1 like '%shlomi%'";
+        @Language("SQL") String query2 = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_2 + " where " + COL_V_1 + " like '%shlomi%'";
         runQueryAndValidateReadFromCache(queryRunner, query2, true);
 
-        @Language("SQL") String unionQuery = "select * from %s b where b.int1 > 0 union all select * from %s".formatted(TABLE_1, TABLE_2);
+        @Language("SQL") String unionQuery = ("select * from %s b where b." + COL_INT_1 + " > 0 union all select * from %s").formatted(TABLE_1, TABLE_2);
         runQueryAndValidateReadFromCache(queryRunner, unionQuery, true);
         assertExplain("explain " + unionQuery, "CacheData\\[\\]\n.*\n.*TableScan.*");
+    }
+
+    @Test
+    public void testDemoteWithRules()
+            throws IOException
+    {
+        DistributedQueryRunner queryRunner = getDistributedQueryRunner();
+
+        //prepare irrelevant warmup rules so the initial list is not empty
+        prepareCacheMgrRules(List.of("dummy"));
+
+        @Language("SQL") String query = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_1 + " where " + COL_V_1 + " like '%shlomi%'";
+        runQueryAndValidateReadFromCache(queryRunner, query, true);
+
+        demote(WarmupDemoterData.builder()
+                .batchSize(1)
+                .modifyConfig(true)
+                .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.1))
+                .build());
+
+        validateDemoter(
+                new DemoteInput(catalog, 0, 10),
+                new DemoteInput(DISPATCHER_CACHE_MANAGER_NAME, 0, 2));
     }
 
     /**
@@ -349,7 +382,7 @@ public class TestHiveWarpCacheManager
         String warmStatsTableName = "%s:name=%s_%s,type=%s".formatted(
                 WarmingServiceStats.class.getPackageName(),
                 WarmingServiceStats.createKey(),
-                "warp_cache",
+                DISPATCHER_CACHE_MANAGER_NAME,
                 WarmingServiceStats.class.getSimpleName().toLowerCase(Locale.ROOT));
         List<String> jmxCounters = List.of("warm_warp_cache_started", "warm_warp_cache_accomplished");
         MaterializedRow materializedRow = getServiceStats(jmxSession, warmStatsTableName, jmxCounters);
@@ -399,49 +432,76 @@ public class TestHiveWarpCacheManager
     {
         createTable(DEFAULT_SCHEMA,
                 TABLE_1,
-                "(int1 integer, v1 varchar(20)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+                "(" + COL_INT_1 + " integer, " + COL_V_1 + " varchar(20)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
         computeActual(getSession(), "INSERT INTO %s VALUES (1, 'shlomi'), (2, 'kobi')".formatted(TABLE_1));
         createTable(DEFAULT_SCHEMA,
                 TABLE_2,
-                "(int1 integer, v1 varchar(20)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+                "(" + COL_INT_1 + " integer, " + COL_V_1 + " varchar(20)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
         computeActual(getSession(), "INSERT INTO %s VALUES (3, 'roman'), (4, 'tal')".formatted(TABLE_2));
+
+        Duration ttlDuration = Duration.ofHours(1);
+        try {
+            createWarmupRules(DEFAULT_SCHEMA,
+                    TABLE_1,
+                    Map.of(COL_INT_1,
+                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 1, ttlDuration)),
+                            COL_V_1,
+                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 1, ttlDuration),
+                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, 2, ttlDuration))));
+            createWarmupRules(DEFAULT_SCHEMA,
+                    TABLE_2,
+                    Map.of(COL_INT_1,
+                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 1, ttlDuration)),
+                            COL_V_1,
+                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 1, ttlDuration),
+                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, 2, ttlDuration))));
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         Session session = Session.builder(getSession())
                 .setSystemProperty("cache_enabled", "false")
                 .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING, "true")
                 .build();
-        String query2 = "select int1, v1 from " + TABLE_2 + " where int1 > 0 and v1 like '%shlomi%' and v1 > 's' and upper(v1) = 'SHLOMI'";
-        warmAndValidate(query2, session, 5, 2, 0);
-        //warm int_1 (DATA, BASIC), v1 (DATA, BASIC, LUCENE) with default warming
-        String query = "select int1, v1 from " + TABLE_1 + " where int1 > 0 and v1 like '%shlomi%' and v1 > 's' and upper(v1) = 'SHLOMI'";
-        warmAndValidate(query, session, 5, 2, 0);
+
+        //warm int_1 (DATA, BASIC), v1 (DATA, BASIC, LUCENE)
+        String query = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_1 + " where " + COL_INT_1 + " > 0 and " + COL_V_1 + " like '%shlomi%' and v1 > 's' and upper(v1) = 'SHLOMI'";
+        warmAndValidate(query, session, 6, 3, 0);
+
+        String query2 = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_2 + " where " + COL_INT_1 + " > 0 and " + COL_V_1 + " like '%shlomi%' and v1 > 's' and upper(v1) = 'SHLOMI'";
+        warmAndValidate(query2, session, 6, 3, 0);
     }
 
     private void prepareCacheMgrRules(List<String> signatureKeys)
             throws IOException
     {
-        long beforeStats = getFetcherSuccessStats();
-
         List<CacheManagerRule> cacheManagerRules = signatureKeys.stream()
-                .map(signatureKey -> new CacheManagerRule(signatureKey, 10D, Duration.ofHours(1)))
+                .map(signatureKey -> new CacheManagerRule(
+                        signatureKey,
+                        10,
+                        Duration.ofHours(1)))
                 .toList();
 
         if (cacheMgrFetcherPath.toFile().exists()) {
-            Path file = Files.write(
-                    Path.of(cacheMgrFetcherPath.toAbsolutePath().toString(), "rules"),
+            Path cacheRulesPath = getCacheRulesPath();
+            if (cacheRulesPath.toFile().exists()) {
+                logger.info("deleteCacheRulesFile::delete before write -> %s", cacheRulesPath);
+                deleteCacheRulesFile(cacheRulesPath);
+            }
+            Files.write(
+                    cacheRulesPath,
                     CompressionUtil.compressGzip(objectMapper.writeValueAsString(cacheManagerRules)));
-            if (file.toFile().exists()) {
-                logger.info("written cache rules to %s", file);
+            if (cacheRulesPath.toFile().exists()) {
+                logger.info("written cache rules to %s", cacheRulesPath);
             }
             else {
-                throw new RuntimeException("failed to create/write to file " + file);
+                throw new RuntimeException("failed to create/write to file " + cacheRulesPath);
             }
         }
         else {
             throw new RuntimeException("cacheMgrFetcherPath doesnt exit -> " + cacheMgrFetcherPath);
         }
-
-        runWithRetries(() -> assertThat(getFetcherSuccessStats()).isGreaterThan(beforeStats));
 
         String result = executeRestCommand(
                 CacheMgrWarmupTask.CACHE_MANAGER_WARMUP_PATH,
@@ -451,35 +511,23 @@ public class TestHiveWarpCacheManager
                 coordinatorPort,
                 HttpURLConnection.HTTP_OK,
                 false);
-        Map<String, List<CacheManagerRule>> res = objectMapper.readerFor(new TypeReference<Map<String, List<CacheManagerRule>>>() {}).readValue(result);
-        assertThat(res.isEmpty()).isFalse();
+        Map<String, List<CacheManagerRule>> res = objectMapper
+                .readerFor(new TypeReference<Map<String, List<CacheManagerRule>>>() {})
+                .readValue(result);
+        assertThat(res.values().stream().map(List::size).distinct().count())
+                .isEqualTo(1);
+        assertThat(res.values().stream().map(List::size).distinct().findFirst().orElseThrow())
+                .isEqualTo(cacheManagerRules.size());
     }
 
-    private long getFetcherSuccessStats()
+    private Path getCacheRulesPath()
     {
-        List<String> stats = List.of("success");
-        String statsTableName = "%s:name=%s_%s,type=%s".formatted(
-                WarmupRuleFetcherStats.class.getPackageName().toLowerCase(Locale.ROOT),
-                WarmupRuleCloudFetcher.class.getSimpleName().toLowerCase(Locale.ROOT),
-                "warp_cache",
-                WarmupRuleFetcherStats.class.getSimpleName().toLowerCase(Locale.ROOT));
-        Session jmxSession = createJmxSession();
-        MaterializedRow materializedRow = null;
-        try {
-            materializedRow = getServiceStats(jmxSession, statsTableName, stats);
-        }
-        catch (Throwable e) {
-            MaterializedResult rows = computeActual(createJmxSession(), "show tables");
-            logger.error(e,
-                    "jmx[%d] tables: %s",
-                    rows.getMaterializedRows().size(),
-                    rows.getMaterializedRows()
-                            .stream()
-                            .filter(materializedRowTmp -> ((String) materializedRowTmp.getField(0)).contains(WarmupRuleFetcherStats.createKey()))
-                            .collect(Collectors.toList()));
-            fail("materializedRow is null", e);
-        }
-        return (Long) requireNonNull(materializedRow).getField(0);
+        return Path.of(cacheMgrFetcherPath.toAbsolutePath().toString(), "rules");
+    }
+
+    private void deleteCacheRulesFile(Path cacheRulesPath)
+    {
+        FileUtils.deleteQuietly(cacheRulesPath.toFile());
     }
 
     private static QueryInfo getFullQueryInfo(DistributedQueryRunner queryRunner, MaterializedResultWithPlan materializedResultWithPlan)

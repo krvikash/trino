@@ -32,7 +32,7 @@ public interface WarpDeleteService
 
     default boolean isDeleteImmediatelyObject(TupleRank tupleRank, Instant currentTime, List<TupleFilter> tupleFilters)
     {
-        return CollectionUtils.isNotEmpty(tupleFilters) || // since tuppleRanks were already filtered by tupleFilters
+        return CollectionUtils.isNotEmpty(tupleFilters) || // since tupleRanks were already filtered by tupleFilters
                 (tupleRank.warmupProperties().ttl() > NO_EXPIRY &&
                 currentTime.isAfter(Instant.ofEpochMilli(tupleRank.warmUpElement().getLastUsedTimestamp())
                                             .plus(tupleRank.warmupProperties().ttl(), ChronoUnit.SECONDS)));

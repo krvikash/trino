@@ -27,6 +27,7 @@ import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -59,8 +60,12 @@ public class WarpCacheManagerDeleteService
     {
         List<RowGroupData> rowGroupDataList = rowGroupDataService.getAll();
         Map<String, CacheManagerRule> warmupRules = cacheMgrWarmupRuleService.getAll();
-        TupleRankResult tupleRankResult = new TupleRankResult();
+
         Instant now = Instant.now();
+
+        List<TupleRank> tupleRankList = new ArrayList<>();
+        List<TupleRank> immediateObjects = new ArrayList<>();
+        List<TupleRank> failedObjects = new ArrayList<>();
         for (RowGroupData rowGroupData : rowGroupDataList) {
             if (CollectionUtils.isNotEmpty(tupleFilters)) {
                 logger.info("TupleFilter is not supported in cacheManager");
@@ -73,18 +78,18 @@ public class WarpCacheManagerDeleteService
             TupleRank tupleRank = new TupleRank(warmupProperties, getWarmupElementWithMaxLastUsedTimestamp(rowGroupData).orElse(null), rowGroupData.getRowGroupKey());
             if (forceDeleteFailedObjects && !rowGroupData.getWarmUpElements().stream().allMatch(WarmUpElement::isValid)) {
                 logger.debug("add failed Row to failedObjects: rowGroupKey = %s", rowGroupData.getRowGroupKey());
-                tupleRankResult.failedObjects().add(tupleRank);
+                failedObjects.add(tupleRank);
             }
             else if (isDeleteImmediatelyObject(tupleRank, now, tupleFilters)) {
                 logger.debug("add warmupElement to ImmediateObject: rowGroupKey = %s", rowGroupData.getRowGroupKey());
-                tupleRankResult.immediateObjects().add(tupleRank);
+                immediateObjects.add(tupleRank);
             }
             else {
-                tupleRankResult.tupleRankList().add(tupleRank);
+                tupleRankList.add(tupleRank);
                 logger.debug("add warmupElement to tupleRank: rowGroupKey = %s, warmupType = %s, priority = %s", rowGroupData.getRowGroupKey(), warmupProperties.warmUpType().name(), warmupProperties.priority());
             }
         }
-        return tupleRankResult;
+        return new TupleRankResult(tupleRankList, immediateObjects, failedObjects);
     }
 
     private Optional<WarmUpElement> getWarmupElementWithMaxLastUsedTimestamp(RowGroupData rowGroupData)

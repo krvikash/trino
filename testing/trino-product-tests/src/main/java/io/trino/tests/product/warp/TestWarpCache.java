@@ -187,15 +187,6 @@ public class TestWarpCache
             throw e;
         }
         finally {
-            if (testFormat.default_warming()) {
-                // TODO: for some reason, demoteAllByMaxUsage() doesn't actually demote all,
-                //  and will only demote Warp connector's rowGroupData if it exists.
-                //  So we explicitly demote it here, and that causes demoteAllByMaxUsage()
-                //  to demote CacheManager's rowGroupData (otherwise an assertion will fail)
-                List<String> columnNames = testFormat.structure().stream().map(TestFormat.Column::name).toList();
-                demoterUtils.demote("synthetic", testFormat.table_name(), columnNames);
-            }
-
             try {
                 demoterUtils.demoteAllByMaxUsage(true);
             }

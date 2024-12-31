@@ -89,21 +89,24 @@ public class WarpConnectorDeleteService
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         int rowGroupPoolSize = nativeConfig.getTaskMaxWorkerThreads();
         int rowGroupQueueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
-        this.rowGroupExecutorService = new ThreadPoolExecutor(0, rowGroupPoolSize,
-                                                              60L, TimeUnit.SECONDS,
-                                                              new LinkedBlockingQueue<>(rowGroupQueueSize),
-                                                              new ThreadFactoryBuilder().setNameFormat("warp-speed-row-group-%s").setDaemon(true).build());
+        this.rowGroupExecutorService = new ThreadPoolExecutor(
+                0,
+                rowGroupPoolSize,
+                60L,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(rowGroupQueueSize),
+                new ThreadFactoryBuilder().setNameFormat("warp-speed-row-group-%s").setDaemon(true).build());
     }
 
-    public TupleRankResult buildTupleRank(List<TupleFilter> tupleFilters,
-                                          boolean forceDeleteFailedObjects)
+    public TupleRankResult buildTupleRank(
+            List<TupleFilter> tupleFilters,
+            boolean forceDeleteFailedObjects)
     {
         List<RowGroupData> rowGroupDataList = rowGroupDataService.getAll();
         List<WarmupRule> warmupRules = warmupRuleProvider.getAll();
         Map<SchemaTableColumn, List<WarmupRule>> schemaTableColumnToRulesMap = warmupRules.stream()
                 .collect(groupingBy(warmupRule -> new SchemaTableColumn(
-                        new SchemaTableName(warmupRule.getSchema(),
-                                            warmupRule.getTable()),
+                        new SchemaTableName(warmupRule.getSchema(), warmupRule.getTable()),
                         warmupRule.getWarpColumn())));
         Instant now = Instant.now();
         // all tupleRanks of the same shared rowGroup should be gathered together to reduce the nunmber of saved
@@ -125,56 +128,66 @@ public class WarpConnectorDeleteService
                 List<WarmupRule> warmupRuleList = findExistingWarmupElementRules(rowGroupKey, schemaTableColumnToRulesMap, warmUpElement);
                 Stream<WarmupRule> wildcardWarmupRules = schemaTableColumnToRulesMap.getOrDefault(
                                 new SchemaTableColumn(
-                                        new SchemaTableName(rowGroupKey.schema(),
-                                                            rowGroupKey.table()),
+                                        new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table()),
                                         new WildcardColumn()),
                                 List.of())
                         .stream()
                         .map(warmupRule -> WarmupRule.builder(warmupRule).warpColumn(warmUpElement.getWarpColumn()).build());
 
-                WarmupProperties warmupProperties = findMostRelevantRulePropertiesForWarmupElement(rowGroupData,
-                                                                                                   warmUpElement,
-                                                                                                   Stream.concat(warmupRuleList.stream(), wildcardWarmupRules).toList());
+                WarmupProperties warmupProperties = findMostRelevantRulePropertiesForWarmupElement(
+                        rowGroupData,
+                        warmUpElement,
+                        Stream.concat(warmupRuleList.stream(), wildcardWarmupRules).toList());
 
                 String warmupElementKey = rowGroupKey + "_" + warmUpElement.getWarpColumn().getColumnId() + "_" + warmUpElement.getWarmUpType();
                 tupleRanksByKey.put(warmupElementKey, new TupleRank(warmupProperties, warmUpElement, rowGroupKey));
             }
         }
-        TupleRankResult tupleRankResult = new TupleRankResult();
+        List<TupleRank> tupleRankList = new ArrayList<>();
+        List<TupleRank> immediateObjects = new ArrayList<>();
+        List<TupleRank> failedObjects = new ArrayList<>();
         for (TupleRank tupleRank : tupleRanksByKey.values()) {
             WarmUpElement warmUpElement = tupleRank.warmUpElement();
             WarmupProperties warmupProperties = tupleRank.warmupProperties();
 
             if (forceDeleteFailedObjects && !warmUpElement.isValid()) {
                 logger.debug("add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s", warmUpElement.getWarpColumn(), warmupProperties.warmUpType().name());
-                tupleRankResult.failedObjects().add(tupleRank);
+                failedObjects.add(tupleRank);
             }
             else if (isDeleteImmediatelyObject(tupleRank, now, tupleFilters)) {
                 logger.debug("add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s", warmUpElement.getWarpColumn(), warmupProperties.warmUpType().name(), warmupProperties.ttl());
-                tupleRankResult.immediateObjects().add(tupleRank);
+                immediateObjects.add(tupleRank);
             }
             else {
-                tupleRankResult.tupleRankList().add(tupleRank);
+                tupleRankList.add(tupleRank);
                 logger.debug("add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s", warmUpElement.getWarpColumn(), warmupProperties.warmUpType().name(), warmupProperties.priority());
             }
         }
         logger.debug("buildTupleRank allRules.size %d rowGroupDataList.size %d tupleFilters.size %d failedObjects.size %d, immediateObjects.size %d, tupleRankList.size %d",
-                     warmupRules.size(), rowGroupDataList.size(), (tupleFilters != null) ? tupleFilters.size() : -1, tupleRankResult.failedObjects().size(), tupleRankResult.immediateObjects().size(), tupleRankResult.tupleRankList().size());
-        return tupleRankResult;
+                warmupRules.size(),
+                rowGroupDataList.size(),
+                (tupleFilters != null) ? tupleFilters.size() : -1,
+                failedObjects.size(),
+                immediateObjects.size(),
+                tupleRankList.size());
+
+        return new TupleRankResult(tupleRankList, immediateObjects, failedObjects);
     }
 
-    private WarmupProperties findMostRelevantRulePropertiesForWarmupElement(RowGroupData rowGroupData,
-                                                                            WarmUpElement warmUpElement,
-                                                                            List<WarmupRule> rulesForWarmupElement)
+    private WarmupProperties findMostRelevantRulePropertiesForWarmupElement(
+            RowGroupData rowGroupData,
+            WarmUpElement warmUpElement,
+            List<WarmupRule> rulesForWarmupElement)
     {
         Optional<WarmupRule> optionalWarmupRule = WarmUtils.findMostRelevantRuleForWarmupElement(rowGroupData, warmUpElement, rulesForWarmupElement);
         return optionalWarmupRule.map(warmupRule -> new WarmupProperties(warmupRule.getWarmUpType(), warmupRule.getPriority(), warmupRule.getTtl(), TransformFunction.NONE))
                 .orElse(defaultWarmupProperties);
     }
 
-    private List<WarmupRule> findExistingWarmupElementRules(RowGroupKey rowGroupKey,
-                                                            Map<SchemaTableColumn, List<WarmupRule>> schemaTableColumnToRulesMap,
-                                                            WarmUpElement warmUpElement)
+    private List<WarmupRule> findExistingWarmupElementRules(
+            RowGroupKey rowGroupKey,
+            Map<SchemaTableColumn, List<WarmupRule>> schemaTableColumnToRulesMap,
+            WarmUpElement warmUpElement)
     {
         WarpColumn warpColumn = warmUpElement.getWarpColumn();
         WarpColumn newWarpColumn;
@@ -186,8 +199,7 @@ public class WarpConnectorDeleteService
         }
 
         SchemaTableColumn schemaTableColumn = new SchemaTableColumn(
-                new SchemaTableName(rowGroupKey.schema(),
-                                    rowGroupKey.table()),
+                new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table()),
                 newWarpColumn);
         return schemaTableColumnToRulesMap.getOrDefault(schemaTableColumn, List.of());
     }
@@ -204,8 +216,7 @@ public class WarpConnectorDeleteService
         List<ListenableFuture<Long>> rowGroupDeleteFutures = new ArrayList<>();
         long deletedObject = 0;
         try {
-            for (int i = 0; i < rowGroupDataList.size(); i++) {
-                RowGroupKey rowGroupKey = rowGroupDataList.get(i);
+            for (RowGroupKey rowGroupKey : rowGroupDataList) {
                 RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
                 try {
                     rowGroupDeleteFutures.add(Futures.submit(() -> deleteRowGroupData(rowGroupData, rowGroupDataWarmUpElementMap.get(rowGroupKey), demoteContext, deleteEmptyRowGroups), rowGroupExecutorService));
@@ -213,7 +224,7 @@ public class WarpConnectorDeleteService
                 catch (RejectedExecutionException ree) {
                     logger.warn("retry to submit row group data %s", rowGroupKey);
                     try {
-                        deletedObject += Futures.allAsList(rowGroupDeleteFutures).get().stream().collect(Collectors.summingLong(Long::longValue));
+                        deletedObject += Futures.allAsList(rowGroupDeleteFutures).get().stream().mapToLong(Long::longValue).sum();
                         rowGroupDeleteFutures = new ArrayList<>();
                         rowGroupDeleteFutures.add(Futures.submit(() -> deleteRowGroupData(rowGroupData, rowGroupDataWarmUpElementMap.get(rowGroupKey), demoteContext, deleteEmptyRowGroups), rowGroupExecutorService));
                     }
@@ -228,7 +239,7 @@ public class WarpConnectorDeleteService
             Futures.allAsList(rowGroupDeleteFutures).get();
             throw e;
         }
-        deletedObject += Futures.allAsList(rowGroupDeleteFutures).get().stream().collect(Collectors.summingLong(Long::longValue));
+        deletedObject += Futures.allAsList(rowGroupDeleteFutures).get().stream().mapToLong(Long::longValue).sum();
         return deletedObject;
     }
 
@@ -246,7 +257,7 @@ public class WarpConnectorDeleteService
             else {
                 if (deleteEmptyRowGroups) {
                     logger.debug("empty rowGropData %s, delete partial elementsToDelete = %d, left = %d",
-                                 rowGroupData.getRowGroupKey(), elementsToDelete.size(), rowGroupData.getWarmUpElements().size());
+                            rowGroupData.getRowGroupKey(), elementsToDelete.size(), rowGroupData.getWarmUpElements().size());
                     rowGroupDataService.updateEmptyRowGroup(rowGroupData, Collections.emptyList(), elementsToDelete);
                 }
                 else {
@@ -259,7 +270,7 @@ public class WarpConnectorDeleteService
             try {
                 RetryPolicy<Object> retryPolicy = RetryPolicy.builder().withDelay(warmupDemoterConfig.getDelayAcquireThread())
                         .withMaxDuration(warmupDemoterConfig.getMaxDurationAcquireThread())
-                        .onFailedAttempt(a -> retryFailure.incrementAndGet())
+                        .onFailedAttempt(_ -> retryFailure.incrementAndGet())
                         .handle(TrinoException.class)
                         .withMaxRetries(warmupDemoterConfig.getMaxRetriesAcquireThread()).handle(RuntimeException.class).build();
                 Failsafe.with(retryPolicy).run(() -> {
@@ -283,14 +294,15 @@ public class WarpConnectorDeleteService
     private boolean coolRowGroupData(RowGroupData rowGroupData, List<WarmUpElement> elementsToDelete, DemoteContext demoteContext)
     {
         logger.debug("coolRowGroupData rowGroup key %s - going to delete warmupElements size = %d",
-                     rowGroupData.getRowGroupKey(), elementsToDelete.size());
+                rowGroupData.getRowGroupKey(), elementsToDelete.size());
         boolean success = true;
         try {
             demote(rowGroupData, elementsToDelete);
         }
         catch (Exception e) {
-            logger.error(e, String.format("failed to demote rowGroupData: %s, row grop will be deleted",
-                                          rowGroupData.getRowGroupKey()));
+            logger.error(e,
+                    "failed to demote rowGroupData: %s, row grop will be deleted",
+                    rowGroupData.getRowGroupKey());
             handleFailDeleteRowGroup(rowGroupData, demoteContext);
             success = false;
         }

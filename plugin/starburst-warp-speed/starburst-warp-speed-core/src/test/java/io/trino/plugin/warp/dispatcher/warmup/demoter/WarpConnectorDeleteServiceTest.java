@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
-import com.google.common.collect.ImmutableList;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
@@ -72,7 +71,7 @@ class WarpConnectorDeleteServiceTest
     private final int defaultPriority = 0;
     private final int notEmptyTTL = 100;
 
-    private WarpConnectorDeleteService warpConnectorDeleteService;
+    private WarpConnectorDeleteService warpDeleteService;
     private RowGroupDataService rowGroupDataService;
 
     private final Set<WarmupPredicateRule> defaultPredicates = Set.of();
@@ -88,16 +87,23 @@ class WarpConnectorDeleteServiceTest
         rowGroupDataService = mock(RowGroupDataService.class);
         WarmupDemoterConfig warmupDemoterConfig = new WarmupDemoterConfig();
         warmupDemoterConfig.setEnableDemote(true);
-        warpConnectorDeleteService = spy(new WarpConnectorDeleteService(rowGroupDataService,
-                                                                        warmupDemoterConfig,
-                                                                        new NativeConfig(),
-                                                                        warmupRuleProvider,
-                                                                        mock(WorkerCapacityManager.class)));
+        warpDeleteService = spy(new WarpConnectorDeleteService(rowGroupDataService,
+                warmupDemoterConfig,
+                new NativeConfig(),
+                warmupRuleProvider,
+                mock(WorkerCapacityManager.class)));
         int defaultBatchSize = 2;
         int defaultEpsilon = 1;
         double defaultMaxThreshold = 95;
         double defaultCleanThreshold = 90;
-        demoteContext = new DemoteContext(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultBatchSize, defaultEpsilon, true);
+        demoteContext = new DemoteContext(
+                defaultMaxThreshold,
+                defaultCleanThreshold,
+                defaultBatchSize,
+                defaultBatchSize,
+                defaultEpsilon,
+                true,
+                new TupleRankResult(List.of(), List.of(), List.of()));
 
         initDefaultMembers();
     }
@@ -123,13 +129,16 @@ class WarpConnectorDeleteServiceTest
         });
         warmupRules.add(buildWarmupRule(defaultSchemaName, 10, defaultWarmupType, defaultPriority, notEmptyTTL, defaultPredicates));
         warmUpElements.add(buildWarmupElement(10, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_BASIC, false));
-        RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName,
-                                                      defaultTableName,
-                                                      warmUpElements,
-                                                      Map.of(), 0, false);
+        RowGroupData rowGroupData = buildRowGroupData(
+                defaultSchemaName,
+                defaultTableName,
+                warmUpElements,
+                Map.of(),
+                0,
+                false);
         when(rowGroupDataService.getAll()).thenReturn(List.of(rowGroupData));
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(List.of(), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
         assertThat(tupleRankResult.tupleRankList().size()).isEqualTo(9);
         assertThat(tupleRankResult.failedObjects().size()).isEqualTo(1);
         assertThat(tupleRankResult.immediateObjects().size()).isEqualTo(1);
@@ -150,13 +159,16 @@ class WarpConnectorDeleteServiceTest
                 buildWarmupElement(0, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA));
 
         List<RowGroupData> rowGroupDataList = List.of(
-                buildRowGroupData(defaultSchemaName,
-                                  defaultTableName,
-                                  warmUpElements,
-                                  Map.of(), 0, false));
+                buildRowGroupData(
+                        defaultSchemaName,
+                        defaultTableName,
+                        warmUpElements,
+                        Map.of(),
+                        0,
+                        false));
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
         when(rowGroupDataService.getAll()).thenReturn(rowGroupDataList);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(List.of(), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
 
         assertThat(tupleRankResult.tupleRankList().size()).isEqualTo(1);
         assertThat(tupleRankResult.immediateObjects().size()).isEqualTo(1);
@@ -172,7 +184,7 @@ class WarpConnectorDeleteServiceTest
     @Test
     public void testWarmupDemoterFilterByWarmupElement()
     {
-        ColumnFilter columnFilterMatch = createColumnFilter(ImmutableList.of(WarmUpType.WARM_UP_TYPE_BASIC));
+        ColumnFilter columnFilterMatch = createColumnFilter(List.of(WarmUpType.WARM_UP_TYPE_BASIC));
 
         executeFilterTest(List.of(columnFilterMatch), 1);
     }
@@ -180,7 +192,7 @@ class WarpConnectorDeleteServiceTest
     @Test
     public void testWarmupDemoterFilterByWarmupElementNonMatch()
     {
-        ColumnFilter columnFilterNonMatch = createColumnFilter(ImmutableList.of(WarmUpType.WARM_UP_TYPE_DATA));
+        ColumnFilter columnFilterNonMatch = createColumnFilter(List.of(WarmUpType.WARM_UP_TYPE_DATA));
         executeFilterTest(List.of(columnFilterNonMatch), 0);
     }
 
@@ -206,17 +218,14 @@ class WarpConnectorDeleteServiceTest
         executeFilterTest(List.of(columnFilterMatch, fileFilter), 1);
     }
 
-    private void executeFilterTest(List<TupleFilter> tupleFilters,
-                                   int expectedDeletedByTupleFilter)
+    private void executeFilterTest(List<TupleFilter> tupleFilters, int expectedDeletedByTupleFilter)
     {
         double highPriority = 8.5;
         warmupRules.add(buildWarmupRule(defaultSchemaName, 30, WarmUpType.WARM_UP_TYPE_BASIC, highPriority, notEmptyTTL, defaultPredicates));
         warmUpElements.add(buildWarmupElement(30, Instant.now().toEpochMilli()));
         when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMap.values()));
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(
-                tupleFilters,
-                                         true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(tupleFilters, true);
 
         assertThat(tupleRankResult.immediateObjects().size()).isEqualTo(expectedDeletedByTupleFilter);
         assertThat(tupleRankResult.failedObjects().size()).isEqualTo(0);
@@ -241,7 +250,7 @@ class WarpConnectorDeleteServiceTest
         List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, hivePartitionKeys, 0, false));
         when(rowGroupDataService.getAll()).thenReturn(rowGroupDataList);
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(List.of(), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
 
         assertThat(tupleRankResult.tupleRankList()).isNotEmpty();
     }
@@ -261,13 +270,15 @@ class WarpConnectorDeleteServiceTest
 
         Set<WarmupPredicateRule> predicates1 = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue));
         Set<WarmupPredicateRule> predicates2 = new HashSet<>(List.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue), new PartitionValueWarmupPredicateRule(partitionKey2, partitionValue2)));
-        List<WarmupRule> warmupRules = List.of(buildWarmupRule(defaultSchemaName, weId, defaultWarmupType, defaultPriority, ttlInTheFuture, predicates1),
-                                               buildWarmupRule(defaultSchemaName, weId, defaultWarmupType, priorityHigh, ttlInTheFuture, predicates2));
+        List<WarmupRule> warmupRules = List.of(
+                buildWarmupRule(defaultSchemaName, weId, defaultWarmupType, defaultPriority, ttlInTheFuture, predicates1),
+                buildWarmupRule(defaultSchemaName, weId, defaultWarmupType, priorityHigh, ttlInTheFuture, predicates2));
         List<WarmUpElement> warmUpElements = List.of(buildWarmupElement(weId, Instant.now().toEpochMilli()));
-        List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, hivePartitionKeys, 0, false));
+        List<RowGroupData> rowGroupDataList = List.of(
+                buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, hivePartitionKeys, 0, false));
         when(rowGroupDataService.getAll()).thenReturn(rowGroupDataList);
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(List.of(), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
 
         assertThat(tupleRankResult.tupleRankList()).isNotEmpty();
     }
@@ -276,16 +287,17 @@ class WarpConnectorDeleteServiceTest
     public void testForceDeleteFailedObjectsWithColumnFilter()
     {
         ColumnFilter columnFilterMatch = createColumnFilter(List.of(WarmUpType.WARM_UP_TYPE_BASIC));
-        List<WarmupRule> warmupRules = ImmutableList.of(buildWarmupRule(defaultSchemaName, 0, WarmUpType.WARM_UP_TYPE_BASIC, defaultPriority, notEmptyTTL, defaultPredicates),
-                                                        buildWarmupRule(defaultSchemaName, 0, WarmUpType.WARM_UP_TYPE_DATA, defaultPriority, notEmptyTTL, defaultPredicates));
+        List<WarmupRule> warmupRules = List.of(
+                buildWarmupRule(defaultSchemaName, 0, WarmUpType.WARM_UP_TYPE_BASIC, defaultPriority, notEmptyTTL, defaultPredicates),
+                buildWarmupRule(defaultSchemaName, 0, WarmUpType.WARM_UP_TYPE_DATA, defaultPriority, notEmptyTTL, defaultPredicates));
         WarmUpElement warmUpElementToDelete = buildWarmupElement(0, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_BASIC, false);
         WarmUpElement warmUpElementNotToDelete = buildWarmupElement(0, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA, false);
-        List<WarmUpElement> warmUpElements = ImmutableList.of(warmUpElementToDelete, warmUpElementNotToDelete);
+        List<WarmUpElement> warmUpElements = List.of(warmUpElementToDelete, warmUpElementNotToDelete);
 
         List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, Map.of(), 0, false));
         when(rowGroupDataService.getAll()).thenReturn(rowGroupDataList);
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(ImmutableList.of(columnFilterMatch), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(columnFilterMatch), true);
         assertThat(tupleRankResult.immediateObjects().size()).isEqualTo(0);
         assertThat(tupleRankResult.failedObjects().size()).isEqualTo(1);
         assertThat(tupleRankResult.tupleRankList().size()).isEqualTo(0);
@@ -322,10 +334,11 @@ class WarpConnectorDeleteServiceTest
 
         when(rowGroupDataService.getAll()).thenReturn(List.of(rowGroupData));
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(
                 List.of(new ColumnFilter(
-                        new SchemaTableName(rowGroupData.getRowGroupKey().schema(),
-                                            rowGroupData.getRowGroupKey().table()),
+                        new SchemaTableName(
+                                rowGroupData.getRowGroupKey().schema(),
+                                rowGroupData.getRowGroupKey().table()),
                         List.of(
                                 new WarmupDemoterWarmupElementData(
                                         warmUpElements.get(1).getWarpColumn().getName(),
@@ -351,14 +364,16 @@ class WarpConnectorDeleteServiceTest
         Map<WarpColumn, String> hivePartitionKeys2 = Map.of(partitionKey, partitionValue2);
         Set<WarmupPredicateRule> predicates = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue));
         Set<WarmupPredicateRule> predicates2 = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue2));
-        List<WarmupRule> warmupRules = List.of(buildWarmupRule(defaultSchemaName, weId, defaultWarmupType, defaultPriority, ttlInTheFuture, predicates),
-                                               buildWarmupRule(schemaName2, weId, defaultWarmupType, priority2, ttlInTheFuture, predicates2));
+        List<WarmupRule> warmupRules = List.of(
+                buildWarmupRule(defaultSchemaName, weId, defaultWarmupType, defaultPriority, ttlInTheFuture, predicates),
+                buildWarmupRule(schemaName2, weId, defaultWarmupType, priority2, ttlInTheFuture, predicates2));
         List<WarmUpElement> warmUpElements = List.of(buildWarmupElement(weId, Instant.now().toEpochMilli()));
-        List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, hivePartitionKeys, 0, false),
-                                                      buildRowGroupData(schemaName2, defaultTableName, warmUpElements, hivePartitionKeys2, 1, false));
+        List<RowGroupData> rowGroupDataList = List.of(
+                buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, hivePartitionKeys, 0, false),
+                buildRowGroupData(schemaName2, defaultTableName, warmUpElements, hivePartitionKeys2, 1, false));
         when(rowGroupDataService.getAll()).thenReturn(rowGroupDataList);
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(List.of(), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
 
         assertThat(tupleRankResult.tupleRankList()).isNotEmpty();
     }
@@ -372,13 +387,14 @@ class WarpConnectorDeleteServiceTest
         });
         warmupRules.add(buildWarmupRule(defaultSchemaName, 10, defaultWarmupType, defaultPriority, notEmptyTTL, defaultPredicates));
         warmUpElements.add(buildWarmupElement(10, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_BASIC, false));
-        RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName,
-                                                      defaultTableName,
-                                                      List.of(),
-                                                      Map.of(),
-                                                      0,
-                                                      true);
-        warpConnectorDeleteService.deleteRowGroupData(rowGroupData, List.of(), demoteContext, true);
+        RowGroupData rowGroupData = buildRowGroupData(
+                defaultSchemaName,
+                defaultTableName,
+                List.of(),
+                Map.of(),
+                0,
+                true);
+        warpDeleteService.deleteRowGroupData(rowGroupData, List.of(), demoteContext, true);
         verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupData), eq(Boolean.TRUE));
     }
 
@@ -392,10 +408,10 @@ class WarpConnectorDeleteServiceTest
         List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, elements, Map.of(), 0, true));
         when(rowGroupDataService.getAll()).thenReturn(rowGroupDataList);
         when(rowGroupDataService.get(eq(rowGroupDataList.getFirst().getRowGroupKey()))).thenReturn(rowGroupDataList.getFirst());
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(List.of(), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
         assertThat(tupleRankResult.failedObjects().size()).isEqualTo(20);
 
-        warpConnectorDeleteService.deleteRowGroupData(rowGroupDataList.getFirst(), tupleRankResult.failedObjects(), demoteContext, true);
+        warpDeleteService.deleteRowGroupData(rowGroupDataList.getFirst(), tupleRankResult.failedObjects(), demoteContext, true);
         verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupDataList.getFirst()), eq(true));
     }
 
@@ -405,10 +421,10 @@ class WarpConnectorDeleteServiceTest
         RowGroupData rowGroupData = rowGroupDataMap.values().iterator().next();
         when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMap.values()));
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(List.of(), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
         assertThat(tupleRankResult.tupleRankList().size()).isEqualTo(20);
 
-        warpConnectorDeleteService.deleteRowGroupData(rowGroupData, tupleRankResult.tupleRankList(), demoteContext, true);
+        warpDeleteService.deleteRowGroupData(rowGroupData, tupleRankResult.tupleRankList(), demoteContext, true);
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData), argThat(list -> list.size() == 20));
     }
 
@@ -418,10 +434,10 @@ class WarpConnectorDeleteServiceTest
         RowGroupData rowGroupData = rowGroupDataMap.values().iterator().next();
         when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMap.values()));
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(List.of(), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
         assertThat(tupleRankResult.tupleRankList().size()).isEqualTo(20);
 
-        warpConnectorDeleteService.deleteRowGroupData(rowGroupData, tupleRankResult.tupleRankList().subList(0, 5), demoteContext, true);
+        warpDeleteService.deleteRowGroupData(rowGroupData, tupleRankResult.tupleRankList().subList(0, 5), demoteContext, true);
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData), argThat(list -> list.size() == 5));
     }
 
@@ -447,20 +463,21 @@ class WarpConnectorDeleteServiceTest
         doThrow(new TrinoException(WarpErrorCode.WARP_NATIVE_ERROR, "test"))
                 .doNothing()
                 .when(rowGroupDataService).removeElements(eq(rowGroupData1), anyCollection());
-        TupleRankResult tupleRankResult = warpConnectorDeleteService.buildTupleRank(List.of(), true);
+        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
         assertThat(tupleRankResult.tupleRankList().size()).isEqualTo(8);
 
-        warpConnectorDeleteService.delete(tupleRankResult.tupleRankList(), demoteContext, false);
+        warpDeleteService.delete(tupleRankResult.tupleRankList(), demoteContext, false);
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData1), anyCollection());
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData1));
     }
 
-    private WarmupRule buildWarmupRule(String schema,
-                                       int weId,
-                                       WarmUpType warmUpType,
-                                       double priority,
-                                       int ttl,
-                                       Set<WarmupPredicateRule> predicates)
+    private WarmupRule buildWarmupRule(
+            String schema,
+            int weId,
+            WarmUpType warmUpType,
+            double priority,
+            int ttl,
+            Set<WarmupPredicateRule> predicates)
     {
         return WarmupRule.builder()
                 .schema(schema)
@@ -503,6 +520,6 @@ class WarpConnectorDeleteServiceTest
     private ColumnFilter createColumnFilter(List<WarmUpType> warmupTypes)
     {
         return new ColumnFilter(new SchemaTableName(defaultSchemaName, defaultTableName),
-                                ImmutableList.of(new WarmupDemoterWarmupElementData("c0", warmupTypes)));
+                List.of(new WarmupDemoterWarmupElementData("c0", warmupTypes)));
     }
 }

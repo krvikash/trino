@@ -65,7 +65,14 @@ public class WarpCacheManagerDeleteServiceTest
         int defaultEpsilon = 1;
         double defaultMaxThreshold = 95;
         double defaultCleanThreshold = 90;
-        demoteContext = new DemoteContext(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultBatchSize, defaultEpsilon, true);
+        demoteContext = new DemoteContext(
+                defaultMaxThreshold,
+                defaultCleanThreshold,
+                defaultBatchSize,
+                defaultBatchSize,
+                defaultEpsilon,
+                true,
+                new TupleRankResult(List.of(), List.of(), List.of()));
     }
 
     @Test
@@ -88,7 +95,7 @@ public class WarpCacheManagerDeleteServiceTest
         assertThat(result.immediateObjects().size()).isEqualTo(0);
 
         WarmupProperties expectedProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 10, NO_EXPIRY, TransformFunction.NONE); //from defaultWarmupProperties
-        TupleRank tupleRank = result.tupleRankList().get(0);
+        TupleRank tupleRank = result.tupleRankList().getFirst();
 
         assertThat(tupleRank.warmupProperties()).isEqualTo(expectedProperties);
     }
@@ -116,7 +123,7 @@ public class WarpCacheManagerDeleteServiceTest
         assertThat(result.immediateObjects().size()).isEqualTo(0);
 
         WarmupProperties expectedProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 5, 100, TransformFunction.NONE); //from CacheManagerRule
-        TupleRank tupleRank = result.tupleRankList().get(0);
+        TupleRank tupleRank = result.tupleRankList().getFirst();
 
         assertThat(tupleRank.warmupProperties()).isEqualTo(expectedProperties);
     }
@@ -144,9 +151,8 @@ public class WarpCacheManagerDeleteServiceTest
     {
         List<RowGroupData> rowGroupDataList = new ArrayList<>();
         List<WarmUpElement> warmupElements = new ArrayList<>();
-        IntStream.range(0, 2).forEach(index -> {
-            warmupElements.add(buildWarmupElement(index, Instant.now().toEpochMilli() - 10));
-        });
+        IntStream.range(0, 2)
+                .forEach(index -> warmupElements.add(buildWarmupElement(index, Instant.now().toEpochMilli() - 10)));
 
         rowGroupDataList.add(createRowGroupData(warmupElements));
 
@@ -168,9 +174,8 @@ public class WarpCacheManagerDeleteServiceTest
     {
         RowGroupKey rowGroupKey = new RowGroupKey(SCHEMA, "table", FILE, 0, 0, 0, "", "");
         List<WarmUpElement> warmupElements = new ArrayList<>();
-        IntStream.range(0, 2).forEach(index -> {
-            warmupElements.add(buildWarmupElement(index, Instant.now().toEpochMilli()));
-        });
+        IntStream.range(0, 2)
+                .forEach(index -> warmupElements.add(buildWarmupElement(index, Instant.now().toEpochMilli())));
         RowGroupData rowGroupData = createRowGroupData(warmupElements);
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
 

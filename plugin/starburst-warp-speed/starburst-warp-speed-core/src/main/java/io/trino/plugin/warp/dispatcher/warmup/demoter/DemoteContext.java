@@ -17,8 +17,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
+import org.apache.commons.collections4.CollectionUtils;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -28,12 +29,12 @@ public class DemoteContext
     private final WarmupDemoterStats statsWarmupDemoter;
     private final boolean deleteEmptyRowGroups;
 
-    private List<TupleRank> tupleRankList = new ArrayList<>();
-    private double maxUsageThresholdPercentage = -1;
-    private double cleanupUsageThresholdPercentage = -1;
-    private int batchSize = 1;
-    private long maxElementsToDemote = 1000;
-    private double epsilon = -1;
+    private final TupleRankResult tupleRankResult;
+    private final double maxUsageThresholdPercentage;
+    private final double cleanupUsageThresholdPercentage;
+    private final int batchSize;
+    private final long maxElementsToDemote;
+    private final double epsilon;
 
     private final Set<RowGroupKey> failedRowGropDataSet;
 
@@ -43,7 +44,8 @@ public class DemoteContext
             int batchSize,
             long maxElementsToDemote,
             double epsilon,
-            boolean deleteEmptyRowGroups)
+            boolean deleteEmptyRowGroups,
+            TupleRankResult tupleRankResult)
     {
         this.maxUsageThresholdPercentage = maxUsageThresholdPercentage;
         this.cleanupUsageThresholdPercentage = cleanupUsageThresholdPercentage;
@@ -51,18 +53,17 @@ public class DemoteContext
         this.maxElementsToDemote = maxElementsToDemote;
         this.epsilon = epsilon;
         this.deleteEmptyRowGroups = deleteEmptyRowGroups;
+        this.tupleRankResult = tupleRankResult;
         statsWarmupDemoter = WarmupDemoterStats.create();
         failedRowGropDataSet = new HashSet<>();
+        if (tupleRankResult != null && !CollectionUtils.isEmpty(tupleRankResult.tupleRankList())) {
+            Collections.sort(tupleRankResult.tupleRankList());
+        }
     }
 
     public List<TupleRank> getTupleRankList()
     {
-        return tupleRankList;
-    }
-
-    public void setTupleRankList(List<TupleRank> tupleRankList)
-    {
-        this.tupleRankList = tupleRankList;
+        return tupleRankResult.tupleRankList();
     }
 
     public double getCleanupUsageThresholdPercentage()
@@ -92,12 +93,17 @@ public class DemoteContext
 
     public double getLowestPriority()
     {
-        return tupleRankList.isEmpty() ? Double.MIN_VALUE : tupleRankList.getFirst().warmupProperties().priority();
+        return tupleRankResult.tupleRankList().isEmpty() ? Double.MIN_VALUE : tupleRankResult.tupleRankList().getFirst().warmupProperties().priority();
     }
 
     public void addFailedRowGropData(RowGroupKey failedRowGroup)
     {
         this.failedRowGropDataSet.add(failedRowGroup);
+    }
+
+    public TupleRankResult getTupleRankResult()
+    {
+        return tupleRankResult;
     }
 
     @Override
@@ -111,7 +117,9 @@ public class DemoteContext
             statsWarmupDemoterJson = "{}";
         }
         return "DemoteContext{" +
-                ", tupleRankList.size=" + tupleRankList.size() +
+                ", tupleRankList.size=" + tupleRankResult.tupleRankList().size() +
+                ", immediateObjects.size=" + tupleRankResult.immediateObjects().size() +
+                ", failedObjects.size=" + tupleRankResult.failedObjects().size() +
                 ", maxUsageThresholdPercentage=" + maxUsageThresholdPercentage +
                 ", cleanupUsageThresholdPercentage=" + cleanupUsageThresholdPercentage +
                 ", batchSize=" + batchSize +

@@ -139,10 +139,10 @@ public class WorkerWarmupDemoterTask
             logger.debug("catalog[%s]: before calling warmupDemoterService.tryDemoteStart", catalogName);
 
             demoteFuture.set(new CompletableFuture<>());
-            warmupDemoterService.setDeleteEmptyRowGroups(true);
+            warmupDemoterConfig.setDeleteEmptyRowGroups(true);
 
             if (!warmupDemoterService.tryDemoteStart()) {
-                warmupDemoterService.setDeleteEmptyRowGroups(false);
+                warmupDemoterConfig.setDeleteEmptyRowGroups(false);
                 demoteFuture.get().complete(new WarmupDemoterFinishEvent(false, Map.of()));
             }
 
@@ -254,10 +254,10 @@ public class WorkerWarmupDemoterTask
                 warmupDemoterConfig.setMaxElementsToDemoteInIteration(warmupDemoterData.getMaxElementsToDemoteInIteration());
             }
             warmupDemoterService.setTupleFilters(calculateTupleFilter(warmupDemoterData));
-            warmupDemoterService.setForceDeleteDeadObjects(warmupDemoterData.isForceExecuteDeadObjects());
-            warmupDemoterService.setForceDeleteFailedObjects(warmupDemoterData.isForceDeleteFailedObjects());
-            warmupDemoterService.setResetHighestPriority(warmupDemoterData.isResetHighestPriority());
-            warmupDemoterService.setEnableDemote(warmupDemoterData.isEnableDemoteFeature());
+            warmupDemoterConfig.setForceDeleteDeadObjects(warmupDemoterData.isForceExecuteDeadObjects());
+            warmupDemoterConfig.setForceDeleteFailedObjects(warmupDemoterData.isForceDeleteFailedObjects());
+            warmupDemoterConfig.setResetHighestPriority(warmupDemoterData.isResetHighestPriority());
+            warmupDemoterConfig.setEnableDemote(warmupDemoterData.isEnableDemoteFeature());
         }
         logger.debug("%s, modifyConfigIfRequired: current config = batchSize=%d, maxUsageThresholdPercentage=%f, cleanupUsageThresholdPercentage=%f, enableDemoteFeature=%b",
                 catalogName,

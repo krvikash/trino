@@ -34,6 +34,7 @@ import io.trino.plugin.warp.extension.execution.debugtools.dictionary.Dictionary
 import io.trino.plugin.warp.extension.execution.warmup.WarmupTask;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.spi.QueryId;
@@ -54,6 +55,7 @@ import org.junit.jupiter.api.TestInfo;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -63,6 +65,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -551,7 +554,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     protected void warmAndValidateLazyDemote(String query, boolean lazyWarmup)
     {
         Session jmxSession = createJmxSession();
-        String jmxTable = "warmupDemoter";
+        String jmxTable = WarmupDemoterStats.createKey();
         MaterializedRow before = getServiceStats(jmxSession, jmxTable, DEMOTE_JMX_NAMES);
         warmAndValidate(query, lazyWarmup, "warm_finished", 1);
 
@@ -561,25 +564,68 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     protected void validateDemoter(int expectedDeadObjects)
             throws IOException
     {
-        logger.debug("DEMOTER ######");
-        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder().maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
+        validateDemoter(new DemoteInput(catalog, expectedDeadObjects, 0));
+    }
+
+    protected void validateDemoter(DemoteInput... demoteInputs)
+            throws IOException
+    {
+        Session jmxSession = createJmxSession();
+
+        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
+                .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                 .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                 .executeDemoter(true)
                 .modifyConfig(true)
                 .resetHighestPriority(true)
                 .forceDeleteFailedObjects(true)
                 .build();
+
         restDemoteConfigToDefaults();
-        Session jmxSession = createJmxSession();
-        String jmxTable = "warmupDemoter";
-        List<String> deadObjectsDeleted = List.of("dead_objects_deleted");
-        MaterializedRow before = getServiceStats(jmxSession, jmxTable, deadObjectsDeleted);
-        executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData, HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        //String actualKey = result.substring(2, result.indexOf(":")) + ":" + jmxTable + ":" + deadObjectsDeleted;
+
+        List<String> demoteColumns = List.of("dead_objects_deleted", "deleted_by_low_priority");
+
+        Map<String, DemoteInput> demoteInputsBefore = Arrays.stream(demoteInputs).map(demoteInput -> {
+            String jmxTable = "%s:*name=%s_%s*,type=%s".formatted(
+                    WarmupDemoterStats.class.getPackageName(),
+                    WarmupDemoterStats.createKey(),
+                    demoteInput.catalog(),
+                    WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT));
+            MaterializedRow materializedRow = getServiceStats(jmxSession, jmxTable, demoteColumns);
+            return new DemoteInput(demoteInput.catalog(), (Long) materializedRow.getField(0), (Long) materializedRow.getField(1));
+        }).collect(Collectors.toMap(DemoteInput::catalog, Function.identity()));
+
+        executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH,
+                WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME,
+                warmupDemoterData,
+                HttpMethod.POST,
+                HttpURLConnection.HTTP_OK);
+
         runWithRetries(() -> {
-            MaterializedRow after = getServiceStats(jmxSession, jmxTable, deadObjectsDeleted);
-            long actualDeadObjectCount = (Long) after.getField(0) - (Long) before.getField(0);
-            assertThat(actualDeadObjectCount).isEqualTo(expectedDeadObjects);
+            Map<String, DemoteInput> demoteInputsAfter = Arrays.stream(demoteInputs)
+                    .map(demoteInput -> {
+                        String jmxTable = "%s:*name=%s_%s*,type=%s".formatted(
+                                WarmupDemoterStats.class.getPackageName(),
+                                WarmupDemoterStats.createKey(),
+                                demoteInput.catalog(),
+                                WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT));
+                        MaterializedRow materializedRow = getServiceStats(jmxSession, jmxTable, demoteColumns);
+                        return new DemoteInput(demoteInput.catalog(), (Long) materializedRow.getField(0), (Long) materializedRow.getField(1));
+                    }).collect(Collectors.toMap(DemoteInput::catalog, Function.identity()));
+
+            Arrays.stream(demoteInputs).forEach(demoteInput -> {
+                String catalog = demoteInput.catalog();
+                DemoteInput demoteInputBefore = demoteInputsBefore.get(catalog);
+                DemoteInput demoteInputAfter = demoteInputsAfter.get(catalog);
+                long actualDeadObjectCount = demoteInputAfter.deadObjects() - demoteInputBefore.deadObjects();
+                long actualDeletedByLowPriority = demoteInputAfter.deletedByLowPriority() - demoteInputBefore.deletedByLowPriority();
+                assertThat(actualDeadObjectCount)
+                        .describedAs(catalog + " -> DeadObjects")
+                        .isEqualTo(demoteInput.deadObjects());
+                assertThat(actualDeletedByLowPriority)
+                        .describedAs(catalog + " -> DeletedByLowPriority")
+                        .isEqualTo(demoteInput.deletedByLowPriority());
+            });
         });
     }
 
@@ -588,7 +634,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     {
         restDemoteConfigToDefaults();
         Session jmxSession = createJmxSession();
-        String jmxTable = "warmupDemoter";
+        String jmxTable = WarmupDemoterStats.createKey();
         MaterializedRow before = getServiceStats(jmxSession, jmxTable, DEMOTE_JMX_NAMES);
 
         String result = executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData, HttpMethod.POST, HttpURLConnection.HTTP_OK);
@@ -719,4 +765,6 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 "external_collect_columns", 1L);
         validateQueryStats(noPushDownQuery, session, expectedNoPushDownQueryStats);
     }
+
+    public record DemoteInput(String catalog, long deadObjects, long deletedByLowPriority) {}
 }

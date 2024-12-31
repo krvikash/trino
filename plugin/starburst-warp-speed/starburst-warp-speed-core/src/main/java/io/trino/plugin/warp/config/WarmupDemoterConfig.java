@@ -19,9 +19,11 @@ import java.time.Duration;
 
 public class WarmupDemoterConfig
 {
+    public static final int MAX_SUPPORTED_BATCH_SIZE = 100;
+
     private double maxUsageThresholdPercentage = 90;
     private double cleanupUsageThresholdPercentage = 85;
-    private int batchSize = 100;
+    private int batchSize = MAX_SUPPORTED_BATCH_SIZE;
     private int defaultRulePriority;
     private int warmingPriorityAllowThreshold = 2;
     private long maxElementsToDemoteInIteration = 100;
@@ -30,7 +32,11 @@ public class WarmupDemoterConfig
     private Duration maxDurationAcquireThread = Duration.ofSeconds(200);
     private int maxRetriesAcquireThread = 300;
     private int tasksExecutorQueueSize = 200_000;
-    private boolean enableDemote = true;
+    private boolean isEnableDemote = true;
+    private boolean isForceDeleteDeadObjects;
+    private boolean isForceDeleteFailedObjects;
+    private boolean isResetHighestPriority;
+    private boolean isDeleteEmptyRowGroups;
 
     public double getMaxUsageThresholdPercentage()
     {
@@ -155,13 +161,53 @@ public class WarmupDemoterConfig
 
     public boolean isEnableDemote()
     {
-        return enableDemote;
+        return isEnableDemote;
     }
 
     @Config("warp-speed.enable.demote")
     public void setEnableDemote(boolean enableDemote)
     {
-        this.enableDemote = enableDemote;
+        this.isEnableDemote = enableDemote;
+    }
+
+    public boolean isForceDeleteDeadObjects()
+    {
+        return isForceDeleteDeadObjects;
+    }
+
+    public void setForceDeleteDeadObjects(boolean forceDeleteDeadObjects)
+    {
+        isForceDeleteDeadObjects = forceDeleteDeadObjects;
+    }
+
+    public boolean isForceDeleteFailedObjects()
+    {
+        return isForceDeleteFailedObjects;
+    }
+
+    public void setForceDeleteFailedObjects(boolean forceDeleteFailedObjects)
+    {
+        isForceDeleteFailedObjects = forceDeleteFailedObjects;
+    }
+
+    public boolean isResetHighestPriority()
+    {
+        return isResetHighestPriority;
+    }
+
+    public void setResetHighestPriority(boolean resetHighestPriority)
+    {
+        isResetHighestPriority = resetHighestPriority;
+    }
+
+    public boolean isDeleteEmptyRowGroups()
+    {
+        return isDeleteEmptyRowGroups;
+    }
+
+    public void setDeleteEmptyRowGroups(boolean deleteEmptyRowGroups)
+    {
+        isDeleteEmptyRowGroups = deleteEmptyRowGroups;
     }
 
     @Override
@@ -176,7 +222,7 @@ public class WarmupDemoterConfig
                 ", maxElementsToDemoteInIteration=" + maxElementsToDemoteInIteration +
                 ", epsilon=" + epsilon +
                 ", tasksExecutorQueueSize=" + tasksExecutorQueueSize +
-                ", enableDemote=" + enableDemote +
+                ", enableDemote=" + isEnableDemote +
                 '}';
     }
 }
