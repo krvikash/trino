@@ -114,7 +114,7 @@ public class StorageCollectorService
                             collectParams.getDictionaryKey(),
                             collectParams.getUsedDictionarySize(),
                             collectParams.getDataValuesRecTypeCode(),
-                            collectParams.getRecTypeLength(),
+                            collectParams.getDataValuesRecTypeLength(),
                             collectParams.getDictionaryOffset(),
                             queryParams.getFilePath()));
                     dictionaryStats.incdictionary_read_elements_count();
