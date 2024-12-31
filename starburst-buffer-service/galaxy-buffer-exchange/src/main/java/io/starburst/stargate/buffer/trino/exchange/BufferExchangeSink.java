@@ -102,7 +102,7 @@ public class BufferExchangeSink
     private final DistributionMetricBuilder handleUpdatesDurationMetric = metricsBuilder.getDistributionMetric("BufferExchangeSink.handleUpdatesDuration");
     private final DistributionMetricBuilder addDataPagesProcessingTimeMetric = metricsBuilder.getDistributionMetric("BufferExchangeSink.addDataPagesProcessingTime");
     private final DistributionMetricBuilder addDataPagesSuccessRequestTimeMetric = metricsBuilder.getDistributionMetric("BufferExchangeSink.addDataPagesSuccessRequestTime");
-    private final CounterMetricBuilder addDataPagesRetryCountMetric = metricsBuilder.getCounterMetric("BufferExchangeSource.addDataPagesRetryCount");
+    private final CounterMetricBuilder addDataPagesRetryCountMetric = metricsBuilder.getCounterMetric("BufferExchangeSink.addDataPagesRetryCount");
     private final DistributionMetricBuilder addDataPagesRateLimitDelayMetric = metricsBuilder.getDistributionMetric("BufferExchangeSink.addDataPagesRateLimitDelay");
 
     public BufferExchangeSink(
