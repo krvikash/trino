@@ -165,6 +165,12 @@
             <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
             <scope>runtime</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.lucene</groupId>
+                    <artifactId>lucene-analysis-common</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
