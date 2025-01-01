@@ -90,10 +90,7 @@ public class DispatcherStatisticsProvider
 
     public Set<String> getColumnsNotFitForDictionary(SchemaTableName schemaTableName)
     {
-        if (schemaTableName != null) {
-            return notFitForDictionary.get(schemaTableName);
-        }
-        return null;
+        return notFitForDictionary.get(schemaTableName);
     }
 
     public Set<String> putColumnsNotFitForDictionary(SchemaTableName schemaTableName,

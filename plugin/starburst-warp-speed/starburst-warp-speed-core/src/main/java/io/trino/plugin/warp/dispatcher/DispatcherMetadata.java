@@ -1432,6 +1432,10 @@ public class DispatcherMetadata
                                                       ConnectorSession session,
                                                       ConnectorTableHandle proxiedConnectorTableHandle)
     {
+        if (schemaTableName == null) {
+            return Set.of();
+        }
+
         Set<String> columnsNotFitForDictionary = dispatcherStatisticsProvider.getColumnsNotFitForDictionary(schemaTableName);
 
         if (columnsNotFitForDictionary != null) {
