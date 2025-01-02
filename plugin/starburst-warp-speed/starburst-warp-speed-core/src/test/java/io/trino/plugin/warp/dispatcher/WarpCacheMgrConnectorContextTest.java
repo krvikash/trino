@@ -30,7 +30,6 @@ public class WarpCacheMgrConnectorContextTest
                 WarpCacheMgrConnectorContext.class,
                 Set.of(
                         ConnectorContext.class.getMethod("getTracer"),
-                        ConnectorContext.class.getMethod("getCatalogHandle"),
                         ConnectorContext.class.getMethod("getSpiVersion"),
                         ConnectorContext.class.getMethod("getVersionEmbedder"),
                         ConnectorContext.class.getMethod("getMetadataProvider"),
