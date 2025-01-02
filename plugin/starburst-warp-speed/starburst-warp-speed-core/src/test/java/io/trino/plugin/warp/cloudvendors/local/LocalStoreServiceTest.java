@@ -140,6 +140,7 @@ public class LocalStoreServiceTest
         localStoreService.appendOnCloud(
                 dstFile.getAbsolutePath(),
                 srcFile,
+                new StorageObjectMetadata(),
                 2,
                 false,
                 () -> true);
@@ -160,6 +161,7 @@ public class LocalStoreServiceTest
 
         storageObjectMetadata.setContentLength(srcFile.length());
         storageObjectMetadata.setLastModified(srcFile.lastModified());
+        storageObjectMetadata.setETag(StorageObjectMetadata.ETAG_UNKNOWN);
         assertThat(localStoreService.getObjectMetadata(srcFile.getAbsolutePath()))
                 .isEqualTo(storageObjectMetadata);
     }

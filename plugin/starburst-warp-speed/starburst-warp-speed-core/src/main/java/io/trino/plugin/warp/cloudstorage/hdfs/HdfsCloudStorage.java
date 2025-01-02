@@ -19,6 +19,7 @@ import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoInputStream;
 import io.trino.filesystem.TrinoOutputFile;
+import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorageService;
 
 import java.io.File;
@@ -36,17 +37,17 @@ public class HdfsCloudStorage
     }
 
     @Override
-    public void uploadFile(Location source, Location target)
+    public CloudObjectMetadata uploadFile(Location source, Location target)
             throws IOException
     {
-        copyFile(source, target);
+        return copyFile(source, target);
     }
 
     @Override
-    public void downloadFile(Location source, Location target)
+    public CloudObjectMetadata downloadFile(Location source, Location target)
             throws IOException
     {
-        copyFile(source, target);
+        CloudObjectMetadata metadata = copyFile(source, target);
         // workaround for https://issues.apache.org/jira/browse/HADOOP-7199 - delete local crc file if exist
         String crcFileName = target.sibling("." + target.fileName() + ".crc").toString();
         File crcFile = new File(crcFileName);
@@ -55,14 +56,16 @@ public class HdfsCloudStorage
                 logger.error("downloadFile fail to delete crcFile %s", crcFileName);
             }
         }
+        return metadata;
     }
 
     @Override
-    public void copyFile(Location source, Location destination)
+    public CloudObjectMetadata copyFile(Location source, Location destination)
             throws IOException
     {
         TrinoInputFile inputFile = newInputFile(source);
         TrinoOutputFile outputFile = newOutputFile(destination);
+
         fileSystem.deleteFile(destination);
         try (TrinoInputStream inputStream = inputFile.newStream();
                 OutputStream outputStream = outputFile.create()) {
@@ -73,13 +76,17 @@ public class HdfsCloudStorage
                 outputStream.write(bytes, 0, length);
             }
         }
+
+        // ToDo: metadata
+        return new CloudObjectMetadata();
     }
 
     @Override
-    public void renameFile(Location source, Location target)
+    public CloudObjectMetadata renameFile(Location source, Location target)
             throws IOException
     {
-        copyFile(source, target);
+        CloudObjectMetadata metadata = copyFile(source, target);
         deleteFile(source);
+        return metadata;
     }
 }

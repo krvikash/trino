@@ -13,9 +13,11 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
@@ -35,6 +37,7 @@ import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
+import io.trino.plugin.warp.tools.util.CompressionUtil;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.connector.ConnectorSession;
 import org.apache.commons.io.FileUtils;
@@ -64,7 +67,7 @@ public class WeGroupWarmer
     private final RowGroupDataService rowGroupDataService;
     private final CloudVendorService cloudVendorService;
     private final NativeStorageStateHandler nativeStorageStateHandler;
-
+    private final ObjectMapper objectMapper;
     private final WarmupImportServiceStats warmupImportServiceStats;
 
     @Inject
@@ -74,8 +77,9 @@ public class WeGroupWarmer
             StorageEngineConstants storageEngineConstants,
             RowGroupDataService rowGroupDataService,
             @ForWarp CloudVendorService cloudVendorService,
-            MetricsManager metricsManager,
-            NativeStorageStateHandler nativeStorageStateHandler)
+            NativeStorageStateHandler nativeStorageStateHandler,
+            ObjectMapperProvider objectMapperProvider,
+            MetricsManager metricsManager)
     {
         this.globalConfig = requireNonNull(globalConfig);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
@@ -83,6 +87,7 @@ public class WeGroupWarmer
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
+        this.objectMapper = requireNonNull(objectMapperProvider).get();
 
         warmupImportServiceStats = metricsManager.registerMetric(new WarmupImportServiceStats());
         shapingLogger = ShapingLogger.getInstance(
@@ -126,7 +131,7 @@ public class WeGroupWarmer
         return new IsNeedDownloadResults(isNeedDownload, dataValidation);
     }
 
-    private boolean download(RowGroupKey rowGroupKey, String cloudPath, String localFileName)
+    private DownloadResults download(RowGroupKey rowGroupKey, String cloudPath, String localFileName)
     {
         warmupImportServiceStats.incimport_we_group_download_started();
         try {
@@ -136,18 +141,28 @@ public class WeGroupWarmer
             nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR);
             shapingLogger.warn(e,
                     "storage temporary disabled since failed to create directories for %s", localFileName);
-            return false;
+            return new DownloadResults();
         }
 
         try {
-            cloudVendorService.downloadFileFromCloud(cloudPath, new File(localFileName));
-            return true;
+            File localFile = new File(localFileName);
+            StorageObjectMetadata metadata = cloudVendorService.downloadFileFromCloud(cloudPath, localFile);
+
+            if (metadata.getContentLength().isPresent() && (localFile.length() != metadata.getContentLength().get())) {
+                warmupImportServiceStats.incimport_we_group_download_failed();
+                shapingLogger.error("failed to download weGroupFile rowGroupKey %s cloudPath '%s' localFile.length %d != metadata.contentLength %d",
+                        rowGroupKey, cloudPath, localFile.length(), metadata.getContentLength().get());
+                // delete localFile
+                FileUtils.deleteQuietly(localFile);
+                return new DownloadResults();
+            }
+            return new DownloadResults(true, new RowGroupDataValidation(metadata));
         }
         catch (Exception e) {
             warmupImportServiceStats.incimport_we_group_download_failed();
             shapingLogger.error("failed to download weGroupFile rowGroupKey %s cloudPath '%s' exception: %s cause: %s",
                     rowGroupKey, cloudPath, e, e.getCause());
-            return false;
+            return new DownloadResults();
         }
         finally {
             warmupImportServiceStats.incimport_we_group_download_accomplished();
@@ -279,13 +294,16 @@ public class WeGroupWarmer
 
             String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
             String localTmpFileName = localFileName + ".tmp";
-            if (!download(rowGroupKey, cloudPath, localTmpFileName)) {
+            DownloadResults downloadResults = download(rowGroupKey, cloudPath, localTmpFileName);
+
+            if (!downloadResults.isDownloadDone) {
                 warmupImportServiceStats.incimport_row_group_count_failed();
                 return Optional.empty();
             }
 
             // at this point lastModified must be present, if it's not it's a bug
-            RowGroupData rowGroupData = refreshRowGroupDataAfterImport(rowGroupKey, localTmpFileName, localFileName, isNeedDownloadResults.dataValidation);
+            RowGroupData rowGroupData = refreshRowGroupDataAfterImport(rowGroupKey, localTmpFileName, localFileName,
+                    downloadResults.dataValidation.isValid() ? downloadResults.dataValidation : isNeedDownloadResults.dataValidation);
             if (rowGroupData == null) {
                 warmupImportServiceStats.incimport_row_group_count_failed();
                 return Optional.empty();
@@ -305,7 +323,63 @@ public class WeGroupWarmer
         return new RowGroupDataValidation(storageObjectMetadata);
     }
 
-    private DownloadResults download(RowGroupData rowGroupData, WarmUpElement warmUpElement, String cloudPath, String localFileName)
+    private boolean validate(RowGroupData rowGroupData, String cloudPath)
+    {
+        RowGroupDataValidation dataValidation = getRowGroupDataValidation(cloudPath);
+
+        if (!rowGroupData.getDataValidation().equals(dataValidation)) {
+            shapingLogger.error("validate failed. cloud file changed. rowGroupKey %s dataValidation local %s != cloud %s",
+                    rowGroupData.getRowGroupKey(), rowGroupData.getDataValidation(), dataValidation);
+            return false;
+        }
+
+        long startOffset = (long) rowGroupData.getNextExportOffset() * storageEngineConstants.getPageSize();
+        int totalLength = Long.valueOf(dataValidation.fileContentLength() - startOffset).intValue();
+
+        try (InputStream inputStream = cloudVendorService.downloadRangeFromCloud(cloudPath, startOffset, totalLength)) {
+            byte[] buffer = new byte[totalLength];
+            int readBytes = inputStream.read(buffer);
+
+            if (readBytes != totalLength) {
+                shapingLogger.error("validate failed. read cloud footer failed. rowGroupKey %s", rowGroupData.getRowGroupKey());
+                return false;
+            }
+
+            String str = CompressionUtil.decompressGzip(buffer);
+            RowGroupData cloudRowGroupData = objectMapper.readerFor(RowGroupData.class).readValue(str);
+
+            List<WarmUpElement> warmUpElements = (List<WarmUpElement>) rowGroupData.getWarmUpElements();
+            List<WarmUpElement> cloudWarmUpElements = (List<WarmUpElement>) cloudRowGroupData.getWarmUpElements();
+
+            if (warmUpElements.size() != cloudWarmUpElements.size()) {
+                shapingLogger.error("validate failed. warmUpElements.size not equal. rowGroupKey %s local %d != cloud %d",
+                        rowGroupData.getRowGroupKey(), warmUpElements.size(), cloudWarmUpElements.size());
+                return false;
+            }
+
+            for (int i = 0; i < warmUpElements.size(); i++) {
+                WarmUpElement warmUpElement = warmUpElements.get(i);
+                WarmUpElement cloudWarmUpElement = cloudWarmUpElements.get(i);
+
+                if ((warmUpElement.getStartOffset() != cloudWarmUpElement.getStartOffset()) ||
+                        (warmUpElement.getEndOffset() != cloudWarmUpElement.getEndOffset())) {
+                    shapingLogger.error("validate failed. warmUpElement offsets not equal. rowGroupKey %s local %d-%d != cloud %d-%d",
+                            rowGroupData.getRowGroupKey(), warmUpElement.getStartOffset(), warmUpElement.getEndOffset(),
+                            cloudWarmUpElement.getStartOffset(), cloudWarmUpElement.getEndOffset());
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception e) {
+            shapingLogger.error("failed to download footer rowGroupKey %s cloudPath '%s' exception: %s cause: %s",
+                    rowGroupData.getRowGroupKey(), cloudPath, e, e.getCause());
+            return false;
+        }
+    }
+
+    private DownloadRangeResults download(RowGroupData rowGroupData, WarmUpElement warmUpElement, String cloudPath, String localFileName)
     {
         // 1st footer validation
         RowGroupDataValidation dataValidation = getRowGroupDataValidation(cloudPath);
@@ -353,7 +427,7 @@ public class WeGroupWarmer
             logger.debug("download (1st footer validation) rowGroupKey %s cloudPath '%s' local %s cloud %s",
                     rowGroupData.getRowGroupKey(), cloudPath, rowGroupData.getDataValidation(), dataValidation);
         }
-        return new DownloadResults(isValidationOk, isDownloadDone);
+        return new DownloadRangeResults(isValidationOk, isDownloadDone);
     }
 
     public Optional<RowGroupData> importWarmUpElements(ConnectorSession session, RowGroupKey rowGroupKey, List<WarmUpElement> warmWarmUpElements)
@@ -371,11 +445,16 @@ public class WeGroupWarmer
             rowGroupData.getLock().writeLock();
             locked = true;
 
+            if (!validate(rowGroupData, cloudPath)) {
+                rowGroupDataService.deleteData(rowGroupData, true);
+                return Optional.empty();
+            }
+
             List<WarmUpElement> warmUpElements = new ArrayList<>(rowGroupData.getWarmUpElements());
             boolean isDownloadDone = false;
 
             for (WarmUpElement warmWarmUpElement : warmWarmUpElements) {
-                DownloadResults downloadResults = download(rowGroupData, warmWarmUpElement, cloudPath, localFileName);
+                DownloadRangeResults downloadResults = download(rowGroupData, warmWarmUpElement, cloudPath, localFileName);
 
                 if (!downloadResults.isValidationOk) {
                     rowGroupDataService.deleteData(rowGroupData, true);
@@ -419,7 +498,15 @@ public class WeGroupWarmer
     {
     }
 
-    private record DownloadResults(boolean isValidationOk, boolean isDownloadDone)
+    private record DownloadResults(boolean isDownloadDone, RowGroupDataValidation dataValidation)
+    {
+        public DownloadResults()
+        {
+            this(false, RowGroupDataValidation.EMPTY_VALIDATION);
+        }
+    }
+
+    private record DownloadRangeResults(boolean isValidationOk, boolean isDownloadDone)
     {
     }
 }

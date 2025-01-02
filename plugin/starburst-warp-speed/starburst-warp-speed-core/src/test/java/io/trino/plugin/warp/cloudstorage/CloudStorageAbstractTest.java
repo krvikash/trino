@@ -58,7 +58,7 @@ public abstract class CloudStorageAbstractTest
     void test_uploadFile()
             throws IOException
     {
-        File localFile = createTempFile("CloudStorageUploadFile", 5 * MB);
+        File localFile = createTempFile("CloudStorageUploadFile", 25 * MB);
         Location source = Location.of(localFile.getPath());
         Location target = Location.of(getBucket() + "dir/path/key/" + localFile.getName());
 
@@ -76,7 +76,7 @@ public abstract class CloudStorageAbstractTest
     void test_downloadFile()
             throws IOException
     {
-        File localFile = createTempFile("CloudStorageDownloadFile", 5 * MB);
+        File localFile = createTempFile("CloudStorageDownloadFile", 25 * MB);
         Location local = Location.of(localFile.getPath());
         Location source = Location.of(getBucket() + "dir/path/key/" + localFile.getName());
         cloudStorage.uploadFile(local, source);
@@ -97,7 +97,7 @@ public abstract class CloudStorageAbstractTest
     void test_copyFile()
             throws IOException
     {
-        File localFile = createTempFile("CloudStorageCopyFile", 5 * MB);
+        File localFile = createTempFile("CloudStorageCopyFile", 25 * MB);
         Location local = Location.of(localFile.getPath());
         Location source = Location.of(getBucket() + "dir/path/key/" + localFile.getName());
         cloudStorage.uploadFile(local, source);
@@ -122,17 +122,17 @@ public abstract class CloudStorageAbstractTest
     void test_copyFileReplaceTail()
             throws IOException
     {
-        File localFile = createTempFile("CloudStorageCopyReplaceTailFile", 8 * MB);
+        File localFile = createTempFile("CloudStorageCopyReplaceTailFile", 18 * MB);
         Location local = Location.of(localFile.getPath());
         Location source = Location.of(getBucket() + "dir/path/key/" + localFile.getName());
         cloudStorage.uploadFile(local, source);
 
         Location destination = source.sibling("CloudStorageCopiedReplacedTailFile.temp");
-        long position = 7 * MB;
+        long position = 17 * MB;
         byte[] buffer = new byte[2 * MB];
         new Random().nextBytes(buffer);
 
-        cloudStorage.copyFileReplaceTail(source, destination, position, buffer);
+        cloudStorage.copyFileReplaceTail(source, destination, new CloudObjectMetadata(), position, buffer);
 
         TrinoInputFile sourceFile = cloudStorage.newInputFile(source);
         Assertions.assertTrue(sourceFile.exists());
@@ -140,7 +140,7 @@ public abstract class CloudStorageAbstractTest
 
         TrinoInputFile destinationFile = cloudStorage.newInputFile(destination);
         Assertions.assertTrue(destinationFile.exists());
-        Assertions.assertEquals(9 * MB, destinationFile.length());
+        Assertions.assertEquals(19 * MB, destinationFile.length());
 
         boolean unused = localFile.delete();
         cloudStorage.deleteFile(source);
@@ -151,7 +151,7 @@ public abstract class CloudStorageAbstractTest
     void test_renameFile()
             throws IOException
     {
-        File localFile = createTempFile("CloudStorageRenameFile", 5 * MB);
+        File localFile = createTempFile("CloudStorageRenameFile", 15 * MB);
         Location local = Location.of(localFile.getPath());
         Location source = Location.of(getBucket() + "dir/path/key/" + localFile.getName());
         cloudStorage.uploadFile(local, source);

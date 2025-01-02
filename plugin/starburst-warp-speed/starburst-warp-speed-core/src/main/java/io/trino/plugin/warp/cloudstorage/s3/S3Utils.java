@@ -24,24 +24,31 @@ final class S3Utils
     {
     }
 
-    public static IOException handleAwsException(Throwable throwable, String action, S3Location location)
-            throws IOException
+    public static AwsServiceException getAwsServiceException(Throwable throwable)
     {
-        Throwable initialThrowable = throwable;
         AwsServiceException exception = null;
+
         while (throwable != null) {
             if (throwable instanceof AwsServiceException) {
                 exception = (AwsServiceException) throwable;
             }
             throwable = throwable.getCause();
         }
+        return exception;
+    }
+
+    public static IOException handleAwsException(Throwable throwable, String action, S3Location location)
+            throws IOException
+    {
+        AwsServiceException exception = getAwsServiceException(throwable);
+
         if (exception != null) {
             if (exception.statusCode() == 404) {
                 throw withCause(new FileNotFoundException(location.toString()), exception);
             }
             throw new IOException("AWS service error %s file: %s".formatted(action, location), exception);
         }
-        throw new IOException("Error %s file: %s".formatted(action, location), initialThrowable);
+        throw new IOException("Error %s file: %s".formatted(action, location), throwable);
     }
 
     private static <T extends Throwable> T withCause(T throwable, Throwable cause)

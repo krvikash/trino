@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.export;
 
+import io.trino.plugin.warp.cloudvendors.CloudVendorResult;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 import io.trino.plugin.warp.config.GlobalConfig;
@@ -80,7 +81,7 @@ public class WarmupElementsCloudExporterTest
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
 
-        when(cloudVendorService.uploadFileToCloud(anyString(), any(File.class), any())).thenReturn(true);
+        when(cloudVendorService.uploadFileToCloud(anyString(), any(File.class), any())).thenReturn(new CloudVendorResult(true, storageObjectMetadata));
 
         WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
@@ -125,7 +126,7 @@ public class WarmupElementsCloudExporterTest
 
         String cloudImportExportPath = "bucket-test/path-test/file_name_test";
 
-        when(cloudVendorService.uploadFileToCloud(anyString(), any(File.class), any())).thenReturn(true);
+        when(cloudVendorService.uploadFileToCloud(anyString(), any(File.class), any())).thenReturn(new CloudVendorResult(true, storageObjectMetadata));
 
         WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
@@ -140,7 +141,7 @@ public class WarmupElementsCloudExporterTest
 
         RowGroupData rowGroupData = mock(RowGroupData.class);
         when(rowGroupData.getRowGroupKey()).thenReturn(rowGroupKey);
-        when(rowGroupData.getDataValidation()).thenReturn(new RowGroupDataValidation(0, 0));
+        when(rowGroupData.getDataValidation()).thenReturn(RowGroupDataValidation.EMPTY_VALIDATION);
 
         String cloudImportExportPath = "bucket-test/path-test/file_name_test";
 
@@ -148,6 +149,8 @@ public class WarmupElementsCloudExporterTest
         storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
         storageObjectMetadata.setContentLength(123456789);
         when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
+
+        when(cloudVendorService.uploadFileToCloud(anyString(), any(File.class), any())).thenReturn(new CloudVendorResult(false, storageObjectMetadata));
 
         WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
@@ -173,7 +176,7 @@ public class WarmupElementsCloudExporterTest
 
         String cloudImportExportPath = "bucket-test/path-test/file_name_test";
 
-        when(cloudVendorService.uploadFileToCloud(anyString(), any(File.class), any())).thenReturn(false);
+        when(cloudVendorService.uploadFileToCloud(anyString(), any(File.class), any())).thenReturn(new CloudVendorResult(false, storageObjectMetadata));
 
         WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);

@@ -52,11 +52,12 @@ public abstract class CloudStorageService
     }
 
     @Override
-    public void copyFileReplaceTail(Location source, Location destination, long position, byte[] tailBuffer)
+    public boolean copyFileReplaceTail(Location source, Location destination, CloudObjectMetadata metadata, long position, byte[] tailBuffer)
             throws IOException
     {
         TrinoInputFile inputFile = newInputFile(source);
         TrinoOutputFile outputFile = newOutputFile(destination);
+
         fileSystem.deleteFile(destination);
         try (TrinoInputStream inputStream = inputFile.newStream();
                 OutputStream outputStream = outputFile.create()) {
@@ -71,6 +72,7 @@ public abstract class CloudStorageService
             }
             outputStream.write(tailBuffer);
         }
+        return true;
     }
 
     @Override
@@ -81,10 +83,13 @@ public abstract class CloudStorageService
     }
 
     @Override
-    public void renameFile(Location source, Location target)
+    public CloudObjectMetadata renameFile(Location source, Location target)
             throws IOException
     {
         fileSystem.renameFile(source, target);
+
+        // ToDo: metadata
+        return new CloudObjectMetadata();
     }
 
     @Override

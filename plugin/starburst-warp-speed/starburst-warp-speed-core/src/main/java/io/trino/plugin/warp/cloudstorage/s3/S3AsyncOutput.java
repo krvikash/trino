@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.cloudstorage.s3;
 
 import io.trino.filesystem.Location;
+import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
@@ -47,6 +48,7 @@ final class S3AsyncOutput
     private final S3AsyncClient client;
     private final S3Location source;
     private final S3Location destination;
+    private final CloudObjectMetadata metadata;
 
     private boolean closed;
     private boolean failed;
@@ -54,13 +56,14 @@ final class S3AsyncOutput
     private int partNumber;
     private final List<CompletedPart> parts = new ArrayList<>();
 
-    public S3AsyncOutput(S3AsyncClient client, Location source, Location destination)
+    public S3AsyncOutput(S3AsyncClient client, Location source, Location destination, CloudObjectMetadata metadata)
     {
         this.client = requireNonNull(client, "client is null");
         source.verifyValidFileLocation();
         this.source = new S3Location(source);
         destination.verifyValidFileLocation();
         this.destination = new S3Location(destination);
+        this.metadata = metadata;
     }
 
     public void writeTail(long position, byte[] buffer)
@@ -77,7 +80,7 @@ final class S3AsyncOutput
             throw new IOException("Negative seek offset");
         }
         if (position > 0 && position < MIN_PART_SIZE) {
-            throw new IOException("S3 does not support partSize less than 5 GiB");
+            throw new IOException("S3 does not support partSize less than 5 MiB");
         }
         checkFromIndexSize(offset, length, buffer.length);
         if (length == 0) {
@@ -137,18 +140,19 @@ final class S3AsyncOutput
     private CompletedPart uploadPartCopy(long offset, long length)
             throws IOException
     {
-        UploadPartCopyRequest request = UploadPartCopyRequest.builder()
+        UploadPartCopyRequest.Builder request = UploadPartCopyRequest.builder()
                 .sourceBucket(source.bucket())
                 .sourceKey(source.key())
                 .copySourceRange("bytes=%d-%d".formatted(offset, offset + length - 1))
                 .destinationBucket(destination.bucket())
                 .destinationKey(destination.key())
                 .uploadId(uploadId)
-                .partNumber(partNumber)
-                .build();
+                .partNumber(partNumber);
+        metadata.getETag().ifPresent(request::copySourceIfMatch);
+        metadata.getLastModified().ifPresent(request::copySourceIfUnmodifiedSince);
 
         try {
-            UploadPartCopyResponse response = client.uploadPartCopy(request).join();
+            UploadPartCopyResponse response = client.uploadPartCopy(request.build()).join();
 
             return CompletedPart.builder()
                     .partNumber(partNumber)

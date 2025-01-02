@@ -19,10 +19,12 @@ import com.azure.core.util.TracingOptions;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
+import com.azure.storage.blob.models.BlobProperties;
 import com.azure.storage.common.Utility;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.azure.AzureAuth;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
+import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorageService;
 
 import java.io.IOException;
@@ -49,7 +51,7 @@ public class AzureCloudStorage
     }
 
     @Override
-    public void uploadFile(Location source, Location target)
+    public CloudObjectMetadata uploadFile(Location source, Location target)
             throws IOException
     {
         target.verifyValidFileLocation();
@@ -59,6 +61,11 @@ public class AzureCloudStorage
 
         try {
             client.uploadFromFile(source.toString(), true);
+            BlobProperties blobProperties = client.getProperties();
+
+            return new CloudObjectMetadata(blobProperties.getETag(),
+                    blobProperties.getLastModified().toInstant(),
+                    blobProperties.getBlobSize());
         }
         catch (RuntimeException e) {
             throw handleAzureException(e, "upload file", destinationLocation);
@@ -66,7 +73,7 @@ public class AzureCloudStorage
     }
 
     @Override
-    public void downloadFile(Location source, Location target)
+    public CloudObjectMetadata downloadFile(Location source, Location target)
             throws IOException
     {
         source.verifyValidFileLocation();
@@ -75,7 +82,11 @@ public class AzureCloudStorage
         BlobClient client = createBlobClient(sourceLocation);
 
         try {
-            client.downloadToFile(target.toString());
+            BlobProperties blobProperties = client.downloadToFile(target.toString());
+
+            return new CloudObjectMetadata(blobProperties.getETag(),
+                    blobProperties.getLastModified().toInstant(),
+                    blobProperties.getBlobSize());
         }
         catch (RuntimeException e) {
             throw handleAzureException(e, "download file", sourceLocation);
@@ -83,7 +94,7 @@ public class AzureCloudStorage
     }
 
     @Override
-    public void copyFile(Location source, Location destination)
+    public CloudObjectMetadata copyFile(Location source, Location destination)
             throws IOException
     {
         source.verifyValidFileLocation();
@@ -101,6 +112,11 @@ public class AzureCloudStorage
 
         try {
             targetClient.copyFromUrl(sourceClient.getBlobUrl());
+            BlobProperties blobProperties = targetClient.getProperties();
+
+            return new CloudObjectMetadata(blobProperties.getETag(),
+                    blobProperties.getLastModified().toInstant(),
+                    blobProperties.getBlobSize());
         }
         catch (RuntimeException e) {
             throw handleAzureException(e, "copy file", sourceLocation);

@@ -60,31 +60,31 @@ public class SwitchingCloudStorage
     }
 
     @Override
-    public void uploadFile(Location source, Location target)
+    public CloudObjectMetadata uploadFile(Location source, Location target)
             throws IOException
     {
-        cloudStorage(target).uploadFile(source, target);
+        return cloudStorage(target).uploadFile(source, target);
     }
 
     @Override
-    public void downloadFile(Location source, Location target)
+    public CloudObjectMetadata downloadFile(Location source, Location target)
             throws IOException
     {
-        cloudStorage(source).downloadFile(source, target);
+        return cloudStorage(source).downloadFile(source, target);
     }
 
     @Override
-    public void copyFile(Location source, Location destination)
+    public CloudObjectMetadata copyFile(Location source, Location destination)
             throws IOException
     {
-        cloudStorage(source).copyFile(source, destination);
+        return cloudStorage(source).copyFile(source, destination);
     }
 
     @Override
-    public void copyFileReplaceTail(Location source, Location destination, long position, byte[] tailBuffer)
+    public boolean copyFileReplaceTail(Location source, Location destination, CloudObjectMetadata metadata, long position, byte[] tailBuffer)
             throws IOException
     {
-        cloudStorage(source).copyFileReplaceTail(source, destination, position, tailBuffer);
+        return cloudStorage(source).copyFileReplaceTail(source, destination, metadata, position, tailBuffer);
     }
 
     @Override
@@ -95,10 +95,10 @@ public class SwitchingCloudStorage
     }
 
     @Override
-    public void renameFile(Location source, Location target)
+    public CloudObjectMetadata renameFile(Location source, Location target)
             throws IOException
     {
-        cloudStorage(source).renameFile(source, target);
+        return cloudStorage(source).renameFile(source, target);
     }
 
     @Override

@@ -88,7 +88,7 @@ public abstract class CloudVendorService
 
     public abstract void uploadFileToCloud(String localInputPath, String outputPath);
 
-    public abstract boolean uploadFileToCloud(String path, File file, Callable<Boolean> validateBeforeDo);
+    public abstract CloudVendorResult uploadFileToCloud(String path, File file, Callable<Boolean> validateBeforeDo);
 
     public abstract Optional<String> downloadCompressedFromCloud(
             String path,
@@ -97,9 +97,10 @@ public abstract class CloudVendorService
 
     public abstract InputStream downloadRangeFromCloud(String path, long startOffset, int length);
 
-    public abstract void downloadFileFromCloud(String path, File file);
+    public abstract StorageObjectMetadata downloadFileFromCloud(String path, File file);
 
-    public abstract boolean appendOnCloud(String path, File file, long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo);
+    public abstract CloudVendorResult appendOnCloud(String path, File file, StorageObjectMetadata metadata,
+                                                    long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo);
 
     public List<String> listPath(String path)
     {
@@ -127,7 +128,7 @@ public abstract class CloudVendorService
         }
     }
 
-    public boolean appendOnLocal(String path, File file, long startOffset, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult appendOnLocal(String path, File file, long startOffset, Callable<Boolean> validateBeforeDo)
     {
         File destFile = new File(file.getPath() + getTempFileSuffix());
 
@@ -135,9 +136,10 @@ public abstract class CloudVendorService
                 file, file.length(), startOffset, path, destFile);
         downloadFileFromCloud(path, destFile);
         append(file, destFile, startOffset);
-        boolean isUploadDone = uploadFileToCloud(path, destFile, validateBeforeDo);
+
+        CloudVendorResult results = uploadFileToCloud(path, destFile, validateBeforeDo);
         FileUtils.deleteQuietly(destFile);
-        return isUploadDone;
+        return results;
     }
 
     public abstract boolean directoryExists(String path);

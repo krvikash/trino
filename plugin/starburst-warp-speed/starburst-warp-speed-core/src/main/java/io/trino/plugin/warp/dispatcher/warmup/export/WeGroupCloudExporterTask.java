@@ -139,8 +139,8 @@ public class WeGroupCloudExporterTask
             WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                     warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
             if (exportFileResults.isExportDone()) {
-                logger.debug("exported rowGroupKey %s next-offset %d next-export-offset %d",
-                        rowGroupKey, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset());
+                logger.debug("exported rowGroupKey %s next-offset %d next-export-offset %d dataValidation %s",
+                        rowGroupKey, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset(), exportFileResults.dataValidation());
                 // update row group with new export state
                 rowGroupDataService.save(RowGroupData.builder(rowGroupData)
                         .nextExportOffset(rowGroupData.getNextOffset())

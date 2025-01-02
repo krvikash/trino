@@ -15,6 +15,8 @@ package io.trino.plugin.warp.extension.execution.dump;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
@@ -52,7 +54,7 @@ public class RowGroupDataDumpTask
         this.rowGroupDataService = rowGroupDataService;
         SimpleModule simpleModule = new SimpleModule();
         simpleModule.addSerializer(Slice.class, new SliceSerializer());
-        objectMapper.registerModules(simpleModule);
+        objectMapper.registerModules(simpleModule, new Jdk8Module(), new JavaTimeModule());
     }
 
     @Audit

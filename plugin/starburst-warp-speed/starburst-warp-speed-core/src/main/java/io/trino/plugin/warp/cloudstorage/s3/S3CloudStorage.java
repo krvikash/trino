@@ -13,25 +13,32 @@
  */
 package io.trino.plugin.warp.cloudstorage.s3;
 
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
+import dev.failsafe.function.CheckedSupplier;
+import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.s3.S3FileSystemFactory;
+import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorageService;
-import software.amazon.awssdk.core.async.AsyncRequestBody;
-import software.amazon.awssdk.core.async.AsyncResponseTransformer;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.CopyObjectResult;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.Copy;
 import software.amazon.awssdk.transfer.s3.model.CopyRequest;
-import software.amazon.awssdk.transfer.s3.model.Download;
-import software.amazon.awssdk.transfer.s3.model.DownloadRequest;
-import software.amazon.awssdk.transfer.s3.model.Upload;
-import software.amazon.awssdk.transfer.s3.model.UploadRequest;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
+import software.amazon.awssdk.transfer.s3.model.FileDownload;
+import software.amazon.awssdk.transfer.s3.model.FileUpload;
+import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 
+import static io.trino.plugin.warp.cloudstorage.s3.S3Utils.getAwsServiceException;
 import static io.trino.plugin.warp.cloudstorage.s3.S3Utils.handleAwsException;
 import static java.util.Objects.requireNonNull;
 import static software.amazon.awssdk.services.s3.model.ServerSideEncryption.AES256;
@@ -39,6 +46,8 @@ import static software.amazon.awssdk.services.s3.model.ServerSideEncryption.AES2
 public class S3CloudStorage
         extends CloudStorageService
 {
+    private static final Logger logger = Logger.get(S3CloudStorage.class);
+
     private final S3AsyncClient client;
     private final S3TransferManager transferManager;
 
@@ -50,54 +59,59 @@ public class S3CloudStorage
     }
 
     @Override
-    public void uploadFile(Location source, Location target)
+    public CloudObjectMetadata uploadFile(Location source, Location target)
             throws IOException
     {
         target.verifyValidFileLocation();
 
         S3Location s3Location = new S3Location(target);
 
-        UploadRequest request = UploadRequest.builder()
+        UploadFileRequest request = UploadFileRequest.builder()
                 .putObjectRequest(req -> req.bucket(s3Location.bucket())
                         .key(s3Location.key())
                         .serverSideEncryption(AES256))
-                .requestBody(AsyncRequestBody.fromFile(new File(source.toString())))
+                .source(new File(source.toString()))
                 .build();
 
         try {
-            Upload upload = transferManager.upload(request);
-            upload.completionFuture().join();
+            return retry(() -> {
+                FileUpload upload = transferManager.uploadFile(request);
+                PutObjectResponse response = upload.completionFuture().join().response();
+                return new CloudObjectMetadata(response.eTag(), null, response.size());
+            }, "uploadFile failed [%s] => [%s]".formatted(source, target));
         }
-        catch (RuntimeException e) {
+        catch (Exception e) {
             throw handleAwsException(e, "upload failed", s3Location);
         }
     }
 
     @Override
-    public void downloadFile(Location source, Location target)
+    public CloudObjectMetadata downloadFile(Location source, Location target)
             throws IOException
     {
         source.verifyValidFileLocation();
 
         S3Location s3Location = new S3Location(source);
 
-        DownloadRequest<GetObjectResponse> request =
-                DownloadRequest.builder()
-                        .getObjectRequest(req -> req.bucket(s3Location.bucket()).key(s3Location.key()))
-                        .responseTransformer(AsyncResponseTransformer.toFile(new File(target.toString())))
-                        .build();
+        DownloadFileRequest request = DownloadFileRequest.builder()
+                .getObjectRequest(req -> req.bucket(s3Location.bucket()).key(s3Location.key()))
+                .destination(new File(target.toString()))
+                .build();
 
         try {
-            Download<GetObjectResponse> download = transferManager.download(request);
-            download.completionFuture().join();
+            return retry(() -> {
+                FileDownload download = transferManager.downloadFile(request);
+                GetObjectResponse response = download.completionFuture().join().response();
+                return new CloudObjectMetadata(response.eTag(), response.lastModified(), response.contentLength());
+            }, "downloadFile failed [%s] => [%s]".formatted(source, target));
         }
-        catch (RuntimeException e) {
+        catch (Exception e) {
             throw handleAwsException(e, "download failed", s3Location);
         }
     }
 
     @Override
-    public void copyFile(Location source, Location destination)
+    public CloudObjectMetadata copyFile(Location source, Location destination)
             throws IOException
     {
         source.verifyValidFileLocation();
@@ -116,7 +130,8 @@ public class S3CloudStorage
 
         try {
             Copy copy = transferManager.copy(request);
-            copy.completionFuture().join();
+            CopyObjectResult result = copy.completionFuture().join().response().copyObjectResult();
+            return new CloudObjectMetadata(result.eTag(), result.lastModified(), null);
         }
         catch (RuntimeException e) {
             throw handleAwsException(e, "copy failed", sourceLocation);
@@ -124,7 +139,7 @@ public class S3CloudStorage
     }
 
     @Override
-    public void copyFileReplaceTail(Location source, Location destination, long position, byte[] tailBuffer)
+    public boolean copyFileReplaceTail(Location source, Location destination, CloudObjectMetadata metadata, long position, byte[] tailBuffer)
             throws IOException
     {
         source.verifyValidFileLocation();
@@ -133,20 +148,28 @@ public class S3CloudStorage
         validateS3Location(source);
         validateS3Location(destination);
 
-        try (S3AsyncOutput output = new S3AsyncOutput(client, source, destination)) {
+        try (S3AsyncOutput output = new S3AsyncOutput(client, source, destination, metadata)) {
             output.writeTail(position, tailBuffer);
+            return true;
         }
         catch (IOException e) {
+            AwsServiceException exception = getAwsServiceException(e);
+            if ((exception != null) && (exception.statusCode() == 412)) {
+                logger.debug("copyFileReplaceTail [%s] => [%s] metadata %s position %d exception: %s",
+                        source, destination, metadata, position, e);
+                return false;
+            }
             throw new IOException("copyFileReplaceTail failed exception: %s cause: %s".formatted(e, e.getCause()), e);
         }
     }
 
     @Override
-    public void renameFile(Location source, Location target)
+    public CloudObjectMetadata renameFile(Location source, Location target)
             throws IOException
     {
-        copyFile(source, target);
+        CloudObjectMetadata metadata = copyFile(source, target);
         deleteFile(source);
+        return metadata;
     }
 
     @Override
@@ -165,5 +188,18 @@ public class S3CloudStorage
     private static void validateS3Location(Location location)
     {
         new S3Location(location);
+    }
+
+    private <T> T retry(CheckedSupplier<T> supplier, String message)
+    {
+        return Failsafe.with(RetryPolicy.builder()
+                        .withMaxRetries(3)
+                        .handleIf(throwable -> {
+                            AwsServiceException exception = getAwsServiceException(throwable);
+                            return ((exception != null) && (exception.statusCode() == 412));
+                        })
+                        .onRetry(event -> logger.debug("onRetry %s %s", message, event))
+                        .build())
+                .get(supplier);
     }
 }

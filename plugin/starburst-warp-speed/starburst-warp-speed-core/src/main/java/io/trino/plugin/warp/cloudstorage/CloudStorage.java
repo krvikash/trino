@@ -28,22 +28,22 @@ public interface CloudStorage
 
     TrinoOutputFile newOutputFile(Location location);
 
-    void uploadFile(Location source, Location target)
+    CloudObjectMetadata uploadFile(Location source, Location target)
             throws IOException;
 
-    void downloadFile(Location source, Location target)
+    CloudObjectMetadata downloadFile(Location source, Location target)
             throws IOException;
 
-    void copyFile(Location source, Location destination)
+    CloudObjectMetadata copyFile(Location source, Location destination)
             throws IOException;
 
-    void copyFileReplaceTail(Location source, Location destination, long position, byte[] tailBuffer)
+    boolean copyFileReplaceTail(Location source, Location destination, CloudObjectMetadata metadata, long position, byte[] tailBuffer)
             throws IOException;
 
     void deleteFile(Location location)
             throws IOException;
 
-    void renameFile(Location source, Location target)
+    CloudObjectMetadata renameFile(Location source, Location target)
             throws IOException;
 
     FileIterator listFiles(Location location)

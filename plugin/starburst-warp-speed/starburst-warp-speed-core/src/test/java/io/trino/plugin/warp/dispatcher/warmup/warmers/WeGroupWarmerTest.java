@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.airlift.json.ObjectMapperProvider;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
@@ -29,6 +31,7 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.plugin.warp.tools.util.CompressionUtil;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -38,8 +41,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -48,6 +53,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -69,7 +75,9 @@ public class WeGroupWarmerTest
     private GlobalConfig globalConfig;
     private RowGroupDataService rowGroupDataService;
     private CloudVendorService cloudVendorService;
+    private ObjectMapper objectMapper;
     private WarmupImportServiceStats warmupImportServiceStats;
+    private final Random random = new Random();
     private WeGroupWarmer weGroupWarmer;
 
     @BeforeAll
@@ -112,6 +120,9 @@ public class WeGroupWarmerTest
         cloudVendorService = mock(CloudVendorService.class);
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
 
+        ObjectMapperProvider objectMapperProvider = new ObjectMapperProvider();
+        objectMapper = objectMapperProvider.get();
+
         MetricsManager metricsManager = mock(MetricsManager.class);
         warmupImportServiceStats = WarmupImportServiceStats.create();
         when(metricsManager.registerMetric(any())).thenReturn(warmupImportServiceStats);
@@ -121,8 +132,9 @@ public class WeGroupWarmerTest
                 storageEngineConstants,
                 rowGroupDataService,
                 cloudVendorService,
-                metricsManager,
-                mock(NativeStorageStateHandler.class));
+                mock(NativeStorageStateHandler.class),
+                objectMapperProvider,
+                metricsManager);
     }
 
     @Test
@@ -137,7 +149,7 @@ public class WeGroupWarmerTest
         when(cloudVendorService.getObjectMetadata(eq(path))).thenReturn(storageObjectMetadata);
 
         RowGroupData rowGroupData = mock(RowGroupData.class);
-        when(rowGroupData.getDataValidation()).thenReturn(new RowGroupDataValidation(0, 0));
+        when(rowGroupData.getDataValidation()).thenReturn(RowGroupDataValidation.EMPTY_VALIDATION);
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
 
         WeGroupWarmer.IsNeedDownloadResults isNeedDownloadResults = weGroupWarmer.isNeedDownload(rowGroupKey, path);
@@ -204,7 +216,7 @@ public class WeGroupWarmerTest
         doThrow(new IllegalArgumentException("test-exception")).when(cloudVendorService).downloadFileFromCloud(anyString(), any(File.class));
 
         RowGroupData rowGroupData = mock(RowGroupData.class);
-        when(rowGroupData.getDataValidation()).thenReturn(new RowGroupDataValidation(0, 0));
+        when(rowGroupData.getDataValidation()).thenReturn(RowGroupDataValidation.EMPTY_VALIDATION);
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
@@ -219,7 +231,7 @@ public class WeGroupWarmerTest
     void test_importWeGroup_Exception2()
             throws IOException
     {
-        RowGroupKey rowGroupKey = new RowGroupKey("schema", "table", "s3://test-bucket/column_split_file", 0, 0L, 0, "", "");
+        RowGroupKey rowGroupKey = new RowGroupKey("schema-0", "table-0", "s3://test-bucket/column_split_file", 0, 0L, 0, "", "");
         String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File localFile = new File(localFileName);
         File localTmpFile = new File(localFileName + ".tmp");
@@ -230,8 +242,9 @@ public class WeGroupWarmerTest
 
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
-        storageObjectMetadata.setContentLength(123456789);
+        storageObjectMetadata.setContentLength(0);
         when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
+        when(cloudVendorService.downloadFileFromCloud(anyString(), any(File.class))).thenReturn(storageObjectMetadata);
 
         RowGroupData rowGroupData = RowGroupData.builder()
                 .rowGroupKey(rowGroupKey)
@@ -276,8 +289,9 @@ public class WeGroupWarmerTest
 
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
-        storageObjectMetadata.setContentLength(123456789);
+        storageObjectMetadata.setContentLength(0);
         when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
+        when(cloudVendorService.downloadFileFromCloud(anyString(), any(File.class))).thenReturn(storageObjectMetadata);
 
         RowGroupData rowGroupData = RowGroupData.builder()
                 .rowGroupKey(rowGroupKey)
@@ -321,8 +335,9 @@ public class WeGroupWarmerTest
 
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
-        storageObjectMetadata.setContentLength(123456789);
+        storageObjectMetadata.setContentLength(0);
         when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
+        when(cloudVendorService.downloadFileFromCloud(anyString(), any(File.class))).thenReturn(storageObjectMetadata);
 
         RowGroupData rowGroupData = RowGroupData.builder()
                 .rowGroupKey(rowGroupKey)
@@ -354,23 +369,21 @@ public class WeGroupWarmerTest
         unused = localTmpFile.delete();
     }
 
-    @Test
-    void test_importWarmUpElements_ok()
+    record TestInitResults(File localFile,
+                           int fillerLength,
+                           List<WarmUpElement> warmWarmUpElements,
+                           RowGroupData rowGroupData)
+    {
+    }
+
+    TestInitResults testInit(RowGroupKey rowGroupKey)
             throws IOException
     {
-        RowGroupKey rowGroupKey = new RowGroupKey("schema-1", "table-1", "s3://test-bucket/column_split_file", 1, 1L, 1, "", "");
         String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File localFile = new File(localFileName);
 
         FileUtils.createParentDirectories(localFile);
         boolean unused = localFile.createNewFile();
-
-        long lastModified = Instant.now().toEpochMilli();
-        long contentLength = 123456789;
-        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
-        storageObjectMetadata.setLastModified(lastModified);
-        storageObjectMetadata.setContentLength(contentLength);
-        when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
 
         List<WarmUpElement> warmUpElements = new ArrayList<>();
         List<WarmUpElement> warmWarmUpElements = new ArrayList<>();
@@ -388,19 +401,64 @@ public class WeGroupWarmerTest
             }
         }
 
+        long lastModified = Instant.now().toEpochMilli();
+        long contentLength = 1000;
+
         RowGroupData rowGroupData = RowGroupData.builder()
                 .rowGroupKey(rowGroupKey)
                 .warmUpElements(warmUpElements)
-                .dataValidation(new RowGroupDataValidation(lastModified, contentLength))
+                .dataValidation(new RowGroupDataValidation("etag", lastModified, contentLength))
+                .build();
+
+        int fillerLength;
+        try (RandomAccessFile randomAccessFile = new RandomAccessFile(localFile, "rw")) {
+            String str = objectMapper.writeValueAsString(rowGroupData);
+            byte[] bytes = CompressionUtil.compressGzip(str);
+            contentLength = (long) bytes.length + Long.BYTES;
+            fillerLength = 1000 - Long.valueOf(contentLength).intValue();
+            byte[] filler = new byte[fillerLength];
+
+            random.nextBytes(filler);
+            randomAccessFile.write(filler);
+            randomAccessFile.write(bytes);
+            randomAccessFile.writeLong(Integer.valueOf(bytes.length).longValue());
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
+        storageObjectMetadata.setLastModified(lastModified);
+        storageObjectMetadata.setContentLength(contentLength);
+        when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
+
+        rowGroupData = RowGroupData.builder(rowGroupData)
+                .dataValidation(new RowGroupDataValidation("etag", lastModified, contentLength))
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
 
-        when(cloudVendorService.downloadRangeFromCloud(anyString(), anyLong(), anyInt())).thenReturn(InputStream.nullInputStream());
+        return new TestInitResults(localFile, fillerLength, warmWarmUpElements, rowGroupData);
+    }
+
+    @Test
+    void test_importWarmUpElements_ok()
+            throws IOException
+    {
+        RowGroupKey rowGroupKey = new RowGroupKey("schema-1", "table-1", "s3://test-bucket/column_split_file", 1, 1L, 1, "", "");
+
+        TestInitResults results = testInit(rowGroupKey);
+
+        InputStream inputStream = new FileInputStream(results.localFile);
+        inputStream.skip(results.fillerLength);
+
+        when(cloudVendorService.downloadRangeFromCloud(anyString(), anyLong(), anyInt()))
+                .thenReturn(inputStream)
+                .thenReturn(InputStream.nullInputStream());
 
         ArgumentCaptor<RowGroupKey> argumentCaptor1 = ArgumentCaptor.forClass(RowGroupKey.class);
         ArgumentCaptor<RowGroupData> argumentCaptor2 = ArgumentCaptor.forClass(RowGroupData.class);
 
-        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, warmWarmUpElements);
+        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
         Assertions.assertTrue(optionalRowGroupData.isPresent());
 
         RowGroupData returnedRowGroupData = optionalRowGroupData.orElseThrow();
@@ -417,54 +475,32 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(4, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(0, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
-        unused = localFile.delete();
+        boolean unused = results.localFile.delete();
     }
 
     @Test
     void test_importWarmUpElements_Exception()
+            throws IOException
     {
-        RowGroupKey rowGroupKey = new RowGroupKey("schema", "table", "s3://test-bucket/column_split_file", 0, 0L, 0, "", "");
+        RowGroupKey rowGroupKey = new RowGroupKey("schema-2", "table-2", "s3://test-bucket/column_split_file", 2, 2L, 2, "", "");
 
-        long lastModified = Instant.now().toEpochMilli();
-        long contentLength = 123456789;
-        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
-        storageObjectMetadata.setLastModified(lastModified);
-        storageObjectMetadata.setContentLength(contentLength);
-        when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
+        TestInitResults results = testInit(rowGroupKey);
 
-        List<WarmUpElement> warmUpElements = new ArrayList<>();
-        List<WarmUpElement> warmWarmUpElements = new ArrayList<>();
+        InputStream inputStream = new FileInputStream(results.localFile);
+        inputStream.skip(results.fillerLength);
 
-        for (int i = 0; i < 4; i++) {
-            WarmUpElement warmUpElement = WarmUpElement.builder()
-                    .colName("colName-" + i)
-                    .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
-                    .warmupElementStats(new WarmupElementStats(0, Long.MAX_VALUE, Long.MIN_VALUE))
-                    .warmState(((i % 2) == 1) ? WarmState.WARM : WarmState.HOT)
-                    .build();
-            warmUpElements.add(warmUpElement);
-            if ((i % 2) == 1) {
-                warmWarmUpElements.add(warmUpElement);
-            }
-        }
-
-        RowGroupData rowGroupData = RowGroupData.builder()
-                .rowGroupKey(rowGroupKey)
-                .warmUpElements(warmUpElements)
-                .dataValidation(new RowGroupDataValidation(lastModified, contentLength))
-                .build();
-        when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
-
-        when(cloudVendorService.downloadRangeFromCloud(anyString(), anyLong(), anyInt())).thenThrow(new IllegalArgumentException("test-exception"));
+        when(cloudVendorService.downloadRangeFromCloud(anyString(), anyLong(), anyInt()))
+                .thenReturn(inputStream)
+                .thenThrow(new IllegalArgumentException("test-exception"));
 
         ArgumentCaptor<RowGroupKey> argumentCaptor1 = ArgumentCaptor.forClass(RowGroupKey.class);
         ArgumentCaptor<RowGroupData> argumentCaptor2 = ArgumentCaptor.forClass(RowGroupData.class);
 
-        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, warmWarmUpElements);
+        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
         Assertions.assertTrue(optionalRowGroupData.isPresent());
 
         RowGroupData returnedRowGroupData = optionalRowGroupData.orElseThrow();
-        Assertions.assertEquals(warmUpElements, returnedRowGroupData.getWarmUpElements());
+        Assertions.assertEquals(results.rowGroupData.getWarmUpElements(), returnedRowGroupData.getWarmUpElements());
         Assertions.assertEquals(2, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(2, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
@@ -474,57 +510,30 @@ public class WeGroupWarmerTest
 
         verify(rowGroupDataService, times(0)).flush(argumentCaptor1.capture());
         verify(rowGroupDataService, times(0)).save(argumentCaptor2.capture());
+
+        boolean unused = results.localFile.delete();
     }
 
     @Test
     void test_importWarmUpElements_partial()
             throws IOException
     {
-        RowGroupKey rowGroupKey = new RowGroupKey("schema-2", "table-2", "s3://test-bucket/column_split_file", 2, 2L, 2, "", "");
-        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
-        File localFile = new File(localFileName);
+        RowGroupKey rowGroupKey = new RowGroupKey("schema-3", "table-3", "s3://test-bucket/column_split_file", 3, 3L, 3, "", "");
 
-        FileUtils.createParentDirectories(localFile);
-        boolean unused = localFile.createNewFile();
+        TestInitResults results = testInit(rowGroupKey);
 
-        long lastModified = Instant.now().toEpochMilli();
-        long contentLength = 123456789;
-        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
-        storageObjectMetadata.setLastModified(lastModified);
-        storageObjectMetadata.setContentLength(contentLength);
-        when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
-
-        List<WarmUpElement> warmUpElements = new ArrayList<>();
-        List<WarmUpElement> warmWarmUpElements = new ArrayList<>();
-
-        for (int i = 0; i < 4; i++) {
-            WarmUpElement warmUpElement = WarmUpElement.builder()
-                    .colName("colName-" + i)
-                    .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
-                    .warmupElementStats(new WarmupElementStats(0, Long.MAX_VALUE, Long.MIN_VALUE))
-                    .warmState(((i % 2) == 1) ? WarmState.WARM : WarmState.HOT)
-                    .build();
-            warmUpElements.add(warmUpElement);
-            if ((i % 2) == 1) {
-                warmWarmUpElements.add(warmUpElement);
-            }
-        }
-
-        RowGroupData rowGroupData = RowGroupData.builder()
-                .rowGroupKey(rowGroupKey)
-                .warmUpElements(warmUpElements)
-                .dataValidation(new RowGroupDataValidation(lastModified, contentLength))
-                .build();
-        when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
+        InputStream inputStream = new FileInputStream(results.localFile);
+        inputStream.skip(results.fillerLength);
 
         when(cloudVendorService.downloadRangeFromCloud(anyString(), anyLong(), anyInt()))
+                .thenReturn(inputStream)
                 .thenThrow(new IllegalArgumentException("test-exception"))
                 .thenReturn(InputStream.nullInputStream());
 
         ArgumentCaptor<RowGroupKey> argumentCaptor1 = ArgumentCaptor.forClass(RowGroupKey.class);
         ArgumentCaptor<RowGroupData> argumentCaptor2 = ArgumentCaptor.forClass(RowGroupData.class);
 
-        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, warmWarmUpElements);
+        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
         Assertions.assertTrue(optionalRowGroupData.isPresent());
 
         RowGroupData returnedRowGroupData = optionalRowGroupData.orElseThrow();
@@ -541,109 +550,76 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(3, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(1, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
-        unused = localFile.delete();
+        boolean unused = results.localFile.delete();
     }
 
     @Test
     void test_importWarmUpElements_1stFooterValidation()
+            throws IOException
     {
-        RowGroupKey rowGroupKey = new RowGroupKey("schema", "table", "s3://test-bucket/column_split_file", 0, 0L, 0, "", "");
+        RowGroupKey rowGroupKey = new RowGroupKey("schema-4", "table-4", "s3://test-bucket/column_split_file", 4, 4L, 4, "", "");
 
-        long lastModified = Instant.now().toEpochMilli();
-        long contentLength = 123456789;
+        TestInitResults results = testInit(rowGroupKey);
 
-        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
-        storageObjectMetadata.setLastModified(lastModified);
-        storageObjectMetadata.setContentLength(contentLength);
-        when(cloudVendorService.getObjectMetadata(anyString())).thenReturn(storageObjectMetadata);
-
-        List<WarmUpElement> warmUpElements = new ArrayList<>();
-        List<WarmUpElement> warmWarmUpElements = new ArrayList<>();
-
-        for (int i = 0; i < 4; i++) {
-            WarmUpElement warmUpElement = WarmUpElement.builder()
-                    .colName("colName-" + i)
-                    .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
-                    .warmupElementStats(new WarmupElementStats(0, Long.MAX_VALUE, Long.MIN_VALUE))
-                    .warmState(((i % 2) == 1) ? WarmState.WARM : WarmState.HOT)
-                    .build();
-            warmUpElements.add(warmUpElement);
-            if ((i % 2) == 1) {
-                warmWarmUpElements.add(warmUpElement);
-            }
-        }
-
-        RowGroupData rowGroupData = RowGroupData.builder()
-                .rowGroupKey(rowGroupKey)
-                .warmUpElements(warmUpElements)
-                .dataValidation(new RowGroupDataValidation(lastModified, contentLength - 1))
+        RowGroupData rowGroupData = RowGroupData.builder(results.rowGroupData)
+                .dataValidation(new RowGroupDataValidation("etag", results.rowGroupData.getFileModifiedTime(), results.rowGroupData.getFileContentLength() - 1))
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
 
-        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, warmWarmUpElements);
+        InputStream inputStream = new FileInputStream(results.localFile);
+        inputStream.skip(results.fillerLength);
+
+        when(cloudVendorService.downloadRangeFromCloud(anyString(), anyLong(), anyInt()))
+                .thenReturn(inputStream);
+
+        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
 
         Assertions.assertTrue(optionalRowGroupData.isEmpty());
         Assertions.assertEquals(0, warmupImportServiceStats.getimport_elements_started());
+
+        boolean unused = results.localFile.delete();
     }
 
     @Test
     void test_importWarmUpElements_2ndFooterValidation()
             throws IOException
     {
-        RowGroupKey rowGroupKey = new RowGroupKey("schema-3", "table-3", "s3://test-bucket/column_split_file", 3, 3L, 3, "", "");
-        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
-        File localFile = new File(localFileName);
+        RowGroupKey rowGroupKey = new RowGroupKey("schema-5", "table-5", "s3://test-bucket/column_split_file", 5, 5L, 5, "", "");
 
-        FileUtils.createParentDirectories(localFile);
-        boolean unused = localFile.createNewFile();
+        TestInitResults results = testInit(rowGroupKey);
 
-        long lastModified = Instant.now().toEpochMilli();
-        long contentLength = 123456789;
+        long lastModified = results.rowGroupData.getFileModifiedTime();
+        long contentLength = results.rowGroupData.getFileContentLength();
 
         StorageObjectMetadata storageObjectMetadata1 = new StorageObjectMetadata();
         storageObjectMetadata1.setLastModified(lastModified);
         storageObjectMetadata1.setContentLength(contentLength);
+        storageObjectMetadata1.setETag("etag");
 
         StorageObjectMetadata storageObjectMetadata2 = new StorageObjectMetadata();
         storageObjectMetadata2.setLastModified(lastModified);
         storageObjectMetadata2.setContentLength(contentLength + 1);
+        storageObjectMetadata2.setETag("etag");
 
         when(cloudVendorService.getObjectMetadata(anyString()))
                 .thenReturn(storageObjectMetadata1)
+                .thenReturn(storageObjectMetadata1)
                 .thenReturn(storageObjectMetadata2);
 
-        List<WarmUpElement> warmUpElements = new ArrayList<>();
-        List<WarmUpElement> warmWarmUpElements = new ArrayList<>();
+        InputStream inputStream = new FileInputStream(results.localFile);
+        inputStream.skip(results.fillerLength);
 
-        for (int i = 0; i < 4; i++) {
-            WarmUpElement warmUpElement = WarmUpElement.builder()
-                    .colName("colName-" + i)
-                    .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
-                    .warmupElementStats(new WarmupElementStats(0, Long.MAX_VALUE, Long.MIN_VALUE))
-                    .warmState(((i % 2) == 1) ? WarmState.WARM : WarmState.HOT)
-                    .build();
-            warmUpElements.add(warmUpElement);
-            if ((i % 2) == 1) {
-                warmWarmUpElements.add(warmUpElement);
-            }
-        }
+        when(cloudVendorService.downloadRangeFromCloud(anyString(), anyLong(), anyInt()))
+                .thenReturn(inputStream)
+                .thenReturn(InputStream.nullInputStream());
 
-        RowGroupData rowGroupData = RowGroupData.builder()
-                .rowGroupKey(rowGroupKey)
-                .warmUpElements(warmUpElements)
-                .dataValidation(new RowGroupDataValidation(lastModified, contentLength))
-                .build();
-        when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
-
-        when(cloudVendorService.downloadRangeFromCloud(anyString(), anyLong(), anyInt())).thenReturn(InputStream.nullInputStream());
-
-        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, warmWarmUpElements);
+        Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
 
         Assertions.assertTrue(optionalRowGroupData.isEmpty());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_started());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_failed());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_accomplished());
 
-        unused = localFile.delete();
+        boolean unused = results.localFile.delete();
     }
 }

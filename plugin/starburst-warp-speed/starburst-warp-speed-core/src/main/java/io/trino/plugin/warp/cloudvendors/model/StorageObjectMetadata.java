@@ -13,6 +13,9 @@
  */
 package io.trino.plugin.warp.cloudvendors.model;
 
+import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
+
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -23,10 +26,20 @@ public record StorageObjectMetadata(
 {
     public static final String CONTENT_LENGTH = "Content-Length";
     public static final String LAST_MODIFIED = "Last-Modified";
+    public static final String ETAG = "eTag";
+    public static final String ETAG_UNKNOWN = "eTagUnknown";
 
     public StorageObjectMetadata()
     {
         this(new HashMap<>(), new HashMap<>());
+    }
+
+    public StorageObjectMetadata(CloudObjectMetadata metadata)
+    {
+        this(new HashMap<>(), new HashMap<>());
+        metadata.getLastModified().ifPresent(lastModified -> setLastModified(lastModified.toEpochMilli()));
+        metadata.getContentLength().ifPresent(this::setContentLength);
+        metadata.getETag().ifPresent(this::setETag);
     }
 
     public Object getMetadata(String key)
@@ -51,12 +64,31 @@ public record StorageObjectMetadata(
 
     public Optional<Long> getLastModified()
     {
-        Long lastModified = (Long) getMetadata(LAST_MODIFIED);
-        return lastModified == null ? Optional.empty() : Optional.of(lastModified);
+        return Optional.ofNullable((Long) getMetadata(LAST_MODIFIED));
     }
 
     public void setLastModified(long lastModified)
     {
         putMetadata(LAST_MODIFIED, lastModified);
+    }
+
+    public Optional<String> getETag()
+    {
+        return Optional.ofNullable((String) getMetadata(ETAG));
+    }
+
+    public void setETag(String eTag)
+    {
+        putMetadata(ETAG, eTag);
+    }
+
+    public CloudObjectMetadata getCloudObjectMetadata()
+    {
+        String eTag = (String) getMetadata(ETAG);
+        Long lastModified = (Long) getMetadata(LAST_MODIFIED);
+        return new CloudObjectMetadata(
+                ((eTag != null) && !eTag.equals(ETAG_UNKNOWN)) ? eTag : null,
+                (lastModified != null) ? Instant.ofEpochMilli(lastModified) : null,
+                (Long) getMetadata(CONTENT_LENGTH));
     }
 }

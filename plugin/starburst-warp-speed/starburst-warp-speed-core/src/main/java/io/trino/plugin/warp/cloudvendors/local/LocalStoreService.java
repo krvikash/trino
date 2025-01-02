@@ -16,6 +16,7 @@ package io.trino.plugin.warp.cloudvendors.local;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.cloudvendors.CloudVendorResult;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
@@ -85,7 +86,7 @@ public class LocalStoreService
     }
 
     @Override
-    public boolean uploadFileToCloud(String path, File file, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult uploadFileToCloud(String path, File file, Callable<Boolean> validateBeforeDo)
     {
         validateLocation(path);
 
@@ -96,7 +97,13 @@ public class LocalStoreService
                 if (filePath.toFile().exists()) {
                     Files.delete(filePath);
                 }
-                Files.copy(file.toPath(), filePath);
+                Path target = Files.copy(file.toPath(), filePath);
+                StorageObjectMetadata metadata = new StorageObjectMetadata();
+
+                metadata.setContentLength(target.toFile().length());
+                metadata.setLastModified(target.toFile().lastModified());
+                metadata.setETag(StorageObjectMetadata.ETAG_UNKNOWN);
+                return new CloudVendorResult(true, metadata);
             }
             else {
                 throw new RuntimeException("failed to create folder " + dir);
@@ -105,7 +112,6 @@ public class LocalStoreService
         catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return true;
     }
 
     @Override
@@ -166,15 +172,21 @@ public class LocalStoreService
     }
 
     @Override
-    public void downloadFileFromCloud(String path, File file)
+    public StorageObjectMetadata downloadFileFromCloud(String path, File file)
     {
         validateLocation(path);
 
         try {
+            StorageObjectMetadata metadata = new StorageObjectMetadata();
             Path filePath = getPath(path);
             if (filePath.toFile().exists()) {
                 Files.write(file.toPath(), Files.readAllBytes(filePath));
+
+                metadata.setContentLength(file.length());
+                metadata.setLastModified(file.lastModified());
+                metadata.setETag(StorageObjectMetadata.ETAG_UNKNOWN);
             }
+            return metadata;
         }
         catch (IOException e) {
             throw new RuntimeException(e);
@@ -182,7 +194,8 @@ public class LocalStoreService
     }
 
     @Override
-    public boolean appendOnCloud(String path, File localFile, long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult appendOnCloud(String path, File localFile, StorageObjectMetadata metadata,
+                                           long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo)
     {
         validateLocation(path);
 
@@ -209,14 +222,20 @@ public class LocalStoreService
             throw new RuntimeException(e);
         }
 
-        try (RandomAccessFile cloudRandomAccessFile = new RandomAccessFile(cloudPath.toFile(), "rw")) {
+        File target = cloudPath.toFile();
+        try (RandomAccessFile cloudRandomAccessFile = new RandomAccessFile(target, "rw")) {
             cloudRandomAccessFile.seek(startOffset);
             cloudRandomAccessFile.write(bytes);
+
+            metadata = new StorageObjectMetadata();
+            metadata.setContentLength(target.length());
+            metadata.setLastModified(target.lastModified());
+            metadata.setETag(StorageObjectMetadata.ETAG_UNKNOWN);
+            return new CloudVendorResult(true, metadata);
         }
         catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return true;
     }
 
     @Override
@@ -267,6 +286,7 @@ public class LocalStoreService
         if (filePath.toFile().exists()) {
             storageObjectMetadata.setContentLength(filePath.toFile().length());
             storageObjectMetadata.setLastModified(filePath.toFile().lastModified());
+            storageObjectMetadata.setETag(StorageObjectMetadata.ETAG_UNKNOWN);
         }
         return storageObjectMetadata;
     }

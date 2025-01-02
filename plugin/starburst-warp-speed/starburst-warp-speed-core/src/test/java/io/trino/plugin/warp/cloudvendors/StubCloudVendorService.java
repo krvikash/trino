@@ -38,15 +38,13 @@ public class StubCloudVendorService
     {}
 
     @Override
-    public boolean uploadFileToCloud(String path, File file, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult uploadFileToCloud(String path, File file, Callable<Boolean> validateBeforeDo)
     {
-        return true;
+        return new CloudVendorResult();
     }
 
     @Override
-    public Optional<String> downloadCompressedFromCloud(
-            String path,
-            boolean allowKeyNotFound)
+    public Optional<String> downloadCompressedFromCloud(String path, boolean allowKeyNotFound)
     {
         return Optional.empty();
     }
@@ -58,14 +56,16 @@ public class StubCloudVendorService
     }
 
     @Override
-    public void downloadFileFromCloud(String path, File file)
+    public StorageObjectMetadata downloadFileFromCloud(String path, File file)
     {
+        return new StorageObjectMetadata();
     }
 
     @Override
-    public boolean appendOnCloud(String path, File file, long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult appendOnCloud(String path, File file, StorageObjectMetadata metadata,
+                                           long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo)
     {
-        return false;
+        return new CloudVendorResult();
     }
 
     @Override

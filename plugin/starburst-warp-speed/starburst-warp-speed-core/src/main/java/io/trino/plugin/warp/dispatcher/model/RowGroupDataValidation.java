@@ -18,13 +18,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 public record RowGroupDataValidation(
+        @JsonProperty("file_etag") String fileETag,
         @JsonProperty("file_modified_time") long fileModifiedTime,
         @JsonProperty("file_content_length") long fileContentLength)
         implements Serializable
 {
-    public static final RowGroupDataValidation EMPTY_VALIDATION = new RowGroupDataValidation(0, 0);
+    public static final RowGroupDataValidation EMPTY_VALIDATION = new RowGroupDataValidation(null, 0, 0);
 
     @JsonCreator
     public RowGroupDataValidation
@@ -33,12 +35,48 @@ public record RowGroupDataValidation(
 
     public RowGroupDataValidation(StorageObjectMetadata storageObjectMetadata)
     {
-        this(storageObjectMetadata.getLastModified().orElse(0L),
+        this(storageObjectMetadata.getETag().orElse(null),
+                storageObjectMetadata.getLastModified().orElse(0L),
                 storageObjectMetadata.getContentLength().orElse(0L));
+    }
+
+    public StorageObjectMetadata getStorageObjectMetadata()
+    {
+        StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
+        if (fileETag != null) {
+            storageObjectMetadata.setETag(fileETag);
+        }
+        if (fileModifiedTime != 0) {
+            storageObjectMetadata.setLastModified(fileModifiedTime);
+        }
+        if (fileContentLength != 0) {
+            storageObjectMetadata.setContentLength(fileContentLength);
+        }
+        return storageObjectMetadata;
     }
 
     public boolean isValid()
     {
-        return (fileModifiedTime != 0) && (fileContentLength != 0);
+        return (fileETag != null) || (fileModifiedTime != 0) || (fileContentLength != 0);
+    }
+
+    @Override
+    public boolean equals(Object object)
+    {
+        if ((object == null) || (getClass() != object.getClass())) {
+            return false;
+        }
+        RowGroupDataValidation that = (RowGroupDataValidation) object;
+        return ((fileModifiedTime == 0) || (that.fileModifiedTime == 0) || (fileModifiedTime == that.fileModifiedTime)) &&
+                (fileContentLength == that.fileContentLength) &&
+                ((fileETag == null) || fileETag.equals(StorageObjectMetadata.ETAG_UNKNOWN) ||
+                        (that.fileETag == null) || that.fileETag.equals(StorageObjectMetadata.ETAG_UNKNOWN) ||
+                        Objects.equals(fileETag, that.fileETag));
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(fileETag, fileModifiedTime, fileContentLength);
     }
 }

@@ -101,7 +101,7 @@ public class WeGroupCloudExporterTaskTest
     void test_exportWeGroup()
     {
         when(warmupElementsCloudExporter.exportFile(any(RowGroupData.class), eq(cloudImportExportPath)))
-                .thenReturn(new WarmupElementsCloudExporter.ExportFileResults(true, new RowGroupDataValidation(0, 0)));
+                .thenReturn(new WarmupElementsCloudExporter.ExportFileResults(true, RowGroupDataValidation.EMPTY_VALIDATION));
 
         ArgumentCaptor<RowGroupData> rowGroupDataCaptor = ArgumentCaptor.forClass(RowGroupData.class);
 

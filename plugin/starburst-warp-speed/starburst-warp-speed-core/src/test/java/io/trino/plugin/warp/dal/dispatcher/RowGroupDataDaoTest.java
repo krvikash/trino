@@ -299,7 +299,7 @@ public class RowGroupDataDaoTest
                 .nextExportOffset(3)
                 .sparseFile(true)
                 .fastWarmingState(FastWarmingState.NOT_EXPORTED)
-                .dataValidation(new RowGroupDataValidation(987654321, 918273645))
+                .dataValidation(new RowGroupDataValidation("etag", 987654321, 918273645))
                 .build();
 
         createFileIfNeeded(rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath()));
@@ -398,7 +398,7 @@ public class RowGroupDataDaoTest
                 .nextExportOffset(3)
                 .sparseFile(true)
                 .fastWarmingState(FastWarmingState.NOT_EXPORTED)
-                .dataValidation(new RowGroupDataValidation(987654321, 918273645))
+                .dataValidation(new RowGroupDataValidation("etag", 987654321, 918273645))
                 .build();
 
         str = objectMapper.writeValueAsString(rowGroupData);

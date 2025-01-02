@@ -33,16 +33,16 @@ public class S3CloudStorageTest
 {
 //    public static final String ACCESS_KEY = null;
 //    public static final String SECRET_KEY = null;
-    public static final String IAM_ROLE = "";
-    public static final String EXTERNAL_ID = "";
+    public static final String IAM_ROLE = null;
+    public static final String EXTERNAL_ID = null;
     public static final String REGION = "us-east-1";
-    public static final String BUCKET_NAME = "varadaio-us-east1-unit-tests";
-    public static final String EMPTY_BUCKET_NAME = "varadaio-us-east1-mount-point-try1";
+    public static final String BUCKET_NAME = "starburst-cicd-test-us-east-1";
+    public static final String EMPTY_BUCKET_NAME = "starburst-cicd-odbc-e2e-test-us-east-1";
 
     @BeforeEach
     void setUp()
     {
-        System.setProperty("aws.profile", "943680618140_galaxy-developer");
+        System.setProperty("aws.profile", "888469412714_starburst-developer");
 
         S3FileSystemConfig config = new S3FileSystemConfig()
 //                .setAwsAccessKey(ACCESS_KEY)

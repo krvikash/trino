@@ -18,6 +18,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
+import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorageService;
 
 import java.io.IOException;
@@ -39,7 +40,7 @@ public class GcsCloudStorage
     }
 
     @Override
-    public void uploadFile(Location source, Location target)
+    public CloudObjectMetadata uploadFile(Location source, Location target)
             throws IOException
     {
         GcsLocation gcsLocation = new GcsLocation(target);
@@ -51,19 +52,27 @@ public class GcsCloudStorage
         Storage.BlobWriteOption precondition = blob.map(value -> Storage.BlobWriteOption.generationMatch(value.getGeneration()))
                 .orElseGet(Storage.BlobWriteOption::doesNotExist);
 
-        storage.createFrom(blobInfo, Path.of(source.toString()), precondition);
+        Blob targetBlob = storage.createFrom(blobInfo, Path.of(source.toString()), precondition);
+
+        return new CloudObjectMetadata(targetBlob.getEtag(),
+                targetBlob.getTimeStorageClassUpdatedOffsetDateTime().toInstant(),
+                targetBlob.getSize());
     }
 
     @Override
-    public void downloadFile(Location source, Location target)
+    public CloudObjectMetadata downloadFile(Location source, Location target)
     {
         GcsLocation gcsLocation = new GcsLocation(source);
         checkIsValidFile(gcsLocation);
+
         GcsUtils.getBlob(storage, gcsLocation).ifPresent(blob -> blob.downloadTo(Path.of(target.toString())));
+
+        // ToDo: metadata
+        return new CloudObjectMetadata();
     }
 
     @Override
-    public void copyFile(Location source, Location destination)
+    public CloudObjectMetadata copyFile(Location source, Location destination)
     {
         GcsLocation sourceLocation = new GcsLocation(source);
         GcsLocation targetLocation = new GcsLocation(destination);
@@ -71,15 +80,26 @@ public class GcsCloudStorage
         checkIsValidFile(sourceLocation);
         checkIsValidFile(targetLocation);
 
-        GcsUtils.getBlob(storage, sourceLocation).ifPresent(blob -> blob.copyTo(GcsUtils.getBlobId(targetLocation)));
+        Optional<Blob> blob = GcsUtils.getBlob(storage, sourceLocation);
+
+        if (blob.isEmpty()) {
+            return new CloudObjectMetadata();
+        }
+
+        Blob destinationBlob = blob.get().copyTo(GcsUtils.getBlobId(targetLocation)).getResult();
+
+        return new CloudObjectMetadata(destinationBlob.getEtag(),
+                destinationBlob.getTimeStorageClassUpdatedOffsetDateTime().toInstant(),
+                destinationBlob.getSize());
     }
 
     @Override
-    public void renameFile(Location source, Location target)
+    public CloudObjectMetadata renameFile(Location source, Location target)
             throws IOException
     {
-        copyFile(source, target);
+        CloudObjectMetadata metadata = copyFile(source, target);
         deleteFile(source);
+        return metadata;
     }
 
     private static void checkIsValidFile(GcsLocation gcsLocation)

@@ -20,6 +20,7 @@ import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoInput;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoOutputFile;
+import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorage;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 import io.trino.plugin.warp.log.ShapingLogger;
@@ -98,29 +99,19 @@ public class CloudVendorStorageService
     }
 
     @Override
-    public boolean uploadFileToCloud(String outputPath, File localFile, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult uploadFileToCloud(String outputPath, File localFile, Callable<Boolean> validateBeforeDo)
     {
         Location destination = getLocation(outputPath + getTempFileSuffix());
-        boolean isUploadDone = false;
 
         try {
             logger.debug("uploadFileToCloud [%s] => [%s]", getLocation(localFile.getPath()), destination);
             cloudStorage.uploadFile(getLocation(localFile.getPath()), destination);
-
-            if ((validateBeforeDo == null) || validateBeforeDo.call()) {
-                cloudStorage.renameFile(destination, getLocation(outputPath));
-                isUploadDone = true;
-            }
-            else {
-                cloudStorage.deleteFile(destination);
-            }
+            return validateAndRename(validateBeforeDo, destination, getLocation(outputPath), localFile.length());
         }
         catch (Exception e) {
-            shapingLogger.error(e, "uploadFileToCloud failed %s exception: %s cause: %s", localFile.getPath(), e, e.getCause());
             throw new RuntimeException("uploadFileToCloud failed [%s] => [%s] exception: %s cause: %s"
                     .formatted(localFile.getPath(), outputPath, e, e.getCause()), e);
         }
-        return isUploadDone;
     }
 
     @Override
@@ -172,11 +163,12 @@ public class CloudVendorStorageService
     }
 
     @Override
-    public void downloadFileFromCloud(String cloudPath, File localFile)
+    public StorageObjectMetadata downloadFileFromCloud(String cloudPath, File localFile)
     {
         try {
             logger.debug("downloadFileFromCloud [%s] => [%s]", getLocation(cloudPath), getLocation(localFile.getPath()));
-            cloudStorage.downloadFile(getLocation(cloudPath), getLocation(localFile.getPath()));
+            CloudObjectMetadata metadata = cloudStorage.downloadFile(getLocation(cloudPath), getLocation(localFile.getPath()));
+            return new StorageObjectMetadata(metadata);
         }
         catch (Exception e) {
             throw new RuntimeException("downloadFileFromCloud failed [%s] => [%s] exception: %s cause: %s"
@@ -185,12 +177,14 @@ public class CloudVendorStorageService
     }
 
     @Override
-    public boolean appendOnCloud(String cloudPath, File localFile, long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult appendOnCloud(String cloudPath, File localFile, StorageObjectMetadata metadata,
+                                           long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo)
     {
         Location source = getLocation(cloudPath);
         Location destination = getLocation(cloudPath + getTempFileSuffix());
 
-        String message = String.format("appendOnCloud source [%s] => destination [%s] startOffset %d", source, destination, startOffset);
+        String message = String.format("appendOnCloud source [%s] => destination [%s] metadata %s startOffset %d",
+                source, destination, metadata, startOffset);
         logger.debug(message);
 
         try (RandomAccessFile randomAccessFile = new RandomAccessFile(localFile, "rw")) {
@@ -201,29 +195,44 @@ public class CloudVendorStorageService
             length = randomAccessFile.read(buffer);
 
             if (length > 0) {
-                cloudStorage.copyFileReplaceTail(source, destination, startOffset, buffer);
+                if (!cloudStorage.copyFileReplaceTail(source, destination, metadata.getCloudObjectMetadata(), startOffset, buffer)) {
+                    return new CloudVendorResult();
+                }
             }
         }
         catch (IOException e) {
-            shapingLogger.error(e, "%s exception: %s cause: %s", message, e, e.getCause());
             throw new RuntimeException("%s exception: %s cause: %s".formatted(message, e, e.getCause()), e);
         }
 
-        boolean isUploadDone = false;
-
         try {
-            if ((validateBeforeDo == null) || validateBeforeDo.call()) {
-                cloudStorage.renameFile(destination, source);
-                isUploadDone = true;
-            }
-            else {
-                cloudStorage.deleteFile(destination);
-            }
+            return validateAndRename(validateBeforeDo, destination, source, localFile.length());
         }
         catch (Exception e) {
             throw new RuntimeException("appendOnCloud failed after copyFileReplaceTail exception: %s cause: %s".formatted(e, e.getCause()), e);
         }
-        return isUploadDone;
+    }
+
+    private CloudVendorResult validateAndRename(Callable<Boolean> validateBeforeDo,
+                                                Location destination, Location source, long contentLength)
+            throws Exception
+    {
+        boolean isUploadDone = false;
+        StorageObjectMetadata metadata;
+
+        if ((validateBeforeDo == null) || validateBeforeDo.call()) {
+            CloudObjectMetadata objectMetadata = cloudStorage.renameFile(destination, source);
+
+            metadata = new StorageObjectMetadata(objectMetadata);
+            if (metadata.getContentLength().isEmpty()) {
+                metadata.setContentLength(contentLength);
+            }
+            isUploadDone = true;
+        }
+        else {
+            cloudStorage.deleteFile(destination);
+            metadata = new StorageObjectMetadata();
+        }
+        return new CloudVendorResult(isUploadDone, metadata);
     }
 
     @Override
@@ -282,6 +291,7 @@ public class CloudVendorStorageService
 
             storageObjectMetadata.setContentLength(length);
             storageObjectMetadata.setLastModified(lastModified.toEpochMilli());
+            storageObjectMetadata.setETag(StorageObjectMetadata.ETAG_UNKNOWN);
             logger.debug("getObjectMetadata location [%s] length %d lastModified %s", location, length, lastModified);
         }
         catch (IOException e) {
@@ -309,7 +319,12 @@ public class CloudVendorStorageService
             return Optional.of(lastModified.toEpochMilli());
         }
         catch (IOException e) {
-            shapingLogger.error(e, "getLastModified failed location [%s]", location);
+            if ((e instanceof FileNotFoundException) || (e.getCause() instanceof FileNotFoundException)) {
+                logger.debug(e, "getLastModified failed location [%s]".formatted(location));
+            }
+            else {
+                shapingLogger.error(e, "getLastModified failed location [%s]", location);
+            }
             // do nothing
 //            throw new RuntimeException(e);
         }
