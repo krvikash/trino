@@ -6,13 +6,11 @@ ARG PROJECT_NAME=data-server
 ARG PROJECT_VERSION
 ARG CHOWN="${PROJECT_NAME}:${PROJECT_NAME}"
 
-# Install python (needed by Airlift launcher) and curl (needed by preStop.sh hook defined in stargate)
+# Install curl (needed by preStop.sh hook defined in stargate)
 RUN \
     set -xeu && \
     apt-get update -q && \
-    apt-get install -q -y python3 && \
     apt-get install -q -y curl && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
     rm -rf /var/lib/apt/lists/*
 
 # Add project files
