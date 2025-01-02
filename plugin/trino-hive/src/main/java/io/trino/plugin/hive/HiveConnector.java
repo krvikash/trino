@@ -30,8 +30,6 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.TableProcedureMetadata;
-import io.trino.spi.function.FunctionProvider;
-import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
@@ -69,8 +67,6 @@ public class HiveConnector
     private final ClassLoader classLoader;
 
     private final HiveTransactionManager transactionManager;
-    private final Set<ConnectorTableFunction> connectorTableFunctions;
-    private final FunctionProvider functionProvider;
     private final boolean singleStatementWritesOnly;
 
     public HiveConnector(
@@ -91,8 +87,6 @@ public class HiveConnector
             List<PropertyMetadata<?>> columnProperties,
             List<PropertyMetadata<?>> analyzeProperties,
             Optional<ConnectorAccessControl> accessControl,
-            Set<ConnectorTableFunction> connectorTableFunctions,
-            FunctionProvider functionProvider,
             boolean singleStatementWritesOnly,
             ClassLoader classLoader)
     {
@@ -115,8 +109,6 @@ public class HiveConnector
         this.columnProperties = ImmutableList.copyOf(requireNonNull(columnProperties, "columnProperties is null"));
         this.analyzeProperties = ImmutableList.copyOf(requireNonNull(analyzeProperties, "analyzeProperties is null"));
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
-        this.connectorTableFunctions = ImmutableSet.copyOf(requireNonNull(connectorTableFunctions, "connectorTableFunctions is null"));
-        this.functionProvider = requireNonNull(functionProvider, "functionProvider is null");
         this.singleStatementWritesOnly = singleStatementWritesOnly;
         this.classLoader = requireNonNull(classLoader, "classLoader is null");
     }
@@ -238,18 +230,6 @@ public class HiveConnector
     public final void shutdown()
     {
         lifeCycleManager.stop();
-    }
-
-    @Override
-    public Optional<FunctionProvider> getFunctionProvider()
-    {
-        return Optional.of(functionProvider);
-    }
-
-    @Override
-    public Set<ConnectorTableFunction> getTableFunctions()
-    {
-        return connectorTableFunctions;
     }
 
     @Override
