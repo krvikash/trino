@@ -105,7 +105,6 @@ public class TestHiveCacheIds
                 new HiveLocationService(new HdfsFileSystemFactory(hdfsEnvironment, HDFS_FILE_SYSTEM_STATS), config),
                 JsonCodec.jsonCodec(PartitionUpdate.class),
                 new NodeVersion("test_version"),
-                new NoneHiveRedirectionsProvider(),
                 ImmutableSet.of(
                         new PartitionsSystemTableProvider(hivePartitionManager, TESTING_TYPE_MANAGER),
                         new PropertiesSystemTableProvider()),
