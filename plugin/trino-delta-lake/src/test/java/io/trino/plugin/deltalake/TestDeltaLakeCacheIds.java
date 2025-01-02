@@ -138,7 +138,6 @@ public class TestDeltaLakeCacheIds
                         new TransactionLogSynchronizerManager(ImmutableMap.of(), new NoIsolationSynchronizer(hdfsFileSystemFactory))),
                 nodeManager,
                 checkpointWriterManager,
-                DeltaLakeRedirectionsProvider.NOOP,
                 new CachingExtendedStatisticsAccess(new MetaDirStatisticsAccess(HDFS_FILE_SYSTEM_FACTORY, new JsonCodecFactory().jsonCodec(ExtendedStatistics.class))),
                 true,
                 new NodeVersion("test_version"),
