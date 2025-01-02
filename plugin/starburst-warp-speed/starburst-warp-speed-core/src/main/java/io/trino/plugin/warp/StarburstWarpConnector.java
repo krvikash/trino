@@ -30,7 +30,6 @@ import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableProcedureMetadata;
-import io.trino.spi.eventlistener.EventListener;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -191,12 +190,6 @@ public class StarburstWarpConnector
     public ConnectorAccessControl getAccessControl()
     {
         return warpConnector.getAccessControl();
-    }
-
-    @Override
-    public Iterable<EventListener> getEventListeners()
-    {
-        return warpConnector.getEventListeners();
     }
 
     @Override
