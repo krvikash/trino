@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package io.trino.plugin.warp.gen.constants;
+package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
 public enum DemoteStatus
 {

@@ -20,10 +20,11 @@ import com.google.common.util.concurrent.AtomicDouble;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
-import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
@@ -55,6 +56,7 @@ public class WarmupDemoterService
     private final CatalogName catalogName;
     private final EventBus eventBus;
     private final WarpDeleteService warpDeleteService;
+    private final ShapingLogger shapingLogger;
 
     private final long demoteKey;
 
@@ -77,7 +79,8 @@ public class WarmupDemoterService
             EventBus eventBus,
             WarpDeleteService warpDeleteService,
             NodeManager nodeManager,
-            FlowsSequencer flowsSequencer)
+            FlowsSequencer flowsSequencer,
+            GlobalConfig globalConfig)
     {
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
@@ -86,6 +89,12 @@ public class WarmupDemoterService
         this.catalogName = requireNonNull(catalogName);
         this.eventBus = requireNonNull(eventBus);
         this.warpDeleteService = requireNonNull(warpDeleteService);
+
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
 
         demoteKey = demoterSync.registerCatalog(
                 this,
@@ -128,7 +137,7 @@ public class WarmupDemoterService
             isStarted = initiateDemoteProcess();
         }
         catch (Exception e) {
-            logger.error(e);
+            shapingLogger.error(e, "%s: initiateDemoteProcess failed", catalogName);
             globalStatsDemoter.incnumber_of_runs_fail();
         }
 
@@ -141,7 +150,7 @@ public class WarmupDemoterService
     boolean initiateDemoteProcess()
     {
         globalStatsDemoter.incnumber_of_calls();
-        if (demoteContext.get() != null) {
+        if (isExecuting()) {
             logger.debug("%s: is already executing (demoteContext = %s)", catalogName, demoteContext);
             globalStatsDemoter.incnot_executed_due_is_already_executing();
             return false;
@@ -159,7 +168,7 @@ public class WarmupDemoterService
         logger.debug("%s: call start demote", catalogName);
 
         if (!demoterSync.tryStartDemoteProcess(demoteKey)) {
-            logger.warn("%s: active demoter was initiated by another connector", catalogName);
+            shapingLogger.warn("%s: active demoter was initiated by another connector", catalogName);
             globalStatsDemoter.incnot_executed_due_sync_demote_start_rejected();
             return false;
         }
@@ -171,7 +180,7 @@ public class WarmupDemoterService
     {
         logger.debug("%s: startDemote", catalogName);
         try {
-            if (demoteContext.get() != null) {
+            if (isExecuting()) {
                 logger.debug("%s: abortActiveDemote", catalogName);
                 abortActiveDemote();
             }
@@ -189,10 +198,10 @@ public class WarmupDemoterService
         }
         catch (Exception e) {
             if (e instanceof TrinoException) {
-                logger.error("%s: startDemoteCycle failed with error: %s", catalogName, ((TrinoException) e).getErrorCode().getName());
+                shapingLogger.error("%s: startDemoteCycle failed with error: %s", catalogName, ((TrinoException) e).getErrorCode().getName());
             }
             else {
-                logger.error(e);
+                shapingLogger.error(e, "%s: startDemoteCycle failed", catalogName);
             }
             cancelDemoteExecution();
         }
@@ -200,7 +209,7 @@ public class WarmupDemoterService
 
     void cancelDemoteExecution()
     {
-        logger.error("catalog[%s]: failed to execute demote, call native to cancel demote", catalogName);
+        shapingLogger.error("catalog[%s]: failed to execute demote, cancelling", catalogName);
         demoterSync.finishDemoteProcess(
                 demoteKey,
                 demoteContext.get().getLowestPriority(),
@@ -219,22 +228,21 @@ public class WarmupDemoterService
             fireEventDemoteEnd(true);
         }
 
-        if (demoteContext.get() != null) {
+        if (isExecuting()) {
             deleteEmptyRowGroups = false;
             demoteContext.set(null);
             logger.debug("catalog[%s]: connectorSyncDemoteEnd(demoteContext = null)", catalogName);
         }
         else {
-            logger.error("catalog[%s]: connectorSyncDemoteEnd was called by another process, or demote was canceled",
-                    catalogName);
+            shapingLogger.error("catalog[%s]: connectorSyncDemoteEnd was called by another process, or demote was canceled", catalogName);
         }
     }
 
     private void fireEventDemoteEnd(boolean success)
     {
-        logger.debug("catalog[%s]: fire event demote end success[%s]", catalogName, success);
+        if (isExecuting()) {
+            logger.debug("catalog[%s]: fire event demote end success[%s]", catalogName, success);
 
-        if (demoteContext.get() != null) {
             globalStatsDemoter.mergeStats(demoteContext.get().getStatsWarmupDemoter());
 
             WarmupDemoterFinishEvent event = new WarmupDemoterFinishEvent(
@@ -248,19 +256,21 @@ public class WarmupDemoterService
     private void executeDemote()
             throws ExecutionException, InterruptedException
     {
-        logger.debug("catalog[%s]: execute demote", catalogName);
+        if (isExecuting()) {
+            logger.debug("catalog[%s]: execute demote", catalogName);
 
-        TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(tupleFilters, forceDeleteFailedObjects);
-        demoteContext.get().setTupleRankList(tupleRankResult.tupleRankList());
-        if (forceDeleteFailedObjects) {
-            // In case of forceDeleteFailedObjects = false, failed objects will be deleted regulary (as dead objects \ low priority)
-            logger.debug("catalog[%s]: deleteFailedObjects = %d", catalogName, tupleRankResult.failedObjects().size());
-            deleteFailedObjects(tupleRankResult.failedObjects());
+            TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(tupleFilters, forceDeleteFailedObjects);
+            demoteContext.get().setTupleRankList(tupleRankResult.tupleRankList());
+            if (forceDeleteFailedObjects) {
+                // In case of forceDeleteFailedObjects = false, failed objects will be deleted regulary (as dead objects \ low priority)
+                logger.debug("catalog[%s]: deleteFailedObjects = %d", catalogName, tupleRankResult.failedObjects().size());
+                deleteFailedObjects(tupleRankResult.failedObjects());
+            }
+            logger.debug("catalog[%s]: deleteImmediateObjects = %d", catalogName, tupleRankResult.immediateObjects().size());
+            deleteImmediateObjects(tupleRankResult.immediateObjects());
+            sortTupleRankCollection(demoteContext.get().getTupleRankList());
+            tupleFilters = null;
         }
-        logger.debug("catalog[%s]: deleteImmediateObjects = %d", catalogName, tupleRankResult.immediateObjects().size());
-        deleteImmediateObjects(tupleRankResult.immediateObjects());
-        sortTupleRankCollection(demoteContext.get().getTupleRankList());
-        tupleFilters = null;
     }
 
     @VisibleForTesting
@@ -309,7 +319,7 @@ public class WarmupDemoterService
 
     void abortActiveDemote()
     {
-        logger.error("catalog[%s]: demote was aborted, demoteContext = %s", catalogName, demoteContext);
+        shapingLogger.error("catalog[%s]: demote was aborted, demoteContext = %s", catalogName, demoteContext);
         deleteEmptyRowGroups = false;
         globalStatsDemoter.incnumber_of_runs_fail();
         fireEventDemoteEnd(false);
@@ -324,7 +334,7 @@ public class WarmupDemoterService
             maxPriorityToDemote = isSingleConnector ? Integer.MAX_VALUE : maxPriorityToDemote;
 
             if (!hasElementsToDemote(maxPriorityToDemote)) {
-                logger.warn("should not call demote to on catalog[%s] -> tupleRankList[%s], lowestPriority[%s], maxPriorityToDemote[%s]",
+                shapingLogger.warn("should not call demote to on catalog[%s] -> tupleRankList[%s], lowestPriority[%s], maxPriorityToDemote[%s]",
                         catalogName,
                         demoteContext.get().getTupleRankList().isEmpty(),
                         demoteContext.get().getLowestPriority(),
@@ -349,12 +359,10 @@ public class WarmupDemoterService
         }
         catch (Exception e) {
             if (e instanceof TrinoException) {
-                logger.error(e,
-                        "catalog[%s]: startDemoteCycle failed with error: %s",
-                        catalogName, ((TrinoException) e).getErrorCode().getName());
+                shapingLogger.error(e, "catalog[%s]: startDemoteCycle failed with error: %s", catalogName, ((TrinoException) e).getErrorCode().getName());
             }
             else {
-                logger.error(e);
+                shapingLogger.error(e, "catalog[%s]: startDemoteCycle failed with error", catalogName);
             }
             cancelDemoteExecution();
         }
@@ -375,7 +383,7 @@ public class WarmupDemoterService
             }
             else {
                 reachedThreshold = true;
-                logger.warn("catalog[%s]: demoteCycle: while loop: reached threshold", catalogName);
+                shapingLogger.warn("catalog[%s]: demoteCycle: while loop: reached threshold", catalogName);
             }
         }
         logger.debug("catalog[%s]: demoteCycle: tupleRankListSize = %d, elementsDeleted = %d, maxElementsToDemote = %d, maxPriorityToDemote = %f, lowestPriorityLeft = %f",

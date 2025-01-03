@@ -16,13 +16,13 @@ package io.trino.plugin.warp.dispatcher.warmup.demoter;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AtomicDouble;
 import io.trino.plugin.warp.TestingTxService;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.expression.TransformFunction;
-import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
@@ -126,7 +126,8 @@ public class WarmupDemoterServiceTest
                 eventBus,
                 deleteService,
                 nodeManager,
-                flowsSequencer);
+                flowsSequencer,
+                new GlobalConfig());
     }
 
     @Test

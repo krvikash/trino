@@ -17,7 +17,7 @@ import com.google.common.util.concurrent.Futures;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.gen.constants.DemoteStatus;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.tools.util.StopWatch;
@@ -34,7 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static io.trino.plugin.warp.gen.constants.DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED;
+import static io.trino.plugin.warp.dispatcher.warmup.demoter.DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED;
 import static java.util.Objects.requireNonNull;
 
 public class DemoterSync
@@ -44,6 +44,7 @@ public class DemoterSync
     private final Map<Long, DemoteContext> demoterServiceContextMap;
     private final AtomicLong initiator;
     private final ExecutorService executorService;
+    private final ShapingLogger shapingLogger;
 
     @SuppressWarnings("StaticAssignmentInConstructor")
     public DemoterSync()
@@ -51,6 +52,7 @@ public class DemoterSync
         executorService = Executors.newThreadPerTaskExecutor(daemonThreadsNamed("warp-speed-demoter-sync-%s"));
         demoterServiceContextMap = new ConcurrentHashMap<>();
         initiator = new AtomicLong(Long.MIN_VALUE);
+        shapingLogger = ShapingLogger.getInstance(logger, 1000, Duration.ofSeconds(60), 3); // cannot take it from GlobalConfig since this is across catalogs
     }
 
     public long registerCatalog(
@@ -91,14 +93,15 @@ public class DemoterSync
             return true;
         }
 
-        throw new RuntimeException("catalog[%s] syncDemotePrepare::already running with another demote sequence, current[%s], initiator[%s]"
-                .formatted(catalogName, demoteKey, initiator.get()));
+        shapingLogger.warn("catalog[%s] syncDemotePrepare::already running with another demote sequence, current[%s], initiator[%s]", catalogName, demoteKey, initiator.get());
+        return false;
     }
 
     private void startDemoteProcess(long demoteKey)
     {
         if (initiator.get() != demoteKey) {
-            throw new RuntimeException("demote process not allowed since this is not the not initiator");
+            shapingLogger.warn("demote process not allowed since this is not the not initiator");
+            return;
         }
 
         CatalogName catalogName = demoterServiceContextMap.get(demoteKey).catalogName();
@@ -218,7 +221,7 @@ public class DemoterSync
                         catalogName);
             }
             else {
-                logger.error("loopUntilNothingToDemote:: catalog[%s] NOT all demoter calls complete finished -> %s",
+                shapingLogger.warn("loopUntilNothingToDemote:: catalog[%s] NOT all demoter calls complete finished -> %s",
                         catalogName,
                         demoterServiceContextMap
                                 .values()
