@@ -50,6 +50,7 @@ public class DynamoDbConfig
     private String awsAccessKey;
     private String awsSecretKey;
     private String awsRoleArn;
+    private String awsRoleCredentialsLocation = JAVA_IO_TMPDIR.value() + "/dynamodb-credentials-file";
     private String awsExternalId;
     private String awsRegion;
     private GenerateSchemaFiles generateSchemaFiles = GenerateSchemaFiles.NEVER;
@@ -102,6 +103,19 @@ public class DynamoDbConfig
     public DynamoDbConfig setAwsRoleArn(String awsRoleArn)
     {
         this.awsRoleArn = awsRoleArn;
+        return this;
+    }
+
+    public String getAwsRoleCredentialsLocation()
+    {
+        return awsRoleCredentialsLocation;
+    }
+
+    @Config("dynamodb.aws-role-credentials-location")
+    @ConfigDescription("AWS IAM Role Credentials Location")
+    public DynamoDbConfig setAwsRoleCredentialsLocation(String awsCredentialsLocation)
+    {
+        this.awsRoleCredentialsLocation = awsCredentialsLocation;
         return this;
     }
 

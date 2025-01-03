@@ -103,7 +103,8 @@ public class DynamoDbConnectionFactory
         dynamoDbConfig.getAwsRoleArn().ifPresent(url ->
                 builder
                         .append("AuthScheme=\"").append("AwsIAMRoles").append("\";")
-                        .append("AWS Role ARN=\"").append(url).append("\";"));
+                        .append("AWS Role ARN=\"").append(url).append("\";")
+                        .append("CredentialsLocation=\"").append(dynamoDbConfig.getAwsRoleCredentialsLocation()).append("\";"));
         dynamoDbConfig.getAwsExternalId().ifPresent(url -> builder.append("AWS External Id=\"").append(url).append("\";"));
         dynamoDbConfig.getEndpointUrl().ifPresent(url -> builder.append("URL=\"").append(url).append("\";"));
 
