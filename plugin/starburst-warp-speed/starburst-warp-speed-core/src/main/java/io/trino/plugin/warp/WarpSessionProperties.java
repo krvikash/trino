@@ -58,6 +58,7 @@ public final class WarpSessionProperties
     public static final String ENABLE_INVERSE_WITH_NULLS = "enable_inverse_with_nulls";
     public static final String MIN_MAX_FILTER = "min_max_filter";
     public static final String DEBUG_NO_PREDICATE_BUFFER = "debug_no_predicate_buffer";
+    public static final String ENABLE_BYPASS = "enable_passthrough";
 
     private static final Logger logger = Logger.get(WarpSessionProperties.class);
     private final List<PropertyMetadata<?>> sessionProperties;
@@ -160,6 +161,11 @@ public final class WarpSessionProperties
                         DEBUG_NO_PREDICATE_BUFFER,
                         "This is for debugging / crisis mitigation only. Won't create predicates in the cache, so Warp won't be able to apply filters on BASIC index",
                         false,
+                        true),
+                booleanProperty(
+                        ENABLE_BYPASS,
+                        "This is for debugging - bypass to proxy",
+                        false,
                         true));
     }
 
@@ -216,6 +222,15 @@ public final class WarpSessionProperties
     public static Boolean isDefaultWarmingEnabled(ConnectorSession session)
     {
         return session == null ? null : getProperty(session, ENABLE_DEFAULT_WARMING, Boolean.class);
+    }
+
+    public static boolean isBypassEnabled(ConnectorSession session)
+    {
+        if (session == null) {
+            return false;
+        }
+        Boolean ret = getProperty(session, ENABLE_BYPASS, Boolean.class);
+        return ret != null ? ret : false;
     }
 
     public static boolean isDefaultWarmingIndex(ConnectorSession session)
