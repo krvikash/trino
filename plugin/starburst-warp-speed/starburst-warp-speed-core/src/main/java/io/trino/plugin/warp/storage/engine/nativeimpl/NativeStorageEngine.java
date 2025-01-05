@@ -29,7 +29,10 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.StructLayout;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
@@ -41,6 +44,26 @@ public class NativeStorageEngine
         implements StorageEngine
 {
     private static final Logger logger = Logger.get(NativeStorageEngine.class);
+
+    private static final StructLayout ENV_PROPERTIES_LAYOUT;
+    private static final long ENV_PROPERTIES_OFFSET_LIBRARY_PATH;
+    private static final long ENV_PROPERTIES_OFFSET_JVM_MEMORY;
+    private static final long ENV_PROPERTIES_OFFSET_MAX_WORKER_THREADS;
+    private static final long ENV_PROPERTIES_OFFSET_MAX_REC_BUF_SIZE;
+    private static final long ENV_PROPERTIES_OFFSET_PANIC_HALT_POLICY;
+    private static final long ENV_PROPERTIES_OFFSET_LZ4_HC_PERCENT;
+    private static final long ENV_PROPERTIES_OFFSET_COLLECT_TX_SIZE;
+    private static final long ENV_PROPERTIES_OFFSET_STORAGE_CACHE_SIZE_IN_PAGES;
+    private static final long ENV_PROPERTIES_OFFSET_PREDICATE_HEADER_SIZE;
+    private static final long ENV_PROPERTIES_OFFSET_SKIP_INDEX_PERCENT;
+
+    private static final StructLayout ENV_ENABLE_CONFIG_LAYOUT;
+    private static final long ENV_ENABLE_CONFIG_OFFSET_COMPRESSION_EXCEPTION_LIST;
+    private static final long ENV_ENABLE_CONFIG_OFFSET_SINGLE_CHUNK;
+    private static final long ENV_ENABLE_CONFIG_OFFSET_PACKED_CHUNK;
+    private static final long ENV_ENABLE_CONFIG_OFFSET_COMPRESSION;
+    private static final long ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID;
+
     private final ShapingLogger shapingLogger;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final ExceptionThrower exceptionThrower; // we keep a reference to hold this object for native layer ref
@@ -53,6 +76,7 @@ public class NativeStorageEngine
     private final MethodHandle mFilePunchHole;
     private final MethodHandle mFileAboutToBeDeleted;
     // initialization API
+    private final MethodHandle mInitEnv;
     private final MethodHandle mInitGetWarmupRecordBufferSize;
     private final MethodHandle mInitGetFixedCollectRecordBufferSize;
     private final MethodHandle mInitGetVarlenCollectRecordBufferSize;
@@ -82,6 +106,44 @@ public class NativeStorageEngine
     private final MethodHandle mCollectCollectChunk;
     private final MethodHandle mCollectClose;
 
+    static {
+        ENV_PROPERTIES_LAYOUT = MemoryLayout.structLayout(
+                ValueLayout.ADDRESS.withName("plibrary_path"),
+                ValueLayout.JAVA_LONG.withName("jvm_memory"),
+                ValueLayout.JAVA_INT.withName("max_worker_threads"),
+                ValueLayout.JAVA_INT.withName("max_rec_buf_size_in_bytes"),
+                ValueLayout.JAVA_INT.withName("panic_halt_policy"),
+                ValueLayout.JAVA_INT.withName("lz4_hc_percent"),
+                ValueLayout.JAVA_INT.withName("collect_tx_size"),
+                ValueLayout.JAVA_INT.withName("storage_cache_size_in_pages"),
+                ValueLayout.JAVA_INT.withName("predicate_header_size"),
+                ValueLayout.JAVA_INT.withName("skip_index_percent")).withName("env_properties_t");
+
+        ENV_PROPERTIES_OFFSET_LIBRARY_PATH = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("plibrary_path"));
+        ENV_PROPERTIES_OFFSET_JVM_MEMORY = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("jvm_memory"));
+        ENV_PROPERTIES_OFFSET_MAX_WORKER_THREADS = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("max_worker_threads"));
+        ENV_PROPERTIES_OFFSET_MAX_REC_BUF_SIZE = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("max_rec_buf_size_in_bytes"));
+        ENV_PROPERTIES_OFFSET_PANIC_HALT_POLICY = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("panic_halt_policy"));
+        ENV_PROPERTIES_OFFSET_LZ4_HC_PERCENT = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("lz4_hc_percent"));
+        ENV_PROPERTIES_OFFSET_COLLECT_TX_SIZE = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("collect_tx_size"));
+        ENV_PROPERTIES_OFFSET_STORAGE_CACHE_SIZE_IN_PAGES = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("storage_cache_size_in_pages"));
+        ENV_PROPERTIES_OFFSET_PREDICATE_HEADER_SIZE = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("predicate_header_size"));
+        ENV_PROPERTIES_OFFSET_SKIP_INDEX_PERCENT = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("skip_index_percent"));
+
+        ENV_ENABLE_CONFIG_LAYOUT = MemoryLayout.structLayout(
+                ValueLayout.JAVA_INT.withName("compression_exceptional_list"),
+                ValueLayout.JAVA_BYTE.withName("single_chunk"),
+                ValueLayout.JAVA_BYTE.withName("packed_chunk"),
+                ValueLayout.JAVA_BYTE.withName("compression"),
+                ValueLayout.JAVA_BYTE.withName("validate_warm_id")).withName("env_enable_config_t");
+
+        ENV_ENABLE_CONFIG_OFFSET_COMPRESSION_EXCEPTION_LIST = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("compression_exceptional_list"));
+        ENV_ENABLE_CONFIG_OFFSET_SINGLE_CHUNK = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("single_chunk"));
+        ENV_ENABLE_CONFIG_OFFSET_PACKED_CHUNK = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("packed_chunk"));
+        ENV_ENABLE_CONFIG_OFFSET_COMPRESSION = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("compression"));
+        ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("validate_warm_id"));
+    }
+
     public NativeStorageEngine(
             NativeConfig nativeConfig,
             MetricsManager metricsManager,
@@ -100,7 +162,7 @@ public class NativeStorageEngine
                 globalConfig.getShapingLoggerNumberOfSamples());
 
         logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d", taskMaxWorkerThreads, panicHaltPolicy);
-        try {
+        try (Arena arena = Arena.ofConfined()) {
             SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
             Linker linker = Linker.nativeLinker();
 
@@ -117,6 +179,8 @@ public class NativeStorageEngine
                     FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_INT));
 
             // init API
+            mInitEnv = linker.downcallHandle(libraryHandle.find("env_init").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
             mInitGetWarmupRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_warmup_record_buffer_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
             mInitGetFixedCollectRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_collect_record_buffer_size").orElseThrow(),
@@ -174,52 +238,37 @@ public class NativeStorageEngine
             mCollectClose = linker.downcallHandle(libraryHandle.find("warp_speed_collect_close").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
 
-            nativeInit(taskMaxWorkerThreads,
-                    Runtime.getRuntime().maxMemory(),
-                    nativeConfig.getGeneralReservedMemory(),
-                    nativeConfig.getMaxRecJufferSize(),
-                    nativeConfig.getCompressionLevel(),
-                    panicHaltPolicy,
-                    nativeConfig.getCollectTxSize(),
-                    nativeConfig.getStorageCacheSizeInPages(),
-                    PredicateUtil.PREDICATE_HEADER_SIZE,
-                    nativeConfig.getSkipIndexPercent(),
-                    WarpNativeStorageEngineModule.getNativeLibrariesDirectory().toString(),
-                    nativeConfig.getEnableSingleChunk(),
-                    nativeConfig.getEnablePackedChunk(),
-                    nativeConfig.getEnableWarmingExtraLogs(),
-                    nativeConfig.getEnableCompression(),
-                    nativeConfig.getExceptionalListCompression(),
-                    globalConfig.getDebugWarming());
+            MemorySegment envProperties = arena.allocate(ENV_PROPERTIES_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
+            envProperties.set(ValueLayout.ADDRESS, ENV_PROPERTIES_OFFSET_LIBRARY_PATH, arena.allocateFrom(WarpNativeStorageEngineModule.getNativeLibrariesDirectory().toString()));
+            envProperties.set(ValueLayout.JAVA_LONG, ENV_PROPERTIES_OFFSET_JVM_MEMORY, Runtime.getRuntime().maxMemory());
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_MAX_WORKER_THREADS, taskMaxWorkerThreads);
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_MAX_REC_BUF_SIZE, nativeConfig.getMaxRecJufferSize());
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_PANIC_HALT_POLICY, panicHaltPolicy);
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_LZ4_HC_PERCENT, nativeConfig.getCompressionLevel());
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_COLLECT_TX_SIZE, nativeConfig.getCollectTxSize());
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_STORAGE_CACHE_SIZE_IN_PAGES, nativeConfig.getStorageCacheSizeInPages());
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_PREDICATE_HEADER_SIZE, PredicateUtil.PREDICATE_HEADER_SIZE);
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_SKIP_INDEX_PERCENT, nativeConfig.getSkipIndexPercent());
+
+            MemorySegment envEnableConfig = arena.allocate(ENV_ENABLE_CONFIG_LAYOUT.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
+            envEnableConfig.set(ValueLayout.JAVA_INT, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION_EXCEPTION_LIST, nativeConfig.getExceptionalListCompression());
+            envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_SINGLE_CHUNK, nativeConfig.getEnableSingleChunk() ? (byte) 1 : (byte) 0);
+            envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_PACKED_CHUNK, nativeConfig.getEnablePackedChunk() ? (byte) 1 : (byte) 0);
+            envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION, nativeConfig.getEnableCompression() ? (byte) 1 : (byte) 0);
+            envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID, globalConfig.getDebugWarming() ? (byte) 1 : (byte) 0);
+
+            mInitEnv.invokeExact(envProperties, envEnableConfig);
             loaded = true;
         }
         catch (Throwable t) {
-            logger.error(t, "failed loading storage engine");
-            throw t;
+            logger.error(t, "failed loading native storage engine");
+            throw new RuntimeException("failed loading native storage engine");
         }
         new WarpStatsMgr(metricsManager);
         logger.debug("finish initializing storage engine");
 
         ((NativeConnectorSync) connectorSync).init();
     }
-
-    private native void nativeInit(int maxWorkerThreads,
-            long jvmMemory,
-            long generalReservedMemory,
-            int maxRecJufferSize,
-            int lz4HcPercent,
-            int panicHaltPolicy,
-            int collectTxSize,
-            int storageCacheSizeInPages,
-            int predicateHeaderSize,
-            int skipIndexPercentage,
-            String libraryPath,
-            boolean enableSingleChunk,
-            boolean enablePackedChunk,
-            boolean enableWarmingExtraLogs,
-            boolean enableCompression,
-            int exceptionalListCompression,
-            boolean validateWarmId);
 
     @Override
     public int getWarmupRecordBufferSize(int recTypeLength)

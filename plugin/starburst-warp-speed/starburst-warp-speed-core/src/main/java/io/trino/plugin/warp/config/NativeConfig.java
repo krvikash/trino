@@ -31,13 +31,10 @@ public class NativeConfig
 {
     private static final int READERS_WARMERS_RATIO = 32;
     private static final int MIN_WARMING_THREADS = 2;
-    private static final int DEFAULT_GENERAL_RESERVED_MEMORY_IN_GB = 8;
-    private static final int DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES = 4 * 1024 * 1024;
+    private static final int DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES = 1024 * 1024;
     private static final String EXCEPTIONAL_LIST_COMPRESSION = "enable.compression.exceptional-list";
     private static final int TASK_MIN_WORKER_THREADS = 4;
 
-    private int predicateBundleSizeInMegaBytes = 110;
-    private DataSize generalReservedMemory = DataSize.of(0, DataSize.Unit.GIGABYTE);
     private DataSize maxRecJufferSize = DataSize.of(10, DataSize.Unit.MEGABYTE);
     private int lz4HcPercent = 10;
     private DataSize collectTxSize = DataSize.of(2, DataSize.Unit.MEGABYTE);
@@ -64,41 +61,8 @@ public class NativeConfig
     // enum value (on - in the list, off - not in the list)
     private boolean enableSingleChunk = true;
     private boolean enablePackedChunk = true;
-    private boolean enableWarmingExtraLogs;
     private boolean enableCompression = true;
     private int exceptionalListCompression;
-
-    @Min(100)
-    @Max(600)
-    public int getPredicateBundleSizeInMegaBytes()
-    {
-        return predicateBundleSizeInMegaBytes;
-    }
-
-    @Config("warp-speed.config.predicate-bundle-size-mb")
-    public void setPredicateBundleSizeInMegaBytes(int predicateBundleSizeInMegaBytes)
-    {
-        this.predicateBundleSizeInMegaBytes = predicateBundleSizeInMegaBytes;
-    }
-
-    public long getGeneralReservedMemory()
-    {
-        if (generalReservedMemory.toBytes() == 0) {
-            generalReservedMemory = switch (getClusterLevel()) {
-                case 0 -> DataSize.of(0, DataSize.Unit.GIGABYTE);
-                case 1, 2 -> DataSize.of(DEFAULT_GENERAL_RESERVED_MEMORY_IN_GB >> 2, DataSize.Unit.GIGABYTE);
-                case 3 -> DataSize.of(DEFAULT_GENERAL_RESERVED_MEMORY_IN_GB >> 1, DataSize.Unit.GIGABYTE);
-                default -> DataSize.of(DEFAULT_GENERAL_RESERVED_MEMORY_IN_GB, DataSize.Unit.GIGABYTE);
-            };
-        }
-        return generalReservedMemory.toBytes();
-    }
-
-    @Config("warp-speed.config.general-reserved-memory-in-gb")
-    public void setGeneralReservedMemory(long generalReservedMemoryInGigaBytes)
-    {
-        this.generalReservedMemory = DataSize.of(generalReservedMemoryInGigaBytes, DataSize.Unit.GIGABYTE);
-    }
 
     @Min(1 * 1024 * 1024)
     @Max(16 * 1024 * 1024)
@@ -145,11 +109,11 @@ public class NativeConfig
     {
         if (storageCacheSizeInPages == 0) {
             storageCacheSizeInPages = switch (getClusterLevel()) {
-                case 0 -> (DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES >> 6) - 1;
-                case 1 -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES >> 3;
-                case 2 -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES >> 2;
-                case 3 -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES >> 1;
-                default -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES;
+                case 0 -> (DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES >> 4) - 1;
+                case 1 -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES >> 2;
+                case 3 -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES << 1;
+                case 4 -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES << 2;
+                default -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES; // 2 is the default level
             };
         }
         return storageCacheSizeInPages;
@@ -196,17 +160,6 @@ public class NativeConfig
     public void setEnablePackedChunk(boolean enablePackedChunk)
     {
         this.enablePackedChunk = enablePackedChunk;
-    }
-
-    public boolean getEnableWarmingExtraLogs()
-    {
-        return enableWarmingExtraLogs;
-    }
-
-    @Config("warp-speed.enable.native-warming-extra-logs")
-    public void setEnableWarmingExtraLogs(boolean enableWarmingExtraLogs)
-    {
-        this.enableWarmingExtraLogs = enableWarmingExtraLogs;
     }
 
     public boolean getEnableCompression()
@@ -269,7 +222,7 @@ public class NativeConfig
             else if (taskMaxWorkerThreads <= 32) { // 4x
                 clusterLevel = 1;
             }
-            else if (taskMaxWorkerThreads <= 64) { // 8x
+            else if (taskMaxWorkerThreads <= 64) { // 8x which is the default
                 clusterLevel = 2;
             }
             else if (taskMaxWorkerThreads <= 96) {

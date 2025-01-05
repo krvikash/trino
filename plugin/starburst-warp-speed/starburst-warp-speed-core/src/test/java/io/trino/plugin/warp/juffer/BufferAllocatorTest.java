@@ -56,7 +56,6 @@ public class BufferAllocatorTest
     {
         nativeConfig = mock(NativeConfig.class);
         when(nativeConfig.getTaskMaxWorkerThreads()).thenReturn(4);
-        when(nativeConfig.getPredicateBundleSizeInMegaBytes()).thenReturn(20);
 
         storageEngineConstants = spy(new StubsStorageEngineConstants());
         initStorageEngineConstants(storageEngineConstants);

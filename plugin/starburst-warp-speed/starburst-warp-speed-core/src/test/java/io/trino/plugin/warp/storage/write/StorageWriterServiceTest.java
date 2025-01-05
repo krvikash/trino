@@ -139,7 +139,6 @@ public class StorageWriterServiceTest
 
         NativeConfig nativeConfig = new NativeConfig();
         nativeConfig.setTaskMaxWorkerThreads(4);
-        nativeConfig.setPredicateBundleSizeInMegaBytes(20);
 
         this.bufferAllocator = mockBufferAllocator(storageEngine, storageEngineConstants, nativeConfig, metricsManager);
         dictionaryCacheService = mock(DictionaryCacheService.class);
