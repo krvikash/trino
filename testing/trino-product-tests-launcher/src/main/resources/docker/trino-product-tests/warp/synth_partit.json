@@ -308,6 +308,36 @@
       "dictionary_rejected_elements_count": 0,
       "write_dictionaries_count": 2
     },
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "integer_date_partition_2",
+            "expected_counters": {
+              "warp_match_columns": 14,
+              "warp_collect_columns": 13,
+              "warp_prefilled_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "integer_date_partition_2",
+             "expected_counters": {
+              "warp_match_columns": 14,
+              "warp_collect_columns": 13,
+              "warp_prefilled_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "select count(char_5) from integer_date_partition",
@@ -331,20 +361,6 @@
         "expected_counters": {
           "warp_match_columns": 53,
           "warp_collect_columns": 52,
-          "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 14,
-          "warp_collect_columns": 13,
-          "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 14,
-          "warp_collect_columns": 13,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -571,6 +587,22 @@
     "data_format": "ORC",
     "warm_query": "select account_id, site_id, url, targeting_type, language_id, is_translated, category_list_string, peer_category_list_string, requests, partition_date from date_partition_orc_file",
     "data": "resources/synthetic/date_partition_orc_file.jsonl",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "date_partition_orc_file_4",
+            "expected_counters": {
+              "warp_match_columns": 24,
+              "warp_collect_columns": 145,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 23
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "select count(account_id) from date_partition_orc_file",
@@ -631,13 +663,6 @@
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 24,
-          "warp_collect_columns": 145,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 23
         }
       }
     ]
@@ -1569,15 +1594,71 @@
       "dictionary_rejected_elements_count": 0,
       "write_dictionaries_count": 43
     },
-    "iceberg_expected_dictionary_counters": {
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 45
-    },
     "comment_type_skip": "all counters are zero for: phoenix_table_min_max_q01, phoenix_table_min_max_q02, phoenix_table_min_max_q03, phoenix_table_min_max_q04",
     "skip_type": [
       "warp_iceberg",
       "warp_delta_lake"
     ],
+    "overriding": {
+      "warp_iceberg": {
+        "expected_dictionary_counters": {
+          "dictionary_rejected_elements_count": 0,
+          "write_dictionaries_count": 45
+        },
+        "queries_data": [
+          {
+            "query_id": "phoenix_table_8",
+            "expected_counters": {
+              "warp_match_columns": 40,
+              "warp_collect_columns": 56,
+              "warp_prefilled_collect_columns": 32,
+              "external_match_columns": 48,
+              "external_collect_columns": 8
+            }
+          },
+          {
+            "query_id": "phoenix_table_min_max_q01",
+            "expected_counters": {
+              "filtered_by_predicate": 0,
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "phoenix_table_data_min_max_q02",
+            "expected_counters": {
+              "filtered_by_predicate": 0,
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "phoenix_table_min_max_q03",
+            "expected_counters": {
+              "filtered_by_predicate": 0,
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "phoenix_table_data_min_max_q04",
+            "expected_counters": {
+              "filtered_by_predicate": 0,
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "SELECT COUNT(*) FROM phoenix_table",
@@ -1707,13 +1788,6 @@
           "warp_prefilled_collect_columns": 40,
           "external_match_columns": 48,
           "external_collect_columns": 8
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 40,
-          "warp_collect_columns": 56,
-          "warp_prefilled_collect_columns": 32,
-          "external_match_columns": 48,
-          "external_collect_columns": 8
         }
       },
       {
@@ -1756,13 +1830,6 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "filtered_by_predicate": 0,
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -1775,13 +1842,6 @@
           "filtered_by_predicate": 1,
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "filtered_by_predicate": 0,
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1798,13 +1858,6 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "filtered_by_predicate": 0,
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -1817,13 +1870,6 @@
           "filtered_by_predicate": 1,
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "filtered_by_predicate": 0,
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2248,6 +2294,22 @@
       "longlonglonglonglonglonglonglong_col5",
       "longlonglonglonglonglonglonglong_col6"
     ],
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "long_part_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          }
+        ]
+      }
+    },
     "queries_data":[
       {
         "query": "select count(*) from long_part",
@@ -2261,13 +2323,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
         }
       },
       {
@@ -2329,7 +2384,6 @@
         }
       }
     ]
-
   },
   {
     "name" : "partition_null_values",
@@ -2538,6 +2592,22 @@
         "type": "integer"
       }
     ],
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "partition_null_values_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 3
+            }
+          }
+        ]
+      }
+    },
     "queries_data":[
       {
         "query": "select count(*) from partition_null_values",
@@ -2551,13 +2621,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 3
         }
       },
       {
@@ -2661,6 +2724,42 @@
     "skip_type": [
       "warp_delta_lake"
     ],
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "timestamp_partition_2",
+            "expected_counters": {
+              "warp_match_columns": 2,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 2,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "timestamp_partition_3",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 9
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "timestamp_partition_2",
+            "expected_result": [
+              0
+            ]
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "select count(ts_1) from timestamp_partition where int_1<=0 AND ts_1<=CAST('2018-01-03 10:50:35.000' as timestamp)",
@@ -2681,21 +2780,11 @@
         "expected_result": [
           5000
         ],
-        "expected_dl_result": [
-          0
-        ],
         "query_id": "timestamp_partition_2",
         "expected_counters": {
           "warp_match_columns": 1,
           "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 2,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2712,13 +2801,6 @@
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 9
         }
       }
     ]
@@ -2824,6 +2906,58 @@
       }
     ],
     "warm_query": "select * from decimal_timestamp_partition",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "decimal_timestamp_partition_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 10
+            }
+          },
+          {
+            "query_id": "decimal_timestamp_partition_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 6,
+              "external_match_columns": 0,
+              "external_collect_columns": 3
+            }
+          },
+          {
+            "query_id": "decimal_timestamp_partition_3",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 26,
+              "external_match_columns": 0,
+              "external_collect_columns": 4
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "decimal_timestamp_partition_2",
+            "expected_result": [
+              39996
+            ]
+          },
+          {
+            "query_id": "decimal_timestamp_partition_3",
+            "expected_result": [
+              "1236.50", "2000-01-04 22:00:00.000"
+            ]
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "select min(dec_1) from decimal_timestamp_partition where dec_1<=1235.5",
@@ -2837,22 +2971,12 @@
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 10
         }
       },
       {
         "query": "select count(dec_1) from decimal_timestamp_partition where ts_1>=CAST('2000-01-03 00:00:00.000' as timestamp)",
         "expected_result": [
           59994
-        ],
-        "expected_dl_result": [
-          39996
         ],
         "query_id": "decimal_timestamp_partition_2",
         "expected_counters": {
@@ -2861,22 +2985,12 @@
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 6,
-          "external_match_columns": 0,
-          "external_collect_columns": 3
         }
       },
       {
         "query": "select max(dec_1), MAX(CAST(ts_1 as timestamp)) from decimal_timestamp_partition where ts_1>=CAST('2000-01-01 00:00:00.000' as timestamp) AND dec_1<=1236.5",
         "expected_result": [
           "1236.50", "2000-01-05 00:00:00.000"
-        ],
-        "expected_dl_result": [
-          "1236.50", "2000-01-04 22:00:00.000"
         ],
         "query_id": "decimal_timestamp_partition_3",
         "expected_counters": {
@@ -2885,13 +2999,6 @@
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 26,
-          "external_match_columns": 0,
-          "external_collect_columns": 4
         }
       },
       {

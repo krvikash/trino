@@ -133,11 +133,41 @@
       "dictionary_rejected_elements_count": 0,
       "write_dictionaries_count": 5
     },
-    "iceberg_expected_dictionary_counters": {
-      "write_dictionaries_count": 8
-    },
-    "dl_expected_dictionary_counters": {
-      "write_dictionaries_count": 8
+    "overriding": {
+      "warp_iceberg": {
+        "expected_dictionary_counters": {
+        "write_dictionaries_count": 8
+      },
+        "queries_data": [
+          {
+            "query_id": "eight_char_17",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "expected_dictionary_counters": {
+          "write_dictionaries_count": 8
+        },
+        "queries_data": [
+          {
+            "query_id": "eight_char_17",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      }
     },
     "queries_data": [
       {
@@ -376,20 +406,6 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -542,11 +558,17 @@
       "dictionary_rejected_elements_count": 0,
       "write_dictionaries_count": 5
     },
-    "iceberg_expected_dictionary_counters": {
-      "write_dictionaries_count": 8
-    },
-    "dl_expected_dictionary_counters": {
-      "write_dictionaries_count": 8
+    "overriding": {
+      "warp_iceberg": {
+        "expected_dictionary_counters": {
+          "write_dictionaries_count": 8
+        }
+      },
+      "warp_delta_lake": {
+        "expected_dictionary_counters": {
+          "write_dictionaries_count": 8
+        }
+      }
     },
     "queries_data": [
       {
@@ -1794,6 +1816,46 @@
       }
     ],
     "data": "resources/synthetic/integer_more.jsonl",
+    "overriding": {
+      "warp_iceberg": {
+        "cases": [
+          {
+            "case_name": "integer_more case 1",
+            "expected_dictionary_counters": {
+              "dictionary_failed_elements_count": 0,
+              "dictionary_rejected_elements_count": 0,
+              "write_dictionaries_count": 4
+            },
+            "queries_data": [
+              {
+                "query_id": "integer_more_14",
+                "expected_counters": {
+                  "warp_match_columns": 1,
+                  "warp_collect_columns": 1,
+                  "warp_prefilled_collect_columns": 0,
+                  "warp_match_collect_columns": 0,
+                  "warp_mapped_match_collect_columns": 0,
+                  "external_match_columns": 0,
+                  "external_collect_columns": 0
+                }
+              },
+              {
+                "query_id": "integer_more_18",
+                "expected_counters":{
+                  "warp_match_columns": 1,
+                  "warp_collect_columns": 1,
+                  "warp_prefilled_collect_columns": 0,
+                  "warp_match_collect_columns": 1,
+                  "warp_mapped_match_collect_columns": 1,
+                  "external_match_columns": 0,
+                  "external_collect_columns": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
     "cases": [
       {
         "case_name": "integer_more case 1",
@@ -1836,11 +1898,6 @@
           "dictionary_failed_elements_count": 0,
           "dictionary_rejected_elements_count": 0,
           "write_dictionaries_count": 2
-        },
-        "iceberg_expected_dictionary_counters": {
-          "dictionary_failed_elements_count": 0,
-          "dictionary_rejected_elements_count": 0,
-          "write_dictionaries_count": 4
         },
         "queries_data": [
           {
@@ -2067,16 +2124,6 @@
               "warp_mapped_match_collect_columns": 0,
               "external_match_columns": 0,
               "external_collect_columns": 0
-            },
-            "iceberg_expected_counters":
-            {
-              "warp_match_columns": 1,
-              "warp_collect_columns": 1,
-              "warp_prefilled_collect_columns": 0,
-              "warp_match_collect_columns": 0,
-              "warp_mapped_match_collect_columns": 0,
-              "external_match_columns": 0,
-              "external_collect_columns": 0
             }
           },
           {
@@ -2165,16 +2212,6 @@
               "warp_prefilled_collect_columns": 0,
               "warp_match_collect_columns": 1,
               "warp_mapped_match_collect_columns": 0,
-              "external_match_columns": 0,
-              "external_collect_columns": 0
-            },
-            "iceberg_expected_counters":
-            {
-              "warp_match_columns": 1,
-              "warp_collect_columns": 1,
-              "warp_prefilled_collect_columns": 0,
-              "warp_match_collect_columns": 1,
-              "warp_mapped_match_collect_columns": 1,
               "external_match_columns": 0,
               "external_collect_columns": 0
             }
@@ -2464,6 +2501,14 @@
     "table_name": "\"12345long_dec\"",
     "analyze": true,
     "hive_bucket": "s3a://warp-speed-us-east-2-systemtests/synthetic/12345long_dec",
+    "overriding": {
+      "warp_iceberg": {
+        "skip" : true
+      },
+      "warp_delta_lake": {
+        "skip" : true
+      }
+    },
     "skip_type": [
       "warp_iceberg",
       "warp_delta_lake"
@@ -2689,14 +2734,10 @@
   },
   {
     "name": "strings_char_100",
-    "skip": true,
     "structure": [
       {
         "name": "str",
-        "type": "char",
-        "args": [
-          100
-        ]
+        "type": "varchar"
       }
     ],
     "warmup_rules": [
@@ -2715,13 +2756,13 @@
       {
         "query": "select count(*) from strings_char_100 where str like '%P9%'",
         "expected_result": [
-          2
+          3
         ],
         "query_id": "strings_char_100_1",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2734,64 +2775,26 @@
         "query_id": "strings_char_100_2",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
-      }
-    ]
-  },
-  {
-    "name": "strings_char_100_utf8_encoding",
-    "skip": true,
-    "pt_enable": true,
-    "overriding": {
-      "warp": {
-        "skip" : false
       },
-      "warp_iceberg": {
-        "skip" : false
-      },
-      "warp_delta_lake": {
-        "skip" : false
-      }
-    },
-    "structure": [
-      {
-        "name": "str",
-        "type": "char",
-        "args": [
-          100
-        ]
-      }
-    ],
-    "warmup_rules": [
-      {
-        "colNameId": "str",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC"
-        ]
-      }
-    ],
-    "warm_query": "select count(str) from strings_char_100 where str='©P2∂n3q÷ød≤π∑Jß®je1∂∂D´¨ijG∆c∆syV…0ˆ∫∆ˆ∆vΩå≤yå©Ob©s…¥Q®q¥§J√ˆ…7¢˚21®vƒi√Uxø©A∂…i`œ¬JV¨´®u∫i¬¬∑G4åœø1' or str='7∂çSåLfx5Jl1N∂jq´j`®ø§8´f∑œƒß√ˆ©ˆ5ø®ˆIˆqT¥x∆ßQX1PøœaDƒ´§∂Hˆ√¬¨®ç7∂÷…R3∑¨4X¢∆1Yy∫≈FP¨å´∆ßR0≤gGœ¬jåqå´'",
-    "data": "resources/synthetic/str_100.jsonl",
-    "queries_data": [
       {
         "query": "select count(str) from strings_char_100 where str='©P2∂n3q÷ød≤π∑Jß®je1∂∂D´¨ijG∆c∆syV…0ˆ∫∆ˆ∆vΩå≤yå©Ob©s…¥Q®q¥§J√ˆ…7¢˚21®vƒi√Uxø©A∂…i`œ¬JV¨´®u∫i¬¬∑G4åœø1' or str='7∂çSåLfx5Jl1N∂jq´j`®ø§8´f∑œƒß√ˆ©ˆ5ø®ˆIˆqT¥x∆ßQX1PøœaDƒ´§∂Hˆ√¬¨®ç7∂÷…R3∑¨4X¢∆1Yy∫≈FP¨å´∆ßR0≤gGœ¬jåqå´'",
         "expected_result": [
           2
         ],
-        "query_id": "strings_char_100_1",
+        "query_id": "strings_char_100_3",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 1
+          "external_collect_columns": 0
         }
       }
+
     ]
   },
   {
@@ -2819,8 +2822,78 @@
     ],
     "warm_query": "select * from char_127",
     "expected_warm_failures": 2,
-    "iceberg_expected_warm_failures": 0,
-    "dl_expected_warm_failures": 0,
+    "overriding": {
+      "warp_iceberg": {
+        "expected_warm_failures": 0,
+        "queries_data": [
+          {
+            "query_id": "char_127_05",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "char_127_13",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "char_127_16",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "expected_warm_failures": 0,
+        "queries_data": [
+          {
+            "query_id": "char_127_05",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "char_127_13",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "char_127_16",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "select count(*) from char_127",
@@ -2868,19 +2941,6 @@
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0
         }
       },
       {
@@ -2927,20 +2987,6 @@
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -2957,19 +3003,6 @@
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
-        },
-        "iceberg_expected_counters": {
-        "warp_match_columns": 1,
-        "warp_collect_columns": 0,
-        "warp_prefilled_collect_columns": 0,
-        "external_match_columns": 0,
-        "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0
         }
       }
     ],
@@ -3055,8 +3088,36 @@
     ],
     "warm_query": "select * from char_128",
     "expected_warm_failures": 2,
-    "iceberg_expected_warm_failures": 0,
-    "dl_expected_warm_failures": 0,
+    "overriding": {
+      "warp_iceberg": {
+        "expected_warm_failures": 0,
+        "queries_data": [
+          {
+            "query_id": "char_128_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "expected_warm_failures": 0,
+        "queries_data": [
+          {
+            "query_id": "char_128_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      }
+    },
     "data": "resources/synthetic/char_128.jsonl",
     "queries_data": [
       {
@@ -3084,18 +3145,6 @@
           "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       }
     ]
@@ -3189,6 +3238,186 @@
     ],
     "warm_query": "select * from date_time",
     "data": "resources/synthetic/date_time.jsonl",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "expected_result": [
+              "2018-02-13 10:38:04.000000"
+            ],
+            "query_id": "date_time_100"
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data":[
+          {
+            "query_id": "date_time_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_2w",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_6",
+            "expected_result": [
+              9
+            ],
+            "comment": "The difference because UTC transformation"
+          },
+          {
+            "query_id": "date_time_7r5",
+            "expected_result": [
+              192,
+              192
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 2,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "expected_result": [
+              "2018-02-13 08:38:04.000 UTC"
+            ],
+            "query_id": "date_time_100",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_11_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_12",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_12r1",
+            "expected_result": [
+              145
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_13",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_13r",
+            "expected_result": [
+              59
+            ],
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_14",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_14r",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_15",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_15r",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_101",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 2,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_102",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 2,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "date_time_103",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "select count(*) from date_time",
@@ -3215,12 +3444,6 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -3231,12 +3454,6 @@
         "query_id": "date_time_2w",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3312,10 +3529,6 @@
         "expected_result": [
           8
         ],
-        "expected_dl_result": [
-          9
-        ],
-        "comment": "The difference because UTC transformation",
         "query_id": "date_time_6",
         "expected_counters": {
           "warp_match_columns": 1,
@@ -3396,19 +3609,9 @@
           188,
           188
         ],
-        "expected_dl_result": [
-          192,
-          192
-        ],
         "query_id": "date_time_7r5",
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 2,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
           "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3688,12 +3891,6 @@
           "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -3707,12 +3904,6 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -3720,18 +3911,9 @@
         "expected_result": [
           141
         ],
-        "expected_dl_result": [
-          145
-        ],
         "query_id": "date_time_12r1",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3748,12 +3930,6 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -3761,18 +3937,9 @@
         "expected_result": [
           60
         ],
-        "expected_dl_result": [
-          59
-        ],
         "query_id": "date_time_13r",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3789,12 +3956,6 @@
           "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -3808,12 +3969,6 @@
           "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -3824,12 +3979,6 @@
         "query_id": "date_time_15",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3846,12 +3995,6 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -3859,21 +4002,9 @@
         "expected_result": [
           "2018-02-13 10:38:04.000"
         ],
-        "expected_iceberg_result": [
-          "2018-02-13 10:38:04.000000"
-        ],
-        "expected_dl_result": [
-          "2018-02-13 08:38:04.000 UTC"
-        ],
         "query_id": "date_time_100",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3890,12 +4021,6 @@
           "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 2,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -3909,12 +4034,6 @@
           "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 2,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -3925,12 +4044,6 @@
         "query_id": "date_time_103",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -4268,6 +4381,14 @@
       }
     ],
     "skip_comment": "We have all counters are zero on query varchar_32_32k_2",
+    "overriding": {
+      "warp_iceberg": {
+        "skip": true
+      },
+      "warp_delta_lake":{
+        "skip": true
+      }
+    },
     "skip_type": [
       "warp_iceberg",
       "warp_delta_lake"
@@ -4571,17 +4692,22 @@
       "dictionary_rejected_elements_count": 0,
       "write_dictionaries_count": 2
     },
-    "iceberg_expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 4
+    "overriding": {
+      "warp_iceberg": {
+        "expected_dictionary_counters": {
+          "dictionary_failed_elements_count": 0,
+          "dictionary_rejected_elements_count": 0,
+          "write_dictionaries_count": 4
+        }
+      },
+      "warp_delta_lake": {
+        "expected_dictionary_counters": {
+          "dictionary_failed_elements_count": 0,
+          "dictionary_rejected_elements_count": 0,
+          "write_dictionaries_count": 2
+        }
+      }
     },
-    "dl_expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 2
-    },
-
     "queries_data": [
       {
         "query": "select count(*) from varchar_32_32_sorted",
@@ -4988,6 +5114,14 @@
     },
     "warm_query": "select * from map_test",
     "skip_comment": "Not supported smallint type",
+    "overriding": {
+      "warp_iceberg": {
+        "skip": true
+      },
+      "warp_delta_lake": {
+        "skip": true
+      }
+    },
     "skip_type": [
       "warp_iceberg",
       "warp_delta_lake"
@@ -5259,6 +5393,14 @@
       "enable_default_warming": true
     },
     "skip_comment": "Not supported tinyint type",
+    "overriding": {
+      "warp_iceberg": {
+        "skip": true
+      },
+      "warp_delta_lake": {
+        "skip": true
+      }
+    },
     "skip_type": [
       "warp_iceberg",
       "warp_delta_lake"
@@ -5625,6 +5767,114 @@
       "enable_default_warming": true
     },
     "warm_query": "select count(*) from row_test where position.longitudedeg > 2 and position.latitudedeg > 2",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "row_test_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 2,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "row_test_3",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 2,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "row_test_4",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          },
+          {
+            "query_id": "row_test_6",
+            "expected_counters": {
+              "warp_match_columns": 2,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          },
+          {
+            "query_id": "row_test_7",
+            "expected_counters": {
+              "warp_match_columns": 2,
+              "warp_collect_columns": 2,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1,
+              "filtered_by_predicate": 0
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "row_test_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 2,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "row_test_3",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 2,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "row_test_4",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          },
+          {
+            "query_id": "row_test_6",
+            "expected_counters": {
+              "warp_match_columns": 2,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          },
+          {
+            "query_id": "row_test_7",
+            "expected_counters": {
+              "warp_match_columns": 2,
+              "warp_collect_columns": 2,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1,
+              "filtered_by_predicate": 0
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "select count(*) from row_test",
@@ -5657,20 +5907,6 @@
           "warp_prefilled_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 2,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 2,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -5690,20 +5926,6 @@
           "warp_prefilled_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 2,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 2,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -5717,18 +5939,6 @@
         "expected_counters": {
           "warp_match_columns": 2,
           "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
         }
@@ -5767,18 +5977,6 @@
           "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 1
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 2,
-          "warp_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 2,
-          "warp_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
         }
       },
       {
@@ -5796,20 +5994,6 @@
           "warp_match_columns": 4,
           "warp_collect_columns": 3,
           "filtered_by_predicate": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 2,
-          "warp_collect_columns": 2,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 2,
-          "warp_collect_columns": 2,
-          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
         }
@@ -5845,6 +6029,14 @@
       "write_dictionaries_count": 1
     },
     "skip_comment": "Column name as the table name, not supported replacement yet",
+    "overriding": {
+      "warp_iceberg": {
+        "skip": true
+      },
+      "warp_delta_lake": {
+        "skip": true
+      }
+    },
     "skip_type": [
       "warp_iceberg",
       "warp_delta_lake"
@@ -7034,6 +7226,14 @@
       "enable_default_warming": true
     },
     "skip_comment": "Not supported row type",
+    "overriding": {
+      "warp_iceberg": {
+        "skip": true
+      },
+      "warp_delta_lake": {
+        "skip": true
+      }
+    },
     "skip_type": [
       "warp_iceberg",
       "warp_delta_lake"
@@ -7364,6 +7564,79 @@
       }
     ],
     "warm_query": "select * from dec29",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "dec29_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "dec29_4",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "dec29_5",
+            "expected_result":[
+              67439191.5415
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "dec29_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "dec29_4",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "dec29_5",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "select count(*) from dec29",
@@ -7391,20 +7664,6 @@
           "warp_collect_columns": 7,
           "external_match_columns": 0,
           "warp_prefilled_collect_columns": 1,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "warp_prefilled_collect_columns": 0,
           "external_collect_columns": 0
         }
       },
@@ -7436,20 +7695,6 @@
           "external_match_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -7464,20 +7709,6 @@
           "warp_collect_columns": 7,
           "external_match_columns": 0,
           "warp_prefilled_collect_columns": 1,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "warp_prefilled_collect_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "warp_prefilled_collect_columns": 0,
           "external_collect_columns": 0
         }
       }
@@ -8307,6 +8538,372 @@
       }
     ],
     "warm_query": "select * from single_chunks_table",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "single_chunks_table_01",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_03",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_04",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_05",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_06",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_07",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_08",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_11",
+            "expected_counters": {
+              "warp_match_columns": 4,
+              "warp_collect_columns": 3,
+              "warp_prefilled_collect_columns": 1,
+              "warp_match_collect_columns": 3,
+              "warp_mapped_match_collect_columns": 3,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_12",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_13",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_14",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_16",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_17",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_18",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_20",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "single_chunks_table_01",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_03",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_04",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_05",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_06",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_07",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_08",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_11",
+            "expected_counters": {
+              "warp_match_columns": 4,
+              "warp_collect_columns": 3,
+              "warp_prefilled_collect_columns": 1,
+              "warp_match_collect_columns": 3,
+              "warp_mapped_match_collect_columns": 3,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_12",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_13",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_14",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_16",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_17",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_18",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query_id": "single_chunks_table_20",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "filtered_by_predicate": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query": "select min(single_int) from single_chunks_table where single_short = -28525",
@@ -8318,20 +8915,6 @@
           "warp_match_columns": 3,
           "warp_collect_columns": 2,
           "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8363,24 +8946,6 @@
           "warp_mapped_match_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -8395,24 +8960,6 @@
           "warp_match_collect_columns": 0,
           "warp_mapped_match_collect_columns": 0,
           "filtered_by_predicate": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8431,24 +8978,6 @@
           "warp_mapped_match_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -8462,24 +8991,6 @@
           "warp_collect_columns": 3,
           "warp_match_collect_columns": 2,
           "warp_mapped_match_collect_columns": 2,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8498,24 +9009,6 @@
           "warp_mapped_match_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -8529,24 +9022,6 @@
           "warp_collect_columns": 3,
           "warp_match_collect_columns": 2,
           "warp_mapped_match_collect_columns": 2,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8595,24 +9070,6 @@
           "warp_mapped_match_collect_columns": 6,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 4,
-          "warp_collect_columns": 3,
-          "warp_prefilled_collect_columns": 1,
-          "warp_match_collect_columns": 3,
-          "warp_mapped_match_collect_columns": 3,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 4,
-          "warp_collect_columns": 3,
-          "warp_prefilled_collect_columns": 1,
-          "warp_match_collect_columns": 3,
-          "warp_mapped_match_collect_columns": 3,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -8628,24 +9085,6 @@
           "warp_match_collect_columns": 0,
           "warp_mapped_match_collect_columns": 0,
           "filtered_by_predicate": 2,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8665,24 +9104,6 @@
           "warp_mapped_match_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -8698,24 +9119,6 @@
           "warp_match_collect_columns": 1,
           "warp_mapped_match_collect_columns": 1,
           "filtered_by_predicate": 2,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8756,24 +9159,6 @@
           "filtered_by_predicate": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -8792,24 +9177,6 @@
           "warp_mapped_match_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
         }
       },
       {
@@ -8826,24 +9193,6 @@
           "warp_match_collect_columns": 2,
           "warp_mapped_match_collect_columns": 2,
           "filtered_by_predicate": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8877,24 +9226,6 @@
           "warp_collect_columns": 2,
           "warp_match_collect_columns": 2,
           "warp_mapped_match_collect_columns": 2,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "filtered_by_predicate": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
           "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0

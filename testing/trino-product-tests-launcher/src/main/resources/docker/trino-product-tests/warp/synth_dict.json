@@ -139,6 +139,36 @@
         ]
       }
     ],
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "dict_single_file_max_64k_case1_q01",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "dict_single_file_max_64k_case1_q01",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query_id": "dict_single_file_max_64k_case1_q01",
@@ -152,20 +182,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
         }
       }
     ],
@@ -264,6 +280,22 @@
       "warp_delta_lake"
     ],
     "warm_query": "select * from dict_single_file_random_values",
+    "overriding": {
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "dict_single_file_random_values_case1_q00",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          }
+        ]
+      }
+    },
     "queries_data": [
       {
         "query_id": "dict_single_file_random_values_case1_q00",
@@ -277,13 +309,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
         }
       },
       {
@@ -473,6 +498,22 @@
         ]
       }
     ],
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "dict_varchar2k_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          }
+        ]
+      }
+    },
     "warmup_rules": [
       {
         "colNameId": "varchar_2k",
@@ -501,13 +542,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
         }
       }
     ]
@@ -526,6 +560,47 @@
       }
     ],
     "data_format": "ORC",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "long_varchar_dict_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 19
+            }
+          },
+          {
+            "query_id": "long_varchar_dict_2",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "long_varchar_dict_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 54,
+              "external_match_columns": 0,
+              "external_collect_columns": 3
+            }
+          }
+        ]
+      }
+    },
     "warmup_rules": [
       {
         "colNameId": "long_varchar",
@@ -559,20 +634,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 54,
-          "external_match_columns": 0,
-          "external_collect_columns": 3
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 19
         }
       },
       {
@@ -582,14 +643,6 @@
           29840, 1
         ],
         "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
           "warp_prefilled_collect_columns": 0,
@@ -671,6 +724,22 @@
       }
     ],
     "warm_query": "select count(long_dec), count(varchar_200), count(int_1), count(decimal_1) from dict_multifile",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "dict_multifile_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 22
+            }
+          }
+        ]
+      }
+    },
     "expected_dictionaries": 4,
     "expected_chunk_rollbacks": 0,
     "expected_dictionary_counters": {
@@ -691,13 +760,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 22
         }
       },
       {
@@ -904,6 +966,36 @@
       }
     ],
     "warm_query": "select count(cLongDecimal), count(cVarchar), count(cInteger), count(cChar) from dict_mix_types_max_keys",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "dict_mix_types_max_keys_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 3
+            }
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "dict_mix_types_max_keys_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 2,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          }
+        ]
+      }
+    },
     "data": "resources/synthetic/dict_mix_types_max_keys.jsonl",
     "expected_dictionary_counters": {
       "dictionary_rejected_elements_count": 0,
@@ -922,20 +1014,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 1
-        },
-        "dl_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 2,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 3
         }
       },
       {
@@ -989,6 +1067,22 @@
       }
     ],
     "warm_query": "select count(str1) from dict_304chunks",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "dict_304chunks_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 3
+            }
+          }
+        ]
+      }
+    },
     "data": "resources/synthetic/dict_304chunks.jsonl",
     "expected_dictionary_counters": {
       "dictionary_rejected_elements_count": 0,
@@ -1007,13 +1101,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 3
         }
       },
       {
@@ -1066,6 +1153,22 @@
       }
     ],
     "warm_query": "select count(str1) from dict_304chunks_4single",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "dict_304chunks_4single_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 3
+            }
+          }
+        ]
+      }
+    },
     "data": "resources/synthetic/dict_304chunks_4single.jsonl",
     "expected_dictionary_counters": {
       "dictionary_rejected_elements_count": 0,
@@ -1084,13 +1187,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 3
         }
       },
       {
@@ -1144,6 +1240,22 @@
       }
     ],
     "warm_query": "select count(str1) from dict_long_varchar",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "dict_long_varchar_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 16
+            }
+          }
+        ]
+      }
+    },
     "data": "resources/synthetic/dict_long_varchar.jsonl",
     "expected_dictionary_counters": {
       "dictionary_rejected_elements_count": 0,
@@ -1162,13 +1274,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 16
         }
       },
       {
@@ -1268,6 +1373,22 @@
       }
     ],
     "warm_query": "select count(cLongDecimal), count(cVarchar), count(cInteger), count(cDecimal) from dict_wide_table_mix_types",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "dict_wide_table_mix_types_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 6
+            }
+          }
+        ]
+      }
+    },
     "data": "resources/synthetic/dict_wide_table_mix_types.jsonl",
     "expected_dictionary_counters": {
       "dictionary_rejected_elements_count": 0,
@@ -1286,13 +1407,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 6
         }
       },
       {
@@ -1358,6 +1472,22 @@
       }
     ],
     "pt_enable": true,
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "pack_test_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          }
+        ]
+      }
+    },
     "queries_data":[
       {
         "query_id": "pack_test_1",
@@ -1372,13 +1502,6 @@
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
-        },
-        "iceberg_expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 1
         }
       },
       {
