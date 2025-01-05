@@ -240,12 +240,6 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    //----------------------- statistics and debug ----------------------------------------
-    default void setDebugThrowPolicy(int numElements, int[] panicID, int[] repetitionMode, int[] ratio)
-    {
-        throw new UnsupportedOperationException();
-    }
-
     default boolean isLoaded()
     {
         return true;

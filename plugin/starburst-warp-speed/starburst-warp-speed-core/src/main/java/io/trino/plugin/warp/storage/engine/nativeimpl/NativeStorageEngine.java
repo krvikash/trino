@@ -597,7 +597,4 @@ public class NativeStorageEngine
             throw new RuntimeException("failed to collect close");
         }
     }
-
-    @Override
-    public native void setDebugThrowPolicy(int numElements, int[] panicID, int[] repetitionMode, int[] ratio);
 }

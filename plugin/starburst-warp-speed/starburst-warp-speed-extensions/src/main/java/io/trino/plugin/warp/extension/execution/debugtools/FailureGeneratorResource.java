@@ -21,8 +21,6 @@ import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.gen.constants.FailureRepetitionMode;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
-import io.trino.plugin.warp.util.ArrayUtils;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler.FailureAction;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler.FailureType;
@@ -33,7 +31,6 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -53,14 +50,11 @@ public class FailureGeneratorResource
 {
     public static final String TASK_NAME = "generate-failure";
 
-    private final StorageEngine storageEngine;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
 
     @Inject
-    public FailureGeneratorResource(StorageEngine storageEngine,
-            FailureGeneratorInvocationHandler failureGeneratorInvocationHandler)
+    public FailureGeneratorResource(FailureGeneratorInvocationHandler failureGeneratorInvocationHandler)
     {
-        this.storageEngine = storageEngine;
         this.failureGeneratorInvocationHandler = failureGeneratorInvocationHandler;
     }
 
@@ -70,10 +64,6 @@ public class FailureGeneratorResource
     public void generateFailure(List<FailureGeneratorData> failureGeneratorDataList)
     {
         Map<String, FailureAction> newResults = new HashMap<>();
-        List<Integer> panicIds = new ArrayList<>();
-        List<Integer> repModes = new ArrayList<>();
-        List<Integer> ratios = new ArrayList<>();
-        int numNativeElements = 0;
 
         for (FailureGeneratorData failureGeneratorData : failureGeneratorDataList) {
             if (!FailureType.NATIVE_PANIC.equals(failureGeneratorData.getFailureType())) {
@@ -82,15 +72,8 @@ public class FailureGeneratorResource
                 String key = FailureGeneratorInvocationHandler.getKey(failureGeneratorData.getClassName(), failureGeneratorData.getMethodName());
                 newResults.put(key, failureAction);
             }
-            else {
-                panicIds.add(Integer.parseInt(failureGeneratorData.getMethodName()));
-                repModes.add(failureGeneratorData.getRepetitionMode().ordinal());
-                ratios.add(failureGeneratorData.getRepetitionCount());
-                numNativeElements++;
-            }
         }
 
-        storageEngine.setDebugThrowPolicy(numNativeElements, ArrayUtils.convertToIntArray(panicIds), ArrayUtils.convertToIntArray(repModes), ArrayUtils.convertToIntArray(ratios));
         failureGeneratorInvocationHandler.updateInvocationResult(newResults);
     }
 

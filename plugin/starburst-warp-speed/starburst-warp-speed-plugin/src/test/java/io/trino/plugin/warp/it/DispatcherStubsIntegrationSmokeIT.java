@@ -155,7 +155,6 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 catch (Throwable e) {
                     logger.error(e, "failed on drop schema");
                 }
-                stubsStorageEngine.clear();
             }
             catch (Throwable e) {
                 fail(e.getMessage());

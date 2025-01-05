@@ -267,7 +267,7 @@ public class TestWarpCache
         cacheUtils.execute(testFormat, true, SCHEMA_NAME);
     }
 
-    @Test(groups = PROFILE_SPECIFIC_TESTS)
+    @Test(enabled = false, groups = PROFILE_SPECIFIC_TESTS)
     public void testPanicOnWrite()
             throws IOException
     {

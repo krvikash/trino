@@ -18,15 +18,10 @@ import io.trino.plugin.warp.storage.write.WarmUpState;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 public class StubsStorageEngine
         implements StorageEngine
 {
-    private final List<RuntimeException> throwOnColletRuntimeExceptionList = new ArrayList<>();
-
     public StubsStorageEngine()
     {
     }
@@ -198,9 +193,6 @@ public class StubsStorageEngine
     @Override
     public void collectChunk(MemorySegment collectState, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
     {
-        if (!throwOnColletRuntimeExceptionList.isEmpty()) {
-            throw throwOnColletRuntimeExceptionList.removeFirst();
-        }
     }
 
     @Override
@@ -209,23 +201,8 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void setDebugThrowPolicy(int numElements, int[] panicID, int[] repetitionMode, int[] ratio)
-    {
-    }
-
-    @Override
     public boolean isLoaded()
     {
         return true;
-    }
-
-    public synchronized void clear()
-    {
-        throwOnColletRuntimeExceptionList.clear();
-    }
-
-    public void setThrowOnCollect(RuntimeException... e)
-    {
-        throwOnColletRuntimeExceptionList.addAll(Arrays.asList(e));
     }
 }
