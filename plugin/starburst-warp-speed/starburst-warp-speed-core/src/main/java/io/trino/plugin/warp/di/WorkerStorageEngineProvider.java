@@ -24,6 +24,7 @@ import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageEngine;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
+import io.trino.spi.catalog.CatalogName;
 
 import java.lang.reflect.Proxy;
 
@@ -37,6 +38,7 @@ public class WorkerStorageEngineProvider
     private final NativeConfig nativeConfig;
     private final MetricsManager metricsManager;
     private final ConnectorSync connectorSync;
+    private final CatalogName catalogName;
     private final ExceptionThrower exceptionThrower;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
 
@@ -48,6 +50,7 @@ public class WorkerStorageEngineProvider
             NativeConfig nativeConfig,
             MetricsManager metricsManager,
             ConnectorSync connectorSync,
+            CatalogName catalogName,
             ExceptionThrower exceptionThrower,
             FailureGeneratorInvocationHandler failureGeneratorInvocationHandler)
     {
@@ -55,6 +58,7 @@ public class WorkerStorageEngineProvider
         this.nativeConfig = requireNonNull(nativeConfig);
         this.metricsManager = requireNonNull(metricsManager);
         this.connectorSync = requireNonNull(connectorSync);
+        this.catalogName = requireNonNull(catalogName);
         this.exceptionThrower = requireNonNull(exceptionThrower);
         this.failureGeneratorInvocationHandler = requireNonNull(failureGeneratorInvocationHandler);
     }
@@ -68,7 +72,8 @@ public class WorkerStorageEngineProvider
                     metricsManager,
                     exceptionThrower,
                     globalConfig,
-                    connectorSync);
+                    connectorSync,
+                    catalogName);
 
             if (globalConfig.isFailureGeneratorEnabled()) {
                 storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),

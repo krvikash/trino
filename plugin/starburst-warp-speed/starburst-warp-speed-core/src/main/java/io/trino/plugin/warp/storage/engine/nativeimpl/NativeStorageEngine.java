@@ -25,6 +25,7 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.spi.catalog.CatalogName;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
@@ -32,6 +33,7 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
@@ -44,9 +46,11 @@ public class NativeStorageEngine
         implements StorageEngine
 {
     private static final Logger logger = Logger.get(NativeStorageEngine.class);
+    private static final int MAX_LOG_STRING_LENGTH = 1500;
 
     private static final StructLayout ENV_PROPERTIES_LAYOUT;
     private static final long ENV_PROPERTIES_OFFSET_LIBRARY_PATH;
+    private static final long ENV_PROPERTIES_OFFSET_LOG;
     private static final long ENV_PROPERTIES_OFFSET_JVM_MEMORY;
     private static final long ENV_PROPERTIES_OFFSET_MAX_WORKER_THREADS;
     private static final long ENV_PROPERTIES_OFFSET_MAX_REC_BUF_SIZE;
@@ -64,9 +68,17 @@ public class NativeStorageEngine
     private static final long ENV_ENABLE_CONFIG_OFFSET_COMPRESSION;
     private static final long ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID;
 
+    private static final SequenceLayout LOGGER_LOG_STRING_LAYOUT;
+    private static final StructLayout LOGGER_LOG_LAYOUT;
+    private static final long LOGGER_LOG_OFFSET_STATE;
+    private static final long LOGGER_LOG_OFFSET_MAX_LENGTH;
+    private static final long LOGGER_LOG_OFFSET_STRING;
+
     private final ShapingLogger shapingLogger;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final ExceptionThrower exceptionThrower; // we keep a reference to hold this object for native layer ref
+    private final CatalogName catalogName;
+    private MemorySegment logMem;
     private final boolean loaded;
 
     // file API
@@ -109,6 +121,7 @@ public class NativeStorageEngine
     static {
         ENV_PROPERTIES_LAYOUT = MemoryLayout.structLayout(
                 ValueLayout.ADDRESS.withName("plibrary_path"),
+                ValueLayout.ADDRESS.withName("plog"),
                 ValueLayout.JAVA_LONG.withName("jvm_memory"),
                 ValueLayout.JAVA_INT.withName("max_worker_threads"),
                 ValueLayout.JAVA_INT.withName("max_rec_buf_size_in_bytes"),
@@ -120,6 +133,7 @@ public class NativeStorageEngine
                 ValueLayout.JAVA_INT.withName("skip_index_percent")).withName("env_properties_t");
 
         ENV_PROPERTIES_OFFSET_LIBRARY_PATH = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("plibrary_path"));
+        ENV_PROPERTIES_OFFSET_LOG = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("plog"));
         ENV_PROPERTIES_OFFSET_JVM_MEMORY = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("jvm_memory"));
         ENV_PROPERTIES_OFFSET_MAX_WORKER_THREADS = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("max_worker_threads"));
         ENV_PROPERTIES_OFFSET_MAX_REC_BUF_SIZE = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("max_rec_buf_size_in_bytes"));
@@ -142,6 +156,17 @@ public class NativeStorageEngine
         ENV_ENABLE_CONFIG_OFFSET_PACKED_CHUNK = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("packed_chunk"));
         ENV_ENABLE_CONFIG_OFFSET_COMPRESSION = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("compression"));
         ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("validate_warm_id"));
+
+        LOGGER_LOG_STRING_LAYOUT = MemoryLayout.sequenceLayout(MAX_LOG_STRING_LENGTH, ValueLayout.JAVA_BYTE);
+        LOGGER_LOG_LAYOUT = MemoryLayout.structLayout(
+                ValueLayout.JAVA_INT.withName("state"),
+                ValueLayout.JAVA_INT.withName("length"),
+                ValueLayout.JAVA_INT.withName("max_length"),
+                LOGGER_LOG_STRING_LAYOUT.withName("string")).withName("logger_log_t");
+        LOGGER_LOG_OFFSET_STATE = LOGGER_LOG_LAYOUT.byteOffset(PathElement.groupElement("state"));
+        //LOGGER_LOG_OFFSET_LENGTH = LOGGER_LOG_LAYOUT.byteOffset(PathElement.groupElement("length"));
+        LOGGER_LOG_OFFSET_MAX_LENGTH = LOGGER_LOG_LAYOUT.byteOffset(PathElement.groupElement("max_length"));
+        LOGGER_LOG_OFFSET_STRING = LOGGER_LOG_LAYOUT.byteOffset(PathElement.groupElement("string"));
     }
 
     public NativeStorageEngine(
@@ -149,9 +174,11 @@ public class NativeStorageEngine
             MetricsManager metricsManager,
             ExceptionThrower exceptionThrower,
             GlobalConfig globalConfig,
-            ConnectorSync connectorSync)
+            ConnectorSync connectorSync,
+            CatalogName catalogName)
     {
         this.exceptionThrower = requireNonNull(exceptionThrower);
+        this.catalogName = requireNonNull(catalogName);
 
         final int taskMaxWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
         final int panicHaltPolicy = nativeConfig.getDebugPanicHaltPolicy();
@@ -161,7 +188,10 @@ public class NativeStorageEngine
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
 
-        logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d", taskMaxWorkerThreads, panicHaltPolicy);
+        logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d logSize %d",
+                taskMaxWorkerThreads, panicHaltPolicy, LOGGER_LOG_LAYOUT.byteSize());
+        logMem = Arena.global().allocate(LOGGER_LOG_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()); // its zeroed by default
+        logMem.set(ValueLayout.JAVA_INT, LOGGER_LOG_OFFSET_MAX_LENGTH, MAX_LOG_STRING_LENGTH);
         try (Arena arena = Arena.ofConfined()) {
             SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
             Linker linker = Linker.nativeLinker();
@@ -180,7 +210,7 @@ public class NativeStorageEngine
 
             // init API
             mInitEnv = linker.downcallHandle(libraryHandle.find("env_init").orElseThrow(),
-                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+                    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
             mInitGetWarmupRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_warmup_record_buffer_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
             mInitGetFixedCollectRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_collect_record_buffer_size").orElseThrow(),
@@ -240,6 +270,7 @@ public class NativeStorageEngine
 
             MemorySegment envProperties = arena.allocate(ENV_PROPERTIES_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
             envProperties.set(ValueLayout.ADDRESS, ENV_PROPERTIES_OFFSET_LIBRARY_PATH, arena.allocateFrom(WarpNativeStorageEngineModule.getNativeLibrariesDirectory().toString()));
+            envProperties.set(ValueLayout.ADDRESS, ENV_PROPERTIES_OFFSET_LOG, logMem);
             envProperties.set(ValueLayout.JAVA_LONG, ENV_PROPERTIES_OFFSET_JVM_MEMORY, Runtime.getRuntime().maxMemory());
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_MAX_WORKER_THREADS, taskMaxWorkerThreads);
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_MAX_REC_BUF_SIZE, nativeConfig.getMaxRecJufferSize());
@@ -257,7 +288,12 @@ public class NativeStorageEngine
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION, nativeConfig.getEnableCompression() ? (byte) 1 : (byte) 0);
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID, globalConfig.getDebugWarming() ? (byte) 1 : (byte) 0);
 
-            mInitEnv.invokeExact(envProperties, envEnableConfig);
+            long logMemAddress = (long) mInitEnv.invokeExact(envProperties, envEnableConfig);
+            if (logMemAddress != 0) {
+                // we throw away our allocated log buffer and take the one storage engine gave us
+                logMem = MemorySegment.ofAddress(logMemAddress).reinterpret(LOGGER_LOG_LAYOUT.byteSize());
+            }
+            checkForLogs();
             loaded = true;
         }
         catch (Throwable t) {
@@ -268,6 +304,12 @@ public class NativeStorageEngine
         logger.debug("finish initializing storage engine");
 
         ((NativeConnectorSync) connectorSync).init();
+    }
+
+    @Override
+    public boolean isLoaded()
+    {
+        return loaded;
     }
 
     @Override
@@ -378,12 +420,38 @@ public class NativeStorageEngine
         }
     }
 
+    private void checkForLogs()
+    {
+        int logLevel = logMem.get(ValueLayout.JAVA_INT, LOGGER_LOG_OFFSET_STATE);
+        if (logLevel == 0) {
+            return;
+        }
+        logMem.set(ValueLayout.JAVA_INT, LOGGER_LOG_OFFSET_STATE, 0);
+
+        String logString = logMem.getString(LOGGER_LOG_OFFSET_STRING);
+        if ((logString.length() > 0) && (logString.length() <= MAX_LOG_STRING_LENGTH)) {
+            switch (logLevel) {
+                case 1:
+                    shapingLogger.error("catalog %s: %s", catalogName, logString);
+                    break;
+                case 2:
+                    shapingLogger.info("catalog %s: %s", catalogName, logString);
+                    break;
+                case 3:
+                    logger.debug("catalog %s: %s", catalogName, logString);
+                    break;
+                default: break;
+            }
+        }
+    }
+
     @Override
     public int fileOpen(String fileName)
     {
         int fileDescriptor;
         try (Arena arena = Arena.ofConfined()) {
             fileDescriptor = (int) mFileOpen.invokeExact(arena.allocateFrom(fileName));
+            checkForLogs();
             if (fileDescriptor >= 0) {
                 return fileDescriptor;
             }
@@ -402,6 +470,7 @@ public class NativeStorageEngine
     {
         try {
             mFileClose.invokeExact(fileDescriptor);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to close file");
@@ -415,6 +484,7 @@ public class NativeStorageEngine
         boolean success;
         try {
             success = (boolean) mFileTruncate.invokeExact(fileDescriptor, offset);
+            checkForLogs();
             if (success) {
                 return;
             }
@@ -430,6 +500,7 @@ public class NativeStorageEngine
     {
         try (Arena arena = Arena.ofConfined()) {
             mFilePunchHole.invokeExact(arena.allocateFrom(fileName), startOffset, endOffset);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to punch hole file");
@@ -442,6 +513,7 @@ public class NativeStorageEngine
     {
         try {
             mFileAboutToBeDeleted.invokeExact(fileHash, fileModTime, fileSizeInPages);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to clear native cache");
@@ -450,16 +522,11 @@ public class NativeStorageEngine
     }
 
     @Override
-    public boolean isLoaded()
-    {
-        return loaded;
-    }
-
-    @Override
     public void warmupElementOpen(MemorySegment warmUpState, MemorySegment context)
     {
         try {
             mWarmupElementOpen.invokeExact(warmUpState, context);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to warmupElementOpen");
@@ -471,7 +538,9 @@ public class NativeStorageEngine
     public int warmupElementClose(MemorySegment warmUpState)
     {
         try {
-            return (int) mWarmupElementClose.invokeExact(warmUpState);
+            int res = (int) mWarmupElementClose.invokeExact(warmUpState);
+            checkForLogs();
+            return res;
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to warmupElementClose");
@@ -484,6 +553,7 @@ public class NativeStorageEngine
     {
         try {
             mWarmupVerifyQueryOffset.invokeExact(warmUpState);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to warmupVerifyQueryOffset");
@@ -496,6 +566,7 @@ public class NativeStorageEngine
     {
         try {
             mWarmupChunk.invokeExact(warmUpState, recordBufferParams, compressionState);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to warmupChunk");
@@ -508,6 +579,7 @@ public class NativeStorageEngine
     {
         try {
             mWarmupChunkExtRec.invokeExact(warmUpState, recordBufferParams);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to warmupChunkExtRec");
@@ -520,6 +592,7 @@ public class NativeStorageEngine
     {
         try {
             mMatchOpen.invokeExact(matchState);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to matchOpen");
@@ -531,7 +604,9 @@ public class NativeStorageEngine
     public int matchAgg(MemorySegment matchState, int startChunkIndex)
     {
         try {
-            return (int) mMatchAgg.invokeExact(matchState, (short) startChunkIndex);
+            int res = (int) mMatchAgg.invokeExact(matchState, (short) startChunkIndex);
+            checkForLogs();
+            return res;
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to matchAgg");
@@ -543,7 +618,9 @@ public class NativeStorageEngine
     public boolean matchLucenePrepare(MemorySegment matchState, int weIx, int chunkIndex)
     {
         try {
-            return (boolean) mMatchLucenePrepare.invokeExact(matchState, (short) weIx, (short) chunkIndex);
+            boolean res = (boolean) mMatchLucenePrepare.invokeExact(matchState, (short) weIx, (short) chunkIndex);
+            checkForLogs();
+            return res;
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to matchLucenePrepare");
@@ -556,6 +633,7 @@ public class NativeStorageEngine
     {
         try {
             mMatchLuceneCompleted.invokeExact(matchState, (short) weIx, (short) chunkIndex, numMatchedRecords);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to matchLuceneCompleted");
@@ -567,7 +645,9 @@ public class NativeStorageEngine
     public boolean match(MemorySegment matchState, int startChunkIndex, int numChunks)
     {
         try {
-            return (boolean) mMatch.invokeExact(matchState, (short) startChunkIndex, (short) numChunks);
+            boolean res = (boolean) mMatch.invokeExact(matchState, (short) startChunkIndex, (short) numChunks);
+            checkForLogs();
+            return res;
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to match");
@@ -580,6 +660,7 @@ public class NativeStorageEngine
     {
         try {
             mMatchClose.invokeExact(matchState);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to matchOpen");
@@ -592,6 +673,7 @@ public class NativeStorageEngine
     {
         try {
             mCollectOpen.invokeExact(collectState);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to collectOpen");
@@ -603,7 +685,9 @@ public class NativeStorageEngine
     public boolean processMatchResult(MemorySegment collectState, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
     {
         try {
-            return (boolean) mCollectProcessMatchResult.invokeExact(collectState, (short) chunkIndex, bmResetPoint, rowsLimit, outQueryResultTypes);
+            boolean res = (boolean) mCollectProcessMatchResult.invokeExact(collectState, (short) chunkIndex, bmResetPoint, rowsLimit, outQueryResultTypes);
+            checkForLogs();
+            return res;
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to processMatchResult");
@@ -615,7 +699,9 @@ public class NativeStorageEngine
     public boolean processFullScanChunk(MemorySegment collectState, int chunkIndex, int startRowIx, int rowsLimit)
     {
         try {
-            return (boolean) mCollectProcessFullScanChunk.invokeExact(collectState, (short) chunkIndex, (short) startRowIx, rowsLimit);
+            boolean res = (boolean) mCollectProcessFullScanChunk.invokeExact(collectState, (short) chunkIndex, (short) startRowIx, rowsLimit);
+            checkForLogs();
+            return res;
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to processFullScanChunk");
@@ -628,6 +714,7 @@ public class NativeStorageEngine
     {
         try {
             mCollectCollectChunk.invokeExact(collectState, (short) chunkIndex, numToCollect, outQueryResultTypes);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to collectChunk");
@@ -640,6 +727,7 @@ public class NativeStorageEngine
     {
         try {
             mCollectClose.invokeExact(collectState, readStats);
+            checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to collectClose");

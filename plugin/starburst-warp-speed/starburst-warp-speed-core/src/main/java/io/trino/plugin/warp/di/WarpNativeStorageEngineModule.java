@@ -25,7 +25,6 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeConnectorSync;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeExceptionThrower;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterruptInterceptor;
-import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -138,7 +137,6 @@ public class WarpNativeStorageEngineModule
             }
         }
         binder.bind(StorageEngineConstants.class).to(NativeStorageEngineConstants.class);
-        binder.bind(NativeLogger.class);
         binder.bind(ExceptionThrower.class).to(NativeExceptionThrower.class).asEagerSingleton();
         binder.bind(NativeStorageStateHandler.class);
         binder.bindInterceptor(Matchers.any(), Matchers.annotatedWith(NativeInterrupt.class), new NativeInterruptInterceptor());
