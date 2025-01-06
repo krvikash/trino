@@ -33,7 +33,7 @@ public class TestingDynamoDbServer
 
     public TestingDynamoDbServer()
     {
-        dockerContainer = new GenericContainer<>("amazon/dynamodb-local:2.1.0")
+        dockerContainer = new GenericContainer<>("amazon/dynamodb-local:2.5.4")
                 .withExposedPorts(PORT)
                 .waitingFor(Wait.forLogMessage(".*Initializing DynamoDB Local with the following configuration.*", 1)
                         .withStartupTimeout(Duration.ofMinutes(5)));
