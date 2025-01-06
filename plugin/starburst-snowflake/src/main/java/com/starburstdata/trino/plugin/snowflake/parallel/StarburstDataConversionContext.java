@@ -11,6 +11,7 @@ package com.starburstdata.trino.plugin.snowflake.parallel;
 
 import net.snowflake.client.core.DataConversionContext;
 import net.snowflake.client.core.SFBaseSession;
+import net.snowflake.client.core.SFSession;
 import net.snowflake.client.jdbc.internal.snowflake.common.core.SFBinaryFormat;
 import net.snowflake.client.jdbc.internal.snowflake.common.core.SnowflakeDateTimeFormat;
 
@@ -34,6 +35,7 @@ public class StarburstDataConversionContext
     private final TimeZone timeZone;
     private final int[] scales;
     private final long resultVersion;
+    private final SFSession snowflakeSession;
 
     /**
      * Originates from {@link net.snowflake.client.jdbc.SnowflakeResultSetSerializableV1#setupFieldsFromParameters()}
@@ -52,6 +54,11 @@ public class StarburstDataConversionContext
         this.timeZone = TimeZone.getTimeZone(ZoneId.of(parameters.timezone()));
         this.honorClientTZForTimestampNTZ = parameters.honorClientTZForTimestampNTZ();
         this.binaryFormatter = SFBinaryFormat.getSafeOutputFormat(parameters.binaryOutputFormat());
+        // Set values used by the consumers of StarburstSFSession (Snowflake Arrow converters)
+        this.snowflakeSession = new StarburstSFSession();
+        this.snowflakeSession.setJdbcArrowTreatDecimalAsInt(parameters.jdbcArrowTreatDecimalAsInt());
+        this.snowflakeSession.setDefaultFormatDateWithTimezone(parameters.jdbcDefaultFormatDateWithTimezone());
+        this.snowflakeSession.setFormatDateWithTimezone(parameters.formatDateWithTimezone());
     }
 
     private static SnowflakeDateTimeFormat specializedFormatter(String defaultFormat, String specializedFormat)
@@ -105,7 +112,7 @@ public class StarburstDataConversionContext
     @Override
     public SFBaseSession getSession()
     {
-        throw new UnsupportedOperationException("Shouldn't be called, used in tests only");
+        return snowflakeSession;
     }
 
     @Override

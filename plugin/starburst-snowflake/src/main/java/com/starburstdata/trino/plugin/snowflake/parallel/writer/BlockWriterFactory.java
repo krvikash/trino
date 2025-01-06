@@ -91,6 +91,8 @@ public final class BlockWriterFactory
         else if (type == VarcharType.VARCHAR && typeName.equals("VARIANT")) {
             return new VariantValueWriter(converter, rowCount, type);
         }
+        // We intentionally map Snowflake `OBJECT` and `ARRAY` to Trino `Varchar` even though converter may be of `ArrayConverter` or `StructConverter` type,
+        // because Snowflake connector maps `OBJECT` and `ARRAY` to `Varchar`.
         else if (type == VarcharType.VARCHAR && (typeName.equals("OBJECT") || typeName.equals("ARRAY"))) {
             return new VarcharValueWriter(converter, rowCount, type);
         }

@@ -11,6 +11,9 @@ package com.starburstdata.trino.plugin.snowflake.parallel.writer;
 
 import com.starburstdata.trino.plugin.snowflake.parallel.StarburstDataConversionContext;
 import io.trino.spi.TrinoException;
+import net.snowflake.client.core.DataConversionContext;
+import net.snowflake.client.core.SFBaseSession;
+import net.snowflake.client.core.arrow.ArrayConverter;
 import net.snowflake.client.core.arrow.ArrowVectorConverter;
 import net.snowflake.client.core.arrow.BigIntToFixedConverter;
 import net.snowflake.client.core.arrow.BigIntToScaledFixedConverter;
@@ -26,6 +29,7 @@ import net.snowflake.client.core.arrow.IntToScaledFixedConverter;
 import net.snowflake.client.core.arrow.IntToTimeConverter;
 import net.snowflake.client.core.arrow.SmallIntToFixedConverter;
 import net.snowflake.client.core.arrow.SmallIntToScaledFixedConverter;
+import net.snowflake.client.core.arrow.StructConverter;
 import net.snowflake.client.core.arrow.ThreeFieldStructToTimestampTZConverter;
 import net.snowflake.client.core.arrow.TinyIntToFixedConverter;
 import net.snowflake.client.core.arrow.TinyIntToScaledFixedConverter;
@@ -36,6 +40,8 @@ import net.snowflake.client.core.arrow.VarBinaryToBinaryConverter;
 import net.snowflake.client.core.arrow.VarCharConverter;
 import net.snowflake.client.jdbc.SnowflakeType;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.ValueVector;
+import net.snowflake.client.jdbc.internal.apache.arrow.vector.complex.ListVector;
+import net.snowflake.client.jdbc.internal.apache.arrow.vector.complex.StructVector;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.types.Types;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.types.pojo.Field;
 
@@ -52,7 +58,7 @@ public final class ConverterFactory
     }
 
     /**
-     * Copied from {@link net.snowflake.client.jdbc.ArrowResultChunk#initConverters}
+     * Logically copied from {@link net.snowflake.client.core.arrow.ArrowVectorConverterUtil#initConverter(ValueVector, DataConversionContext, SFBaseSession, int)}
      *
      * Given an arrow vector (column in a single record batch), return arrow
      * vector converter. Note, converter is built on top of arrow vector, so that arrow data can be
@@ -80,8 +86,24 @@ public final class ConverterFactory
         else if (!columnMetadata.isEmpty()) {
             SnowflakeType snowflakeType = SnowflakeType.valueOf(columnMetadata.get("logicalType"));
             switch (snowflakeType) {
-                case ANY, ARRAY, CHAR, TEXT, OBJECT, VARIANT -> {
+                case ANY, CHAR, TEXT, VARIANT -> {
                     return new VarCharConverter(vector, index, conversionContext);
+                }
+                case ARRAY -> {
+                    if (vector instanceof ListVector) {
+                        return new ArrayConverter((ListVector) vector, index, conversionContext);
+                    }
+                    else {
+                        return new VarCharConverter(vector, index, conversionContext);
+                    }
+                }
+                case OBJECT -> {
+                    if (vector instanceof StructVector) {
+                        return new StructConverter((StructVector) vector, index, conversionContext);
+                    }
+                    else {
+                        return new VarCharConverter(vector, index, conversionContext);
+                    }
                 }
                 case BINARY -> {
                     return new VarBinaryToBinaryConverter(vector, index, conversionContext);
@@ -90,7 +112,11 @@ public final class ConverterFactory
                     return new BitToBooleanConverter(vector, index, conversionContext);
                 }
                 case DATE -> {
-                    return new DateConverter(vector, index, conversionContext);
+                    boolean getFormatDateWithTimeZone = false;
+                    if (conversionContext.getSession() != null) {
+                        getFormatDateWithTimeZone = conversionContext.getSession().getFormatDateWithTimezone();
+                    }
+                    return new DateConverter(vector, index, conversionContext, getFormatDateWithTimeZone);
                 }
                 case FIXED -> {
                     int scale = Integer.parseInt(field.getMetadata().get("scale"));

@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
+import net.snowflake.client.core.SFSession;
 import net.snowflake.client.core.SessionUtil;
 
 import java.util.HashMap;
@@ -42,7 +43,7 @@ final class ChunkParser
     /**
      * Originates from {@link net.snowflake.client.jdbc.SnowflakeResultSetSerializableV1#parseChunkFiles()}
      */
-    public static List<ConnectorSplit> parseChunks(ConnectorSession session, JsonNode rootNode)
+    public static List<ConnectorSplit> parseChunks(ConnectorSession session, JsonNode rootNode, SFSession snowflakeSession)
     {
         JsonNode data = rootNode.path("data");
         JsonNode chunksNode = data.path("chunks");
@@ -62,7 +63,7 @@ final class ChunkParser
             }
         }
 
-        SnowflakeSessionParameters parameters = parseParameters(SessionUtil.getCommonParams(data.path("parameters")));
+        SnowflakeSessionParameters parameters = parseParameters(SessionUtil.getCommonParams(data.path("parameters")), snowflakeSession);
         long resultVersion = !data.path("version").isMissingNode() ? data.path("version").longValue() : 0;
 
         // we will encounter both chunks and rowset value at the same time, or just the rowset value for small queries
@@ -118,7 +119,7 @@ final class ChunkParser
                 SSE_C_KEY, queryMasterKey);
     }
 
-    private static SnowflakeSessionParameters parseParameters(Map<String, Object> parameters)
+    private static SnowflakeSessionParameters parseParameters(Map<String, Object> parameters, SFSession snowflakeSession)
     {
         return new SnowflakeSessionParameters(
                 (String) effectiveParamValue(parameters, "TIMESTAMP_OUTPUT_FORMAT"),
@@ -129,6 +130,9 @@ final class ChunkParser
                 (String) effectiveParamValue(parameters, "TIME_OUTPUT_FORMAT"),
                 (String) effectiveParamValue(parameters, "TIMEZONE"),
                 (boolean) effectiveParamValue(parameters, "CLIENT_HONOR_CLIENT_TZ_FOR_TIMESTAMP_NTZ"),
-                (String) effectiveParamValue(parameters, "BINARY_OUTPUT_FORMAT"));
+                (String) effectiveParamValue(parameters, "BINARY_OUTPUT_FORMAT"),
+                snowflakeSession.isJdbcArrowTreatDecimalAsInt(),
+                snowflakeSession.getDefaultFormatDateWithTimezone(),
+                (boolean) effectiveParamValue(parameters, "JDBC_FORMAT_DATE_WITH_TIMEZONE"));
     }
 }

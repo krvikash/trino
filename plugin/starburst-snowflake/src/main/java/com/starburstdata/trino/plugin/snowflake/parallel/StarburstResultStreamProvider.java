@@ -109,6 +109,7 @@ public class StarburstResultStreamProvider
                         false, // no retry parameters in url
                         false, // no request_guid
                         true, // retry on HTTP403 for AWS S3
+                        true, // no retry on http request
                         new ExecTimeTelemetryData());
         if (response == null || response.getStatusLine().getStatusCode() != 200) {
             throw new TrinoException(

@@ -48,6 +48,7 @@ import io.trino.spi.type.Type;
 import net.snowflake.client.core.ExecTimeTelemetryData;
 import net.snowflake.client.core.ParameterBindingDTO;
 import net.snowflake.client.core.SFException;
+import net.snowflake.client.core.SFSession;
 import net.snowflake.client.core.SFStatement;
 import net.snowflake.client.jdbc.SnowflakeConnectionV1;
 import net.snowflake.client.jdbc.StarburstSnowflakeStatementV1;
@@ -118,7 +119,9 @@ public class SnowflakeSplitManager
                     Optional.empty());
 
             Map<String, ParameterBindingDTO> bindValues = convertToSnowflakeFormatWithStatement(preparedQuery, session, connection);
-            SFStatement sFStatement = new SFStatement(connection.unwrap(SnowflakeConnectionV1.class).getSfSession());
+            SFSession sfSession = connection.unwrap(SnowflakeConnectionV1.class).getSfSession();
+            SFStatement sFStatement = new SFStatement(sfSession);
+
             JsonNode jsonResult = (JsonNode) sFStatement.executeHelper(
                     preparedQuery.query(),
                     "application/snowflake",
@@ -132,7 +135,7 @@ public class SnowflakeSplitManager
                 logFiltered(jsonResult);
             }
 
-            return new FixedSplitSource(parseChunks(session, jsonResult));
+            return new FixedSplitSource(parseChunks(session, jsonResult, sfSession));
         }
         catch (SFException | SQLException e) {
             // TODO: https://starburstdata.atlassian.net/browse/SEP-6500

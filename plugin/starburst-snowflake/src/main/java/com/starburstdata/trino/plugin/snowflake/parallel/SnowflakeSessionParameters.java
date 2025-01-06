@@ -26,7 +26,10 @@ public record SnowflakeSessionParameters(
         @JsonProperty("timeOutputFormat") String timeOutputFormat,
         @JsonProperty("timezone") String timezone,
         @JsonProperty("honorClientTZForTimestampNTZ") boolean honorClientTZForTimestampNTZ,
-        @JsonProperty("binaryOutputFormat") String binaryOutputFormat)
+        @JsonProperty("binaryOutputFormat") String binaryOutputFormat,
+        @JsonProperty("jdbcArrowTreatDecimalAsInt") boolean jdbcArrowTreatDecimalAsInt,
+        @JsonProperty("jdbcDefaultFormatDateWithTimezone") boolean jdbcDefaultFormatDateWithTimezone,
+        @JsonProperty("formatDateWithTimezone") boolean formatDateWithTimezone)
 {
     private static final int INSTANCE_SIZE = instanceSize(SnowflakeSessionParameters.class);
 
