@@ -17,7 +17,6 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.DelegateStorageEngine;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
@@ -29,18 +28,15 @@ public class CoordinatorStorageEngineProvider
         implements Provider<StorageEngine>
 {
     private final GlobalConfig globalConfig;
-    private final MetricsManager metricsManager;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
     private StorageEngine storageEngine;
 
     @Inject
     public CoordinatorStorageEngineProvider(
             GlobalConfig globalConfig,
-            MetricsManager metricsManager,
             FailureGeneratorInvocationHandler failureGeneratorInvocationHandler)
     {
         this.globalConfig = globalConfig;
-        this.metricsManager = metricsManager;
         this.failureGeneratorInvocationHandler = failureGeneratorInvocationHandler;
     }
 
@@ -48,7 +44,7 @@ public class CoordinatorStorageEngineProvider
     public synchronized StorageEngine get()
     {
         if (storageEngine == null) {
-            this.storageEngine = new DelegateStorageEngine(metricsManager);
+            this.storageEngine = new DelegateStorageEngine();
             if (globalConfig.isFailureGeneratorEnabled()) {
                 this.storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),
                         new Class<?>[] {StorageEngine.class},

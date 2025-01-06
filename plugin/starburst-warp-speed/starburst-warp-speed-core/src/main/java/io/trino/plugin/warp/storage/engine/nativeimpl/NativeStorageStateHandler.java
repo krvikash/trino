@@ -79,7 +79,7 @@ public class NativeStorageStateHandler
 
     public synchronized void handleErrorCode(ErrorCodes errorCode)
     {
-        shapingLogger.info("[%s] handleErrorCode:: %s", catalogNameProvider.get(), errorCode);
+        logger.debug("[%s] handleErrorCode:: %s", catalogNameProvider.get(), errorCode);
 
         if (errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR)) {
             disablePermanently();

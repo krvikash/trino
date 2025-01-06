@@ -18,7 +18,6 @@ import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -36,7 +35,6 @@ public class WorkerStorageEngineProvider
 {
     private final GlobalConfig globalConfig;
     private final NativeConfig nativeConfig;
-    private final MetricsManager metricsManager;
     private final ConnectorSync connectorSync;
     private final CatalogName catalogName;
     private final ExceptionThrower exceptionThrower;
@@ -48,7 +46,6 @@ public class WorkerStorageEngineProvider
     public WorkerStorageEngineProvider(
             GlobalConfig globalConfig,
             NativeConfig nativeConfig,
-            MetricsManager metricsManager,
             ConnectorSync connectorSync,
             CatalogName catalogName,
             ExceptionThrower exceptionThrower,
@@ -56,7 +53,6 @@ public class WorkerStorageEngineProvider
     {
         this.globalConfig = requireNonNull(globalConfig);
         this.nativeConfig = requireNonNull(nativeConfig);
-        this.metricsManager = requireNonNull(metricsManager);
         this.connectorSync = requireNonNull(connectorSync);
         this.catalogName = requireNonNull(catalogName);
         this.exceptionThrower = requireNonNull(exceptionThrower);
@@ -69,7 +65,6 @@ public class WorkerStorageEngineProvider
         if (storageEngine == null) {
             storageEngine = new NativeStorageEngine(
                     nativeConfig,
-                    metricsManager,
                     exceptionThrower,
                     globalConfig,
                     connectorSync,

@@ -32,7 +32,6 @@ import java.util.function.Consumer;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_READ_OUT_OF_BOUNDS;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
-import static java.lang.String.format;
 
 @Singleton
 public class NativeExceptionThrower
@@ -51,11 +50,10 @@ public class NativeExceptionThrower
         }
         exceptionThrowerStats = ExceptionThrowerStats.create();
         metricsManager.registerMetric(this.exceptionThrowerStats);
-        nativeInit();
     }
 
     @Override
-    public void throwException(int code, Object[] params)
+    public void throwException(int code, String msg)
     {
         ErrorCodes errorCode = errorCodesMap.get(code);
         if (errorCode.getUnrecoverable()) {
@@ -68,8 +66,6 @@ public class NativeExceptionThrower
         logger.debug("calling errorCodesConsumers[%d] with %s", errorCodesConsumers.size(), errorCode);
         errorCodesConsumers.forEach(errorCodesConsumer -> errorCodesConsumer.accept(errorCode));
 
-        String errorMessage = (params == null) ? errorCode.getMessage() : format(errorCode.getMessage(), params);
-        String formatMessage = errorMessage + " (" + code + ")";
         WarpErrorCode trinoExceptionErrorCode = WARP_NATIVE_ERROR;
         if (errorCode.getUnrecoverable()) {
             trinoExceptionErrorCode = WARP_NATIVE_UNRECOVERABLE_ERROR;
@@ -77,7 +73,7 @@ public class NativeExceptionThrower
         else if (errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_READ_OUT_OF_BOUNDS)) {
             trinoExceptionErrorCode = WARP_NATIVE_READ_OUT_OF_BOUNDS;
         }
-        throw new TrinoException(trinoExceptionErrorCode, formatMessage);
+        throw new TrinoException(trinoExceptionErrorCode, msg);
     }
 
     @Override
@@ -85,6 +81,4 @@ public class NativeExceptionThrower
     {
         errorCodesConsumers.add(errorCodesConsumer);
     }
-
-    private native void nativeInit();
 }

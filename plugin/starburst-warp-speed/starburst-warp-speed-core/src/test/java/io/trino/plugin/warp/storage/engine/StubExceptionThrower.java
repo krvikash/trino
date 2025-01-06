@@ -21,7 +21,7 @@ public class StubExceptionThrower
         implements ExceptionThrower
 {
     @Override
-    public void throwException(int code, Object[] params)
+    public void throwException(int code, String msg)
     {
     }
 

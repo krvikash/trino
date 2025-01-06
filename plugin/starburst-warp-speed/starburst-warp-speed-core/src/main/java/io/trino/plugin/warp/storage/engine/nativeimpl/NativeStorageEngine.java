@@ -19,9 +19,7 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
-import io.trino.plugin.warp.gen.stats.WarpStatsMgr;
 import io.trino.plugin.warp.log.ShapingLogger;
-import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -171,7 +169,6 @@ public class NativeStorageEngine
 
     public NativeStorageEngine(
             NativeConfig nativeConfig,
-            MetricsManager metricsManager,
             ExceptionThrower exceptionThrower,
             GlobalConfig globalConfig,
             ConnectorSync connectorSync,
@@ -300,7 +297,6 @@ public class NativeStorageEngine
             logger.error(t, "failed loading native storage engine");
             throw new RuntimeException("failed loading native storage engine");
         }
-        new WarpStatsMgr(metricsManager);
         logger.debug("finish initializing storage engine");
 
         ((NativeConnectorSync) connectorSync).init();
@@ -429,7 +425,12 @@ public class NativeStorageEngine
         logMem.set(ValueLayout.JAVA_INT, LOGGER_LOG_OFFSET_STATE, 0);
 
         String logString = logMem.getString(LOGGER_LOG_OFFSET_STRING);
-        if ((logString.length() > 0) && (logString.length() <= MAX_LOG_STRING_LENGTH)) {
+        if (logLevel < 0) {
+            final int expectionId = -1 * logLevel;
+            shapingLogger.error("catalog %s throwed native excetpion id %d", catalogName, expectionId);
+            exceptionThrower.throwException(expectionId, logString);
+        }
+        else if ((logString.length() > 0) && (logString.length() <= MAX_LOG_STRING_LENGTH)) {
             switch (logLevel) {
                 case 1:
                     shapingLogger.error("catalog %s: %s", catalogName, logString);

@@ -30,7 +30,7 @@ public interface ExceptionThrower
         return code == WARP_NATIVE_ERROR.toErrorCode().getCode() || code == WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode().getCode() || code == WARP_NATIVE_READ_OUT_OF_BOUNDS.toErrorCode().getCode();
     }
 
-    void throwException(int code, Object[] params);
+    void throwException(int code, String msg);
 
     void addExceptionConsumer(Consumer<ErrorCodes> errorCodesConsumer);
 }

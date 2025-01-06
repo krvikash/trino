@@ -14,16 +14,13 @@
 package io.trino.plugin.warp.storage.engine.nativeimpl;
 
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.gen.stats.WarpStatsMgr;
-import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 
 @Singleton
 public class DelegateStorageEngine
         implements StorageEngine
 {
-    public DelegateStorageEngine(MetricsManager metricsManager)
+    public DelegateStorageEngine()
     {
-        new WarpStatsMgr(metricsManager);
     }
 }
