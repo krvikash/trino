@@ -48,19 +48,24 @@ public class CacheMgrWarmupRuleService
     public synchronized void replaceAll(List<CacheManagerRule> newWarmupRules)
             throws TrinoException
     {
-        try {
-            cache = newWarmupRules.stream()
-                    .map(cacheManagerRule -> new CacheManagerRule(
-                            hash(cacheManagerRule.signatureKey()),
-                            cacheManagerRule.priority(),
-                            cacheManagerRule.ttl()))
-                    .collect(Collectors.toMap(CacheManagerRule::signatureKey, Function.identity()));
+        if (newWarmupRules.isEmpty()) {
+            cache.clear();
         }
-        catch (Exception e) {
-            throw new TrinoException(
-                    WarpErrorCode.WARP_RULE_CONFIGURATION_ERROR,
-                    "failed to replace existing rules with new rules=%s".formatted(newWarmupRules),
-                    e);
+        else {
+            try {
+                cache = newWarmupRules.stream()
+                        .map(cacheManagerRule -> new CacheManagerRule(
+                                hash(cacheManagerRule.signatureKey()),
+                                cacheManagerRule.priority(),
+                                cacheManagerRule.ttl()))
+                        .collect(Collectors.toMap(CacheManagerRule::signatureKey, Function.identity()));
+            }
+            catch (Exception e) {
+                throw new TrinoException(
+                        WarpErrorCode.WARP_RULE_CONFIGURATION_ERROR,
+                        "failed to replace existing rules with new rules=%s".formatted(newWarmupRules),
+                        e);
+            }
         }
     }
 

@@ -23,6 +23,7 @@ import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.Audit;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.TupleRankResult;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
@@ -48,7 +49,7 @@ import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask.WARMUP_DEMOTER_PATH;
 import static java.util.Objects.requireNonNull;
 
-@TaskResourceMarker(worker = false)
+@TaskResourceMarker(worker = false, cacheMgr = true)
 @Path(WARMUP_DEMOTER_PATH)
 //@Api(value = "Demoter", tags = "Demoter")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -59,12 +60,14 @@ public class WarmupDemoterTask
     public static final String WARMUP_DEMOTER_PATH = "demoter";
     public static final String WARMUP_DEMOTER_START_TASK_NAME = "warmup-demoter-start";
     public static final String WARMUP_DEMOTER_STATUS_TASK_NAME = "warmup-demoter-status";
+    public static final String WARMUP_DEMOTER_TUPLE_RANKS_TASK_NAME = "demoter-tuple-ranks";
 
     private static final Logger logger = Logger.get(WarmupDemoterTask.class);
 
     private static final JsonCodec<WarmupDemoterData> startWarmupDemoterJsonCodec = JsonCodec.jsonCodec(WarmupDemoterData.class);
     private static final JsonCodec<Map<String, Object>> workerWarmupDemoterResult = JsonCodec.mapJsonCodec(String.class, Object.class);
     private static final JsonCodec<DemoterStatus> workerWarmupDemoterStatusResult = JsonCodec.jsonCodec(DemoterStatus.class);
+    private static final JsonCodec<TupleRankResult> workerDemoterTupleRanksResult = JsonCodec.jsonCodec(TupleRankResult.class);
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final WarpClient warpClient;
 
@@ -144,6 +147,38 @@ public class WarmupDemoterTask
             waitingFuture.get();
             Map<String, Object> allRes = new HashMap<>();
             for (Map.Entry<String, HttpClient.HttpResponseFuture<FullJsonResponseHandler.JsonResponse<DemoterStatus>>> entry : allFutures.entrySet()) {
+                allRes.put(entry.getKey(), entry.getValue().get().getValue());
+            }
+            return allRes;
+        }
+        catch (Throwable e) {
+            throw new RuntimeException("failed executing warmup demoter task", e);
+        }
+    }
+
+    @GET
+    @Path(WARMUP_DEMOTER_TUPLE_RANKS_TASK_NAME)
+    public Map<String, TupleRankResult> getTupleRanks()
+    {
+        Map<String, HttpClient.HttpResponseFuture<FullJsonResponseHandler.JsonResponse<TupleRankResult>>> allFutures = new HashMap<>();
+        coordinatorNodeManager.getWorkerNodes()
+                .forEach(node -> {
+                    HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node))
+                            .appendPath(WarmupDemoterTask.WARMUP_DEMOTER_PATH)
+                            .appendPath(WorkerWarmupDemoterTask.WARMUP_DEMOTER_TUPLE_RANKS_TASK_NAME);
+
+                    Request request = prepareGet()
+                            .setUri(uriBuilder.build())
+                            .setHeader("Content-Type", "application/json")
+                            .build();
+                    allFutures.put(node.getNodeIdentifier(), warpClient.executeAsync(request, createFullJsonResponseHandler(workerDemoterTupleRanksResult)));
+                });
+
+        ListenableFuture<List<FullJsonResponseHandler.JsonResponse<TupleRankResult>>> waitingFuture = Futures.allAsList(allFutures.values());
+        try {
+            waitingFuture.get();
+            Map<String, TupleRankResult> allRes = new HashMap<>();
+            for (Map.Entry<String, HttpClient.HttpResponseFuture<FullJsonResponseHandler.JsonResponse<TupleRankResult>>> entry : allFutures.entrySet()) {
                 allRes.put(entry.getKey(), entry.getValue().get().getValue());
             }
             return allRes;

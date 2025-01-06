@@ -19,6 +19,7 @@ import com.google.common.eventbus.EventBus;
 import io.airlift.json.ObjectMapperProvider;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterThreshold;
@@ -57,18 +58,21 @@ public class WorkerWarmupDemoterTaskTest
     public void before()
     {
         warmupDemoterConfig = new WarmupDemoterConfig();
-        workerCapacityManager = Mockito.mock(WorkerCapacityManager.class);
-        warmupDemoterService = Mockito.mock(WarmupDemoterService.class);
+        workerCapacityManager = mock(WorkerCapacityManager.class);
+        warmupDemoterService = mock(WarmupDemoterService.class);
+        WarpDeleteService warpDeleteService = mock(WarpDeleteService.class);
         eventBus = new EventBus();
         nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         Mockito.when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
         WarmupDemoterStats warmupDemoterStats = WarmupDemoterStats.create();
-        MetricsManager metricsManager = Mockito.mock(MetricsManager.class);
+        MetricsManager metricsManager = mock(MetricsManager.class);
         Mockito.when(metricsManager.registerMetric(ArgumentMatchers.any())).thenReturn(warmupDemoterStats);
-        workerWarmupDemoterTask = new WorkerWarmupDemoterTask(warmupDemoterService,
+        workerWarmupDemoterTask = new WorkerWarmupDemoterTask(
+                warmupDemoterService,
+                warpDeleteService,
                 warmupDemoterConfig,
                 workerCapacityManager,
-                Mockito.mock(CatalogName.class),
+                mock(CatalogName.class),
                 metricsManager,
                 eventBus,
                 nativeStorageStateHandler);
@@ -79,7 +83,7 @@ public class WorkerWarmupDemoterTaskTest
     {
         Mockito.when(workerCapacityManager.getCurrentUsage()).thenReturn(2048L);
         Mockito.when(workerCapacityManager.getTotalCapacity()).thenReturn(4096L);
-        Mockito.when(warmupDemoterService.tryDemoteStart()).thenAnswer(invocation -> {
+        Mockito.when(warmupDemoterService.tryDemoteStart()).thenAnswer(_ -> {
             Future<?> unused = executorService.submit(() -> eventBus.post(new WarmupDemoterFinishEvent(true, new HashMap<>())));
             return 1;
         });

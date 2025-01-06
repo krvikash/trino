@@ -203,11 +203,6 @@ public class WorkerCacheManager
                 return Optional.empty();
             }
 
-            if (!warmupRuleService.getAll().isEmpty() &&
-                    !warmupRuleService.getAll().containsKey(planSignature.getKey().toString())) {
-                return Optional.empty();
-            }
-
             if (memoryContextService.revokeIsRunning()) {
                 return Optional.empty();
             }

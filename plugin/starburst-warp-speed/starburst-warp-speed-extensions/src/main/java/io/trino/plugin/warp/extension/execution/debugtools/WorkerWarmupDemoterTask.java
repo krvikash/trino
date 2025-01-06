@@ -21,7 +21,9 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.TupleFilter;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.TupleRankResult;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
 import io.trino.plugin.warp.execution.debugtools.ColumnFilter;
 import io.trino.plugin.warp.execution.debugtools.FileFilter;
@@ -63,6 +65,7 @@ public class WorkerWarmupDemoterTask
 {
     public static final String WARMUP_DEMOTER_START_TASK_NAME = "worker-warmup-demoter-start";
     public static final String WARMUP_DEMOTER_STATUS_TASK_NAME = "worker-warmup-demoter-status";
+    public static final String WARMUP_DEMOTER_TUPLE_RANKS_TASK_NAME = "worker-demoter-tuple-ranks";
     public static final String HIGHEST_PRIORITY_KEY = String.format("%s:highestPriority", WarmupDemoterStats.createKey());
     public static final String MAX_USAGE_THRESHOLD_KEY = String.format("%s:maxUsageThresholdInPercentage", WarmupDemoterStats.createKey());
     public static final String CLEANUP_USAGE_THRESHOLD_KEY = String.format("%s:cleanupUsageThresholdInPercentage", WarmupDemoterStats.createKey());
@@ -77,6 +80,7 @@ public class WorkerWarmupDemoterTask
     private static final Logger logger = Logger.get(WorkerWarmupDemoterTask.class);
 
     private final WarmupDemoterService warmupDemoterService;
+    private final WarpDeleteService warpDeleteService;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final WorkerCapacityManager workerCapacityManager;
     private final CatalogName catalogName;
@@ -86,6 +90,7 @@ public class WorkerWarmupDemoterTask
 
     @Inject
     public WorkerWarmupDemoterTask(WarmupDemoterService warmupDemoterService,
+            WarpDeleteService warpDeleteService,
             WarmupDemoterConfig warmupDemoterConfig,
             WorkerCapacityManager workerCapacityManager,
             CatalogName catalogName,
@@ -94,6 +99,7 @@ public class WorkerWarmupDemoterTask
             NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
+        this.warpDeleteService = requireNonNull(warpDeleteService);
         this.warmupDemoterConfig = warmupDemoterConfig;
         this.workerCapacityManager = workerCapacityManager;
         this.catalogName = catalogName;
@@ -177,6 +183,13 @@ public class WorkerWarmupDemoterTask
     public DemoterStatus status()
     {
         return new DemoterStatus(warmupDemoterService.isExecuting(), warmupDemoterService.getLastExecutionTime());
+    }
+
+    @GET
+    @Path(WARMUP_DEMOTER_TUPLE_RANKS_TASK_NAME)
+    public TupleRankResult getTupleRanks()
+    {
+        return warpDeleteService.buildTupleRank(List.of(), true);
     }
 
     public Map<String, Object> getSkippedResult()

@@ -29,9 +29,11 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.TupleRankResult;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
+import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask;
 import io.trino.plugin.warp.extension.execution.warmup.CacheMgrWarmupTask;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
@@ -195,13 +197,13 @@ public class TestHiveWarpCacheManager
         prepareCacheMgrRules(List.of("key"));
 
         @Language("SQL") String query = "select int1, v1 from " + TABLE_1 + " where v1 like '%shlomi%'";
-        runQueryAndValidateReadFromCache(queryRunner, query, scanFilterAndProjectOperatorName, false, false);
+        runQueryAndValidateReadFromCache(queryRunner, query, false);
 
         @Language("SQL") String query2 = "select int1, v1 from " + TABLE_2 + " where v1 like '%shlomi%'";
-        runQueryAndValidateReadFromCache(queryRunner, query2, scanFilterAndProjectOperatorName, false, false);
+        runQueryAndValidateReadFromCache(queryRunner, query2, false);
 
         @Language("SQL") String unionQuery = "select * from %s b where b.int1 > 0 union all select * from %s".formatted(TABLE_1, TABLE_2);
-        runQueryAndValidateReadFromCache(queryRunner, unionQuery, scanFilterAndProjectOperatorName, false, false);
+        runQueryAndValidateReadFromCache(queryRunner, unionQuery, false);
         assertExplain("explain " + unionQuery, "CacheData\\[\\]\n.*\n.*TableScan.*");
     }
 
@@ -215,13 +217,13 @@ public class TestHiveWarpCacheManager
         prepareCacheMgrRules(List.of("dummy"));
 
         @Language("SQL") String query = "select int1, v1 from " + TABLE_1 + " where v1 like '%shlomi%'";
-        runQueryAndValidateReadFromCache(queryRunner, query, loadCachedDataOperatorName, true, true);
+        runQueryAndValidateReadFromCache(queryRunner, query, true);
 
         @Language("SQL") String query2 = "select int1, v1 from " + TABLE_2 + " where v1 like '%shlomi%'";
-        runQueryAndValidateReadFromCache(queryRunner, query2, loadCachedDataOperatorName, true, true);
+        runQueryAndValidateReadFromCache(queryRunner, query2, true);
 
         @Language("SQL") String unionQuery = "select * from %s b where b.int1 > 0 union all select * from %s".formatted(TABLE_1, TABLE_2);
-        runQueryAndValidateReadFromCache(queryRunner, unionQuery, loadCachedDataOperatorName, true, true);
+        runQueryAndValidateReadFromCache(queryRunner, unionQuery, true);
         assertExplain("explain " + unionQuery, "CacheData\\[\\]\n.*\n.*TableScan.*");
     }
 
@@ -261,13 +263,12 @@ public class TestHiveWarpCacheManager
     private void runQueryAndValidateReadFromCache(
             DistributedQueryRunner queryRunner,
             @Language("SQL") String query,
-            String operatorType,
-            boolean withSignature,
-            boolean isWarmingExpected)
+            boolean withSignature)
             throws IOException
     {
-        MaterializedResultWithPlan materializedResultWithPlan =
-                warmAndValidateCacheQuery(queryRunner, query, false);
+        warmAndValidateCacheQuery(queryRunner, query);
+
+        MaterializedResultWithPlan materializedResultWithPlan = queryRunner.executeWithPlan(getSession(), query);
 
         QueryInfo fullQueryInfo = getFullQueryInfo(queryRunner, materializedResultWithPlan);
         Set<String> operatorTypes = fullQueryInfo.getQueryStats()
@@ -276,8 +277,8 @@ public class TestHiveWarpCacheManager
                 .map(OperatorStats::getOperatorType)
                 .collect(Collectors.toSet());
         assertThat(operatorTypes)
-                .contains(scanFilterAndProjectOperatorName)
-                .doesNotContain(loadCachedDataOperatorName);
+                .contains(loadCachedDataOperatorName)
+                .doesNotContain(scanFilterAndProjectOperatorName);
 
         if (withSignature) {
             List<PlanSignature> planSignatures = requireNonNull(fullQueryInfo
@@ -296,8 +297,7 @@ public class TestHiveWarpCacheManager
             prepareCacheMgrRules(planSignatures.stream().map(planSignature -> planSignature.getKey().toString()).toList());
         }
 
-        MaterializedResultWithPlan materializedResultWithPlanAfterCaching =
-                warmAndValidateCacheQuery(queryRunner, query, isWarmingExpected);
+        MaterializedResultWithPlan materializedResultWithPlanAfterCaching = queryRunner.executeWithPlan(getSession(), query);
 
         Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionFailedError.class)
@@ -311,14 +311,39 @@ public class TestHiveWarpCacheManager
                             .stream()
                             .map(OperatorStats::getOperatorType)
                             .collect(Collectors.toSet());
-                    assertThat(operatorTypesTmp).contains(operatorType);
+                    assertThat(operatorTypesTmp).contains(TestHiveWarpCacheManager.loadCachedDataOperatorName);
                 });
+
+        //make sure that when rules are used they priority is non-zero
+        if (withSignature) {
+            String resultStr = executeRestCommand(
+                    WarmupDemoterTask.WARMUP_DEMOTER_PATH,
+                    WarmupDemoterTask.WARMUP_DEMOTER_TUPLE_RANKS_TASK_NAME,
+                    null,
+                    HttpMethod.GET,
+                    coordinatorPort,
+                    HttpURLConnection.HTTP_OK,
+                    false);
+            Map<String, TupleRankResult> result = objectMapper.readerFor(new TypeReference<Map<String, TupleRankResult>>() {})
+                    .readValue(resultStr);
+            double priority = result.values()
+                    .stream()
+                    .map(tupleRankResult -> tupleRankResult.tupleRankList()
+                            .stream()
+                            .map(tupleRank -> tupleRank.warmupProperties().priority())
+                            .distinct()
+                            .findFirst()
+                            .orElse(0D))
+                    .distinct()
+                    .findFirst()
+                    .orElse(0D);
+            assertThat(priority).isPositive();
+        }
     }
 
-    private MaterializedResultWithPlan warmAndValidateCacheQuery(
+    private void warmAndValidateCacheQuery(
             DistributedQueryRunner queryRunner,
-            @Language("SQL") String query,
-            boolean isWarmingExpected)
+            @Language("SQL") String query)
     {
         Session jmxSession = createJmxSession();
         String warmStatsTableName = "%s:name=%s_%s,type=%s".formatted(
@@ -332,7 +357,17 @@ public class TestHiveWarpCacheManager
         Long valueCacheAccomplishedBefore = (Long) materializedRow.getFields().get(1);
 
         //"warm" data query
-        queryRunner.executeWithPlan(getSession(), query);
+        MaterializedResultWithPlan materializedResultWithPlan = queryRunner.executeWithPlan(getSession(), query);
+
+        Set<String> operatorTypes = getFullQueryInfo(queryRunner, materializedResultWithPlan)
+                .getQueryStats()
+                .getOperatorSummaries()
+                .stream()
+                .map(OperatorStats::getOperatorType)
+                .collect(Collectors.toSet());
+        assertThat(operatorTypes)
+                .contains(scanFilterAndProjectOperatorName)
+                .doesNotContain(loadCachedDataOperatorName);
 
         Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionFailedError.class)
@@ -344,25 +379,16 @@ public class TestHiveWarpCacheManager
                     Long valueCacheStartedAfter = (Long) materializedRowTmp.getFields().getFirst();
                     Long valueCacheAccomplishedAfter = (Long) materializedRowTmp.getFields().get(1);
 
-                    if (isWarmingExpected) {
-                        assertThat(valueCacheStartedAfter)
-                                .as("different result for query=%s", query)
-                                .isGreaterThan(valueCacheStartedBefore);
-                        assertThat(valueCacheStartedAfter)
-                                .as("different result for query=%s", query)
-                                .isEqualTo(valueCacheAccomplishedAfter);
-                        assertThat(valueCacheAccomplishedAfter)
-                                .as("different result for query=%s", query)
-                                .isGreaterThan(valueCacheAccomplishedBefore);
-                    }
-                    else {
-                        assertThat(valueCacheAccomplishedAfter)
-                                .as("different result for query=%s", query)
-                                .isEqualTo(valueCacheAccomplishedBefore);
-                    }
+                    assertThat(valueCacheStartedAfter)
+                            .as("different result for query=%s", query)
+                            .isGreaterThan(valueCacheStartedBefore);
+                    assertThat(valueCacheStartedAfter)
+                            .as("different result for query=%s", query)
+                            .isEqualTo(valueCacheAccomplishedAfter);
+                    assertThat(valueCacheAccomplishedAfter)
+                            .as("different result for query=%s", query)
+                            .isGreaterThan(valueCacheAccomplishedBefore);
                 });
-
-        return queryRunner.executeWithPlan(getSession(), query);
     }
 
     /**

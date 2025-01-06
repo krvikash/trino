@@ -20,7 +20,8 @@ import java.util.Map;
 import java.util.Set;
 
 public record RowGroupCountResult(
-        Map<String, Long> nodesWarmupElementsCount, Set<String> warmupColumnNames,
+        Map<String, Long> nodesWarmupElementsCount,
+        Set<String> warmupColumnNames,
         Map<String, Integer> warmupColumnCount,
         Map<String, Set<String>> rowGroupFilePathSet)
 {

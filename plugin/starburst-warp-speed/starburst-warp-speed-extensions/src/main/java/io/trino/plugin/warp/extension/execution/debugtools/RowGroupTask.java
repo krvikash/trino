@@ -19,6 +19,7 @@ import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.execution.WarpClient;
+import io.trino.plugin.warp.execution.debugtools.DebugToolResult;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.node.CoordinatorNodeManager;
@@ -61,7 +62,7 @@ public class RowGroupTask
     public static final String ROW_GROUP_COLLECT_TASK_NAME = "row-group-collect";
     private static final JsonCodec<WorkerRowGroupCountResult> workerRowGroupCountResultJsonCoded = JsonCodec.jsonCodec(WorkerRowGroupCountResult.class);
     private static final JsonCodec<RowGroupCollectData> workerRowGroupCollectJsonCodec = JsonCodec.jsonCodec(RowGroupCollectData.class);
-    private static final JsonCodec<List> workerRowGroupCollectResultJsonCoded = JsonCodec.jsonCodec(List.class);
+    private static final JsonCodec<List<DebugToolResult>> workerRowGroupCollectResultJsonCoded = JsonCodec.listJsonCodec(DebugToolResult.class);
 
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final WarpClient warpClient;
@@ -96,7 +97,6 @@ public class RowGroupTask
         return innerCount(true);
     }
 
-    @SuppressWarnings("deprecation")
     private RowGroupCountResult innerCount(boolean isRowGroupFilePath)
     {
         Map<String, Long> deviceGroupsRowGroupsCount = new HashMap<>();
@@ -133,7 +133,6 @@ public class RowGroupTask
         return res;
     }
 
-    @SuppressWarnings("deprecation")
     @POST
     @Path(ROW_GROUP_RESET_TASK_NAME)
     @Consumes(MediaType.APPLICATION_JSON)
@@ -155,16 +154,15 @@ public class RowGroupTask
         });
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked", "deprecation"})
     @GET
     @Path(ROW_GROUP_COLLECT_TASK_NAME)
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Audit
     //@ApiOperation(value = "collect", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
-    public Map collect(RowGroupCollectData rowGroupCollectData)
+    public Map<String, List<DebugToolResult>> collect(RowGroupCollectData rowGroupCollectData)
     {
-        Map ret = new HashMap();
+        Map<String, List<DebugToolResult>> ret = new HashMap<>();
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
         workerNodes.forEach(node -> {
             HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
@@ -174,7 +172,7 @@ public class RowGroupTask
                     .setBodyGenerator(jsonBodyGenerator(workerRowGroupCollectJsonCodec, rowGroupCollectData))
                     .setHeader("Content-Type", "application/json")
                     .build();
-            List nodeResult = warpClient.sendWithRetry(request, createFullJsonResponseHandler(workerRowGroupCollectResultJsonCoded));
+            List<DebugToolResult> nodeResult = warpClient.sendWithRetry(request, createFullJsonResponseHandler(workerRowGroupCollectResultJsonCoded));
             ret.put(UriUtils.getHttpUri(node).getHost(), nodeResult);
         });
         return ret;
