@@ -126,7 +126,7 @@ public class WarmupCacheData
     private boolean isNull()
     {
         if (connectorIndexToWarmColumns == null) {
-            shapingLogger.info("connectorIndexToWarmColumns is null because of revoke but requested to use it. should not happened");
+            shapingLogger.info("connectorIndexToWarmColumns is null because of revoke but requested to use it");
             return true;
         }
         return false;

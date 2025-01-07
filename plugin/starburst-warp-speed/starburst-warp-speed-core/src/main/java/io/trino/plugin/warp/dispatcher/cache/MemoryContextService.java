@@ -16,7 +16,6 @@ package io.trino.plugin.warp.dispatcher.cache;
 
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
@@ -48,7 +47,6 @@ public class MemoryContextService
     private final ShapingLogger shapingLogger;
     private boolean revokeIsRunning;
     private final MemoryAllocator revocableMemoryAllocator;
-    @GuardedBy("this")
     private long allocatedMemory;
 
     private static final int LOCAL_MEMORY_COUNT = 1500;
@@ -107,7 +105,7 @@ public class MemoryContextService
         }
     }
 
-    public synchronized boolean add(WarpCacheTask warpCacheTask)
+    public boolean add(WarpCacheTask warpCacheTask)
     {
         if (localMemoryContexts.isEmpty()) {
             shapingLogger.info("localMemoryContexts is empty. LOCAL_MEMORY_COUNT=%s runningTasks.size()=%s", LOCAL_MEMORY_COUNT, runningTasks.size());
@@ -116,7 +114,7 @@ public class MemoryContextService
         return runningTasks.add(warpCacheTask);
     }
 
-    public synchronized long revoke(long bytesToRevoke)
+    public long revoke(long bytesToRevoke)
     {
         long revokedMemory = 0;
         try {
@@ -137,7 +135,7 @@ public class MemoryContextService
                 }
                 if (warpCacheTaskOpt.isEmpty()) {
                     //protect a race in case another thread poll a task
-                    logger.info("running task is not empty but all elements are revoked. break runningTaskSize=%s", getRunningSize());
+                    logger.debug("running task is not empty but all elements are revoked. break runningTaskSize=%s, they should be clean by WarpCacheTask flow", getRunningSize());
                     break;
                 }
                 WarpCacheTask warpCacheTask = warpCacheTaskOpt.get();
@@ -158,7 +156,7 @@ public class MemoryContextService
         return revokedMemory;
     }
 
-    private synchronized long getAllocatedMemory()
+    private long getAllocatedMemory()
     {
         return allocatedMemory;
     }

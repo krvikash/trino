@@ -249,8 +249,12 @@ public class WarpCacheTask
         }
     }
 
-    public void warmAsEmptyPageSource()
+    public synchronized void warmAsEmptyPageSource()
     {
+        if (revoked) {
+            logger.debug("task revoked, can't warm as empty page source because of revoke");
+            return;
+        }
         statsWarmingService.incwarm_started();
         warmupCacheData.getCacheWarmupElementArgsList().forEach(cacheWarmupElementArgs -> {
             WarmingCandidate warmingCandidate = new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD,
@@ -429,7 +433,7 @@ public class WarpCacheTask
             blocksToProcess.add(STOP_TRIGGER);
         }
         else {
-            logger.debug("too much memory allocated in cache. currentTaskSize=%s, rowGroupKey=%s", warmupCacheData.getRetainedSizeInBytes(), rowGroupKey);
+            logger.debug("too much memory allocated in cache. currentTaskSize=%s, runningTasksSize=%s probably due to revoke ", warmupCacheData.getRetainedSizeInBytes(), memoryContextService.getRunningSize());
             setEngineAbort();
         }
     }
