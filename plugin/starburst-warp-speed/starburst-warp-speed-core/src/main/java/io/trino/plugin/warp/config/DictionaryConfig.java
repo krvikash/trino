@@ -24,7 +24,9 @@ import java.util.stream.Collectors;
 public class DictionaryConfig
 {
     public static final String EXCEPTIONAL_LIST_DICTIONARY = "warp-speed.enable.dictionary.exceptional-list";
-    private int dictionaryMaxSize = 64 * 1024;
+    public static final int DICTIONARY_MAX_SIZE = 64 * 1024;
+
+    private int dictionaryMaxSize = DICTIONARY_MAX_SIZE;
     private DataSize maxDictionaryTotalCacheWeight = DataSize.of(1024, DataSize.Unit.MEGABYTE);
     private DataSize maxDictionaryCacheWeight = DataSize.of(16, DataSize.Unit.MEGABYTE);
     private int dictionaryCacheConcurrencyLevel = 4;

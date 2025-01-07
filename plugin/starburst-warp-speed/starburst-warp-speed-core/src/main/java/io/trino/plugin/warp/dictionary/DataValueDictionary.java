@@ -36,6 +36,14 @@ public class DataValueDictionary
     static final int MAX_DICTIONARY_SIZE = 1024 * 1024; //Note: the actual dictionary size in double, each element we add to preBlock
     private static final Logger logger = Logger.get(DataValueDictionary.class);
 
+    private static final ArrayList<Short> indicesValue = new ArrayList<>(DictionaryConfig.DICTIONARY_MAX_SIZE);
+
+    static {
+        for (int i = 0; i < DictionaryConfig.DICTIONARY_MAX_SIZE; i++) {
+            indicesValue.add((short) i);
+        }
+    }
+
     private final DictionaryKey dictionaryKey;
     private final Lock addKeyLock;
     private final ConcurrentHashMap<Object, Short> writeDictionary;
@@ -98,7 +106,7 @@ public class DataValueDictionary
                         increaseDictionaryWeight(incDictionaryWeight);
                         int newIndex = writeDictionary.size();
                         readDictionary.add(value);
-                        return (short) newIndex;
+                        return indicesValue.get(newIndex);
                     }
                     catch (Exception e) {
                         logger.error(e, "failed to append key %s to dictionary %s", value, this);
@@ -127,7 +135,7 @@ public class DataValueDictionary
     {
         readDictionary.add(key);
         attachedDictionarySize++;
-        writeDictionary.put(key, (short) index);
+        writeDictionary.put(key, indicesValue.get(index));
         int incDictionaryWeight = addedWeight(key);
         increaseDictionaryWeight(incDictionaryWeight);
     }
