@@ -30,8 +30,6 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.Set;
 
-import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_PARTITIONING_ENABLED;
-import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_SPLITS_PER_NODE;
 import static io.trino.spi.predicate.Domain.singleValue;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
@@ -59,7 +57,7 @@ public class TestCoordinatorDynamicFilteringWithPlanAlternatives
         queryRunner.createCatalog(
                 "tpch",
                 "plan_alternatives_tpch",
-                ImmutableMap.of(TPCH_PARTITIONING_ENABLED, "false", TPCH_SPLITS_PER_NODE, "16"));
+                ImmutableMap.of("tpch.partitioning-enabled", "false", "tpch.splits-per-node", "16"));
         queryRunner.createCatalog("tpcds", "plan_alternatives_tpcds", ImmutableMap.of());
         queryRunner.createCatalog("memory", "plan_alternatives_memory", ImmutableMap.of("memory.splits-per-node", "16"));
         computeActual("CREATE TABLE lineitem AS SELECT * FROM tpch.tiny.lineitem");
