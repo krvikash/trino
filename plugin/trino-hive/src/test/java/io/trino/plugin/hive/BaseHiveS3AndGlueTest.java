@@ -445,4 +445,52 @@ public abstract class BaseHiveS3AndGlueTest
         assertUpdate("DROP FUNCTION " + name2 + "(varchar)");
         assertQueryFails("DROP FUNCTION " + name2 + "(varchar)", "line 1:1: Function not found");
     }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        String createCatalogSql = "CREATE CATALOG %s USING hive".formatted(catalog);
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "hive", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "hive", "tpch");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "hive", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "hive", "tpch");
+    }
+
+    @Test
+    public void testCreateMultipleCatalogs()
+    {
+        String firstCatalog = "catalog_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING hive
+                WITH (
+                   "hive.metastore" = 'glue',
+                   "hive.metastore.glue.default-warehouse-dir" = '%2$s'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(firstCatalog, schemaPath()));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(firstCatalog, schemaPath()));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + firstCatalog);
+
+            String newSchemaPath = schemaPath() + "/catalog_new";
+            assertUpdate(createCatalogSql.formatted(secondCatalog, newSchemaPath));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(secondCatalog, newSchemaPath));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + secondCatalog);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
 }

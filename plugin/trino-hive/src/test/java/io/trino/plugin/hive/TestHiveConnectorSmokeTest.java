@@ -13,12 +13,16 @@
  */
 package io.trino.plugin.hive;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.testing.BaseConnectorSmokeTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static io.trino.plugin.hive.HiveMetadata.MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -104,5 +108,60 @@ public class TestHiveConnectorSmokeTest
         assertThatThrownBy(super::testCreateSchemaWithNonLowercaseOwnerName)
                 .hasMessageContaining("Access Denied: Cannot create schema")
                 .hasStackTraceContaining("CREATE SCHEMA");
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        String createCatalogSql = "CREATE CATALOG %s USING hive".formatted(catalog);
+        assertUpdate(createCatalogSql);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs(availableCatalogs(Optional.empty()));
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs(availableCatalogs(Optional.empty()));
+    }
+
+    @Test
+    public void testCreateMultipleCatalogs()
+    {
+        String firstCatalog = "catalog_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING hive
+                WITH (
+                   "hive.allow-register-partition-procedure" = '%2$s'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(firstCatalog, "true"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(firstCatalog, "true"));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + firstCatalog);
+            assertUpdate(createCatalogSql.formatted(secondCatalog, "false"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(secondCatalog, "false"));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + secondCatalog);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    private static String[] availableCatalogs(Optional<String> catalog)
+    {
+        ImmutableList.Builder<String> catalogs = ImmutableList.builder();
+        catalogs.add("system")
+                .add("hive")
+                .add("tpch");
+        catalog.ifPresent(catalogs::add);
+        return catalogs.build().toArray(new String[0]);
     }
 }

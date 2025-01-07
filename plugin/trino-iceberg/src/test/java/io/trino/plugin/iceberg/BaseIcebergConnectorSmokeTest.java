@@ -123,6 +123,62 @@ public abstract class BaseIcebergConnectorSmokeTest
     }
 
     @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        String createCatalogSql = "CREATE CATALOG %s USING iceberg".formatted(catalog);
+        assertUpdate(createCatalogSql);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs(availableCatalogs(Optional.empty()));
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs(availableCatalogs(Optional.empty()));
+    }
+
+    protected String[] availableCatalogs(Optional<String> catalog)
+    {
+        ImmutableList.Builder<String> catalogs = ImmutableList.builder();
+        catalogs.add("system")
+                .add("iceberg")
+                .add("tpch");
+        catalog.ifPresent(catalogs::add);
+        return catalogs.build().toArray(new String[0]);
+    }
+
+    @Test
+    public void testCreateMultipleCatalogs()
+    {
+        String firstCatalog = "catalog_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING iceberg
+                WITH (
+                   "iceberg.table-statistics-enabled" = '%2$s'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(firstCatalog, "true"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(firstCatalog, "true"));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + firstCatalog);
+
+            assertUpdate(createCatalogSql.formatted(secondCatalog, "false"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(secondCatalog, "false"));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + secondCatalog);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
     public void testDeleteWithV3Format()
     {
         try (TestTable table = newTrinoTable("test_delete_with_v3", "WITH (format_version = 3) AS SELECT * FROM region")) {

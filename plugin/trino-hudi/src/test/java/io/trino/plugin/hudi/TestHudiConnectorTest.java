@@ -20,6 +20,7 @@ import io.trino.testing.TestingConnectorBehavior;
 import org.junit.jupiter.api.Test;
 
 import static io.trino.plugin.hudi.testing.HudiTestUtils.COLUMNS_TO_HIDE;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestHudiConnectorTest
@@ -87,5 +88,51 @@ public class TestHudiConnectorTest
     {
         assertThat(computeActual("SHOW SCHEMAS").getOnlyColumnAsSet()).doesNotContain("sys");
         assertQueryFails("SHOW TABLES IN hudi.sys", ".*Schema 'sys' does not exist");
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        String createCatalogSql = "CREATE CATALOG %1$s USING hudi".formatted(catalog);
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "hudi", "mock_dynamic_listing", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "hudi", "mock_dynamic_listing", "tpch");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "hudi", "mock_dynamic_listing", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "hudi", "mock_dynamic_listing", "tpch");
+    }
+
+    @Test
+    public void testCreateMultipleCatalogs()
+    {
+        String firstCatalog = "catalog_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING hudi
+                WITH (
+                   "hudi.parquet.use-column-names" = '%2$s'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(firstCatalog, "true"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(firstCatalog, "true"));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + firstCatalog);
+
+            assertUpdate(createCatalogSql.formatted(secondCatalog, "false"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(secondCatalog, "false"));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + secondCatalog);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
     }
 }

@@ -316,6 +316,60 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
     protected abstract String bucketUrl();
 
     @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING delta_lake
+                WITH (
+                    "hive.metastore" = 'thrift',
+                    "hive.metastore.uri" = '%2$s'
+                )""".formatted(catalog, hiveHadoop.getHiveMetastoreEndpoint().toString());
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "delta", "hive", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "delta", "hive", "tpch");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "delta", "hive", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "delta", "hive", "tpch");
+    }
+
+    @Test
+    public void testCreateMultipleCatalogs()
+    {
+        String firstCatalog = "catalog_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING delta_lake
+                WITH (
+                   "hive.metastore" = 'thrift',
+                   "hive.metastore.uri" = '%2$s'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(firstCatalog, hiveHadoop.getHiveMetastoreEndpoint().toString()));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(firstCatalog, hiveHadoop.getHiveMetastoreEndpoint().toString()));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + firstCatalog);
+
+            String newMetastoreEndpoint = hiveHadoop.getHiveMetastoreEndpoint().toString() + "/catalog_new";
+            assertUpdate(createCatalogSql.formatted(secondCatalog, newMetastoreEndpoint));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(secondCatalog, newMetastoreEndpoint));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + secondCatalog);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
     public void testCreateTableInNonexistentSchemaFails()
     {
         String tableName = "test_create_table_in_nonexistent_schema_" + randomNameSuffix();

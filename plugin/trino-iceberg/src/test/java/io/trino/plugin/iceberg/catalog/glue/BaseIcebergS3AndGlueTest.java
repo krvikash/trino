@@ -154,4 +154,52 @@ public abstract class BaseIcebergS3AndGlueTest
             assertQuery("SHOW STATS FOR " + tableName, expectedStatistics);
         }
     }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        String createCatalogSql = "CREATE CATALOG %s USING iceberg".formatted(catalog);
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "iceberg", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "iceberg", "tpch");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "iceberg", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "iceberg", "tpch");
+    }
+
+    @Test
+    public void testCreateMultipleCatalogs()
+    {
+        String firstCatalog = "catalog_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING iceberg
+                WITH (
+                   "hive.metastore.glue.default-warehouse-dir" = '%2$s',
+                   "iceberg.catalog.type" = 'glue'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(firstCatalog, schemaPath()));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(firstCatalog, schemaPath()));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + firstCatalog);
+
+            String newSchemaPath = schemaPath() + "/catalog_new";
+            assertUpdate(createCatalogSql.formatted(secondCatalog, newSchemaPath));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(secondCatalog, newSchemaPath));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + secondCatalog);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
 }

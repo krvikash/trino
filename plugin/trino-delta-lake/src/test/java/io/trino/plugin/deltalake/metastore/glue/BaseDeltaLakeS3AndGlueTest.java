@@ -18,6 +18,7 @@ import io.trino.plugin.deltalake.DeltaLakeQueryRunner;
 import io.trino.plugin.hive.BaseS3AndGlueTest;
 import io.trino.plugin.hive.metastore.glue.GlueHiveMetastore;
 import io.trino.testing.QueryRunner;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.plugin.deltalake.TestingDeltaLakeUtils.getConnectorService;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class BaseDeltaLakeS3AndGlueTest
@@ -109,5 +111,59 @@ public abstract class BaseDeltaLakeS3AndGlueTest
         return getOnlyElement(getTableFiles(tableLocation).stream()
                 .filter(path -> path.contains("/_trino_meta"))
                 .collect(Collectors.toUnmodifiableSet()));
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING delta_lake
+                WITH (
+                    "hive.metastore" = 'glue',
+                    "hive.metastore.glue.default-warehouse-dir" = '%2$s'
+                )""".formatted(catalog, schemaPath());
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "delta", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "delta", "tpch");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "delta", "tpch", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "delta", "tpch");
+    }
+
+    @Test
+    public void testCreateMultipleCatalogs()
+    {
+        String firstCatalog = "catalog_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING delta_lake
+                WITH (
+                   "hive.metastore" = 'glue',
+                   "hive.metastore.glue.default-warehouse-dir" = '%2$s'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(firstCatalog, schemaPath()));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(firstCatalog, schemaPath()));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + firstCatalog);
+
+            String newSchemaPath = schemaPath() + "/catalog_new";
+            assertUpdate(createCatalogSql.formatted(secondCatalog, newSchemaPath));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(secondCatalog, newSchemaPath));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + secondCatalog);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
     }
 }
