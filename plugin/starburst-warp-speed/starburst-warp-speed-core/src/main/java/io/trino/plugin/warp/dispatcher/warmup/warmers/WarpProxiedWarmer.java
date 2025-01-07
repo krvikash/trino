@@ -212,7 +212,9 @@ public class WarpProxiedWarmer
                 }
             }
             catch (Exception e) {
-                if (!ExceptionUtils.isCausedBy(e, FileNotFoundException.class)) {
+                // skip log if cause is 'Connection pool shut down'
+                if (!(ExceptionUtils.isCausedBy(e, FileNotFoundException.class) ||
+                        ExceptionUtils.isCausedBy(e, IllegalStateException.class))) {
                     shapingLogger.error(e, "unexpected error in warm up file %s", rowGroupFilePath);
                 }
                 throw e;

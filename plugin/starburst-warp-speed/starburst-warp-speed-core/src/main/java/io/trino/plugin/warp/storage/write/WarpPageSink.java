@@ -23,6 +23,7 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmSinkResult;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
+import io.trino.plugin.warp.util.ExceptionUtils;
 import io.trino.plugin.warp.warmup.exceptions.MaxRowsException;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
@@ -77,7 +78,10 @@ public class WarpPageSink
             return storageWriterService.appendPage(page, storageWriterContext);
         }
         catch (TrinoException te) {
-            shapingLogger.error(te, "appendPage thrown a TrinoException - aborting. storageWriterContext=%s", storageWriterContext);
+            // skip log if cause is 'Connection pool shut down'
+            if (!ExceptionUtils.isCausedBy(te, IllegalStateException.class)) {
+                shapingLogger.error(te, "appendPage thrown a TrinoException - aborting. storageWriterContext=%s", storageWriterContext);
+            }
             abort(ExceptionThrower.isNativeException(te));
             return false;
         }
