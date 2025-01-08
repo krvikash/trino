@@ -74,7 +74,7 @@ public class ReadErrorHandler
                 logger.warn("%s error: marking as failed rowGroupKey %s allAsPermanentlyFailed %s", errorCode, failedRowGroupData.getRowGroupKey(), allAsPermanentlyFailed);
                 rowGroupDataService.markAsFailed(failedRowGroupData.getRowGroupKey(), allAsPermanentlyFailed, failedRowGroupData.getPartitionKeys());
             }
-            printMetricsTimerTask.print(false);
+            printMetricsTimerTask.print(false, Optional.of(throwable.getMessage()));
         }
     }
 

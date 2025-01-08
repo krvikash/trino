@@ -27,6 +27,7 @@ import java.lang.management.MemoryUsage;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -71,13 +72,13 @@ public class PrintMetricsTimerTask
     @Override
     public void run()
     {
-        print(true);
+        print(true, Optional.empty());
     }
 
-    public void print(boolean isScheduledPrint)
+    public void print(boolean isScheduledPrint, Optional<String> message)
     {
         if (logger.isInfoEnabled()) {
-            Map<String, Object> fullJson = buildJsonDump();
+            Map<String, Object> fullJson = buildJsonDump(message);
             if (!fullJson.isEmpty()) {
                 try {
                     if (isScheduledPrint) {
@@ -94,17 +95,17 @@ public class PrintMetricsTimerTask
         }
     }
 
-    Map<String, Object> buildJsonDump()
+    Map<String, Object> buildJsonDump(Optional<String> message)
     {
         Map<String, Object> fullJson = new HashMap<>();
         Map<String, Object> metricsDump = getMetricsDump();
         if (!metricsDump.isEmpty()) {
+            message.ifPresent(msg -> fullJson.put("MESSAGE", msg));
             fullJson.put(TIMESTAMP, System.currentTimeMillis());
             fullJson.put(STATS, metricsDump);
             fullJson.put(CATALOG, catalogNameProvider.get());
             fullJson.put("off-heap-committed", nonHeapMemoryUsage.getCommitted());
             fullJson.put("off-heap-used", nonHeapMemoryUsage.getUsed());
-            fullJson.put("off-heap-init", nonHeapMemoryUsage.getInit());
         }
         return fullJson;
     }

@@ -422,7 +422,7 @@ public class StorageWriterService
         WarmUpElement abortedWarmupElement = storageWriterContext.getWarmupElementBuilder().build();
         if (nativeThrowed) {
             logger.error("warm failed path %s native throwed on element %s", storageWriterSplitConfig.rowGroupFilePath(), abortedWarmupElement);
-            metricsTimerTask.print(false);
+            metricsTimerTask.print(false, Optional.of(String.format("warm failed path %s native throwed on element %s", storageWriterSplitConfig.rowGroupFilePath(), abortedWarmupElement)));
         }
         return abortedWarmupElement;
     }

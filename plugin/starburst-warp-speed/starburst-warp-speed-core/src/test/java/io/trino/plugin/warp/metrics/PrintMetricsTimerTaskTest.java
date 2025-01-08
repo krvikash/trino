@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -62,7 +63,7 @@ public class PrintMetricsTimerTaskTest
         metricsManager.registerMetric(WarmupExportServiceStats.create());
         metricsManager.registerMetric(WarmupImportServiceStats.create());
         warmingService.incdeleted_row_group_count();
-        Map<String, Object> fullJson = printMetricsTimerTask.buildJsonDump();
+        Map<String, Object> fullJson = printMetricsTimerTask.buildJsonDump(Optional.empty());
         Map<String, Object> metrics = (Map<String, Object>) fullJson.get(PrintMetricsTimerTask.STATS);
         assertThat(metrics.containsKey(metricsRegistry.getKey(WarmupExportServiceStats.createKey()))).isTrue();
         assertThat(metrics.containsKey(metricsRegistry.getKey(WarmupImportServiceStats.createKey()))).isTrue();
