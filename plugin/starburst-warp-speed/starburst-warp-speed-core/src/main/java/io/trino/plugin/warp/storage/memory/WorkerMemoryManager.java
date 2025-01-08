@@ -68,19 +68,16 @@ public class WorkerMemoryManager
         return new PinnedGcArena(numOffHeapPinnedGcBytes, shapingLogger);
     }
 
-    // defining ad Void(Void) to allow passing this as a callback function
-    Void onClose(Void v)
+    void onClose()
     {
         long logGcLimit = GcArena.MAX_ALLOCATED_BYTES * 2;
         if ((numOffHeapBytes.get() > ThreadArena.MAX_ALLOCATED_BYTES) || (numOffHeapGcBytes.get() + numOffHeapPinnedGcBytes.get() > logGcLimit)) {
             shapingLogger.warn("catalog %s reached off heap limit: numOffHeapBytes %d numOffHeapGcBytes %d numOffHeapPinnedGcBytes %d",
                     catalogName, numOffHeapBytes.get(), numOffHeapGcBytes.get(), numOffHeapPinnedGcBytes.get());
         }
-        return null;
     }
 
-    // defining ad Void(Void) to allow passing this as a callback function
-    Void limitReached(Void v)
+    void limitReached()
     {
         executorService.execute(() -> {
             long bytesToFreeInGc = numOffHeapGcBytes.get();
@@ -93,6 +90,5 @@ public class WorkerMemoryManager
                 }
             }
         });
-        return null;
     }
 }

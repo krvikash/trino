@@ -83,9 +83,8 @@ public class RangeDataServiceTest
         assertThat(ranges.getUpperExclusive(0)).isEqualTo(64);
     }
 
-    public Void onClose(Void v)
+    public void onClose()
     {
-        return null;
     }
 
     @Test

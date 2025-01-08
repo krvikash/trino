@@ -19,16 +19,15 @@ import io.trino.plugin.warp.log.ShapingLogger;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 public class GcArena
         extends ArenaBase
 {
     static final long MAX_ALLOCATED_BYTES = DataSize.of(200, DataSize.Unit.MEGABYTE).toBytes();
 
-    private Function<Void, Void> limitFunc;
+    private final Runnable limitFunc;
 
-    public GcArena(Function<Void, Void> limitFunc,
+    public GcArena(Runnable limitFunc,
             AtomicLong numAllocatedBytes,
             ShapingLogger shapingLogger)
     {
@@ -42,7 +41,7 @@ public class GcArena
     {
         MemorySegment result = super.allocate(numBytes, alignment);
         if (globalNumAlllocatedBytes.get() > MAX_ALLOCATED_BYTES) {
-            limitFunc.apply(null);
+            limitFunc.run();
         }
         return result;
     }

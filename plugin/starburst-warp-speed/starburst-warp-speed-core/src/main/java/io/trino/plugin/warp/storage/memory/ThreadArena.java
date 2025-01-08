@@ -18,17 +18,16 @@ import io.trino.plugin.warp.log.ShapingLogger;
 
 import java.lang.foreign.Arena;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 public class ThreadArena
         extends ArenaBase
 {
     // if we pass this number we initiate a warning
-    static final long MAX_ALLOCATED_BYTES = DataSize.of(1024, DataSize.Unit.MEGABYTE).toBytes();
+    static final long MAX_ALLOCATED_BYTES = DataSize.of(1200, DataSize.Unit.MEGABYTE).toBytes();
 
-    private Function<Void, Void> onCloseFunc;
+    private final Runnable onCloseFunc;
 
-    public ThreadArena(Function<Void, Void> onCloseFunc,
+    public ThreadArena(Runnable onCloseFunc,
             AtomicLong numAllocatedBytes,
             ShapingLogger shapingLogger)
     {
@@ -47,6 +46,6 @@ public class ThreadArena
             throw new RuntimeException("ailed to close thread memory arena");
         }
         globalNumAlllocatedBytes.addAndGet(-1 * numAllocatedBytes);
-        onCloseFunc.apply(null);
+        onCloseFunc.run();
     }
 }

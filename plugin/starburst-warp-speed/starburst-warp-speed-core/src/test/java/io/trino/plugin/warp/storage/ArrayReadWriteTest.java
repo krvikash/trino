@@ -119,9 +119,8 @@ public class ArrayReadWriteTest
         }
     }
 
-    public Void onClose(Void v)
+    public void onClose()
     {
-        return null;
     }
 
     static Stream<Arguments> params()
