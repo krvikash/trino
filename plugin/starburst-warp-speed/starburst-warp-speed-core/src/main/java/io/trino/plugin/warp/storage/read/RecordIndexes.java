@@ -122,14 +122,14 @@ public class RecordIndexes
         recordIndexes.set(ValueLayout.JAVA_SHORT, RECORD_INDEXES_OFFSET_TYPE, (short) type.ordinal());
     }
 
-    public short getStart()
+    public int getStart()
     {
-        return recordIndexes.get(ValueLayout.JAVA_SHORT, RECORD_INDEXES_OFFSET_START);
+        return Short.toUnsignedInt(recordIndexes.get(ValueLayout.JAVA_SHORT, RECORD_INDEXES_OFFSET_START));
     }
 
-    public void setStart(short start)
+    public void setStart(int start)
     {
-        recordIndexes.set(ValueLayout.JAVA_SHORT, RECORD_INDEXES_OFFSET_START, start);
+        recordIndexes.set(ValueLayout.JAVA_SHORT, RECORD_INDEXES_OFFSET_START, (short) start);
     }
 
     public MemorySegment getList()
@@ -159,5 +159,12 @@ public class RecordIndexes
             }
         }
         return numRecords;
+    }
+
+    public void reset(int size, RecordIndexListType type)
+    {
+        setSize(size);
+        setType(type);
+        setStart(0);
     }
 }

@@ -172,7 +172,7 @@ public class WarpReader
         long readPages = 0;
 
         try {
-            chunksQueue.storeMatchBitmaps(); // only the bitmaps that were added during this round and not processed are stored
+            chunksQueue.storeMatchBitmaps(queryArgs); // only the bitmaps that were added during this round and not processed are stored
 
             if (matcherPageArgs != null) {
                 matcher.closePage(queryArgs, matcherPageArgs);

@@ -111,8 +111,7 @@ public class NativeStorageEngine
     private final MethodHandle mMatchClose;
     // collect API
     private final MethodHandle mCollectOpen;
-    private final MethodHandle mCollectProcessMatchResult;
-    private final MethodHandle mCollectProcessFullScanChunk;
+    private final MethodHandle mCollectOpenChunk;
     private final MethodHandle mCollectCollectChunk;
     private final MethodHandle mCollectClose;
 
@@ -256,12 +255,10 @@ public class NativeStorageEngine
             // collect API
             mCollectOpen = linker.downcallHandle(libraryHandle.find("warp_speed_collect_open").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
-            mCollectProcessMatchResult = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_match_result").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
-            mCollectProcessFullScanChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_process_full_scan_chunk").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT));
+            mCollectOpenChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_open_chunk").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.ADDRESS));
             mCollectCollectChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_collect_chunk").orElseThrow(),
-                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_BOOLEAN, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
             mCollectClose = linker.downcallHandle(libraryHandle.find("warp_speed_collect_close").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
 
@@ -683,43 +680,29 @@ public class NativeStorageEngine
     }
 
     @Override
-    public boolean processMatchResult(MemorySegment collectState, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
+    public boolean openChunk(MemorySegment collectState, int chunkIndex, MemorySegment outQueryResultTypes)
     {
         try {
-            boolean res = (boolean) mCollectProcessMatchResult.invokeExact(collectState, (short) chunkIndex, bmResetPoint, rowsLimit, outQueryResultTypes);
+            boolean res = (boolean) mCollectOpenChunk.invokeExact(collectState, (short) chunkIndex, outQueryResultTypes);
             checkForLogs();
             return res;
         }
         catch (Throwable t) {
-            shapingLogger.error(t, "failed to processMatchResult");
-            throw new RuntimeException("failed to process match result");
+            shapingLogger.error(t, "failed to openChunk");
+            throw new RuntimeException("failed to open chunk");
         }
     }
 
     @Override
-    public boolean processFullScanChunk(MemorySegment collectState, int chunkIndex, int startRowIx, int rowsLimit)
+    public void collectChunk(MemorySegment collectState, boolean isFullScan, int startRecIx, int numToCollect, MemorySegment outQueryResultTypes)
     {
         try {
-            boolean res = (boolean) mCollectProcessFullScanChunk.invokeExact(collectState, (short) chunkIndex, (short) startRowIx, rowsLimit);
-            checkForLogs();
-            return res;
-        }
-        catch (Throwable t) {
-            shapingLogger.error(t, "failed to processFullScanChunk");
-            throw new RuntimeException("failed to process full scan chunk");
-        }
-    }
-
-    @Override
-    public void collectChunk(MemorySegment collectState, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
-    {
-        try {
-            mCollectCollectChunk.invokeExact(collectState, (short) chunkIndex, numToCollect, outQueryResultTypes);
+            mCollectCollectChunk.invokeExact(collectState, isFullScan, (short) startRecIx, numToCollect, outQueryResultTypes);
             checkForLogs();
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to collectChunk");
-            throw new RuntimeException("failed to collectChunk chunkIndex " + chunkIndex);
+            throw new RuntimeException("failed to collectChunk");
         }
     }
 

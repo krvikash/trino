@@ -18,6 +18,9 @@ import io.trino.plugin.warp.gen.stats.NativeStats;
 
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkState;
+import static java.lang.Math.min;
+
 public record QueryArgs(QueryParams queryParams,
         DispatcherPageSourceStats dispatcherPageSourceStats,
         NativeStats nativeStats,
@@ -30,5 +33,11 @@ public record QueryArgs(QueryParams queryParams,
     int maxMatchedChunks()
     {
         return numChunksInRange;
+    }
+
+    int numRecordsInChunk(int chunkIx)
+    {
+        checkState(chunkIx < numChunks, "chunkIx %s is out of range", chunkIx);
+        return min(queryParams.getTotalNumRecords(), chunkSize * (chunkIx + 1)) - (chunkSize * chunkIx);
     }
 }

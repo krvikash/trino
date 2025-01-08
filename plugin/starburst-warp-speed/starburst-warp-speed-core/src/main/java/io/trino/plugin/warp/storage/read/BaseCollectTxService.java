@@ -76,50 +76,38 @@ public abstract class BaseCollectTxService
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
     }
 
-    // prepare chunk with match result, error throws and exception
-    void prepareChunk(CollectState collectState,
+    // open chunk before collect
+    void openChunk(CollectState collectState,
             int chunkIndex,
-            int numRowsToCollect,
-            int bitmapResetPoint,
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d", chunkIndex, numRowsToCollect);
+        logger.debug("openChunk chunkIndex %d", chunkIndex);
         long startTime = System.nanoTime();
-        boolean success = storageEngine.processMatchResult(collectState.getStateMemory(),
+        boolean success = storageEngine.openChunk(collectState.getStateMemory(),
                 chunkIndex,
-                bitmapResetPoint,
-                numRowsToCollect,
                 outQueryResultTypes);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         if (!success) {
-            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, String.format("prepareChunk failed unexpectedly chunkIndex %d numRowsToCollect %d",
-                    chunkIndex, numRowsToCollect));
+            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
+                    String.format("openChunk failed unexpectedly chunkIndex %d", chunkIndex));
         }
     }
 
-    // prepare chunk for full scan case, also used by lazy collect, throws exception if error
-    void prepareChunkFullScan(CollectState collectState, int chunkIndex, int numRowsToCollect, int startRowIndex, DispatcherPageSourceStats dispatcherPageSourceStats)
-    {
-        logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d startRowIndex %d", chunkIndex, numRowsToCollect, startRowIndex);
-        long startTime = System.nanoTime();
-        boolean success = storageEngine.processFullScanChunk(collectState.getStateMemory(), chunkIndex, startRowIndex, numRowsToCollect);
-        dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
-        if (!success) {
-            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, String.format("prepareChunk failed unexpectedly chunkIndex %d startRowIndex %d numRowsToCollect %d",
-                    chunkIndex, startRowIndex, numRowsToCollect));
-        }
-    }
-
-    void collectChunk(CollectState collectState, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes, DispatcherPageSourceStats dispatcherPageSourceStats)
+    void collectChunk(CollectState collectState,
+            boolean isFullScan,
+            int startRecIx,
+            int numToCollect,
+            MemorySegment outQueryResultTypes,
+            DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         try {
             long startTime = System.nanoTime();
-            storageEngine.collectChunk(collectState.getStateMemory(), chunkIndex, numToCollect, outQueryResultTypes);
+            storageEngine.collectChunk(collectState.getStateMemory(), isFullScan, startRecIx, numToCollect, outQueryResultTypes);
             dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         }
         catch (Exception e) {
-            shapingLogger.error(e, "collect failed chunkIndex %d rowsLimit %d numToCollect %d", chunkIndex, numToCollect, numToCollect);
+            shapingLogger.error(e, "collect failed isFullScan %b, startRecIx %d, numToCollect %d", isFullScan, startRecIx, numToCollect);
             throw e;
         }
     }

@@ -29,7 +29,7 @@ public class StubsRangeFillerService
 
     // check if the current chunk is done
     @Override
-    public boolean isCurrentChunkCompleted(RangeData rangeData, int chunkSize)
+    public boolean updateStartIxIfNotCompleted(RangeData rangeData)
     {
         return true;
     }
@@ -53,19 +53,13 @@ public class StubsRangeFillerService
         return 0;
     }
 
-    @Override
-    public int getMinForTypeAll(int baseRow, AggregatorPageArgs aggregatorPageArgs, int currentNumCollectedRows)
-    {
-        return 0;
-    }
-
     // list type and size are kept as memebers
     // in type all we store the first row index in the byte array
     // in type all we store the part of the list we have not collected yet in the byte array
     @Override
     public StoreRowListResult storeRowList(ChunksQueue chunksQueue, QueryArgs queryArgs, AggregatorArgs aggregatorArgs, RangeData rangeData)
     {
-        return new StoreRowListResult(RECORD_INDEX_LIST_TYPE_ALL, 0, Optional.of((short) 0), 0);
+        return new StoreRowListResult(RECORD_INDEX_LIST_TYPE_ALL, 0, Optional.of(0), 0);
     }
 
     @Override

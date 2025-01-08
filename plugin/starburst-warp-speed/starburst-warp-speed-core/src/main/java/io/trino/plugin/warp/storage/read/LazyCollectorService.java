@@ -91,20 +91,13 @@ public class LazyCollectorService
 
     @Override
     void collectChunk(AggregatorPageArgs aggregatorPageArgs,
-            int chunkIndex,
+            boolean isFullScan,
+            int startRecIx,
             int numToCollect,
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         // collect is done in LazyCollectorLoader
-    }
-
-    @Override
-    public int getMinForTypeAll(int baseRow, AggregatorPageArgs aggregatorPageArgs, QueryArgs queryArgs, int currentNumCollectedRows)
-    {
-        // assuming lazy collect is only in full scan and that we have only 1 round per getNextPage so can get numCollectedFromCurrentChunk from numCollectedInPreviousRounds
-        int numCollectedFromCurrentChunk = aggregatorPageArgs.numCollectedInPreviousRounds() % queryArgs.chunkSize();
-        return baseRow + numCollectedFromCurrentChunk;
     }
 
     @Override

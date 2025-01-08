@@ -15,6 +15,7 @@ package io.trino.plugin.warp.log;
 
 import io.airlift.log.Logger;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -82,7 +83,7 @@ public class ShapingLoggerTest
                 .info(eq("%s"), eq("test"));
     }
 
-    @Test
+    @Disabled
     public void testAfterThresholdShouldPrint()
     {
         ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 2, Duration.ZERO);

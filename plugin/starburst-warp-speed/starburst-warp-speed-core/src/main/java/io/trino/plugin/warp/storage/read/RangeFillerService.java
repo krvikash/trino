@@ -16,7 +16,7 @@ package io.trino.plugin.warp.storage.read;
 public interface RangeFillerService
 {
     // check if the current chunk is done
-    boolean isCurrentChunkCompleted(RangeData rangeData, int chunkSize);
+    boolean updateStartIxIfNotCompleted(RangeData rangeData);
 
     // return the number of rows collected in this round
     int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService);
@@ -24,8 +24,6 @@ public interface RangeFillerService
     WarpStoragePageSource.RowRanges reset(RangeData rangeData);
 
     int getNumCollectedFromCurrentChunk(int chunkIndex, RangeData rangeData);
-
-    int getMinForTypeAll(int baseRow, AggregatorPageArgs aggregatorPageArgs, int currentNumCollectedRows);
 
     // list type and size are kept as memebers
     // in type all we store the first row index in the byte array

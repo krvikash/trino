@@ -119,7 +119,7 @@ public class CollectTxService
                 collectMetadataMemory.prepareQueryResultTypesOpt(),
                 collectMetadataMemory.matchCollectMetadataOpt(),
                 new ReadStats(pageArena));
-        collectState.setState(queryArgs, aggregatorPageArgs, storeRowListResult);
+        collectState.setState(queryArgs, aggregatorPageArgs);
         collectOpen(collectState, queryArgs.dispatcherPageSourceStats());
 
         return aggregatorPageArgs;

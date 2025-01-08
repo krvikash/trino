@@ -25,8 +25,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -51,12 +49,6 @@ public class RangeDataServiceTest
         queryArgs = mock(QueryArgs.class);
         aggregatorPageArgs = mock(AggregatorPageArgs.class);
         storageCollectorService = mock(StorageCollectorService.class);
-
-        when(storageCollectorService.getMinForTypeAll(anyInt(), eq(aggregatorPageArgs), eq(queryArgs), anyInt())).thenAnswer(
-                invocation -> {
-                    int currentNumCollectedRows = invocation.getArgument(3);
-                    return rangeFillerService.getMinForTypeAll(0, aggregatorPageArgs, currentNumCollectedRows);
-                });
 
         QueryParams queryParams = mock(QueryParams.class);
         when(queryParams.isRangesRequired()).thenReturn(true);
@@ -93,7 +85,7 @@ public class RangeDataServiceTest
         RangeData rangeData = new RangeData(recordIndexes);
         recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
         recordIndexes.setSize(0);
-        recordIndexes.setStart((short) 8);
+        recordIndexes.setStart(3);
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(aggregatorPageArgs.rangeData()).thenReturn(rangeData);
@@ -109,14 +101,14 @@ public class RangeDataServiceTest
     {
         RangeData rangeData = new RangeData(recordIndexes);
         recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        recordIndexes.setStart((short) 8);
+        recordIndexes.setStart(3);
         recordIndexes.setSize(0);
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(aggregatorPageArgs.rangeData()).thenReturn(rangeData);
         rangeFillerService.add(0, 5, queryArgs, aggregatorPageArgs, storageCollectorService);
 
-        recordIndexes.setStart((short) 18);
+        recordIndexes.setStart(8);
         rangeFillerService.add(0, 10, queryArgs, aggregatorPageArgs, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
@@ -207,7 +199,7 @@ public class RangeDataServiceTest
     {
         RangeData rangeData = new RangeData(recordIndexes);
         recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        recordIndexes.setStart((short) 8);
+        recordIndexes.setStart(3);
         recordIndexes.setSize(0);
 
         when(queryArgs.chunkSize()).thenReturn(1);
@@ -247,7 +239,7 @@ public class RangeDataServiceTest
         rangeFillerService.add(0, 3, queryArgs, aggregatorPageArgs, storageCollectorService);
 
         recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        recordIndexes.setStart((short) 50);
+        recordIndexes.setStart(28);
         rangeFillerService.add(0, 22, queryArgs, aggregatorPageArgs, storageCollectorService);
 
         recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);

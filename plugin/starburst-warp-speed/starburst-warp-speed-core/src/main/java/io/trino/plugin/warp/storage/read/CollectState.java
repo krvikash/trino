@@ -21,7 +21,6 @@ import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
-import java.util.Optional;
 
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
@@ -29,8 +28,6 @@ import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PA
 
 public class CollectState
 {
-    private static final short INVALID_REOPEN_CHUNK_INDEX = -1;
-
     static final StructLayout COLLECT_STATE_LAYOUT;
     private static final long COLLECT_STATE_OFFSET_WARMUP_ELEMENT_PARAMS;
     private static final long COLLECT_STATE_OFFSET_BUFFERS;
@@ -41,7 +38,6 @@ public class CollectState
     private static final long COLLECT_STATE_OFFSET_MIN_FILE_OFFSET;
     private static final long COLLECT_STATE_OFFSET_NUM_RECORDS;
     private static final long COLLECT_STATE_OFFSET_TX_ID;
-    private static final long COLLECT_STATE_OFFSET_REOPEN_CHUNK_INDEX;
     private static final long COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS;
     private static final long COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS;
     private static final long COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE;
@@ -61,7 +57,6 @@ public class CollectState
                 ValueLayout.JAVA_INT.withName("min_offset"),
                 ValueLayout.JAVA_INT.withName("nrecs"),
                 ValueLayout.JAVA_INT.withName("tx_id"),
-                ValueLayout.JAVA_SHORT.withName("reopen_chunk_ix"),
                 ValueLayout.JAVA_BYTE.withName("nwes"),
                 ValueLayout.JAVA_BYTE.withName("nmatch_collect"),
                 ValueLayout.JAVA_BYTE.withName("nmultiple_match"),
@@ -75,7 +70,6 @@ public class CollectState
         COLLECT_STATE_OFFSET_MIN_FILE_OFFSET = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("min_offset"));
         COLLECT_STATE_OFFSET_NUM_RECORDS = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("nrecs"));
         COLLECT_STATE_OFFSET_TX_ID = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("tx_id"));
-        COLLECT_STATE_OFFSET_REOPEN_CHUNK_INDEX = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("reopen_chunk_ix"));
         COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("nwes"));
         COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("nmatch_collect"));
         COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("nmultiple_match"));
@@ -89,8 +83,7 @@ public class CollectState
     }
 
     public void setState(QueryArgs queryArgs,
-            AggregatorPageArgs aggregatorPageArgs,
-            Optional<StoreRowListResult> storeRowListResult)
+            AggregatorPageArgs aggregatorPageArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
         long[] fileCookie = queryArgs.fileCookie();
@@ -107,7 +100,6 @@ public class CollectState
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinCollectOffset());
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_TX_ID, aggregatorPageArgs.readerId());
-        collectState.set(ValueLayout.JAVA_SHORT, COLLECT_STATE_OFFSET_REOPEN_CHUNK_INDEX, storeRowListResult.map(s -> (short) s.storedChunkIx()).orElse(INVALID_REOPEN_CHUNK_INDEX));
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) queryParams.getNumCollectElements());
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) queryParams.getNumMatchCollect());
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) queryArgs.numChunksInRange());
@@ -135,7 +127,6 @@ public class CollectState
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinCollectOffset());
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_TX_ID, readerId);
-        collectState.set(ValueLayout.JAVA_SHORT, COLLECT_STATE_OFFSET_REOPEN_CHUNK_INDEX, INVALID_REOPEN_CHUNK_INDEX);
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) 1);
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) 0);
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) numChunksInRange);

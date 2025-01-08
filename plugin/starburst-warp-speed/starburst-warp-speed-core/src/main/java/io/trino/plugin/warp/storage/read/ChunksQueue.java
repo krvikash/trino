@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.storage.read;
 
+import io.trino.plugin.warp.gen.constants.RecordIndexListType;
+
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.ArrayDeque;
@@ -21,6 +23,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.plugin.warp.gen.constants.RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL;
+import static io.trino.plugin.warp.gen.constants.RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES;
 import static io.trino.plugin.warp.storage.read.MatchState.MATCH_BITMAP_DESC_OFFSET_RESET_POINT;
 
 public class ChunksQueue
@@ -31,7 +35,7 @@ public class ChunksQueue
     private final Deque<MatchChunkState> chunksToCollect;
 
     private int totalNumChunks; // in case queue is empty we return the total number of chunks
-    private boolean firstChunkPrepared;
+    private boolean curChunkPrepared;
     private Optional<List<MemorySegment>> rootBitmapsDescriptors;
     private Optional<MemorySegment> rootBitmaps;
 
@@ -92,8 +96,35 @@ public class ChunksQueue
         return chunksToCollect.getFirst().getChunkIndex();
     }
 
+    boolean isResetPointValid(int resetPoint)
+    {
+        return resetPoint <= allSet;
+    }
+
+    void loadChunk(RecordIndexes recordIndexes, int numRecordsInCurChunk)
+    {
+        int size;
+        RecordIndexListType type;
+
+        int bmResetPoint = getCurrentBitmapResetPoint(numRecordsInCurChunk);
+        if (!curChunkPrepared) {
+            if (!isResetPointValid(bmResetPoint)) {
+                // bm must be valid since bmResetPoint is not
+                MemorySegment bm = getBmOfChunkIx(getCurrent()).get();
+                size = recordIndexes.setRecIxListFromBM(bm);
+                type = size == numRecordsInCurChunk ? RECORD_INDEX_LIST_TYPE_ALL : RECORD_INDEX_LIST_TYPE_VALUES;
+            }
+            else {
+                size = bmResetPoint;
+                type = RECORD_INDEX_LIST_TYPE_ALL;
+            }
+            recordIndexes.reset(size, type);
+            setIsCurChunkPrepared(true);
+        }
+    }
+
     // get the current chunk match bitmap reset point
-    int getCurrentBitmapResetPoint()
+    int getCurrentBitmapResetPoint(int numRecordsInCurChunk)
     {
         int bitmapResetPoint;
 
@@ -110,7 +141,7 @@ public class ChunksQueue
             }
             return bitmapResetPoint;
         }
-        return matchChunkState.getBitmapDescriptor().map(bm -> bm.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT)).orElse(allSet);
+        return matchChunkState.getBitmapDescriptor().map(bm -> bm.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT)).orElse(numRecordsInCurChunk);
     }
 
     private Optional<MemorySegment> getBmOfChunkIx(int chunkIndex)
@@ -130,7 +161,7 @@ public class ChunksQueue
         return numRecInBm;
     }
 
-    void storeMatchBitmaps()
+    void storeMatchBitmaps(QueryArgs queryArgs)
     {
         if (chunksToCollect.isEmpty()) {
             return;
@@ -141,7 +172,8 @@ public class ChunksQueue
         while (itr.hasNext()) {
             MatchChunkState matchChunkState = itr.next();
             if (matchChunkState.shouldStore()) {
-                int bitmapResetPoint = (int) matchChunkState.getBitmapDescriptor().map(bm -> bm.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT)).orElse(allSet);
+                int bitmapResetPoint = matchChunkState.getBitmapDescriptor().map(bm ->
+                        bm.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT)).orElse(queryArgs.numRecordsInChunk(matchChunkState.chunkIndex));
                 Optional<byte[]> bitmapBufferOpt = Optional.empty();
                 // value larger than allSet means the reset point is not valid and the bitmap is used
                 if (bitmapResetPoint > allSet) {
@@ -170,17 +202,12 @@ public class ChunksQueue
     void currentCompleted()
     {
         chunksToCollect.poll();
-        setIsFirstChunkPrepared(false);
+        setIsCurChunkPrepared(false);
     }
 
-    public void setIsFirstChunkPrepared(boolean firstChunkPrepared)
+    public void setIsCurChunkPrepared(boolean curChunkPrepared)
     {
-        this.firstChunkPrepared = firstChunkPrepared;
-    }
-
-    public boolean isFirstChunkPrepared()
-    {
-        return firstChunkPrepared;
+        this.curChunkPrepared = curChunkPrepared;
     }
 
     int getChunkIndexForMatch()
@@ -196,16 +223,6 @@ public class ChunksQueue
     boolean isCompletelyFinished(int numChunks)
     {
         return isChunkRangeCompleted() && (totalNumChunks >= numChunks);
-    }
-
-    boolean isChunkPreparationNeeded()
-    {
-        return !isFirstChunkPrepared();
-    }
-
-    void setFirstChunkAsPrepared()
-    {
-        setIsFirstChunkPrepared(true);
     }
 
     void setRootBitmaps(Optional<MemorySegment> rootBitmaps, List<MemorySegment> rootBitmapsDescriptors)

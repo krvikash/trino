@@ -193,44 +193,29 @@ public interface StorageEngine
     }
 
     /**
-     * process match result on a chunk before collect
+     * open chunk before collect
      *
      * @param collectState - collect state
      * @param chunkIndex - chunk to collect from
-     * @param bmResetPoint - match reset point
-     * @param rowsLimit - optional limit on the number of rows to collect from this chunk
+     * @param outQueryResultTypes - array to hold updated result type for each collected WE
      *
      * @return TRUE for success, FALSE for error
      */
-    default boolean processMatchResult(MemorySegment collectState, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
+    default boolean openChunk(MemorySegment collectState, int chunkIndex, MemorySegment outQueryResultTypes)
     {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * process full scan chunk before collect
+     * Collect records from the provided chunk
      *
      * @param collectState - collect state
-     * @param chunkIndex - chunk to collect from
-     * @param startRowIx - start row in chunk
-     * @param rowsLimit - optional limit on the number of rows to collect from this chunk
-     *
-     * @return TRUE for success, FALSE for error
-     */
-    default boolean processFullScanChunk(MemorySegment collectState, int chunkIndex, int startRowIx, int rowsLimit)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Collect from the provided chunk according to the processMatchResult result
-     *
-     * @param collectState - collect state
-     * @param chunkIndex - chunk to collect from
+     * @param isFullScan - whether this chunk is a full scan
+     * @param startRecIx - the startRecIx in case of a full scan
      * @param numToCollect - how many rows to collect
      * @param outQueryResultTypes - array to hold updated result type for each collected WE for java to process the collect buffers
      */
-    default void collectChunk(MemorySegment collectState, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
+    default void collectChunk(MemorySegment collectState, boolean isFullScan, int startRecIx, int numToCollect, MemorySegment outQueryResultTypes)
     {
         throw new UnsupportedOperationException();
     }

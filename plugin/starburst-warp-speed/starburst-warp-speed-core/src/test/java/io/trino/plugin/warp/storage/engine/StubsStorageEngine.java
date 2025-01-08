@@ -179,19 +179,13 @@ public class StubsStorageEngine
     }
 
     @Override
-    public boolean processMatchResult(MemorySegment collectState, int chunkIndex, int bmResetPoint, int rowsLimit, MemorySegment outQueryResultTypes)
+    public boolean openChunk(MemorySegment collectState, int chunkIndex, MemorySegment outQueryResultTypes)
     {
         return true;
     }
 
     @Override
-    public boolean processFullScanChunk(MemorySegment collectState, int chunkIndex, int startRowIx, int rowsLimit)
-    {
-        return true;
-    }
-
-    @Override
-    public void collectChunk(MemorySegment collectState, int chunkIndex, int numToCollect, MemorySegment outQueryResultTypes)
+    public void collectChunk(MemorySegment collectState, boolean isFullScan, int startRecIx, int numToCollect, MemorySegment outQueryResultTypes)
     {
     }
 

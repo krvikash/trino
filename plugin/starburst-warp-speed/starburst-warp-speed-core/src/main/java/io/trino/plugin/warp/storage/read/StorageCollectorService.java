@@ -49,6 +49,7 @@ import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PA
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_MOD_TIME;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
+import static io.trino.plugin.warp.gen.constants.RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES;
 import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 
@@ -154,20 +155,14 @@ public class StorageCollectorService
                 queryState.getStoreRowListResult());
     }
 
-    void prepareChunk(ChunksQueue chunksQueue,
+    void openChunk(ChunksQueue chunksQueue,
             QueryArgs queryArgs,
-            AggregatorPageArgs aggregatorPageArgs,
-            int numCollectedRows)
+            AggregatorPageArgs aggregatorPageArgs)
     {
-        int resetPoint = chunksQueue.getCurrentBitmapResetPoint();
-        int numRecordsInChunk = chunksQueue.prepareCurRecList(aggregatorPageArgs.rangeData().getRecordIndexes(), resetPoint);
-        collectTxService.prepareChunk(aggregatorPageArgs.collectState(),
+        collectTxService.openChunk(aggregatorPageArgs.collectState(),
                 chunksQueue.getCurrent(),
-                min(numRecordsInChunk, aggregatorPageArgs.rowsLimit() - numCollectedRows),
-                resetPoint,
                 aggregatorPageArgs.prepareQueryResultTypes().orElse(MemorySegment.NULL),
                 queryArgs.dispatcherPageSourceStats());
-        chunksQueue.setFirstChunkAsPrepared();
     }
 
     boolean advanceChunk(ChunksQueue chunksQueue,
@@ -175,7 +170,7 @@ public class StorageCollectorService
             AggregatorPageArgs aggregatorPageArgs,
             int numCollectedRows)
     {
-        if (numCollectedRows == 0 || rangeFillerService.isCurrentChunkCompleted(aggregatorPageArgs.rangeData(), queryArgs.chunkSize())) {
+        if (numCollectedRows == 0 || rangeFillerService.updateStartIxIfNotCompleted(aggregatorPageArgs.rangeData())) {
             chunksQueue.currentCompleted();
             logger.debug("collectFromStorage advance numCollectedRows %d", numCollectedRows);
             return true;
@@ -209,13 +204,15 @@ public class StorageCollectorService
     }
 
     void collectChunk(AggregatorPageArgs aggregatorPageArgs,
-            int chunkIndex,
+            boolean isFullScan,
+            int startRecIx,
             int numToCollect,
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         collectTxService.collectChunk(aggregatorPageArgs.collectState(),
-                chunkIndex,
+                isFullScan,
+                startRecIx,
                 numToCollect,
                 outQueryResultTypes,
                 dispatcherPageSourceStats);
@@ -229,6 +226,7 @@ public class StorageCollectorService
             WarpQueryState queryState)
     {
         int numCollectedRows = queryState.getNumRecordsInCurPage();
+        RecordIndexes recordIndexes = aggregatorPageArgs.rangeData().getRecordIndexes();
 
         if (chunksQueue.isCompletelyFinished(queryArgs.numChunks())) {
             return false;
@@ -240,19 +238,21 @@ public class StorageCollectorService
         while (!chunksQueue.isChunkRangeCompleted() && canPrepareMore) {
             // get next chunk to collect and check if its already done on buffer
             int chunkIndex = chunksQueue.getCurrent();
-            if (chunksQueue.isChunkPreparationNeeded()) {
-                prepareChunk(chunksQueue, queryArgs, aggregatorPageArgs, numCollectedRows);
+            chunksQueue.loadChunk(recordIndexes, queryArgs.numRecordsInChunk(chunkIndex));
+            int numToCollect;
+
+            if (queryParams.getNumCollectElements() > 0) {
+                openChunk(chunksQueue, queryArgs, aggregatorPageArgs);
                 if ((numCollectedRows > 0) && stopForOptimization(aggregatorPageArgs, queryParams.getNumCollectElements())) {
                     canPrepareMore = false;
                     break;
                 }
-            }
-            if (queryParams.getNumCollectElements() > 0) {
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, aggregatorPageArgs.rangeData());
-                int numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, aggregatorPageArgs, numCollectedRows);
+                numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, aggregatorPageArgs, numCollectedRows);
                 if (numToCollect > 0) {
                     collectChunk(aggregatorPageArgs,
-                            chunkIndex,
+                            recordIndexes.getType() != RECORD_INDEX_LIST_TYPE_VALUES,
+                            recordIndexes.getStart(),
                             numToCollect,
                             aggregatorPageArgs.queryResultTypes().get(),
                             queryArgs.dispatcherPageSourceStats());
@@ -263,7 +263,8 @@ public class StorageCollectorService
                 numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, queryArgs, aggregatorPageArgs, this);
             }
             else {
-                numCollectedRows += rangeFillerService.add(chunkIndex, 0, queryArgs, aggregatorPageArgs, this);
+                numToCollect = min(recordIndexes.getSize(), aggregatorPageArgs.rowsLimit() - numCollectedRows);
+                numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, queryArgs, aggregatorPageArgs, this);
             }
             logger.debug("collectFromStorage after native collect chunkIndex %d canPrepareMore %b numCollectedRows %d", chunkIndex, canPrepareMore, numCollectedRows);
 
@@ -314,13 +315,16 @@ public class StorageCollectorService
             AggregatorPageArgs aggregatorPageArgs,
             int numCollectedRows)
     {
+        int pageLimit = aggregatorPageArgs.rowsLimit() - numCollectedRows;
+        int chunkLimit = aggregatorPageArgs.rangeData().getRecordIndexes().getSize() - aggregatorPageArgs.rangeData().getRecordIndexes().getStart();
+        int recLimit = min(pageLimit, chunkLimit);
+
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = aggregatorPageArgs.warmupElementRecordBufferStates();
         if (warmupElementRecordBufferStates.isEmpty()) {
             logger.debug("getNumToCollect no wes %d", queryArgs.chunkSize() - numCollectedRows);
-            return min(queryArgs.chunkSize() - numCollectedRows, aggregatorPageArgs.rowsLimit() - numCollectedRows);
+            return recLimit;
         }
 
-        int recLimit = aggregatorPageArgs.rowsLimit() - numCollectedRows;
         for (WarmupElementRecordBufferState warmupElementRecordBufferState : warmupElementRecordBufferStates) {
             int limit = getNumToCollect(queryArgs,
                     numCollectedFromCurrentChunk,
@@ -441,11 +445,6 @@ public class StorageCollectorService
             numChunksInRange >>= 1;
         }
         return numChunksInRange;
-    }
-
-    public int getMinForTypeAll(int baseRow, AggregatorPageArgs aggregatorPageArgs, QueryArgs queryArgs, int currentNumCollectedRows)
-    {
-        return rangeFillerService.getMinForTypeAll(baseRow, aggregatorPageArgs, currentNumCollectedRows);
     }
 
     public WarpStoragePageSource.RowRanges getRanges(AggregatorPageArgs aggregatorPageArgs)
