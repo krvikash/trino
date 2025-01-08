@@ -60,21 +60,6 @@ public class RangeDataServiceTest
         rangeFillerService = new NativeRangeFillerService();
     }
 
-    @Test
-    public void testFullRange()
-    {
-        RangeData rangeData = new RangeData(recordIndexes);
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL);
-
-        when(queryArgs.chunkSize()).thenReturn(64);
-        when(aggregatorPageArgs.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 1, queryArgs, aggregatorPageArgs, storageCollectorService);
-        WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
-        assertThat(ranges.getRangesCount()).isEqualTo(1);
-        assertThat(ranges.getLowerInclusive(0)).isEqualTo(0);
-        assertThat(ranges.getUpperExclusive(0)).isEqualTo(64);
-    }
-
     public void onClose()
     {
     }

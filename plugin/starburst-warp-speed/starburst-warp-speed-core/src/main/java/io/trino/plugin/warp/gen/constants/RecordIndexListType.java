@@ -17,7 +17,6 @@ package io.trino.plugin.warp.gen.constants;
 
 public enum RecordIndexListType
 {
-    RECORD_INDEX_LIST_TYPE_FULL,
     RECORD_INDEX_LIST_TYPE_ALL,
     RECORD_INDEX_LIST_TYPE_VALUES,
     RECORD_INDEX_LIST_TYPE_NUM_OF;

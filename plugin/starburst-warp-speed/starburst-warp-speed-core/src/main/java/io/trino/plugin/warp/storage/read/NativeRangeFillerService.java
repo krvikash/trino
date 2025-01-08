@@ -69,13 +69,6 @@ public class NativeRangeFillerService
         int baseRow = chunkIndex * queryArgs.chunkSize();
         boolean rangesRequired = queryArgs.queryParams().isRangesRequired();
         switch (listType) {
-            case RECORD_INDEX_LIST_TYPE_FULL -> {
-                numRows = queryArgs.chunkSize();
-                if (rangesRequired) {
-                    rangeData.addLowerInclusive(baseRow);
-                    rangeData.addUpperExclusive(baseRow + numRows);
-                }
-            }
             case RECORD_INDEX_LIST_TYPE_ALL -> {
                 if (rangesRequired) {
                     int min = baseRow + aggregatorPageArgs.rangeData().getRecordIndexes().getStart();
@@ -161,9 +154,6 @@ public class NativeRangeFillerService
         int storeRowListSize;
         Optional<Integer> storeRowListStart = Optional.empty(); // only for type ALL
         switch (storeRowListType) {
-            case RECORD_INDEX_LIST_TYPE_FULL:
-                storeRowListSize = queryArgs.chunkSize();
-                break;
             case RECORD_INDEX_LIST_TYPE_ALL:
                 storeRowListSize = rangeData.getRecordIndexes().getSize();
                 storeRowListStart = Optional.of(recordIndexes.getStart());
@@ -194,8 +184,6 @@ public class NativeRangeFillerService
         recordIndexes.setType(storeRowListType);
         recordIndexes.setSize(storeRowListResult.storeRowListSize());
         switch (storeRowListType) {
-            case RECORD_INDEX_LIST_TYPE_FULL:
-                break;
             case RECORD_INDEX_LIST_TYPE_ALL:
                 recordIndexes.setStart(storeRowListResult.storeRowListStart().get());
                 break;
