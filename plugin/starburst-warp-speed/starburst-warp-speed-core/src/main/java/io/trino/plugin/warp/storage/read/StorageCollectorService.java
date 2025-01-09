@@ -166,7 +166,6 @@ public class StorageCollectorService
     }
 
     boolean advanceChunk(ChunksQueue chunksQueue,
-            QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs,
             int numCollectedRows)
     {
@@ -268,7 +267,7 @@ public class StorageCollectorService
             }
             logger.debug("collectFromStorage after native collect chunkIndex %d canPrepareMore %b numCollectedRows %d", chunkIndex, canPrepareMore, numCollectedRows);
 
-            if (!advanceChunk(chunksQueue, queryArgs, aggregatorPageArgs, numCollectedRows)) {
+            if (!advanceChunk(chunksQueue, aggregatorPageArgs, numCollectedRows)) {
                 canPrepareMore = false; // We do not collect from one chunk twice in one round
             }
 
@@ -325,14 +324,18 @@ public class StorageCollectorService
             return recLimit;
         }
 
-        for (WarmupElementRecordBufferState warmupElementRecordBufferState : warmupElementRecordBufferStates) {
-            int limit = getNumToCollect(queryArgs,
-                    numCollectedFromCurrentChunk,
-                    warmupElementRecordBufferState,
-                    aggregatorPageArgs.rangeData(),
-                    numCollectedRows);
-            if (limit < recLimit) {
-                recLimit = limit;
+        // we want to avoid decompressing twice the same chunk
+        int bufLimit = queryArgs.chunkSize() - numCollectedRows;
+        if (recLimit > bufLimit) {
+            logger.debug("getNumToCollect zero numToCollect %d maxToCollect %d", recLimit, bufLimit);
+            return 0;
+        }
+
+        List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
+        for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
+            int weLimit = getWeNumToCollect(warmupElementRecordBufferStates.get(weIx), collectElementsParamsList.get(weIx), recLimit);
+            if (weLimit < recLimit) {
+                recLimit = weLimit;
             }
         }
         logger.debug("getNumToCollect numCollectedFromCurrentChunk %d recLimit %d", numCollectedFromCurrentChunk, recLimit);
@@ -344,37 +347,19 @@ public class StorageCollectorService
         return warmupElementRecordBufferState.getFreeBytes();
     }
 
-    int getNumToCollect(QueryArgs queryArgs,
-            int numCollectedFromCurrentChunk,
-            WarmupElementRecordBufferState warmupElementRecordBufferState,
-            RangeData rangeData,
-            int numCollectedRows)
+    int getWeNumToCollect(WarmupElementRecordBufferState warmupElementRecordBufferState, WarmupElementCollectParams collectParams, int numToCollect)
     {
-        int maxToCollect = queryArgs.chunkSize() - numCollectedRows; // according to buffer capacity
-        int numToCollect = getTotalNumToCollect(queryArgs, rangeData) - numCollectedFromCurrentChunk; // according to current chunk
-        if (numToCollect > maxToCollect) {
-            logger.debug("getNumToCollect zero numToCollect %d maxToCollect %d", numToCollect, maxToCollect);
-            return 0; // we want to avoid decompressing twice the same chunk
-        }
-
         int maxRecordLength = warmupElementRecordBufferState.getMaxRecordLength();
-        if (maxRecordLength <= storageEngineConstants.getFixedLengthStringLimit()) {
-            logger.debug("getNumToCollect fixed size numToCollect %d maxToCollect %d", numToCollect, maxToCollect);
+        if (collectParams.mappedMatchCollect() || maxRecordLength <= storageEngineConstants.getFixedLengthStringLimit()) {
+            logger.debug("getNumToCollect fixed size numToCollect %d maxRecordLength %d", numToCollect, maxRecordLength);
             return numToCollect;
         }
         int freeBytes = getFreeBytes(warmupElementRecordBufferState);
 
         int actualNumToCollect = min(freeBytes / maxRecordLength, numToCollect);
-        logger.debug("getNumToCollect var size actualNumToCollect %d numToCollect %d maxToCollect %d maxRecordLength %d freeBytes %d",
-                actualNumToCollect, numToCollect, maxToCollect, maxRecordLength, freeBytes);
+        logger.debug("getNumToCollect var size actualNumToCollect %d numToCollect %d maxRecordLength %d freeBytes %d",
+                actualNumToCollect, numToCollect, maxRecordLength, freeBytes);
         return actualNumToCollect;
-    }
-
-    // since the size is a short, zero means a full chunk, we translate to integer here
-    private int getTotalNumToCollect(QueryArgs queryArgs, RangeData rangeData)
-    {
-        int total = rangeData.getRecordIndexes().getSize();
-        return (total > 0) ? total : queryArgs.chunkSize();
     }
 
     public QueryArgs getQueryArgs(QueryParams queryParams, CustomStatsContext customStatsContext)
