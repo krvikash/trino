@@ -39,7 +39,8 @@ class TestHdfsFileSystemManager
                         .put("hive.s3.region", "us-west-1")
                         .buildOrThrow(),
                 "test",
-                new TestingConnectorContext());
+                new TestingConnectorContext(),
+                false);
 
         assertThat(manager.configure().keySet()).containsExactly("hive.dfs.verify-checksum");
 

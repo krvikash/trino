@@ -71,13 +71,20 @@ public class FileSystemModule
     private final ConnectorContext context;
     private final boolean isCoordinator;
     private final boolean coordinatorFileCaching;
+    private final boolean quietBootstrap;
 
-    public FileSystemModule(String catalogName, ConnectorContext context, boolean coordinatorFileCaching)
+    public FileSystemModule(String catalogName, ConnectorContext context, boolean coordinatorFileCaching, boolean quietBootstrap)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");
         this.isCoordinator = context.getCurrentNode().isCoordinator();
         this.coordinatorFileCaching = coordinatorFileCaching;
+        this.quietBootstrap = quietBootstrap;
+    }
+
+    public FileSystemModule(String catalogName, ConnectorContext context, boolean coordinatorFileCaching)
+    {
+        this(catalogName, context, coordinatorFileCaching, false);
     }
 
     @Override
@@ -88,7 +95,7 @@ public class FileSystemModule
         newOptionalBinder(binder, HdfsFileSystemLoader.class);
 
         if (config.isHadoopEnabled()) {
-            HdfsFileSystemLoader loader = new HdfsFileSystemLoader(getProperties(), catalogName, context);
+            HdfsFileSystemLoader loader = new HdfsFileSystemLoader(getProperties(), catalogName, context, quietBootstrap);
 
             loader.configure().forEach((name, securitySensitive) ->
                     consumeProperty(new ConfigPropertyMetadata(name, securitySensitive)));

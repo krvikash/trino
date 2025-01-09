@@ -122,7 +122,7 @@ public class TestDeltaLakeGlueMetastore
                 new DeltaLakeModule(),
                 new DeltaLakeSecurityModule(),
                 // test setup
-                new FileSystemModule("test", context, false));
+                new FileSystemModule("test", context, false, false));
 
         Injector injector = app
                 .doNotInitializeLogging()

@@ -137,7 +137,7 @@ public class IcebergConnectorFactory
         protected void setup(Binder binder)
         {
             boolean metadataCacheEnabled = buildConfigObject(IcebergConfig.class).isMetadataCacheEnabled();
-            install(new FileSystemModule(catalogName, context, metadataCacheEnabled));
+            install(new FileSystemModule(catalogName, context, metadataCacheEnabled, false));
         }
     }
 }

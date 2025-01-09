@@ -94,7 +94,7 @@ public class HudiConnectorFactory
                     new JsonModule(),
                     new HudiModule(),
                     new HiveMetastoreModule(metastore, false, false),
-                    new FileSystemModule(catalogName, context, false),
+                    new FileSystemModule(catalogName, context, false, false),
                     new MBeanServerModule(),
                     module.orElse(EMPTY_MODULE),
                     new ConnectorContextModule(catalogName, context));

@@ -112,7 +112,7 @@ public class DeltaLakeConnectorFactory
                     new DeltaLakeModule(),
                     new DeltaLakeSecurityModule(),
                     new DeltaLakeSynchronizerModule(),
-                    new FileSystemModule(catalogName, context, false),
+                    new FileSystemModule(catalogName, context, false, false),
                     new ConnectorContextModule(catalogName, context),
                     module);
 

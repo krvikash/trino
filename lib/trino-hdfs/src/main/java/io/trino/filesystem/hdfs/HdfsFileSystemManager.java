@@ -42,7 +42,8 @@ public final class HdfsFileSystemManager
     public HdfsFileSystemManager(
             Map<String, String> config,
             String catalogName,
-            ConnectorContext context)
+            ConnectorContext context,
+            boolean quietBootstrap)
     {
         List<Module> modules = new ArrayList<>();
 
@@ -59,6 +60,11 @@ public final class HdfsFileSystemManager
                 .doNotInitializeLogging()
                 .setRequiredConfigurationProperties(Map.of())
                 .setOptionalConfigurationProperties(config);
+        if (quietBootstrap) {
+            bootstrap
+                    .quiet()
+                    .skipErrorReporting();
+        }
     }
 
     public Map<String, Boolean> configure()
