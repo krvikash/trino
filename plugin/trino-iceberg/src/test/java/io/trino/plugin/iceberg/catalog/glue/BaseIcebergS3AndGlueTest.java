@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getConnectorService;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public abstract class BaseIcebergS3AndGlueTest
         extends BaseS3AndGlueTest
@@ -200,6 +201,66 @@ public abstract class BaseIcebergS3AndGlueTest
         finally {
             assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
             assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
+    public void testRenameCatalog()
+    {
+        String oldCatalog = "catalog_rename_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING iceberg
+                WITH (
+                   "hive.metastore.glue.default-warehouse-dir" = '%2$s',
+                   "iceberg.catalog.type" = 'glue'
+                )""";
+        assertUpdate(createCatalogSql.formatted(oldCatalog, schemaPath()));
+
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+        assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+        assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql.formatted(catalog, schemaPath()));
+        assertQuerySucceeds("SHOW SCHEMAS FROM " + catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+    }
+
+    @Test
+    public void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING iceberg
+                WITH (
+                   "hive.metastore.glue.default-warehouse-dir" = '%2$s',
+                   "iceberg.catalog.type" = 'glue'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(catalog, schemaPath()));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(catalog, schemaPath()));
+
+            assertThatThrownBy(() -> assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                       "iceberg.catalog.type" = 'invalid'
+                    """
+                            .formatted(catalog))).hasMessageContaining("Error: Invalid value 'invalid' for type CatalogType (property 'iceberg.catalog.type')");
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "iceberg.catalog.type" = 'glue'
+                    """
+                            .formatted(catalog));
+            assertUpdate("CREATE SCHEMA %s.test_dynamic".formatted(catalog));
+        }
+        finally {
+            assertUpdate("DROP SCHEMA IF EXISTS %s.test_dynamic".formatted(catalog));
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
     }
 }

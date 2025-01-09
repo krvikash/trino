@@ -73,6 +73,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -175,6 +176,70 @@ public abstract class BaseIcebergConnectorSmokeTest
         finally {
             assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
             assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
+    public void testRenameCatalog()
+    {
+        String oldCatalog = "catalog_rename_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING iceberg
+                WITH (
+                   "iceberg.table-statistics-enabled" = 'true'
+                )""";
+        assertUpdate(createCatalogSql.formatted(oldCatalog));
+
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        assertUpdate(
+                """
+                ALTER CATALOG %s RENAME TO %s
+                """
+                        .formatted(oldCatalog, catalog));
+        assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+        assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql.formatted(catalog));
+        assertQuerySucceeds("SHOW SCHEMAS FROM " + catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+    }
+
+    @Test
+    public void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING iceberg
+                WITH (
+                   "iceberg.file-format" = '%2$s'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(catalog, "PARQUET"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(catalog, "PARQUET"));
+
+            assertThatThrownBy(() -> assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                       "iceberg.file-format" = 'invalid'
+                    """
+                            .formatted(catalog))).hasMessageContaining("Invalid value 'invalid' for type IcebergFileFormat (property 'iceberg.file-format')");
+            assertUpdate(
+                    """
+                    ALTER CATALOG %1$s SET PROPERTIES
+                       "iceberg.file-format" = '%2$s'
+                    """
+                            .formatted(catalog, "ORC"));
+            assertUpdate("CREATE SCHEMA %s.test_dynamic".formatted(catalog));
+            assertUpdate("CREATE TABLE %s.test_dynamic.test_table as SELECT * FROM tpch.tiny.region".formatted(catalog), 5);
+            assertThat((String) computeScalar("SHOW CREATE TABLE %s.test_dynamic.test_table".formatted(catalog))).contains("format = 'ORC'");
+        }
+        finally {
+            assertUpdate("DROP SCHEMA IF EXISTS %s.test_dynamic CASCADE".formatted(catalog));
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
     }
 

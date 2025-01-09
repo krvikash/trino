@@ -493,4 +493,66 @@ public abstract class BaseHiveS3AndGlueTest
             assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
         }
     }
+
+    @Test
+    public void testRenameCatalog()
+    {
+        String oldCatalog = "catalog_rename_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING hive
+                WITH (
+                   "hive.metastore" = 'glue',
+                   "hive.metastore.glue.default-warehouse-dir" = '%2$s'
+                )""";
+        assertUpdate(createCatalogSql.formatted(oldCatalog, schemaPath()));
+
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+        assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+        assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql.formatted(catalog, schemaPath()));
+        assertQuerySucceeds("SHOW SCHEMAS FROM " + catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+    }
+
+    @Test
+    public void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING hive
+                WITH (
+                   "hive.metastore" = 'glue',
+                   "hive.metastore.glue.default-warehouse-dir" = '%2$s'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(catalog, schemaPath()));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(catalog, schemaPath()));
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                       "hive.security" = 'read-only'
+                    """
+                            .formatted(catalog));
+            assertThatThrownBy(() -> assertUpdate("CREATE SCHEMA %s.test_dynamic".formatted(catalog))).hasMessageContaining("Access Denied: Cannot create schema test_dynamic");
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "hive.security" = 'allow-all',
+                      "fs.hadoop.enabled" = 'false',
+                      "fs.native-s3.enabled" = 'true'
+                    """
+                            .formatted(catalog));
+            assertUpdate("CREATE SCHEMA %s.test_dynamic".formatted(catalog));
+        }
+        finally {
+            assertUpdate("DROP SCHEMA IF EXISTS %s.test_dynamic".formatted(catalog));
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
 }

@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import static io.trino.plugin.hudi.testing.HudiTestUtils.COLUMNS_TO_HIDE;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestHudiConnectorTest
         extends BaseConnectorTest
@@ -133,6 +134,70 @@ public class TestHudiConnectorTest
         finally {
             assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
             assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
+    public void testRenameCatalog()
+    {
+        String oldCatalog = "catalog_rename_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING hudi
+                WITH (
+                   "hudi.parquet.use-column-names" = 'true'
+                )""";
+        assertUpdate(createCatalogSql.formatted(oldCatalog));
+
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        assertUpdate(
+                """
+                ALTER CATALOG %s RENAME TO %s
+                """
+                        .formatted(oldCatalog, catalog));
+        assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+        assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql.formatted(catalog));
+        assertQuerySucceeds("SHOW SCHEMAS FROM " + catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+    }
+
+    @Test
+    public void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING hudi
+                WITH (
+                   "hudi.parquet.use-column-names" = '%2$s'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(catalog, "true"));
+
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(catalog, "true"));
+
+            assertThatThrownBy(() -> assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                       "hudi.parquet.use-column-names" = 'invalid'
+                    """
+                            .formatted(catalog))).hasMessageContaining("Invalid value 'invalid' for type boolean (property 'hudi.parquet.use-column-names')");
+            assertUpdate(
+                    """
+                    ALTER CATALOG %1$s SET PROPERTIES
+                       "hudi.parquet.use-column-names" = '%2$s'
+                    """
+                            .formatted(catalog, "false"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(catalog, "false"));
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + catalog);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
     }
 }

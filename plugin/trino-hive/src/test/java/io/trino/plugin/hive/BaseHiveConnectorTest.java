@@ -431,6 +431,64 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
+    public void testRenameCatalog()
+    {
+        String oldCatalog = "catalog_rename_" + randomNameSuffix();
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING hive
+                WITH (
+                   "hive.allow-register-partition-procedure" = 'true'
+                )""";
+        assertUpdate(createCatalogSql.formatted(oldCatalog));
+
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        assertUpdate(
+                """
+                ALTER CATALOG %s RENAME TO %s
+                """
+                        .formatted(oldCatalog, catalog));
+        assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+        assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql.formatted(catalog));
+        assertQuerySucceeds("SHOW SCHEMAS FROM " + catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+    }
+
+    @Test
+    public void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            String createCatalogSql = "CREATE CATALOG %s USING hive";
+            assertUpdate(createCatalogSql.formatted(catalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(catalog));
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                       "hive.security" = 'read-only'
+                    """
+                            .formatted(catalog));
+            assertThatThrownBy(() -> assertUpdate("CREATE SCHEMA %s.test_dynamic".formatted(catalog))).hasMessageContaining("Access Denied: Cannot create schema test_dynamic");
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "hive.security" = 'allow-all'
+                    """
+                            .formatted(catalog));
+            assertUpdate("CREATE SCHEMA %s.test_dynamic".formatted(catalog));
+        }
+        finally {
+            assertUpdate("DROP SCHEMA IF EXISTS %s.test_dynamic".formatted(catalog));
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
     @Override
     public void testDelete()
     {
