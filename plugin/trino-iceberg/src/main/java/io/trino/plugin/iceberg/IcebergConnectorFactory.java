@@ -25,6 +25,7 @@ import io.airlift.json.JsonModule;
 import io.starburst.ai.client.AiClientModule;
 import io.trino.filesystem.manager.FileSystemModule;
 import io.trino.plugin.base.ConnectorContextModule;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.hive.HiveConfig;
@@ -50,6 +51,9 @@ import static java.util.Objects.requireNonNull;
 public class IcebergConnectorFactory
         implements ConnectorFactory
 {
+    private static final Module DEFAULT_ADDITIONAL_MODULE = EMPTY_MODULE;
+    private static final Optional<Module> DEFAULT_ICEBERG_CATALOG_MODULE = Optional.empty();
+
     @Override
     public String getName()
     {
@@ -60,7 +64,18 @@ public class IcebergConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         checkStrictSpiVersionMatch(context, this);
-        return createConnector(catalogName, config, context, EMPTY_MODULE, Optional.empty());
+        return createConnector(catalogName, config, context, DEFAULT_ADDITIONAL_MODULE, DEFAULT_ICEBERG_CATALOG_MODULE);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        ClassLoader classLoader = IcebergConnectorFactory.class.getClassLoader();
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            Bootstrap app = createBootstrap(catalogName, config, ImmutableMap.of(), context, DEFAULT_ADDITIONAL_MODULE, DEFAULT_ICEBERG_CATALOG_MODULE, true);
+            Set<ConfigPropertyMetadata> usedProperties = app.configure();
+            return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+        }
     }
 
     public static Connector createConnector(
@@ -84,36 +99,15 @@ public class IcebergConnectorFactory
     {
         ClassLoader classLoader = IcebergConnectorFactory.class.getClassLoader();
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            Bootstrap app = new Bootstrap(
-                    "io.trino.bootstrap.catalog." + catalogName,
-                    new MBeanModule(),
-                    new ConnectorObjectNameGeneratorModule("io.trino.plugin.iceberg", "trino.plugin.iceberg"),
-                    new JsonModule(),
-                    new IcebergModule(context),
-                    new IcebergSecurityModule(),
-                    new IcebergEncryptionModule(),
-                    icebergCatalogModule.orElse(new IcebergCatalogModule()),
-                    new MBeanServerModule(),
-                    new AiClientModule(context.getModelConnectionSpecsLoader()),
-                    new IcebergFileSystemModule(catalogName, context),
-                    new ConnectorContextModule(catalogName, context),
-                    binder -> {
-                        binder.bind(ClassLoader.class).toInstance(IcebergConnectorFactory.class.getClassLoader());
-                    },
-                    module);
-
-            app
-                    .doNotInitializeLogging()
-                    .loadSecretsPlugins() // starburst-functions-client requires access to secrets.
-                    .disableSystemProperties()
-                    .setRequiredConfigurationProperties(requiredConfig)
-                    .setOptionalConfigurationProperties(optionalConfig);
+            Bootstrap app = createBootstrap(catalogName, requiredConfig, optionalConfig, context, module, icebergCatalogModule, false);
 
             usedConfigPropertiesConsumer.accept(app.configure().stream()
                     .map(ConfigPropertyMetadata::name)
                     .collect(Collectors.toSet()));
 
-            Injector injector = app.initialize();
+            Injector injector = app
+                    .loadSecretsPlugins() // starburst-functions-client requires access to secrets.
+                    .initialize();
 
             verify(!injector.getBindings().containsKey(Key.get(HiveConfig.class)), "HiveConfig should not be bound");
 
@@ -121,23 +115,63 @@ public class IcebergConnectorFactory
         }
     }
 
+    private static Bootstrap createBootstrap(
+            String catalogName,
+            Map<String, String> requiredConfig,
+            Map<String, String> optionalConfig,
+            ConnectorContext context,
+            Module module,
+            Optional<Module> icebergCatalogModule,
+            boolean quietBootstrap)
+    {
+        Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
+                new MBeanModule(),
+                new ConnectorObjectNameGeneratorModule("io.trino.plugin.iceberg", "trino.plugin.iceberg"),
+                new JsonModule(),
+                new IcebergModule(context),
+                new IcebergSecurityModule(),
+                new IcebergEncryptionModule(),
+                icebergCatalogModule.orElse(new IcebergCatalogModule()),
+                new MBeanServerModule(),
+                new AiClientModule(context.getModelConnectionSpecsLoader()),
+                new IcebergFileSystemModule(catalogName, context, quietBootstrap),
+                new ConnectorContextModule(catalogName, context),
+                binder -> {
+                    binder.bind(ClassLoader.class).toInstance(IcebergConnectorFactory.class.getClassLoader());
+                },
+                module);
+
+        if (quietBootstrap) {
+            app.quiet().skipErrorReporting();
+        }
+
+        return app
+                .doNotInitializeLogging()
+                .disableSystemProperties()
+                .setRequiredConfigurationProperties(requiredConfig)
+                .setOptionalConfigurationProperties(optionalConfig);
+    }
+
     private static class IcebergFileSystemModule
             extends AbstractConfigurationAwareModule
     {
         private final String catalogName;
         private final ConnectorContext context;
+        private final boolean quietBootstrap;
 
-        public IcebergFileSystemModule(String catalogName, ConnectorContext context)
+        public IcebergFileSystemModule(String catalogName, ConnectorContext context, boolean quietBootstrap)
         {
             this.catalogName = requireNonNull(catalogName, "catalogName is null");
             this.context = requireNonNull(context, "context is null");
+            this.quietBootstrap = quietBootstrap;
         }
 
         @Override
         protected void setup(Binder binder)
         {
             boolean metadataCacheEnabled = buildConfigObject(IcebergConfig.class).isMetadataCacheEnabled();
-            install(new FileSystemModule(catalogName, context, metadataCacheEnabled, false));
+            install(new FileSystemModule(catalogName, context, metadataCacheEnabled, quietBootstrap));
         }
     }
 }
