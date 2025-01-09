@@ -31,6 +31,7 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSourceProvid
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitManager;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeNodePartitioningProvider;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
@@ -68,6 +69,9 @@ public class DeltaLakeConnectorFactory
 {
     public static final String CONNECTOR_NAME = "delta_lake";
 
+    private static final Module DEFAULT_ADDITIONAL_MODULE = EMPTY_MODULE;
+    private static final Optional<Module> DEFAULT_METASTORE_MODULE = Optional.empty();
+
     @Override
     public String getName()
     {
@@ -78,7 +82,18 @@ public class DeltaLakeConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         checkStrictSpiVersionMatch(context, this);
-        return createConnector(catalogName, config, context, Optional.empty(), EMPTY_MODULE);
+        return createConnector(catalogName, config, context, DEFAULT_METASTORE_MODULE, DEFAULT_ADDITIONAL_MODULE);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        ClassLoader classLoader = DeltaLakeConnectorFactory.class.getClassLoader();
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            Bootstrap app = createBootstrap(catalogName, config, ImmutableMap.of(), context, DEFAULT_METASTORE_MODULE, DEFAULT_ADDITIONAL_MODULE, true);
+            Set<ConfigPropertyMetadata> usedProperties = app.configure();
+            return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+        }
     }
 
     public static Connector createConnector(
@@ -102,25 +117,7 @@ public class DeltaLakeConnectorFactory
     {
         ClassLoader classLoader = DeltaLakeConnectorFactory.class.getClassLoader();
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            Bootstrap app = new Bootstrap(
-                    "io.trino.bootstrap.catalog." + catalogName,
-                    new MBeanModule(),
-                    new ConnectorObjectNameGeneratorModule("io.trino.plugin.deltalake", "trino.plugin.deltalake"),
-                    new JsonModule(),
-                    new MBeanServerModule(),
-                    metastoreModule.orElse(new DeltaLakeMetastoreModule()),
-                    new DeltaLakeModule(),
-                    new DeltaLakeSecurityModule(),
-                    new DeltaLakeSynchronizerModule(),
-                    new FileSystemModule(catalogName, context, false, false),
-                    new ConnectorContextModule(catalogName, context),
-                    module);
-
-            app
-                    .doNotInitializeLogging()
-                    .disableSystemProperties()
-                    .setRequiredConfigurationProperties(requiredConfig)
-                    .setOptionalConfigurationProperties(optionalConfig);
+            Bootstrap app = createBootstrap(catalogName, requiredConfig, optionalConfig, context, metastoreModule, module, false);
 
             usedConfigPropertiesConsumer.accept(app.configure().stream()
                     .map(ConfigPropertyMetadata::name)
@@ -175,5 +172,39 @@ public class DeltaLakeConnectorFactory
                     functionProvider,
                     injector.getInstance(DeltaLakePageSourceProvider.class));
         }
+    }
+
+    private static Bootstrap createBootstrap(
+            String catalogName,
+            Map<String, String> requiredConfig,
+            Map<String, String> optionalConfig,
+            ConnectorContext context,
+            Optional<Module> metastoreModule,
+            Module module,
+            boolean quietBootstrap)
+    {
+        Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
+                new MBeanModule(),
+                new ConnectorObjectNameGeneratorModule("io.trino.plugin.deltalake", "trino.plugin.deltalake"),
+                new JsonModule(),
+                new MBeanServerModule(),
+                metastoreModule.orElse(new DeltaLakeMetastoreModule()),
+                new DeltaLakeModule(),
+                new DeltaLakeSecurityModule(),
+                new DeltaLakeSynchronizerModule(),
+                new FileSystemModule(catalogName, context, false, quietBootstrap),
+                new ConnectorContextModule(catalogName, context),
+                module);
+
+        if (quietBootstrap) {
+            app.quiet().skipErrorReporting();
+        }
+
+        return app
+                .doNotInitializeLogging()
+                .disableSystemProperties()
+                .setRequiredConfigurationProperties(requiredConfig)
+                .setOptionalConfigurationProperties(optionalConfig);
     }
 }
