@@ -449,6 +449,10 @@ public class StorageWriterService
 
     WarmResult appendWarmupElementBlocks(WarmupElementBlocks warmupElementBlocks, StorageWriterContext storageWriterContext)
     {
+        // Reset the buffers because they might have been used to write other WEs. For example, what is now a varlenMD buffer for a DATA element
+        // could have been part of a crc buffer for a previous BASIC element, and therefor varlenMdBuff[0] might contain a value which is not 0.
+        storageWriterContext.getWriteJuffersWarmUpElement().resetAllBuffers();
+
         // isReady will be false supposedly in the last iteration (after Trino passed all the pages)
         // But the calculation is heuristic, and even when warmupElementBlocks is considered not ready,
         // it might actually contain enough data to fill the buffer.
