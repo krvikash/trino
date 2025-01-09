@@ -31,7 +31,7 @@ public class IcebergMaterializedViewProperties
     private final List<PropertyMetadata<?>> materializedViewProperties;
 
     @Inject
-    public IcebergMaterializedViewProperties(IcebergConfig icebergConfig, GalaxyIcebergConfig galaxyIcebergConfig, IcebergTableProperties tableProperties)
+    public IcebergMaterializedViewProperties(IcebergConfig icebergConfig, IcebergScheduledMvRefreshConfig icebergScheduledMvRefreshConfig, IcebergTableProperties tableProperties)
     {
         ImmutableList.Builder<PropertyMetadata<?>> materializedViewProperties = ImmutableList.builder();
         materializedViewProperties.add(stringProperty(
@@ -41,7 +41,7 @@ public class IcebergMaterializedViewProperties
                         false))
                 // Materialized view should allow configuring all the supported iceberg table properties for the storage table
                 .addAll(tableProperties.getTableProperties());
-        if (galaxyIcebergConfig.isScheduledMaterializedViewRefreshEnabled()) {
+        if (icebergScheduledMvRefreshConfig.isScheduledMaterializedViewRefreshEnabled()) {
             materializedViewProperties.add(stringProperty(
                     REFRESH_SCHEDULE,
                     "Cron schedule to use for refreshing the materialized view",

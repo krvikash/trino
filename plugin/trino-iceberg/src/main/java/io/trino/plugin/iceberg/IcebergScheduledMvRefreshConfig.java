@@ -15,7 +15,7 @@ package io.trino.plugin.iceberg;
 
 import io.airlift.configuration.Config;
 
-public class GalaxyIcebergConfig
+public class IcebergScheduledMvRefreshConfig
 {
     private boolean scheduledMaterializedViewRefreshEnabled;
 
@@ -25,7 +25,7 @@ public class GalaxyIcebergConfig
     }
 
     @Config("iceberg.scheduled-materialized-view-refresh-enabled")
-    public GalaxyIcebergConfig setScheduledMaterializedViewRefreshEnabled(boolean scheduledMaterializedViewRefreshEnabled)
+    public IcebergScheduledMvRefreshConfig setScheduledMaterializedViewRefreshEnabled(boolean scheduledMaterializedViewRefreshEnabled)
     {
         this.scheduledMaterializedViewRefreshEnabled = scheduledMaterializedViewRefreshEnabled;
         return this;

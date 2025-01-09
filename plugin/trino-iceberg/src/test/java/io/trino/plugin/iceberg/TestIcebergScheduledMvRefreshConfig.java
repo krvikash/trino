@@ -22,12 +22,12 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertFullMappin
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 
-public class TestGalaxyIcebergConfig
+public class TestIcebergScheduledMvRefreshConfig
 {
     @Test
     public void testDefaults()
     {
-        assertRecordedDefaults(recordDefaults(GalaxyIcebergConfig.class)
+        assertRecordedDefaults(recordDefaults(IcebergScheduledMvRefreshConfig.class)
                 .setScheduledMaterializedViewRefreshEnabled(false));
     }
 
@@ -38,7 +38,7 @@ public class TestGalaxyIcebergConfig
                 .put("iceberg.scheduled-materialized-view-refresh-enabled", "true")
                 .buildOrThrow();
 
-        GalaxyIcebergConfig expected = new GalaxyIcebergConfig()
+        IcebergScheduledMvRefreshConfig expected = new IcebergScheduledMvRefreshConfig()
                 .setScheduledMaterializedViewRefreshEnabled(true);
 
         assertFullMapping(properties, expected);

@@ -93,7 +93,7 @@ public class IcebergModule
         binder.install(new LocationAccessControlModule());
 
         configBinder(binder).bindConfig(IcebergConfig.class);
-        configBinder(binder).bindConfig(GalaxyIcebergConfig.class);
+        configBinder(binder).bindConfig(IcebergScheduledMvRefreshConfig.class);
         configBinder(binder).bindConfig(SortingFileWriterConfig.class, "iceberg");
 
         newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(IcebergSessionProperties.class).in(Scopes.SINGLETON);
