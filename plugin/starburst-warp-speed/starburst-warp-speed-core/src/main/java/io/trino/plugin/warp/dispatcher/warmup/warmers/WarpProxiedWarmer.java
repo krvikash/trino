@@ -77,6 +77,7 @@ import java.util.function.Function;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -204,7 +205,13 @@ public class WarpProxiedWarmer
                             boolean nativeThrowed = e instanceof TrinoException tx && ExceptionThrower.isNativeException(tx);
                             pageSink.abort(nativeThrowed);
                         }
-                        throw e;
+                        // fail permanently for this WarmupElement in case of 'Unsupported Trino column type'
+                        if (e instanceof TrinoException te && te.getErrorCode().equals(NOT_SUPPORTED.toErrorCode())) {
+                            rowGroupData = rowGroupDataService.markAsFailedPermanently(rowGroupData, pair.getKey().warmUpElement());
+                        }
+                        else {
+                            throw e;
+                        }
                     }
                     finally {
                         closeConnector(connectorPageSource, rowGroupKey);

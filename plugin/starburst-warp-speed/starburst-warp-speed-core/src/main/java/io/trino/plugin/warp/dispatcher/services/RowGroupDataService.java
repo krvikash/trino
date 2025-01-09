@@ -330,6 +330,12 @@ public class RowGroupDataService
         flush(rowGroupKey);
     }
 
+    public RowGroupData markAsFailedPermanently(RowGroupData rowGroupData, WarmUpElement warmUpElement)
+    {
+        WarmUpElement failedElement = WarmUpElement.builder(warmUpElement).state(WarmUpElementState.FAILED_PERMANENTLY).build();
+        return updateRowGroupData(rowGroupData, failedElement, rowGroupData.getNextOffset(), -1);
+    }
+
     private WarmUpElementState addTemporaryFailure(WarmUpElementState warmUpElementState, long lastTemporaryFailure)
     {
         if (WarmUpElementState.State.FAILED_PERMANENTLY.equals(warmUpElementState.state()) ||

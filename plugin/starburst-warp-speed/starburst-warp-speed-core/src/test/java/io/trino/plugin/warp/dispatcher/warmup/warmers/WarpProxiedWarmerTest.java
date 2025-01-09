@@ -26,6 +26,7 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
@@ -47,6 +48,7 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.NodeManager;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -70,6 +72,8 @@ import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createRegularWa
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockConnectorSplit;
 import static io.trino.plugin.warp.util.NodeUtils.mockNodeManager;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -331,6 +335,32 @@ public class WarpProxiedWarmerTest
                 throw e;
             }
         });
+    }
+
+    @Test
+    void testUnsupportedTrinoColumnType()
+    {
+        WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
+        Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
+        RegularColumn column1 = new RegularColumn("c1");
+        List<ColumnHandle> columnsToWarm = mockColumns(dispatcherProxiedConnectorTransformer,
+                List.of(Pair.of(column1.getName(), IntegerType.INTEGER)));
+        Multimap<WarpColumn, WarmUpType> columnNameToWarmUpType = ArrayListMultimap.create();
+        columnNameToWarmUpType.put(column1, WarmUpType.WARM_UP_TYPE_BASIC);
+        SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap = createWarmupPriorityMap(columnNameToWarmUpType);
+        List<WarmUpElement> warmupElements = createRegularWarmupElements(columnNameToWarmUpType);
+
+        when(connectorPageSource.isFinished()).thenReturn(false);
+        when(connectorPageSource.getNextPage())
+                .thenThrow(new TrinoException(NOT_SUPPORTED, format("Unsupported Trino column type (%s) for Parquet column (%s)", IntegerType.INTEGER, column1)));
+        when(rowGroupDataService.markAsFailedPermanently(any(RowGroupData.class), any(WarmUpElement.class))).thenCallRealMethod();
+
+        RowGroupData rowGroupData = act(warpProxiedWarmer, dispatcherSplitRowGroupKeyPair, columnsToWarm, warmupElements, requiredWarmUpTypeMap);
+
+        Assertions.assertEquals(1, rowGroupData.getWarmUpElements().size());
+
+        WarmUpElement warmUpElement = rowGroupData.getWarmUpElements().stream().findAny().get();
+        Assertions.assertEquals(WarmUpElementState.FAILED_PERMANENTLY, warmUpElement.getState());
     }
 
     private RowGroupData act(WarpProxiedWarmer warpProxiedWarmer,
