@@ -34,6 +34,7 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSourceProvid
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitManager;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeNodePartitioningProvider;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.connector.SystemTableProvider;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
@@ -72,6 +73,11 @@ import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
 public class HiveConnectorFactory
         implements ConnectorFactory
 {
+    private static final Module DEFAULT_ADDITIONAL_MODULE = EMPTY_MODULE;
+    private static final Optional<HiveMetastore> DEFAULT_METASTORE = Optional.empty();
+    private static final boolean DEFAULT_METASTORE_IMPERSONATION_ENABLED = false;
+    private static final Optional<TrinoFileSystemFactory> DEFAULT_FILESYSTEM_FACTORY = Optional.empty();
+
     @Override
     public String getName()
     {
@@ -82,7 +88,18 @@ public class HiveConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         checkStrictSpiVersionMatch(context, this);
-        return createConnector(catalogName, config, context, () -> EMPTY_MODULE, Optional.empty(), false, Optional.empty());
+        return createConnector(catalogName, config, context, () -> DEFAULT_ADDITIONAL_MODULE, DEFAULT_METASTORE, DEFAULT_METASTORE_IMPERSONATION_ENABLED, DEFAULT_FILESYSTEM_FACTORY);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        ClassLoader classLoader = HiveConnectorFactory.class.getClassLoader();
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            Bootstrap app = createBootstrap(catalogName, config, ImmutableMap.of(), context, () -> DEFAULT_ADDITIONAL_MODULE, DEFAULT_METASTORE, DEFAULT_METASTORE_IMPERSONATION_ENABLED, DEFAULT_FILESYSTEM_FACTORY, true);
+            Set<ConfigPropertyMetadata> usedProperties = app.configure();
+            return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+        }
     }
 
     public static Connector createConnector(
@@ -110,29 +127,7 @@ public class HiveConnectorFactory
     {
         ClassLoader classLoader = HiveConnectorFactory.class.getClassLoader();
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            Bootstrap app = new Bootstrap(
-                    "io.trino.bootstrap.catalog." + catalogName,
-                    new MBeanModule(),
-                    new ConnectorObjectNameGeneratorModule("io.trino.plugin.hive", "trino.plugin.hive"),
-                    new JsonModule(),
-                    new TypeDeserializerModule(),
-                    new HiveModule(),
-                    new HiveMetastoreModule(metastore, true, metastoreImpersonationEnabled),
-                    new HiveSecurityModule(),
-                    fileSystemFactory
-                            .map(factory -> (Module) binder -> binder.bind(TrinoFileSystemFactory.class).toInstance(factory))
-                            .orElseGet(() -> new FileSystemModule(catalogName, context, false, false)),
-                    new HiveProcedureModule(),
-                    new MBeanServerModule(),
-                    new ConnectorContextModule(catalogName, context),
-                    binder -> newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(HiveSessionProperties.class).in(Scopes.SINGLETON),
-                    module.get());
-
-            app
-                    .doNotInitializeLogging()
-                    .disableSystemProperties()
-                    .setRequiredConfigurationProperties(requiredConfig)
-                    .setOptionalConfigurationProperties(optionalConfig);
+            Bootstrap app = createBootstrap(catalogName, requiredConfig, optionalConfig, context, module, metastore, metastoreImpersonationEnabled, fileSystemFactory, false);
 
             usedConfigPropertiesConsumer.accept(app.configure().stream()
                     .map(ConfigPropertyMetadata::name)
@@ -184,5 +179,45 @@ public class HiveConnectorFactory
                     injector.getInstance(HiveConfig.class).isSingleStatementWritesOnly(),
                     classLoader);
         }
+    }
+
+    private static Bootstrap createBootstrap(
+            String catalogName,
+            Map<String, String> requiredConfig,
+            Map<String, String> optionalConfig,
+            ConnectorContext context,
+            Supplier<Module> module,
+            Optional<HiveMetastore> metastore,
+            boolean metastoreImpersonationEnabled,
+            Optional<TrinoFileSystemFactory> fileSystemFactory,
+            boolean quietBootstrap)
+    {
+        Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
+                new MBeanModule(),
+                new ConnectorObjectNameGeneratorModule("io.trino.plugin.hive", "trino.plugin.hive"),
+                new JsonModule(),
+                new TypeDeserializerModule(),
+                new HiveModule(),
+                new HiveMetastoreModule(metastore, true, metastoreImpersonationEnabled),
+                new HiveSecurityModule(),
+                fileSystemFactory
+                        .map(factory -> (Module) binder -> binder.bind(TrinoFileSystemFactory.class).toInstance(factory))
+                        .orElseGet(() -> new FileSystemModule(catalogName, context, false, quietBootstrap)),
+                new HiveProcedureModule(),
+                new MBeanServerModule(),
+                new ConnectorContextModule(catalogName, context),
+                binder -> newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(HiveSessionProperties.class).in(Scopes.SINGLETON),
+                module.get());
+
+        if (quietBootstrap) {
+            app.quiet().skipErrorReporting();
+        }
+
+        return app
+                .doNotInitializeLogging()
+                .disableSystemProperties()
+                .setRequiredConfigurationProperties(requiredConfig)
+                .setOptionalConfigurationProperties(optionalConfig);
     }
 }
