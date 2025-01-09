@@ -55,12 +55,12 @@ public class TestingHudiConnectorFactory
         if (!config.containsKey("hive.metastore")) {
             configBuilder.put("hive.metastore", "file");
         }
-        return createConnector(catalogName, configBuilder.buildOrThrow(), Optional.empty(), context, Optional.of(binder -> {
+        return createConnector(catalogName, configBuilder.buildOrThrow(), Optional.empty(), context, binder -> {
             newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
                     .addBinding("local").toInstance(new LocalFileSystemFactory(localFileSystemRootPath));
             configBinder(binder).bindConfigDefaults(
                     FileHiveMetastoreConfig.class,
                     metastoreConfig -> metastoreConfig.setCatalogDirectory("local:///" + catalogName));
-        }));
+        });
     }
 }

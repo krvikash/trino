@@ -174,9 +174,9 @@ public final class InternalStarburstObjectStoreConnectorFactory
                 usedPropertiesConsumer,
                 hiveMetastore,
                 context,
-                Optional.of(combine(
+                combine(
                         new ConfigureCachingMetastoreModule(),
-                        new GalaxyLocationSecurityModule())));
+                        new GalaxyLocationSecurityModule()));
         return hudiConnector;
     }
 

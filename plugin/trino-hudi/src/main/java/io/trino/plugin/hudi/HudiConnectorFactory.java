@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hudi;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
@@ -29,6 +30,7 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSourceProvid
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitManager;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeNodePartitioningProvider;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.hive.metastore.HiveMetastoreModule;
@@ -54,6 +56,8 @@ import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
 public class HudiConnectorFactory
         implements ConnectorFactory
 {
+    private static final Module DEFAULT_ADDITIONAL_MODULE = EMPTY_MODULE;
+
     @Override
     public String getName()
     {
@@ -64,15 +68,27 @@ public class HudiConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         checkStrictSpiVersionMatch(context, this);
-        return createConnector(catalogName, config, Optional.empty(), context, Optional.empty());
+        return createConnector(catalogName, config, Optional.empty(), context, DEFAULT_ADDITIONAL_MODULE);
     }
 
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        ClassLoader classLoader = HudiConnectorFactory.class.getClassLoader();
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            Bootstrap app = createBootstrap(catalogName, config, ImmutableMap.of(), Optional.empty(), context, DEFAULT_ADDITIONAL_MODULE, true);
+            Set<ConfigPropertyMetadata> usedProperties = app.configure();
+            return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+        }
+    }
+
+    @VisibleForTesting
     public static Connector createConnector(
             String catalogName,
             Map<String, String> config,
             Optional<HiveMetastore> metastore,
             ConnectorContext context,
-            Optional<Module> module)
+            Module module)
     {
         return createConnector(catalogName, config, ImmutableMap.of(), _ -> {}, metastore, context, module);
     }
@@ -84,26 +100,11 @@ public class HudiConnectorFactory
             Consumer<Set<String>> usedConfigPropertiesConsumer,
             Optional<HiveMetastore> metastore,
             ConnectorContext context,
-            Optional<Module> module)
+            Module module)
     {
         ClassLoader classLoader = HudiConnectorFactory.class.getClassLoader();
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            Bootstrap app = new Bootstrap(
-                    "io.trino.bootstrap.catalog." + catalogName,
-                    new MBeanModule(),
-                    new JsonModule(),
-                    new HudiModule(),
-                    new HiveMetastoreModule(metastore, false, false),
-                    new FileSystemModule(catalogName, context, false, false),
-                    new MBeanServerModule(),
-                    module.orElse(EMPTY_MODULE),
-                    new ConnectorContextModule(catalogName, context));
-
-            app
-                    .doNotInitializeLogging()
-                    .disableSystemProperties()
-                    .setRequiredConfigurationProperties(requiredConfig)
-                    .setOptionalConfigurationProperties(optionalConfig);
+            Bootstrap app = createBootstrap(catalogName, requiredConfig, optionalConfig, metastore, context, module, false);
 
             usedConfigPropertiesConsumer.accept(app.configure().stream()
                     .map(ConfigPropertyMetadata::name)
@@ -132,5 +133,36 @@ public class HudiConnectorFactory
                     sessionPropertiesProviders,
                     hudiTableProperties.getTableProperties());
         }
+    }
+
+    private static Bootstrap createBootstrap(
+            String catalogName,
+            Map<String, String> requiredConfig,
+            Map<String, String> optionalConfig,
+            Optional<HiveMetastore> metastore,
+            ConnectorContext context,
+            Module module,
+            boolean quietBootstrap)
+    {
+        Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
+                new MBeanModule(),
+                new JsonModule(),
+                new HudiModule(),
+                new HiveMetastoreModule(metastore, false, false),
+                new FileSystemModule(catalogName, context, false, quietBootstrap),
+                new MBeanServerModule(),
+                module,
+                new ConnectorContextModule(catalogName, context));
+
+        if (quietBootstrap) {
+            app.quiet().skipErrorReporting();
+        }
+
+        return app
+                .doNotInitializeLogging()
+                .disableSystemProperties()
+                .setRequiredConfigurationProperties(requiredConfig)
+                .setOptionalConfigurationProperties(optionalConfig);
     }
 }
