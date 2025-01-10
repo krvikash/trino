@@ -19,6 +19,7 @@ import com.google.inject.Inject;
 import com.google.inject.Key;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
+import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.ProvidesIntoOptional;
 import dev.failsafe.RetryPolicy;
@@ -151,6 +152,7 @@ public class JdbcModule
 
     @ProvidesIntoOptional(DEFAULT)
     @Inject
+    @Singleton
     ConnectorRecordSetProvider recordSetProvider(JdbcClient jdbcClient, @ForRecordCursor ExecutorService executor, RetryPolicy<Object> policy)
     {
         return new JdbcRecordSetProvider(jdbcClient, executor, policy);
