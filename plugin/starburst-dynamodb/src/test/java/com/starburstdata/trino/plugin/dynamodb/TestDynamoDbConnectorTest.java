@@ -211,6 +211,52 @@ public class TestDynamoDbConnectorTest
     }
 
     @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, dynamoDbConfig.getEndpointUrl().orElseThrow(), schemaDirectory.toAbsolutePath()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, "amazondynamodb"));
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, dynamoDbConfig.getEndpointUrl().orElseThrow(), schemaDirectory.toAbsolutePath()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, "amazondynamodb"));
+        }
+        finally {
+            assertUpdate("DROP CATALOG " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, "INVALID", schemaDirectory.toAbsolutePath()));
+            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, "amazondynamodb"), "Error listing tables for catalog %s: The url must begin with http:// or https://".formatted(catalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, "INVALID", schemaDirectory.toAbsolutePath()));
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "dynamodb.endpoint-url" = '%s'
+                    """
+                            .formatted(catalog, dynamoDbConfig.getEndpointUrl().orElseThrow()));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, dynamoDbConfig.getEndpointUrl().orElseThrow(), schemaDirectory));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, "amazondynamodb"));
+        }
+        finally {
+            assertUpdate("DROP CATALOG " + catalog);
+        }
+    }
+
+    @Test
     @Override
     public void testShowCreateTable()
     {
