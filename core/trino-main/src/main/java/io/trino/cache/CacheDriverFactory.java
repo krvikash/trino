@@ -154,6 +154,12 @@ public class CacheDriverFactory
         CacheSplitId splitId = cacheSplitIdOptional.get();
 
         StaticDynamicFilter originalDynamicFilter = originalDynamicFilterSupplier.get();
+        if (originalDynamicFilter.getCurrentDynamicFilterTupleDomain().getDomains().orElse(ImmutableMap.of())
+                .values().stream().anyMatch(domain -> domain.getBloomfilterWithRange().isPresent())) {
+            // bloom filters are not supported in cache
+            cacheStats.recordDynamicFilterWithBloomFilter();
+            return new DriverFactoryWithCacheContext(alternatives.get(ORIGINAL_PLAN_ALTERNATIVE), Optional.empty());
+        }
         StaticDynamicFilter commonDynamicFilter = commonDynamicFilterSupplier.get();
         StaticDynamicFilter dynamicFilter = resolveDynamicFilter(originalDynamicFilter, commonDynamicFilter);
 

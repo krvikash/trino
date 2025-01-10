@@ -26,12 +26,12 @@ import io.trino.metadata.TableHandle;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
-import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.split.EmptySplit;
 import io.trino.split.PageSourceProvider;
 import io.trino.split.PageSourceProviderFactory;
 import io.trino.split.TableAwarePageSourceProvider;
+import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.Nullable;
 
@@ -58,7 +58,7 @@ public class TableScanOperator
         private final PageSourceProvider pageSourceProvider;
         private final TableHandle table;
         private final List<ColumnHandle> columns;
-        private final DynamicFilter dynamicFilter;
+        private final InternalDynamicFilter dynamicFilter;
         private boolean closed;
 
         public TableScanOperatorFactory(
@@ -68,7 +68,7 @@ public class TableScanOperator
                 PageSourceProviderFactory pageSourceProvider,
                 TableHandle table,
                 Iterable<ColumnHandle> columns,
-                DynamicFilter dynamicFilter)
+                InternalDynamicFilter dynamicFilter)
         {
             this.operatorId = operatorId;
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
@@ -109,7 +109,7 @@ public class TableScanOperator
     private final PlanNodeId sourceId;
     private final TableAwarePageSourceProvider pageSourceProvider;
     private final List<ColumnHandle> columns;
-    private final DynamicFilter dynamicFilter;
+    private final InternalDynamicFilter dynamicFilter;
     private final LocalMemoryContext memoryContext;
     private final SettableFuture<Void> blocked = SettableFuture.create();
 
@@ -131,7 +131,7 @@ public class TableScanOperator
             PageSourceProvider pageSourceProvider,
             TableHandle table,
             Iterable<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+            InternalDynamicFilter dynamicFilter)
     {
         this(operatorContext,
                 sourceId,
@@ -145,7 +145,7 @@ public class TableScanOperator
             PlanNodeId sourceId,
             TableAwarePageSourceProvider pageSourceProvider,
             Iterable<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+            InternalDynamicFilter dynamicFilter)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.sourceId = requireNonNull(sourceId, "planNodeId is null");
@@ -279,7 +279,7 @@ public class TableScanOperator
             return null;
         }
         if (source == null) {
-            if (!dynamicFilter.getCurrentPredicate().isAll()) {
+            if (!dynamicFilter.getCurrentDynamicFilterTupleDomain().isAll()) {
                 operatorContext.recordDynamicFilterSplitProcessed(1L);
             }
             source = pageSourceProvider.createPageSource(operatorContext.getSession(), split, columns, dynamicFilter);

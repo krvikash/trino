@@ -16,8 +16,8 @@ package io.trino.cache;
 import io.trino.operator.OperatorContext;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
-import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.metrics.Metrics;
+import io.trino.sql.planner.InternalDynamicFilter;
 
 import java.util.Optional;
 
@@ -26,7 +26,7 @@ import static java.util.Objects.requireNonNull;
 public record CacheDriverContext(
         Optional<ConnectorPageSource> pageSource,
         Optional<ConnectorPageSink> pageSink,
-        DynamicFilter dynamicFilter,
+        InternalDynamicFilter dynamicFilter,
         CacheMetrics cacheMetrics,
         CacheStats cacheStats,
         Metrics metrics)
@@ -34,7 +34,7 @@ public record CacheDriverContext(
     public CacheDriverContext(
             Optional<ConnectorPageSource> pageSource,
             Optional<ConnectorPageSink> pageSink,
-            DynamicFilter dynamicFilter,
+            InternalDynamicFilter dynamicFilter,
             CacheMetrics cacheMetrics,
             CacheStats cacheStats,
             Metrics metrics)
@@ -52,7 +52,7 @@ public record CacheDriverContext(
         return new CacheDriverContext(pageSource, pageSink, dynamicFilter, cacheMetrics, cacheStats, metrics);
     }
 
-    public static DynamicFilter getDynamicFilter(OperatorContext context, DynamicFilter originalDynamicFilter)
+    public static InternalDynamicFilter getDynamicFilter(OperatorContext context, InternalDynamicFilter originalDynamicFilter)
     {
         return context.getDriverContext().getCacheDriverContext()
                 .map(CacheDriverContext::dynamicFilter)

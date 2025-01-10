@@ -30,6 +30,7 @@ public class CacheStats
     private final CounterStat missingSplitId = new CounterStat();
     private final CounterStat predicateTooBig = new CounterStat();
     private final CounterStat splitsTooBig = new CounterStat();
+    private final CounterStat dynamicFilterWithBloomFilter = new CounterStat();
     private final DistributionStat readFromCacheData = new DistributionStat();
     private final DistributionStat cachedData = new DistributionStat();
     private final TimeStat revokeMemoryTime = new TimeStat();
@@ -140,6 +141,11 @@ public class CacheStats
     public void recordPredicateTooBig()
     {
         predicateTooBig.update(1);
+    }
+
+    public void recordDynamicFilterWithBloomFilter()
+    {
+        dynamicFilterWithBloomFilter.update(1);
     }
 
     public void recordSplitsTooBig()

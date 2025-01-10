@@ -17,6 +17,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.sql.planner.DynamicFilterTupleDomain;
+import io.trino.sql.planner.InternalDynamicFilter;
 
 import java.util.List;
 import java.util.Objects;
@@ -38,18 +40,18 @@ import static java.util.concurrent.CompletableFuture.anyOf;
  * Implementation of dynamic filter that is not awaitable.
  */
 public class StaticDynamicFilter
-        implements DynamicFilter
+        implements InternalDynamicFilter
 {
     private final Set<ColumnHandle> columnsCovered;
     private final boolean isComplete;
-    private final TupleDomain<ColumnHandle> tupleDomain;
+    private final DynamicFilterTupleDomain<ColumnHandle> tupleDomain;
     private volatile int hashCode;
 
     /**
      * Creates a {@code Supplier<StaticDynamicFilter>} that caches the {@link StaticDynamicFilter}.
      * Cache is reset whenever any underlying dynamic filter gets updated.
      */
-    public static Supplier<StaticDynamicFilter> createStaticDynamicFilterSupplier(List<DynamicFilter> disjunctiveDynamicFilters)
+    public static Supplier<StaticDynamicFilter> createStaticDynamicFilterSupplier(List<InternalDynamicFilter> disjunctiveDynamicFilters)
     {
         AtomicReference<AtomicReference<StaticDynamicFilter>> dynamicFilterCache = new AtomicReference<>();
         resetDynamicFilterCache(dynamicFilterCache, disjunctiveDynamicFilters);
@@ -68,7 +70,7 @@ public class StaticDynamicFilter
 
     private static void resetDynamicFilterCache(
             AtomicReference<AtomicReference<StaticDynamicFilter>> dynamicFilterCache,
-            List<DynamicFilter> disjunctiveDynamicFilters)
+            List<InternalDynamicFilter> disjunctiveDynamicFilters)
     {
         if (areAwaitable(disjunctiveDynamicFilters)) {
             // reset dynamic filter cache whenever any underlying dynamic filter gets updated
@@ -77,12 +79,12 @@ public class StaticDynamicFilter
         dynamicFilterCache.set(new AtomicReference<>());
     }
 
-    private static boolean areAwaitable(List<DynamicFilter> disjunctiveDynamicFilters)
+    private static boolean areAwaitable(List<InternalDynamicFilter> disjunctiveDynamicFilters)
     {
         return disjunctiveDynamicFilters.stream().anyMatch(DynamicFilter::isAwaitable);
     }
 
-    private static ListenableFuture<?> whenAnyUpdates(List<DynamicFilter> disjunctiveDynamicFilters)
+    private static ListenableFuture<?> whenAnyUpdates(List<InternalDynamicFilter> disjunctiveDynamicFilters)
     {
         return toListenableFuture(anyOf(disjunctiveDynamicFilters.stream()
                 .filter(DynamicFilter::isAwaitable)
@@ -90,7 +92,7 @@ public class StaticDynamicFilter
                 .toArray(CompletableFuture[]::new)));
     }
 
-    public static StaticDynamicFilter createStaticDynamicFilter(List<DynamicFilter> disjunctiveDynamicFilters)
+    public static StaticDynamicFilter createStaticDynamicFilter(List<InternalDynamicFilter> disjunctiveDynamicFilters)
     {
         requireNonNull(disjunctiveDynamicFilters, "disjunctiveDynamicFilters is null");
         checkArgument(!disjunctiveDynamicFilters.isEmpty());
@@ -100,12 +102,12 @@ public class StaticDynamicFilter
                         .collect(toImmutableSet()),
                 // isComplete needs to be called before getCurrentPredicate
                 disjunctiveDynamicFilters.stream().allMatch(DynamicFilter::isComplete),
-                TupleDomain.columnWiseUnion(disjunctiveDynamicFilters.stream()
-                        .map(DynamicFilter::getCurrentPredicate)
+                DynamicFilterTupleDomain.columnWiseUnion(disjunctiveDynamicFilters.stream()
+                        .map(InternalDynamicFilter::getCurrentDynamicFilterTupleDomain)
                         .collect(toImmutableList())));
     }
 
-    private StaticDynamicFilter(Set<ColumnHandle> columnsCovered, boolean isComplete, TupleDomain<ColumnHandle> tupleDomain)
+    private StaticDynamicFilter(Set<ColumnHandle> columnsCovered, boolean isComplete, DynamicFilterTupleDomain<ColumnHandle> tupleDomain)
     {
         this.columnsCovered = requireNonNull(columnsCovered, "columnsCovered is null");
         this.isComplete = isComplete;
@@ -138,6 +140,12 @@ public class StaticDynamicFilter
 
     @Override
     public TupleDomain<ColumnHandle> getCurrentPredicate()
+    {
+        return tupleDomain.toTupleDomain();
+    }
+
+    @Override
+    public DynamicFilterTupleDomain<ColumnHandle> getCurrentDynamicFilterTupleDomain()
     {
         return tupleDomain;
     }

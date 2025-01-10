@@ -122,7 +122,10 @@ public abstract class BaseCacheSubqueriesTest
         extends AbstractTestQueryFramework
 {
     protected static final Set<TpchTable<?>> REQUIRED_TABLES = ImmutableSet.of(NATION, LINE_ITEM, ORDERS, CUSTOMER);
-    protected static final Map<String, String> EXTRA_PROPERTIES = ImmutableMap.of("cache.enabled", "true");
+    protected static final Map<String, String> EXTRA_PROPERTIES = ImmutableMap.of(
+            "cache.enabled", "true",
+            "dynamic-filtering.bloom-filter.max-distinct-values-per-driver", "1000",
+            "dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "100");
 
     @BeforeEach
     public void flushCache()

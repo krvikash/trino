@@ -30,10 +30,10 @@ import io.trino.operator.TableScanOperator;
 import io.trino.operator.TaskContext;
 import io.trino.spi.QueryId;
 import io.trino.spi.connector.ConnectorSplit;
-import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedPageSource;
 import io.trino.spi.type.Type;
 import io.trino.split.TableAwarePageSourceProvider;
+import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.PageConsumerOperator;
@@ -114,7 +114,7 @@ public class TestMemoryBlocking
                                 .addSequencePage(10, 1)
                                 .build())),
                 ImmutableList.of(),
-                DynamicFilter.EMPTY);
+                InternalDynamicFilter.EMPTY);
         PageConsumerOperator sink = createSinkOperator(types);
         Driver driver = Driver.createDriver(driverContext, source, sink);
         assertThat(driver.getDriverContext()).isSameAs(driverContext);

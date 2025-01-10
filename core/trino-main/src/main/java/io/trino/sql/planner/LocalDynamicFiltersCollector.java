@@ -21,8 +21,6 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.Session;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.sql.PlannerContext;
@@ -52,7 +50,7 @@ public class LocalDynamicFiltersCollector
 {
     private final Session session;
     // Each future blocks until its dynamic filter is collected.
-    private final Map<DynamicFilterId, SettableFuture<Domain>> futures = new HashMap<>();
+    private final Map<DynamicFilterId, SettableFuture<DynamicFilterDomain>> futures = new HashMap<>();
 
     public LocalDynamicFiltersCollector(Session session)
     {
@@ -67,10 +65,10 @@ public class LocalDynamicFiltersCollector
 
     // Used during execution (after build-side dynamic filter collection is over).
     // No need to be synchronized as the futures map doesn't change.
-    public void collectDynamicFilterDomains(Map<DynamicFilterId, Domain> dynamicFilterDomains)
+    public void collectDynamicFilterDomains(Map<DynamicFilterId, DynamicFilterDomain> dynamicFilterDomains)
     {
         dynamicFilterDomains.forEach((key, value) -> {
-            SettableFuture<Domain> future = futures.get(key);
+            SettableFuture<DynamicFilterDomain> future = futures.get(key);
             // Skip dynamic filters that are not applied locally.
             if (future != null) {
                 // Coordinator may re-send dynamicFilterDomain if sendUpdate request fails
@@ -81,7 +79,7 @@ public class LocalDynamicFiltersCollector
     }
 
     // Called during TableScan planning (no need to be synchronized as local planning is single threaded)
-    public DynamicFilter createDynamicFilter(
+    public InternalDynamicFilter createDynamicFilter(
             List<Descriptor> descriptors,
             Map<Symbol, ColumnHandle> columnsMap,
             PlannerContext plannerContext)
@@ -91,14 +89,14 @@ public class LocalDynamicFiltersCollector
         // Iterate over dynamic filters that are collected (correspond to one of the futures), and required for filtering (correspond to one of the descriptors).
         // It is possible that some dynamic filters are collected in a different stage - and will not available here.
         // It is also possible that not all local dynamic filters are needed for this specific table scan.
-        List<ListenableFuture<TupleDomain<ColumnHandle>>> predicateFutures = descriptorMap.keySet().stream()
+        List<ListenableFuture<DynamicFilterTupleDomain<ColumnHandle>>> predicateFutures = descriptorMap.keySet().stream()
                 .filter(futures.keySet()::contains)
                 .map(filterId -> {
                     // Probe-side columns that can be filtered with this dynamic filter resulting domain.
                     return Futures.transform(
                             requireNonNull(futures.get(filterId), () -> format("Missing dynamic filter %s", filterId)),
                             // Construct a probe-side predicate by duplicating the resulting domain over the corresponding columns.
-                            domain -> TupleDomain.withColumnDomains(
+                            domain -> DynamicFilterTupleDomain.withColumnDomains(
                                     descriptorMap.get(filterId).stream()
                                             .collect(toImmutableMap(
                                                     descriptor -> {
@@ -108,15 +106,15 @@ public class LocalDynamicFiltersCollector
                                                     descriptor -> {
                                                         Symbol symbol = Symbol.from(descriptor.getInput());
                                                         Type targetType = symbol.type();
-                                                        Domain updatedDomain = descriptor.applyComparison(domain);
+                                                        DynamicFilterDomain updatedDomain = descriptor.applyComparison(domain);
                                                         if (!updatedDomain.getType().equals(targetType)) {
-                                                            return applySaturatedCasts(
+                                                            return DynamicFilterDomain.fromDomain(applySaturatedCasts(
                                                                     plannerContext.getMetadata(),
                                                                     plannerContext.getFunctionManager(),
                                                                     plannerContext.getTypeOperators(),
                                                                     session,
-                                                                    updatedDomain,
-                                                                    targetType);
+                                                                    updatedDomain.toDomain(),
+                                                                    targetType));
                                                         }
                                                         return updatedDomain;
                                                     }))),
@@ -135,28 +133,28 @@ public class LocalDynamicFiltersCollector
 
     // Table-specific dynamic filter (collects all domains for a specific table scan)
     private static class TableSpecificDynamicFilter
-            implements DynamicFilter
+            implements InternalDynamicFilter
     {
         private final Set<ColumnHandle> columnsCovered;
         @GuardedBy("this")
         private CompletableFuture<?> isBlocked;
 
         @GuardedBy("this")
-        private TupleDomain<ColumnHandle> currentPredicate;
+        private DynamicFilterTupleDomain<ColumnHandle> currentPredicate;
 
         @GuardedBy("this")
         private int futuresLeft;
 
-        private TableSpecificDynamicFilter(Set<ColumnHandle> columnsCovered, List<ListenableFuture<TupleDomain<ColumnHandle>>> predicateFutures)
+        private TableSpecificDynamicFilter(Set<ColumnHandle> columnsCovered, List<ListenableFuture<DynamicFilterTupleDomain<ColumnHandle>>> predicateFutures)
         {
             this.columnsCovered = ImmutableSet.copyOf(requireNonNull(columnsCovered, "columnsCovered is null"));
             this.futuresLeft = predicateFutures.size();
             this.isBlocked = predicateFutures.isEmpty() ? NOT_BLOCKED : new CompletableFuture<>();
-            this.currentPredicate = TupleDomain.all();
+            this.currentPredicate = DynamicFilterTupleDomain.all();
             predicateFutures.forEach(future -> addSuccessCallback(future, this::update, directExecutor()));
         }
 
-        private void update(TupleDomain<ColumnHandle> predicate)
+        private void update(DynamicFilterTupleDomain<ColumnHandle> predicate)
         {
             CompletableFuture<?> currentFuture;
             synchronized (this) {
@@ -197,6 +195,12 @@ public class LocalDynamicFiltersCollector
 
         @Override
         public synchronized TupleDomain<ColumnHandle> getCurrentPredicate()
+        {
+            return currentPredicate.toTupleDomain();
+        }
+
+        @Override
+        public synchronized DynamicFilterTupleDomain<ColumnHandle> getCurrentDynamicFilterTupleDomain()
         {
             return currentPredicate;
         }
