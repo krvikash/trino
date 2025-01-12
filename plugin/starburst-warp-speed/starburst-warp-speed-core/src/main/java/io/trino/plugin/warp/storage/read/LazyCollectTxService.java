@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -42,9 +43,10 @@ public class LazyCollectTxService
             ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
             WorkerMemoryManager workerMemoryManager,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            NativeConfig nativeConfig)
     {
-        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
+        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig, nativeConfig);
         this.workerMemoryManager = workerMemoryManager;
     }
 
@@ -92,7 +94,9 @@ public class LazyCollectTxService
         collectBuffers.setAtIndex(ValueLayout.JAVA_LONG, JbufType.JBUF_TYPE_REC.ordinal(), collectSegments[JbufType.JBUF_TYPE_REC.ordinal()].address());
         collectBuffers.setAtIndex(ValueLayout.JAVA_LONG, JbufType.JBUF_TYPE_NULL.ordinal(), collectSegments[JbufType.JBUF_TYPE_NULL.ordinal()].address());
 
-        CollectState collectState = new CollectState(pageArena, storageEngineConstants.getCollectStatePayload());
+        CollectState collectState = new CollectState(pageArena,
+                storageEngineConstants.getCollectStatePayload(),
+                nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize());
         collectState.setLazyState(lazyCollectorLoaderArgs.queryParams(),
                 lazyCollectorLoaderArgs.fileCookie(),
                 readerId,

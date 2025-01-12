@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -49,9 +50,10 @@ public class CollectTxService
             ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
             RangeFillerService rangeFillerService,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            NativeConfig nativeConfig)
     {
-        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig);
+        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig, nativeConfig);
         this.rangeFillerService = rangeFillerService;
     }
 
@@ -105,7 +107,9 @@ public class CollectTxService
             queryArgs.storeMatchCollectMetadataBuff().ifPresent(s -> MemorySegment.copy(MemorySegment.ofArray(s), 0, matchCollectMetadataOpt.get(), 0, s.length));
         }
 
-        CollectState collectState = new CollectState(pageArena, storageEngineConstants.getCollectStatePayload());
+        CollectState collectState = new CollectState(pageArena,
+                storageEngineConstants.getCollectStatePayload(),
+                nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize());
         AggregatorPageArgs aggregatorPageArgs = new AggregatorPageArgs(collectState,
                 allocReaderId(),
                 rowsLimit,

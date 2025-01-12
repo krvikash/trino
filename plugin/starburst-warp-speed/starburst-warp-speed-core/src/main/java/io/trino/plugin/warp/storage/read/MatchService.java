@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
@@ -54,17 +55,20 @@ public class MatchService
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
     private final GlobalConfig globalConfig;
+    private final NativeConfig nativeConfig;
 
     @Inject
     MatchService(BufferAllocator bufferAllocator,
             StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            NativeConfig nativeConfig)
     {
         this.bufferAllocator = bufferAllocator;
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
         this.globalConfig = globalConfig;
+        this.nativeConfig = nativeConfig;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -131,6 +135,7 @@ public class MatchService
                         aggregatorPageArgs.readerId(),
                         aggregatorPageArgs.matchCollectMetadata(),
                         storageEngineConstants.getMatchStatePayload(),
+                        nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize(),
                         storageEngineConstants.getPageSize());
                 storageEngine.matchOpen(matchState.getStateMemory());
                 matchStateOpt = Optional.of(matchState);

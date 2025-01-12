@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dictionary.DictionaryException;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
@@ -84,6 +85,7 @@ public class StorageWriterService
     private final PrintMetricsTimerTask metricsTimerTask;
     private final LuceneIndexerStats statsLuceneIndexer;
     private final GlobalConfig globalConfig;
+    private final NativeConfig nativeConfig;
 
     @Inject
     public StorageWriterService(StorageEngine storageEngine,
@@ -95,7 +97,8 @@ public class StorageWriterService
             BlockAppenderFactory blockAppenderFactory,
             WarmupElementStatsService warmupElementStatsService,
             WorkerMemoryManager workerMemoryManager,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            NativeConfig nativeConfig)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -108,6 +111,7 @@ public class StorageWriterService
         this.statsLuceneIndexer = metricsManager.registerMetric(luceneIndexerStats);
         this.metricsTimerTask = requireNonNull(metricsTimerTask);
         this.globalConfig = requireNonNull(globalConfig);
+        this.nativeConfig = requireNonNull(nativeConfig);
     }
 
     public StorageWriterSplitConfig startWarming(String nodeIdentifier,
@@ -227,7 +231,8 @@ public class StorageWriterService
 
     private WarmUpState allocateWarmUpState(ThreadArena arena)
     {
-        return new WarmUpState(arena.allocate(WarmUpState.WARMUP_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize()));
+        final int storageBufferMetadaSize = nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize() / 100; // we take 1 percentage of the read size for write
+        return new WarmUpState(arena.allocate(WarmUpState.WARMUP_STATE_LAYOUT.byteSize() + storageBufferMetadaSize, ValueLayout.JAVA_INT.byteSize()));
     }
 
     private CompressionState allocateCompressionState(ThreadArena arena)

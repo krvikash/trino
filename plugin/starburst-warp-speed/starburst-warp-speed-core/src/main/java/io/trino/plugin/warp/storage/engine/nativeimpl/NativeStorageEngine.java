@@ -36,6 +36,7 @@ import java.lang.foreign.StructLayout;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -76,7 +77,7 @@ public class NativeStorageEngine
 
     private final ShapingLogger shapingLogger;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
-    private final ExceptionThrower exceptionThrower; // we keep a reference to hold this object for native layer ref
+    private final Optional<ExceptionThrower> exceptionThrower; // we keep a reference to hold this object for native layer ref
     private final CatalogName catalogName;
     private MemorySegment logMem;
     private final boolean loaded;
@@ -179,9 +180,6 @@ public class NativeStorageEngine
             ConnectorSync connectorSync,
             CatalogName catalogName)
     {
-        this.exceptionThrower = requireNonNull(exceptionThrower);
-        this.catalogName = requireNonNull(catalogName);
-
         final int taskMaxWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
         final int panicHaltPolicy = nativeConfig.getDebugPanicHaltPolicy();
         this.shapingLogger = ShapingLogger.getInstance(
@@ -189,6 +187,8 @@ public class NativeStorageEngine
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
+        this.catalogName = requireNonNull(catalogName);
+        this.exceptionThrower = (panicHaltPolicy == 0) ? Optional.of(exceptionThrower) : Optional.empty();
 
         logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d logSize %d",
                 taskMaxWorkerThreads, panicHaltPolicy, LOGGER_LOG_LAYOUT.byteSize());
@@ -281,8 +281,7 @@ public class NativeStorageEngine
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_PREDICATE_HEADER_SIZE, PredicateUtil.PREDICATE_HEADER_SIZE);
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_SKIP_INDEX_PERCENT, nativeConfig.getSkipIndexPercent());
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_LIMIT_NUM_IOS_IN_PARALLEL, nativeConfig.getLimitNumIosInParallel());
-            // maximal IO md size is two longs - pointer and offset, and 2 integers - size and returned value
-            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_IO_MD_MAX_SIZE, (int) (ValueLayout.JAVA_LONG.byteSize() * 2 + ValueLayout.JAVA_INT.byteSize() * 2));
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_IO_MD_MAX_SIZE, nativeConfig.getMaxIOMetadataSize());
 
             MemorySegment envEnableConfig = arena.allocate(ENV_ENABLE_CONFIG_LAYOUT.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
             envEnableConfig.set(ValueLayout.JAVA_INT, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION_EXCEPTION_LIST, nativeConfig.getExceptionalListCompression());
@@ -434,7 +433,17 @@ public class NativeStorageEngine
         if (logLevel < 0) {
             final int expectionId = -1 * logLevel;
             shapingLogger.error("catalog %s throwed native excetpion id %d", catalogName, expectionId);
-            exceptionThrower.throwException(expectionId, logString);
+            exceptionThrower.ifPresent(e -> e.throwException(expectionId, logString));
+            shapingLogger.error("catalog %s exception %s", catalogName, logString);
+            while (true) {
+                shapingLogger.warn("catalog %s throwed native excetpion went to endless sleep", catalogName);
+                try {
+                    Thread.sleep(100);
+                }
+                catch (Exception e) {
+                    logger.debug("sleep interrupted");
+                }
+            }
         }
         else if ((logString.length() > 0) && (logString.length() <= MAX_LOG_STRING_LENGTH)) {
             switch (logLevel) {

@@ -64,7 +64,6 @@ public class MatchState
     private static final long MATCH_STATE_OFFSET_NUM_CHUNKS_IN_RANGE;
     private static final long MATCH_STATE_OFFSET_MAX_TREE_HEIGHT;
 
-    private final int payloadSize;
     private final int pageSize;
     private final int numBitmaps;
     private final int numLuceneBitmaps;
@@ -132,23 +131,23 @@ public class MatchState
             int readerId,
             Optional<MemorySegment> matchCollectMetadata,
             int payloadSize, // payload is taken at the begining of the memory layout
+            int storageBufferMetadaSize, // this memory is allocated as a buffer following the match state struct
             int pageSize)
     {
         QueryParams queryParams = queryArgs.queryParams();
         // +1 below is for the current bitmaps set that is used as an intermediate bitmap by native layer
         final int matchTreeHeight = queryParams.getRootMatchNode().map(r -> r.getHeight() + 1).orElse(0);
-        this.payloadSize = payloadSize;
         this.pageSize = pageSize;
         this.numBitmaps = queryArgs.numChunksInRange() * matchTreeHeight;
         this.numLuceneBitmaps = queryArgs.numChunksInRange() * queryParams.getNumLucene();
         this.matchBitmaps = Optional.empty();
         this.matchBitmapsDescriptors = Optional.empty();
         this.luceneBitmaps = Optional.empty();
-        setMemory(arena, queryArgs.numChunksInRange());
+        setMemory(arena, payloadSize, queryArgs.numChunksInRange(), storageBufferMetadaSize);
         setState(queryArgs, readerId, matchCollectMetadata);
     }
 
-    private void setMemory(ThreadArena arena, int numChunksInRange)
+    private void setMemory(ThreadArena arena, int payloadSize, int numChunksInRange, int storageBufferMetadaSize)
     {
         if (numBitmaps > 0) {
             matchBitmaps = Optional.of(arena.allocate((long) numBitmaps * (long) pageSize, PAGE_BM_ALIGN));
@@ -158,7 +157,7 @@ public class MatchState
         if (numLuceneBitmaps > 0) {
             luceneBitmaps = Optional.of(arena.allocate((long) numLuceneBitmaps * (long) pageSize, PAGE_BM_ALIGN));
         }
-        this.matchStateWithPayload = arena.allocate(payloadSize + MATCH_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_LONG.byteSize());
+        this.matchStateWithPayload = arena.allocate(payloadSize + MATCH_STATE_LAYOUT.byteSize() + storageBufferMetadaSize, ValueLayout.JAVA_LONG.byteSize());
         this.matchState = matchStateWithPayload.asSlice(payloadSize, MATCH_STATE_LAYOUT);
     }
 
@@ -231,13 +230,6 @@ public class MatchState
     public Optional<MemorySegment> getLuceneBitmaps()
     {
         return luceneBitmaps;
-    }
-
-    public long byteSize()
-    {
-        return ((long) payloadSize + MATCH_STATE_LAYOUT.byteSize()) +
-                matchBitmaps.map(m -> m.byteSize()).orElse(0L) +
-                luceneBitmaps.map(m -> m.byteSize()).orElse(0L);
     }
 
     public MemorySegment getMatchLuceneState()

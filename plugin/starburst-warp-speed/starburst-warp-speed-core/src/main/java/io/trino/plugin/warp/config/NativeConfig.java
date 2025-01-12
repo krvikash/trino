@@ -41,6 +41,7 @@ public class NativeConfig
     private int storageCacheSizeInPages;
     private int skipIndexPercent = 80;
     private int limitNumIosInParallel = 2400;
+    private int maxIOMetadataSize = 24; // maximal IO md size is two longs - pointer and offset, and 2 integers - size and returned value
     private int taskMaxWorkerThreads = Runtime.getRuntime().availableProcessors() * 2;
     private int taskMinWarmingThreads; // used for limiting number of warming threads running in parallel to query
     private int debugPanicHaltPolicy;
@@ -150,6 +151,17 @@ public class NativeConfig
     public void setLimitNumIosInParallel(int limitNumIosInParallel)
     {
         this.limitNumIosInParallel = limitNumIosInParallel;
+    }
+
+    public int getMaxIOMetadataSize()
+    {
+        return maxIOMetadataSize;
+    }
+
+    @Config("warp-speed.config.max-io-metadata-size")
+    public void setMaxIOMetadataSize(int maxIOMetadataSize)
+    {
+        this.maxIOMetadataSize = maxIOMetadataSize;
     }
 
     public boolean getEnableSingleChunk()

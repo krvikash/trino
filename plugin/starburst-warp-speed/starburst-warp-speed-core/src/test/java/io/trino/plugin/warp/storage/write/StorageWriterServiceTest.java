@@ -139,6 +139,8 @@ public class StorageWriterServiceTest
 
         NativeConfig nativeConfig = new NativeConfig();
         nativeConfig.setTaskMaxWorkerThreads(4);
+        nativeConfig.setLimitNumIosInParallel(100);
+        nativeConfig.setMaxIOMetadataSize(8);
 
         this.bufferAllocator = mockBufferAllocator(storageEngine, storageEngineConstants, nativeConfig, metricsManager);
         dictionaryCacheService = mock(DictionaryCacheService.class);
@@ -155,7 +157,8 @@ public class StorageWriterServiceTest
                 blockAppenderFactory,
                 warmupElementStatsService,
                 workerMemoryManager,
-                globalConfig);
+                globalConfig,
+                nativeConfig);
     }
 
     @Test

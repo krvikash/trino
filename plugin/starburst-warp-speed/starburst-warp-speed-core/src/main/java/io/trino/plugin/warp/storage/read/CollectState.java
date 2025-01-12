@@ -76,9 +76,11 @@ public class CollectState
         COLLECT_STATE_OFFSET_IS_FULL_SCAN = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("is_full_scan"));
     }
 
-    public CollectState(ThreadArena arena, int payloadSize) // payload is taken at the begining of the memory layout
+    public CollectState(ThreadArena arena,
+            int payloadSize, // payload is taken at the begining of the memory layout
+            int storageBufferMetadaSize)  // this memory is allocated as a buffer following the match state struct
     {
-        this.collectStateWithPayload = arena.allocate(payloadSize + COLLECT_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_LONG.byteSize());
+        this.collectStateWithPayload = arena.allocate(payloadSize + COLLECT_STATE_LAYOUT.byteSize() + storageBufferMetadaSize, ValueLayout.JAVA_LONG.byteSize());
         this.collectState = collectStateWithPayload.asSlice(payloadSize, COLLECT_STATE_LAYOUT);
     }
 
