@@ -15,7 +15,7 @@ package io.trino.plugin.clickhouse;
 
 import io.trino.testing.QueryRunner;
 
-import static io.trino.plugin.clickhouse.TestingClickHouseServer.ALTINITY_DEFAULT_IMAGE;
+import static io.trino.plugin.clickhouse.TestingClickHouseServer.ALTINITY_LATEST_IMAGE;
 
 public class TestAltinityConnectorSmokeTest
         extends BaseClickHouseConnectorSmokeTest
@@ -24,7 +24,7 @@ public class TestAltinityConnectorSmokeTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return ClickHouseQueryRunner.builder(closeAfterClass(new TestingClickHouseServer(ALTINITY_DEFAULT_IMAGE)))
+        return ClickHouseQueryRunner.builder(closeAfterClass(new TestingClickHouseServer(ALTINITY_LATEST_IMAGE)))
                 .addConnectorProperty("clickhouse.map-string-as-varchar", "true") // To handle string types in TPCH tables as varchar instead of varbinary
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
