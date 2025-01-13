@@ -78,7 +78,7 @@ public final class ShallowDiscoveryCommand
                     .buildKeepingLast();
 
             OrcDataSourceFactory orcDataSourceFactory = (id, size, options, inputFile) -> new HdfsOrcDataSource(id, size, options, inputFile, new FileFormatDataSourceStats());
-            ParquetDataSourceFactory parquetDataSourceFactory = (inputFile) -> new TrinoParquetDataSource(inputFile, new ParquetReaderOptions(), new FileFormatDataSourceStats());
+            ParquetDataSourceFactory parquetDataSourceFactory = (inputFile) -> new TrinoParquetDataSource(inputFile, ParquetReaderOptions.defaultOptions(), new FileFormatDataSourceStats());
             SchemaDiscoveryController controller = new SchemaDiscoveryController(ShallowDiscoveryCommand::getFileSystem, parquetDataSourceFactory, orcDataSourceFactory, Dialect.valueOf(dialect.toUpperCase(ENGLISH)), executorService);
             ListenableFuture<DiscoveredSchema> discoveredSchemaListenableFuture = controller.discoverTablesShallow(new GuessRequest(parsedUri, shallowDiscoveryOptions));
 

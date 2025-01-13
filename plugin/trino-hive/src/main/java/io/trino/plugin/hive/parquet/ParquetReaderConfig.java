@@ -37,7 +37,7 @@ public class ParquetReaderConfig
 {
     public static final String PARQUET_READER_MAX_SMALL_FILE_THRESHOLD = "15MB";
 
-    private ParquetReaderOptions options = new ParquetReaderOptions();
+    private ParquetReaderOptions options = ParquetReaderOptions.defaultOptions();
 
     public boolean isIgnoreStatistics()
     {
@@ -48,7 +48,9 @@ public class ParquetReaderConfig
     @ConfigDescription("Ignore statistics from Parquet to allow querying files with corrupted or incorrect statistics")
     public ParquetReaderConfig setIgnoreStatistics(boolean ignoreStatistics)
     {
-        options = options.withIgnoreStatistics(ignoreStatistics);
+        options = ParquetReaderOptions.builder(options)
+                .withIgnoreStatistics(ignoreStatistics)
+                .build();
         return this;
     }
 
@@ -62,7 +64,9 @@ public class ParquetReaderConfig
     @LegacyConfig("hive.parquet.max-read-block-size")
     public ParquetReaderConfig setMaxReadBlockSize(DataSize maxReadBlockSize)
     {
-        options = options.withMaxReadBlockSize(maxReadBlockSize);
+        options = ParquetReaderOptions.builder(options)
+                .withMaxReadBlockSize(maxReadBlockSize)
+                .build();
         return this;
     }
 
@@ -77,7 +81,7 @@ public class ParquetReaderConfig
     @ConfigDescription("Maximum number of rows read in a batch")
     public ParquetReaderConfig setMaxReadBlockRowCount(int length)
     {
-        options = options.withMaxReadBlockRowCount(length);
+        options = ParquetReaderOptions.builder(options).withMaxReadBlockRowCount(length).build();
         return this;
     }
 
@@ -90,7 +94,9 @@ public class ParquetReaderConfig
     @Config("parquet.max-merge-distance")
     public ParquetReaderConfig setMaxMergeDistance(DataSize distance)
     {
-        options = options.withMaxMergeDistance(distance);
+        options = ParquetReaderOptions.builder(options)
+                .withMaxMergeDistance(distance)
+                .build();
         return this;
     }
 
@@ -104,7 +110,9 @@ public class ParquetReaderConfig
     @Config("parquet.max-buffer-size")
     public ParquetReaderConfig setMaxBufferSize(DataSize size)
     {
-        options = options.withMaxBufferSize(size);
+        options = ParquetReaderOptions.builder(options)
+                .withMaxBufferSize(size)
+                .build();
         return this;
     }
 
@@ -112,7 +120,9 @@ public class ParquetReaderConfig
     @ConfigDescription("Enable using Parquet column indexes")
     public ParquetReaderConfig setUseColumnIndex(boolean useColumnIndex)
     {
-        options = options.withUseColumnIndex(useColumnIndex);
+        options = ParquetReaderOptions.builder(options)
+                .withUseColumnIndex(useColumnIndex)
+                .build();
         return this;
     }
 
@@ -125,7 +135,9 @@ public class ParquetReaderConfig
     @ConfigDescription("Use Parquet Bloom filters")
     public ParquetReaderConfig setUseBloomFilter(boolean useBloomFilter)
     {
-        options = options.withBloomFilter(useBloomFilter);
+        options = ParquetReaderOptions.builder(options)
+                .withBloomFilter(useBloomFilter)
+                .build();
         return this;
     }
 
@@ -138,7 +150,9 @@ public class ParquetReaderConfig
     @ConfigDescription("Size below which a parquet file will be read entirely")
     public ParquetReaderConfig setSmallFileThreshold(DataSize smallFileThreshold)
     {
-        options = options.withSmallFileThreshold(smallFileThreshold);
+        options = ParquetReaderOptions.builder(options)
+                .withSmallFileThreshold(smallFileThreshold)
+                .build();
         return this;
     }
 
@@ -153,7 +167,9 @@ public class ParquetReaderConfig
     @ConfigDescription("Enable using Java Vector API for faster decoding of parquet files")
     public ParquetReaderConfig setVectorizedDecodingEnabled(boolean vectorizedDecodingEnabled)
     {
-        options = options.withVectorizedDecodingEnabled(vectorizedDecodingEnabled);
+        options = ParquetReaderOptions.builder(options)
+                .withVectorizedDecodingEnabled(vectorizedDecodingEnabled)
+                .build();
         return this;
     }
 
