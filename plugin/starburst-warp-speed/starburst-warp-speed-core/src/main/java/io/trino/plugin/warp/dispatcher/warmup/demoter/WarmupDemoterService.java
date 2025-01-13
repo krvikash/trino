@@ -179,7 +179,7 @@ public class WarmupDemoterService
             double epsilon,
             boolean isDeleteEmptyRowGroups)
     {
-        logger.info("catalog[%s]: startDemote", catalogName);
+        logger.debug("catalog[%s]: startDemote", catalogName);
         try {
             workerCapacityManager.updateCurrentUsage();
 
@@ -359,7 +359,7 @@ public class WarmupDemoterService
                 elementsDeleted += newElementsDeleted;
             }
             else {
-                logger.info("catalog[%s]: demoteCycle: while loop: reached below threshold", catalogName);
+                logger.debug("catalog[%s]: demoteCycle: while loop: reached below threshold", catalogName);
             }
         }
         logger.debug("catalog[%s]: demoteCycle: tupleRankListSize = %d, elementsDeleted = %d, maxElementsToDemote = %d, maxPriorityToDemote = %f, lowestPriorityLeft = %f",
@@ -472,7 +472,7 @@ public class WarmupDemoterService
         demoteContext.get().getStatsWarmupDemoter().adddeleted_by_low_priority(deletedObjectsCount);
         double highestPriorityDeleted = elementsToDemote.getLast().warmupProperties().priority();
 
-        logger.info("catalog[%s]: deleteByTupleRank -> deleted %d elements, highestPriorityDeleted=%s, maxPriorityToDemote=%s",
+        logger.debug("catalog[%s]: deleteByTupleRank -> deleted %d elements, highestPriorityDeleted=%s, maxPriorityToDemote=%s",
                 catalogName, elementsToDemote.size(), highestPriorityDeleted, maxPriorityToDemote);
 
         highestPriorityDemoted.set(highestPriorityDeleted);
