@@ -40,6 +40,7 @@ public class NativeConfig
     private DataSize collectTxSize = DataSize.of(2, DataSize.Unit.MEGABYTE);
     private int storageCacheSizeInPages;
     private int skipIndexPercent = 80;
+    private int limitNumIosInParallel = 2400;
     private int taskMaxWorkerThreads = Runtime.getRuntime().availableProcessors() * 2;
     private int taskMinWarmingThreads; // used for limiting number of warming threads running in parallel to query
     private int debugPanicHaltPolicy;
@@ -138,6 +139,17 @@ public class NativeConfig
     public void setSkipIndexPercent(int skipIndexPercent)
     {
         this.skipIndexPercent = skipIndexPercent;
+    }
+
+    public int getLimitNumIosInParallel()
+    {
+        return limitNumIosInParallel;
+    }
+
+    @Config("warp-speed.config.limit-num-ios-in-parallel")
+    public void setLimitNumIosInParallel(int limitNumIosInParallel)
+    {
+        this.limitNumIosInParallel = limitNumIosInParallel;
     }
 
     public boolean getEnableSingleChunk()

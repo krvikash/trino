@@ -58,6 +58,8 @@ public class NativeStorageEngine
     private static final long ENV_PROPERTIES_OFFSET_STORAGE_CACHE_SIZE_IN_PAGES;
     private static final long ENV_PROPERTIES_OFFSET_PREDICATE_HEADER_SIZE;
     private static final long ENV_PROPERTIES_OFFSET_SKIP_INDEX_PERCENT;
+    private static final long ENV_PROPERTIES_OFFSET_LIMIT_NUM_IOS_IN_PARALLEL;
+    private static final long ENV_PROPERTIES_OFFSET_IO_MD_MAX_SIZE;
 
     private static final StructLayout ENV_ENABLE_CONFIG_LAYOUT;
     private static final long ENV_ENABLE_CONFIG_OFFSET_COMPRESSION_EXCEPTION_LIST;
@@ -127,7 +129,9 @@ public class NativeStorageEngine
                 ValueLayout.JAVA_INT.withName("collect_tx_size"),
                 ValueLayout.JAVA_INT.withName("storage_cache_size_in_pages"),
                 ValueLayout.JAVA_INT.withName("predicate_header_size"),
-                ValueLayout.JAVA_INT.withName("skip_index_percent")).withName("env_properties_t");
+                ValueLayout.JAVA_INT.withName("skip_index_percent"),
+                ValueLayout.JAVA_INT.withName("limit_num_ios_in_parallel"),
+                ValueLayout.JAVA_INT.withName("io_md_max_size")).withName("env_properties_t");
 
         ENV_PROPERTIES_OFFSET_LIBRARY_PATH = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("plibrary_path"));
         ENV_PROPERTIES_OFFSET_LOG = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("plog"));
@@ -140,6 +144,8 @@ public class NativeStorageEngine
         ENV_PROPERTIES_OFFSET_STORAGE_CACHE_SIZE_IN_PAGES = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("storage_cache_size_in_pages"));
         ENV_PROPERTIES_OFFSET_PREDICATE_HEADER_SIZE = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("predicate_header_size"));
         ENV_PROPERTIES_OFFSET_SKIP_INDEX_PERCENT = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("skip_index_percent"));
+        ENV_PROPERTIES_OFFSET_LIMIT_NUM_IOS_IN_PARALLEL = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("limit_num_ios_in_parallel"));
+        ENV_PROPERTIES_OFFSET_IO_MD_MAX_SIZE = ENV_PROPERTIES_LAYOUT.byteOffset(PathElement.groupElement("io_md_max_size"));
 
         ENV_ENABLE_CONFIG_LAYOUT = MemoryLayout.structLayout(
                 ValueLayout.JAVA_INT.withName("compression_exceptional_list"),
@@ -274,6 +280,9 @@ public class NativeStorageEngine
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_STORAGE_CACHE_SIZE_IN_PAGES, nativeConfig.getStorageCacheSizeInPages());
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_PREDICATE_HEADER_SIZE, PredicateUtil.PREDICATE_HEADER_SIZE);
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_SKIP_INDEX_PERCENT, nativeConfig.getSkipIndexPercent());
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_LIMIT_NUM_IOS_IN_PARALLEL, nativeConfig.getLimitNumIosInParallel());
+            // maximal IO md size is two longs - pointer and offset, and 2 integers - size and returned value
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_IO_MD_MAX_SIZE, (int) (ValueLayout.JAVA_LONG.byteSize() * 2 + ValueLayout.JAVA_INT.byteSize() * 2));
 
             MemorySegment envEnableConfig = arena.allocate(ENV_ENABLE_CONFIG_LAYOUT.byteSize(), ValueLayout.JAVA_BYTE.byteSize());
             envEnableConfig.set(ValueLayout.JAVA_INT, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION_EXCEPTION_LIST, nativeConfig.getExceptionalListCompression());
