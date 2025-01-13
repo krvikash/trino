@@ -99,7 +99,13 @@ public abstract class DispatcherAbstractTestQueryFramework
     protected RowGroupCountResult getRowGroupCount()
             throws IOException
     {
-        String s = executeRestCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME, null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
+        return getRowGroupCount(Target.COORDINATOR);
+    }
+
+    protected RowGroupCountResult getRowGroupCount(Target target)
+            throws IOException
+    {
+        String s = executeRestCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME, null, HttpMethod.GET, HttpURLConnection.HTTP_OK, target);
         return objectMapper.readerFor(RowGroupCountResult.class).readValue(s);
     }
 

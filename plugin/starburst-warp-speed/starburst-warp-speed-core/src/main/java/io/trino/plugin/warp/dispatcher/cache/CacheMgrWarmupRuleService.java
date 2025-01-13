@@ -49,7 +49,7 @@ public class CacheMgrWarmupRuleService
             throws TrinoException
     {
         if (newWarmupRules.isEmpty()) {
-            cache.clear();
+            cache = Map.of();
         }
         else {
             try {

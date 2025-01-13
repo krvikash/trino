@@ -200,45 +200,32 @@ public abstract class WarpAbstractTestQueryFramework
     protected String executeRestCommand(String ext, Object inObj, int responseCode)
             throws IOException
     {
-        return executeRestCommand("/v1/ext/varada/", ext, inObj, HttpMethod.POST, responseCode, false);
+        return executeRestCommand("/v1/ext/varada/", ext, inObj, HttpMethod.POST, responseCode, Target.COORDINATOR);
     }
 
     protected String executeWorkerRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)
             throws IOException
     {
-        return executeRestCommand(prefix, ext, inObj, httpMethod, responseCode, true);
+        return executeRestCommand(prefix, ext, inObj, httpMethod, responseCode, Target.WORKER);
     }
 
     protected String executeRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)
             throws IOException
     {
-        return executeRestCommand(prefix, ext, inObj, httpMethod, responseCode, false);
+        return executeRestCommand(prefix, ext, inObj, httpMethod, responseCode, Target.COORDINATOR);
     }
 
-    protected String executeRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode, boolean sendToWorker)
+    protected String executeRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode, Target target)
             throws IOException
     {
-        URI baseUrl = sendToWorker ? ((DistributedQueryRunner) this.getQueryRunner()).getServers().getFirst().getBaseUrl() : this.getQueryRunner().getCoordinator().getBaseUrl();
-        return executeRestCommand(prefix,
-                ext,
-                inObj,
-                httpMethod,
-                baseUrl.getPort() + 1,
-                responseCode,
-                sendToWorker);
-    }
+        URI baseUrl;
+        switch (target) {
+            case COORDINATOR, CACHE_MGR -> baseUrl = getQueryRunner().getCoordinator().getBaseUrl();
+            case WORKER -> baseUrl = ((DistributedQueryRunner) getQueryRunner()).getServers().getFirst().getBaseUrl();
+            default -> throw new RuntimeException("unknown option " + target);
+        }
+        int port = baseUrl.getPort() + target.shiftPort;
 
-    protected String executeRestCommand(
-            String prefix,
-            String ext,
-            Object inObj,
-            String httpMethod,
-            int port,
-            int responseCode,
-            boolean sendToWorker)
-            throws IOException
-    {
-        URI baseUrl = sendToWorker ? ((DistributedQueryRunner) this.getQueryRunner()).getServers().getFirst().getBaseUrl() : this.getQueryRunner().getCoordinator().getBaseUrl();
         prefix = prefix.endsWith("/") ? prefix : prefix + "/";
         prefix = prefix.startsWith("/") ? prefix : "/" + prefix;
 
@@ -271,5 +258,19 @@ public abstract class WarpAbstractTestQueryFramework
         assertThat(response.getStatusCode()).describedAs(response.getBody()).isEqualTo(responseCode);
         client.close();
         return response.getBody();
+    }
+
+    public enum Target
+    {
+        COORDINATOR(1),
+        WORKER(1),
+        CACHE_MGR(3);
+
+        private final int shiftPort;
+
+        Target(int shiftPort)
+        {
+            this.shiftPort = shiftPort;
+        }
     }
 }

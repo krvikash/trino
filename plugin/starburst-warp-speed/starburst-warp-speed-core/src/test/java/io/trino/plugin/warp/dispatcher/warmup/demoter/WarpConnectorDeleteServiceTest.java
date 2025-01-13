@@ -103,7 +103,9 @@ class WarpConnectorDeleteServiceTest
                 defaultBatchSize,
                 defaultEpsilon,
                 true,
-                new TupleRankResult(List.of(), List.of(), List.of()));
+                true,
+                true,
+                new TupleRankResult(new ArrayList<>(), List.of(), List.of()));
 
         initDefaultMembers();
     }
@@ -394,7 +396,7 @@ class WarpConnectorDeleteServiceTest
                 Map.of(),
                 0,
                 true);
-        warpDeleteService.deleteRowGroupData(rowGroupData, List.of(), demoteContext, true);
+        warpDeleteService.deleteRowGroupData(rowGroupData, List.of(), demoteContext);
         verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupData), eq(Boolean.TRUE));
     }
 
@@ -411,7 +413,10 @@ class WarpConnectorDeleteServiceTest
         TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
         assertThat(tupleRankResult.failedObjects().size()).isEqualTo(20);
 
-        warpDeleteService.deleteRowGroupData(rowGroupDataList.getFirst(), tupleRankResult.failedObjects(), demoteContext, true);
+        warpDeleteService.deleteRowGroupData(
+                rowGroupDataList.getFirst(),
+                tupleRankResult.failedObjects(),
+                demoteContext);
         verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupDataList.getFirst()), eq(true));
     }
 
@@ -424,7 +429,10 @@ class WarpConnectorDeleteServiceTest
         TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
         assertThat(tupleRankResult.tupleRankList().size()).isEqualTo(20);
 
-        warpDeleteService.deleteRowGroupData(rowGroupData, tupleRankResult.tupleRankList(), demoteContext, true);
+        warpDeleteService.deleteRowGroupData(
+                rowGroupData,
+                tupleRankResult.tupleRankList(),
+                demoteContext);
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData), argThat(list -> list.size() == 20));
     }
 
@@ -437,7 +445,10 @@ class WarpConnectorDeleteServiceTest
         TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
         assertThat(tupleRankResult.tupleRankList().size()).isEqualTo(20);
 
-        warpDeleteService.deleteRowGroupData(rowGroupData, tupleRankResult.tupleRankList().subList(0, 5), demoteContext, true);
+        warpDeleteService.deleteRowGroupData(
+                rowGroupData,
+                tupleRankResult.tupleRankList().subList(0, 5),
+                demoteContext);
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData), argThat(list -> list.size() == 5));
     }
 
@@ -466,7 +477,19 @@ class WarpConnectorDeleteServiceTest
         TupleRankResult tupleRankResult = warpDeleteService.buildTupleRank(List.of(), true);
         assertThat(tupleRankResult.tupleRankList().size()).isEqualTo(8);
 
-        warpDeleteService.delete(tupleRankResult.tupleRankList(), demoteContext, false);
+        DemoteContext demoteContextTmp = new DemoteContext(
+                demoteContext.maxUsageThresholdPercentage(),
+                demoteContext.cleanupUsageThresholdPercentage(),
+                demoteContext.batchSize(),
+                demoteContext.batchSize(),
+                demoteContext.epsilon(),
+                false,
+                true,
+                true,
+                new TupleRankResult(new ArrayList<>(), List.of(), List.of()));
+        warpDeleteService.delete(
+                tupleRankResult.tupleRankList(),
+                demoteContextTmp);
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData1), anyCollection());
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData1));
     }

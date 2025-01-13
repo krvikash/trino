@@ -13,9 +13,30 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
+import java.util.Collections;
 import java.util.List;
 
 public record TupleRankResult(
         List<TupleRank> tupleRankList,
         List<TupleRank> immediateObjects,
-        List<TupleRank> failedObjects) {}
+        List<TupleRank> failedObjects)
+{
+    public TupleRankResult
+    {
+        Collections.sort(tupleRankList);
+    }
+
+    public double getLowestPriority()
+    {
+        return tupleRankList().isEmpty() ? Double.MIN_VALUE : tupleRankList().getFirst().warmupProperties().priority();
+    }
+
+    public String toShortString()
+    {
+        return "TupleRankResult{" +
+                "tupleRankList.size=" + (tupleRankList != null ? tupleRankList.size() : 0) +
+                ", immediateObjects.size=" + (immediateObjects != null ? immediateObjects.size() : 0) +
+                ", failedObjects.size=" + (failedObjects != null ? failedObjects.size() : 0) +
+                '}';
+    }
+}

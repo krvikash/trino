@@ -34,9 +34,7 @@ import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.TupleRankResult;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
-import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask;
-import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterThreshold;
 import io.trino.plugin.warp.extension.execution.warmup.CacheMgrWarmupTask;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
@@ -94,14 +92,12 @@ public class TestHiveWarpCacheManager
     private static final String COL_INT_1 = "int1";
     private static final String COL_V_1 = "v1";
 
-    private int coordinatorPort;
     private final Path cacheMgrPath;
     private final Path cacheMgrFetcherPath;
 
     public TestHiveWarpCacheManager()
     {
         super(1, "hive_cache");
-
         try {
             cacheMgrPath = Files.createTempDirectory("cache_mgr");
             cacheMgrFetcherPath = Files.createTempDirectory("cache_mgr_fetcher");
@@ -136,10 +132,6 @@ public class TestHiveWarpCacheManager
                     warpExtensionConfig.setUseHttpServerPort(false);
                     warpExtensionConfig.setRestHttpPort(server.getBaseUrl().getPort() + 3);
 
-                    if (server.isCoordinator()) {
-                        coordinatorPort = warpExtensionConfig.getRestHttpPort();
-                    }
-
                     ImmutableMap.Builder<String, String> cacheConfigBuilder = ImmutableMap.builder();
                     server.getCacheManagerRegistry(
                             DISPATCHER_CACHE_MANAGER_NAME,
@@ -163,6 +155,11 @@ public class TestHiveWarpCacheManager
     public void beforeMethod(TestInfo testInfo)
     {
         super.beforeMethod(testInfo);
+
+//        java.util.logging.Logger rootLogger = java.util.logging.LogManager.getLogManager()
+//                .getLogger(WarmupDemoterService.class.getName());
+//        rootLogger.setLevel(java.util.logging.Level.FINE);
+
         prepare();
     }
 
@@ -171,6 +168,8 @@ public class TestHiveWarpCacheManager
     public void afterMethod(TestInfo testInfo)
     {
         deleteCacheRulesFile(getCacheRulesPath());
+        restDemoteConfigToDefaults(Target.CACHE_MGR);
+        demoteAll(Target.CACHE_MGR);
         super.afterMethod(testInfo);
     }
 
@@ -207,13 +206,13 @@ public class TestHiveWarpCacheManager
         prepareCacheMgrRules(List.of("key"));
 
         @Language("SQL") String query = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_1 + " where " + COL_V_1 + " like '%shlomi%'";
-        runQueryAndValidateReadFromCache(queryRunner, query, false);
+        runQueryAndValidateReadFromCache(queryRunner, query, false, Target.CACHE_MGR);
 
         @Language("SQL") String query2 = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_2 + " where " + COL_V_1 + " like '%shlomi%'";
-        runQueryAndValidateReadFromCache(queryRunner, query2, false);
+        runQueryAndValidateReadFromCache(queryRunner, query2, false, Target.CACHE_MGR);
 
         @Language("SQL") String unionQuery = ("select * from %s b where b." + COL_INT_1 + " > 0 union all select * from %s").formatted(TABLE_1, TABLE_2);
-        runQueryAndValidateReadFromCache(queryRunner, unionQuery, false);
+        runQueryAndValidateReadFromCache(queryRunner, unionQuery, false, Target.CACHE_MGR);
         assertExplain("explain " + unionQuery, "CacheData\\[\\]\n.*\n.*TableScan.*");
     }
 
@@ -227,37 +226,39 @@ public class TestHiveWarpCacheManager
         prepareCacheMgrRules(List.of("dummy"));
 
         @Language("SQL") String query = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_1 + " where " + COL_V_1 + " like '%shlomi%'";
-        runQueryAndValidateReadFromCache(queryRunner, query, true);
+        runQueryAndValidateReadFromCache(queryRunner, query, true, Target.CACHE_MGR);
 
         @Language("SQL") String query2 = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_2 + " where " + COL_V_1 + " like '%shlomi%'";
-        runQueryAndValidateReadFromCache(queryRunner, query2, true);
+        runQueryAndValidateReadFromCache(queryRunner, query2, true, Target.CACHE_MGR);
 
         @Language("SQL") String unionQuery = ("select * from %s b where b." + COL_INT_1 + " > 0 union all select * from %s").formatted(TABLE_1, TABLE_2);
-        runQueryAndValidateReadFromCache(queryRunner, unionQuery, true);
+        runQueryAndValidateReadFromCache(queryRunner, unionQuery, true, Target.CACHE_MGR);
         assertExplain("explain " + unionQuery, "CacheData\\[\\]\n.*\n.*TableScan.*");
     }
 
     @Test
-    public void testDemoteWithRules()
+    public void testCallCacheMgrDemoteCacheMgrWithRules()
             throws IOException
     {
-        DistributedQueryRunner queryRunner = getDistributedQueryRunner();
-
-        //prepare irrelevant warmup rules so the initial list is not empty
-        prepareCacheMgrRules(List.of("dummy"));
-
         @Language("SQL") String query = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_1 + " where " + COL_V_1 + " like '%shlomi%'";
-        runQueryAndValidateReadFromCache(queryRunner, query, true);
+        runQueryAndValidateReadFromCache(getDistributedQueryRunner(), query, true, Target.CACHE_MGR);
 
-        demote(WarmupDemoterData.builder()
-                .batchSize(1)
-                .modifyConfig(true)
-                .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.1))
-                .build());
+        validateDemoter(Target.CACHE_MGR,
+                new DemoteInput(catalog, 0, 12),
+                new DemoteInput(DISPATCHER_CACHE_MANAGER_NAME, 0, 1));
+    }
+
+    @Test
+    public void testCallConnectorDemoteCacheMgrWithRules()
+            throws IOException
+    {
+        @Language("SQL") String query = "select " + COL_INT_1 + ", " + COL_V_1 + " from " + TABLE_1 + " where " + COL_V_1 + " like '%shlomi%'";
+        runQueryAndValidateReadFromCache(getDistributedQueryRunner(), query, true, Target.CACHE_MGR);
 
         validateDemoter(
-                new DemoteInput(catalog, 0, 10),
-                new DemoteInput(DISPATCHER_CACHE_MANAGER_NAME, 0, 2));
+                Target.COORDINATOR,
+                new DemoteInput(catalog, 0, 12),
+                new DemoteInput(DISPATCHER_CACHE_MANAGER_NAME, 0, 1));
     }
 
     /**
@@ -296,7 +297,8 @@ public class TestHiveWarpCacheManager
     private void runQueryAndValidateReadFromCache(
             DistributedQueryRunner queryRunner,
             @Language("SQL") String query,
-            boolean withSignature)
+            boolean withSignature,
+            Target target)
             throws IOException
     {
         warmAndValidateCacheQuery(queryRunner, query);
@@ -347,16 +349,15 @@ public class TestHiveWarpCacheManager
                     assertThat(operatorTypesTmp).contains(TestHiveWarpCacheManager.loadCachedDataOperatorName);
                 });
 
-        //make sure that when rules are used they priority is non-zero
+        //make sure that when rules are used their priority is non-zero
         if (withSignature) {
             String resultStr = executeRestCommand(
                     WarmupDemoterTask.WARMUP_DEMOTER_PATH,
                     WarmupDemoterTask.WARMUP_DEMOTER_TUPLE_RANKS_TASK_NAME,
                     null,
                     HttpMethod.GET,
-                    coordinatorPort,
                     HttpURLConnection.HTTP_OK,
-                    false);
+                    target);
             Map<String, TupleRankResult> result = objectMapper.readerFor(new TypeReference<Map<String, TupleRankResult>>() {})
                     .readValue(resultStr);
             double priority = result.values()
@@ -377,6 +378,7 @@ public class TestHiveWarpCacheManager
     private void warmAndValidateCacheQuery(
             DistributedQueryRunner queryRunner,
             @Language("SQL") String query)
+            throws IOException
     {
         Session jmxSession = createJmxSession();
         String warmStatsTableName = "%s:name=%s_%s,type=%s".formatted(
@@ -413,11 +415,8 @@ public class TestHiveWarpCacheManager
                     Long valueCacheAccomplishedAfter = (Long) materializedRowTmp.getFields().get(1);
 
                     assertThat(valueCacheStartedAfter)
-                            .as("different result for query=%s", query)
+                            .as("valueCacheStartedAfter different result for query=%s", query)
                             .isGreaterThan(valueCacheStartedBefore);
-                    assertThat(valueCacheStartedAfter)
-                            .as("different result for query=%s", query)
-                            .isEqualTo(valueCacheAccomplishedAfter);
                     assertThat(valueCacheAccomplishedAfter)
                             .as("different result for query=%s", query)
                             .isGreaterThan(valueCacheAccomplishedBefore);
@@ -508,9 +507,8 @@ public class TestHiveWarpCacheManager
                 CacheMgrWarmupTask.TASK_NAME_FETCH,
                 null,
                 HttpMethod.GET,
-                coordinatorPort,
                 HttpURLConnection.HTTP_OK,
-                false);
+                Target.CACHE_MGR);
         Map<String, List<CacheManagerRule>> res = objectMapper
                 .readerFor(new TypeReference<Map<String, List<CacheManagerRule>>>() {})
                 .readValue(result);

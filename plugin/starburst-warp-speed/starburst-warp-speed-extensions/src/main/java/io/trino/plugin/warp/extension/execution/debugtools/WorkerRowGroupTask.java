@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.trino.plugin.warp.extension.execution.debugtools.WorkerRowGroupTask.WORKER_ROW_GROUP_PATH;
 import static java.util.Objects.requireNonNull;
 
-@TaskResourceMarker(coordinator = false)
+@TaskResourceMarker(coordinator = false, cacheMgr = true)
 @Path(WORKER_ROW_GROUP_PATH)
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)

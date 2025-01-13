@@ -219,13 +219,16 @@ public class WorkerWarmupDemoterTask
     private Thresholds getThresholds(WarmupDemoterData warmupDemoterData)
     {
         if (warmupDemoterData.getWarmupDemoterThreshold() == null) {
-            return new Thresholds(warmupDemoterData.getMaxUsageThresholdInPercentage(), warmupDemoterData.getCleanupUsageThresholdInPercentage());
+            return new Thresholds(
+                    warmupDemoterData.getMaxUsageThresholdInPercentage(),
+                    warmupDemoterData.getCleanupUsageThresholdInPercentage());
         }
 
         long currentUsage = workerCapacityManager.getCurrentUsage();
         long totalCapacity = workerCapacityManager.getTotalCapacity();
         WarmupDemoterThreshold threshold = warmupDemoterData.getWarmupDemoterThreshold();
-        return new Thresholds(calculateThreshold(threshold.maxPercentageFactorThreshold(), currentUsage, totalCapacity),
+        return new Thresholds(
+                calculateThreshold(threshold.maxPercentageFactorThreshold(), currentUsage, totalCapacity),
                 calculateThreshold(threshold.cleanupPercentageFactorThreshold(), currentUsage, totalCapacity));
     }
 
@@ -237,15 +240,16 @@ public class WorkerWarmupDemoterTask
     private void modifyConfigIfRequired(WarmupDemoterData warmupDemoterData)
     {
         if (warmupDemoterData.isModifyConfig()) {
-            Thresholds thresholds = getThresholds(warmupDemoterData);
             if (warmupDemoterData.getBatchSize() > -1) {
                 warmupDemoterConfig.setBatchSize(warmupDemoterData.getBatchSize());
+                warmupDemoterConfig.setMaxElementsToDemoteInIteration(warmupDemoterData.getBatchSize());
             }
-            if (thresholds.maxUsageThreshold > -1) {
-                warmupDemoterConfig.setMaxUsageThresholdPercentage(thresholds.maxUsageThreshold);
+            Thresholds thresholds = getThresholds(warmupDemoterData);
+            if (thresholds.maxUsageThreshold() > -1) {
+                warmupDemoterConfig.setMaxUsageThresholdPercentage(thresholds.maxUsageThreshold());
             }
-            if (thresholds.cleanupUsageThreshold > -1) {
-                warmupDemoterConfig.setCleanupUsageThresholdPercentage(thresholds.cleanupUsageThreshold);
+            if (thresholds.cleanupUsageThreshold() > -1) {
+                warmupDemoterConfig.setCleanupUsageThresholdPercentage(thresholds.cleanupUsageThreshold());
             }
             if (warmupDemoterData.getEpsilon() > -1) {
                 warmupDemoterConfig.setEpsilon(warmupDemoterData.getEpsilon());

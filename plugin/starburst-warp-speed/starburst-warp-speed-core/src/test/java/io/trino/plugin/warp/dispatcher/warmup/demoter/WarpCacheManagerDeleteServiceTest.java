@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
+import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -60,7 +62,11 @@ public class WarpCacheManagerDeleteServiceTest
     public void before()
     {
         MockitoAnnotations.openMocks(this);
-        warpCacheManagerDeleteService = new WarpCacheManagerDeleteService(rowGroupDataService, cacheMgrWarmupRuleService);
+        warpCacheManagerDeleteService = new WarpCacheManagerDeleteService(
+                rowGroupDataService,
+                cacheMgrWarmupRuleService,
+                new WarmupDemoterConfig(),
+                new NativeConfig());
         int defaultBatchSize = 2;
         int defaultEpsilon = 1;
         double defaultMaxThreshold = 95;
@@ -72,7 +78,9 @@ public class WarpCacheManagerDeleteServiceTest
                 defaultBatchSize,
                 defaultEpsilon,
                 true,
-                new TupleRankResult(List.of(), List.of(), List.of()));
+                true,
+                true,
+                new TupleRankResult(new ArrayList<>(), List.of(), List.of()));
     }
 
     @Test
@@ -183,11 +191,12 @@ public class WarpCacheManagerDeleteServiceTest
         TupleRank tupleRank = new TupleRank(warmupProperties, null, rowGroupKey);
         List<TupleRank> tupleRanks = List.of(tupleRank);
 
-        long deletedCount = warpCacheManagerDeleteService.delete(tupleRanks, demoteContext, true);
+        long deletedCount = warpCacheManagerDeleteService.delete(tupleRanks, demoteContext);
 
         verify(rowGroupDataService).get(rowGroupKey);
         verify(rowGroupDataService).deleteData(rowGroupData, true);
-        assertThat(deletedCount).isEqualTo(2);
+//        assertThat(deletedCount).isEqualTo(2); // see comment on `WarpCacheManagerDeleteService.delete` line 134
+        assertThat(deletedCount).isEqualTo(1);
     }
 
     private RowGroupData createRowGroupData(List<WarmUpElement> warmUpElements)

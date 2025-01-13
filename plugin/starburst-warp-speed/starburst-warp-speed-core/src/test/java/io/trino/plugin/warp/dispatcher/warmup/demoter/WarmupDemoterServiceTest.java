@@ -103,7 +103,7 @@ public class WarmupDemoterServiceTest
         workerCapacityManager = mock(WorkerCapacityManager.class);
         EventBus eventBus = mock(EventBus.class);
         deleteService = mock(WarpDeleteService.class);
-        when(deleteService.delete(anyList(), any(), anyBoolean())).thenAnswer(invocation -> {
+        when(deleteService.delete(anyList(), any())).thenAnswer(invocation -> {
             List<TupleRank> arg = invocation.getArgument(0); // Get the argument passed
             return (long) arg.size();
         });
@@ -140,7 +140,9 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups());
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority());
 
         assertThat(warmupDemoterService.tryDemoteStart()).isFalse();
         WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WarmupDemoterStats.createKey());
@@ -178,7 +180,7 @@ public class WarmupDemoterServiceTest
 
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         when(deleteService.buildTupleRank(anyList(), anyBoolean()))
-                .thenReturn(new TupleRankResult(List.of(), immediateObjects, List.of()));
+                .thenReturn(new TupleRankResult(new ArrayList<>(), immediateObjects, List.of()));
         when(demoterSync.tryStartDemoteProcess(
                 demoteKey,
                 warmupDemoterConfig.getMaxUsageThresholdPercentage(),
@@ -186,7 +188,9 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups()))
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority()))
                 .thenReturn(true);
 
         assertThat(warmupDemoterService.tryDemoteStart()).isTrue();
@@ -197,7 +201,9 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups());
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority());
 
         assertThat(warmupDemoterService.getCurrentRunStats().getdead_objects_deleted()).isEqualTo(20);
         verify(demoterSync, times(1))
@@ -217,19 +223,23 @@ public class WarmupDemoterServiceTest
             failedObjects.add(new TupleRank(warmupProperties, buildWarmupElement(index, 0), rowGroupKey));
         });
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
+        warmupDemoterConfig.setForceDeleteFailedObjects(true);
+
         when(deleteService.buildTupleRank(anyList(), anyBoolean()))
-                .thenReturn(new TupleRankResult(List.of(), List.of(), failedObjects));
+                .thenReturn(new TupleRankResult(new ArrayList<>(), List.of(), failedObjects));
         when(demoterSync.tryStartDemoteProcess(
-                demoteKey,
-                warmupDemoterConfig.getMaxUsageThresholdPercentage(),
-                warmupDemoterConfig.getCleanupUsageThresholdPercentage(),
-                warmupDemoterConfig.getBatchSize(),
-                warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
-                warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups()))
+                eq(demoteKey),
+                eq(warmupDemoterConfig.getMaxUsageThresholdPercentage()),
+                eq(warmupDemoterConfig.getCleanupUsageThresholdPercentage()),
+                eq(warmupDemoterConfig.getBatchSize()),
+                eq(warmupDemoterConfig.getMaxElementsToDemoteInIteration()),
+                eq(warmupDemoterConfig.getEpsilon()),
+                eq(warmupDemoterConfig.isDeleteEmptyRowGroups()),
+                eq(warmupDemoterConfig.isForceDeleteFailedObjects()),
+                eq(warmupDemoterConfig.isResetHighestPriority())))
                 .thenReturn(true);
 
-        warmupDemoterConfig.setForceDeleteFailedObjects(true);
+        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(10d);
 
         assertThat(warmupDemoterService.tryDemoteStart()).isTrue();
 
@@ -239,7 +249,9 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups());
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority());
 
         assertThat(warmupDemoterService.getCurrentRunStats().getfailed_objects_deleted()).isEqualTo(20);
         verify(demoterSync, times(1))
@@ -270,7 +282,9 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups()))
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority()))
                 .thenReturn(true);
 
         assertThat(warmupDemoterService.tryDemoteStart()).isTrue();
@@ -281,10 +295,10 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups());
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-
-        assertThat(warmupDemoterService.getDemoterHighestPriority().get()).isEqualTo(0);
         assertThat(warmupDemoterService.getCurrentRunStats().getdeleted_by_low_priority()).isGreaterThan(1);
         verify(demoterSync, times(1))
                 .finishDemoteProcess(eq(demoteKey),
@@ -320,7 +334,9 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups()))
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority()))
                 .thenReturn(true);
 
 //        assertThat(warmupDemoterService.tryDemoteStart()).isTrue();
@@ -331,7 +347,9 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups());
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, false);
 
         verify(demoterSync, times(1))
@@ -360,7 +378,9 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups()))
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority()))
                 .thenReturn(false);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
@@ -382,14 +402,13 @@ public class WarmupDemoterServiceTest
                 eq(warmupDemoterConfig.getBatchSize()),
                 eq(warmupDemoterConfig.getMaxElementsToDemoteInIteration()),
                 eq(warmupDemoterConfig.getEpsilon()),
-                eq(warmupDemoterConfig.isDeleteEmptyRowGroups())))
+                eq(warmupDemoterConfig.isDeleteEmptyRowGroups()),
+                eq(warmupDemoterConfig.isForceDeleteFailedObjects()),
+                eq(warmupDemoterConfig.isResetHighestPriority())))
                 .thenReturn(true);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
 
         assertThat(warmupDemoterService.initiateDemoteProcess()).isTrue();
-
-        //end demote execution
-        warmupDemoterService.connectorSyncDemoteEnd(1, false);
 
         warmupDemoterService.initDemoteContext(
                 warmupDemoterConfig.getMaxUsageThresholdPercentage(),
@@ -397,7 +416,9 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.getBatchSize(),
                 warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
                 warmupDemoterConfig.getEpsilon(),
-                warmupDemoterConfig.isDeleteEmptyRowGroups());
+                warmupDemoterConfig.isDeleteEmptyRowGroups(),
+                warmupDemoterConfig.isForceDeleteFailedObjects(),
+                warmupDemoterConfig.isResetHighestPriority());
         assertThat(warmupDemoterService.initiateDemoteProcess()).isTrue();
     }
 
@@ -413,7 +434,9 @@ public class WarmupDemoterServiceTest
                 eq(warmupDemoterConfig.getBatchSize()),
                 eq(warmupDemoterConfig.getMaxElementsToDemoteInIteration()),
                 eq(warmupDemoterConfig.getEpsilon()),
-                eq(warmupDemoterConfig.isDeleteEmptyRowGroups())))
+                eq(warmupDemoterConfig.isDeleteEmptyRowGroups()),
+                eq(warmupDemoterConfig.isForceDeleteFailedObjects()),
+                eq(warmupDemoterConfig.isResetHighestPriority())))
                 .thenReturn(true);
 
         assertThat(warmupDemoterService.initiateDemoteProcess()).isTrue();

@@ -168,20 +168,27 @@ public abstract class DispatcherStubsIntegrationSmokeIT
 
     protected void demoteAll()
     {
+        demoteAll(Target.COORDINATOR);
+    }
+
+    protected void demoteAll(Target target)
+    {
         try {
             logger.debug("demote all start");
-            WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder().maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                    .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                    .executeDemoter(true)
-                    .modifyConfig(true)
-                    .resetHighestPriority(true)
-                    .forceDeleteFailedObjects(true)
-                    .build();
+
             String result = executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH,
                     WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME,
-                    warmupDemoterData,
+                    WarmupDemoterData.builder().maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
+                            .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
+                            .executeDemoter(true)
+                            .modifyConfig(true)
+                            .resetHighestPriority(true)
+                            .forceDeleteFailedObjects(true)
+                            .build(),
                     HttpMethod.POST,
-                    HttpURLConnection.HTTP_OK);
+                    HttpURLConnection.HTTP_OK,
+                    target);
+
             Map<String, Object> res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
             Double highestPriority = (Double) res.entrySet()
                     .stream()
@@ -191,7 +198,9 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     .getValue();
             logger.debug("demote task finish =" + res);
             assertThat(highestPriority).isEqualTo(0);
-            restDemoteConfigToDefaults();
+
+            restDemoteConfigToDefaults(target);
+
 //            validateEmptyUsage();
             String dictionariesReset = executeRestCommand(DictionaryTask.DICTIONARY_PATH,
                     DictionaryTask.DICTIONARY_RESET_MEMORY_TASK_NAME,
@@ -207,6 +216,11 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     }
 
     protected void restDemoteConfigToDefaults()
+    {
+        restDemoteConfigToDefaults(Target.COORDINATOR);
+    }
+
+    protected void restDemoteConfigToDefaults(Target target)
     {
         try {
             WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
@@ -225,7 +239,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                             WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME,
                             warmupDemoterData,
                             HttpMethod.POST,
-                            HttpURLConnection.HTTP_OK));
+                            HttpURLConnection.HTTP_OK,
+                            target));
             Double maxUsage = (Double) res.entrySet()
                     .stream()
                     .filter((entry) -> entry.getKey().endsWith(WorkerWarmupDemoterTask.MAX_USAGE_THRESHOLD_KEY))
@@ -564,24 +579,21 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     protected void validateDemoter(int expectedDeadObjects)
             throws IOException
     {
-        validateDemoter(new DemoteInput(catalog, expectedDeadObjects, 0));
+        validateDemoter(Target.COORDINATOR, new DemoteInput(catalog, expectedDeadObjects, 0));
     }
 
-    protected void validateDemoter(DemoteInput... demoteInputs)
+    protected void validateDemoter(Target target, DemoteInput... demoteInputs)
             throws IOException
     {
+        assertThat(getRowGroupCount(target).nodesWarmupElementsCount()
+                .values()
+                .stream()
+                .reduce(0L, Long::sum))
+                .isPositive();
+
         Session jmxSession = createJmxSession();
 
-        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                .executeDemoter(true)
-                .modifyConfig(true)
-                .resetHighestPriority(true)
-                .forceDeleteFailedObjects(true)
-                .build();
-
-        restDemoteConfigToDefaults();
+        restDemoteConfigToDefaults(target);
 
         List<String> demoteColumns = List.of("dead_objects_deleted", "deleted_by_low_priority");
 
@@ -597,9 +609,18 @@ public abstract class DispatcherStubsIntegrationSmokeIT
 
         executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH,
                 WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME,
-                warmupDemoterData,
+                WarmupDemoterData.builder()
+                        .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
+                        .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
+                        .executeDemoter(true)
+                        .modifyConfig(true)
+                        .resetHighestPriority(true)
+                        .forceDeleteFailedObjects(true)
+                        .forceExecuteDeadObjects(true)
+                        .build(),
                 HttpMethod.POST,
-                HttpURLConnection.HTTP_OK);
+                HttpURLConnection.HTTP_OK,
+                target);
 
         runWithRetries(() -> {
             Map<String, DemoteInput> demoteInputsAfter = Arrays.stream(demoteInputs)
@@ -627,6 +648,12 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                         .isEqualTo(demoteInput.deletedByLowPriority());
             });
         });
+
+        assertThat(getRowGroupCount(target).nodesWarmupElementsCount()
+                .values()
+                .stream()
+                .reduce(0L, Long::sum))
+                .isZero();
     }
 
     protected Map<String, Object> demote(WarmupDemoterData warmupDemoterData)
@@ -637,7 +664,13 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         String jmxTable = WarmupDemoterStats.createKey();
         MaterializedRow before = getServiceStats(jmxSession, jmxTable, DEMOTE_JMX_NAMES);
 
-        String result = executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData, HttpMethod.POST, HttpURLConnection.HTTP_OK);
+        String result = executeRestCommand(
+                WarmupDemoterTask.WARMUP_DEMOTER_PATH,
+                WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME,
+                warmupDemoterData,
+                HttpMethod.POST,
+                HttpURLConnection.HTTP_OK,
+                Target.COORDINATOR);
         Map<String, Object> res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
         if (warmupDemoterData.isExecuteDemoter()) {
             boolean valid = validateStat(before, jmxTable, DEMOTE_JMX_NAMES);
