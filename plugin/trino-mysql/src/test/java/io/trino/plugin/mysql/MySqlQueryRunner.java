@@ -35,7 +35,7 @@ public final class MySqlQueryRunner
 {
     private MySqlQueryRunner() {}
 
-    private static final String TPCH_SCHEMA = "tpch";
+    static final String TPCH_SCHEMA = "tpch";
 
     public static Builder builder(TestingMySqlServer server)
     {

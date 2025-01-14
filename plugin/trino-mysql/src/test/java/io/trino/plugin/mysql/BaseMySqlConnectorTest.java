@@ -39,10 +39,12 @@ import java.util.regex.Pattern;
 
 import static com.google.common.base.Strings.nullToEmpty;
 import static io.trino.plugin.jdbc.JdbcWriteSessionProperties.NON_TRANSACTIONAL_MERGE;
+import static io.trino.plugin.mysql.MySqlQueryRunner.TPCH_SCHEMA;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
 import static io.trino.testing.MaterializedResult.resultBuilder;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.joining;
@@ -53,6 +55,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public abstract class BaseMySqlConnectorTest
         extends BaseJdbcConnectorTest
 {
+    private static final String CONNECTOR_NAME = "mysql";
     protected TestingMySqlServer mySqlServer;
 
     @Override
@@ -91,6 +94,59 @@ public abstract class BaseMySqlConnectorTest
         return Session.builder(session)
                 .setCatalogSessionProperty(session.getCatalog().orElseThrow(), NON_TRANSACTIONAL_MERGE, "true")
                 .build();
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, mySqlServer.getPassword(), mySqlServer.getJdbcUrl(), mySqlServer.getUsername());
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "mysql", "tpch", "mock_dynamic_listing", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "mysql", "tpch", "mock_dynamic_listing");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "mysql", "tpch", "mock_dynamic_listing", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "mysql", "tpch", "mock_dynamic_listing");
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String createFirstCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(firstCatalog, CONNECTOR_NAME, mySqlServer.getPassword(), mySqlServer.getJdbcUrl(), mySqlServer.getUsername());
+            assertUpdate(createFirstCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createFirstCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(firstCatalog, TPCH_SCHEMA));
+
+            @Language("SQL")
+            String createSecondCatalogSql =
+                    """
+                    CREATE CATALOG %s USING mysql
+                    WITH (
+                       "connection-password" = '%s',
+                       "connection-url" = '%s',
+                       "connection-user" = '%s',
+                       "jdbc-types-mapped-to-varchar" = 'true'
+                    )""".formatted(secondCatalog, mySqlServer.getPassword(), mySqlServer.getJdbcUrl(), mySqlServer.getUsername());
+            assertUpdate(createSecondCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createSecondCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(secondCatalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
     }
 
     @Override
