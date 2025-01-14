@@ -73,6 +73,7 @@
         <module>plugin/starburst-stargate-parallel</module>
         <module>plugin/starburst-synapse</module>
         <module>plugin/starburst-warp-speed</module>
+        <module>plugin/trino-ai-functions</module>
         <module>plugin/trino-base-jdbc</module>
         <module>plugin/trino-bigquery</module>
         <module>plugin/trino-blackhole</module>
