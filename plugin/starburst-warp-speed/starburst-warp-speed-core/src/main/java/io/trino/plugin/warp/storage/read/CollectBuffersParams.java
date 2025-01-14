@@ -16,18 +16,17 @@ package io.trino.plugin.warp.storage.read;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public record CollectBuffersParams(List<ReadJuffersWarmUpElement> collectJuffersWE,
-                                   ArrayList<CollectBufAllocParams> collectAllocParams,
+                                   List<CollectBufAllocParams> collectAllocParams,
                                    double satisfyPercentage,
-                                   long totalAllocationSize)
+                                   long totalAllocationSize,
+                                   int maxRecordsInJuffer)
 {
     public record CollectBufAllocParams(RecTypeCode recTypeCode,
                                  int recTypeLength,
-                                 int recordBufferSizeMust,
-                                 int recordBufferSizeOptional,
+                                 int requestedRecordBufferSize,
                                  int nullBufferSize,
                                  boolean hasDictionary)
     {

@@ -301,9 +301,8 @@ public class StorageCollectorService
             return 0;
         }
 
-        List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
-        for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
-            int weLimit = getWeNumToCollect(warmupElementRecordBufferStates.get(weIx), collectElementsParamsList.get(weIx), recLimit);
+        for (WarmupElementRecordBufferState warmupElementRecordBufferState : warmupElementRecordBufferStates) {
+            int weLimit = getWeNumToCollect(warmupElementRecordBufferState, recLimit);
             if (weLimit < recLimit) {
                 recLimit = weLimit;
             }
@@ -317,13 +316,9 @@ public class StorageCollectorService
         return warmupElementRecordBufferState.getFreeBytes();
     }
 
-    int getWeNumToCollect(WarmupElementRecordBufferState warmupElementRecordBufferState, WarmupElementCollectParams collectParams, int numToCollect)
+    int getWeNumToCollect(WarmupElementRecordBufferState warmupElementRecordBufferState, int numToCollect)
     {
         int maxRecordLength = warmupElementRecordBufferState.getMaxRecordLength();
-        if (collectParams.mappedMatchCollect() || maxRecordLength <= storageEngineConstants.getFixedLengthStringLimit()) {
-            logger.debug("getNumToCollect fixed size numToCollect %d maxRecordLength %d", numToCollect, maxRecordLength);
-            return numToCollect;
-        }
         int freeBytes = getFreeBytes(warmupElementRecordBufferState);
 
         int actualNumToCollect = min(freeBytes / maxRecordLength, numToCollect);

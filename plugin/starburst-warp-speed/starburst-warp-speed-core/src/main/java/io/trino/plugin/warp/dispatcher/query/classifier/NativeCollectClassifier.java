@@ -251,6 +251,8 @@ public class NativeCollectClassifier
 
     private int getCollectBufferSize(WarmUpElement warmUpElement)
     {
+        // Here we calculate the minimal buffer size needed for a we, while in the actual allocation (CollectTxService.getCollectBuffersAllocationParams)
+        // we try to get to the maximal buffer in order to maximize number of records in a page
         return bufferAllocator.getCollectRecordBufferSizeMust(warmUpElement.getRecTypeCode(), warmUpElement.getRecTypeLength()) +
                 bufferAllocator.getQueryNullBufferSize(warmUpElement.getRecTypeCode());
     }

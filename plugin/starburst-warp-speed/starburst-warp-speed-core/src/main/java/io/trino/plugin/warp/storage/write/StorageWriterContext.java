@@ -238,7 +238,7 @@ final class StorageWriterContext
                 "isCleanupDone=" + isCleanupDone +
                 ", weClosed=" + weClosed +
                 ", warmupElementWriteMetadata=" + warmupElementWriteMetadata +
-                ", recordBufferSize=" + recordBufferSize +
+                ", requestedRecordBufferSize=" + recordBufferSize +
                 ", recordBufferPos=" + recordBufferPos +
                 ", warmupElementBuilder=" + warmupElementBuilder +
                 ", writeJuffersWarmUpElement=" + writeJuffersWarmUpElement +

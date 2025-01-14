@@ -32,6 +32,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.memory.PinnedGcArena;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
+import io.trino.plugin.warp.storage.read.QueryParams;
 import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
@@ -51,6 +52,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.warp.dispatcher.query.classifier.NativeCollectClassifier.COLLECT_BUFFER_MAX_MEMORY;
+import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -564,5 +567,21 @@ public class BufferAllocator
             return 0;
         }
         return ((size + pageSize - 1) / pageSize) * pageSize;
+    }
+
+    public int calcWeRecordBufferSize(int requestedSize, double satisfyPercentage)
+    {
+        return min(nativeConfig.getMaxRecJufferSize(), roundToPageSize((int) (requestedSize * satisfyPercentage)));
+    }
+
+    public double calculateSatisfyPercentage(long totalRequestedRecordBufferSize, long totalNullBuffs, QueryParams queryParams)
+    {
+        if (queryParams.getNumMatchElements() == 0 ||   // in full scan we lazy collect so we can assume to get MaxRecJufferSize
+                totalRequestedRecordBufferSize + totalNullBuffs <= COLLECT_BUFFER_MAX_MEMORY) {
+            return 1.0;
+        }
+        // adding numWes * page size so we will be able to round up the allocations
+        long spareBuffer = COLLECT_BUFFER_MAX_MEMORY - (totalNullBuffs + (long) queryParams.getNumCollectElements() * storageEngineConstants.getPageSize());
+        return (double) spareBuffer / totalRequestedRecordBufferSize;
     }
 }

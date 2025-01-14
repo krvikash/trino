@@ -57,7 +57,7 @@ public class LazyCollectTxService
         final int recTypeLength = WarmUpElement.getRecTypeLength(warmupElementAtt);
 
         // initialize memory parameters
-        final int recordBufferSize = bufferAllocator.getCollectRecordBufferSizeMust(recTypeCode, recTypeLength) + bufferAllocator.getCollectRecordBufferSizeOptional(recTypeCode, recTypeLength);
+        final int recordBufferSize = bufferAllocator.calcWeRecordBufferSize(bufferAllocator.getCollectRecordBufferSize(recTypeCode, recTypeLength), 1);
         final int nullBufferSize = bufferAllocator.getQueryNullBufferSize(recTypeCode);
 
         // allocate memory
@@ -73,7 +73,7 @@ public class LazyCollectTxService
                     ValueLayout.JAVA_LONG.byteSize(), ValueLayout.JAVA_LONG.byteSize());
         }
         catch (Throwable t) {
-            throw new RuntimeException("no memory available for lazy collect size recordBufferSize " + recordBufferSize + " nullBufferSize " + nullBufferSize);
+            throw new RuntimeException("no memory available for lazy collect size requestedRecordBufferSize " + recordBufferSize + " nullBufferSize " + nullBufferSize);
         }
         SegmentAllocator queryMemoryAllocator = SegmentAllocator.slicingAllocator(collectMemory);
         SegmentAllocator metadataAllocator = SegmentAllocator.slicingAllocator(metadataMemory);
