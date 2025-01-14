@@ -35,7 +35,7 @@ public final class SingleStoreQueryRunner
 {
     private SingleStoreQueryRunner() {}
 
-    private static final String TPCH_SCHEMA = "tpch";
+    static final String TPCH_SCHEMA = "tpch";
 
     public static Builder builder(TestingSingleStoreServer server)
     {
