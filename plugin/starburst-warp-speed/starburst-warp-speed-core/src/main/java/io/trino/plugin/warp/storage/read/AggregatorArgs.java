@@ -13,13 +13,12 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 
 import java.util.List;
 
 public record AggregatorArgs(List<BlockFiller<?>> blockFillers,
-        List<ReadJuffersWarmUpElement> collectJuffersWE,
-        byte[] storeRowListBuff)
+        byte[] storeRowListBuff,
+        CollectBuffersParams collectBuffersParams)
 {
 }

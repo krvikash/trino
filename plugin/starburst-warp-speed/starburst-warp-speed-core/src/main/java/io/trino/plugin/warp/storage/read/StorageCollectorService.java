@@ -43,7 +43,6 @@ import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
@@ -268,7 +267,7 @@ public class StorageCollectorService
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
             QueryResultType queryResultType = QueryResultType.values()[queryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
             BlockFiller<?> blockFiller = aggregatorArgs.blockFillers().get(weIx);
-            ReadJuffersWarmUpElement readJuffersWarmUpElement = aggregatorArgs.collectJuffersWE().get(weIx);
+            ReadJuffersWarmUpElement readJuffersWarmUpElement = aggregatorArgs.collectBuffersParams().collectJuffersWE().get(weIx);
             Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats, queryArgs.dispatcherPageSourceStats());
             blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, () -> {
                 queryArgs.dispatcherPageSourceStats().incwrapped_collect_loaded_lazy_blocks();
@@ -369,10 +368,7 @@ public class StorageCollectorService
         for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
             blockFillers.add(blockFillersFactory.getBlockFiller(collectParams.getBlockRecTypeCode().ordinal()));
         }
-        List<ReadJuffersWarmUpElement> collectJuffersWE = queryParams.getCollectElementsParamsList()
-                .stream()
-                .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true))
-                .collect(Collectors.toList());
+
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
         byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
 
@@ -382,9 +378,10 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
 
+        CollectBuffersParams collectBuffersParams = collectTxService.getCollectBuffersAllocationParams(queryParams);
         return new AggregatorArgs(blockFillers,
-                collectJuffersWE,
-                storeRowListBuff);
+                storeRowListBuff,
+                collectBuffersParams);
     }
 
     private int getNumChunksInRange(QueryParams queryParams)
