@@ -40,6 +40,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.MoreCollectors.toOptional;
 import static io.trino.plugin.jdbc.JoinOperator.FULL_JOIN;
+import static io.trino.plugin.vertica.VerticaQueryRunner.TPCH_SCHEMA;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
@@ -54,6 +55,7 @@ import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_W
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_LIMIT_PUSHDOWN;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,6 +64,7 @@ import static org.junit.jupiter.api.Assumptions.abort;
 public class TestVerticaConnectorTest
         extends BaseJdbcConnectorTest
 {
+    private static final String CONNECTOR_NAME = "vertica";
     protected TestingVerticaServer verticaServer;
 
     @Override
@@ -102,6 +105,60 @@ public class TestVerticaConnectorTest
                  SUPPORTS_TOPN_PUSHDOWN -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                .formatted(catalog, CONNECTOR_NAME, verticaServer.getPassword(), verticaServer.getJdbcUrl(), verticaServer.getUsername());
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "vertica", "tpch", "mock_dynamic_listing", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "vertica", "tpch", "mock_dynamic_listing", "jmx");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "vertica", "tpch", "mock_dynamic_listing", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "vertica", "tpch", "mock_dynamic_listing", "jmx");
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String createFirstCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(firstCatalog, CONNECTOR_NAME, verticaServer.getPassword(), verticaServer.getJdbcUrl(), verticaServer.getUsername());
+            assertUpdate(createFirstCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createFirstCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(firstCatalog, TPCH_SCHEMA));
+
+            @Language("SQL")
+            String createSecondCatalogSql =
+                    """
+                    CREATE CATALOG %s USING %s
+                    WITH (
+                       "connection-password" = '%s',
+                       "connection-url" = '%s',
+                       "connection-user" = '%s',
+                       "jdbc-types-mapped-to-varchar" = 'true'
+                    )""".formatted(secondCatalog, CONNECTOR_NAME, verticaServer.getPassword(), verticaServer.getJdbcUrl(), verticaServer.getUsername());
+            assertUpdate(createSecondCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue()).isEqualTo(createSecondCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(secondCatalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
     }
 
     // Overridden due to test case with a push down on a DOUBLE type
