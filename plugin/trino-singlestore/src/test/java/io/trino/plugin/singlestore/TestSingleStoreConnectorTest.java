@@ -27,6 +27,7 @@ import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
+import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
@@ -233,6 +234,59 @@ public class TestSingleStoreConnectorTest
         finally {
             assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
             assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            @Language("SQL")
+            String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(oldCatalog, CONNECTOR_NAME, singleStoreServer.getPassword(), singleStoreServer.getJdbcUrl(), singleStoreServer.getUsername());
+            assertUpdate(createCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TPCH_SCHEMA));
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog)).hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
+                            .formatted(catalog, CONNECTOR_NAME, singleStoreServer.getPassword(), singleStoreServer.getJdbcUrl(), singleStoreServer.getUsername()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(catalog, CONNECTOR_NAME, "INVALID", singleStoreServer.getJdbcUrl(), singleStoreServer.getUsername());
+            assertUpdate(catalogWithIncorrectPassword);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue()).isEqualTo(catalogWithIncorrectPassword);
+            assertThatThrownBy(() -> computeActual("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA)))
+                    .isInstanceOf(QueryFailedException.class)
+                    .hasMessageMatching(".*Access denied for user 'root'@'.*' \\(using password: YES\\)");
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "connection-password" = '%s'
+                    """.formatted(catalog, singleStoreServer.getPassword()));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
+                            .formatted(catalog, CONNECTOR_NAME, singleStoreServer.getPassword(), singleStoreServer.getJdbcUrl(), singleStoreServer.getUsername()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
     }
 
