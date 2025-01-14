@@ -39,7 +39,7 @@ public final class PostgreSqlQueryRunner
 {
     private PostgreSqlQueryRunner() {}
 
-    private static final String TPCH_SCHEMA = "tpch";
+    static final String TPCH_SCHEMA = "tpch";
 
     public static Builder builder(TestingPostgreSqlServer server)
     {

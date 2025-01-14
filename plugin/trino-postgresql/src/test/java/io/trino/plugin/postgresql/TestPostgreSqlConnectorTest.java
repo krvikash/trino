@@ -49,6 +49,7 @@ import io.trino.testing.sql.JdbcSqlExecutor;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import io.trino.testing.sql.TestView;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -62,6 +63,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.postgresql.PostgreSqlConfig.ArrayMapping.AS_ARRAY;
+import static io.trino.plugin.postgresql.PostgreSqlQueryRunner.TPCH_SCHEMA;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -97,6 +99,7 @@ public class TestPostgreSqlConnectorTest
 
     private static final TestingFunctionResolution FUNCTIONS = new TestingFunctionResolution();
 
+    private static final String CONNECTOR_NAME = "postgresql";
     protected TestingPostgreSqlServer postgreSqlServer;
 
     @Override
@@ -157,6 +160,61 @@ public class TestPostgreSqlConnectorTest
                 onRemoteDatabase(),
                 "tpch.test_unsupported_column_present",
                 "(one bigint, two interval, three varchar(10))");
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                .formatted(catalog, CONNECTOR_NAME, postgreSqlServer.getPassword(), postgreSqlServer.getJdbcUrl(), postgreSqlServer.getUser());
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "postgresql", "tpch", "mock_dynamic_listing", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "postgresql", "tpch", "mock_dynamic_listing");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "postgresql", "tpch", "mock_dynamic_listing", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "postgresql", "tpch", "mock_dynamic_listing");
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String createFirstCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(firstCatalog, CONNECTOR_NAME, postgreSqlServer.getPassword(), postgreSqlServer.getJdbcUrl(), postgreSqlServer.getUser());
+            assertUpdate(createFirstCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createFirstCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(firstCatalog, TPCH_SCHEMA));
+
+            @Language("SQL")
+            String createSecondCatalogSql =
+                    """
+                    CREATE CATALOG %s USING %s
+                    WITH (
+                       "connection-password" = '%s',
+                       "connection-url" = '%s',
+                       "connection-user" = '%s',
+                       "jdbc-types-mapped-to-varchar" = 'true'
+                    )""".formatted(secondCatalog, CONNECTOR_NAME, postgreSqlServer.getPassword(), postgreSqlServer.getJdbcUrl(), postgreSqlServer.getUser());
+            assertUpdate(createSecondCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createSecondCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(secondCatalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
     }
 
     @Test
