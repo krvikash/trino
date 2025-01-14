@@ -161,6 +161,55 @@ public class TestVerticaConnectorTest
         }
     }
 
+    @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, CONNECTOR_NAME, verticaServer.getPassword(), verticaServer.getJdbcUrl(), verticaServer.getUsername()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TPCH_SCHEMA));
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
+                            .formatted(catalog, CONNECTOR_NAME, verticaServer.getPassword(), verticaServer.getJdbcUrl(), verticaServer.getUsername()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(catalog, CONNECTOR_NAME, "INVALID", verticaServer.getJdbcUrl(), verticaServer.getUsername());
+            assertUpdate(catalogWithIncorrectPassword);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue()).isEqualTo(catalogWithIncorrectPassword);
+            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA), "\\[Vertica]\\[VJDBC]\\(3781\\) FATAL: Invalid username or password");
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "connection-password" = '%s'
+                    """.formatted(catalog, verticaServer.getPassword()));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
+                            .formatted(catalog, CONNECTOR_NAME, verticaServer.getPassword(), verticaServer.getJdbcUrl(), verticaServer.getUsername()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
     // Overridden due to test case with a push down on a DOUBLE type
     // DOUBLE pushdown is disabled in Vertica due to precision issues
     @Test
