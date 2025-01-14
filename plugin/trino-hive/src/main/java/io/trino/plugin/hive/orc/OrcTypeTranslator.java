@@ -22,6 +22,7 @@ import io.trino.plugin.hive.coercions.BooleanCoercer.OrcVarcharToBooleanCoercer;
 import io.trino.plugin.hive.coercions.CoercionUtils.ListCoercer;
 import io.trino.plugin.hive.coercions.CoercionUtils.MapCoercer;
 import io.trino.plugin.hive.coercions.CoercionUtils.StructCoercer;
+import io.trino.plugin.hive.coercions.DateCoercer.DateHybridToProlepticGregorianCoercer;
 import io.trino.plugin.hive.coercions.DateCoercer.DateToVarcharCoercer;
 import io.trino.plugin.hive.coercions.DateCoercer.VarcharToDateCoercer;
 import io.trino.plugin.hive.coercions.DoubleToFloatCoercer;
@@ -97,7 +98,7 @@ public final class OrcTypeTranslator
 {
     private OrcTypeTranslator() {}
 
-    public static Optional<TypeCoercer<? extends Type, ? extends Type>> createCoercer(OrcType fromOrcType, List<OrcColumn> nestedColumns, Type toTrinoType)
+    public static Optional<TypeCoercer<? extends Type, ? extends Type>> createCoercer(OrcType fromOrcType, List<OrcColumn> nestedColumns, Type toTrinoType, boolean convertDateToProleptic)
     {
         OrcTypeKind fromOrcTypeKind = fromOrcType.getOrcTypeKind();
 
@@ -185,6 +186,7 @@ public final class OrcTypeTranslator
 
         if (fromOrcTypeKind == DATE) {
             return switch (toTrinoType) {
+                case DateType _ -> convertDateToProleptic ? Optional.of(new DateHybridToProlepticGregorianCoercer()) : Optional.empty();
                 case VarcharType varcharType -> Optional.of(new DateToVarcharCoercer(varcharType));
                 default -> Optional.empty();
             };
@@ -241,7 +243,8 @@ public final class OrcTypeTranslator
                     Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = createCoercer(
                             nestedColumns.get(i).getColumnType(),
                             nestedColumns.get(i).getNestedColumns(),
-                            rowType.getFields().get(i).getType());
+                            rowType.getFields().get(i).getType(),
+                            convertDateToProleptic);
                     coercersBuilder.add(coercer);
 
                     Type rowFieldType = rowType.getFields().get(i).getType();
@@ -264,13 +267,13 @@ public final class OrcTypeTranslator
         }
 
         if (fromOrcType.getOrcTypeKind() == LIST && toTrinoType instanceof ArrayType arrayType) {
-            return createCoercer(getOnlyElement(nestedColumns).getColumnType(), getOnlyElement(nestedColumns).getNestedColumns(), arrayType.getElementType())
+            return createCoercer(getOnlyElement(nestedColumns).getColumnType(), getOnlyElement(nestedColumns).getNestedColumns(), arrayType.getElementType(), convertDateToProleptic)
                     .map(elementCoercer -> new ListCoercer(new ArrayType(elementCoercer.getFromType()), new ArrayType(elementCoercer.getToType()), elementCoercer));
         }
 
         if (fromOrcType.getOrcTypeKind() == MAP && toTrinoType instanceof MapType mapType) {
-            Optional<TypeCoercer<? extends Type, ? extends Type>> keyCoercer = createCoercer(nestedColumns.get(0).getColumnType(), nestedColumns.get(0).getNestedColumns(), mapType.getKeyType());
-            Optional<TypeCoercer<? extends Type, ? extends Type>> valueCoercer = createCoercer(nestedColumns.get(1).getColumnType(), nestedColumns.get(1).getNestedColumns(), mapType.getValueType());
+            Optional<TypeCoercer<? extends Type, ? extends Type>> keyCoercer = createCoercer(nestedColumns.get(0).getColumnType(), nestedColumns.get(0).getNestedColumns(), mapType.getKeyType(), convertDateToProleptic);
+            Optional<TypeCoercer<? extends Type, ? extends Type>> valueCoercer = createCoercer(nestedColumns.get(1).getColumnType(), nestedColumns.get(1).getNestedColumns(), mapType.getValueType(), convertDateToProleptic);
             TypeOperators typeOperators = new TypeOperators();
             MapType fromType = new MapType(
                     keyCoercer.map(TypeCoercer::getFromType).orElseGet(mapType::getKeyType),

@@ -529,7 +529,8 @@ public final class OrcWriter
                 orcTypes,
                 fileStats,
                 userMetadata,
-                Optional.empty()); // writer id will be set by MetadataWriter
+                Optional.empty(), // writer id will be set by MetadataWriter
+                Optional.empty());
 
         closedStripes.clear();
         closedStripesRetainedBytes = 0;

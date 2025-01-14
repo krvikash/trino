@@ -29,6 +29,7 @@ import static io.trino.tests.product.TestGroups.HIVE4;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.utils.QueryExecutors.onHive;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
+import static java.lang.String.format;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,6 +55,11 @@ public class TestHiveLegacyDateCompatibility
             .map(entry -> "(%d, '%s')".formatted(entry.getKey(), entry.getValue()))
             .collect(joining(","));
 
+    private static final List<QueryAssert.Row> EXPECTED_ROWS = ID_TO_DATE.entrySet()
+            .stream()
+            .map(entry -> row(entry.getKey(), Date.valueOf(entry.getValue())))
+            .collect(toImmutableList());
+
     @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
     public void testHiveParquetLegacyDateCompatibilityWithHybridCalendar()
     {
@@ -66,32 +72,6 @@ public class TestHiveLegacyDateCompatibility
         testHiveParquetLegacyDateCompatibility(true);
     }
 
-    private void testHiveParquetLegacyDateCompatibility(boolean hiveWritesInProlepticGregorian)
-    {
-        String hiveTableName = "test_hive_parquet_legacy_date_compatibility_%s".formatted(randomNameSuffix());
-        String trinoTableName = "%s.%s.%s".formatted(TRINO_CATALOG, SCHEMA, hiveTableName);
-
-        try {
-            onHive().executeQuery("SET hive.parquet.date.proleptic.gregorian=" + hiveWritesInProlepticGregorian);
-            onHive().executeQuery("CREATE TABLE %s.%s (id integer, date_col date) STORED AS PARQUET".formatted(SCHEMA, hiveTableName));
-            onHive().executeQuery("INSERT INTO %s.%s VALUES %s".formatted(SCHEMA, hiveTableName, TABLE_VALUES));
-
-            List<QueryAssert.Row> expectedRows = ID_TO_DATE.entrySet()
-                    .stream()
-                    .map(entry -> row(entry.getKey(), Date.valueOf(entry.getValue())))
-                    .collect(toImmutableList());
-
-            assertThat(onHive().executeQuery("SELECT id, date_col FROM " + hiveTableName))
-                    .containsOnly(expectedRows);
-
-            assertThat(onTrino().executeQuery("SELECT id, date_col FROM " + trinoTableName))
-                    .containsOnly(expectedRows);
-        }
-        finally {
-            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
-        }
-    }
-
     @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
     public void testHiveParquetLegacyDatePartitionedTableCompatibilityWithHybridCalendar()
     {
@@ -102,6 +82,48 @@ public class TestHiveLegacyDateCompatibility
     public void testHiveParquetLegacyDatePartitionedTableCompatibilityWithProlepticCalendar()
     {
         testHiveParquetLegacyDatePartitionedTableCompatibility(true);
+    }
+
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcLegacyDateCompatibilityWithProlepticCalendar()
+    {
+        testHiveOrcLegacyDateCompatibility(true);
+    }
+
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcLegacyDateCompatibilityWithHybridCalendar()
+    {
+        testHiveOrcLegacyDateCompatibility(false);
+    }
+
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcLegacyDatePartitionedTableCompatibilityWithHybridCalendar()
+    {
+        testHiveOrcLegacyDatePartitionedTableCompatibility(false);
+    }
+
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcLegacyDatePartitionedTableCompatibilityWithProlepticCalendar()
+    {
+        testHiveOrcLegacyDatePartitionedTableCompatibility(true);
+    }
+
+    private void testHiveParquetLegacyDateCompatibility(boolean hiveWritesInProlepticGregorian)
+    {
+        String hiveTableName = "test_hive_parquet_legacy_date_compatibility_%s".formatted(randomNameSuffix());
+        String trinoTableName = "%s.%s.%s".formatted(TRINO_CATALOG, SCHEMA, hiveTableName);
+
+        try {
+            onHive().executeQuery("SET hive.parquet.date.proleptic.gregorian=" + hiveWritesInProlepticGregorian);
+            onHive().executeQuery("CREATE TABLE %s.%s (id integer, date_col date) STORED AS PARQUET".formatted(SCHEMA, hiveTableName));
+            onHive().executeQuery("INSERT INTO %s.%s VALUES %s".formatted(SCHEMA, hiveTableName, TABLE_VALUES));
+
+            assertThat(onHive().executeQuery("SELECT id, date_col FROM " + hiveTableName)).containsOnly(EXPECTED_ROWS);
+            assertThat(onTrino().executeQuery("SELECT id, date_col FROM " + trinoTableName)).containsOnly(EXPECTED_ROWS);
+        }
+        finally {
+            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
+        }
     }
 
     private void testHiveParquetLegacyDatePartitionedTableCompatibility(boolean hiveWritesInProlepticGregorian)
@@ -122,6 +144,40 @@ public class TestHiveLegacyDateCompatibility
                 assertThat(onTrino().executeQuery("SELECT id FROM %s WHERE date_col = (DATE '%s')".formatted(trinoTableName, date)))
                         .containsOnly(row(id));
             });
+        }
+        finally {
+            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
+        }
+    }
+
+    private void testHiveOrcLegacyDateCompatibility(boolean hiveWritesInProlepticGregorian)
+    {
+        String hiveTableName = "test_hive_orc_legacy_date_compatibility_%s".formatted(randomNameSuffix());
+        String trinoTableName = format("%s.%s.%s", TRINO_CATALOG, SCHEMA, hiveTableName);
+
+        try {
+            onHive().executeQuery("CREATE TABLE %s.%s (id integer, date_col date) STORED AS ORC tblproperties (\"orc.proleptic.gregorian\" = \"%s\")".formatted(SCHEMA, hiveTableName, hiveWritesInProlepticGregorian));
+            onHive().executeQuery("INSERT INTO %s.%s VALUES %s".formatted(SCHEMA, hiveTableName, TABLE_VALUES));
+
+            assertThat(onHive().executeQuery("SELECT id, date_col FROM " + hiveTableName)).containsOnly(EXPECTED_ROWS);
+            assertThat(onTrino().executeQuery("SELECT id, date_col FROM " + trinoTableName)).containsOnly(EXPECTED_ROWS);
+        }
+        finally {
+            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
+        }
+    }
+
+    private void testHiveOrcLegacyDatePartitionedTableCompatibility(boolean hiveWritesInProlepticGregorian)
+    {
+        String hiveTableName = "test_hive_orc_legacy_date_compatibility_partitioned_%s".formatted(randomNameSuffix());
+        String trinoTableName = format("%s.%s.%s", TRINO_CATALOG, SCHEMA, hiveTableName);
+
+        try {
+            onHive().executeQuery("CREATE TABLE %s.%s (id integer) PARTITIONED BY (date_col date) STORED AS ORC tblproperties (\"orc.proleptic.gregorian\" = \"%s\")".formatted(SCHEMA, hiveTableName, hiveWritesInProlepticGregorian));
+            onHive().executeQuery("INSERT INTO %s.%s VALUES %s".formatted(SCHEMA, hiveTableName, TABLE_VALUES));
+
+            assertThat(onHive().executeQuery("SELECT id, date_col FROM " + hiveTableName)).containsOnly(EXPECTED_ROWS);
+            assertThat(onTrino().executeQuery("SELECT id, date_col FROM " + trinoTableName)).containsOnly(EXPECTED_ROWS);
         }
         finally {
             onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);

@@ -79,6 +79,7 @@ import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregate
 import static io.trino.orc.OrcReader.INITIAL_BATCH_SIZE;
 import static io.trino.orc.OrcReader.NameBasedProjectedLayout.createProjectedLayout;
 import static io.trino.orc.OrcReader.fullyProjectedLayout;
+import static io.trino.orc.metadata.CalendarKind.JULIAN_GREGORIAN;
 import static io.trino.orc.metadata.OrcMetadataWriter.PRESTO_WRITER_ID;
 import static io.trino.orc.metadata.OrcMetadataWriter.TRINO_WRITER_ID;
 import static io.trino.orc.metadata.OrcType.OrcTypeKind.INT;
@@ -270,6 +271,10 @@ public class OrcPageSourceFactory
             if (!originalFile && acidInfo.isPresent() && !acidInfo.get().isOrcAcidVersionValidated()) {
                 validateOrcAcidVersion(path, reader);
             }
+            boolean convertDateToProleptic = reader.getFooter()
+                    .getCalendar()
+                    .map(calendar -> calendar == JULIAN_GREGORIAN)
+                    .orElse(false);
 
             List<OrcColumn> fileColumns = reader.getRootColumn().getNestedColumns();
             List<OrcColumn> fileReadColumns = new ArrayList<>();
@@ -356,7 +361,7 @@ public class OrcPageSourceFactory
                     fileReadColumns.add(orcBaseColumn);
                     fileReadLayouts.add(projectedLayout);
                     // todo it should be possible to compute fileReadType without creating the coercer
-                    fileReadTypes.add(createCoercer(orcBaseColumn.getColumnType(), orcBaseColumn.getNestedColumns(), baseColumn.getType())
+                    fileReadTypes.add(createCoercer(orcBaseColumn.getColumnType(), orcBaseColumn.getNestedColumns(), baseColumn.getType(), convertDateToProleptic)
                             .map(TypeCoercer::getFromType)
                             .orElse(baseColumn.getType()));
 
@@ -371,7 +376,7 @@ public class OrcPageSourceFactory
 
                 OrcColumn orcBaseColumn = fileReadColumns.get(ordinal);
                 if (column.isBaseColumn()) {
-                    Optional<TypeCoercer<?, ?>> coercer = createCoercer(orcBaseColumn.getColumnType(), orcBaseColumn.getNestedColumns(), column.getType());
+                    Optional<TypeCoercer<?, ?>> coercer = createCoercer(orcBaseColumn.getColumnType(), orcBaseColumn.getNestedColumns(), column.getType(), convertDateToProleptic);
                     transforms.column(ordinal, coercer.map(identity()));
                 }
                 else {
@@ -392,7 +397,7 @@ public class OrcPageSourceFactory
                         transforms.constantValue(column.getType().createNullBlock());
                     }
                     else {
-                        Optional<TypeCoercer<?, ?>> coercer = createCoercer(orcFieldColumn.getColumnType(), orcFieldColumn.getNestedColumns(), column.getType());
+                        Optional<TypeCoercer<?, ?>> coercer = createCoercer(orcFieldColumn.getColumnType(), orcFieldColumn.getNestedColumns(), column.getType(), convertDateToProleptic);
                         transforms.dereferenceField(
                                 ImmutableList.<Integer>builder()
                                         .add(ordinal)
