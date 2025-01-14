@@ -27,6 +27,7 @@ import java.time.format.DateTimeParseException;
 import static io.airlift.slice.SliceUtf8.countCodePoints;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_INVALID_TIMESTAMP_COERCION;
+import static io.trino.plugin.hive.util.CalendarUtils.convertHybridDaysToProlepticGregorian;
 import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
 import static io.trino.spi.type.DateType.DATE;
 import static java.lang.String.format;
@@ -88,6 +89,21 @@ public final class DateCoercer
             catch (DateTimeException _) {
                 throw new IllegalArgumentException("Invalid date value: " + value + " is exceeding supported date range");
             }
+        }
+    }
+
+    public static class DateHybridToProlepticGregorianCoercer
+            extends TypeCoercer<DateType, DateType>
+    {
+        public DateHybridToProlepticGregorianCoercer()
+        {
+            super(DATE, DATE);
+        }
+
+        @Override
+        protected void applyCoercedValue(BlockBuilder blockBuilder, Block block, int position)
+        {
+            DATE.writeInt(blockBuilder, convertHybridDaysToProlepticGregorian(DATE.getInt(block, position)));
         }
     }
 }

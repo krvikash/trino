@@ -126,6 +126,9 @@ public class ParquetPageSourceFactory
             Optional.empty(),
             HiveColumnHandle.ColumnType.SYNTHESIZED,
             Optional.empty());
+    // Hive's key used in file footer's metadata to document which calendar (hybrid or proleptic Gregorian) was used for write Date type
+    // https://github.com/apache/hive/blob/master/ql/src/java/org/apache/hadoop/hive/ql/io/parquet/write/DataWritableWriteSupport.java#L63
+    private static final String HIVE_METADATA_KEY_WRITER_DATE_PROLEPTIC = "writer.date.proleptic";
 
     private static final Set<String> PARQUET_SERDE_CLASS_NAMES = ImmutableSet.<String>builder()
             .add(PARQUET_HIVE_SERDE_CLASS)
@@ -234,6 +237,8 @@ public class ParquetPageSourceFactory
             FileMetadata fileMetaData = parquetMetadata.getFileMetaData();
             fileSchema = fileMetaData.getSchema();
 
+            boolean convertDateToProleptic = shouldConvertDateToProleptic(fileMetaData.getKeyValueMetaData());
+
             Optional<MessageType> message = getParquetMessageType(columns, useColumnNames, fileSchema);
 
             requestedSchema = message.orElse(new MessageType(fileSchema.getName(), ImmutableList.of()));
@@ -286,7 +291,7 @@ public class ParquetPageSourceFactory
                     // are not present in the Parquet files which are read with disjunct predicates.
                     parquetPredicates.size() == 1 ? Optional.of(parquetPredicates.getFirst()) : Optional.empty(),
                     parquetWriteValidation);
-            return createParquetPageSource(columns, fileSchema, messageColumn, useColumnNames, parquetReaderProvider);
+            return createParquetPageSource(columns, fileSchema, messageColumn, useColumnNames, parquetReaderProvider, convertDateToProleptic);
         }
         catch (Exception e) {
             try {
@@ -474,6 +479,18 @@ public class ParquetPageSourceFactory
             ParquetReaderProvider parquetReaderProvider)
             throws IOException
     {
+        return createParquetPageSource(columnHandles, fileSchema, messageColumn, useColumnNames, parquetReaderProvider, false);
+    }
+
+    public static ConnectorPageSource createParquetPageSource(
+            List<HiveColumnHandle> columnHandles,
+            MessageType fileSchema,
+            MessageColumnIO messageColumn,
+            boolean useColumnNames,
+            ParquetReaderProvider parquetReaderProvider,
+            boolean convertDateToProleptic)
+            throws IOException
+    {
         List<Column> parquetColumnFieldsBuilder = new ArrayList<>(columnHandles.size());
         Map<String, Integer> baseColumnIdToOrdinal = new HashMap<>();
         TransformConnectorPageSource.Builder transforms = TransformConnectorPageSource.builder();
@@ -499,7 +516,7 @@ public class ParquetPageSourceFactory
                 ColumnIO columnIO = lookupColumnByName(messageColumn, baseColumnName);
                 if (columnIO != null && columnIO.getType().isPrimitive()) {
                     PrimitiveType primitiveType = columnIO.getType().asPrimitiveType();
-                    coercer = createCoercer(primitiveType.getPrimitiveTypeName(), primitiveType.getLogicalTypeAnnotation(), baseColumn.getBaseType());
+                    coercer = createCoercer(primitiveType.getPrimitiveTypeName(), primitiveType.getLogicalTypeAnnotation(), baseColumn.getBaseType(), convertDateToProleptic);
                 }
                 io.trino.spi.type.Type readType = coercer.map(TypeCoercer::getFromType).orElseGet(baseColumn::getBaseType);
 
@@ -529,6 +546,12 @@ public class ParquetPageSourceFactory
         ParquetReader parquetReader = parquetReaderProvider.createParquetReader(parquetColumnFieldsBuilder, appendRowNumberColumn);
         ConnectorPageSource pageSource = new ParquetPageSource(parquetReader);
         return transforms.build(pageSource);
+    }
+
+    private static boolean shouldConvertDateToProleptic(Map<String, String> keyValueMetaData)
+    {
+        // if entry exists and explicitly states 'false' then we should convert to Proleptic, in other cases no
+        return "false".equalsIgnoreCase(keyValueMetaData.get(HIVE_METADATA_KEY_WRITER_DATE_PROLEPTIC));
     }
 
     private static Optional<org.apache.parquet.schema.Type> getBaseColumnParquetType(HiveColumnHandle column, MessageType messageType, boolean useParquetColumnNames)

@@ -13,14 +13,17 @@
  */
 package io.trino.plugin.hive.parquet;
 
+import io.trino.plugin.hive.coercions.DateCoercer.DateHybridToProlepticGregorianCoercer;
 import io.trino.plugin.hive.coercions.IntegerNumberToDoubleCoercer;
 import io.trino.plugin.hive.coercions.IntegerNumberToVarcharCoercer;
 import io.trino.plugin.hive.coercions.TypeCoercer;
+import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.LogicalTypeAnnotation.DateLogicalTypeAnnotation;
 import org.apache.parquet.schema.LogicalTypeAnnotation.DecimalLogicalTypeAnnotation;
 
 import java.util.Optional;
@@ -44,7 +47,7 @@ public final class ParquetTypeTranslator
 {
     private ParquetTypeTranslator() {}
 
-    public static Optional<TypeCoercer<? extends Type, ? extends Type>> createCoercer(PrimitiveTypeName fromParquetType, LogicalTypeAnnotation typeAnnotation, Type toTrinoType)
+    public static Optional<TypeCoercer<? extends Type, ? extends Type>> createCoercer(PrimitiveTypeName fromParquetType, LogicalTypeAnnotation typeAnnotation, Type toTrinoType, boolean convertDateToProleptic)
     {
         if (toTrinoType instanceof DoubleType) {
             if (isIntegerAnnotationAndPrimitive(typeAnnotation, fromParquetType)) {
@@ -78,6 +81,11 @@ public final class ParquetTypeTranslator
             }
             if (fromParquetType == INT96) {
                 return Optional.of(new LongTimestampToVarcharCoercer(TIMESTAMP_NANOS, varcharType));
+            }
+        }
+        if (toTrinoType instanceof DateType) {
+            if (convertDateToProleptic && fromParquetType == INT32 && typeAnnotation instanceof DateLogicalTypeAnnotation) {
+                return Optional.of(new DateHybridToProlepticGregorianCoercer());
             }
         }
         return Optional.empty();

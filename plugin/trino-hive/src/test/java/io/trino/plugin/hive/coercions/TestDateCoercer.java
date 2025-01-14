@@ -17,14 +17,18 @@ import io.trino.plugin.hive.coercions.CoercionUtils.CoercionContext;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.Type;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.junit.jupiter.api.Test;
 
+import java.sql.Date;
 import java.time.LocalDate;
+import java.util.Optional;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
 import static io.trino.plugin.hive.HiveTimestampPrecision.DEFAULT_PRECISION;
 import static io.trino.plugin.hive.coercions.CoercionUtils.createCoercer;
+import static io.trino.plugin.hive.parquet.ParquetTypeTranslator.createCoercer;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.predicate.Utils.blockToNativeValue;
 import static io.trino.spi.predicate.Utils.nativeValueToBlock;
@@ -33,6 +37,9 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
+import static java.lang.Math.floor;
+import static java.util.concurrent.TimeUnit.DAYS;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -90,6 +97,94 @@ public class TestDateCoercer
     {
         assertThatThrownBy(() -> assertDateToVarcharCoercion(createUnboundedVarcharType(), LocalDate.parse("1899-12-31"), null))
                 .hasMessageMatching(".*Coercion on historical dates is not supported.*");
+    }
+
+    @Test
+    public void testLegacyDateCoercionFromHybridCalendarToProlepticGregorianCalendar()
+    {
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0001-01-01", "0001-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0100-01-01", "0100-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0200-01-01", "0200-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0300-01-01", "0300-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0400-01-01", "0400-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0500-01-01", "0500-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0600-01-01", "0600-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0700-01-01", "0700-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0800-01-01", "0800-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("0900-01-01", "0900-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1000-01-01", "1000-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1101-01-01", "1101-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1201-01-01", "1201-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1301-01-01", "1301-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1401-01-01", "1401-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1501-01-01", "1501-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1582-01-01", "1582-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1582-10-03", "1582-10-03");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1582-10-04", "1582-10-04");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1582-10-15", "1582-10-15");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1582-10-16", "1582-10-16");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1788-09-10", "1788-09-10");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1888-12-31", "1888-12-31");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1969-12-31", "1969-12-31");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1970-01-01", "1970-01-01");
+        assertReadingWithCoercionHybridToProlepticLegacyDate("2024-03-30", "2024-03-30");
+
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0001-01-01", "0000-12-30");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0100-01-01", "0099-12-30");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0200-01-01", "0199-12-31");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0300-01-01", "0300-01-01");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0400-01-01", "0400-01-02");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0500-01-01", "0500-01-02");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0600-01-01", "0600-01-03");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0700-01-01", "0700-01-04");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0800-01-01", "0800-01-05");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("0900-01-01", "0900-01-05");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1000-01-01", "1000-01-06");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1101-01-01", "1101-01-08");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1201-01-01", "1201-01-08");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1301-01-01", "1301-01-09");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1401-01-01", "1401-01-10");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1501-01-01", "1501-01-11");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1582-01-01", "1582-01-11");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1582-10-03", "1582-10-13");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1582-10-04", "1582-10-14");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1582-10-15", "1582-10-15");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1582-10-16", "1582-10-16");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1788-09-10", "1788-09-10");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1888-12-31", "1888-12-31");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1969-12-31", "1969-12-31");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1970-01-01", "1970-01-01");
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("2024-03-30", "2024-03-30");
+    }
+
+    private void assertReadingWithCoercionHybridToProlepticLegacyDate(String writtenDate, String actualReadDate)
+    {
+        assertReadingHybridToProlepticLegacyDate(true, writtenDate, actualReadDate);
+    }
+
+    private void assertReadingWithoutCoercionHybridToProlepticLegacyDate(String writtenDate, String actualReadDate)
+    {
+        assertReadingHybridToProlepticLegacyDate(false, writtenDate, actualReadDate);
+    }
+
+    private void assertReadingHybridToProlepticLegacyDate(boolean convertDateToProleptic, String writtenDate, String actualReadDate)
+    {
+        Block writtenBlock = nativeValueToBlock(DATE, toEpochDaysInHybridCalendar(writtenDate));
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = createCoercer(INT32, LogicalTypeAnnotation.dateType(), DATE, convertDateToProleptic);
+        Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
+
+        Object actualDays = blockToNativeValue(DATE, readBlock);
+        assertThat(actualDays).isEqualTo(toEpochDaysInProlepticGregorian(actualReadDate));
+    }
+
+    private static long toEpochDaysInProlepticGregorian(String date)
+    {
+        return LocalDate.parse(date).toEpochDay();
+    }
+
+    private Long toEpochDaysInHybridCalendar(String date)
+    {
+        return (long) floor((double) Date.valueOf(date).getTime() / DAYS.toMillis(1));
     }
 
     private void assertVarcharToDateCoercion(Type fromType, String date)
