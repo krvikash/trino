@@ -114,6 +114,9 @@ public class TestStatistics
         onTrino().executeQuery(format("CREATE TABLE IF NOT EXISTS %s (int_col integer, boolean_col boolean, string_col varchar(20)) " +
                 "WITH (external_location='s3://%s/',format='JSON',partitioned_by=ARRAY[],bucketed_by=ARRAY[],bucket_count=0)", TABLE_NAME, BUCKET_NAME));
 
+        // fake query to ensure that the dynamic catalog is loaded
+        onTrino().executeQuery("select count(*) from %s.%s.%s".formatted(CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));
+
         String warmQuery = format("select * from %s", TABLE_NAME);
         TestFormat testFormat = TestFormat.builder()
                 .name(TABLE_NAME)
@@ -133,15 +136,17 @@ public class TestStatistics
         }
 
         Set<WarmupColRuleData> rules = ruleUtils.createRulesFromStructure(SCHEMA_NAME, testFormat, WarmTypeForStrings.lucene_data_basic);
-        logger.info(format("Prepared Rules=%s", rules));
+        logger.info("Prepared Rules=%s", rules);
 
         try {
             String result = restUtils.executePostCommandWithReturnValue(WARMUP_PATH, TASK_NAME_SET, rules);
             RuleResultDTO res = objectMapper.readerFor(new TypeReference<RuleResultDTO>() {}).readValue(result);
+
             assertThat(res.rejectedRules().isEmpty() && !res.appliedRules().isEmpty())
                     .as("some rules are rejected. %s", res.rejectedRules())
                     .isTrue();
             logger.debug("created %s rules for schemaTable=%s.%s", res.appliedRules(), SCHEMA_NAME, TABLE_NAME);
+
             warmUtils.warmAndValidate(testFormat, FastWarming.NONE);
         }
         catch (Exception e) {
@@ -154,6 +159,7 @@ public class TestStatistics
     {
         QueryResult queryResult = onTrino().executeQuery(format("EXPLAIN ANALYZE VERBOSE SELECT * FROM %s.%s.%s", CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));
         logger.debug("queryResult=%s", queryResult.rows());
+
         assertThat(queryResult.rows().toString().contains("warp-collect:string_col:WARM_UP_TYPE_DATA'")).isTrue();
     }
 
@@ -161,9 +167,11 @@ public class TestStatistics
     public void testShowStats()
     {
         onTrino().executeQuery(format("ANALYZE %s.%s.%s", CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));
-        List<ColumnStatistics> allColumnsAfterAnalyze = getStatisitics(); //after running Analyze
+
+        List<ColumnStatistics> allColumnsAfterAnalyze = getStatistics(); //after running Analyze
         Optional<Double> rowCounts = getRowCountFromStatistics(allColumnsAfterAnalyze);
         Double expectedRowCount = queryUtils.getTableRowCount(CATALOG_NAME, SCHEMA_NAME, TABLE_NAME);
+
         rowCounts.ifPresent(aDouble -> assertThat(aDouble).as(format("Expected %s rows but received %f",
                 expectedRowCount, aDouble)).isEqualTo(expectedRowCount));
 
@@ -171,13 +179,16 @@ public class TestStatistics
         this.validateStatsPerColumn(TABLE_COLUMN_BOOL, allColumnsAfterAnalyze);
     }
 
-    private List<ColumnStatistics> getStatisitics()
+    private List<ColumnStatistics> getStatistics()
     {
         List<ColumnStatistics> allColumns = new ArrayList<>();
+
         QueryResult queryResult = onTrino().executeQuery(format("SHOW STATS FOR (SELECT * FROM %s.%s.%s)", CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));
         logger.debug("queryResult=%s", queryResult.rows());
+
         int rowsCount = queryResult.getRowsCount();
         logger.debug("Row count=%d", rowsCount);
+
         for (int rowNumber = 0; rowNumber < rowsCount; rowNumber++) {
             ColumnStatistics colStats = new ColumnStatistics(
                     getStringFromObject(queryResult.column(ColumnStatisticsNames.COLUMNNAME.ordinal() + 1).get(rowNumber)),
@@ -205,12 +216,14 @@ public class TestStatistics
             return;
         }
         logger.debug("%s column statistics: %s", columnName, csColumn);
+
         QueryResult queryResult = getColumnData(columnName);
         logger.debug("Column %s Data ==> %s", columnName, queryResult.rows());
 
         Set<Object> distinctValues = new HashSet<>();
         int rowsCount = queryResult.getRowsCount();
         int nNull = 0;
+
         for (int rowNumber = 0; rowNumber < rowsCount; rowNumber++) {
             Object dValue = queryResult.column(1).get(rowNumber);
             if (dValue != null) {

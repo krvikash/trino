@@ -91,7 +91,7 @@ public class TestSynthetic
     public void after() {}
 
     @DataProvider
-    public Iterator<TestFormat> synthetic(ITestContext context)
+    public Iterator<TestFormat> syntheticWarp(ITestContext context)
             throws Exception
     {
         return executeDataProvider("file:///docker/trino-product-tests/warp/synthetic.json", TableType.warp);
@@ -111,8 +111,8 @@ public class TestSynthetic
         return executeDataProvider("file:///docker/trino-product-tests/warp/synthetic.json", TableType.warp_iceberg);
     }
 
-    @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthetic")
-    public void synthetic(TestFormat testFormat)
+    @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS}, dataProvider = "syntheticWarp")
+    public void syntheticWarp(TestFormat testFormat)
             throws IOException
     {
         execute(testFormat, TableType.warp);
@@ -161,14 +161,14 @@ public class TestSynthetic
     }
 
     @DataProvider
-    public Iterator<TestFormat> synthPartit(ITestContext context)
+    public Iterator<TestFormat> synthPartitWarp(ITestContext context)
             throws Exception
     {
         return executeDataProvider("file:///docker/trino-product-tests/warp/synth_partit.json", TableType.warp);
     }
 
     @DataProvider
-    public Iterator<TestFormat> synthPartitDelkalake(ITestContext context)
+    public Iterator<TestFormat> synthPartitDeltalake(ITestContext context)
             throws Exception
     {
         return executeDataProvider("file:///docker/trino-product-tests/warp/synth_partit.json", TableType.warp_delta_lake);
@@ -181,14 +181,14 @@ public class TestSynthetic
         return executeDataProvider("file:///docker/trino-product-tests/warp/synth_partit.json", TableType.warp_iceberg);
     }
 
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthPartit")
-    public void synthPartit(TestFormat testFormat)
+    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthPartitWarp")
+    public void synthPartitWarp(TestFormat testFormat)
             throws IOException
     {
         execute(testFormat, TableType.warp);
     }
 
-    @Test(groups = {WARP_SPEED_DELTA_LAKE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthPartitDelkalake")
+    @Test(groups = {WARP_SPEED_DELTA_LAKE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthPartitDeltalake")
     public void synthPartitDeltalake(TestFormat testFormat)
             throws IOException
     {
@@ -266,10 +266,9 @@ public class TestSynthetic
         String origSchemaName = "synthetic";
         String schemaName = getTypePrefix(tableType) + origSchemaName;
         String tableName = testFormat.getTableName();
+        @Language("SQL") String countSql = "select count(*) from %s".formatted(tableName);
 
-        try {
-            QueryExecutor queryExecutor = onTrino();
-
+        try (QueryExecutor queryExecutor = onTrino()) {
             queryExecutor.executeQuery("CREATE SCHEMA IF NOT EXISTS warp.%s".formatted(schemaName));
             queryExecutor.executeQuery("USE warp.%s".formatted(schemaName));
 
@@ -281,11 +280,16 @@ public class TestSynthetic
                 if (!TableType.warp.equals(tableType)) {
                     executeInsertTable(testFormat, origSchemaName, queryExecutor);
                 }
+
+                // fake query to ensure that the dynamic catalog is loaded
+                queryExecutor.executeQuery(countSql);
             }
-            else { // in case table was previously created but for some reason is empty
-                @Language("SQL") String countSql = "select count(*) from %s".formatted(testFormat.getTableName());
+            else {
+                // ensure that the dynamic catalog is loaded
+                QueryResult queryResult = queryExecutor.executeQuery(countSql);
+
+                // in case table was previously created but for some reason is empty
                 if (!TableType.warp.equals(tableType)) {
-                    QueryResult queryResult = queryExecutor.executeQuery(countSql);
                     if (queryResult.getRowsCount() == 0) {
                         logger.info("table %s is empty, run insert query", tableName);
                         executeInsertTable(testFormat, origSchemaName, queryExecutor);
