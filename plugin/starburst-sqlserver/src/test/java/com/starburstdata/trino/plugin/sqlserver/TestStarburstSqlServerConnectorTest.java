@@ -17,8 +17,6 @@ import io.trino.testng.services.Flaky;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 public class TestStarburstSqlServerConnectorTest
         extends TestSqlServerConnectorTest
 {
@@ -42,12 +40,5 @@ public class TestStarburstSqlServerConnectorTest
             throws Exception
     {
         super.testAddColumnConcurrently();
-    }
-
-    @Override
-    protected void verifyConcurrentAddColumnFailurePermissible(Exception e)
-    {
-        assertThat(e)
-                .hasMessageContaining("was deadlocked on lock resources");
     }
 }
