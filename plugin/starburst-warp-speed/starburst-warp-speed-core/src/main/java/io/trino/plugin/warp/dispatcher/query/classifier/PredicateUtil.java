@@ -31,7 +31,6 @@ import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -347,7 +346,7 @@ public class PredicateUtil
             }
         }
         else {
-            throw new UnsupportedOperationException("not supported type=" + type + ", inclusive=" + Arrays.toString(inclusive));
+            return false;
         }
         return true;
     }
