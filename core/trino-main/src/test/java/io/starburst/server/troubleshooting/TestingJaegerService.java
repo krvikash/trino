@@ -11,7 +11,6 @@ package io.starburst.server.troubleshooting;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
 import io.opentelemetry.exporter.internal.grpc.GrpcExporter;
 import io.opentelemetry.exporter.internal.grpc.GrpcExporterBuilder;
@@ -126,7 +125,7 @@ public class TestingJaegerService
     public static byte[] decompress(byte[] data)
     {
         try {
-            return ByteStreams.toByteArray(new GZIPInputStream(new ByteArrayInputStream(data)));
+            return new GZIPInputStream(new ByteArrayInputStream(data)).readAllBytes();
         }
         catch (IOException e) {
             throw new RuntimeException(e);
