@@ -45,7 +45,7 @@ public final class SqlServerQueryRunner
     private static final Logger log = Logger.get(SqlServerQueryRunner.class);
 
     public static final String CATALOG = "sqlserver";
-    private static final String TEST_SCHEMA = "dbo";
+    static final String TEST_SCHEMA = "dbo";
 
     public static Builder builder(TestingSqlServer testingSqlServer)
     {

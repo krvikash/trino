@@ -17,6 +17,10 @@ import io.trino.testng.services.Flaky;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.stream.Stream;
+
 public class TestStarburstSqlServerConnectorTest
         extends TestSqlServerConnectorTest
 {
@@ -40,5 +44,11 @@ public class TestStarburstSqlServerConnectorTest
             throws Exception
     {
         super.testAddColumnConcurrently();
+    }
+
+    @Override
+    protected String[] availableCatalogs(Optional<String> catalog)
+    {
+        return Stream.concat(Arrays.stream(super.availableCatalogs(catalog)), Stream.of("jmx")).toArray(String[]::new);
     }
 }

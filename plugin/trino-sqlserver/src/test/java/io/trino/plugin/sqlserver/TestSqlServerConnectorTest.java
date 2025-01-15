@@ -18,6 +18,7 @@ import io.trino.Session;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
+import org.intellij.lang.annotations.Language;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.Test;
@@ -26,9 +27,11 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static io.trino.plugin.jdbc.JdbcWriteSessionProperties.NON_TRANSACTIONAL_INSERT;
 import static io.trino.plugin.sqlserver.SqlServerQueryRunner.CATALOG;
+import static io.trino.plugin.sqlserver.SqlServerQueryRunner.TEST_SCHEMA;
 import static io.trino.plugin.sqlserver.SqlServerSessionProperties.BULK_COPY_FOR_WRITE;
 import static io.trino.plugin.sqlserver.SqlServerSessionProperties.BULK_COPY_FOR_WRITE_LOCK_DESTINATION_TABLE;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -40,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestSqlServerConnectorTest
         extends BaseSqlServerConnectorTest
 {
+    private static final String CONNECTOR_NAME = "sqlserver";
     protected TestingSqlServer sqlServer;
 
     @Override
@@ -57,6 +61,70 @@ public class TestSqlServerConnectorTest
     protected SqlExecutor onRemoteDatabase()
     {
         return sqlServer::execute;
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, sqlServer.getPassword(), sqlServer.getJdbcUrl(), sqlServer.getUsername());
+        assertUpdate(createCatalogSql);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs(availableCatalogs(Optional.empty()));
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs(availableCatalogs(Optional.empty()));
+    }
+
+    protected String[] availableCatalogs(Optional<String> catalog)
+    {
+        ImmutableList.Builder<String> catalogs = ImmutableList.builder();
+        catalogs.add("system")
+                .add("sqlserver")
+                .add("tpch")
+                .add("mock_dynamic_listing");
+        catalog.ifPresent(catalogs::add);
+        return catalogs.build().toArray(new String[0]);
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String createFirstCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(firstCatalog, CONNECTOR_NAME, sqlServer.getPassword(), sqlServer.getJdbcUrl(), sqlServer.getUsername());
+            assertUpdate(createFirstCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createFirstCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(firstCatalog, TEST_SCHEMA));
+
+            @Language("SQL")
+            String createSecondCatalogSql =
+                    """
+                    CREATE CATALOG %s USING %s
+                    WITH (
+                       "connection-password" = '%s',
+                       "connection-url" = '%s',
+                       "connection-user" = '%s',
+                       "jdbc-types-mapped-to-varchar" = 'true'
+                    )""".formatted(secondCatalog, CONNECTOR_NAME, sqlServer.getPassword(), sqlServer.getJdbcUrl(), sqlServer.getUsername());
+            assertUpdate(createSecondCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue()).isEqualTo(createSecondCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(secondCatalog, TEST_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
     }
 
     @Test
