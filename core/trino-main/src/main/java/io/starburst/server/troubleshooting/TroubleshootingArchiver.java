@@ -9,7 +9,6 @@
  */
 package io.starburst.server.troubleshooting;
 
-import com.google.common.io.ByteStreams;
 import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
@@ -165,7 +164,7 @@ public class TroubleshootingArchiver
                 return;
             }
             try {
-                long copied = ByteStreams.copy(entry.getValue(), archive);
+                long copied = entry.getValue().transferTo(archive);
                 log.debug("copied %d bytes for stream %s from provider %s", copied, entry.getKey(), dataProviderName);
             }
             catch (Exception e) {

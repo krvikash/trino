@@ -12,7 +12,6 @@ package io.starburst.server.troubleshooting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.io.ByteStreams;
 import com.google.inject.Key;
 import io.airlift.log.Logger;
 import io.trino.Session;
@@ -60,7 +59,7 @@ class TroubleshootingTestHelper
             File tmpFile = createTempFile("troubleshooting-", ".zip", tmpDir.toFile());
             log.debug("File with troubleshooting information was stored at: %s", tmpFile);
             try (var outputStream = new FileOutputStream(tmpFile)) {
-                ByteStreams.copy(inputStream, outputStream);
+                inputStream.transferTo(outputStream);
             }
             try (var zipFile = new ZipFile(tmpFile)) {
                 var e = zipFile.entries();
