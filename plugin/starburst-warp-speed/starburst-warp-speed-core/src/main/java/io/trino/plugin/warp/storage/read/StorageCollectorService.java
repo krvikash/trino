@@ -255,6 +255,7 @@ public class StorageCollectorService
                             numToCollect,
                             aggregatorPageArgs.queryResultTypes().get(),
                             queryArgs.dispatcherPageSourceStats());
+                    queryArgs.dispatcherPageSourceStats().addrecords_in_chunk(numToCollect);
                 }
                 else {
                     canPrepareMore = false;

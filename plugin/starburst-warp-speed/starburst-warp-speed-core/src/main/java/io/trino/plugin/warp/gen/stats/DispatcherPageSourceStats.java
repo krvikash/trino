@@ -71,6 +71,8 @@ public final class DispatcherPageSourceStats
     private final LongAdder lucene_execution_time = new LongAdder();
     private final LongAdder execution_time_Count = new LongAdder();
     private final LongAdder execution_time = new LongAdder();
+    private final LongAdder records_in_chunk_Count = new LongAdder();
+    private final LongAdder records_in_chunk = new LongAdder();
 
     @JsonCreator
     public DispatcherPageSourceStats()
@@ -964,6 +966,35 @@ public final class DispatcherPageSourceStats
         execution_time_Count.add(1);
     }
 
+    @JsonIgnore
+    @Managed
+    public long getrecords_in_chunk_Count()
+    {
+        return records_in_chunk_Count.longValue();
+    }
+
+    @Managed
+    public long getrecords_in_chunk_Average()
+    {
+        if (records_in_chunk_Count.longValue() == 0) {
+            return 0;
+        }
+        return records_in_chunk.longValue() / records_in_chunk_Count.longValue();
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getrecords_in_chunk()
+    {
+        return records_in_chunk.longValue();
+    }
+
+    public void addrecords_in_chunk(long val)
+    {
+        records_in_chunk.add(val);
+        records_in_chunk_Count.add(1);
+    }
+
     public static DispatcherPageSourceStats create()
     {
         return new DispatcherPageSourceStats();
@@ -1065,6 +1096,8 @@ public final class DispatcherPageSourceStats
         this.lucene_execution_time_Count.add(other.lucene_execution_time_Count.longValue());
         this.execution_time.add(other.execution_time.longValue());
         this.execution_time_Count.add(other.execution_time_Count.longValue());
+        this.records_in_chunk.add(other.records_in_chunk.longValue());
+        this.records_in_chunk_Count.add(other.records_in_chunk_Count.longValue());
     }
 
     @Override
@@ -1110,6 +1143,8 @@ public final class DispatcherPageSourceStats
         lucene_execution_time_Count.reset();
         execution_time.reset();
         execution_time_Count.reset();
+        records_in_chunk.reset();
+        records_in_chunk_Count.reset();
     }
 
     @Override
@@ -1198,6 +1233,12 @@ public final class DispatcherPageSourceStats
         }
         if (execution_time.longValue() > 0) {
             res.put("dispatcherPageSource:execution_time_Count", execution_time_Count.longValue());
+        }
+        if (records_in_chunk.longValue() > 0) {
+            res.put("dispatcherPageSource:records_in_chunk", records_in_chunk.longValue());
+        }
+        if (records_in_chunk.longValue() > 0) {
+            res.put("dispatcherPageSource:records_in_chunk_Count", records_in_chunk_Count.longValue());
         }
         return res;
     }
