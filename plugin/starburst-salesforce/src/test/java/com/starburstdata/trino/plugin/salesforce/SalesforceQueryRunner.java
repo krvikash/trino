@@ -50,6 +50,11 @@ public final class SalesforceQueryRunner
 
     private static final Logger log = Logger.get(SalesforceQueryRunner.class);
 
+    static final String SALESFORCE_BASIC_AUTH_USER = requireNonNull(System.getProperty("salesforce.test.basic.auth.user"), "salesforce.test.basic.auth.user is not set");
+    static final String SALESFORCE_BASIC_AUTH_PASSWORD = requireNonNull(System.getProperty("salesforce.test.basic.auth.password"), "salesforce.test.basic.auth.password is not set");
+    static final String SALESFORCE_BASIC_AUTH_SECURITY_TOKEN = requireNonNull(System.getProperty("salesforce.test.basic.auth.security-token"), "salesforce.test.basic.auth.security-token is not set");
+    static final String SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED = "true";
+
     private SalesforceQueryRunner() {}
 
     public static Builder builder()
@@ -110,9 +115,9 @@ public final class SalesforceQueryRunner
     private static void truncateTable(String tableName)
     {
         SalesforcePasswordConfig passwordConfig = new SalesforcePasswordConfig()
-                .setUser(requireNonNull(System.getProperty("salesforce.test.basic.auth.user"), "salesforce.test.basic.auth.user is not set"))
-                .setPassword(requireNonNull(System.getProperty("salesforce.test.basic.auth.password"), "salesforce.test.basic.auth.password is not set"))
-                .setSecurityToken(requireNonNull(System.getProperty("salesforce.test.basic.auth.security-token"), "salesforce.test.basic.auth.security-token is not set"));
+                .setUser(SALESFORCE_BASIC_AUTH_USER)
+                .setPassword(SALESFORCE_BASIC_AUTH_PASSWORD)
+                .setSecurityToken(SALESFORCE_BASIC_AUTH_SECURITY_TOKEN);
 
         SalesforceConfig config = new SalesforceConfig()
                 .setSandboxEnabled(true);
@@ -259,10 +264,10 @@ public final class SalesforceQueryRunner
         public Builder()
         {
             connectorProperties = ImmutableMap.<String, String>builder()
-                    .put("salesforce.user", requireNonNull(System.getProperty("salesforce.test.basic.auth.user"), "salesforce.test.basic.auth.user is not set"))
-                    .put("salesforce.password", requireNonNull(System.getProperty("salesforce.test.basic.auth.password"), "salesforce.test.basic.auth.password is not set"))
-                    .put("salesforce.security-token", requireNonNull(System.getProperty("salesforce.test.basic.auth.security-token"), "salesforce.test.basic.auth.security-token is not set"))
-                    .put("salesforce.enable-sandbox", "true")
+                    .put("salesforce.user", SALESFORCE_BASIC_AUTH_USER)
+                    .put("salesforce.password", SALESFORCE_BASIC_AUTH_PASSWORD)
+                    .put("salesforce.security-token", SALESFORCE_BASIC_AUTH_SECURITY_TOKEN)
+                    .put("salesforce.enable-sandbox", SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED)
                     .buildOrThrow();
             coordinatorProperties = ImmutableMap.of();
         }

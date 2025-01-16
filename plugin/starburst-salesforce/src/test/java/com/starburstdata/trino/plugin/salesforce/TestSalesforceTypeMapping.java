@@ -38,6 +38,9 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
+import static com.starburstdata.trino.plugin.salesforce.SalesforceQueryRunner.SALESFORCE_BASIC_AUTH_PASSWORD;
+import static com.starburstdata.trino.plugin.salesforce.SalesforceQueryRunner.SALESFORCE_BASIC_AUTH_SECURITY_TOKEN;
+import static com.starburstdata.trino.plugin.salesforce.SalesforceQueryRunner.SALESFORCE_BASIC_AUTH_USER;
 import static io.trino.plugin.jdbc.DecimalConfig.DecimalMapping.ALLOW_OVERFLOW;
 import static io.trino.plugin.jdbc.DecimalSessionSessionProperties.DECIMAL_DEFAULT_SCALE;
 import static io.trino.plugin.jdbc.DecimalSessionSessionProperties.DECIMAL_MAPPING;
@@ -51,7 +54,6 @@ import static java.math.RoundingMode.HALF_UP;
 import static java.math.RoundingMode.UNNECESSARY;
 import static java.time.ZoneOffset.UTC;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
-import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -81,9 +83,9 @@ public class TestSalesforceTypeMapping
             throws Exception
     {
         SalesforcePasswordConfig passwordConfig = new SalesforcePasswordConfig()
-                .setUser(requireNonNull(System.getProperty("salesforce.test.basic.auth.user"), "salesforce.test.basic.auth.user is not set"))
-                .setPassword(requireNonNull(System.getProperty("salesforce.test.basic.auth.password"), "salesforce.test.basic.auth.password is not set"))
-                .setSecurityToken(requireNonNull(System.getProperty("salesforce.test.basic.auth.security-token"), "salesforce.test.basic.auth.security-token is not set"));
+                .setUser(SALESFORCE_BASIC_AUTH_USER)
+                .setPassword(SALESFORCE_BASIC_AUTH_PASSWORD)
+                .setSecurityToken(SALESFORCE_BASIC_AUTH_SECURITY_TOKEN);
 
         SalesforceConfig config = new SalesforceConfig()
                 .setSandboxEnabled(true);
