@@ -22,7 +22,6 @@ import io.trino.filesystem.cache.CachingHostAddressProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitSource;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesSplitSource;
-import io.trino.plugin.iceberg.functions.tables.IcebergTablesFunction.IcebergTables;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.connector.ConnectorSession;
@@ -165,9 +164,6 @@ public class IcebergSplitManager
                             .fromSnapshotExclusive(functionHandle.startSnapshotId())
                             .toSnapshot(functionHandle.endSnapshotId()));
             return new ClassLoaderSafeConnectorSplitSource(tableChangesSplitSource, IcebergSplitManager.class.getClassLoader());
-        }
-        if (function instanceof IcebergTables icebergTables) {
-            return new ClassLoaderSafeConnectorSplitSource(new FixedSplitSource(icebergTables), IcebergSplitManager.class.getClassLoader());
         }
 
         throw new IllegalStateException("Unknown table function: " + function);
