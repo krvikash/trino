@@ -35,13 +35,19 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static com.google.common.io.Resources.getResource;
+import static io.trino.plugin.elasticsearch.ElasticsearchQueryRunner.PASSWORD;
+import static io.trino.plugin.elasticsearch.ElasticsearchQueryRunner.TPCH_SCHEMA;
+import static io.trino.plugin.elasticsearch.ElasticsearchQueryRunner.USER;
 import static io.trino.spi.StandardErrorCode.INVALID_COLUMN_REFERENCE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -61,6 +67,22 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 public abstract class BaseElasticsearchConnectorTest
         extends BaseConnectorTest
 {
+    private static final String CREATE_CATALOG_SQL_TEMPLATE =
+            """
+            CREATE CATALOG %s USING elasticsearch
+            WITH (
+               "elasticsearch.auth.password" = '%s',
+               "elasticsearch.auth.user" = '%s',
+               "elasticsearch.default-schema-name" = '%s',
+               "elasticsearch.host" = '%s',
+               "elasticsearch.port" = '%s',
+               "elasticsearch.security" = 'PASSWORD',
+               "elasticsearch.tls.enabled" = 'true',
+               "elasticsearch.tls.truststore-password" = '123456',
+               "elasticsearch.tls.truststore-path" = '%s',
+               "elasticsearch.tls.verify-hostnames" = 'false'
+            )""";
+
     private ElasticsearchServer server;
     private RestClient client;
     protected final String jmxBaseName = randomNameSuffix();
@@ -132,6 +154,91 @@ public abstract class BaseElasticsearchConnectorTest
     protected List<Integer> largeInValuesCountData()
     {
         return ImmutableList.of(200, 500, 1000);
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+            throws URISyntaxException
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                .formatted(
+                        catalog,
+                        PASSWORD,
+                        USER,
+                        TPCH_SCHEMA,
+                        server.getAddress().getHost(),
+                        server.getAddress().getPort(),
+                        new File(getResource("truststore.jks").toURI()).getPath());
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "elasticsearch", "tpch", "mock_dynamic_listing", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "elasticsearch", "tpch", "mock_dynamic_listing", "jmx");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "elasticsearch", "tpch", "mock_dynamic_listing", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "elasticsearch", "tpch", "mock_dynamic_listing", "jmx");
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+            throws URISyntaxException
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String createFirstCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(
+                            firstCatalog,
+                            PASSWORD,
+                            USER,
+                            TPCH_SCHEMA,
+                            server.getAddress().getHost(),
+                            server.getAddress().getPort(),
+                            new File(getResource("truststore.jks").toURI()).getPath());
+            assertUpdate(createFirstCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(createFirstCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(firstCatalog, TPCH_SCHEMA));
+
+            @Language("SQL")
+            String createSecondCatalogSql =
+                    """
+                    CREATE CATALOG %s USING elasticsearch
+                    WITH (
+                       "elasticsearch.auth.password" = '%s',
+                       "elasticsearch.auth.user" = '%s',
+                       "elasticsearch.default-schema-name" = '%s',
+                       "elasticsearch.host" = '%s',
+                       "elasticsearch.port" = '%s',
+                       "elasticsearch.scroll-size" = '1000',
+                       "elasticsearch.scroll-timeout" = '1m',
+                       "elasticsearch.security" = 'PASSWORD',
+                       "elasticsearch.tls.enabled" = 'true',
+                       "elasticsearch.tls.truststore-password" = '123456',
+                       "elasticsearch.tls.truststore-path" = '%s',
+                       "elasticsearch.tls.verify-hostnames" = 'false'
+                    )""".formatted(
+                            secondCatalog,
+                            PASSWORD,
+                            USER,
+                            TPCH_SCHEMA,
+                            server.getAddress().getHost(),
+                            server.getAddress().getPort(),
+                            new File(getResource("truststore.jks").toURI()).getPath());
+            assertUpdate(createSecondCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue()).isEqualTo(createSecondCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(secondCatalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
     }
 
     @Test

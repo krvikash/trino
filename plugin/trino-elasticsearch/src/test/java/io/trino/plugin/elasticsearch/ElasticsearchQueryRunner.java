@@ -58,7 +58,7 @@ public final class ElasticsearchQueryRunner
 
     public static final String USER = "elastic_user";
     public static final String PASSWORD = "123456";
-    private static final String TPCH_SCHEMA = "tpch";
+    static final String TPCH_SCHEMA = "tpch";
 
     public static Builder builder(ElasticsearchServer server)
     {
