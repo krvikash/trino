@@ -1589,7 +1589,7 @@ public class DeltaLakeMetadata
         String location = handle.location();
 
         List<DataFileInfo> dataFileInfos = fragments.stream()
-                .map(Slice::getBytes)
+                .map(Slice::getInput)
                 .map(dataFileInfoCodec::fromJson)
                 .collect(toImmutableList());
 
@@ -2172,7 +2172,7 @@ public class DeltaLakeMetadata
         DeltaLakeInsertTableHandle handle = (DeltaLakeInsertTableHandle) insertHandle;
 
         List<DataFileInfo> dataFileInfos = fragments.stream()
-                .map(Slice::getBytes)
+                .map(Slice::getInput)
                 .map(dataFileInfoCodec::fromJson)
                 .collect(toImmutableList());
 
@@ -2497,7 +2497,7 @@ public class DeltaLakeMetadata
         DeltaLakeTableHandle handle = mergeHandle.tableHandle();
 
         List<DeltaLakeMergeResult> mergeResults = fragments.stream()
-                .map(Slice::getBytes)
+                .map(Slice::getInput)
                 .map(mergeResultJsonCodec::fromJson)
                 .collect(toImmutableList());
 
@@ -2773,7 +2773,7 @@ public class DeltaLakeMetadata
 
         // files to be added
         List<DataFileInfo> dataFileInfos = fragments.stream()
-                .map(Slice::getBytes)
+                .map(Slice::getInput)
                 .map(dataFileInfoCodec::fromJson)
                 .collect(toImmutableList());
 
