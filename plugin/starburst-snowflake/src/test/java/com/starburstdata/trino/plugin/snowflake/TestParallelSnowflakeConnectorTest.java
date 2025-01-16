@@ -1677,6 +1677,51 @@ public class TestParallelSnowflakeConnectorTest
         }
     }
 
+    @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            assertUpdate(generateCreateCatalogSql(oldCatalog));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TEST_SCHEMA));
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(generateCreateCatalogSql(catalog));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TEST_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            String createCatalogSql = generateCreateCatalogSql(catalog, "jdbc:snowflake://invalid_connection_url");
+            assertUpdate(createCatalogSql);
+            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, TEST_SCHEMA), "Connection string is invalid\\. Unable to parse\\.");
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql);
+
+            assertUpdate("""
+                    ALTER CATALOG %s SET PROPERTIES
+                      "connection-url" = '%s'
+                    """.formatted(catalog, SnowflakeServer.JDBC_URL));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(generateCreateCatalogSql(catalog));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TEST_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG " + catalog);
+        }
+    }
+
     private String generateCreateCatalogSql(String catalogName)
     {
         return generateCreateCatalogSql(catalogName, SnowflakeServer.JDBC_URL);
