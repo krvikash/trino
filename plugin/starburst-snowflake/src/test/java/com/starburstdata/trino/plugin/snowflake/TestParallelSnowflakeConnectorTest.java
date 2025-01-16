@@ -1636,6 +1636,70 @@ public class TestParallelSnowflakeConnectorTest
     }
 
     @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = generateCreateCatalogSql(catalog);
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "snowflake", "tpch", "mock_dynamic_listing", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "snowflake", "mock_dynamic_listing", "tpch", "jmx");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "snowflake", "tpch", "mock_dynamic_listing", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "snowflake", "tpch", "mock_dynamic_listing", "jmx");
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            assertUpdate(generateCreateCatalogSql(firstCatalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(generateCreateCatalogSql(firstCatalog));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(firstCatalog, TEST_SCHEMA));
+
+            String secondConnectionUrl = SnowflakeServer.JDBC_URL + "?role=TEST_ROLE";
+            assertUpdate(generateCreateCatalogSql(secondCatalog, secondConnectionUrl));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(generateCreateCatalogSql(secondCatalog, secondConnectionUrl));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(secondCatalog, TEST_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    private String generateCreateCatalogSql(String catalogName)
+    {
+        return generateCreateCatalogSql(catalogName, SnowflakeServer.JDBC_URL);
+    }
+
+    private String generateCreateCatalogSql(String catalogName, String connectionUrl)
+    {
+        return """
+                CREATE CATALOG %s USING snowflake_parallel
+                WITH (
+                   "connection-url" = '%s',
+                   "connection-user" = '%s',
+                   "snowflake.connection-private-key" = '%s',
+                   "snowflake.database" = '%s'
+                )""".formatted(
+                catalogName,
+                connectionUrl,
+                SnowflakeServer.USER,
+                SnowflakeServer.PRIVATE_KEY,
+                testDatabase.getName());
+    }
+
+    @Test
     public void testUpperLowerPushdown()
     {
         Session experimentalPushdownDisabled = Session.builder(getSession())

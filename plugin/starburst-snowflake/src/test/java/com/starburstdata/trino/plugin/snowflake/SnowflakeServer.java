@@ -30,7 +30,6 @@ public final class SnowflakeServer
 
     public static final String JDBC_URL = requireNonNull(System.getProperty("snowflake.test.server.url"), "snowflake.test.server.url is not set");
     public static final String USER = requireNonNull(System.getProperty("snowflake.test.server.user"), "snowflake.test.server.user is not set");
-    public static final String PASSWORD = requireNonNull(System.getProperty("snowflake.test.server.password"), "snowflake.test.server.password is not set");
     public static final String PRIVATE_KEY = requireNonNull(System.getProperty("snowflake.test.server.private-key"), "snowflake.test.server.private-key is not set");
     public static final String PRIVATE_KEY_2 = requireNonNull(System.getProperty("snowflake.test.server.private-key-2"), "snowflake.test.server.private-key-2 is not set");
     public static final String PRIVATE_KEY_2_PASSPHRASE = requireNonNull(System.getProperty("snowflake.test.server.private-key-2-passphrase"), "snowflake.test.server.private-key-2-passphrase is not set");
