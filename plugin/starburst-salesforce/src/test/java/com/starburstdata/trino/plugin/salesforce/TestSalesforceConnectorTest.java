@@ -323,6 +323,67 @@ public class TestSalesforceConnectorTest
     }
 
     @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            @Language("SQL")
+            String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(oldCatalog, SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED, SALESFORCE_BASIC_AUTH_PASSWORD, SALESFORCE_BASIC_AUTH_SECURITY_TOKEN, SALESFORCE_BASIC_AUTH_USER);
+            assertUpdate(createCatalogSql);
+            assertThat(computeActual("SHOW TABLES FROM %s.%s".formatted(oldCatalog, "salesforce")).getMaterializedRows()).isNotEmpty();
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog)).hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
+                            .formatted(
+                                    catalog,
+                                    SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED,
+                                    SALESFORCE_BASIC_AUTH_PASSWORD,
+                                    SALESFORCE_BASIC_AUTH_SECURITY_TOKEN,
+                                    SALESFORCE_BASIC_AUTH_USER));
+            assertThat(computeActual("SHOW TABLES FROM %s.%s".formatted(catalog, "salesforce")).getMaterializedRows()).isNotEmpty();
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String catalogWithIncorrectUser = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(catalog, SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED, SALESFORCE_BASIC_AUTH_PASSWORD, SALESFORCE_BASIC_AUTH_SECURITY_TOKEN, "INVALID");
+            assertUpdate(catalogWithIncorrectUser);
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog)).isEqualTo(catalogWithIncorrectUser);
+            assertThat(computeActual("SHOW TABLES FROM %s.%s".formatted(catalog, "salesforce")).getMaterializedRows()).isEmpty();
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "salesforce.user" = '%s'
+                    """.formatted(catalog, SALESFORCE_BASIC_AUTH_USER));
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
+                            .formatted(
+                                    catalog,
+                                    SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED,
+                                    SALESFORCE_BASIC_AUTH_PASSWORD,
+                                    SALESFORCE_BASIC_AUTH_SECURITY_TOKEN,
+                                    SALESFORCE_BASIC_AUTH_USER));
+            assertThat(computeActual("SHOW TABLES FROM %s.%s".formatted(catalog, "salesforce")).getMaterializedRows()).isNotEmpty();
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
     public void testSelectLimitsTable()
     {
         // "current" value can change so just assert the limit
