@@ -9,6 +9,7 @@
  */
 package io.starburst.server.troubleshooting;
 
+import com.google.common.io.Closer;
 import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
@@ -149,7 +150,13 @@ public class TroubleshootingArchiver
             log.warn(e, "%s.getInputStreams() failed for query with id: %s", dataProviderName, context.getQueryId().getId());
             return;
         }
-        writeInputStreamToArchiveEntry(filenameInputStreamMap, archive, context, dataProviderName);
+        try (Closer closer = Closer.create()) {
+            filenameInputStreamMap.values().forEach(closer::register);
+            writeInputStreamToArchiveEntry(filenameInputStreamMap, archive, context, dataProviderName);
+        }
+        catch (IOException _) {
+            // all streams are closed (except those that throw) and it's all that matters
+        }
     }
 
     private void writeInputStreamToArchiveEntry(Map<String, InputStream> filenameInputStreamMap, ZipOutputStream archive, TroubleshootingContext context, String dataProviderName)
