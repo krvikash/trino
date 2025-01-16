@@ -70,6 +70,10 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.MoreCollectors.toOptional;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static com.starburstdata.trino.plugin.salesforce.SalesforceQueryRunner.SALESFORCE_BASIC_AUTH_PASSWORD;
+import static com.starburstdata.trino.plugin.salesforce.SalesforceQueryRunner.SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED;
+import static com.starburstdata.trino.plugin.salesforce.SalesforceQueryRunner.SALESFORCE_BASIC_AUTH_SECURITY_TOKEN;
+import static com.starburstdata.trino.plugin.salesforce.SalesforceQueryRunner.SALESFORCE_BASIC_AUTH_USER;
 import static com.starburstdata.trino.plugin.salesforce.SalesforceQueryRunner.TIMESTAMP_PUSH_DOWN_TABLE_NAME;
 import static io.airlift.units.Duration.nanosSince;
 import static io.trino.SystemSessionProperties.IGNORE_STATS_CALCULATOR_FAILURES;
@@ -130,6 +134,15 @@ import static org.junit.jupiter.api.Assumptions.abort;
 public class TestSalesforceConnectorTest
         extends AbstractTestQueryFramework
 {
+    private static final String CREATE_CATALOG_SQL_TEMPLATE =
+            """
+            CREATE CATALOG %s USING salesforce
+            WITH (
+               "salesforce.enable-sandbox" = '%s',
+               "salesforce.password" = '%s',
+               "salesforce.security-token" = '%s',
+               "salesforce.user" = '%s'
+            )""";
     // This map is used for replacing tables and columns ending in __c with their non-__c counterpart when
     // running the expected queries against H2
     private final Map<String, String> tableColumnSuffixRegexes = ImmutableMap.<String, String>builder()
@@ -242,6 +255,72 @@ public class TestSalesforceConnectorTest
     // AbstractTestQueries
 
     protected static final List<TpchTable<?>> REQUIRED_TPCH_TABLES = ImmutableList.of(CUSTOMER, NATION, ORDERS, REGION, LINE_ITEM);
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                .formatted(catalog, SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED, SALESFORCE_BASIC_AUTH_PASSWORD, SALESFORCE_BASIC_AUTH_SECURITY_TOKEN, SALESFORCE_BASIC_AUTH_USER);
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "salesforce", "tpch", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "salesforce", "tpch", "jmx");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "salesforce", "tpch", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "salesforce", "tpch", "jmx");
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String createFirstCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(
+                            firstCatalog,
+                            SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED,
+                            SALESFORCE_BASIC_AUTH_PASSWORD,
+                            SALESFORCE_BASIC_AUTH_SECURITY_TOKEN,
+                            SALESFORCE_BASIC_AUTH_USER);
+            assertUpdate(createFirstCatalogSql);
+            assertThat(computeScalar("SHOW CREATE CATALOG " + firstCatalog))
+                    .isEqualTo(createFirstCatalogSql);
+            assertThat(computeActual("SHOW TABLES FROM %s.%s".formatted(firstCatalog, "salesforce")).getMaterializedRows()).isNotEmpty();
+
+            @Language("SQL")
+            String createSecondCatalogSql =
+                    """
+                    CREATE CATALOG %s USING salesforce
+                    WITH (
+                       "salesforce.driver-logging.enabled" = 'true',
+                       "salesforce.enable-sandbox" = '%s',
+                       "salesforce.password" = '%s',
+                       "salesforce.security-token" = '%s',
+                       "salesforce.user" = '%s'
+                    )""".formatted(
+                            secondCatalog,
+                            SALESFORCE_BASIC_AUTH_SANDBOX_ENABLED,
+                            SALESFORCE_BASIC_AUTH_PASSWORD,
+                            SALESFORCE_BASIC_AUTH_SECURITY_TOKEN,
+                            SALESFORCE_BASIC_AUTH_USER);
+            assertUpdate(createSecondCatalogSql);
+            assertThat(computeScalar("SHOW CREATE CATALOG " + secondCatalog))
+                    .isEqualTo(createSecondCatalogSql);
+            assertThat(computeActual("SHOW TABLES FROM %s.%s".formatted(secondCatalog, "salesforce")).getMaterializedRows()).isNotEmpty();
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
 
     @Test
     public void testSelectLimitsTable()
