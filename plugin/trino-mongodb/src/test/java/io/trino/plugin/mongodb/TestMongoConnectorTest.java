@@ -35,6 +35,7 @@ import io.trino.testing.sql.TestTable;
 import org.bson.Document;
 import org.bson.types.Decimal128;
 import org.bson.types.ObjectId;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ import java.util.Set;
 
 import static com.mongodb.client.model.CollationCaseFirst.LOWER;
 import static com.mongodb.client.model.CollationStrength.PRIMARY;
+import static io.trino.plugin.mongodb.MongoQueryRunner.TPCH_SCHEMA;
 import static io.trino.plugin.mongodb.MongoQueryRunner.createMongoClient;
 import static io.trino.plugin.mongodb.TypeUtils.isPushdownSupportedType;
 import static io.trino.spi.connector.ConnectorMetadata.MODIFYING_ROWS_MESSAGE;
@@ -68,6 +70,12 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 public class TestMongoConnectorTest
         extends BaseConnectorTest
 {
+    private static final String CREATE_CATALOG_SQL_TEMPLATE =
+            """
+            CREATE CATALOG %s USING mongodb
+            WITH (
+               "mongodb.connection-url" = '%s'
+            )""";
     protected MongoServer server;
     protected MongoClient client;
 
@@ -156,6 +164,56 @@ public class TestMongoConnectorTest
                 .matches("VALUES (BIGINT '4', BIGINT '5')");
 
         assertUpdate("DROP TABLE " + table);
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, server.getConnectionString());
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "mongodb", "tpch", "mock_dynamic_listing", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "mongodb", "tpch", "mock_dynamic_listing");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "mongodb", "tpch", "mock_dynamic_listing", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "mongodb", "tpch", "mock_dynamic_listing");
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String createFirstCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(firstCatalog, server.getConnectionString());
+            assertUpdate(createFirstCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue()).isEqualTo(createFirstCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(firstCatalog, TPCH_SCHEMA));
+
+            @Language("SQL")
+            String createSecondCatalogSql =
+                    """
+                    CREATE CATALOG %s USING mongodb
+                    WITH (
+                       "mongodb.allow-local-scheduling" = 'true',
+                       "mongodb.connection-url" = '%s'
+                    )""".formatted(secondCatalog, server.getConnectionString());
+            assertUpdate(createSecondCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createSecondCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(secondCatalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
     }
 
     @Test
