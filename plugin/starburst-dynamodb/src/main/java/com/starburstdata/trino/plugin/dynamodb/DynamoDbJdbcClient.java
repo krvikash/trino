@@ -35,6 +35,7 @@ import io.trino.plugin.jdbc.WriteMapping;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.connector.ColumnPosition;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.SchemaTableName;
@@ -355,6 +356,12 @@ public class DynamoDbJdbcClient
         catch (IOException e) {
             throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Failed to delete schema file for table %s after dropping. The schema file needs to be deleted otherwise the table will still appear as existing even though it was actually dropped.", schemaFile.toFile().getAbsolutePath()), e);
         }
+    }
+
+    @Override
+    public void addColumn(ConnectorSession session, JdbcTableHandle handle, ColumnMetadata column, ColumnPosition position)
+    {
+        throw new TrinoException(NOT_SUPPORTED, "This connector does not support adding columns");
     }
 
     @Override
