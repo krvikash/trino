@@ -66,6 +66,7 @@ import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.datatype.DataType.timestampDataType;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 public class TestStarburstOracleConnectorTest
@@ -659,6 +660,52 @@ public class TestStarburstOracleConnectorTest
         finally {
             assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
             assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, CONNECTOR_NAME, PASSWORD, oracleServer.get().getJdbcUrl(), USER));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, USER));
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, PASSWORD, oracleServer.get().getJdbcUrl(), USER));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, USER));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, "INVALID", oracleServer.get().getJdbcUrl(), USER);
+            assertUpdate(catalogWithIncorrectPassword);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue()).isEqualTo(catalogWithIncorrectPassword);
+            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, USER), ".* Unable to start the Universal Connection Pool");
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "connection-password" = '%s'
+                    """.formatted(catalog, PASSWORD));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, PASSWORD, oracleServer.get().getJdbcUrl(), USER));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, USER));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
     }
 
