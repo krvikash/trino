@@ -25,6 +25,7 @@ import io.trino.testing.kafka.TestingKafka;
 import io.trino.testing.sql.TestTable;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -36,6 +37,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.plugin.kafka.KafkaQueryRunner.TEST;
 import static io.trino.plugin.kafka.encoder.json.format.DateTimeFormat.CUSTOM_DATE_TIME;
 import static io.trino.plugin.kafka.encoder.json.format.DateTimeFormat.ISO8601;
 import static io.trino.plugin.kafka.encoder.json.format.DateTimeFormat.MILLISECONDS_SINCE_EPOCH;
@@ -77,6 +79,14 @@ public class TestKafkaConnectorTest
     private static final String JSON_RFC2822_TABLE_NAME = "rfc2822_table";
     private static final String JSON_MILLISECONDS_TABLE_NAME = "milliseconds_since_epoch_table";
     private static final String JSON_SECONDS_TABLE_NAME = "seconds_since_epoch_table";
+    private static final String DEFAULT_SCHEMA = "default";
+    private static final String CREATE_CATALOG_SQL_TEMPLATE =
+            """
+            CREATE CATALOG %s USING kafka
+            WITH (
+               "kafka.nodes" = '%s',
+               "kafka.table-description-supplier" = '%s'
+            )""";
 
     // These tables must not be reused because the data will be modified during tests
     private static final SchemaTableName TABLE_INSERT_NEGATIVE_DATE = new SchemaTableName("write_test", "test_insert_negative_date_" + randomNameSuffix());
@@ -514,6 +524,57 @@ public class TestKafkaConnectorTest
                     throw new AssertionError(format("Equality assertion failed for field '%s'\n%s", field.getFieldName(), e.getMessage()), e);
                 }
             }
+        }
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, testingKafka.getConnectString(), TEST);
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "kafka", "tpch", "mock_dynamic_listing", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "kafka", "tpch", "mock_dynamic_listing");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "kafka", "tpch", "mock_dynamic_listing", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "kafka", "tpch", "mock_dynamic_listing");
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String createFirstCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(firstCatalog, testingKafka.getConnectString(), TEST);
+            assertUpdate(createFirstCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue()).isEqualTo(createFirstCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(firstCatalog, DEFAULT_SCHEMA));
+
+            @Language("SQL")
+            String createSecondCatalogSql =
+                    """
+                    CREATE CATALOG %s USING kafka
+                    WITH (
+                       "kafka.buffer-size" = '1MB',
+                       "kafka.nodes" = '%s',
+                       "kafka.table-description-supplier" = '%s'
+                    )""".formatted(secondCatalog, testingKafka.getConnectString(), TEST);
+            assertUpdate(createSecondCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(createSecondCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(secondCatalog, DEFAULT_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
         }
     }
 

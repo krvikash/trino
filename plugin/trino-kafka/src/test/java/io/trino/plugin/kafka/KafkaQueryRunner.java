@@ -41,6 +41,7 @@ import io.trino.tpch.TpchTable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,10 +66,10 @@ public final class KafkaQueryRunner
         logging.setLevel("org.apache.kafka", Level.OFF);
     }
 
+    static final String TEST = "test";
     private static final Logger log = Logger.get(KafkaQueryRunner.class);
 
     private static final String TPCH_SCHEMA = "tpch";
-    private static final String TEST = "test";
 
     public static Builder builder(TestingKafka testingKafka)
     {
@@ -173,6 +174,9 @@ public final class KafkaQueryRunner
                         {
                             if (buildConfigObject(KafkaConfig.class).getTableDescriptionSupplier().equalsIgnoreCase(TEST)) {
                                 binder.bind(TableDescriptionSupplier.class).toInstance(new MapBasedTableDescriptionSupplier(topicDescriptionMap));
+                            }
+                            else {
+                                binder.bind(TableDescriptionSupplier.class).toInstance(new MapBasedTableDescriptionSupplier(Collections.emptyMap()));
                             }
                             binder.bind(ContentSchemaProvider.class).to(FileReadContentSchemaProvider.class).in(Scopes.SINGLETON);
                             install(new DecoderModule());
