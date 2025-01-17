@@ -29,6 +29,7 @@ import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import oracle.jdbc.OracleTypes;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -46,6 +47,8 @@ import static com.google.common.base.Predicates.equalTo;
 import static com.google.common.base.Strings.repeat;
 import static com.starburstdata.trino.plugin.oracle.OracleDataTypes.oracleTimestamp3TimeZoneDataType;
 import static com.starburstdata.trino.plugin.oracle.OracleDataTypes.prestoTimestampWithTimeZoneDataType;
+import static com.starburstdata.trino.plugin.oracle.OracleTestUsers.PASSWORD;
+import static com.starburstdata.trino.plugin.oracle.OracleTestUsers.USER;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.UNSUPPORTED_TYPE_HANDLING;
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
@@ -59,6 +62,7 @@ import static io.trino.sql.planner.assertions.PlanMatchPattern.topN;
 import static io.trino.sql.planner.plan.TopNNode.Step.FINAL;
 import static io.trino.sql.tree.SortItem.NullOrdering.LAST;
 import static io.trino.sql.tree.SortItem.Ordering.ASCENDING;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.datatype.DataType.timestampDataType;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,6 +71,7 @@ import static org.junit.jupiter.api.Assumptions.abort;
 public class TestStarburstOracleConnectorTest
         extends BaseOracleConnectorTest
 {
+    private static final String CONNECTOR_NAME = "oracle";
     private SharedResource.Lease<TestingStarburstOracleServer> oracleServer;
 
     @Override
@@ -301,7 +306,7 @@ public class TestStarburstOracleConnectorTest
     @Override
     protected String getUser()
     {
-        return OracleTestUsers.USER;
+        return USER;
     }
 
     @Override
@@ -611,6 +616,50 @@ public class TestStarburstOracleConnectorTest
     public void testRenameTableToLongTableName()
     {
         abort("https://starburstdata.atlassian.net/browse/SEP-9681");
+    }
+
+    @Test
+    void testCreateDropDynamicCatalog()
+    {
+        String catalog = "new_catalog_" + randomNameSuffix();
+        @Language("SQL")
+        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, PASSWORD, oracleServer.get().getJdbcUrl(), USER);
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "oracle", "tpch", "mock_dynamic_listing", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "oracle", "mock_dynamic_listing", "tpch", "jmx");
+        // re-add the same catalog
+        assertUpdate(createCatalogSql);
+        assertCatalogs("system", "oracle", "tpch", "mock_dynamic_listing", "jmx", catalog);
+
+        assertUpdate("DROP CATALOG " + catalog);
+        assertCatalogs("system", "oracle", "tpch", "mock_dynamic_listing", "jmx");
+    }
+
+    @Test
+    void testCreateDropMultipleCatalogs()
+    {
+        String firstCatalog = "catalog1_" + randomNameSuffix();
+        String secondCatalog = "catalog2_" + randomNameSuffix();
+        try {
+            String firstCreateSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(firstCatalog, CONNECTOR_NAME, PASSWORD, oracleServer.get().getJdbcUrl(), USER);
+            assertUpdate(firstCreateSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(firstCreateSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(firstCatalog, USER));
+
+            String secondConnectionUrl = oracleServer.get().getJdbcUrl() + "?service_tag=bogus";
+            String secondCreateSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(secondCatalog, CONNECTOR_NAME, PASSWORD, secondConnectionUrl, USER);
+            assertUpdate(secondCreateSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .isEqualTo(secondCreateSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(secondCatalog, USER));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
     }
 
     @Override
