@@ -19,6 +19,7 @@ import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.Type;
 import io.trino.testing.BaseConnectorTest;
+import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.kafka.TestingKafka;
@@ -66,6 +67,7 @@ import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS
 import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 public class TestKafkaConnectorTest
@@ -575,6 +577,56 @@ public class TestKafkaConnectorTest
         finally {
             assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
             assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, testingKafka.getConnectString(), TEST));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, DEFAULT_SCHEMA));
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, testingKafka.getConnectString(), TEST));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, DEFAULT_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String createInvalidCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, "invalid:1234", "invalid");
+            assertUpdate(createInvalidCatalogSql);
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(createInvalidCatalogSql);
+            assertThatThrownBy(() -> computeActual("SHOW TABLES FROM %s.%s".formatted(catalog, DEFAULT_SCHEMA)))
+                    .isInstanceOf(QueryFailedException.class)
+                    .hasMessageContaining("Schema '%s' does not exist".formatted(DEFAULT_SCHEMA));
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "kafka.nodes" = '%s',
+                      "kafka.table-description-supplier" = '%s'
+                    """.formatted(catalog, testingKafka.getConnectString(), TEST));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, testingKafka.getConnectString(), TEST));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, DEFAULT_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
     }
 
