@@ -208,7 +208,7 @@ public class WorkerCapacityManager
         }
 
         logger.info("cleanLocalStorage launching background clean for path %s", localStorePath);
-        nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
+
         Thread cleanLocalStorageThread = new Thread(() -> {
             try {
                 logger.info("cleanLocalStorage job starting localStorePath %s", localStorePath);

@@ -98,7 +98,12 @@ public class WorkerCapacityManagerTest
                     throw new RuntimeException("failed to create file");
                 }
             }
-            Assertions.assertEquals(1, requireNonNull(catalogLocalStore.list()).length);
+            Failsafe.with(RetryPolicy.builder()
+                            .handle(AssertionError.class)
+                            .withDelay(Duration.ofMillis(10))
+                            .withMaxRetries(10)
+                            .build())
+                    .run(() -> Assertions.assertEquals(1, requireNonNull(catalogLocalStore.list()).length));
 
             workerCapacityManager.initWorker();
 
@@ -107,13 +112,18 @@ public class WorkerCapacityManagerTest
                             .withDelay(Duration.ofMillis(10))
                             .withMaxRetries(10)
                             .build())
-                    .run(() -> assertThat(workerCapacityManager.getTotalCapacity()).isGreaterThan(0));
+                    .run(() -> {
+                        assertThat(workerCapacityManager.isWorkerInitialized()).isTrue();
+                        assertThat(workerCapacityManager.getTotalCapacity()).isGreaterThan(0);
+                    });
 
             Assertions.assertEquals(0, requireNonNull(catalogLocalStore.list()).length);
-            FileUtils.deleteDirectory(localStoreDirectory);
         }
         catch (IOException e) {
             throw new RuntimeException(e);
+        }
+        finally {
+            FileUtils.deleteQuietly(localStoreDirectory);
         }
     }
 
