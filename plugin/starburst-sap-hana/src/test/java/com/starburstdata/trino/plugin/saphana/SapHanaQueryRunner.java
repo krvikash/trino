@@ -35,6 +35,7 @@ public final class SapHanaQueryRunner
 {
     public static final String GRANTED_USER = "alice";
     public static final String NON_GRANTED_USER = "bob";
+    static final String TPCH_SCHEMA = "tpch";
     private static final boolean TESTCONTAINERS_REUSE_ENABLE = parseBoolean(getenv("TESTCONTAINERS_REUSE_ENABLE"));
 
     private SapHanaQueryRunner() {}
@@ -55,7 +56,7 @@ public final class SapHanaQueryRunner
         {
             super(testSessionBuilder()
                     .setCatalog("saphana")
-                    .setSchema("tpch")
+                    .setSchema(TPCH_SCHEMA)
                     .build());
             this.server = requireNonNull(server, "server is null");
         }
