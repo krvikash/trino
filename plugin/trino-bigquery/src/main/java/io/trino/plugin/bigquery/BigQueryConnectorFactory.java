@@ -15,8 +15,10 @@ package io.trino.plugin.bigquery;
 
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.json.JsonModule;
 import io.trino.plugin.base.ConnectorContextModule;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.spi.connector.Connector;
@@ -25,6 +27,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Map;
+import java.util.Set;
 
 import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
 import static java.util.Objects.requireNonNull;
@@ -45,6 +48,28 @@ public class BigQueryConnectorFactory
         requireNonNull(config, "config is null");
         checkStrictSpiVersionMatch(context, this);
 
+        Bootstrap app = createBootstrap(catalogName, config, context);
+
+        Injector injector = app.initialize();
+
+        return injector.getInstance(BigQueryConnector.class);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        Bootstrap app = createBootstrap(catalogName, config, context);
+
+        Set<ConfigPropertyMetadata> usedProperties = app
+                .quiet()
+                .skipErrorReporting()
+                .configure();
+
+        return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+    }
+
+    private static Bootstrap createBootstrap(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
         Bootstrap app = new Bootstrap(
                 "io.trino.bootstrap.catalog." + catalogName,
                 new JsonModule(),
@@ -54,12 +79,9 @@ public class BigQueryConnectorFactory
                 new ConnectorObjectNameGeneratorModule("io.trino.plugin.bigquery", "trino.plugin.bigquery"),
                 new ConnectorContextModule(catalogName, context));
 
-        Injector injector = app
+        return app
                 .doNotInitializeLogging()
                 .disableSystemProperties()
-                .setRequiredConfigurationProperties(config)
-                .initialize();
-
-        return injector.getInstance(BigQueryConnector.class);
+                .setRequiredConfigurationProperties(config);
     }
 }

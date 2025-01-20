@@ -13,12 +13,14 @@
  */
 package io.trino.plugin.bigquery;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.plugin.bigquery.BigQueryQueryRunner.DUMMY_BIGQUERY_CREDENTIALS_KEY;
@@ -43,6 +45,22 @@ public class TestBigQueryPlugin
         // MV substitution support must be wired; verifiable without BigQuery/GCP access.
         assertThat(connector.getSubstitutionMetadata()).isNotNull();
         connector.shutdown();
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        BigQueryPlugin plugin = new BigQueryPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "bigquery.credentials-key", "key",
+                "bigquery.metadata.parallelism", "shouldBeInt",
+                "bigquery.projection-pushdown-enabled", "true");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties).containsExactlyInAnyOrder("non-existent-property", "bigquery.credentials-key");
     }
 
     @Test
