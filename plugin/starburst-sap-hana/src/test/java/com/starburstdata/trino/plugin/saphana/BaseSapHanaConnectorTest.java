@@ -129,6 +129,52 @@ public abstract class BaseSapHanaConnectorTest
     }
 
     @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, CONNECTOR_NAME, server.getPassword(), server.getJdbcUrl(), server.getUser()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TPCH_SCHEMA));
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, server.getPassword(), server.getJdbcUrl(), server.getUser()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, "INVALID", server.getJdbcUrl(), server.getUser());
+            assertUpdate(catalogWithIncorrectPassword);
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog)).isEqualTo(catalogWithIncorrectPassword);
+            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA), ".*authentication failed");
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "connection-password" = '%s'
+                    """.formatted(catalog, server.getPassword()));
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, server.getPassword(), server.getJdbcUrl(), server.getUser()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
     @Override
     public void testDateYearOfEraPredicate()
     {
