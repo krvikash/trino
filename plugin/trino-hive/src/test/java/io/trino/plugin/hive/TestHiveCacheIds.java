@@ -31,7 +31,6 @@ import io.trino.plugin.base.TypeDeserializer;
 import io.trino.plugin.hive.fs.CachingDirectoryLister;
 import io.trino.plugin.hive.fs.TransactionScopeCachingDirectoryListerFactory;
 import io.trino.plugin.hive.metastore.HiveCacheTableId;
-import io.trino.plugin.hive.metastore.HiveMetastoreConfig;
 import io.trino.plugin.hive.metastore.UnimplementedHiveMetastore;
 import io.trino.plugin.hive.security.SqlStandardAccessControlMetadata;
 import io.trino.plugin.hive.util.HiveBlockEncodingSerde;
@@ -93,7 +92,7 @@ public class TestHiveCacheIds
                 LocationAccessControl.ALLOW_ALL,
                 new CatalogName("hive"),
                 config,
-                new HiveMetastoreConfig(),
+                false,
                 HiveMetastoreFactory.ofInstance(new UnimplementedHiveMetastore()),
                 getDefaultHiveFileWriterFactories(config, hdfsEnvironment),
                 new HdfsFileSystemFactory(hdfsEnvironment, HDFS_FILE_SYSTEM_STATS),
