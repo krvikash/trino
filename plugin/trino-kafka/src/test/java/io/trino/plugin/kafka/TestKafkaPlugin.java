@@ -14,6 +14,7 @@
 package io.trino.plugin.kafka;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.spi.Plugin;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.testing.TestingConnectorContext;
@@ -24,6 +25,8 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.kafka.common.security.auth.SecurityProtocol.SSL;
@@ -199,6 +202,24 @@ public class TestKafkaPlugin
                 new TestingConnectorContext());
         assertThat(connector).isNotNull();
         connector.shutdown();
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new KafkaPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "bootstrap.quiet", "true",
+                "kafka.nodes", "localhost:9092",
+                "kafka.security-protocol", "ssl",
+                "kafka.ssl.truststore.type", "jks",
+                "kafka.ssl.key.password", "password");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties).containsExactlyInAnyOrder("non-existent-property", "kafka.ssl.key.password");
     }
 
     private void writeToFile(Path filepath, String content)
