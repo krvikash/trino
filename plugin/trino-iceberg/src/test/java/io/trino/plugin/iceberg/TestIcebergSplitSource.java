@@ -142,6 +142,7 @@ public class TestIcebergSplitSource
                 false,
                 false,
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
+                new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 directExecutor());
 
         return queryRunner;

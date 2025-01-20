@@ -64,6 +64,7 @@ public class TestIcebergMergeAppend
                 false,
                 false,
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
+                new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 directExecutor());
 
         return queryRunner;

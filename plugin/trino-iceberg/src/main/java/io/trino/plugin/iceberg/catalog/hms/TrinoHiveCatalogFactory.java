@@ -22,6 +22,7 @@ import io.trino.plugin.hive.metastore.HiveMetastoreFactory;
 import io.trino.plugin.hive.metastore.cache.CachingHiveMetastore;
 import io.trino.plugin.iceberg.ForIcebergMetadata;
 import io.trino.plugin.iceberg.IcebergConfig;
+import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
 import io.trino.plugin.iceberg.IcebergSecurityConfig;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
@@ -55,6 +56,7 @@ public class TrinoHiveCatalogFactory
     private final boolean isUsingSystemSecurity;
     private final boolean deleteSchemaLocationsFallback;
     private final boolean hideMaterializedViewStorageTable;
+    private final boolean scheduledMaterializedViewRefreshEnabled;
     private final Executor metadataFetchingExecutor;
 
     @Inject
@@ -65,6 +67,7 @@ public class TrinoHiveCatalogFactory
             TrinoFileSystemFactory fileSystemFactory,
             TypeManager typeManager,
             IcebergTableOperationsProvider tableOperationsProvider,
+            IcebergScheduledMvRefreshConfig icebergScheduledMvRefreshConfig,
             WorkScheduler workScheduler,
             NodeVersion nodeVersion,
             IcebergSecurityConfig securityConfig,
@@ -81,6 +84,7 @@ public class TrinoHiveCatalogFactory
         this.isUsingSystemSecurity = securityConfig.getSecuritySystem() == SYSTEM;
         this.deleteSchemaLocationsFallback = config.isDeleteSchemaLocationsFallback();
         this.hideMaterializedViewStorageTable = config.isHideMaterializedViewStorageTable();
+        this.scheduledMaterializedViewRefreshEnabled = icebergScheduledMvRefreshConfig.isScheduledMaterializedViewRefreshEnabled();
         if (config.getMetadataParallelism() == 1) {
             this.metadataFetchingExecutor = directExecutor();
         }
@@ -105,6 +109,7 @@ public class TrinoHiveCatalogFactory
                 isUsingSystemSecurity,
                 deleteSchemaLocationsFallback,
                 hideMaterializedViewStorageTable,
+                scheduledMaterializedViewRefreshEnabled,
                 metadataFetchingExecutor);
     }
 }

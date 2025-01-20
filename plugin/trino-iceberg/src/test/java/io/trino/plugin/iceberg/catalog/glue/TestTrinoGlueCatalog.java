@@ -29,6 +29,7 @@ import io.trino.plugin.hive.metastore.glue.GlueMetastoreStats;
 import io.trino.plugin.iceberg.CommitTaskData;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergMetadata;
+import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
 import io.trino.plugin.iceberg.NoopWorkScheduler;
 import io.trino.plugin.iceberg.TableStatisticsWriter;
 import io.trino.plugin.iceberg.catalog.BaseTrinoCatalogTest;
@@ -102,6 +103,7 @@ public class TestTrinoGlueCatalog
                 Optional.empty(),
                 useUniqueTableLocations,
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
+                new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 directExecutor());
     }
 
@@ -241,6 +243,7 @@ public class TestTrinoGlueCatalog
                 Optional.of(tmpDirectory.toAbsolutePath().toString()),
                 false,
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
+                new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 directExecutor());
 
         String namespace = "test_default_location_" + randomNameSuffix();

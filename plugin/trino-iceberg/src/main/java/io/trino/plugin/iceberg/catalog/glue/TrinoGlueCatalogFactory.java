@@ -22,6 +22,7 @@ import io.trino.plugin.hive.metastore.glue.GlueMetastoreStats;
 import io.trino.plugin.hive.metastore.glue.v1.GlueHiveMetastoreConfig;
 import io.trino.plugin.iceberg.ForIcebergMetadata;
 import io.trino.plugin.iceberg.IcebergConfig;
+import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
 import io.trino.plugin.iceberg.IcebergSecurityConfig;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
@@ -55,6 +56,7 @@ public class TrinoGlueCatalogFactory
     private final AWSGlueAsync glueClient;
     private final boolean isUniqueTableLocation;
     private final boolean hideMaterializedViewStorageTable;
+    private final boolean scheduledMaterializedViewRefreshEnabled;
     private final GlueMetastoreStats stats;
     private final boolean isUsingSystemSecurity;
     private final Executor metadataFetchingExecutor;
@@ -69,6 +71,7 @@ public class TrinoGlueCatalogFactory
             NodeVersion nodeVersion,
             GlueHiveMetastoreConfig glueConfig,
             IcebergConfig icebergConfig,
+            IcebergScheduledMvRefreshConfig icebergScheduledMvRefreshConfig,
             IcebergGlueCatalogConfig catalogConfig,
             IcebergSecurityConfig securityConfig,
             GlueMetastoreStats stats,
@@ -86,6 +89,7 @@ public class TrinoGlueCatalogFactory
         this.glueClient = requireNonNull(glueClient, "glueClient is null");
         this.isUniqueTableLocation = icebergConfig.isUniqueTableLocation();
         this.hideMaterializedViewStorageTable = icebergConfig.isHideMaterializedViewStorageTable();
+        this.scheduledMaterializedViewRefreshEnabled = icebergScheduledMvRefreshConfig.isScheduledMaterializedViewRefreshEnabled();
         this.stats = requireNonNull(stats, "stats is null");
         this.isUsingSystemSecurity = securityConfig.getSecuritySystem() == SYSTEM;
         if (icebergConfig.getMetadataParallelism() == 1) {
@@ -120,6 +124,7 @@ public class TrinoGlueCatalogFactory
                 defaultSchemaLocation,
                 isUniqueTableLocation,
                 hideMaterializedViewStorageTable,
+                scheduledMaterializedViewRefreshEnabled,
                 metadataFetchingExecutor);
     }
 }

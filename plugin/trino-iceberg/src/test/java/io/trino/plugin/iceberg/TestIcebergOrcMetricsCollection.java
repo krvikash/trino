@@ -102,6 +102,7 @@ public class TestIcebergOrcMetricsCollection
                 false,
                 false,
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
+                new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 directExecutor());
 
         queryRunner.installPlugin(new TpchPlugin());

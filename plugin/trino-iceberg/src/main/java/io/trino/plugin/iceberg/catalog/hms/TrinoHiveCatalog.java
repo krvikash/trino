@@ -144,6 +144,7 @@ public class TrinoHiveCatalog
     private final boolean isUsingSystemSecurity;
     private final boolean deleteSchemaLocationsFallback;
     private final boolean hideMaterializedViewStorageTable;
+    private final boolean scheduledMaterializedViewRefreshEnabled;
     private final Executor metadataFetchingExecutor;
 
     private final Cache<SchemaTableName, TableMetadata> tableMetadataCache = EvictableCacheBuilder.newBuilder()
@@ -162,6 +163,7 @@ public class TrinoHiveCatalog
             boolean isUsingSystemSecurity,
             boolean deleteSchemaLocationsFallback,
             boolean hideMaterializedViewStorageTable,
+            boolean scheduledMaterializedViewRefreshEnabled,
             Executor metadataFetchingExecutor)
     {
         super(catalogName, workScheduler, typeManager, tableOperationsProvider, fileSystemFactory, useUniqueTableLocation);
@@ -171,6 +173,7 @@ public class TrinoHiveCatalog
         this.isUsingSystemSecurity = isUsingSystemSecurity;
         this.deleteSchemaLocationsFallback = deleteSchemaLocationsFallback;
         this.hideMaterializedViewStorageTable = hideMaterializedViewStorageTable;
+        this.scheduledMaterializedViewRefreshEnabled = scheduledMaterializedViewRefreshEnabled;
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
     }
 
@@ -811,8 +814,10 @@ public class TrinoHiveCatalog
         io.trino.metastore.Table materializedView = metastore.getTable(viewName.getSchemaName(), viewName.getTableName())
                 .filter(table -> isTrinoMaterializedView(table.getTableType(), table.getParameters()))
                 .orElseThrow();
-        Optional<String> jobId = Optional.ofNullable(materializedView.getParameters().get(REFRESH_JOB_ID_PROPERTY));
-        jobId.flatMap(id -> workScheduler.getJobSchedule(session, id)).ifPresent(cronSchedule -> properties.put(REFRESH_SCHEDULE, cronSchedule));
+        if (scheduledMaterializedViewRefreshEnabled) {
+            Optional<String> jobId = Optional.ofNullable(materializedView.getParameters().get(REFRESH_JOB_ID_PROPERTY));
+            jobId.flatMap(id -> workScheduler.getJobSchedule(session, id)).ifPresent(cronSchedule -> properties.put(REFRESH_SCHEDULE, cronSchedule));
+        }
         return properties.buildOrThrow();
     }
 

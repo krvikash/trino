@@ -189,6 +189,7 @@ public class TrinoGlueCatalog
     private final AWSGlueAsync glueClient;
     private final GlueMetastoreStats stats;
     private final boolean hideMaterializedViewStorageTable;
+    private final boolean scheduledMaterializedViewRefreshEnabled;
     private final boolean isUsingSystemSecurity;
     private final Executor metadataFetchingExecutor;
 
@@ -221,6 +222,7 @@ public class TrinoGlueCatalog
             Optional<String> defaultSchemaLocation,
             boolean useUniqueTableLocation,
             boolean hideMaterializedViewStorageTable,
+            boolean scheduledMaterializedViewRefreshEnabled,
             Executor metadataFetchingExecutor)
     {
         super(catalogName, workScheduler, typeManager, tableOperationsProvider, fileSystemFactory, useUniqueTableLocation);
@@ -232,6 +234,7 @@ public class TrinoGlueCatalog
         this.isUsingSystemSecurity = isUsingSystemSecurity;
         this.defaultSchemaLocation = requireNonNull(defaultSchemaLocation, "defaultSchemaLocation is null");
         this.hideMaterializedViewStorageTable = hideMaterializedViewStorageTable;
+        this.scheduledMaterializedViewRefreshEnabled = scheduledMaterializedViewRefreshEnabled;
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
     }
 
@@ -1400,16 +1403,18 @@ public class TrinoGlueCatalog
         ImmutableMap.Builder<String, Object> properties = ImmutableMap.<String, Object>builder()
                 .putAll(super.getMaterializedViewProperties(session, viewName, definition));
 
-        MaterializedViewData materializedViewData = materializedViewCache.getIfPresent(viewName);
-        Optional<String> jobId;
-        if (materializedViewData != null) {
-            jobId = Optional.ofNullable(materializedViewData.properties.get(REFRESH_JOB_ID_PROPERTY));
-        }
-        else {
-            jobId = Optional.ofNullable(getTableParameters(getTableAndCacheMetadata(session, viewName).orElseThrow()).get(REFRESH_JOB_ID_PROPERTY));
-        }
+        if (scheduledMaterializedViewRefreshEnabled) {
+            MaterializedViewData materializedViewData = materializedViewCache.getIfPresent(viewName);
+            Optional<String> jobId;
+            if (materializedViewData != null) {
+                jobId = Optional.ofNullable(materializedViewData.properties.get(REFRESH_JOB_ID_PROPERTY));
+            }
+            else {
+                jobId = Optional.ofNullable(getTableParameters(getTableAndCacheMetadata(session, viewName).orElseThrow()).get(REFRESH_JOB_ID_PROPERTY));
+            }
 
-        jobId.flatMap(id -> workScheduler.getJobSchedule(session, id)).ifPresent(cronSchedule -> properties.put(REFRESH_SCHEDULE, cronSchedule));
+            jobId.flatMap(id -> workScheduler.getJobSchedule(session, id)).ifPresent(cronSchedule -> properties.put(REFRESH_SCHEDULE, cronSchedule));
+        }
         return properties.buildOrThrow();
     }
 
