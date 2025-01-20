@@ -13,7 +13,6 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
 import com.starburstdata.trino.plugin.stargate.AllowForSpoolingProtocol;
-import com.starburstdata.trino.plugin.stargate.StargateAuthenticationModule;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.client.spooling.SegmentLoader;
 import io.trino.plugin.jdbc.JdbcSplitManager;
@@ -44,6 +43,5 @@ public class StargateParallelModule
 
         configBinder(binder).bindConfig(StargateParallelConfig.class);
         binder.bind(StargateClientFactory.class).in(Scopes.SINGLETON);
-        install(new StargateAuthenticationModule());
     }
 }
