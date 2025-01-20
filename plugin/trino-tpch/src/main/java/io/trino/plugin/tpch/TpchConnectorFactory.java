@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.tpch;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
@@ -24,6 +25,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Map;
+import java.util.Set;
 
 import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
 
@@ -75,5 +77,12 @@ public class TpchConnectorFactory
                 .initialize();
 
         return injector.getInstance(Connector.class);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        // This connector doesn't have any security-sensitive properties, and unknown properties are not classified as such.
+        return ImmutableSet.of();
     }
 }
