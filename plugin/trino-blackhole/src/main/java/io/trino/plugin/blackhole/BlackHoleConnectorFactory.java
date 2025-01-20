@@ -13,12 +13,14 @@
  */
 package io.trino.plugin.blackhole;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
@@ -48,5 +50,13 @@ public class BlackHoleConnectorFactory
                 new BlackHoleNodePartitioningProvider(context.getTypeManager().getTypeOperators()),
                 context.getTypeManager(),
                 executorService);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        // This connector doesn't have any configuration properties, so any property passed by
+        // the user is treated as unknown and is therefore marked as security-sensitive.
+        return ImmutableSet.copyOf(config.keySet());
     }
 }
