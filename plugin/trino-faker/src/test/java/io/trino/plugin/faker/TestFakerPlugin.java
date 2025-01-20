@@ -14,11 +14,16 @@
 package io.trino.plugin.faker;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+import java.util.Set;
+
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestFakerPlugin
 {
@@ -33,5 +38,19 @@ final class TestFakerPlugin
                         ImmutableMap.of("bootstrap.quiet", "true"),
                         new TestingConnectorContext())
                 .shutdown();
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new FakerPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "faker.null-probability", "0.5");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties).containsExactlyInAnyOrder("non-existent-property");
     }
 }
