@@ -14,11 +14,15 @@
 package io.trino.plugin.mongodb;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.spi.Plugin;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.type.Type;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.plugin.mongodb.ObjectIdType.OBJECT_ID;
@@ -56,5 +60,21 @@ public class TestMongoPlugin
                                 "bootstrap.quiet", "true"),
                         new TestingConnectorContext())
                 .shutdown();
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new MongoPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "bootstrap.quiet", "true",
+                "mongodb.min-connections-per-host", "10",
+                "mongodb.connection-url", "mongodb://localhost:27017");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties).containsExactlyInAnyOrder("non-existent-property", "mongodb.connection-url");
     }
 }
