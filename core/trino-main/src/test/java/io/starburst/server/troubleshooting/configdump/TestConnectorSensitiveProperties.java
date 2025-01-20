@@ -27,22 +27,25 @@ import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
 import static com.starburstdata.presto.testing.FileUtils.findRepositoryRoot;
-import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 @ExtendWith(SoftAssertionsExtension.class)
@@ -80,12 +83,12 @@ public class TestConnectorSensitiveProperties
             throws IOException
     {
         Map<String, Set<String>> sensitiveProperties = new HashMap<>();
-        File pluginsDir = prepareInstalledPluginsDir();
-        List<Plugin> plugins = PluginLoader.loadPlugins(pluginsDir);
+        Path pluginsDir = prepareInstalledPluginsDir();
+        List<Plugin> plugins = PluginLoader.loadPlugins(pluginsDir.toFile());
         for (Plugin plugin : plugins) {
             for (ConnectorFactory connectorFactory : plugin.getConnectorFactories()) {
                 String connectorName = connectorFactory.getName();
-                Set<File> classpath = buildClasspath(connectorFactory);
+                Set<Path> classpath = buildClasspath(connectorFactory);
                 Set<String> properties = findSensitiveProperties(classpath);
                 checkState(sensitiveProperties.putIfAbsent(connectorName, properties) == null, "Multiple connectors with the name \"%s\".", connectorName);
             }
@@ -93,28 +96,37 @@ public class TestConnectorSensitiveProperties
         return sensitiveProperties;
     }
 
-    private static Set<File> buildClasspath(ConnectorFactory connectorFactory)
+    private static Set<Path> buildClasspath(ConnectorFactory connectorFactory)
+            throws IOException
     {
         ClassLoader classLoader = connectorFactory.getClass().getClassLoader();
         if (!(classLoader instanceof PluginClassLoader pluginClassLoader)) {
             throw new UnsupportedOperationException("Unsupported classloader type: " + classLoader.getClass().getName());
         }
-        ImmutableSet.Builder<File> classpath = ImmutableSet.builder();
-        List<File> pluginClasspath = Arrays.stream(pluginClassLoader.getURLs())
-                .map(url -> new File(url.getPath()))
+        ImmutableSet.Builder<Path> classpath = ImmutableSet.builder();
+        List<Path> pluginClasspath = Arrays.stream(pluginClassLoader.getURLs())
+                .map(url -> {
+                    try {
+                        return Paths.get(url.toURI());
+                    }
+                    catch (URISyntaxException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
                 .collect(toImmutableList());
         classpath.addAll(pluginClasspath);
         if (!pluginClasspath.isEmpty()) {
-            File hdfsDirectory = new File(pluginClasspath.getFirst().getParentFile(), "hdfs");
-            if (hdfsDirectory.exists() && hdfsDirectory.isDirectory()) {
-                File[] hdfsClasspath = hdfsDirectory.listFiles();
-                classpath.add(requireNonNull(hdfsClasspath, "hdfsClasspath is null"));
+            Path hdfsDirectory = pluginClasspath.getFirst().getParent().resolve("hdfs");
+            if (Files.exists(hdfsDirectory) && Files.isDirectory(hdfsDirectory)) {
+                try (Stream<Path> hdfsClasspath = Files.list(hdfsDirectory)) {
+                    hdfsClasspath.forEach(classpath::add);
+                }
             }
         }
         return classpath.build();
     }
 
-    private static Set<String> findSensitiveProperties(Set<File> classpath)
+    private static Set<String> findSensitiveProperties(Set<Path> classpath)
     {
         try (ScanResult scanResult = new ClassGraph()
                 .overrideClasspath(classpath)
@@ -134,7 +146,7 @@ public class TestConnectorSensitiveProperties
         }
     }
 
-    private static File prepareInstalledPluginsDir()
+    private static Path prepareInstalledPluginsDir()
             throws IOException
     {
         Properties properties = new Properties();
@@ -143,11 +155,11 @@ public class TestConnectorSensitiveProperties
         }
         String sepVersion = properties.getProperty("project.version");
 
-        File rootDir = findRepositoryRoot().toFile();
-        File pluginDir = new File(rootDir, "/core/starburst-enterprise/target/starburst-enterprise-" + sepVersion + "-hardlinks/plugin");
-        checkState(pluginDir.exists(), "The \"plugin\" directory does not exist: %s. " +
+        Path rootDir = findRepositoryRoot();
+        Path pluginDir = rootDir.resolve("core/starburst-enterprise/target/starburst-enterprise-" + sepVersion + "-hardlinks/plugin");
+        checkState(Files.exists(pluginDir), "The \"plugin\" directory does not exist: %s. " +
                 "Before running this test the project has to be built so that the final .tar.gz, produced by the \"provisio:provision\" Maven goal, is available.",
-                pluginDir.getAbsolutePath());
+                pluginDir.toAbsolutePath());
         return pluginDir;
     }
 

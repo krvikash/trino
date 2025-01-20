@@ -28,6 +28,8 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +40,7 @@ import java.util.zip.ZipOutputStream;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
 import static io.airlift.configuration.ConfigurationLoader.loadPropertiesFrom;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
@@ -47,14 +50,14 @@ import static java.util.Objects.requireNonNull;
 public class ConfigDumper
 {
     private static final String ACCESS_CONTROL_NAME_PROPERTY = "access-control.name";
-    private static final File JVM_CONFIG_FILE = new File("etc/jvm.config");
+    private static final Path JVM_CONFIG_FILE = Paths.get("etc", "jvm.config");
     private static final byte[] SECURITY_SENSITIVE_PROPERTY_VALUE = "[REDACTED]".getBytes(ISO_8859_1);
 
     private final ConfigurationFactory configurationFactory;
     private final InternalNodeManager nodeManager;
     private final CatalogConfigProvider catalogConfigProvider;
-    private final File resourceGroupsConfigFile;
-    private final List<File> accessControlConfigFiles;
+    private final Path resourceGroupsConfigFile;
+    private final List<Path> accessControlConfigFiles;
     private final Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers;
 
     @Inject
@@ -62,8 +65,8 @@ public class ConfigDumper
             ConfigurationFactory configurationFactory,
             InternalNodeManager nodeManager,
             CatalogConfigProvider catalogConfigProvider,
-            @ForResourceGroupConfigDump File resourceGroupsConfigFile,
-            @ForAccessControlConfigDump File defaultAccessControlConfigFile,
+            @ForResourceGroupConfigDump Path resourceGroupsConfigFile,
+            @ForAccessControlConfigDump Path defaultAccessControlConfigFile,
             AccessControlConfig accessControlConfig,
             Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers)
     {
@@ -76,15 +79,15 @@ public class ConfigDumper
         this.builtInFeatureConfigDumpers = requireNonNull(builtInFeatureConfigDumpers, "builtInFeatureConfigDumpers is null");
     }
 
-    private static List<File> resolveConfigFiles(List<File> configFiles, File defaultConfigFile)
+    private static List<Path> resolveConfigFiles(List<File> configFiles, Path defaultConfigFile)
     {
         requireNonNull(defaultConfigFile, "defaultConfigFile is null");
         if (configFiles.isEmpty()) {
-            if (defaultConfigFile.exists()) {
+            if (Files.exists(defaultConfigFile)) {
                 return ImmutableList.of(defaultConfigFile);
             }
         }
-        return ImmutableList.copyOf(configFiles);
+        return configFiles.stream().map(File::toPath).collect(toImmutableList());
     }
 
     public InputStream dumpLocalConfig()
@@ -138,7 +141,7 @@ public class ConfigDumper
     private void dumpJvmConfig(ZipOutputStream outputStream, String directoryName)
             throws IOException
     {
-        ZipEntry jvmConfig = new ZipEntry(directoryName + "/" + JVM_CONFIG_FILE.getName());
+        ZipEntry jvmConfig = new ZipEntry(directoryName + "/" + JVM_CONFIG_FILE.getFileName());
         outputStream.putNextEntry(jvmConfig);
         for (String jvmArgument : ManagementFactory.getRuntimeMXBean().getInputArguments()) {
             outputStream.write(jvmArgument.getBytes(UTF_8));
@@ -191,17 +194,17 @@ public class ConfigDumper
     {
         if (nodeManager.getCurrentNode().isCoordinator()) {
             Map<String, String> properties = loadProperties(resourceGroupsConfigFile);
-            dumpProperties(properties, resourceGroupsConfigFile.getName(), outputStream, directoryName);
+            dumpProperties(properties, resourceGroupsConfigFile.getFileName().toString(), outputStream, directoryName);
             String configFilePath = properties.get("resource-groups.config-file");
             if (configFilePath != null) {
-                dumpFileIfExists(new File(configFilePath), "file_resource_groups.json", outputStream, directoryName);
+                dumpFileIfExists(Paths.get(configFilePath), "file_resource_groups.json", outputStream, directoryName);
             }
         }
     }
 
     private void dumpFileBasedAccessControlConfig(ZipOutputStream outputStream, String directoryName)
     {
-        for (File configFile : accessControlConfigFiles) {
+        for (Path configFile : accessControlConfigFiles) {
             Map<String, String> properties = loadProperties(configFile);
 
             String name = properties.get(ACCESS_CONTROL_NAME_PROPERTY);
@@ -210,7 +213,7 @@ public class ConfigDumper
             dumpProperties(properties, "%s_access_control.properties".formatted(name), outputStream, directoryName);
             String configFilePath = properties.get("security.config-file");
             if (configFilePath != null) {
-                dumpFileIfExists(new File(configFilePath), "%s_access_control_rules.json".formatted(name), outputStream, directoryName);
+                dumpFileIfExists(Paths.get(configFilePath), "%s_access_control_rules.json".formatted(name), outputStream, directoryName);
             }
         }
     }
@@ -252,26 +255,26 @@ public class ConfigDumper
         }
     }
 
-    private static Map<String, String> loadProperties(File file)
+    private static Map<String, String> loadProperties(Path file)
     {
-        if (!file.exists()) {
+        if (!Files.exists(file)) {
             return ImmutableMap.of();
         }
         try {
-            return loadPropertiesFrom(file.getPath());
+            return loadPropertiesFrom(file.toString());
         }
         catch (IOException e) {
-            throw new UncheckedIOException("Unable to load \"%s\".".formatted(file.getPath()), e);
+            throw new UncheckedIOException("Unable to load \"%s\".".formatted(file), e);
         }
     }
 
-    private static void dumpFileIfExists(File configFile, String targetFileName, ZipOutputStream outputStream, String directoryName)
+    private static void dumpFileIfExists(Path configFile, String targetFileName, ZipOutputStream outputStream, String directoryName)
     {
-        if (!configFile.exists()) {
+        if (!Files.exists(configFile)) {
             return;
         }
         try {
-            byte[] fileContent = Files.readAllBytes(configFile.toPath());
+            byte[] fileContent = Files.readAllBytes(configFile);
             ZipEntry zipEntry = new ZipEntry("%s/%s".formatted(directoryName, targetFileName));
             outputStream.putNextEntry(zipEntry);
             outputStream.write(fileContent);

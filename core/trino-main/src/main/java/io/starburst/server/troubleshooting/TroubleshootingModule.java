@@ -46,7 +46,8 @@ import io.trino.connector.CatalogManagerConfig.CatalogMangerKind;
 import io.trino.server.ServerConfig;
 import jdk.jfr.FlightRecorder;
 
-import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -85,15 +86,15 @@ public class TroubleshootingModule
         // The TestingTrinoServer binds AccessControlConfig as a regular singleton rather than a configuration
         // class. If this were not the case, we could leverage the 'access-control.config-files' property to
         // pass the file's location in tests.
-        newOptionalBinder(binder, Key.get(File.class, ForAccessControlConfigDump.class))
+        newOptionalBinder(binder, Key.get(Path.class, ForAccessControlConfigDump.class))
                 .setDefault()
-                .toInstance(new File("etc/access-control.properties"));
+                .toInstance(Paths.get("etc", "access-control.properties"));
         // The location of this file is not configurable - it is always set to etc/resource-groups.properties
         // in the InternalResourceGroupManager. The purpose of injecting this file that way is to enable
         // providing its location in tests.
-        newOptionalBinder(binder, Key.get(File.class, ForResourceGroupConfigDump.class))
+        newOptionalBinder(binder, Key.get(Path.class, ForResourceGroupConfigDump.class))
                 .setDefault()
-                .toInstance(new File("etc/resource-groups.properties"));
+                .toInstance(Paths.get("etc", "resource-groups.properties"));
         newSetBinder(binder, BuiltInFeatureConfigDumper.class);
 
         CatalogManagerConfig catalogManagerConfig = buildConfigObject(CatalogManagerConfig.class);

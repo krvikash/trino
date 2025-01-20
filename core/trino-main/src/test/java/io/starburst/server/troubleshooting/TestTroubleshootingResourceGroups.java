@@ -27,12 +27,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -122,13 +121,13 @@ public class TestTroubleshootingResourceGroups
     public void testFileBasedResourceGroups()
             throws Exception
     {
-        File resourceGroupsConfigFile = new File(TestTroubleshootingResourceGroups.class.getClassLoader().getResource("resource_groups_config.json").toURI());
-        File resourceGroupsPropertiesFile = createTempFileForTesting().toFile();
-        byte[] resourceGroupsConfigFileContent = Files.readAllBytes(resourceGroupsConfigFile.toPath());
-        try (OutputStream outputStream = new FileOutputStream(resourceGroupsPropertiesFile)) {
+        Path resourceGroupsConfigFile = Paths.get(TestTroubleshootingResourceGroups.class.getClassLoader().getResource("resource_groups_config.json").toURI());
+        Path resourceGroupsPropertiesFile = createTempFileForTesting();
+        byte[] resourceGroupsConfigFileContent = Files.readAllBytes(resourceGroupsConfigFile);
+        try (OutputStream outputStream = Files.newOutputStream(resourceGroupsPropertiesFile)) {
             outputStream.write("resource-groups.config-file".getBytes(ISO_8859_1));
             outputStream.write('=');
-            outputStream.write(resourceGroupsConfigFile.getPath().getBytes(ISO_8859_1));
+            outputStream.write(resourceGroupsConfigFile.toString().getBytes(ISO_8859_1));
             outputStream.write('\n');
         }
 
@@ -137,7 +136,7 @@ public class TestTroubleshootingResourceGroups
                 .setCoordinatorProperties(Map.of(
                         "insights.authorized-users", AUTHORIZED_USER,
                         "troubleshooting.max-access-duration", "20s"))
-                .setAdditionalModule(binder -> newOptionalBinder(binder, Key.get(File.class, ForResourceGroupConfigDump.class))
+                .setAdditionalModule(binder -> newOptionalBinder(binder, Key.get(Path.class, ForResourceGroupConfigDump.class))
                         .setBinding()
                         .toInstance(resourceGroupsPropertiesFile))
                 .build()) {
@@ -146,8 +145,8 @@ public class TestTroubleshootingResourceGroups
             assertThat(coordinatorConfigs.size()).isEqualTo(1);
             assertThat(coordinatorConfigs.getFirst().contents())
                     .hasEntrySatisfying(
-                            "coordinator/%s".formatted(resourceGroupsPropertiesFile.getName()),
-                            value -> assertPropertyExists(value, "resource-groups.config-file=%s".formatted(resourceGroupsConfigFile.getPath())))
+                            "coordinator/%s".formatted(resourceGroupsPropertiesFile.getFileName()),
+                            value -> assertPropertyExists(value, "resource-groups.config-file=%s".formatted(resourceGroupsConfigFile)))
                     .hasEntrySatisfying(
                             "coordinator/file_resource_groups.json",
                             value -> assertThat(value).isEqualTo(resourceGroupsConfigFileContent));

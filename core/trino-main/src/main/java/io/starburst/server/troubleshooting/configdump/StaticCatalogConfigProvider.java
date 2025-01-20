@@ -13,7 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.trino.connector.StaticCatalogManagerConfig;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -27,14 +27,14 @@ import static java.util.Objects.requireNonNull;
 public class StaticCatalogConfigProvider
         implements CatalogConfigProvider
 {
-    private final File catalogConfigurationDir;
+    private final Path catalogConfigurationDir;
     private final List<String> disabledCatalogs;
 
     @Inject
     public StaticCatalogConfigProvider(StaticCatalogManagerConfig staticCatalogManagerConfig)
     {
         requireNonNull(staticCatalogManagerConfig, "staticCatalogManagerConfig is null");
-        this.catalogConfigurationDir = requireNonNull(staticCatalogManagerConfig.getCatalogConfigurationDir(), "catalogConfigurationDir is null");
+        this.catalogConfigurationDir = requireNonNull(staticCatalogManagerConfig.getCatalogConfigurationDir(), "catalogConfigurationDir is null").toPath();
         this.disabledCatalogs = firstNonNull(staticCatalogManagerConfig.getDisabledCatalogs(), ImmutableList.of());
     }
 

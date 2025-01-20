@@ -15,7 +15,6 @@ import io.opentelemetry.exporter.internal.marshal.Marshaler;
 import io.opentelemetry.exporter.internal.marshal.Serializer;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -69,7 +68,7 @@ public final class JaegerTraceImporter
     private static void decompressGzip(Path source, Path target)
     {
         try (GZIPInputStream gzipInputStream = new GZIPInputStream(
-                new FileInputStream(source.toFile()))) {
+                Files.newInputStream(source))) {
             Files.copy(gzipInputStream, target, REPLACE_EXISTING);
         }
         catch (IOException e) {

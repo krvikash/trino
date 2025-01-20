@@ -14,7 +14,6 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.ConfigurationLoader;
 import io.airlift.log.Logger;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -36,13 +35,13 @@ public final class CatalogConfigurationReader
 
     private CatalogConfigurationReader() {}
 
-    public static Map<String, Map<String, String>> loadCatalogProperties(File catalogConfigurationDir, List<String> disabledCatalogs)
+    public static Map<String, Map<String, String>> loadCatalogProperties(Path catalogConfigurationDir, List<String> disabledCatalogs)
     {
         requireNonNull(catalogConfigurationDir, "catalogConfigurationDir is null");
         requireNonNull(disabledCatalogs, "disabledCatalogs is null");
 
         ImmutableMap.Builder<String, Map<String, String>> builder = ImmutableMap.builder();
-        for (Path file : listCatalogFiles(catalogConfigurationDir.toPath())) {
+        for (Path file : listCatalogFiles(catalogConfigurationDir)) {
             String catalogName = getNameWithoutExtension(file.getFileName().toString());
             if (disabledCatalogs.contains(catalogName)) {
                 continue;

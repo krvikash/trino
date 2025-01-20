@@ -26,12 +26,11 @@ import io.trino.testing.TestingTrinoClient;
 import org.intellij.lang.annotations.Language;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +40,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static java.io.File.createTempFile;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,12 +54,12 @@ class TroubleshootingTestHelper
     {
         try {
             ImmutableMap.Builder<String, byte[]> mapBuilder = ImmutableMap.builder();
-            File tmpFile = createTempFile("troubleshooting-", ".zip", tmpDir.toFile());
+            Path tmpFile = Files.createTempFile(tmpDir, "troubleshooting-", ".zip");
             log.debug("File with troubleshooting information was stored at: %s", tmpFile);
-            try (var outputStream = new FileOutputStream(tmpFile)) {
+            try (var outputStream = Files.newOutputStream(tmpFile)) {
                 inputStream.transferTo(outputStream);
             }
-            try (var zipFile = new ZipFile(tmpFile)) {
+            try (var zipFile = new ZipFile(tmpFile.toFile())) {
                 var e = zipFile.entries();
                 while (e.hasMoreElements()) {
                     ZipEntry entry = e.nextElement();
@@ -85,7 +83,7 @@ class TroubleshootingTestHelper
         }
     }
 
-    public record Unzipped(Map<String, byte[]> contents, File tmpFile) {}
+    public record Unzipped(Map<String, byte[]> contents, Path tmpFile) {}
 
     public static void assertPropertyExists(byte[] actual, String property)
     {

@@ -24,10 +24,10 @@ import io.trino.spi.security.Identity;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,23 +51,23 @@ public class TestQueryTroubleshooting
             USER_WITHIN_AUTHORIZED_GROUP, ImmutableSet.of(AUTHORIZED_GROUP),
             USER_WITHIN_UNAUTHORIZED_GROUP, ImmutableSet.of(UNAUTHORIZED_GROUP));
 
-    private File accessControlPropertiesFile;
-    private File accessControlRulesFile;
+    private Path accessControlPropertiesFile;
+    private Path accessControlRulesFile;
     private byte[] rulesFileContent;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        accessControlRulesFile = new File(TestQueryTroubleshooting.class.getClassLoader().getResource("file-access/access-control-rules.json").toURI());
-        accessControlPropertiesFile = createTempFileForTesting().toFile();
-        rulesFileContent = Files.readAllBytes(accessControlRulesFile.toPath());
-        try (OutputStream outputStream = new FileOutputStream(accessControlPropertiesFile)) {
+        accessControlRulesFile = Paths.get(TestQueryTroubleshooting.class.getClassLoader().getResource("file-access/access-control-rules.json").toURI());
+        accessControlPropertiesFile = createTempFileForTesting();
+        rulesFileContent = Files.readAllBytes(accessControlRulesFile);
+        try (OutputStream outputStream = Files.newOutputStream(accessControlPropertiesFile)) {
             outputStream.write("access-control.name=file".getBytes(ISO_8859_1));
             outputStream.write('\n');
             outputStream.write("security.config-file".getBytes(ISO_8859_1));
             outputStream.write('=');
-            outputStream.write(accessControlRulesFile.getPath().getBytes(ISO_8859_1));
+            outputStream.write(accessControlRulesFile.toString().getBytes(ISO_8859_1));
             outputStream.write('\n');
         }
 
@@ -77,7 +77,7 @@ public class TestQueryTroubleshooting
                         "insights.authorized-users", AUTHORIZED_USER,
                         "insights.authorized-groups", String.join(",", USER_GROUPS.get(USER_WITHIN_AUTHORIZED_GROUP)),
                         "troubleshooting.max-access-duration", "20s"))
-                .setAdditionalModule(binder -> newOptionalBinder(binder, Key.get(File.class, ForAccessControlConfigDump.class))
+                .setAdditionalModule(binder -> newOptionalBinder(binder, Key.get(Path.class, ForAccessControlConfigDump.class))
                         .setBinding()
                         .toInstance(accessControlPropertiesFile))
                 .build();
@@ -118,7 +118,7 @@ public class TestQueryTroubleshooting
         assertThat(coordinatorConfig.contents())
                 .hasEntrySatisfying(
                         "coordinator/file_access_control.properties",
-                        value -> assertPropertyExists(value, "security.config-file=%s".formatted(accessControlRulesFile.getPath())))
+                        value -> assertPropertyExists(value, "security.config-file=%s".formatted(accessControlRulesFile)))
                 .hasEntrySatisfying(
                         "coordinator/file_access_control_rules.json",
                         value -> assertThat(value).isEqualTo(rulesFileContent));
