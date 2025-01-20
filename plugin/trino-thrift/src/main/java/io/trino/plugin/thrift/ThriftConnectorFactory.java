@@ -16,8 +16,10 @@ package io.trino.plugin.thrift;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.drift.transport.netty.client.DriftNettyClientModule;
 import io.trino.plugin.base.ConnectorContextModule;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.spi.connector.Connector;
@@ -26,6 +28,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
@@ -54,6 +57,28 @@ public class ThriftConnectorFactory
     {
         checkStrictSpiVersionMatch(context, this);
 
+        Bootstrap app = createBootstrap(catalogName, config, context);
+
+        Injector injector = app.initialize();
+
+        return injector.getInstance(ThriftConnector.class);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        Bootstrap app = createBootstrap(catalogName, config, context);
+
+        Set<ConfigPropertyMetadata> usedProperties = app
+                .quiet()
+                .skipErrorReporting()
+                .configure();
+
+        return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+    }
+
+    private Bootstrap createBootstrap(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
         Bootstrap app = new Bootstrap(
                 "io.trino.bootstrap.catalog." + catalogName,
                 new MBeanModule(),
@@ -64,12 +89,9 @@ public class ThriftConnectorFactory
                 locationModule.get(),
                 new ThriftModule());
 
-        Injector injector = app
+        return app
                 .doNotInitializeLogging()
                 .disableSystemProperties()
-                .setRequiredConfigurationProperties(config)
-                .initialize();
-
-        return injector.getInstance(ThriftConnector.class);
+                .setRequiredConfigurationProperties(config);
     }
 }

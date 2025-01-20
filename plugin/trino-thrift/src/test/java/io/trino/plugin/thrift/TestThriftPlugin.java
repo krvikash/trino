@@ -21,6 +21,7 @@ import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,5 +43,20 @@ public class TestThriftPlugin
         assertThat(connector).isNotNull();
         assertThat(connector).isInstanceOf(ThriftConnector.class);
         connector.shutdown();
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new ThriftPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "bootstrap.quiet", "true",
+                "trino.thrift.client.addresses", "localhost:7779");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties).containsExactlyInAnyOrder("non-existent-property");
     }
 }
