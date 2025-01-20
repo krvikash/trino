@@ -85,6 +85,7 @@ public final class IcebergQueryRunner
             extends DistributedQueryRunner.Builder<Builder>
     {
         private Optional<File> metastoreDirectory = Optional.empty();
+        private Optional<WorkScheduler> workScheduler = Optional.empty();
         private ImmutableMap.Builder<String, String> icebergProperties = ImmutableMap.builder();
         private Optional<SchemaInitializer> schemaInitializer = Optional.of(SchemaInitializer.builder().build());
         private boolean tpcdsCatalogEnabled;
@@ -108,6 +109,12 @@ public final class IcebergQueryRunner
         public Builder setMetastoreDirectory(File metastoreDirectory)
         {
             this.metastoreDirectory = Optional.of(metastoreDirectory);
+            return self();
+        }
+
+        public Builder setWorkScheduler(WorkScheduler workScheduler)
+        {
+            this.workScheduler = Optional.of(workScheduler);
             return self();
         }
 
@@ -173,7 +180,7 @@ public final class IcebergQueryRunner
                 }
 
                 Path dataDir = metastoreDirectory.map(File::toPath).orElseGet(() -> queryRunner.getCoordinator().getBaseDataDir().resolve("iceberg_data"));
-                queryRunner.installPlugin(new TestingIcebergPlugin(dataDir));
+                queryRunner.installPlugin(new TestingIcebergPlugin(dataDir, Optional.empty(), workScheduler));
                 queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", icebergProperties.buildOrThrow());
 
                 queryRunner.getServers().forEach(TestingTrinoServer::getCacheManagerRegistry);

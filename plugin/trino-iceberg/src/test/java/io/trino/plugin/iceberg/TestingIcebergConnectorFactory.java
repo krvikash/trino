@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.iceberg.IcebergConnectorFactory.createConnector;
 import static java.util.Objects.requireNonNull;
@@ -39,20 +40,25 @@ public class TestingIcebergConnectorFactory
 
     public TestingIcebergConnectorFactory(Path localFileSystemRootPath)
     {
-        this(localFileSystemRootPath, Optional.empty());
+        this(localFileSystemRootPath, Optional.empty(), Optional.empty());
     }
 
     @Deprecated
     public TestingIcebergConnectorFactory(
             Path localFileSystemRootPath,
-            Optional<Module> icebergCatalogModule)
+            Optional<Module> icebergCatalogModule,
+            Optional<WorkScheduler> workScheduler)
     {
         boolean ignored = localFileSystemRootPath.toFile().mkdirs();
         this.icebergCatalogModule = requireNonNull(icebergCatalogModule, "icebergCatalogModule is null");
+        requireNonNull(workScheduler, "workScheduler is null");
         this.module = binder -> {
             newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
                     .addBinding("local").toInstance(new LocalFileSystemFactory(localFileSystemRootPath));
             configBinder(binder).bindConfigDefaults(FileHiveMetastoreConfig.class, config -> config.setCatalogDirectory("local:///"));
+            if (workScheduler.isPresent()) {
+                newOptionalBinder(binder, WorkScheduler.class).setBinding().toInstance(workScheduler.get());
+            }
         };
     }
 
