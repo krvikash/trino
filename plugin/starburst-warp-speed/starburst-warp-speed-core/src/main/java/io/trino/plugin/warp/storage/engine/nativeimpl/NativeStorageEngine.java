@@ -16,8 +16,8 @@ package io.trino.plugin.warp.storage.engine.nativeimpl;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpErrorCode;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.log.ShapingLogger;
@@ -176,9 +176,9 @@ public class NativeStorageEngine
     }
 
     public NativeStorageEngine(
+            SharedConfig sharedConfig,
             NativeConfig nativeConfig,
             ExceptionThrower exceptionThrower,
-            GlobalConfig globalConfig,
             ConnectorSync connectorSync,
             CatalogName catalogName)
     {
@@ -186,9 +186,9 @@ public class NativeStorageEngine
         final int panicHaltPolicy = nativeConfig.getDebugPanicHaltPolicy();
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+                sharedConfig.getShapingLoggerThreshold(),
+                sharedConfig.getShapingLoggerDuration(),
+                sharedConfig.getShapingLoggerNumberOfSamples());
         this.catalogName = requireNonNull(catalogName);
         this.exceptionThrower = (panicHaltPolicy == 0) ? Optional.of(exceptionThrower) : Optional.empty();
 
@@ -290,7 +290,7 @@ public class NativeStorageEngine
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_SINGLE_CHUNK, nativeConfig.getEnableSingleChunk() ? (byte) 1 : (byte) 0);
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_PACKED_CHUNK, nativeConfig.getEnablePackedChunk() ? (byte) 1 : (byte) 0);
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION, nativeConfig.getEnableCompression() ? (byte) 1 : (byte) 0);
-            envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID, globalConfig.getDebugWarming() ? (byte) 1 : (byte) 0);
+            envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID, sharedConfig.getDebugWarming() ? (byte) 1 : (byte) 0);
 
             long logMemAddress = (long) mInitEnv.invokeExact(envProperties, envEnableConfig);
             if (logMemAddress != 0) {

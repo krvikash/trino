@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.spi.NodeManager;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogHandle;
@@ -26,12 +25,12 @@ public class WarpCacheMgrConnectorContext
         implements ConnectorContext, WarpContext
 {
     private final NodeManager nodeManager;
-    private final DemoterSync demoterSync;
+    private final WarpPluginSharedInstances sharedInstances;
 
-    public WarpCacheMgrConnectorContext(NodeManager nodeManager, DemoterSync demoterSync)
+    public WarpCacheMgrConnectorContext(NodeManager nodeManager, WarpPluginSharedInstances sharedInstances)
     {
         this.nodeManager = nodeManager;
-        this.demoterSync = demoterSync;
+        this.sharedInstances = sharedInstances;
     }
 
     @Override
@@ -54,8 +53,8 @@ public class WarpCacheMgrConnectorContext
     }
 
     @Override
-    public DemoterSync getDemoterSync()
+    public WarpPluginSharedInstances getWarpPluginSharedInstances()
     {
-        return demoterSync;
+        return sharedInstances;
     }
 }

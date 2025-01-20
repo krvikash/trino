@@ -24,6 +24,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -346,5 +347,59 @@ public class NativeConfig
             res |= (1 << user.ordinal());
         }
         return res;
+    }
+
+    @Override
+    public boolean equals(Object object)
+    {
+        if ((object == null) || (getClass() != object.getClass())) {
+            return false;
+        }
+        NativeConfig that = (NativeConfig) object;
+        return (lz4HcPercent == that.lz4HcPercent) &&
+                (storageCacheSizeInPages == that.storageCacheSizeInPages) &&
+                (skipIndexPercent == that.skipIndexPercent) &&
+                (limitNumIosInParallel == that.limitNumIosInParallel) &&
+                (maxIOMetadataSize == that.maxIOMetadataSize) &&
+                (taskMaxWorkerThreads == that.taskMaxWorkerThreads) &&
+                (taskMinWarmingThreads == that.taskMinWarmingThreads) &&
+                (debugPanicHaltPolicy == that.debugPanicHaltPolicy) &&
+                (clusterLevel == that.clusterLevel) &&
+                (maxPageSourcesWithoutWarmingLimit == that.maxPageSourcesWithoutWarmingLimit) &&
+                (storageTemporaryExceptionNumTries == that.storageTemporaryExceptionNumTries) &&
+                (enableSingleChunk == that.enableSingleChunk) &&
+                (enablePackedChunk == that.enablePackedChunk) &&
+                (enableCompression == that.enableCompression) &&
+                (exceptionalListCompression == that.exceptionalListCompression) &&
+                Objects.equals(maxRecJufferSize, that.maxRecJufferSize) &&
+                Objects.equals(collectTxSize, that.collectTxSize) &&
+                Objects.equals(unsupportedNativeFunctions, that.unsupportedNativeFunctions) &&
+                Objects.equals(storageTemporaryExceptionDuration, that.storageTemporaryExceptionDuration) &&
+                Objects.equals(storageTemporaryExceptionExpiryDuration, that.storageTemporaryExceptionExpiryDuration);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(maxRecJufferSize,
+                lz4HcPercent,
+                collectTxSize,
+                storageCacheSizeInPages,
+                skipIndexPercent,
+                limitNumIosInParallel,
+                maxIOMetadataSize,
+                taskMaxWorkerThreads,
+                taskMinWarmingThreads,
+                debugPanicHaltPolicy,
+                clusterLevel,
+                maxPageSourcesWithoutWarmingLimit,
+                unsupportedNativeFunctions,
+                storageTemporaryExceptionDuration,
+                storageTemporaryExceptionNumTries,
+                storageTemporaryExceptionExpiryDuration,
+                enableSingleChunk,
+                enablePackedChunk,
+                enableCompression,
+                exceptionalListCompression);
     }
 }

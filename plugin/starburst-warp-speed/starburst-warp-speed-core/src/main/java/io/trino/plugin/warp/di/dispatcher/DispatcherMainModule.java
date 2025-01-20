@@ -22,6 +22,7 @@ import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.warp.dispatcher.ReadErrorHandler;
+import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
 import io.trino.plugin.warp.dispatcher.WarpDispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.connectors.CoordinatorDispatcherConnector;
 import io.trino.plugin.warp.dispatcher.connectors.DispatcherConnectorBase;
@@ -36,6 +37,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmExecutionTaskFactory;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpConnectorDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
@@ -63,7 +65,6 @@ import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.catalog.CatalogName;
-import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
 
@@ -71,10 +72,10 @@ public class DispatcherMainModule
         implements ExtraModule
 {
     private final String catalogName;
-    private ConnectorContext context;
+    private WarpConnectorContext context;
     private Map<String, String> config;
 
-    public DispatcherMainModule(String catalogName, Map<String, String> config, ConnectorContext context)
+    public DispatcherMainModule(String catalogName, Map<String, String> config, WarpConnectorContext context)
     {
         this.catalogName = catalogName;
         this.config = config;
@@ -86,45 +87,46 @@ public class DispatcherMainModule
     {
         binder.bind(FailureGeneratorInvocationHandler.class);
         if (WarpBaseModule.isWorker(context, config)) {
-            binder.bind(EmptyRowGroupWarmer.class);
-            binder.bind(RowGroupDataService.class);
+            binder.bind(AttachDictionaryService.class);
+            binder.bind(BlockAppenderFactory.class);
             binder.bind(BlockFillersFactory.class);
+            binder.bind(BlockTransformerFactory.class);
+            binder.bind(ClassifierFactory.class);
+            binder.bind(CollectTxService.class);
+            binder.bind(DemoterSync.class).toInstance(context.getWarpPluginSharedInstances().demoterSync());
+            binder.bind(DictionaryCacheService.class);
             binder.bind(DictionaryWriterFactory.class);
-            binder.bind(WarpDispatcherPageSourceFactory.class);
             binder.bind(DispatcherAlternativeChooser.class);
             binder.bind(DispatcherPageSinkProvider.class);
-            binder.bind(StorageWarmerService.class);
-            binder.bind(WarpDeleteService.class).to(WarpConnectorDeleteService.class);
-            binder.bind(WarmupDemoterService.class);
-            binder.bind(WorkerWarmingService.class);
-            binder.bind(PredicatesCacheService.class);
-            binder.bind(ClassifierFactory.class);
-            binder.bind(PredicateContextFactory.class);
-            binder.bind(QueryClassifier.class);
+            binder.bind(DomainToMapBlockConvertor.class);
+            binder.bind(EmptyRowGroupWarmer.class);
+            binder.bind(LazyCollectTxService.class);
+            binder.bind(LazyCollectorService.class);
             binder.bind(MatchCollectIdService.class);
-            binder.bind(WarmupExportingService.class);
-            binder.bind(WorkerTaskExecutorService.class);
-            binder.bind(WarpProxiedWarmer.class);
-            binder.bind(WarmupElementsCreator.class);
-            binder.bind(WarmExecutionTaskFactory.class);
-            binder.bind(WarmingManager.class);
-            binder.bind(WeGroupWarmer.class);
-            binder.bind(WarmupElementsCloudExporter.class);
-            binder.bind(DictionaryCacheService.class);
-            binder.bind(AttachDictionaryService.class);
-            binder.bind(WarpPageSinkFactory.class);
+            binder.bind(MatchService.class);
+            binder.bind(PredicateContextFactory.class);
+            binder.bind(PredicatesCacheService.class);
+            binder.bind(QueryClassifier.class);
             binder.bind(ReadErrorHandler.class);
             binder.bind(RowGroupDataDao.class);
-            binder.bind(CollectTxService.class);
-            binder.bind(LazyCollectTxService.class);
+            binder.bind(RowGroupDataService.class);
             binder.bind(StorageCollectorService.class);
-            binder.bind(LazyCollectorService.class);
+            binder.bind(StorageWarmerService.class);
             binder.bind(StorageWriterService.class);
+            binder.bind(WarmExecutionTaskFactory.class);
+            binder.bind(WarmingManager.class);
+            binder.bind(WarmupDemoterService.class);
             binder.bind(WarmupElementStatsService.class);
-            binder.bind(BlockAppenderFactory.class);
-            binder.bind(BlockTransformerFactory.class);
-            binder.bind(DomainToMapBlockConvertor.class);
-            binder.bind(MatchService.class);
+            binder.bind(WarmupElementsCloudExporter.class);
+            binder.bind(WarmupElementsCreator.class);
+            binder.bind(WarmupExportingService.class);
+            binder.bind(WarpDeleteService.class).to(WarpConnectorDeleteService.class);
+            binder.bind(WarpDispatcherPageSourceFactory.class);
+            binder.bind(WarpPageSinkFactory.class);
+            binder.bind(WarpProxiedWarmer.class);
+            binder.bind(WeGroupWarmer.class);
+            binder.bind(WorkerTaskExecutorService.class);
+            binder.bind(WorkerWarmingService.class);
         }
         if (WarpBaseModule.isSingle(config)) {
             binder.bind(DispatcherConnectorBase.class).to(SingleDispatcherConnector.class);
@@ -149,7 +151,7 @@ public class DispatcherMainModule
     }
 
     @Override
-    public DispatcherMainModule withContext(ConnectorContext context)
+    public DispatcherMainModule withContext(WarpConnectorContext context)
     {
         this.context = context;
         return this;

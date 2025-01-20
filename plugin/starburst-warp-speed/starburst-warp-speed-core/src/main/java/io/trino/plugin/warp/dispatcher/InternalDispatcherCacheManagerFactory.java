@@ -25,7 +25,6 @@ import io.trino.plugin.warp.di.CacheManagerModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.di.dispatcher.DispatcherCacheManagerModule;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.plugin.warp.node.CoordinatorInitializedEventHandler;
 import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.plugin.warp.node.WorkerNodeManager;
@@ -83,7 +82,6 @@ public class InternalDispatcherCacheManagerFactory
                         binder.bind(WorkerCapacityManager.class);
                         binder.bind(WorkerMemoryManager.class);
                     }
-                    binder.bind(DemoterSync.class).toInstance(warpCacheMgrConnectorContext.getDemoterSync());
                 }));
 
         optionalModules.ifPresent(modules::addAll);

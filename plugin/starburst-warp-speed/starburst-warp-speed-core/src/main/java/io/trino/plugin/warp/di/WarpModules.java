@@ -17,8 +17,8 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Module;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.CloudVendorModule;
+import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
 import io.trino.plugin.warp.metrics.MetricsModule;
-import io.trino.spi.connector.ConnectorContext;
 
 import java.util.List;
 import java.util.Map;
@@ -32,12 +32,12 @@ public class WarpModules
 {
     private final String connectorId;
     private final Map<String, String> config;
-    private final ConnectorContext context;
+    private final WarpConnectorContext context;
     private Optional<Module> storageEngineModule = Optional.empty();
     private Optional<Module> cloudVendorModule = Optional.empty();
     private final Optional<List<ExtraModule>> extraModules = Optional.empty();
 
-    public WarpModules(String connectorId, Map<String, String> config, ConnectorContext context)
+    public WarpModules(String connectorId, Map<String, String> config, WarpConnectorContext context)
     {
         this.connectorId = connectorId;
         this.config = requireNonNull(config);

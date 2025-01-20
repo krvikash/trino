@@ -13,9 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
-
 public interface WarpContext
 {
-    DemoterSync getDemoterSync();
+    WarpPluginSharedInstances getWarpPluginSharedInstances();
 }

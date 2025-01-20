@@ -17,7 +17,7 @@ import com.google.inject.Module;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.warp.dispatcher.DispatcherCacheManagerFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
+import io.trino.plugin.warp.dispatcher.WarpPluginSharedInstancesFactory;
 import io.trino.spi.Plugin;
 import io.trino.spi.TrinoException;
 import io.trino.spi.cache.CacheManagerFactory;
@@ -43,8 +43,8 @@ public class WarpPlugin
         implements Plugin
 {
     private final LicenseVerifier licenseVerifier;
-    private final DemoterSync demoterSync;
 
+    private WarpPluginSharedInstancesFactory warpPluginSharedInstancesFactory;
     private com.google.inject.Module storageEngineModule;
     private Module proxyModule;
 
@@ -56,16 +56,15 @@ public class WarpPlugin
     public WarpPlugin(LicenseVerifier licenseVerifier)
     {
         this.licenseVerifier = requireNonNull(licenseVerifier);
-        demoterSync = new DemoterSync();
     }
 
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
         WarpConnectorFactory warpConnectorFactory = new WarpConnectorFactory(
+                getSharedInstancesFactory(),
                 this.getConnectorFactory(),
                 licenseVerifier,
-                demoterSync,
                 Collections.emptyList());
         return List.of(warpConnectorFactory);
     }
@@ -74,9 +73,41 @@ public class WarpPlugin
     public Iterable<CacheManagerFactory> getCacheManagerFactories()
     {
         WarpCacheManagerFactory warpCacheManagerFactory = new WarpCacheManagerFactory(
-                this.getCacheManagerFactory(),
-                demoterSync);
+                getSharedInstancesFactory(),
+                this.getCacheManagerFactory());
         return List.of(warpCacheManagerFactory);
+    }
+
+    private synchronized WarpPluginSharedInstancesFactory getSharedInstancesFactory()
+    {
+        if (warpPluginSharedInstancesFactory == null) {
+            warpPluginSharedInstancesFactory = new WarpPluginSharedInstancesFactory();
+        }
+        return warpPluginSharedInstancesFactory;
+    }
+
+    private DispatcherConnectorFactory getConnectorFactory()
+    {
+        return new DispatcherConnectorFactory(storageEngineModule, proxyModule);
+    }
+
+    private DispatcherCacheManagerFactory getCacheManagerFactory()
+    {
+        return new DispatcherCacheManagerFactory(storageEngineModule);
+    }
+
+    @VisibleForTesting
+    public WarpPlugin withStorageEngineModule(Module module)
+    {
+        this.storageEngineModule = module;
+        return this;
+    }
+
+    @VisibleForTesting
+    public WarpPlugin withProxyModule(Module module)
+    {
+        this.proxyModule = module;
+        return this;
     }
 
     private static void verifyTypeSizes()
@@ -108,30 +139,6 @@ public class WarpPlugin
         if (TIME_MILLIS.getFixedSize() != Long.BYTES) {
             throw new TrinoException(WARP_SETUP, "TIME size is not equal to Long size");
         }
-    }
-
-    public DispatcherConnectorFactory getConnectorFactory()
-    {
-        return new DispatcherConnectorFactory(storageEngineModule, proxyModule);
-    }
-
-    public DispatcherCacheManagerFactory getCacheManagerFactory()
-    {
-        return new DispatcherCacheManagerFactory(storageEngineModule);
-    }
-
-    @VisibleForTesting
-    public WarpPlugin withStorageEngineModule(Module module)
-    {
-        this.storageEngineModule = module;
-        return this;
-    }
-
-    @VisibleForTesting
-    public WarpPlugin withProxyModule(Module module)
-    {
-        this.proxyModule = module;
-        return this;
     }
 
     static {

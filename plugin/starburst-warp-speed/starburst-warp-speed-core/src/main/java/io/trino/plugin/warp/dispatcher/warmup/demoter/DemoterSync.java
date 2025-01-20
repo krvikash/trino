@@ -14,7 +14,10 @@
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
 import com.google.common.util.concurrent.Futures;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
@@ -36,6 +39,7 @@ import static io.trino.plugin.warp.dispatcher.warmup.demoter.DemoteStatus.NOT_CO
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.DemoteStatus.UNKNOWN;
 import static java.util.Objects.requireNonNull;
 
+@Singleton
 public class DemoterSync
 {
     private static final Logger logger = Logger.get(DemoterSync.class);
@@ -45,13 +49,16 @@ public class DemoterSync
     private final ExecutorService executorService;
     private final ShapingLogger shapingLogger;
 
-    @SuppressWarnings("StaticAssignmentInConstructor")
-    public DemoterSync()
+    @Inject
+    public DemoterSync(SharedConfig sharedConfig)
     {
         executorService = Executors.newThreadPerTaskExecutor(daemonThreadsNamed("warp-speed-demoter-sync-%s"));
         demoterServiceContextMap = new ConcurrentHashMap<>();
         initiator = new AtomicLong(Long.MIN_VALUE);
-        shapingLogger = ShapingLogger.getInstance(logger, 1000, Duration.ofSeconds(60), 3); // cannot take it from GlobalConfig since this is across catalogs
+        shapingLogger = ShapingLogger.getInstance(logger,
+                sharedConfig.getShapingLoggerThreshold(),
+                sharedConfig.getShapingLoggerDuration(),
+                sharedConfig.getShapingLoggerNumberOfSamples());
     }
 
     public long registerCatalog(

@@ -16,8 +16,8 @@ package io.trino.plugin.warp.storage.engine.nativeimpl;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.gen.errorcodes.ErrorCodes;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
@@ -44,16 +44,16 @@ public class NativeStorageStateHandler
             NativeConfig nativeConfig,
             ExceptionThrower exceptionThrower,
             CatalogNameProvider catalogNameProvider,
-            GlobalConfig globalConfig)
+            SharedConfig sharedConfig)
     {
         this.nativeConfig = requireNonNull(nativeConfig);
         exceptionThrower.addExceptionConsumer(this::handleErrorCode);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
         shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+                sharedConfig.getShapingLoggerThreshold(),
+                sharedConfig.getShapingLoggerDuration(),
+                sharedConfig.getShapingLoggerNumberOfSamples());
     }
 
     public boolean isStorageAvailable()

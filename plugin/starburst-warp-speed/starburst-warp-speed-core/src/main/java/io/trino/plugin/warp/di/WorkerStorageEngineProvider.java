@@ -16,8 +16,8 @@ package io.trino.plugin.warp.di;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -33,7 +33,7 @@ import static java.util.Objects.requireNonNull;
 public class WorkerStorageEngineProvider
         implements Provider<StorageEngine>
 {
-    private final GlobalConfig globalConfig;
+    private final SharedConfig sharedConfig;
     private final NativeConfig nativeConfig;
     private final ConnectorSync connectorSync;
     private final CatalogName catalogName;
@@ -44,14 +44,14 @@ public class WorkerStorageEngineProvider
 
     @Inject
     public WorkerStorageEngineProvider(
-            GlobalConfig globalConfig,
+            SharedConfig sharedConfig,
             NativeConfig nativeConfig,
             ConnectorSync connectorSync,
             CatalogName catalogName,
             ExceptionThrower exceptionThrower,
             FailureGeneratorInvocationHandler failureGeneratorInvocationHandler)
     {
-        this.globalConfig = requireNonNull(globalConfig);
+        this.sharedConfig = requireNonNull(sharedConfig);
         this.nativeConfig = requireNonNull(nativeConfig);
         this.connectorSync = requireNonNull(connectorSync);
         this.catalogName = requireNonNull(catalogName);
@@ -64,13 +64,13 @@ public class WorkerStorageEngineProvider
     {
         if (storageEngine == null) {
             storageEngine = new NativeStorageEngine(
+                    sharedConfig,
                     nativeConfig,
                     exceptionThrower,
-                    globalConfig,
                     connectorSync,
                     catalogName);
 
-            if (globalConfig.isFailureGeneratorEnabled()) {
+            if (sharedConfig.isFailureGeneratorEnabled()) {
                 storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),
                         new Class<?>[] {StorageEngine.class},
                         failureGeneratorInvocationHandler.getMethodInvocationHandler(storageEngine));

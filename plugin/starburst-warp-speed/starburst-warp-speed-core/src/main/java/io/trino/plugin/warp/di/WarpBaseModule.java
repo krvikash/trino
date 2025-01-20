@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.di;
 
 import com.google.inject.Module;
+import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
@@ -28,7 +29,7 @@ public interface WarpBaseModule
         return this;
     }
 
-    default WarpBaseModule withContext(ConnectorContext context)
+    default WarpBaseModule withContext(WarpConnectorContext context)
     {
         return this;
     }

@@ -15,8 +15,8 @@ package io.trino.plugin.warp.di;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -52,7 +52,7 @@ public class WarpStubsStorageEngineModule
                 new NativeConfig(),
                 new StubExceptionThrower(),
                 new CatalogNameProvider("catalogName"),
-                new GlobalConfig());
+                new SharedConfig());
         binder.bind(NativeStorageStateHandler.class).toInstance(nativeStorageStateHandler);
     }
 

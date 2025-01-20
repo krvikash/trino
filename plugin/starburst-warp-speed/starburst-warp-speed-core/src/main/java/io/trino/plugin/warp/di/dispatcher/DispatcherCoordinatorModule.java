@@ -21,12 +21,12 @@ import io.trino.plugin.warp.dispatcher.DispatcherMetadataFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherSplitManager;
 import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTransactionManager;
+import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions;
 import io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.NativeExpressionRulesHandler;
 import io.trino.plugin.warp.storage.splits.ConnectorSplitConsistentHashNodeDistributor;
 import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
-import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
 
@@ -38,9 +38,9 @@ import static java.util.Objects.requireNonNull;
 public class DispatcherCoordinatorModule
         implements ExtraModule
 {
-    private ConnectorContext context;
+    private WarpConnectorContext context;
 
-    public DispatcherCoordinatorModule(Map<String, String> config, ConnectorContext context)
+    public DispatcherCoordinatorModule(Map<String, String> config, WarpConnectorContext context)
     {
         withConfig(config).withContext(context);
     }
@@ -74,7 +74,7 @@ public class DispatcherCoordinatorModule
     }
 
     @Override
-    public DispatcherCoordinatorModule withContext(ConnectorContext context)
+    public DispatcherCoordinatorModule withContext(WarpConnectorContext context)
     {
         this.context = requireNonNull(context);
         return this;

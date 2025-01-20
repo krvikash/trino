@@ -33,7 +33,9 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
+import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
 import io.trino.plugin.warp.juffer.BufferAllocator;
@@ -53,7 +55,6 @@ import io.trino.plugin.warp.util.json.SliceSerializer;
 import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.spi.block.Block;
-import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.type.TypeDeserializer;
@@ -68,10 +69,10 @@ import static java.util.Objects.requireNonNull;
 public class WarpMainModule
         implements WarpBaseModule
 {
-    private final ConnectorContext context;
+    private final WarpConnectorContext context;
     private final Map<String, String> config;
 
-    WarpMainModule(ConnectorContext context, Map<String, String> config)
+    WarpMainModule(WarpConnectorContext context, Map<String, String> config)
     {
         this.context = requireNonNull(context);
         this.config = requireNonNull(config);
@@ -98,11 +99,13 @@ public class WarpMainModule
     {
         configBinder(binder).bindConfig(MetricsConfig.class);
         configBinder(binder).bindConfig(GlobalConfig.class);
-        configBinder(binder).bindConfig(NativeConfig.class);
         configBinder(binder).bindConfig(WarmupDemoterConfig.class);
         configBinder(binder).bindConfig(ProxiedConnectorConfig.class);
         configBinder(binder).bindConfig(DictionaryConfig.class);
         configBinder(binder).bindConfig(CloudVendorConfig.class, ForWarp.class);
+
+        binder.bind(SharedConfig.class).toInstance(context.getWarpPluginSharedInstances().sharedConfig());
+        binder.bind(NativeConfig.class).toInstance(context.getWarpPluginSharedInstances().nativeConfig());
     }
 
     private void configureCommon(Binder binder)

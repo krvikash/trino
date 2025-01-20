@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.storage.engine.nativeimpl;
 
 import io.airlift.units.Duration;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.gen.errorcodes.ErrorCodes;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +48,7 @@ public class NativeStorageStateHandlerTest
         nativeConfig.setStorageTemporaryExceptionExpiryDuration(new Duration(10000, TimeUnit.MILLISECONDS));
 
         NativeExceptionThrower nativeExceptionThrower = mock(NativeExceptionThrower.class);
-        handler = new NativeStorageStateHandler(nativeConfig, nativeExceptionThrower, new CatalogNameProvider("catalogName"), new GlobalConfig());
+        handler = new NativeStorageStateHandler(nativeConfig, nativeExceptionThrower, new CatalogNameProvider("catalogName"), new SharedConfig());
         handler.enablePermanently();
         handler.enableTemporarily();
     }

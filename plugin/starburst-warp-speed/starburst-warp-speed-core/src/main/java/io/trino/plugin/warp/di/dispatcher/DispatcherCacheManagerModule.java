@@ -33,6 +33,7 @@ import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.ExtraModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
@@ -56,6 +57,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextFactory;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpCacheManagerDeleteService;
@@ -141,8 +143,10 @@ public class DispatcherCacheManagerModule
         }
         configBinder(binder).bindConfig(CloudVendorConfig.class, ForWarp.class);
         configBinder(binder).bindConfig(DictionaryConfig.class);
-        configBinder(binder).bindConfig(NativeConfig.class);
         configBinder(binder).bindConfig(WarmupDemoterConfig.class);
+
+        binder.bind(SharedConfig.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().sharedConfig());
+        binder.bind(NativeConfig.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().nativeConfig());
 
         // bind block serializers for the purpose of TupleDomain serde
         binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
@@ -158,9 +162,11 @@ public class DispatcherCacheManagerModule
         binder.bind(BufferAllocator.class);
         binder.bind(ClassifierFactory.class);
         binder.bind(CollectTxService.class);
+        binder.bind(DemoterSync.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().demoterSync());
         binder.bind(DictionaryCacheService.class);
         binder.bind(DictionaryWriterFactory.class);
         binder.bind(DispatcherProxiedConnectorTransformer.class).to(DispatcherCacheTransformer.class);
+        binder.bind(DispatcherTableHandleBuilderProvider.class);
         binder.bind(DomainToMapBlockConvertor.class);
         binder.bind(EmptyRowGroupWarmer.class);
         binder.bind(FailureGeneratorInvocationHandler.class);
@@ -179,18 +185,18 @@ public class DispatcherCacheManagerModule
         binder.bind(StorageCollectorService.class);
         binder.bind(StorageEngineTxService.class);
         binder.bind(StorageWarmerService.class);
-        binder.bind(WarpDeleteService.class).to(WarpCacheManagerDeleteService.class);
         binder.bind(StorageWriterService.class);
         binder.bind(WarmupDemoterService.class);
         binder.bind(WarmupElementStatsService.class);
         binder.bind(WarmupElementsCreator.class);
         binder.bind(WarpCachePageSourceFactory.class);
+        binder.bind(WarpDeleteService.class).to(WarpCacheManagerDeleteService.class);
         binder.bind(WarpPageSinkFactory.class);
         binder.bind(WarpProxiedWarmer.class);
         binder.bind(WeGroupWarmer.class);
         binder.bind(WorkerTaskExecutorService.class);
+
         bindMetricsServices(binder);
-        binder.bind(DispatcherTableHandleBuilderProvider.class);
     }
 
     private void bindMetricsServices(Binder binder)
