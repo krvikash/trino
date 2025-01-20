@@ -21,9 +21,12 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.io.Resources.getResource;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestCassandraPlugin
 {
@@ -60,5 +63,22 @@ public class TestCassandraPlugin
                         "cassandra.tls.truststore-path", truststoreFile.toString(),
                         "cassandra.tls.truststore-password", "changeit"),
                 new TestingConnectorContext()).shutdown();
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new CassandraPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "cassandra.contact-points", "host1,host2",
+                "cassandra.security", "password",
+                "cassandra.password", "password",
+                "cassandra.username", "user");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties).containsExactlyInAnyOrder("non-existent-property", "cassandra.password");
     }
 }
