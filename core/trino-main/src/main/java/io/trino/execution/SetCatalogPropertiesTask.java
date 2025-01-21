@@ -105,6 +105,6 @@ public class SetCatalogPropertiesTask
                                 "catalog property")));
             }
         }
-        return propertiesBuilder.buildOrThrow();
+        return propertiesBuilder.buildKeepingLast();
     }
 }

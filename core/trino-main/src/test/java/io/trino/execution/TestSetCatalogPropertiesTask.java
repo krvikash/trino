@@ -95,6 +95,24 @@ public class TestSetCatalogPropertiesTask
     }
 
     @Test
+    void testAddDuplicatedCatalogProperties()
+    {
+        testSetProperties(
+                ImmutableList.of(
+                        new Property(new NodeLocation(1, 1), new Identifier("tpch.column-naming"), new StringLiteral(new NodeLocation(1, 30), "standard"))),
+                """
+                   "tpch.column-naming" = 'standard'
+                """,
+                ImmutableList.of(
+                        new Property(new NodeLocation(1, 1), new Identifier("tpch.double-type-mapping"), new StringLiteral(new NodeLocation(1, 30), "double")),
+                        new Property(new NodeLocation(2, 1), new Identifier("tpch.double-type-mapping"), new StringLiteral(new NodeLocation(2, 30), "decimal"))),
+                """
+                   "tpch.column-naming" = 'standard',
+                   "tpch.double-type-mapping" = 'decimal'
+                """);
+    }
+
+    @Test
     public void testOverrideCatalogProperties()
     {
         testSetProperties(
