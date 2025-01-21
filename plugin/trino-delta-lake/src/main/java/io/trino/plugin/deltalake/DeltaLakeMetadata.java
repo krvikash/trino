@@ -36,7 +36,6 @@ import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.Column;
 import io.trino.metastore.Database;
-import io.trino.metastore.HivePrincipal;
 import io.trino.metastore.PrincipalPrivileges;
 import io.trino.metastore.StorageFormat;
 import io.trino.metastore.Table;
@@ -85,7 +84,6 @@ import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriter;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFactory;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.TrinoViewHiveMetastore;
-import io.trino.plugin.hive.security.AccessControlMetadata;
 import io.trino.spi.ErrorCode;
 import io.trino.spi.NodeManager;
 import io.trino.spi.TrinoException;
@@ -132,9 +130,6 @@ import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.security.GrantInfo;
-import io.trino.spi.security.Privilege;
-import io.trino.spi.security.RoleGrant;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.statistics.ColumnStatisticMetadata;
 import io.trino.spi.statistics.ColumnStatisticType;
@@ -427,7 +422,6 @@ public class DeltaLakeMetadata
     private final TrinoFileSystemFactory fileSystemFactory;
     private final LocationAccessControl locationAccessControl;
     private final TypeManager typeManager;
-    private final AccessControlMetadata accessControlMetadata;
     private final TrinoViewHiveMetastore trinoViewHiveMetastore;
     private final CheckpointWriterManager checkpointWriterManager;
     private final long defaultCheckpointInterval;
@@ -464,7 +458,6 @@ public class DeltaLakeMetadata
             TrinoFileSystemFactory fileSystemFactory,
             LocationAccessControl locationAccessControl,
             TypeManager typeManager,
-            AccessControlMetadata accessControlMetadata,
             TrinoViewHiveMetastore trinoViewHiveMetastore,
             int domainCompactionThreshold,
             boolean unsafeWritesEnabled,
@@ -487,7 +480,6 @@ public class DeltaLakeMetadata
         this.tableStatisticsProvider = requireNonNull(tableStatisticsProvider, "tableStatisticsProvider is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
-        this.accessControlMetadata = requireNonNull(accessControlMetadata, "accessControlMetadata is null");
         this.trinoViewHiveMetastore = requireNonNull(trinoViewHiveMetastore, "trinoViewHiveMetastore is null");
         this.domainCompactionThreshold = domainCompactionThreshold;
         this.unsafeWritesEnabled = unsafeWritesEnabled;
@@ -3208,72 +3200,6 @@ public class DeltaLakeMetadata
     public Optional<ConnectorViewDefinition> getView(ConnectorSession session, SchemaTableName viewName)
     {
         return trinoViewHiveMetastore.getView(viewName);
-    }
-
-    @Override
-    public void createRole(ConnectorSession session, String role, Optional<TrinoPrincipal> grantor)
-    {
-        accessControlMetadata.createRole(session, role, grantor.map(HivePrincipal::from));
-    }
-
-    @Override
-    public void dropRole(ConnectorSession session, String role)
-    {
-        accessControlMetadata.dropRole(session, role);
-    }
-
-    @Override
-    public Set<String> listRoles(ConnectorSession session)
-    {
-        return accessControlMetadata.listRoles(session);
-    }
-
-    @Override
-    public Set<RoleGrant> listRoleGrants(ConnectorSession session, TrinoPrincipal principal)
-    {
-        return ImmutableSet.copyOf(accessControlMetadata.listRoleGrants(session, HivePrincipal.from(principal)));
-    }
-
-    @Override
-    public void grantRoles(ConnectorSession session, Set<String> roles, Set<TrinoPrincipal> grantees, boolean withAdminOption, Optional<TrinoPrincipal> grantor)
-    {
-        accessControlMetadata.grantRoles(session, roles, HivePrincipal.from(grantees), withAdminOption, grantor.map(HivePrincipal::from));
-    }
-
-    @Override
-    public void revokeRoles(ConnectorSession session, Set<String> roles, Set<TrinoPrincipal> grantees, boolean adminOptionFor, Optional<TrinoPrincipal> grantor)
-    {
-        accessControlMetadata.revokeRoles(session, roles, HivePrincipal.from(grantees), adminOptionFor, grantor.map(HivePrincipal::from));
-    }
-
-    @Override
-    public Set<RoleGrant> listApplicableRoles(ConnectorSession session, TrinoPrincipal principal)
-    {
-        return accessControlMetadata.listApplicableRoles(session, HivePrincipal.from(principal));
-    }
-
-    @Override
-    public Set<String> listEnabledRoles(ConnectorSession session)
-    {
-        return accessControlMetadata.listEnabledRoles(session);
-    }
-
-    @Override
-    public void grantTablePrivileges(ConnectorSession session, SchemaTableName schemaTableName, Set<Privilege> privileges, TrinoPrincipal grantee, boolean grantOption)
-    {
-        accessControlMetadata.grantTablePrivileges(session, schemaTableName, privileges, HivePrincipal.from(grantee), grantOption);
-    }
-
-    @Override
-    public void revokeTablePrivileges(ConnectorSession session, SchemaTableName schemaTableName, Set<Privilege> privileges, TrinoPrincipal grantee, boolean grantOption)
-    {
-        accessControlMetadata.revokeTablePrivileges(session, schemaTableName, privileges, HivePrincipal.from(grantee), grantOption);
-    }
-
-    @Override
-    public List<GrantInfo> listTablePrivileges(ConnectorSession session, SchemaTablePrefix schemaTablePrefix)
-    {
-        return accessControlMetadata.listTablePrivileges(session, listTables(session, schemaTablePrefix));
     }
 
     private List<SchemaTableName> listTables(ConnectorSession session, SchemaTablePrefix prefix)
