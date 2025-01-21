@@ -15,10 +15,14 @@ package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Module;
+import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.configuration.ConfigurationAwareModule;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.local.LocalFileSystemFactory;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.hive.metastore.file.FileHiveMetastoreConfig;
+import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -26,11 +30,13 @@ import io.trino.spi.connector.ConnectorFactory;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.plugin.iceberg.IcebergConnectorFactory.createBootstrap;
 import static io.trino.plugin.iceberg.IcebergConnectorFactory.createConnector;
 import static java.util.Objects.requireNonNull;
 
@@ -87,12 +93,33 @@ public class TestingIcebergConnectorFactory
     @Override
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
+        return createConnector(catalogName, createConfig(config), context, createAdditionalModule(catalogName), icebergCatalogModule.get());
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        ClassLoader classLoader = IcebergConnectorFactory.class.getClassLoader();
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            Bootstrap app = createBootstrap(catalogName, createConfig(config), ImmutableMap.of(), context, createAdditionalModule(catalogName), icebergCatalogModule.get(), true);
+            Set<ConfigPropertyMetadata> usedProperties = app.configure();
+            return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+        }
+    }
+
+    private Map<String, String> createConfig(Map<String, String> config)
+    {
         if (!config.containsKey("iceberg.catalog.type")) {
-            config = ImmutableMap.<String, String>builder()
+            return ImmutableMap.<String, String>builder()
                     .putAll(config)
                     .put("iceberg.catalog.type", "TESTING_FILE_METASTORE")
                     .buildOrThrow();
         }
+        return config;
+    }
+
+    private Module createAdditionalModule(String catalogName)
+    {
         Module localModule = binder -> {
             newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
                     .addBinding("local").toInstance(new LocalFileSystemFactory(localFileSystemRootPath));
@@ -103,9 +130,8 @@ public class TestingIcebergConnectorFactory
                 newOptionalBinder(binder, WorkScheduler.class).setBinding().toInstance(workScheduler.get());
             }
         };
-        Module module = additionalOverrideModule.get()
+        return additionalOverrideModule.get()
                 .map(override -> (Module) ConfigurationAwareModule.combine(localModule, override))
                 .orElse(localModule);
-        return createConnector(catalogName, config, context, module, icebergCatalogModule.get());
     }
 }

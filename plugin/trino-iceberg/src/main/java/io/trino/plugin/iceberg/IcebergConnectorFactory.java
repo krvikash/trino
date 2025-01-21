@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
@@ -115,7 +116,8 @@ public class IcebergConnectorFactory
         }
     }
 
-    private static Bootstrap createBootstrap(
+    @VisibleForTesting
+    public static Bootstrap createBootstrap(
             String catalogName,
             Map<String, String> requiredConfig,
             Map<String, String> optionalConfig,
