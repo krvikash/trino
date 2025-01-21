@@ -397,8 +397,8 @@ public class CoordinatorDynamicCatalogManager
         RegisteredCatalog registeredCatalog = allCatalogs.computeIfAbsent(
                 createRootCatalogHandle(catalogName, catalogProperties.version()),
                 _ -> new RegisteredCatalog(new RegistrationToken(), catalogFactory.createCatalog(catalogProperties)));
-        activeCatalogs.put(catalogName, registeredCatalog.catalog().getCatalog());
         catalogStore.addOrReplaceCatalog(catalogProperties);
+        activeCatalogs.put(catalogName, registeredCatalog.catalog().getCatalog());
         return registeredCatalog;
     }
 

@@ -51,6 +51,7 @@ import static io.trino.testing.TestingSession.testSession;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 
 @TestInstance(PER_METHOD)
@@ -162,30 +163,99 @@ public class TestRenameCatalogTask
         assertThat(catalogExists(catalogB)).isTrue();
     }
 
-    private void executeCreateCatalog(String catalogA)
+    @Test
+    void testAddOrReplaceCatalogFailure()
+    {
+        MockCatalogStore catalogStore = new MockCatalogStore();
+        String catalogA = "catalog_a_" + randomNameSuffix();
+        String catalogB = "catalog_b_" + randomNameSuffix();
+
+        try (QueryRunner queryRunner = new StandaloneQueryRunner(
+                TEST_SESSION,
+                builder -> builder
+                        .setAdditionalModule(new MockCatalogStoreModule(catalogStore))
+                        .addProperty("catalog.store", "mock"))) {
+            queryRunner.installPlugin(new TpchPlugin());
+
+            executeCreateCatalog(queryRunner, catalogA);
+
+            catalogStore.failAddOrReplaceCatalog();
+
+            assertThatThrownBy(() -> executeRenameCatalog(queryRunner, catalogA, catalogB))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("Add or replace catalog failed");
+
+            assertThat(catalogExists(queryRunner, catalogA)).isTrue();
+            assertThat(catalogExists(queryRunner, catalogB)).isFalse();
+        }
+    }
+
+    @Test
+    void testRemoveCatalogFailure()
+    {
+        MockCatalogStore catalogStore = new MockCatalogStore();
+        String catalogA = "catalog_a_" + randomNameSuffix();
+        String catalogB = "catalog_b_" + randomNameSuffix();
+
+        try (QueryRunner queryRunner = new StandaloneQueryRunner(
+                TEST_SESSION,
+                builder -> builder
+                        .setAdditionalModule(new MockCatalogStoreModule(catalogStore))
+                        .addProperty("catalog.store", "mock"))) {
+            queryRunner.installPlugin(new TpchPlugin());
+
+            executeCreateCatalog(queryRunner, catalogA);
+
+            catalogStore.failRemoveCatalog();
+
+            assertThatThrownBy(() -> executeRenameCatalog(queryRunner, catalogA, catalogB))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("Remove catalog failed");
+
+            assertThat(catalogExists(queryRunner, catalogA)).isTrue();
+            assertThat(catalogExists(queryRunner, catalogB)).isTrue();
+        }
+    }
+
+    private void executeCreateCatalog(String catalog)
+    {
+        executeCreateCatalog(queryRunner, catalog);
+    }
+
+    private void executeCreateCatalog(QueryRunner queryRunner, String catalog)
     {
         Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks = queryRunner.getCoordinator().getInstance(Key.get(new TypeLiteral<>() {}));
         CreateCatalogTask task = (CreateCatalogTask) tasks.get(CreateCatalog.class);
-        CreateCatalog statement = new CreateCatalog(new NodeLocation(1, 1), new Identifier(catalogA), false, new Identifier("tpch"), TPCH_PROPERTIES, Optional.empty(), Optional.empty());
-        ListenableFuture<Void> future = task.execute(statement, createNewQuery(), emptyList(), WarningCollector.NOOP);
+        CreateCatalog statement = new CreateCatalog(new NodeLocation(1, 1), new Identifier(catalog), false, new Identifier("tpch"), TPCH_PROPERTIES, Optional.empty(), Optional.empty());
+        ListenableFuture<Void> future = task.execute(statement, createNewQuery(queryRunner), emptyList(), WarningCollector.NOOP);
         getFutureValue(future);
     }
 
     private void executeRenameCatalog(String catalogA, String catalogB)
     {
+        executeRenameCatalog(queryRunner, catalogA, catalogB);
+    }
+
+    private void executeRenameCatalog(QueryRunner queryRunner, String catalogA, String catalogB)
+    {
         Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks = queryRunner.getCoordinator().getInstance(Key.get(new TypeLiteral<>() {}));
         RenameCatalogTask task = (RenameCatalogTask) tasks.get(RenameCatalog.class);
         RenameCatalog statement = new RenameCatalog(new Identifier(catalogA), new Identifier(catalogB));
-        ListenableFuture<Void> future = task.execute(statement, createNewQuery(), emptyList(), WarningCollector.NOOP);
+        ListenableFuture<Void> future = task.execute(statement, createNewQuery(queryRunner), emptyList(), WarningCollector.NOOP);
         getFutureValue(future);
     }
 
-    private boolean catalogExists(String catalogB)
+    private boolean catalogExists(String catalog)
     {
-        return queryRunner.getPlannerContext().getMetadata().catalogExists(createNewQuery().getSession(), catalogB);
+        return catalogExists(queryRunner, catalog);
     }
 
-    private QueryStateMachine createNewQuery()
+    private boolean catalogExists(QueryRunner queryRunner, String catalog)
+    {
+        return queryRunner.getPlannerContext().getMetadata().catalogExists(createNewQuery(queryRunner).getSession(), catalog);
+    }
+
+    private QueryStateMachine createNewQuery(QueryRunner queryRunner)
     {
         return QueryStateMachine.begin(
                 Optional.empty(),

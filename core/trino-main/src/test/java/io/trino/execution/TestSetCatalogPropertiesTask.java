@@ -50,6 +50,7 @@ import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSession;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 
 @TestInstance(PER_METHOD)
@@ -170,6 +171,45 @@ public class TestSetCatalogPropertiesTask
                 """);
     }
 
+    @Test
+    void testAddOrReplaceCatalogFailure()
+    {
+        MockCatalogStore catalogStore = new MockCatalogStore();
+        String catalog = "catalog_" + randomNameSuffix();
+
+        try (QueryRunner queryRunner = new StandaloneQueryRunner(
+                TEST_SESSION,
+                builder -> builder
+                        .setAdditionalModule(new MockCatalogStoreModule(catalogStore))
+                        .addProperty("catalog.store", "mock"))) {
+            queryRunner.installPlugin(new TpchPlugin());
+
+            executeCreateCatalog(
+                    queryRunner,
+                    catalog,
+                    ImmutableList.of(new Property(new NodeLocation(1, 1), new Identifier("tpch.column-naming"), new StringLiteral(new NodeLocation(1, 30), "standard"))));
+
+            catalogStore.failAddOrReplaceCatalog();
+
+            assertThatThrownBy(
+                    () -> executeSetCatalogProperties(
+                            queryRunner,
+                            catalog,
+                            ImmutableList.of(new Property(new NodeLocation(1, 1), new Identifier("tpch.column-naming"), new StringLiteral(new NodeLocation(1, 30), "simplified")))))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("Add or replace catalog failed");
+
+            assertThat((String) queryRunner.execute("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(
+                            """
+                            CREATE CATALOG %s USING tpch
+                            WITH (
+                               "tpch.column-naming" = 'standard'
+                            )\
+                            """.formatted(catalog));
+        }
+    }
+
     private void testSetProperties(ImmutableList<Property> initialProperties, String showInitialProperties, List<Property> updatedProperties, String showExpectedProperties)
     {
         String createCatalogSql =
@@ -192,6 +232,11 @@ public class TestSetCatalogPropertiesTask
 
     private void executeCreateCatalog(String catalogA, List<Property> catalogProperties)
     {
+        executeCreateCatalog(queryRunner, catalogA, catalogProperties);
+    }
+
+    private void executeCreateCatalog(QueryRunner queryRunner, String catalogA, List<Property> catalogProperties)
+    {
         Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks = queryRunner.getCoordinator().getInstance(Key.get(new TypeLiteral<>() {}));
         CreateCatalogTask task = (CreateCatalogTask) tasks.get(CreateCatalog.class);
         CreateCatalog statement = new CreateCatalog(new NodeLocation(1, 1), new Identifier(catalogA), false, new Identifier(CONNECTOR_NAME), catalogProperties, Optional.empty(), Optional.empty());
@@ -200,6 +245,11 @@ public class TestSetCatalogPropertiesTask
     }
 
     private void executeSetCatalogProperties(String catalogName, List<Property> properties)
+    {
+        executeSetCatalogProperties(queryRunner, catalogName, properties);
+    }
+
+    private void executeSetCatalogProperties(QueryRunner queryRunner, String catalogName, List<Property> properties)
     {
         Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks = queryRunner.getCoordinator().getInstance(Key.get(new TypeLiteral<>() {}));
         SetCatalogPropertiesTask task = (SetCatalogPropertiesTask) tasks.get(SetCatalogProperties.class);
