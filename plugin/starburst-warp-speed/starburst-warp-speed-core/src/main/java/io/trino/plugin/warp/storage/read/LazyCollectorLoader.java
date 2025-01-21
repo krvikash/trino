@@ -105,7 +105,9 @@ public class LazyCollectorLoader
             shapingLogger.error(e, "lazy collect failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
                     lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
             dispatcherPageSourceStats.inclazy_collect_failed_load();
-            collectTxService.collectAbort(e, collectOpenResult.collectState(), dispatcherPageSourceStats);
+            if (collectOpenResult != null) {
+                collectTxService.collectAbort(e, collectOpenResult.collectState(), dispatcherPageSourceStats);
+            }
             throw e;
         }
 

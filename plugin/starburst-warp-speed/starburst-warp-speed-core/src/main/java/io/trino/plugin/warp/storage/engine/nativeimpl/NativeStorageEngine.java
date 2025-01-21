@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.engine.nativeimpl;
 
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
@@ -23,6 +24,7 @@ import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
 
 import java.lang.foreign.Arena;
@@ -300,7 +302,7 @@ public class NativeStorageEngine
         }
         catch (Throwable t) {
             logger.error(t, "failed loading native storage engine");
-            throw new RuntimeException("failed loading native storage engine");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed loading native storage engine", t);
         }
         logger.debug("finish initializing storage engine");
 
@@ -320,8 +322,11 @@ public class NativeStorageEngine
             return (int) mInitGetWarmupRecordBufferSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to init warmup record buffer size");
-            throw new RuntimeException("failed to init warmup record buffer size");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to init warmup record buffer size", t);
         }
     }
 
@@ -332,8 +337,11 @@ public class NativeStorageEngine
             return (int) mInitGetFixedCollectRecordBufferSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to init collect record buffer size");
-            throw new RuntimeException("failed to init collect record buffer size");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to init collect record buffer size", t);
         }
     }
 
@@ -344,8 +352,11 @@ public class NativeStorageEngine
             return (int) mInitGetVarlenCollectRecordBufferSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to init collect record buffer size");
-            throw new RuntimeException("failed to init collect record buffer size");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to init collect record buffer size", t);
         }
     }
 
@@ -356,8 +367,11 @@ public class NativeStorageEngine
             return (int) mInitGetFixedCollectTxSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to init collect tx size");
-            throw new RuntimeException("failed to init collect tx size");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to init collect tx size", t);
         }
     }
 
@@ -368,8 +382,11 @@ public class NativeStorageEngine
             return (int) mInitGetVarlenCollectTxSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to init collect tx size");
-            throw new RuntimeException("failed to init collect tx size");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to init collect tx size", t);
         }
     }
 
@@ -380,8 +397,11 @@ public class NativeStorageEngine
             return (int) mInitGetFixedWarmupDataTxSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to init warmup tx size");
-            throw new RuntimeException("failed to init warmup tx size");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to init warmup tx size", t);
         }
     }
 
@@ -392,8 +412,11 @@ public class NativeStorageEngine
             return (int) mInitGetVarlenWarmupDataTxSize.invokeExact(recTypeLength);
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to init warmup tx size");
-            throw new RuntimeException("failed to init warmup tx size");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to init warmup tx size", t);
         }
     }
 
@@ -404,8 +427,11 @@ public class NativeStorageEngine
             return (int) mInitGetWarmupBasicTxSize.invokeExact();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to init warmup tx size");
-            throw new RuntimeException("failed to init warmup tx size");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to init warmup tx size", t);
         }
     }
 
@@ -416,8 +442,11 @@ public class NativeStorageEngine
             return (int) mInitGetWarmupLuceneTxSize.invokeExact();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to init warmup tx size");
-            throw new RuntimeException("failed to init warmup tx size");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to init warmup tx size", t);
         }
     }
 
@@ -432,8 +461,8 @@ public class NativeStorageEngine
         String logString = logMem.getString(LOGGER_LOG_OFFSET_STRING);
         if (logLevel < 0) {
             final int expectionId = -1 * logLevel;
-            shapingLogger.error("catalog %s throwed native excetpion id %d", catalogName, expectionId);
-            exceptionThrower.ifPresent(e -> e.throwException(expectionId, logString));
+            shapingLogger.error("catalog %s throwed native exception %s", catalogName, logString);
+            exceptionThrower.ifPresent(e -> e.throwException(expectionId, "Exception thrown from warp speed native library"));
             shapingLogger.error("catalog %s exception %s", catalogName, logString);
             while (true) {
                 shapingLogger.warn("catalog %s throwed native excetpion went to endless sleep", catalogName);
@@ -477,8 +506,11 @@ public class NativeStorageEngine
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to open file");
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
         }
-        throw new RuntimeException("failed to open file " + fileName);
+        throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to open file " + fileName);
     }
 
     @Override
@@ -489,8 +521,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to close file");
-            throw new RuntimeException("failed to close file");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to close file", t);
         }
     }
 
@@ -507,8 +542,11 @@ public class NativeStorageEngine
         }
         catch (Throwable t) {
             shapingLogger.error(t, "failed to truncate file");
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
         }
-        throw new RuntimeException("failed to truncate file");
+        throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to truncate file");
     }
 
     @Override
@@ -519,8 +557,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to punch hole file");
-            throw new RuntimeException("failed to punch hole file" + fileName);
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to punch hole file" + fileName, t);
         }
     }
 
@@ -532,8 +573,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to clear native cache");
-            throw new RuntimeException("failed to clear native cache");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to clear native cache", t);
         }
     }
 
@@ -545,8 +589,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to warmupElementOpen");
-            throw new RuntimeException("failed to open warm up element");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to open warm up element", t);
         }
     }
 
@@ -559,8 +606,11 @@ public class NativeStorageEngine
             return res;
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to warmupElementClose");
-            throw new RuntimeException("failed to close warm up element");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to close warm up element", t);
         }
     }
 
@@ -572,8 +622,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to warmupVerifyQueryOffset");
-            throw new RuntimeException("failed to warmup verify query offset");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to warmup verify query offset", t);
         }
     }
 
@@ -585,8 +638,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to warmupChunk");
-            throw new RuntimeException("failed to warmup chunk");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to warmup chunk", t);
         }
     }
 
@@ -598,8 +654,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to warmupChunkExtRec");
-            throw new RuntimeException("failed to warmup extended records");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to warmup extended records", t);
         }
     }
 
@@ -611,8 +670,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to matchOpen");
-            throw new RuntimeException("failed to match open");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to match open", t);
         }
     }
 
@@ -625,8 +687,11 @@ public class NativeStorageEngine
             return res;
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to matchAgg");
-            throw new RuntimeException("failed to match aggregates");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to match aggregates", t);
         }
     }
 
@@ -639,8 +704,11 @@ public class NativeStorageEngine
             return res;
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to matchLucenePrepare");
-            throw new RuntimeException("failed to match lucene prepare");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to match lucene prepare", t);
         }
     }
 
@@ -652,8 +720,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to matchLuceneCompleted");
-            throw new RuntimeException("failed to match lucene completed");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to match lucene completed", t);
         }
     }
 
@@ -666,8 +737,11 @@ public class NativeStorageEngine
             return res;
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to match");
-            throw new RuntimeException("failed to match");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to match", t);
         }
     }
 
@@ -679,8 +753,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to matchOpen");
-            throw new RuntimeException("failed to match open");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to match open", t);
         }
     }
 
@@ -692,8 +769,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to collectOpen");
-            throw new RuntimeException("failed to collect open");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to collect open", t);
         }
     }
 
@@ -706,8 +786,11 @@ public class NativeStorageEngine
             return res;
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to openChunk");
-            throw new RuntimeException("failed to open chunk");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to open chunk", t);
         }
     }
 
@@ -719,8 +802,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to collectChunk");
-            throw new RuntimeException("failed to collectChunk");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to collectChunk", t);
         }
     }
 
@@ -732,8 +818,11 @@ public class NativeStorageEngine
             checkForLogs();
         }
         catch (Throwable t) {
+            if (t instanceof TrinoException te) {
+                throw te;
+            }
             shapingLogger.error(t, "failed to collectClose");
-            throw new RuntimeException("failed to collect close");
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to collect close", t);
         }
     }
 }
