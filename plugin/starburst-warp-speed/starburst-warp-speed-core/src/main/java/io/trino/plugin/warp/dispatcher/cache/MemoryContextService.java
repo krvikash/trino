@@ -119,11 +119,11 @@ public class MemoryContextService
         long revokedMemory = 0;
         try {
             if (runningTasks.isEmpty()) {
-                shapingLogger.info("revoke %s bytes triggered but WarpCacheManager doesn't have any running warming tasks. allocatedMemory=%s, localMemoryContextsSize=%s. ignoring this event",
+                logger.debug("revoke %s bytes triggered but WarpCacheManager doesn't have any running warming tasks. allocatedMemory=%s, localMemoryContextsSize=%s. ignoring this event",
                         bytesToRevoke, getAllocatedMemory(), localMemoryContexts.size());
                 return 0;
             }
-            logger.info("revoke memory triggered bytesToRevoke=%s, allocatedMemory=%s, runningTasksSize=%s, localMemoryContexts.size()=%s", bytesToRevoke, getAllocatedMemory(), getRunningSize(), localMemoryContexts.size());
+            shapingLogger.info("revoke memory triggered bytesToRevoke=%s, allocatedMemory=%s, runningTasksSize=%s, localMemoryContexts.size()=%s", bytesToRevoke, getAllocatedMemory(), getRunningSize(), localMemoryContexts.size());
             statsWarmingService.incwarm_warp_cache_revoke_started();
             revokeIsRunning = true;
             int iteration = 0;
@@ -143,7 +143,7 @@ public class MemoryContextService
                 warpCacheTask.revoke();
                 iteration++;
             }
-            logger.info("revoked memory=%s of bytesToRevoke=%s, ,allocatedMemory=%s, runningTasksSize=%s, totalRevokedTasks=%s, localMemoryContexts.size()=%s", revokedMemory, bytesToRevoke, getAllocatedMemory(), runningTasks.size(), iteration, localMemoryContexts.size());
+            shapingLogger.info("revoked memory=%s of bytesToRevoke=%s, ,allocatedMemory=%s, runningTasksSize=%s, totalRevokedTasks=%s, localMemoryContexts.size()=%s", revokedMemory, bytesToRevoke, getAllocatedMemory(), runningTasks.size(), iteration, localMemoryContexts.size());
             statsWarmingService.incwarm_warp_cache_revoke_accomplished();
         }
         catch (Exception e) {
