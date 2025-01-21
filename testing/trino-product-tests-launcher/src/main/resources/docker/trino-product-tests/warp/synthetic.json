@@ -8572,7 +8572,6 @@
         "pt_enable": false
       },
       "warp_delta_lake": {
-        "pt_enable": false,
         "queries_data": [
           {
             "query_id": "seagate_with_nulls_1",

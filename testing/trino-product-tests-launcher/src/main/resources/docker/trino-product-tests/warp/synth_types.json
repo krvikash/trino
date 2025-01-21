@@ -10505,5 +10505,281 @@
         ]
       }
     ]
+  },
+  {
+    "name": "char_all_null",
+    "structure": [
+      {
+        "name": "cchar",
+        "type": "char",
+        "args": [
+          10
+        ]
+      }
+    ],
+    "warmup_rules": [
+      {
+        "colNameId": "cchar",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA",
+          "WARM_UP_TYPE_BASIC",
+          "WARM_UP_TYPE_LUCENE"
+        ]
+      }
+    ],
+    "warm_query": "select * from char_all_null",
+    "overriding": {
+      "warp_iceberg": {
+        "queries_data": [
+          {
+            "query_id": "char_all_null_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            },
+            "expected_caching_type": "no_pushdown"
+          }
+        ]
+      },
+      "warp_delta_lake": {
+        "queries_data": [
+          {
+            "query_id": "char_all_null_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            },
+            "expected_caching_type": "no_pushdown"
+          }
+        ]
+      }
+    },
+    "data": "resources/synthetic/char_all_null.jsonl",
+    "queries_data": [
+      {
+        "query": "select count(*) from char_all_null where cchar='H'",
+        "expected_result": [
+          0
+        ],
+        "query_id": "char_all_null_1",
+        "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(cchar) from char_all_null where cchar like '%aaa%'",
+        "expected_result": [
+          0
+        ],
+        "query_id": "char_all_null_2",
+        "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(*) from char_all_null where cchar is NULL",
+        "expected_result": [
+          198
+        ],
+        "query_id": "char_all_null_3",
+        "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      }
+    ]
+  },
+  {
+    "name": "iceberg_uuid_joins",
+    "overriding": {
+      "warp": {
+        "skip" : true
+      },
+      "warp_delta_lake": {
+        "skip" : true
+      }
+    },
+    "comment": "uuid is not supported by hive; test contains two tables: iceberg_uuid_joins and iceberg_uuid_joins2 (last is without c_ts column)",
+    "structure": [
+      {
+        "name": "c_id",
+        "type": "integer"
+      },
+      {
+        "name": "c_uuid",
+        "type": "uuid"
+      },
+      {
+        "name": "c_ts",
+        "type": "timestamp"
+      }
+    ],
+    "pt_enable": true,
+    "cases": [
+      {
+        "case_name": "iceberg_uuid_joins_case_1",
+        "session_properties": {
+          "enable_default_warming": true
+        },
+        "warm_query": "SELECT COUNT(u1.c_uuid), COUNT(u2.c_uuid) FROM iceberg_uuid_joins u1 JOIN iceberg_uuid_joins2 u2 ON u1.c_uuid = u2.c_uuid WHERE (u1.c_uuid = UUID 'b93e6454-73e1-488e-8253-7a9cdef0f963') OR (u2.c_uuid = UUID '2a1e92b2-abc4-4dce-bc89-3cd4b1fbeba2') OR (u2.c_uuid IS NULL) OR (u1.c_uuid IS NOT NULL)",
+        "queries_data": [
+          {
+            "query": "SELECT COUNT(*) FROM iceberg_uuid_joins u1 JOIN iceberg_uuid_joins2 u2 ON u1.c_uuid = u2.c_uuid WHERE u1.c_uuid = UUID '12151fd2-7586-11e9-8f9e-2a86e4085a59'",
+            "expected_result": [
+              0
+            ],
+            "query_id": "iceberg_uuid_joins_case_1_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 2
+            }
+          },
+          {
+            "query": "SELECT COUNT(*) FROM iceberg_uuid_joins u1 WHERE u1.c_uuid IS NULL",
+            "expected_result": [
+              38
+            ],
+            "query_id": "iceberg_uuid_joins_case_1_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 1,
+              "external_collect_columns": 1
+            }
+          },
+          {
+            "query": "SELECT COUNT(u1.c_uuid) FROM iceberg_uuid_joins u1 JOIN iceberg_uuid_joins2 u2 ON u1.c_uuid = u2.c_uuid WHERE u1.c_uuid = UUID 'b93e6454-73e1-488e-8253-7a9cdef0f963' OR u2.c_uuid IS NULL",
+            "expected_result": [
+              667
+            ],
+            "query_id": "iceberg_uuid_joins_case_1_3",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 1,
+              "external_collect_columns": 2
+            }
+          },
+          {
+            "query": "SELECT COUNT(*) FROM iceberg_uuid_joins u1 JOIN iceberg_uuid_joins2 u2 ON u1.c_uuid = u2.c_uuid WHERE u2.c_uuid = UUID '2a1e92b2-abc4-4dce-bc89-3cd4b1fbeba2' OR u1.c_uuid IS NOT NULL",
+            "expected_result": [
+              2254
+            ],
+            "query_id": "iceberg_uuid_joins_case_1_4",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 2,
+              "external_collect_columns": 2
+            }
+          },
+          {
+            "query": "SELECT count(u1.c_ts) FROM iceberg_uuid_joins u1 JOIN iceberg_uuid_joins2 u2 ON u1.c_uuid = u2.c_uuid",
+            "expected_result": [
+              2254
+            ],
+            "query_id": "iceberg_uuid_joins_case_1_5",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 1,
+              "external_collect_columns": 3
+            }
+          },
+          {
+            "query": "SELECT count(u1.c_id) FROM iceberg_uuid_joins u1 JOIN iceberg_uuid_joins2 u2 ON u1.c_uuid = u2.c_uuid WHERE u1.c_id > u2.c_id",
+            "expected_result": [
+              1002
+            ],
+            "query_id": "iceberg_uuid_joins_case_1_6",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 1,
+              "external_collect_columns": 2
+            }
+          },
+          {
+            "query": "SELECT count(u1.c_id) FROM iceberg_uuid_joins u1, iceberg_uuid_joins2 u2 WHERE u1.c_uuid = UUID 'b93e6454-73e1-488e-8253-7a9cdef0f963' AND u2.c_uuid = UUID '2a1e92b2-abc4-4dce-bc89-3cd4b1fbeba2'",
+            "expected_result": [
+              805
+            ],
+            "query_id": "iceberg_uuid_joins_case_1_7",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 3
+            }
+          },
+          {
+            "query": "SELECT MIN(u2.c_uuid) FROM iceberg_uuid_joins u1 JOIN iceberg_uuid_joins2 u2 ON u1.c_uuid = u2.c_uuid WHERE u1.c_uuid IN (UUID 'b93e6454-73e1-488e-8253-7a9cdef0f963', UUID '2a1e92b2-abc4-4dce-bc89-3cd4b1fbeba2')",
+            "expected_result": [
+              "2a1e92b2-abc4-4dce-bc89-3cd4b1fbeba2"
+            ],
+            "query_id": "iceberg_uuid_joins_case_1_8",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 1,
+              "external_collect_columns": 2
+            }
+          }
+        ]
+      },
+      {
+        "case_name": "iceberg_uuid_joins_case_2",
+        "session_properties": {
+          "enable_default_warming": true
+        },
+        "warm_query": "SELECT COUNT(u1.c_uuid) FROM iceberg_uuid_joins u1 WHERE u1.c_uuid IS NULL OR u1.c_uuid IS NOT NULL",
+        "queries_data": [
+          {
+            "query": "SELECT COUNT(*) FROM iceberg_uuid_joins u1 WHERE u1.c_uuid IS NULL",
+            "expected_result": [
+              38
+            ],
+            "query_id": "iceberg_uuid_joins_case_2_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 1,
+              "external_collect_columns": 1
+            }
+          },
+          {
+            "query": "SELECT COUNT(*) FROM iceberg_uuid_joins u1 WHERE u1.c_uuid IS NOT NULL",
+            "expected_result": [
+              962
+            ],
+            "query_id": "iceberg_uuid_joins_case_2_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "external_match_columns": 1,
+              "external_collect_columns": 1
+            }
+          }
+        ]
+      }
+    ]
   }
 ]
