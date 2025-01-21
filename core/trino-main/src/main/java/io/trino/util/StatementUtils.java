@@ -20,7 +20,6 @@ import io.trino.execution.CallTask;
 import io.trino.execution.CommentTask;
 import io.trino.execution.CommitTask;
 import io.trino.execution.CreateBranchTask;
-import io.trino.execution.CreateCatalogLikeTask;
 import io.trino.execution.CreateCatalogTask;
 import io.trino.execution.CreateFunctionTask;
 import io.trino.execution.CreateMaterializedViewTask;
@@ -79,7 +78,6 @@ import io.trino.sql.tree.Comment;
 import io.trino.sql.tree.Commit;
 import io.trino.sql.tree.CreateBranch;
 import io.trino.sql.tree.CreateCatalog;
-import io.trino.sql.tree.CreateCatalogLike;
 import io.trino.sql.tree.CreateFunction;
 import io.trino.sql.tree.CreateMaterializedView;
 import io.trino.sql.tree.CreateRole;
@@ -223,7 +221,6 @@ public final class StatementUtils
             .add(dataDefinitionStatement(Commit.class, CommitTask.class))
             .add(dataDefinitionStatement(CreateMaterializedView.class, CreateMaterializedViewTask.class))
             .add(dataDefinitionStatement(CreateCatalog.class, CreateCatalogTask.class))
-            .add(dataDefinitionStatement(CreateCatalogLike.class, CreateCatalogLikeTask.class))
             .add(dataDefinitionStatement(CreateFunction.class, CreateFunctionTask.class))
             .add(dataDefinitionStatement(CreateBranch.class, CreateBranchTask.class))
             .add(dataDefinitionStatement(CreateRole.class, CreateRoleTask.class))

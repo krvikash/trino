@@ -143,7 +143,6 @@ import io.trino.sql.tree.Commit;
 import io.trino.sql.tree.ComparisonPredicate;
 import io.trino.sql.tree.Corresponding;
 import io.trino.sql.tree.CreateCatalog;
-import io.trino.sql.tree.CreateCatalogLike;
 import io.trino.sql.tree.CreateMaterializedView;
 import io.trino.sql.tree.CreateSchema;
 import io.trino.sql.tree.CreateTable;
@@ -1158,13 +1157,6 @@ class StatementAnalyzer
         @Override
         protected Scope visitDropNotNullConstraint(DropNotNullConstraint node, Optional<Scope> scope)
         {
-            return createAndAssignScope(node, scope);
-        }
-
-        @Override
-        protected Scope visitCreateCatalogLike(CreateCatalogLike node, Optional<Scope> scope)
-        {
-            validateProperties(node.getProperties(), scope);
             return createAndAssignScope(node, scope);
         }
 

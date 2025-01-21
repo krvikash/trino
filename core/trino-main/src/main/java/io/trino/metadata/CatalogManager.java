@@ -58,12 +58,6 @@ public interface CatalogManager
         }
 
         @Override
-        public void createCatalogLike(CatalogName oldCatalog, CatalogName catalog, boolean notExists, Map<String, Optional<String>> properties)
-        {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
         public void renameCatalog(CatalogName catalogName, CatalogName newCatalogName)
         {
             throw new UnsupportedOperationException();
@@ -94,8 +88,6 @@ public interface CatalogManager
     Set<CatalogHandle> getReachableDynamicCatalogs();
 
     void createCatalog(CatalogName catalogName, ConnectorName connectorName, Map<String, String> properties, boolean notExists);
-
-    void createCatalogLike(CatalogName oldCatalog, CatalogName catalog, boolean notExists, Map<String, Optional<String>> properties);
 
     void renameCatalog(CatalogName catalogName, CatalogName newCatalogName);
 

@@ -46,7 +46,6 @@ import io.trino.sql.tree.CompositeIntervalQualifier;
 import io.trino.sql.tree.Corresponding;
 import io.trino.sql.tree.CreateBranch;
 import io.trino.sql.tree.CreateCatalog;
-import io.trino.sql.tree.CreateCatalogLike;
 import io.trino.sql.tree.CreateMaterializedView;
 import io.trino.sql.tree.CreateMaterializedView.WhenStaleBehavior;
 import io.trino.sql.tree.CreateRole;
@@ -3200,38 +3199,6 @@ public class TestSqlParser
                         Optional.empty(),
                         Optional.empty(),
                         Optional.empty()));
-    }
-
-    @Test
-    public void testCreateCatalogLike()
-    {
-        assertThat(statement("CREATE CATALOG test LIKE another")).isEqualTo(
-                new CreateCatalogLike(
-                        location(1, 1),
-                        new Identifier(location(1, 26), "another", false),
-                        new Identifier(location(1, 16), "test", false),
-                        false,
-                        ImmutableList.of()));
-
-        assertThat(statement("CREATE CATALOG test LIKE another WITH (\"a\" = 'apple', \"b\" = 123)")).isEqualTo(
-                new CreateCatalogLike(
-                        location(1, 1),
-                        new Identifier(location(1, 26), "another", false),
-                        new Identifier(location(1, 16), "test", false),
-                        false,
-                        ImmutableList.of(
-                                new Property(location(1, 40), new Identifier(location(1, 40), "a", true), new StringLiteral(location(1, 46), "apple")),
-                                new Property(location(1, 55), new Identifier(location(1, 55), "b", true), new LongLiteral(location(1, 61), "123")))));
-
-        assertThat(statement("CREATE CATALOG IF NOT EXISTS test LIKE another WITH (\"a\" = 'apple', \"b\" = 123)")).isEqualTo(
-                new CreateCatalogLike(
-                        location(1, 1),
-                        new Identifier(location(1, 40), "another", false),
-                        new Identifier(location(1, 30), "test", false),
-                        true,
-                        ImmutableList.of(
-                                new Property(location(1, 54), new Identifier(location(1, 54), "a", true), new StringLiteral(location(1, 60), "apple")),
-                                new Property(location(1, 69), new Identifier(location(1, 69), "b", true), new LongLiteral(location(1, 75), "123")))));
     }
 
     @Test
