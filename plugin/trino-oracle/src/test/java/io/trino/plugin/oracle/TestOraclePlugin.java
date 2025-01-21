@@ -19,7 +19,11 @@ import io.trino.spi.connector.ConnectorFactory;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+import java.util.Set;
+
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestOraclePlugin
 {
@@ -34,5 +38,24 @@ public class TestOraclePlugin
                         "connection-url", "jdbc:oracle:thin//test",
                         "bootstrap.quiet", "true"),
                 new TestingConnectorContext()).shutdown();
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new OraclePlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "connection-url", "jdbc:oracle:thin//test",
+                "credential-provider.type", "inline",
+                "connection-user", "user",
+                "connection-password", "password",
+                "oracle.synonyms.enabled", "true");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties)
+                .containsExactlyInAnyOrder("non-existent-property", "connection-password");
     }
 }

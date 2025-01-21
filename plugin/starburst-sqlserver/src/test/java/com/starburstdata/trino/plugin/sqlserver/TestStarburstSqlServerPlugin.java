@@ -15,10 +15,14 @@ import io.trino.spi.connector.ConnectorFactory;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+import java.util.Set;
+
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.starburstdata.trino.plugin.sqlserver.StarburstSqlServerConfig.SQLSERVER_OVERRIDE_CATALOG_ENABLED;
 import static com.starburstdata.trino.plugin.sqlserver.StarburstSqlServerConfig.SQLSERVER_OVERRIDE_CATALOG_NAME;
 import static com.starburstdata.trino.plugin.sqlserver.StarburstSqlServerQueryRunner.NOOP_LICENSE_MANAGER;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestStarburstSqlServerPlugin
@@ -45,5 +49,23 @@ public class TestStarburstSqlServerPlugin
                         SQLSERVER_OVERRIDE_CATALOG_NAME, "irrelevant"),
                 new TestingConnectorContext()))
                 .hasStackTraceContaining(SQLSERVER_OVERRIDE_CATALOG_ENABLED + " needs to be set in order to use " + SQLSERVER_OVERRIDE_CATALOG_NAME + " parameter");
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new StarburstSqlServerPlugin(NOOP_LICENSE_MANAGER);
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "credential-provider.type", "inline",
+                "connection-user", "user",
+                "connection-password", "password",
+                "sqlserver.override-catalog.enabled", "true");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties)
+                .containsExactlyInAnyOrder("non-existent-property", "connection-password");
     }
 }

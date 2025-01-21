@@ -19,7 +19,11 @@ import io.trino.spi.connector.ConnectorFactory;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+import java.util.Set;
+
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestMariaDbPlugin
@@ -51,5 +55,23 @@ public class TestMariaDbPlugin
                         "bootstrap.quiet", "true"),
                 new TestingConnectorContext()))
                 .hasMessageContaining("Database (catalog) must not be specified in JDBC URL for MariaDB connector");
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new MariaDbPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "connection-url", "jdbc:mariadb://test/abc",
+                "credential-provider.type", "inline",
+                "connection-user", "user",
+                "connection-password", "password");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties)
+                .containsExactlyInAnyOrder("non-existent-property", "connection-password");
     }
 }

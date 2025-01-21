@@ -17,9 +17,12 @@ import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Set;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.MoreCollectors.toOptional;
 import static com.google.common.collect.Streams.stream;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestStargatePlugin
@@ -88,6 +91,25 @@ public class TestStargatePlugin
                         "ssl.truststore.password", "password")))
                 .isInstanceOf(ApplicationConfigurationException.class)
                 .hasMessageContaining("Configuration property 'ssl.truststore.password' was not used");
+    }
+
+    @Test
+    void testGetSecuritySensitivePropertyNames()
+    {
+        Plugin plugin = new TestingStargatePlugin(false);
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Map<String, String> config = ImmutableMap.of(
+                "non-existent-property", "value",
+                "credential-provider.type", "inline",
+                "connection-user", "user",
+                "connection-password", "password",
+                "ssl.enabled", "true",
+                "ssl.truststore.password", "password");
+
+        Set<String> sensitiveProperties = factory.getSecuritySensitivePropertyNames("catalog", config, new TestingConnectorContext());
+
+        assertThat(sensitiveProperties)
+                .containsExactlyInAnyOrder("non-existent-property", "connection-password", "ssl.truststore.password");
     }
 
     public static void createTestingPlugin(Map<String, String> properties)
