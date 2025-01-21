@@ -127,7 +127,7 @@ public class TestIcebergCacheIds
                         new IcebergScheduledMvRefreshConfig(),
                         new NoopWorkScheduler(),
                         new NodeVersion("test_version"),
-                        new IcebergSecurityConfig(),
+                        true,
                         newDirectExecutorService()),
                 new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
                 new TableStatisticsWriter(new NodeVersion("test-version")),

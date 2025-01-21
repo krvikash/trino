@@ -23,7 +23,7 @@ import io.trino.plugin.hive.metastore.glue.v1.GlueHiveMetastoreConfig;
 import io.trino.plugin.iceberg.ForIcebergMetadata;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
-import io.trino.plugin.iceberg.IcebergSecurityConfig;
+import io.trino.plugin.iceberg.UsingSystemSecurity;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
@@ -39,7 +39,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
-import static io.trino.plugin.iceberg.IcebergSecurityConfig.IcebergSecurity.SYSTEM;
 import static java.util.Objects.requireNonNull;
 
 public class TrinoGlueCatalogFactory
@@ -73,7 +72,7 @@ public class TrinoGlueCatalogFactory
             IcebergConfig icebergConfig,
             IcebergScheduledMvRefreshConfig icebergScheduledMvRefreshConfig,
             IcebergGlueCatalogConfig catalogConfig,
-            IcebergSecurityConfig securityConfig,
+            @UsingSystemSecurity boolean usingSystemSecurity,
             GlueMetastoreStats stats,
             AWSGlueAsync glueClient,
             @ForIcebergMetadata ExecutorService metadataExecutorService)
@@ -91,7 +90,7 @@ public class TrinoGlueCatalogFactory
         this.hideMaterializedViewStorageTable = icebergConfig.isHideMaterializedViewStorageTable();
         this.scheduledMaterializedViewRefreshEnabled = icebergScheduledMvRefreshConfig.isScheduledMaterializedViewRefreshEnabled();
         this.stats = requireNonNull(stats, "stats is null");
-        this.isUsingSystemSecurity = securityConfig.getSecuritySystem() == SYSTEM;
+        this.isUsingSystemSecurity = usingSystemSecurity;
         if (icebergConfig.getMetadataParallelism() == 1) {
             this.metadataFetchingExecutor = directExecutor();
         }

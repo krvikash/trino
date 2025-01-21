@@ -23,7 +23,7 @@ import io.trino.plugin.hive.TrinoViewHiveMetastore;
 import io.trino.plugin.iceberg.ForIcebergMetadata;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
-import io.trino.plugin.iceberg.IcebergSecurityConfig;
+import io.trino.plugin.iceberg.UsingSystemSecurity;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
@@ -38,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.trino.metastore.cache.CachingHiveMetastore.createPerTransactionCache;
-import static io.trino.plugin.iceberg.IcebergSecurityConfig.IcebergSecurity.SYSTEM;
 import static io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog.TRINO_CREATED_BY_VALUE;
 import static java.util.Objects.requireNonNull;
 
@@ -70,7 +69,7 @@ public class TrinoHiveCatalogFactory
             IcebergScheduledMvRefreshConfig icebergScheduledMvRefreshConfig,
             WorkScheduler workScheduler,
             NodeVersion nodeVersion,
-            IcebergSecurityConfig securityConfig,
+            @UsingSystemSecurity boolean isUsingSystemSecurity,
             @ForIcebergMetadata ExecutorService metadataExecutorService)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
@@ -81,7 +80,7 @@ public class TrinoHiveCatalogFactory
         this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
         this.trinoVersion = nodeVersion.toString();
         this.isUniqueTableLocation = config.isUniqueTableLocation();
-        this.isUsingSystemSecurity = securityConfig.getSecuritySystem() == SYSTEM;
+        this.isUsingSystemSecurity = isUsingSystemSecurity;
         this.deleteSchemaLocationsFallback = config.isDeleteSchemaLocationsFallback();
         this.hideMaterializedViewStorageTable = config.isHideMaterializedViewStorageTable();
         this.scheduledMaterializedViewRefreshEnabled = icebergScheduledMvRefreshConfig.isScheduledMaterializedViewRefreshEnabled();
