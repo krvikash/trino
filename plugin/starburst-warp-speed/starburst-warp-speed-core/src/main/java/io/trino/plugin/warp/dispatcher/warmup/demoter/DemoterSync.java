@@ -18,8 +18,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.SharedConfig;
-import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.tools.util.StopWatch;
@@ -48,20 +46,15 @@ public class DemoterSync
     private final Map<Long, DemoteContext> demoterServiceContextMap;
     private final AtomicLong initiator;
     private final ExecutorService executorService;
-    private final ShapingLogger shapingLogger;
 
     private final AtomicDouble highestPriorityDemoted = new AtomicDouble(0D);
 
     @Inject
-    public DemoterSync(SharedConfig sharedConfig)
+    public DemoterSync()
     {
         executorService = Executors.newThreadPerTaskExecutor(daemonThreadsNamed("warp-speed-demoter-sync-%s"));
         demoterServiceContextMap = new ConcurrentHashMap<>();
         initiator = new AtomicLong(Long.MIN_VALUE);
-        shapingLogger = ShapingLogger.getInstance(logger,
-                sharedConfig.getShapingLoggerThreshold(),
-                sharedConfig.getShapingLoggerDuration(),
-                sharedConfig.getShapingLoggerNumberOfSamples());
     }
 
     public long registerCatalog(
@@ -137,7 +130,7 @@ public class DemoterSync
             boolean isResetHighestPriority)
     {
         if (initiator.get() != demoteKey) {
-            shapingLogger.warn("demote process not allowed since this is not the not initiator");
+            logger.warn("demote process not allowed since this is not the not initiator");
             return;
         }
 

@@ -19,6 +19,7 @@ import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupDataValidation;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -27,11 +28,13 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
+import io.trino.spi.catalog.CatalogName;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -134,7 +137,8 @@ public class WeGroupWarmerTest
                 cloudVendorService,
                 mock(NativeStorageStateHandler.class),
                 objectMapperProvider,
-                metricsManager);
+                metricsManager,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }
 
     @Test

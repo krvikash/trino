@@ -15,10 +15,8 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
-import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
@@ -28,6 +26,7 @@ import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.WarpExpressionData;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.SortedRangeSet;
@@ -53,16 +52,11 @@ import static io.trino.plugin.warp.type.TypeUtils.isTinyIntType;
 public class RangeMatcher
         implements Matcher
 {
-    private static final Logger logger = Logger.get(RangeMatcher.class);
     private final ShapingLogger shapingLogger;
 
-    public RangeMatcher(GlobalConfig globalConfig)
+    public RangeMatcher(ShapingLoggerFactory shapingLoggerFactory)
     {
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(RangeMatcher.class);
     }
 
     @Override

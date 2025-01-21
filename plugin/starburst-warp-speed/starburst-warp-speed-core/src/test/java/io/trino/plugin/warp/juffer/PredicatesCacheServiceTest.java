@@ -13,14 +13,16 @@
  */
 package io.trino.plugin.warp.juffer;
 
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.IntegerType;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,7 +75,6 @@ public class PredicatesCacheServiceTest
     public void before()
     {
         storageEngineConstants = new StubsStorageEngineConstants();
-        GlobalConfig globalConfig = new GlobalConfig();
         cachePredicatesStats = CachePredicatesStats.create();
         bufferAllocator = mock(BufferAllocator.class);
         domainToMapBlockConvertor = new DomainToMapBlockConvertor(storageEngineConstants);
@@ -88,7 +89,7 @@ public class PredicatesCacheServiceTest
                 storageEngineConstants,
                 metricsManager,
                 domainToMapBlockConvertor,
-                globalConfig);
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }
 
     @ParameterizedTest

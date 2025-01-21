@@ -14,12 +14,15 @@
 package io.trino.plugin.warp.metrics;
 
 import io.trino.plugin.warp.config.MetricsConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +47,8 @@ public class PrintMetricsTimerTaskTest
         metricsManager = new MetricsManager(metricsRegistry);
         printMetricsTimerTask = new PrintMetricsTimerTask(metricsConfig,
                 metricsManager,
-                new CatalogNameProvider("warp"));
+                new CatalogNameProvider("warp"),
+                new ShapingLoggerFactory(new CatalogName(CATALOG_NAME), new SharedConfig()));
     }
 
     @AfterEach

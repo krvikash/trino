@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
@@ -25,6 +24,7 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -67,6 +67,7 @@ public class StorageCollectorService
     private final StorageEngineConstants storageEngineConstants;
     private final BlockFillersFactory blockFillersFactory;
     private final DictionaryCacheService dictionaryCacheService;
+
     private final ShapingLogger shapingLogger;
 
     @Inject
@@ -79,7 +80,7 @@ public class StorageCollectorService
             StorageEngineConstants storageEngineConstants,
             BlockFillersFactory blockFillersFactory,
             DictionaryCacheService dictionaryCacheService,
-            GlobalConfig globalConfig)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.collectTxService = requireNonNull(collectTxService);
@@ -89,11 +90,7 @@ public class StorageCollectorService
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     private void loadDictionaries(QueryArgs queryArgs)

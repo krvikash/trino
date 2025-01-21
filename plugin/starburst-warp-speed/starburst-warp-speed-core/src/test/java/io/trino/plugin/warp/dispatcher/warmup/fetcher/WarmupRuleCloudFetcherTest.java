@@ -16,7 +16,9 @@ package io.trino.plugin.warp.dispatcher.warmup.fetcher;
 import io.airlift.json.ObjectMapperProvider;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
@@ -66,6 +68,7 @@ public class WarmupRuleCloudFetcherTest
                 new CatalogName(catalogNameProvider.get()),
                 metricsManager,
                 new ObjectMapperProvider(),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()),
                 mock(Timer.class));
     }
 

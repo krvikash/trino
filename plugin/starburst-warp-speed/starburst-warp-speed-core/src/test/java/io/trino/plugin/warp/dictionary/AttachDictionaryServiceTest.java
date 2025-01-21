@@ -17,12 +17,15 @@ import io.airlift.slice.Slices;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
+import io.trino.spi.catalog.CatalogName;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,7 +62,7 @@ class AttachDictionaryServiceTest
                 new DictionaryConfig(),
                 metricsManager,
                 dictionaryWriterFactory,
-                new GlobalConfig());
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }
 
     @Test

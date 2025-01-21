@@ -72,6 +72,7 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.MetricsModule;
 import io.trino.plugin.warp.metrics.MetricsTimerTask;
@@ -155,6 +156,7 @@ public class DispatcherCacheManagerModule
         binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(warpCacheMgrConnectorContext, config)));
         binder.install(CloudVendorModule.getModule(warpCacheMgrConnectorContext, ForWarp.class, cacheManagerName, config));
 
+        binder.bind(ShapingLoggerFactory.class);
         binder.bind(AttachDictionaryService.class);
         binder.bind(BlockAppenderFactory.class);
         binder.bind(BlockFillersFactory.class);

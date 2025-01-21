@@ -14,8 +14,6 @@
 package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableMap;
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
@@ -30,6 +28,7 @@ import io.trino.plugin.warp.expression.WarpExpressionData;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.type.BooleanType;
 
 import java.util.ArrayList;
@@ -49,19 +48,14 @@ import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 class MatchClassifier
         implements Classifier
 {
-    private static final Logger logger = Logger.get(MatchClassifier.class);
     private final ShapingLogger shapingLogger;
 
     private final List<Matcher> matchers;
 
-    MatchClassifier(List<Matcher> matchers, GlobalConfig globalConfig)
+    MatchClassifier(List<Matcher> matchers, ShapingLoggerFactory shapingLoggerFactory)
     {
         this.matchers = matchers;
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(MatchClassifier.class);
     }
 
     @Override

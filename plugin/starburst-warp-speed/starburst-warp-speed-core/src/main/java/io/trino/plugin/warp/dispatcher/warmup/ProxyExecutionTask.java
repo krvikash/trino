@@ -32,6 +32,7 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
@@ -58,8 +59,9 @@ public class ProxyExecutionTask
 
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final EventBus eventBus;
-    private final int executionTaskPriority;
+    private final GlobalConfig globalConfig;
     private final StorageWarmerService storageWarmerService;
+    private final int executionTaskPriority;
     private final ShapingLogger shapingLogger;
 
     public ProxyExecutionTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
@@ -84,14 +86,32 @@ public class ProxyExecutionTask
             int iterationCount,
             int executionTaskPriority,
             WorkerTaskExecutorService workerTaskExecutorService,
-            StorageWarmerService storageWarmerService)
+            StorageWarmerService storageWarmerService,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
-        super(warmExecutionTaskFactory, workerTaskExecutorService, warmingServiceStats, warmingManager, workerWarmingService, globalConfig, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        super(
+                warmExecutionTaskFactory,
+                workerTaskExecutorService,
+                warmingServiceStats,
+                warmingManager,
+                workerWarmingService,
+                shapingLoggerFactory,
+                connectorPageSourceProvider,
+                transactionHandle,
+                session,
+                dispatcherTableHandle,
+                rowGroupKey,
+                columns,
+                dispatcherSplit,
+                dynamicFilter,
+                rowGroupDataService,
+                queryClassifier,
+                warmupElementsCreator,
+                nativeStorageStateHandler,
+                iterationCount);
+
+        this.globalConfig = requireNonNull(globalConfig);
+        shapingLogger = requireNonNull(shapingLoggerFactory).getInstance(logger);
 
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.eventBus = requireNonNull(eventBus);

@@ -19,6 +19,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
@@ -36,6 +37,7 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.TxServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -49,6 +51,7 @@ import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.NodeManager;
 import io.trino.spi.TrinoException;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -393,7 +396,8 @@ public class WarpProxiedWarmerTest
         WarpPageSinkFactory warpPageSinkFactory = new WarpPageSinkFactory(
                 mock(FailureGeneratorInvocationHandler.class),
                 storageWriterService,
-                new GlobalConfig());
+                new GlobalConfig(),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         StorageWarmerService storageWarmerService = new StorageWarmerService(
                 rowGroupDataService,
                 storageEngine,
@@ -403,7 +407,8 @@ public class WarpProxiedWarmerTest
                 mock(FlowsSequencer.class),
                 TestingTxService.createMetricsManager(),
                 mock(WorkerCapacityManager.class),
-                mock(NativeStorageStateHandler.class));
+                mock(NativeStorageStateHandler.class),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         return new WarpProxiedWarmer(warpPageSinkFactory,
                 dispatcherProxiedConnectorTransformer,
                 nodeManager,
@@ -411,7 +416,8 @@ public class WarpProxiedWarmerTest
                 globalConfig,
                 rowGroupDataService,
                 storageWarmerService,
-                storageWriterService);
+                storageWriterService,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }
 
     private SetMultimap<WarpColumn, WarmupProperties> createWarmupPriorityMap(Multimap<WarpColumn, WarmUpType> columnNameToWarmUpType)

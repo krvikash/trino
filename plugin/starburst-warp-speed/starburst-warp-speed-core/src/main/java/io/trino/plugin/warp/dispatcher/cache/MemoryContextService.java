@@ -22,11 +22,11 @@ import io.airlift.log.Logger;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.warmup.WarpCacheTask;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.cache.CacheManagerContext;
 import io.trino.spi.cache.MemoryAllocator;
@@ -56,7 +56,7 @@ public class MemoryContextService
     public MemoryContextService(CacheManagerContext cacheManagerContext,
             MetricsManager metricsManager,
             WarmupDemoterConfig warmupDemoterConfig,
-            GlobalConfig globalConfig)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         int queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
         this.localMemoryContexts = new LinkedBlockingQueue<>(queueSize);
@@ -69,11 +69,7 @@ public class MemoryContextService
             localMemoryContexts.add(localMemoryContext);
         }
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     public LocalMemoryContext poll()
@@ -147,7 +143,7 @@ public class MemoryContextService
             statsWarmingService.incwarm_warp_cache_revoke_accomplished();
         }
         catch (Exception e) {
-            logger.error(e, "failed to revoke");
+            shapingLogger.error(e, "failed to revoke");
             statsWarmingService.incwarm_warp_cache_revoke_failed();
         }
         finally {

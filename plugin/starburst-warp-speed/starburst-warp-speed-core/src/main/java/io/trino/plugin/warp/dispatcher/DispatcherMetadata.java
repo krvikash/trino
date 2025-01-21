@@ -21,6 +21,7 @@ import io.trino.plugin.warp.expression.rewrite.ExpressionService;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.RefreshType;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
@@ -125,18 +126,15 @@ public class DispatcherMetadata
             ExpressionService expressionService,
             DispatcherStatisticsProvider dispatcherStatisticsProvider,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.proxiedConnectorMetadata = requireNonNull(proxiedConnectorMetadata);
         this.expressionService = requireNonNull(expressionService);
         this.dispatcherStatisticsProvider = requireNonNull(dispatcherStatisticsProvider);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
         this.globalConfig = requireNonNull(globalConfig);
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     @Override
@@ -592,12 +590,12 @@ public class DispatcherMetadata
 
     @Override
     public Optional<ConnectorOutputMetadata> finishRefreshMaterializedView(ConnectorSession session,
-                                                                           ConnectorTableHandle tableHandle,
-                                                                           ConnectorInsertTableHandle insertHandle,
-                                                                           Collection<Slice> fragments,
-                                                                           Collection<ComputedStatistics> computedStatistics,
-                                                                           List<ConnectorTableHandle> sourceTableHandles,
-                                                                           List<String> sourceTableFunctions)
+            ConnectorTableHandle tableHandle,
+            ConnectorInsertTableHandle insertHandle,
+            Collection<Slice> fragments,
+            Collection<ComputedStatistics> computedStatistics,
+            List<ConnectorTableHandle> sourceTableHandles,
+            List<String> sourceTableFunctions)
     {
         return proxiedConnectorMetadata.finishRefreshMaterializedView(
                 session,
@@ -918,9 +916,9 @@ public class DispatcherMetadata
         Optional<WarpExpression> warpExpression = dispatcherTableHandle.getWarpExpression();
         if (warpExpression.isEmpty()) {
             warpExpression = expressionService.convertToWarpExpression(session,
-                constraint.getExpression(),
-                constraint.getAssignments(),
-                customStats);
+                    constraint.getExpression(),
+                    constraint.getAssignments(),
+                    customStats);
         }
         // Build and return result
         if (resultOpt.isEmpty()) {
@@ -1435,8 +1433,8 @@ public class DispatcherMetadata
     }
 
     private Set<String> getColumnsNotFitForDictionary(SchemaTableName schemaTableName,
-                                                      ConnectorSession session,
-                                                      ConnectorTableHandle proxiedConnectorTableHandle)
+            ConnectorSession session,
+            ConnectorTableHandle proxiedConnectorTableHandle)
     {
         if (schemaTableName == null) {
             return Set.of();

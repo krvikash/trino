@@ -16,8 +16,6 @@ package io.trino.plugin.warp.dispatcher.warmup.warmers;
 import com.google.common.collect.SetMultimap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.ExportState;
 import io.trino.plugin.warp.dispatcher.model.RecordData;
@@ -37,6 +35,7 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
@@ -60,7 +59,6 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class WarmupElementsCreator
 {
-    private static final Logger logger = Logger.get(WarmupElementsCreator.class);
     public static final int INVALID_WARM_ID = -1;
     private final ShapingLogger shapingLogger;
 
@@ -77,18 +75,14 @@ public class WarmupElementsCreator
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            GlobalConfig globalConfig)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.statsWarmingService = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey());
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(WarmupElementsCreator.class);
     }
 
     public List<WarmUpElement> createWarmupElements(

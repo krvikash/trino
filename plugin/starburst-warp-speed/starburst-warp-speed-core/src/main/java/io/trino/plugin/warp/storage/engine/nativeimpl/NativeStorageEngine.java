@@ -21,6 +21,7 @@ import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -181,17 +182,14 @@ public class NativeStorageEngine
             NativeConfig nativeConfig,
             ExceptionThrower exceptionThrower,
             ConnectorSync connectorSync,
-            CatalogName catalogName)
+            CatalogName catalogName,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         final int taskMaxWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
         final int panicHaltPolicy = nativeConfig.getDebugPanicHaltPolicy();
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                sharedConfig.getShapingLoggerThreshold(),
-                sharedConfig.getShapingLoggerDuration(),
-                sharedConfig.getShapingLoggerNumberOfSamples());
         this.catalogName = requireNonNull(catalogName);
         this.exceptionThrower = (panicHaltPolicy == 0) ? Optional.of(exceptionThrower) : Optional.empty();
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
 
         logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d logSize %d",
                 taskMaxWorkerThreads, panicHaltPolicy, LOGGER_LOG_LAYOUT.byteSize());

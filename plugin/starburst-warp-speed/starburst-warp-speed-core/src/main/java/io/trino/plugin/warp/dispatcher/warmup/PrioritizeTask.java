@@ -23,6 +23,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -35,10 +36,12 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isImportExportEnabled;
+import static java.util.Objects.requireNonNull;
 
 public class PrioritizeTask
         extends WorkerWarmerBaseTask
 {
+    private final GlobalConfig globalConfig;
     private final CloudVendorConfig cloudVendorConfig;
 
     public PrioritizeTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
@@ -60,10 +63,31 @@ public class PrioritizeTask
             WarmupElementsCreator warmupElementsCreator,
             NativeStorageStateHandler nativeStorageStateHandler,
             GlobalConfig globalConfig,
-            CloudVendorConfig cloudVendorConfig)
+            CloudVendorConfig cloudVendorConfig,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
-        super(warmExecutionTaskFactory, workerTaskExecutorService, statsWarmingService, warmingManager, workerWarmingService, globalConfig, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
-        this.cloudVendorConfig = cloudVendorConfig;
+        super(
+                warmExecutionTaskFactory,
+                workerTaskExecutorService,
+                statsWarmingService,
+                warmingManager,
+                workerWarmingService,
+                shapingLoggerFactory,
+                connectorPageSourceProvider,
+                transactionHandle,
+                session,
+                dispatcherTableHandle,
+                rowGroupKey,
+                columns,
+                dispatcherSplit,
+                dynamicFilter,
+                rowGroupDataService,
+                queryClassifier,
+                warmupElementsCreator,
+                nativeStorageStateHandler,
+                iterationCount);
+        this.globalConfig = requireNonNull(globalConfig);
+        this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
     }
 
     @Override

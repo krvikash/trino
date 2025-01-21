@@ -26,6 +26,7 @@ import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
@@ -51,17 +52,14 @@ public class WarmupRuleCloudFetcher
     private static final Logger logger = Logger.get(WarmupRuleCloudFetcher.class);
     public static final String WARM_FETCHER_STAT_GROUP = "WarmupRuleCloudFetcher";
 
-    private static final ShapingLogger shapingLogger = ShapingLogger.getInstance(
-            logger,
-            10,
-            Duration.ZERO,
-            1);
-
     private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
     private final CloudVendorService cloudVendorService;
     private final WarmupRuleService warmupRuleService;
     private final CatalogName catalogName;
     private final ObjectMapperProvider objectMapperProvider;
+
+    private final ShapingLogger shapingLogger;
+
     @SuppressWarnings("FieldCanBeLocal")
     private final Timer timer;
     private final WarmupRuleFetcherStats warmupRuleFetcherStats;
@@ -76,7 +74,8 @@ public class WarmupRuleCloudFetcher
             WarmupRuleService warmupRuleService,
             CatalogName catalogName,
             MetricsManager metricsManager,
-            ObjectMapperProvider objectMapperProvider)
+            ObjectMapperProvider objectMapperProvider,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this(warmupRuleCloudFetcherConfig,
                 cloudVendorService,
@@ -84,6 +83,7 @@ public class WarmupRuleCloudFetcher
                 catalogName,
                 metricsManager,
                 objectMapperProvider,
+                shapingLoggerFactory,
                 new Timer());
     }
 
@@ -95,6 +95,7 @@ public class WarmupRuleCloudFetcher
             CatalogName catalogName,
             MetricsManager metricsManager,
             ObjectMapperProvider objectMapperProvider,
+            ShapingLoggerFactory shapingLoggerFactory,
             Timer timer)
     {
         this.warmupRuleCloudFetcherConfig = requireNonNull(warmupRuleCloudFetcherConfig);
@@ -103,7 +104,14 @@ public class WarmupRuleCloudFetcher
         this.catalogName = requireNonNull(catalogName);
         this.objectMapperProvider = requireNonNull(objectMapperProvider);
         this.timer = requireNonNull(timer);
-        this.writeLock = new ReentrantReadWriteLock().writeLock();
+
+        shapingLogger = shapingLoggerFactory.getInstance(
+                logger,
+                10,
+                Duration.ZERO,
+                1);
+
+        writeLock = new ReentrantReadWriteLock().writeLock();
         currentStorageObjectMetadata = null;
 
         this.timer.scheduleAtFixedRate(

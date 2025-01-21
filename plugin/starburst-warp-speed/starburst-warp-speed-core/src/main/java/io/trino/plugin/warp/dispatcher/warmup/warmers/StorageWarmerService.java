@@ -26,6 +26,7 @@ import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -77,14 +78,9 @@ public class StorageWarmerService
             FlowsSequencer flowsSequencer,
             MetricsManager metricsManager,
             WorkerCapacityManager workerCapacityManager,
-            NativeStorageStateHandler nativeStorageStateHandler)
+            NativeStorageStateHandler nativeStorageStateHandler,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
-
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageEngine = requireNonNull(storageEngine);
         this.globalConfig = requireNonNull(globalConfig);
@@ -94,6 +90,8 @@ public class StorageWarmerService
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
+
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     public void createFile(RowGroupKey rowGroupKey)

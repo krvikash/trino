@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.storage.read;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
@@ -27,6 +27,7 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.PredicateBufferInfo;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.catalog.CatalogName;
@@ -57,13 +58,18 @@ public class QueryParamsConverterTest
         when(queryContext.getMatchData()).thenReturn(Optional.of(matchData));
         when(queryContext.getNativeQueryCollectDataList()).thenReturn(ImmutableList.of());
         when(queryContext.getTotalRecords()).thenReturn(100);
-        QueryParams queryParams = QueryParamsConverter.createQueryParams(new WorkerMemoryManager(new GlobalConfig(), new CatalogName("f")), queryContext, "filePath", 0x40302010, false);
+        QueryParams queryParams = QueryParamsConverter.createQueryParams(
+                new WorkerMemoryManager(new CatalogName("f"), new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),
+                queryContext,
+                "filePath",
+                0x40302010,
+                false);
         List<MatchNode> es = List.of(new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND,
                 List.of(convertLuceneMatchDataToMatchParams(luceneQueryMatchData0, 0),
                         new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_OR,
                                 List.of(convertLuceneMatchDataToMatchParams(luceneQueryMatchData1, 1),
                                         convertLuceneMatchDataToMatchParams(luceneQueryMatchData2, 2)),
-                                        MemorySegment.ofArray(new byte[10]))), MemorySegment.ofArray(new byte[10])));
+                                MemorySegment.ofArray(new byte[10]))), MemorySegment.ofArray(new byte[10])));
         assertThat(queryParams.getRootMatchNode().orElseThrow()).isEqualTo(es.getFirst());
         assertThat(queryParams.getNumLucene()).isEqualTo(3);
     }

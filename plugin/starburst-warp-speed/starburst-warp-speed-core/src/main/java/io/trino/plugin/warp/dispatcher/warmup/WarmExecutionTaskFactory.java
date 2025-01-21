@@ -29,6 +29,7 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
@@ -56,6 +57,7 @@ public class WarmExecutionTaskFactory
     private final StorageWarmerService storageWarmerService;
     private final NativeStorageStateHandler nativeStorageStateHandler;
     private final CloudVendorConfig cloudVendorConfig;
+    private final ShapingLoggerFactory shapingLoggerFactory;
 
     @Inject
     public WarmExecutionTaskFactory(DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
@@ -69,7 +71,8 @@ public class WarmExecutionTaskFactory
             WorkerTaskExecutorService workerTaskExecutorService,
             StorageWarmerService storageWarmerService,
             NativeStorageStateHandler nativeStorageStateHandler,
-            @ForWarp CloudVendorConfig cloudVendorConfig)
+            @ForWarp CloudVendorConfig cloudVendorConfig,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.eventBus = requireNonNull(eventBus);
@@ -83,6 +86,7 @@ public class WarmExecutionTaskFactory
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
     }
 
     public WorkerSubmittableTask createExecutionTask(ConnectorPageSourceProvider connectorPageSourceProvider,
@@ -118,7 +122,8 @@ public class WarmExecutionTaskFactory
                     warmupElementsCreator,
                     nativeStorageStateHandler,
                     globalConfig,
-                    cloudVendorConfig);
+                    cloudVendorConfig,
+                    shapingLoggerFactory);
             case PROXY -> new ProxyExecutionTask(this,
                     eventBus,
                     dispatcherProxiedConnectorTransformer,
@@ -141,11 +146,12 @@ public class WarmExecutionTaskFactory
                     iterationCount,
                     executionTaskPriority,
                     workerTaskExecutorService,
-                    storageWarmerService);
+                    storageWarmerService,
+                    shapingLoggerFactory);
             case IMPORT -> new ImportExecutionTask(this,
                     statsWarmingService,
                     workerWarmingService,
-                    globalConfig,
+                    shapingLoggerFactory,
                     connectorPageSourceProvider,
                     transactionHandle,
                     session,

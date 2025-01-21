@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.MetricsConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorPageSource;
 import io.trino.plugin.warp.connector.TestingConnectorPageSourceProvider;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
@@ -31,6 +32,7 @@ import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.MetricsRegistry;
@@ -516,8 +518,11 @@ public class DispatcherAlternativePageSourceProviderTest
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 workerWarmingService,
-                new WorkerMemoryManager(globalConfig, new CatalogName("f")),
-                nativeStorageStateHandler);
+                new WorkerMemoryManager(
+                        new CatalogName("f"),
+                        new ShapingLoggerFactory(new CatalogName("f"), new SharedConfig())),
+                nativeStorageStateHandler,
+                new ShapingLoggerFactory(new CatalogName("catalog-name"), new SharedConfig()));
 
         return new DispatcherAlternativePageSourceProvider(proxiedPageSourceProvider,
                 pageSourceFactory,

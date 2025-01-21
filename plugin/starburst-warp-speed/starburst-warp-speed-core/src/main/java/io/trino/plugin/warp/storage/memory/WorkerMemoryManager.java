@@ -15,9 +15,8 @@ package io.trino.plugin.warp.storage.memory;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.catalog.CatalogName;
 
 import java.util.concurrent.ExecutorService;
@@ -29,8 +28,6 @@ import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 @Singleton
 public class WorkerMemoryManager
 {
-    private static final Logger logger = Logger.get(WorkerMemoryManager.class);
-
     private final ShapingLogger shapingLogger;
     private final AtomicLong numOffHeapBytes;
     private final AtomicLong numOffHeapGcBytes;
@@ -39,18 +36,14 @@ public class WorkerMemoryManager
     private final CatalogName catalogName;
 
     @Inject
-    public WorkerMemoryManager(GlobalConfig globalConfig, CatalogName catalogName)
+    public WorkerMemoryManager(CatalogName catalogName, ShapingLoggerFactory shapingLoggerFactory)
     {
         this.numOffHeapBytes = new AtomicLong();
         this.numOffHeapGcBytes = new AtomicLong();
         this.numOffHeapPinnedGcBytes = new AtomicLong();
         this.executorService = Executors.newFixedThreadPool(1, daemonThreadsNamed("warp-speed-memory-manager-%s"));
         this.catalogName = catalogName;
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(WorkerMemoryManager.class);
     }
 
     public ThreadArena getThreadArena()

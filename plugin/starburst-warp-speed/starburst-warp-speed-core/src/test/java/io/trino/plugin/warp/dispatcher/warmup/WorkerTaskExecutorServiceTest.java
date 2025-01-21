@@ -18,12 +18,15 @@ import dev.failsafe.RetryPolicy;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
@@ -60,7 +63,8 @@ public class WorkerTaskExecutorServiceTest
                 globalConfig,
                 cloudVendorConfig,
                 nativeStorageStateHandler,
-                mock(WarpInitializedServiceRegistry.class));
+                mock(WarpInitializedServiceRegistry.class),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         this.taskExecutorService.init();
     }
 

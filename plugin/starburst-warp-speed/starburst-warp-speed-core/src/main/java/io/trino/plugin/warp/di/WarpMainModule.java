@@ -40,6 +40,7 @@ import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupRuleProvider;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.MetricsTimerTask;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
@@ -93,6 +94,8 @@ public class WarpMainModule
 
         bindMetricsServices(binder);
         bindConfigs(binder);
+
+        binder.bind(ShapingLoggerFactory.class);
     }
 
     private void bindConfigs(Binder binder)

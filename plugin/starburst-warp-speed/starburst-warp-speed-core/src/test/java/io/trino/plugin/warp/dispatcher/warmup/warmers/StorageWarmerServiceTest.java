@@ -15,13 +15,16 @@ package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,7 +46,8 @@ class StorageWarmerServiceTest
                 mock(FlowsSequencer.class),
                 TestingTxService.createMetricsManager(),
                 mock(WorkerCapacityManager.class),
-                mock(NativeStorageStateHandler.class));
+                mock(NativeStorageStateHandler.class),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         assertThat(storageWarmerService.tryAllocateNativeResourceForWarmup()).isTrue();
         assertThat(storageWarmerService.tryAllocateNativeResourceForWarmup()).isFalse();
         assertThat(storageWarmerService.tryAllocateNativeResourceForWarmup()).isFalse();

@@ -15,6 +15,7 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
@@ -34,11 +35,13 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.predicate.Domain;
@@ -84,9 +87,11 @@ class PredicateBufferClassifierTest
                 storageEngineConstants,
                 metricsManager,
                 domainToMapBlockConvertor,
-                globalConfig));
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())));
         doReturn(Optional.of(mock(PredicateCacheData.class))).when(predicatesCacheService).predicateDataToBuffer(any(), any());
-        predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService, globalConfig);
+        predicateBufferClassifier = new PredicateBufferClassifier(
+                predicatesCacheService,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
         rowGroupData = mock(RowGroupData.class);
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();

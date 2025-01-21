@@ -15,13 +15,12 @@ package io.trino.plugin.warp.storage.write;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.type.Type;
 
 import static io.trino.plugin.warp.type.TypeUtils.isCharType;
@@ -34,14 +33,9 @@ public class WarmupElementStatsService
     private final ShapingLogger shapingLogger;
 
     @Inject
-    public WarmupElementStatsService(GlobalConfig globalConfig)
+    public WarmupElementStatsService(ShapingLoggerFactory shapingLoggerFactory)
     {
-        Logger logger = Logger.get(WarmupElementStatsService.class);
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(WarmupElementStatsService.class);
     }
 
     WarmupElementStats getFinalStats(Type type, WarmupElementStats warmupElementStats, RecTypeCode recTypeCode, WarmUpType warmUpType)

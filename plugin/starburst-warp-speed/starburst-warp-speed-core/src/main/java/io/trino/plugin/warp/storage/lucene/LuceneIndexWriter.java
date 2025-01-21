@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.storage.lucene;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.Directory;
@@ -39,19 +39,16 @@ public class LuceneIndexWriter
     private final String rowGroupFilePath;
     private final ShapingLogger shapingLogger;
 
-    public LuceneIndexWriter(StorageEngineConstants storageEngineConstants,
-                             IndexWriter indexWriter,
-                             String rowGroupFilePath,
-                             GlobalConfig globalConfig)
+    public LuceneIndexWriter(
+            StorageEngineConstants storageEngineConstants,
+            IndexWriter indexWriter,
+            String rowGroupFilePath,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.storageEngineConstants = storageEngineConstants;
         this.indexWriter = indexWriter;
         this.rowGroupFilePath = rowGroupFilePath;
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     public Optional<ChunkState> saveLuceneIndex(int startOffset)

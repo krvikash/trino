@@ -20,6 +20,7 @@ import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 
 import java.lang.management.ManagementFactory;
@@ -35,24 +36,28 @@ public class PrintMetricsTimerTask
         extends MetricsTimerTask
 {
     static final String STATS = "stats";
-    private final ShapingLogger shapingLogger;
+
     private static final Logger dumpLogger = Logger.get("METRICS-DUMP");
     private static final Logger logger = Logger.get(PrintMetricsTimerTask.class);
     private static final String TIMESTAMP = "timestamp";
     private static final String CATALOG = "catalog";
+
+    private final ShapingLogger shapingLogger;
     private final MetricsManager metricsManager;
     private final ObjectMapper objectMapper = new ObjectMapperProvider().get();
     private final CatalogNameProvider catalogNameProvider;
 
     @Inject
-    public PrintMetricsTimerTask(MetricsConfig metricsConfig,
+    public PrintMetricsTimerTask(
+            MetricsConfig metricsConfig,
             MetricsManager metricsManager,
-            CatalogNameProvider catalogNameProvider)
+            CatalogNameProvider catalogNameProvider,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         super(metricsConfig);
         this.metricsManager = requireNonNull(metricsManager);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
-        this.shapingLogger = ShapingLogger.getInstance(
+        this.shapingLogger = shapingLoggerFactory.getInstance(
                 dumpLogger,
                 Integer.MAX_VALUE,
                 Duration.ofMinutes(1), // at maximum, we want to print once a minute

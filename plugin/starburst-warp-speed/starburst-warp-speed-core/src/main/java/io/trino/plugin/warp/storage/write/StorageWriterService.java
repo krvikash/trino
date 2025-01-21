@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.write;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dictionary.DictionaryException;
@@ -36,6 +35,7 @@ import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.WarmUpElementAllocationParams;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
@@ -85,8 +85,8 @@ public class StorageWriterService
     private final WorkerMemoryManager workerMemoryManager;
     private final PrintMetricsTimerTask metricsTimerTask;
     private final LuceneIndexerStats statsLuceneIndexer;
-    private final GlobalConfig globalConfig;
     private final NativeConfig nativeConfig;
+    private final ShapingLoggerFactory shapingLoggerFactory;
 
     @Inject
     public StorageWriterService(StorageEngine storageEngine,
@@ -98,8 +98,8 @@ public class StorageWriterService
             BlockAppenderFactory blockAppenderFactory,
             WarmupElementStatsService warmupElementStatsService,
             WorkerMemoryManager workerMemoryManager,
-            GlobalConfig globalConfig,
-            NativeConfig nativeConfig)
+            NativeConfig nativeConfig,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -111,8 +111,8 @@ public class StorageWriterService
         LuceneIndexerStats luceneIndexerStats = new LuceneIndexerStats();
         this.statsLuceneIndexer = metricsManager.registerMetric(luceneIndexerStats);
         this.metricsTimerTask = requireNonNull(metricsTimerTask);
-        this.globalConfig = requireNonNull(globalConfig);
         this.nativeConfig = requireNonNull(nativeConfig);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
     }
 
     public StorageWriterSplitConfig startWarming(String nodeIdentifier,
@@ -206,10 +206,11 @@ public class StorageWriterService
 
         if (warmUpElement.getWarmUpType() == WarmUpType.WARM_UP_TYPE_LUCENE) {
             // initialize lucene
-            LuceneIndexer luceneIndexer = new LuceneIndexer(storageEngineConstants,
+            LuceneIndexer luceneIndexer = new LuceneIndexer(
+                    storageEngineConstants,
+                    shapingLoggerFactory,
                     storageWriterSplitConfig.rowGroupFilePath(),
-                    statsLuceneIndexer,
-                    globalConfig);
+                    statsLuceneIndexer);
             luceneIndexerOpt = Optional.of(luceneIndexer);
         }
 

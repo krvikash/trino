@@ -15,11 +15,11 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -31,13 +31,15 @@ import io.trino.spi.block.LazyBlock;
 import java.lang.foreign.MemorySegment;
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
+
 @Singleton
 public class LazyCollectorService
         extends StorageCollectorService
 {
-    private final GlobalConfig globalConfig;
     private final LazyCollectTxService lazyCollectTxService;
     private final NativeConfig nativeConfig;
+    private final ShapingLoggerFactory shapingLoggerFactory;
 
     @Inject
     LazyCollectorService(StorageEngine storageEngine,
@@ -50,7 +52,7 @@ public class LazyCollectorService
             BlockFillersFactory blockFillersFactory,
             DictionaryCacheService dictionaryCacheService,
             NativeConfig nativeConfig,
-            GlobalConfig globalConfig)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         super(storageEngine,
                 bufferAllocator,
@@ -60,10 +62,11 @@ public class LazyCollectorService
                 storageEngineConstants,
                 blockFillersFactory,
                 dictionaryCacheService,
-                globalConfig);
-        this.globalConfig = globalConfig;
-        this.lazyCollectTxService = lazyCollectTxService;
-        this.nativeConfig = nativeConfig;
+                shapingLoggerFactory);
+
+        this.lazyCollectTxService = requireNonNull(lazyCollectTxService);
+        this.nativeConfig = requireNonNull(nativeConfig);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
     }
 
     public boolean useLazyCollect(QueryParams queryParams)
@@ -122,7 +125,7 @@ public class LazyCollectorService
                     lazyCollectorLoaderArgs,
                     dictionaryStats,
                     queryArgs.dispatcherPageSourceStats(),
-                    globalConfig,
+                    shapingLoggerFactory,
                     queryArgs.nativeStats()));
         }
         queryArgs.dispatcherPageSourceStats().addlazy_collect_total_blocks(collectElementsParamsList.size());

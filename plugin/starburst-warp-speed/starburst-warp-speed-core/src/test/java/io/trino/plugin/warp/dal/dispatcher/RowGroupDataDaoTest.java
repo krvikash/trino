@@ -22,6 +22,7 @@ import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.DictionaryInfo;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
@@ -43,11 +44,13 @@ import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.plugin.warp.util.json.SliceSerializer;
 import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.TestingTypeManager;
@@ -105,7 +108,7 @@ public class RowGroupDataDaoTest
             try (Stream<Path> stream = Files.walk(localStorePath)) {
                 stream.sorted(Comparator.reverseOrder())
                         .map(Path::toFile)
-                        .forEach(File::delete);
+                        .forEach(FileUtils::deleteQuietly);
             }
             catch (IOException e) {
                 System.out.printf("failed to delete localStorePath '%s'%n", localStorePath);
@@ -122,7 +125,11 @@ public class RowGroupDataDaoTest
         storageEngineConstants = mock(StorageEngineConstants.class);
         when(storageEngineConstants.getPageSize()).thenReturn(8192);
 
-        rowGroupDataDao = new RowGroupDataDao(globalConfig, new ObjectMapperProvider(), storageEngineConstants);
+        rowGroupDataDao = new RowGroupDataDao(
+                globalConfig,
+                storageEngineConstants,
+                new ObjectMapperProvider(),
+                new ShapingLoggerFactory(new CatalogName("catalog"), new SharedConfig()));
     }
 
     private void createFileIfNeeded(String filePath)
@@ -310,7 +317,11 @@ public class RowGroupDataDaoTest
         assertThat(rowGroupDataDao.get(rowGroupData.getRowGroupKey())).isEqualTo(rowGroupData);
 
         //read from another dao
-        RowGroupDataDao rowGroupDataDao2 = new RowGroupDataDao(globalConfig, new ObjectMapperProvider(), storageEngineConstants);
+        RowGroupDataDao rowGroupDataDao2 = new RowGroupDataDao(
+                globalConfig,
+                storageEngineConstants,
+                new ObjectMapperProvider(),
+                new ShapingLoggerFactory(new CatalogName("catalog"), new SharedConfig()));
         assertThat(rowGroupDataDao2.get(rowGroupData.getRowGroupKey())).isEqualTo(rowGroupData);
     }
 
@@ -411,43 +422,44 @@ public class RowGroupDataDaoTest
             throws InterruptedException
     {
         int numberOfThreads = 10;
-        ExecutorService service = Executors.newFixedThreadPool(numberOfThreads);
-        CountDownLatch latch = new CountDownLatch(numberOfThreads);
-        List<WarmUpElement> warmUpElements = List.of(WarmUpElement.builder()
-                .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
-                .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
-                .recTypeLength(4)
-                .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
-                .warpColumn(new RegularColumn("aaa"))
-                .build());
+        try (ExecutorService service = Executors.newFixedThreadPool(numberOfThreads)) {
+            CountDownLatch latch = new CountDownLatch(numberOfThreads);
+            List<WarmUpElement> warmUpElements = List.of(WarmUpElement.builder()
+                    .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
+                    .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
+                    .recTypeLength(4)
+                    .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
+                    .warpColumn(new RegularColumn("aaa"))
+                    .build());
 
-        IntStream.range(0, 10).forEach(i -> service.execute(() -> {
-            RowGroupData rowGroupData = RowGroupData.builder()
-                    .rowGroupKey(new RowGroupKey(
-                            "schema",
-                            "table",
-                            StringUtils.randomAlphanumeric(i),
-                            0,
-                            1L,
-                            0,
-                            "",
-                            ""))
-                    .warmUpElements(warmUpElements)
-                    .build();
-            int waitTime = Math.abs((new Random(i).nextInt(Integer.MAX_VALUE) % 10) + 1) * 100;
-            IntStream.range(0, 3).forEach(j -> {
-                wait(waitTime, () -> rowGroupDataDao.get(rowGroupData.getRowGroupKey()));
-                wait(waitTime, () -> rowGroupDataDao.getAll());
-                wait(waitTime, () -> rowGroupDataDao.save(rowGroupData));
-                wait(waitTime, () -> rowGroupDataDao.get(rowGroupData.getRowGroupKey()));
-                wait(waitTime, () -> rowGroupDataDao.getAll());
-                wait(waitTime, () -> rowGroupDataDao.delete(rowGroupData));
-                wait(waitTime, () -> rowGroupDataDao.get(rowGroupData.getRowGroupKey()));
-                wait(waitTime, () -> rowGroupDataDao.getAll());
-            });
-            latch.countDown();
-        }));
-        latch.await();
+            IntStream.range(0, 10).forEach(i -> service.execute(() -> {
+                RowGroupData rowGroupData = RowGroupData.builder()
+                        .rowGroupKey(new RowGroupKey(
+                                "schema",
+                                "table",
+                                StringUtils.randomAlphanumeric(i),
+                                0,
+                                1L,
+                                0,
+                                "",
+                                ""))
+                        .warmUpElements(warmUpElements)
+                        .build();
+                int waitTime = Math.abs((new Random(i).nextInt(Integer.MAX_VALUE) % 10) + 1) * 100;
+                IntStream.range(0, 3).forEach(j -> {
+                    wait(waitTime, () -> rowGroupDataDao.get(rowGroupData.getRowGroupKey()));
+                    wait(waitTime, () -> rowGroupDataDao.getAll());
+                    wait(waitTime, () -> rowGroupDataDao.save(rowGroupData));
+                    wait(waitTime, () -> rowGroupDataDao.get(rowGroupData.getRowGroupKey()));
+                    wait(waitTime, () -> rowGroupDataDao.getAll());
+                    wait(waitTime, () -> rowGroupDataDao.delete(rowGroupData));
+                    wait(waitTime, () -> rowGroupDataDao.get(rowGroupData.getRowGroupKey()));
+                    wait(waitTime, () -> rowGroupDataDao.getAll());
+                });
+                latch.countDown();
+            }));
+            latch.await();
+        }
     }
 
     private void wait(int i, Runnable runnable)

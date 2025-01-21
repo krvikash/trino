@@ -16,9 +16,7 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Streams;
-import io.airlift.log.Logger;
 import io.airlift.slice.Slices;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.SingleValue;
@@ -35,6 +33,7 @@ import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.DomainExpression;
 import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.Domain;
@@ -53,20 +52,15 @@ import static io.trino.plugin.warp.type.TypeUtils.isTinyIntType;
 class PrefilledCollectClassifier
         implements Classifier
 {
-    private static final Logger logger = Logger.get(PrefilledCollectClassifier.class);
     private final ShapingLogger shapingLogger;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
 
     public PrefilledCollectClassifier(
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            GlobalConfig globalConfig)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.dispatcherProxiedConnectorTransformer = dispatcherProxiedConnectorTransformer;
-        shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        shapingLogger = shapingLoggerFactory.getInstance(PrefilledCollectClassifier.class);
     }
 
     @Override

@@ -14,8 +14,10 @@
 package io.trino.plugin.warp.log;
 
 import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.tools.util.Pair;
+import org.slf4j.MDC;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -31,10 +33,13 @@ import static java.util.Objects.requireNonNull;
  */
 public class ShapingLogger
 {
-    private static final Map<Logger, ShapingLogger> instances = new ConcurrentHashMap<>();
-
+    public static final String QUERY_ID_LOCAL_PROPERTY = "QUERY_ID";
+    private static final String CATALOG_FORMAT = "catalog[%s]: ";
+    private static final String QUERY_FORMAT = CATALOG_FORMAT + "queryId[%s]: ";
     private static final String FORMAT = "%s - skipped %d times";
     private final Map<Pair<String, List<Object>>, ShapingLoggerState> shapingLoggerStateMap = new ConcurrentHashMap<>();
+
+    private final String catalog;
     private final Logger logger;
 
     //threshold for log flushing. if threshold<=0 then threshold is ignored
@@ -50,12 +55,15 @@ public class ShapingLogger
     //if true first log message will be logged regardless of interval/duration
     private final int numberOfSamples;
 
-    private ShapingLogger(Logger logger,
+    public ShapingLogger(
+            String catalog,
+            Logger logger,
             int threshold,
             Duration duration,
             int numberOfSamples,
             MODE mode)
     {
+        this.catalog = requireNonNull(catalog);
         this.logger = requireNonNull(logger);
         this.threshold = threshold;
         durationMillis = (duration != null ? duration : Duration.ZERO).toMillis();
@@ -64,43 +72,28 @@ public class ShapingLogger
         this.mode = requireNonNull(mode);
     }
 
-    public static ShapingLogger getInstance(
-            Logger logger,
-            int threshold,
-            Duration duration)
-    {
-        return getInstance(logger, threshold, duration, 1);
-    }
-
-    public static ShapingLogger getInstance(
-            Logger logger,
-            int threshold,
-            Duration duration,
-            int numberOfSamplings)
-    {
-        return getInstance(logger, threshold, duration, numberOfSamplings, MODE.FORMAT);
-    }
-
-    public static ShapingLogger getInstance(
-            Logger logger,
-            int threshold,
-            Duration duration,
-            int numberOfSamplings,
-            MODE mode)
-    {
-        return instances.computeIfAbsent(logger, _ -> new ShapingLogger(logger, threshold, duration, numberOfSamplings, mode));
-    }
-
     public void info(String message)
     {
         info("%s", message);
     }
 
     @FormatMethod
-    public void info(final String format, Object... args)
+    public void info(@FormatString final String format, Object... args)
     {
         if (logger.isInfoEnabled()) {
-            log(getKey(format, args), () -> logger.info(format, args));
+            Object[] newArgs = appendProperties(args);
+            final String newFormat = appendFormat(format, newArgs.length - args.length);
+            log(getKey(newFormat, newArgs), () -> logger.info(newFormat.formatted(newArgs)));
+        }
+    }
+
+    @FormatMethod
+    public void debug(@FormatString final String format, Object... args)
+    {
+        if (logger.isDebugEnabled()) {
+            Object[] newArgs = appendProperties(args);
+            String newFormat = appendFormat(format, newArgs.length - args.length);
+            log(getKey(newFormat, newArgs), () -> logger.debug(newFormat.formatted(newArgs)));
         }
     }
 
@@ -110,15 +103,23 @@ public class ShapingLogger
     }
 
     @FormatMethod
-    public void warn(final String format, Object... args)
+    public void warn(@FormatString final String format, Object... args)
     {
-        log(getKey(format, args), () -> logger.warn(format, args));
+        Object[] newArgs = appendProperties(args);
+        String newFormat = appendFormat(format, newArgs.length - args.length);
+        log(getKey(newFormat, newArgs), () -> {
+            logger.warn(newFormat.formatted(newArgs));
+        });
     }
 
     @FormatMethod
-    public void warn(Throwable exception, final String format, Object... args)
+    public void warn(Throwable exception, @FormatString final String format, Object... args)
     {
-        log(getKey(format, args), () -> logger.warn(exception, format, args));
+        Object[] newArgs = appendProperties(args);
+        String newFormat = appendFormat(format, newArgs.length - args.length);
+        log(getKey(newFormat, newArgs), () -> {
+            logger.warn(exception, newFormat.formatted(newArgs));
+        });
     }
 
     public void error(String message)
@@ -127,15 +128,23 @@ public class ShapingLogger
     }
 
     @FormatMethod
-    public void error(final String format, Object... args)
+    public void error(@FormatString final String format, Object... args)
     {
-        log(getKey(format, args), () -> logger.error(format, args));
+        Object[] newArgs = appendProperties(args);
+        String newFormat = appendFormat(format, newArgs.length - args.length);
+        log(getKey(newFormat, newArgs), () -> {
+            logger.error(newFormat.formatted(newArgs));
+        });
     }
 
     @FormatMethod
-    public void error(Throwable e, final String format, Object... args)
+    public void error(Throwable e, @FormatString final String format, Object... args)
     {
-        log(getKey(format, args), () -> logger.error(e, format, args));
+        Object[] newArgs = appendProperties(args);
+        String newFormat = appendFormat(format, newArgs.length - args.length);
+        log(getKey(newFormat, newArgs), () -> {
+            logger.error(e, newFormat.formatted(newArgs));
+        });
     }
 
     private void log(Pair<String, List<Object>> key, Runnable runnable)
@@ -179,6 +188,28 @@ public class ShapingLogger
     }
 
     private record ShapingLoggerState(int count, long lastLogTime) {}
+
+    private Object[] appendProperties(Object... args)
+    {
+        String queryId = MDC.get(QUERY_ID_LOCAL_PROPERTY);
+        int additionalArgs = queryId != null ? 2 : 1;
+        Object[] newArgs = new Object[args.length + additionalArgs];
+        newArgs[0] = catalog;
+        if (queryId != null) {
+            newArgs[1] = queryId;
+        }
+        System.arraycopy(args, 0, newArgs, additionalArgs, args.length);
+        return newArgs;
+    }
+
+    private String appendFormat(final String format, int additionalArgs)
+    {
+        return switch (additionalArgs) {
+            case 1 -> CATALOG_FORMAT + format;
+            case 2 -> QUERY_FORMAT + format;
+            default -> format;
+        };
+    }
 
     public enum MODE
     {

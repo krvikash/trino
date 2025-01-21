@@ -31,7 +31,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
-import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -71,7 +71,7 @@ public class WarpDispatcherPageSourceFactory
         extends DispatcherPageSourceFactory
 {
     private static final Logger logger = Logger.get(WarpCachePageSourceFactory.class);
-    private final ShapingLogger shapingLogger;
+    private final GlobalConfig globalConfig;
     private final WorkerWarmingService workerWarmingService;
     private final WorkerMemoryManager workerMemoryManager;
     private final NativeStorageStateHandler nativeStorageStateHandler;
@@ -92,7 +92,8 @@ public class WarpDispatcherPageSourceFactory
             MatchService matchService,
             WorkerWarmingService workerWarmingService,
             WorkerMemoryManager workerMemoryManager,
-            NativeStorageStateHandler nativeStorageStateHandler)
+            NativeStorageStateHandler nativeStorageStateHandler,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         super(
                 storageEngineConstants,
@@ -101,18 +102,14 @@ public class WarpDispatcherPageSourceFactory
                 dispatcherProxiedConnectorTransformer,
                 predicatesCacheService,
                 queryClassifier,
-                globalConfig,
+                shapingLoggerFactory,
                 readErrorHandler,
                 collectTxService,
                 storageCollectorService,
                 lazyCollectorService,
                 matchService);
 
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.globalConfig = requireNonNull(globalConfig);
         this.workerWarmingService = requireNonNull(workerWarmingService);
         this.workerMemoryManager = requireNonNull(workerMemoryManager);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
@@ -436,7 +433,7 @@ public class WarpDispatcherPageSourceFactory
                 queryParams,
                 predicatesCacheService,
                 customStatsContext,
-                globalConfig,
+                shapingLoggerFactory,
                 storageCollectorService,
                 lazyCollectorService,
                 matchService,
@@ -461,7 +458,8 @@ public class WarpDispatcherPageSourceFactory
                 dispatcherTableHandle,
                 deletedRowsCount,
                 readErrorHandler,
-                globalConfig);
+                globalConfig,
+                shapingLoggerFactory);
     }
 
     private void addProxiedColumnStats(DispatcherPageSourceStats globalPageSourceStats,

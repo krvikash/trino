@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -34,6 +35,7 @@ import io.trino.plugin.warp.juffer.PredicateBufferPoolType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
@@ -174,7 +176,8 @@ public class DispatcherAlternativeChooserTest
                         nativeConfig,
                         dispatcherProxiedConnectorTransformer,
                         matchCollectIdService,
-                        globalConfig),
+                        globalConfig,
+                        new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),
                 storageEngine,
                 matchCollectIdService,
                 predicateContextFactory,

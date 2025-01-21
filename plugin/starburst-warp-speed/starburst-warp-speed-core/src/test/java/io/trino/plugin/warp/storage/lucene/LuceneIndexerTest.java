@@ -14,10 +14,13 @@
 package io.trino.plugin.warp.storage.lucene;
 
 import io.airlift.slice.Slices;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.spi.TrinoException;
+import io.trino.spi.catalog.CatalogName;
+import org.apache.commons.io.FileUtils;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -39,7 +42,6 @@ public class LuceneIndexerTest
 
     private final StubsStorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
     private final LuceneIndexerStats stats = new LuceneIndexerStats();
-    private final GlobalConfig globalConfig = new GlobalConfig();
 
     @BeforeAll
     static void beforeAll()
@@ -55,7 +57,7 @@ public class LuceneIndexerTest
             try (Stream<Path> stream = Files.walk(localStorePath)) {
                 stream.sorted(Comparator.reverseOrder())
                         .map(Path::toFile)
-                        .forEach(File::delete);
+                        .forEach(FileUtils::deleteQuietly);
             }
             catch (IOException e) {
                 System.out.printf("failed to delete localStorePath '%s'%n", localStorePath);
@@ -74,7 +76,11 @@ public class LuceneIndexerTest
         }
 
         String rowGroupFilePath = localStorePath + "/tmp/rowGroupFilePath/testImmenseValue";
-        LuceneIndexer luceneIndexer = new LuceneIndexer(storageEngineConstants, rowGroupFilePath, stats, globalConfig);
+        LuceneIndexer luceneIndexer = new LuceneIndexer(
+                storageEngineConstants,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()),
+                rowGroupFilePath,
+                stats);
         luceneIndexer.resetLuceneIndex();
 
         Assertions.assertThatExceptionOfType(TrinoException.class)
@@ -85,7 +91,11 @@ public class LuceneIndexerTest
 
         Assertions.assertThat(writeLockFile.exists()).isFalse();
 
-        LuceneIndexer luceneIndexer1 = new LuceneIndexer(storageEngineConstants, rowGroupFilePath, stats, globalConfig);
+        LuceneIndexer luceneIndexer1 = new LuceneIndexer(
+                storageEngineConstants,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()),
+                rowGroupFilePath,
+                stats);
 
         Assertions.assertThatNoException().isThrownBy(luceneIndexer1::resetLuceneIndex);
     }

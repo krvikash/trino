@@ -18,10 +18,10 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.WarpErrorCode;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
@@ -51,6 +51,7 @@ import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_FAILURE;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_WRITER_ERROR;
 import static io.trino.plugin.warp.util.SliceUtils.serializeSlice;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 
 public class LuceneIndexer
         implements Closeable
@@ -68,8 +69,9 @@ public class LuceneIndexer
     private final List<ChunkState> chunkStates = new ArrayList<>();
 
     private final StorageEngineConstants storageEngineConstants;
+    private final ShapingLoggerFactory shapingLoggerFactory;
+
     private final String rowGroupFilePath;
-    private final GlobalConfig globalConfig;
     private final Path path;
     private final LuceneIndexerStats stats;
     private final StopWatch stopWatch;
@@ -80,14 +82,15 @@ public class LuceneIndexer
     private boolean failedCommit;
     private int countDocsForSizeLimit;
 
-    public LuceneIndexer(StorageEngineConstants storageEngineConstants,
-                         String rowGroupFilePath,
-                         LuceneIndexerStats stats,
-                         GlobalConfig globalConfig)
+    public LuceneIndexer(
+            StorageEngineConstants storageEngineConstants,
+            ShapingLoggerFactory shapingLoggerFactory,
+            String rowGroupFilePath,
+            LuceneIndexerStats stats)
     {
-        this.storageEngineConstants = storageEngineConstants;
+        this.storageEngineConstants = requireNonNull(storageEngineConstants);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
         this.rowGroupFilePath = rowGroupFilePath;
-        this.globalConfig = globalConfig;
 
         String uniqueName = rowGroupFilePath;
         for (int i = 0; i < RowGroupKey.FILE_NAME_START_OF_FILE_NAME; i++) {
@@ -101,10 +104,7 @@ public class LuceneIndexer
         this.stats = stats;
         this.stopWatch = new StopWatch();
 
-        this.shapingLogger = ShapingLogger.getInstance(logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     public void addDoc(Slice... values)
@@ -175,7 +175,7 @@ public class LuceneIndexer
             }
             logger.debug("create temporary directory %s", path);
             indexWriter = new IndexWriter(FSDirectory.open(path), config);
-            luceneIndexWriter = new LuceneIndexWriter(storageEngineConstants, indexWriter, rowGroupFilePath, globalConfig);
+            luceneIndexWriter = new LuceneIndexWriter(storageEngineConstants, indexWriter, rowGroupFilePath, shapingLoggerFactory);
         }
         catch (Exception e) {
             logger.warn("Got exception when creating the indexWriter - %s", e);

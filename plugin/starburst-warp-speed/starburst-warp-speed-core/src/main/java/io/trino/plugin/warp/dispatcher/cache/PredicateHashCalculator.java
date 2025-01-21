@@ -15,9 +15,8 @@ package io.trino.plugin.warp.dispatcher.cache;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.block.Block;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.predicate.Domain;
@@ -36,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.BLOCK_POSITION_NOT_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.simpleConvention;
+import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class PredicateHashCalculator
@@ -45,14 +45,10 @@ public class PredicateHashCalculator
     private final ShapingLogger shapingLogger;
 
     @Inject
-    public PredicateHashCalculator(GlobalConfig globalConfig)
+    public PredicateHashCalculator(ShapingLoggerFactory shapingLoggerFactory)
     {
-        this.hashCodeOperatorsMap = new ConcurrentHashMap<>();
-        this.shapingLogger = ShapingLogger.getInstance(
-                Logger.get(PredicateHashCalculator.class),
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        shapingLogger = requireNonNull(shapingLoggerFactory).getInstance(PredicateHashCalculator.class);
+        hashCodeOperatorsMap = new ConcurrentHashMap<>();
     }
 
     /**

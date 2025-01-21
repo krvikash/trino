@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.write;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -24,6 +23,7 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 
 import java.io.IOException;
@@ -40,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 public class WarpCacheFilesMerger
 {
     private static final int BUFFER_SIZE = 8192;
-    private static final Logger logger = Logger.get(WarpCacheFilesMerger.class);
+
     private final ShapingLogger shapingLogger;
 
     private final RowGroupDataService rowGroupDataService;
@@ -52,18 +52,15 @@ public class WarpCacheFilesMerger
     public WarpCacheFilesMerger(RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
             GlobalConfig globalConfig,
-            StorageEngineConstants storageEngineConstants)
+            StorageEngineConstants storageEngineConstants,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.globalConfig = requireNonNull(globalConfig);
         this.pageSizeShift = requireNonNull(storageEngineConstants).getPageSizeShift();
 
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(WarpCacheFilesMerger.class);
     }
 
     public boolean merge(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)

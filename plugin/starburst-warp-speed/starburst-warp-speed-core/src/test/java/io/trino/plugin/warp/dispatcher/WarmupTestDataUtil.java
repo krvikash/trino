@@ -18,8 +18,8 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import io.airlift.slice.Slice;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.connector.TestingConnectorTableHandle;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
@@ -39,6 +39,7 @@ import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -328,7 +329,7 @@ public class WarmupTestDataUtil
                 storageEngine,
                 storageEngineConstants,
                 nativeConfig,
-                new WorkerMemoryManager(new GlobalConfig(), catalogName),
+                new WorkerMemoryManager(catalogName, new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),
                 metricsManager,
                 new WarpInitializedServiceRegistry(),
                 catalogName));

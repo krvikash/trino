@@ -13,11 +13,10 @@
  */
 package io.trino.plugin.warp.storage.write;
 
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.cache.CacheWarmupElementArgs;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingCandidate;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.block.Block;
 
 import java.util.Collection;
@@ -29,6 +28,7 @@ import java.util.stream.Collectors;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptySet;
+import static java.util.Objects.requireNonNull;
 
 public class WarmupCacheData
 {
@@ -37,14 +37,12 @@ public class WarmupCacheData
 
     private Map<Integer, List<CacheWarmupElementArgs>> connectorIndexToWarmColumns;
 
-    public WarmupCacheData(Map<Integer, List<CacheWarmupElementArgs>> connectorIndexToWarmColumns, GlobalConfig globalConfig)
+    public WarmupCacheData(
+            Map<Integer, List<CacheWarmupElementArgs>> connectorIndexToWarmColumns,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.connectorIndexToWarmColumns = connectorIndexToWarmColumns;
-        this.shapingLogger = ShapingLogger.getInstance(
-                Logger.get(WarmupCacheData.class),
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        shapingLogger = requireNonNull(shapingLoggerFactory).getInstance(WarmupCacheData.class);
     }
 
     public List<CacheWarmupElementArgs> getCacheWarmupElementArgsList()

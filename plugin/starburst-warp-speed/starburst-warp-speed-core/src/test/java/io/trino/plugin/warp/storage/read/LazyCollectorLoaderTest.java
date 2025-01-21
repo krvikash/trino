@@ -14,12 +14,14 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,21 +36,19 @@ import static org.mockito.Mockito.when;
 class LazyCollectorLoaderTest
 {
     private LazyCollectTxService lazyCollectTxService;
-    private GlobalConfig globalConfig;
     private DictionaryStats dictionaryStats;
     private DispatcherPageSourceStats dispatcherPageSourceStats;
 
     @BeforeEach
     public void before()
     {
-        this.lazyCollectTxService = mock(LazyCollectTxService.class);
+        lazyCollectTxService = mock(LazyCollectTxService.class);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, Collections.emptyList());
         customStatsContext.getOrRegister(new DictionaryStats());
         customStatsContext.getOrRegister(new DispatcherPageSourceStats());
-        this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryStats.createKey());
-        this.dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
-        this.globalConfig = new GlobalConfig();
+        dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryStats.createKey());
+        dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
     }
 
     @Test
@@ -61,7 +61,7 @@ class LazyCollectorLoaderTest
                 lazyCollectorLoaderArgs,
                 dictionaryStats,
                 dispatcherPageSourceStats,
-                globalConfig,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()),
                 mock(NativeStats.class));
         when(lazyCollectTxService.collectOpen(any(LazyCollectorLoaderArgs.class), any())).thenThrow(new RuntimeException());
 

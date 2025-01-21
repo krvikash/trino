@@ -15,6 +15,7 @@ package io.trino.plugin.warp.dispatcher;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
@@ -26,6 +27,7 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import org.slf4j.MDC;
 
 import java.util.List;
 
@@ -72,6 +74,7 @@ public class DispatcherAlternativePageSourceProvider
             DynamicFilter dynamicFilter,
             boolean splitAddressEnforced)
     {
+        MDC.put(ShapingLogger.QUERY_ID_LOCAL_PROPERTY, session.getQueryId());
         if (logger.isDebugEnabled()) {
             logger.debug("createPageSource: handle=%s, split=%s, table=%s, columns=%s, dynamicFilter=%s",
                     transactionHandle, split, table, columns, dynamicFilter.getCurrentPredicate().toString(session));

@@ -26,6 +26,7 @@ import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 
@@ -45,16 +46,12 @@ public class CacheMgrWarmupRuleCloudFetcher
 {
     private static final Logger logger = Logger.get(CacheMgrWarmupRuleCloudFetcher.class);
 
-    private static final ShapingLogger shapingLogger = ShapingLogger.getInstance(
-            logger,
-            10,
-            Duration.ZERO,
-            1);
-
     private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
     private final CloudVendorService cloudVendorService;
     private final CacheMgrWarmupRuleService warmupRuleService;
     private final ObjectMapperProvider objectMapperProvider;
+    private final ShapingLogger shapingLogger;
+
     @SuppressWarnings("FieldCanBeLocal")
     private final Timer timer;
     private final WarmupRuleFetcherStats warmupRuleFetcherStats;
@@ -68,13 +65,15 @@ public class CacheMgrWarmupRuleCloudFetcher
             @ForWarmupRuleCloudFetcher CloudVendorService cloudVendorService,
             CacheMgrWarmupRuleService warmupRuleService,
             MetricsManager metricsManager,
-            ObjectMapperProvider objectMapperProvider)
+            ObjectMapperProvider objectMapperProvider,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this(warmupRuleCloudFetcherConfig,
                 cloudVendorService,
                 warmupRuleService,
                 metricsManager,
                 objectMapperProvider,
+                shapingLoggerFactory,
                 new Timer());
     }
 
@@ -85,6 +84,7 @@ public class CacheMgrWarmupRuleCloudFetcher
             CacheMgrWarmupRuleService warmupRuleService,
             MetricsManager metricsManager,
             ObjectMapperProvider objectMapperProvider,
+            ShapingLoggerFactory shapingLoggerFactory,
             Timer timer)
     {
         this.warmupRuleCloudFetcherConfig = requireNonNull(warmupRuleCloudFetcherConfig);
@@ -92,7 +92,14 @@ public class CacheMgrWarmupRuleCloudFetcher
         this.warmupRuleService = requireNonNull(warmupRuleService);
         this.objectMapperProvider = requireNonNull(objectMapperProvider);
         this.timer = requireNonNull(timer);
-        this.writeLock = new ReentrantReadWriteLock().writeLock();
+
+        shapingLogger = shapingLoggerFactory.getInstance(
+                logger,
+                10,
+                Duration.ZERO,
+                1);
+
+        writeLock = new ReentrantReadWriteLock().writeLock();
         currentStorageObjectMetadata = null;
 
         this.timer.scheduleAtFixedRate(

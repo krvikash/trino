@@ -13,9 +13,8 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
@@ -28,8 +27,6 @@ import static java.util.Objects.requireNonNull;
 
 public class WarpReader
 {
-    private static final Logger logger = Logger.get(WarpReader.class);
-
     // parameters
     private final ShapingLogger shapingLogger;
     private final WorkerMemoryManager workerMemoryManager;
@@ -52,7 +49,7 @@ public class WarpReader
             BlocksAggregator blocksAggregator,
             Matcher matcher,
             WorkerMemoryManager workerMemoryManager,
-            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory,
             int pageSize,
             long rowsLimit)
     {
@@ -67,11 +64,7 @@ public class WarpReader
         queryState = new WarpQueryState();
         chunksQueue = new ChunksQueue(queryArgs.maxMatchedChunks(), queryArgs.chunkSize(), pageSize);
 
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(WarpReader.class);
     }
 
     public boolean isRowsLimitReached()

@@ -18,6 +18,7 @@ import io.trino.plugin.warp.WarmColumnDataTestUtil;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.cache.WarmupElementBlocks;
@@ -25,6 +26,7 @@ import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -146,8 +148,10 @@ public class StorageWriterServiceTest
         dictionaryCacheService = mock(DictionaryCacheService.class);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, globalConfig, blockTransformerFactory);
-        WarmupElementStatsService warmupElementStatsService = new WarmupElementStatsService(globalConfig);
-        WorkerMemoryManager workerMemoryManager = new WorkerMemoryManager(globalConfig, new CatalogName("f"));
+
+        CatalogName catalogName = new CatalogName("f");
+        WarmupElementStatsService warmupElementStatsService = new WarmupElementStatsService(new ShapingLoggerFactory(catalogName, new SharedConfig()));
+        WorkerMemoryManager workerMemoryManager = new WorkerMemoryManager(catalogName, new ShapingLoggerFactory(catalogName, new SharedConfig()));
         storageWriterService = new StorageWriterService(storageEngine,
                 storageEngineConstants,
                 bufferAllocator,
@@ -157,8 +161,8 @@ public class StorageWriterServiceTest
                 blockAppenderFactory,
                 warmupElementStatsService,
                 workerMemoryManager,
-                globalConfig,
-                nativeConfig);
+                nativeConfig,
+                new ShapingLoggerFactory(catalogName, new SharedConfig()));
     }
 
     @Test

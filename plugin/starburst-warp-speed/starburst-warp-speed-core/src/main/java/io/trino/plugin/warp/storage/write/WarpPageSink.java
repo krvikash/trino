@@ -13,8 +13,6 @@
  */
 package io.trino.plugin.warp.storage.write;
 
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.cache.WarmupElementBlocks;
@@ -22,16 +20,18 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmSinkResult;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.util.ExceptionUtils;
 import io.trino.plugin.warp.warmup.exceptions.MaxRowsException;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 
+import static java.util.Objects.requireNonNull;
+
 public class WarpPageSink
         implements PageSink
 {
-    private static final Logger logger = Logger.get(WarpPageSink.class);
     private final ShapingLogger shapingLogger;
     private final StorageWriterService storageWriterService;
     private final StorageWriterSplitConfig storageWriterSplitConfig;
@@ -40,16 +40,14 @@ public class WarpPageSink
 
     private StorageWriterContext storageWriterContext;
 
-    public WarpPageSink(StorageWriterService storageWriterService, StorageWriterSplitConfig storageWriterSplitConfig, GlobalConfig globalConfig)
+    public WarpPageSink(
+            StorageWriterService storageWriterService,
+            StorageWriterSplitConfig storageWriterSplitConfig,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
-
         this.storageWriterService = storageWriterService;
         this.storageWriterSplitConfig = storageWriterSplitConfig;
+        shapingLogger = requireNonNull(shapingLoggerFactory).getInstance(WarpPageSink.class);
     }
 
     @Override

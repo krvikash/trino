@@ -16,7 +16,7 @@ package io.trino.plugin.warp.dispatcher.warmup.demoter;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AtomicDouble;
 import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -26,6 +26,7 @@ import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
@@ -127,7 +128,7 @@ public class WarmupDemoterServiceTest
                 deleteService,
                 nodeManager,
                 flowsSequencer,
-                new GlobalConfig());
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }
 
     @Test

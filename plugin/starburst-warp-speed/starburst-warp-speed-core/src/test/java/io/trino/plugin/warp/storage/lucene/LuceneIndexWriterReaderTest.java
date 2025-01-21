@@ -13,8 +13,10 @@
  */
 package io.trino.plugin.warp.storage.lucene;
 
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.spi.catalog.CatalogName;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.Directory;
@@ -98,7 +100,11 @@ class LuceneIndexWriterReaderTest
         when(indexWriter.getDirectory()).thenReturn(luceneDirectory);
 
         FileUtils.createParentDirectories(new File(rowGroupFilePath));
-        luceneIndexWriter = new LuceneIndexWriter(storageEngineConstants, indexWriter, rowGroupFilePath, new GlobalConfig());
+        luceneIndexWriter = new LuceneIndexWriter(
+                storageEngineConstants,
+                indexWriter,
+                rowGroupFilePath,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }
 
     @AfterEach

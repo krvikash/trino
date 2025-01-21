@@ -14,13 +14,12 @@
 
 package io.trino.plugin.warp.storage.read;
 
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlockLoader;
@@ -33,7 +32,6 @@ import static com.google.common.base.Preconditions.checkState;
 public class LazyCollectorLoader
         implements LazyBlockLoader
 {
-    private static final Logger logger = Logger.get(LazyCollectorLoader.class);
     private final LazyCollectTxService collectTxService;
     private final LazyCollectorLoaderArgs lazyCollectorLoaderArgs;
     private final DispatcherPageSourceStats dispatcherPageSourceStats;
@@ -47,18 +45,14 @@ public class LazyCollectorLoader
             LazyCollectorLoaderArgs lazyCollectorLoaderArgs,
             DictionaryStats varadaStatsDictionary,
             DispatcherPageSourceStats dispatcherPageSourceStats,
-            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory,
             NativeStats nativeStats)
     {
         this.collectTxService = collectTxService;
         this.dispatcherPageSourceStats = dispatcherPageSourceStats;
         this.dictionaryStats = varadaStatsDictionary;
         this.lazyCollectorLoaderArgs = lazyCollectorLoaderArgs;
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(LazyCollectorLoader.class);
         this.nativeStats = nativeStats;
     }
 

@@ -14,12 +14,12 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -38,25 +38,20 @@ public abstract class BaseCollectTxService
     protected final StorageEngine storageEngine;
     protected final StorageEngineConstants storageEngineConstants;
     protected final BufferAllocator bufferAllocator;
-    protected final GlobalConfig globalConfig;
     protected final NativeConfig nativeConfig;
     protected final ShapingLogger shapingLogger;
 
     public BaseCollectTxService(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
-            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory,
             NativeConfig nativeConfig)
     {
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
         this.bufferAllocator = bufferAllocator;
-        this.globalConfig = globalConfig;
         this.nativeConfig = nativeConfig;
-        this.shapingLogger = ShapingLogger.getInstance(logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()

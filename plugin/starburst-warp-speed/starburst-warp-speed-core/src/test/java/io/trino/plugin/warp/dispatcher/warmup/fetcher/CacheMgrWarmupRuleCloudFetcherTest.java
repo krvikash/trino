@@ -16,9 +16,12 @@ package io.trino.plugin.warp.dispatcher.warmup.fetcher;
 import io.airlift.json.ObjectMapperProvider;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -61,6 +64,7 @@ public class CacheMgrWarmupRuleCloudFetcherTest
                 warmupRuleService,
                 metricsManager,
                 objectMapperProvider,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()),
                 timer);
     }
 

@@ -24,6 +24,7 @@ import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorage;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.tools.ByteBufferInputStream;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
 import io.trino.plugin.warp.tools.util.StringUtils;
@@ -35,7 +36,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,17 +50,14 @@ public class CloudVendorStorageService
         extends CloudVendorService
 {
     private static final Logger logger = Logger.get(CloudVendorStorageService.class);
-    private static final ShapingLogger shapingLogger = ShapingLogger.getInstance(
-            logger,
-            10,
-            Duration.ZERO,
-            1);
+    private final ShapingLogger shapingLogger;
 
     private final CloudStorage cloudStorage;
 
-    public CloudVendorStorageService(CloudStorage cloudStorage)
+    public CloudVendorStorageService(CloudStorage cloudStorage, ShapingLoggerFactory shapingLoggerFactory)
     {
         this.cloudStorage = requireNonNull(cloudStorage);
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     @Override

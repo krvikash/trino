@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.storage.read.predicates;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
 import io.trino.plugin.warp.gen.constants.FunctionType;
@@ -24,8 +24,10 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicateBufferInfo;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.SortedRangeSet;
@@ -76,14 +78,13 @@ class InverseValuesPredicateFillerTest
     @Test
     public void testSimple()
     {
-        GlobalConfig globalConfig = new GlobalConfig();
         MetricsManager metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any())).thenReturn(cachePredicatesStats);
         PredicatesCacheService predicatesCacheService = new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
                 metricsManager,
                 domainToMapBlockConvertor,
-                globalConfig);
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
         Range range1 = Range.range(IntegerType.INTEGER, (long) Integer.MIN_VALUE, false, 8L, false);
         Range range2 = Range.range(IntegerType.INTEGER, 8L, false, (long) Integer.MAX_VALUE, false);

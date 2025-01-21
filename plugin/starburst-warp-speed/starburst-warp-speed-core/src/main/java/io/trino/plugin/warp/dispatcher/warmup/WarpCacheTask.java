@@ -15,7 +15,6 @@ package io.trino.plugin.warp.dispatcher.warmup;
 
 import io.airlift.log.Logger;
 import io.trino.memory.context.LocalMemoryContext;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.cache.CacheAction;
 import io.trino.plugin.warp.dispatcher.cache.CacheWarmupElementArgs;
@@ -27,6 +26,7 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingCandidate;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.warp.storage.write.WarmResult;
 import io.trino.plugin.warp.storage.write.WarmupCacheData;
@@ -72,7 +72,7 @@ public class WarpCacheTask
     private boolean finished;
     private boolean revoked;
 
-    public WarpCacheTask(GlobalConfig globalConfig,
+    public WarpCacheTask(
             Map<CacheWarmState, CacheAction> cacheActions,
             WorkerTaskExecutorService workerTaskExecutorService,
             StorageWarmerService storageWarmerService,
@@ -80,7 +80,8 @@ public class WarpCacheTask
             CacheWarmer cacheWarmer,
             WarmingServiceStats statsWarmingService,
             RowGroupKey rowGroupKey,
-            MemoryContextService memoryContextService)
+            MemoryContextService memoryContextService,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.warmupCacheData = warmupCacheData;
         this.rowGroupKey = requireNonNull(rowGroupKey);
@@ -93,11 +94,7 @@ public class WarpCacheTask
         this.id = UUID.randomUUID();
         this.blocksToProcess = new LinkedBlockingDeque<>();
         this.flowId = INVALID_FLOW_ID;
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     @Override

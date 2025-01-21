@@ -23,6 +23,7 @@ import io.trino.plugin.warp.dispatcher.warmup.WorkerSubmittableTask;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.tools.util.StopWatch;
 
 import java.util.UUID;
@@ -50,13 +51,10 @@ public class WeGroupCloudExporterTask
             RowGroupDataService rowGroupDataService,
             WarmupElementsCloudExporter warmupElementsCloudExporter,
             GlobalConfig globalConfig,
-            WarmupExportServiceStats statsWarmupExportService)
+            WarmupExportServiceStats statsWarmupExportService,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
 
         this.rowGroupKey = requireNonNull(rowGroupKey);
         this.cloudImportExportPath = requireNonNull(cloudImportExportPath);

@@ -34,6 +34,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmUtils;
 import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -79,7 +80,8 @@ public class WeGroupWarmer
             @ForWarp CloudVendorService cloudVendorService,
             NativeStorageStateHandler nativeStorageStateHandler,
             ObjectMapperProvider objectMapperProvider,
-            MetricsManager metricsManager)
+            MetricsManager metricsManager,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.globalConfig = requireNonNull(globalConfig);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
@@ -90,11 +92,7 @@ public class WeGroupWarmer
         this.objectMapper = requireNonNull(objectMapperProvider).get();
 
         warmupImportServiceStats = metricsManager.registerMetric(new WarmupImportServiceStats());
-        shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     @VisibleForTesting

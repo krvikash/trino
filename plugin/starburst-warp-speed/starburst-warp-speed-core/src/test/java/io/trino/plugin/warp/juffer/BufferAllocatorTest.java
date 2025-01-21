@@ -14,12 +14,13 @@
 package io.trino.plugin.warp.juffer;
 
 import io.trino.plugin.warp.WarmColumnDataTestUtil;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RecordData;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -66,7 +67,7 @@ public class BufferAllocatorTest
         bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
                 nativeConfig,
-                new WorkerMemoryManager(new GlobalConfig(), catalogName),
+                new WorkerMemoryManager(catalogName, new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),
                 mock(MetricsManager.class),
                 new WarpInitializedServiceRegistry(),
                 catalogName);
@@ -106,7 +107,7 @@ public class BufferAllocatorTest
         BufferAllocator bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
                 nativeConfig,
-                new WorkerMemoryManager(new GlobalConfig(), catalogName),
+                new WorkerMemoryManager(catalogName, new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),
                 mock(MetricsManager.class),
                 new WarpInitializedServiceRegistry(),
                 catalogName);

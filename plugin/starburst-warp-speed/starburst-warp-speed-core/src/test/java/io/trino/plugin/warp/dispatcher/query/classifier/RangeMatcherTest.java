@@ -15,7 +15,7 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -27,7 +27,9 @@ import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.expression.WarpExpressionData;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.IntegerType;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,7 +78,7 @@ class RangeMatcherTest
         WarmupElementStats warmupElementStats = new WarmupElementStats(1, -100, 100);
         when(queryMatchData.getWarmUpElement()).thenReturn(warmUpElement);
         when(warmUpElement.getWarmupElementStats()).thenReturn(warmupElementStats);
-        rangeMatcher = new RangeMatcher(new GlobalConfig());
+        rangeMatcher = new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         Map<WarpColumn, PredicateContext> remainingPredicateContext = Map.of(new RegularColumn("remainingColumn"), mock(PredicateContext.class));
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
@@ -131,7 +133,7 @@ class RangeMatcherTest
         when(warmupTypes.luceneWarmedElements()).thenReturn(ImmutableMap.of());
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
 
-        rangeMatcher = new RangeMatcher(new GlobalConfig());
+        rangeMatcher = new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         Map<WarpColumn, PredicateContext> remainingPredicateContext = Map.of(column, context);
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
@@ -179,7 +181,7 @@ class RangeMatcherTest
         when(warmupTypes.luceneWarmedElements()).thenReturn(ImmutableMap.of());
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
 
-        rangeMatcher = new RangeMatcher(new GlobalConfig());
+        rangeMatcher = new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         Map<WarpColumn, PredicateContext> remainingPredicateContext = Map.of(column, context);
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
@@ -216,7 +218,7 @@ class RangeMatcherTest
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
 
         PredicateContext context = mock(PredicateContext.class);
-        rangeMatcher = new RangeMatcher(new GlobalConfig());
+        rangeMatcher = new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         Map<WarpColumn, PredicateContext> remainingPredicateContext = Map.of(transformedColumn, context);
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 

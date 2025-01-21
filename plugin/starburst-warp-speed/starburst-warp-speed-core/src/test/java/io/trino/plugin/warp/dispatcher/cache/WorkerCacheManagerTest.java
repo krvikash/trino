@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.dispatcher.cache;
 
 import io.trino.plugin.warp.config.CacheManagerConfig;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -25,6 +25,7 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.CacheWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -35,6 +36,7 @@ import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.cache.SignatureKey;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.BooleanType;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,7 +67,6 @@ public class WorkerCacheManagerTest
     @BeforeEach
     public void beforeEach()
     {
-        GlobalConfig globalConfig = new GlobalConfig();
         cacheManagerConfig = new CacheManagerConfig();
         WarpCachePageSourceFactory warpCachePageSourceFactory = mock(WarpCachePageSourceFactory.class);
         WorkerTaskExecutorService workerTaskExecutorService = mock(WorkerTaskExecutorService.class);
@@ -90,7 +91,7 @@ public class WorkerCacheManagerTest
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
 
         workerCacheManager = new WorkerCacheManager(
-                globalConfig,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()),
                 cacheManagerConfig,
                 warpCachePageSourceFactory,
                 workerTaskExecutorService,

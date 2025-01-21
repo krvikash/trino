@@ -22,6 +22,9 @@ import io.trino.plugin.warp.cloudstorage.CloudStorage;
 import io.trino.plugin.warp.cloudstorage.CloudStorageModule;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.cloudvendors.config.StoreType;
+import io.trino.plugin.warp.config.SharedConfig;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.lang.annotation.Annotation;
@@ -59,10 +62,13 @@ public class CloudVendorStorageModule
         super.configure();
 
         ConfigurationFactory configFactory = new ConfigFactoryWithPrefix(config, prefix, logger::warn);
-        logger.debug("annotation %s configFactory %s", annotation.toString(), configFactory.getProperties());
-        Injector injector = Guice.createInjector(new CloudStorageModule(catalogName, context, configFactory, storeType, annotation));
+        SharedConfig sharedConfig = configFactory.build(SharedConfig.class);
+        ShapingLoggerFactory shapingLoggerFactory = new ShapingLoggerFactory(new CatalogName(catalogName), sharedConfig);
 
+        Injector injector = Guice.createInjector(new CloudStorageModule(catalogName, context, configFactory, storeType, annotation));
         CloudStorage cloudStorage = injector.getInstance(Key.get(CloudStorage.class, annotation));
-        bind(CloudVendorService.class).annotatedWith(annotation).toInstance(new CloudVendorStorageService(cloudStorage));
+        bind(CloudVendorService.class)
+                .annotatedWith(annotation)
+                .toInstance(new CloudVendorStorageService(cloudStorage, shapingLoggerFactory));
     }
 }

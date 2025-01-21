@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.write;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 
 import java.lang.reflect.Proxy;
@@ -25,23 +26,26 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class WarpPageSinkFactory
 {
+    private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
     private final StorageWriterService storageWriterService;
     private final GlobalConfig globalConfig;
-    private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
+    private final ShapingLoggerFactory shapingLoggerFactory;
 
     @Inject
     public WarpPageSinkFactory(FailureGeneratorInvocationHandler failureGeneratorInvocationHandler,
             StorageWriterService storageWriterService,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
+        this.failureGeneratorInvocationHandler = requireNonNull(failureGeneratorInvocationHandler);
         this.storageWriterService = requireNonNull(storageWriterService);
         this.globalConfig = requireNonNull(globalConfig);
-        this.failureGeneratorInvocationHandler = requireNonNull(failureGeneratorInvocationHandler);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
     }
 
     public PageSink create(StorageWriterSplitConfig storageWriterSplitConfig)
     {
-        PageSink pageSink = new WarpPageSink(storageWriterService, storageWriterSplitConfig, globalConfig);
+        PageSink pageSink = new WarpPageSink(storageWriterService, storageWriterSplitConfig, shapingLoggerFactory);
 
         if (globalConfig.isFailureGeneratorEnabled()) {
             pageSink = (PageSink) Proxy.newProxyInstance(pageSink.getClass().getClassLoader(),

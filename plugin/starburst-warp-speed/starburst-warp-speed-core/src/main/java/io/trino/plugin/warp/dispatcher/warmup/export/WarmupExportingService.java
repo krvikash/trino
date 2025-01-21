@@ -31,6 +31,7 @@ import io.trino.plugin.warp.dispatcher.warmup.WorkerSubmittableTask;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmingFinishedEvent;
 import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
@@ -49,6 +50,7 @@ public class WarmupExportingService
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final WarmupExportServiceStats statsWarmupExportService;
     private final CloudVendorService cloudVendorService;
+    private final ShapingLoggerFactory shapingLoggerFactory;
 
     @Inject
     public WarmupExportingService(
@@ -60,7 +62,8 @@ public class WarmupExportingService
             WorkerTaskExecutorService workerTaskExecutorService,
             @ForWarp CloudVendorConfig cloudVendorConfig,
             @ForWarp CloudVendorService cloudVendorService,
-            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupElementsCloudExporter = warmupElementsCloudExporter;
@@ -68,6 +71,7 @@ public class WarmupExportingService
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.cloudVendorService = requireNonNull(cloudVendorService);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
         requireNonNull(eventBus).register(this);
         this.statsWarmupExportService = requireNonNull(metricsManager).registerMetric(new WarmupExportServiceStats());
         if (isImportExportEnabled(globalConfig, cloudVendorConfig, null)) {
@@ -108,7 +112,8 @@ public class WarmupExportingService
                 rowGroupDataService,
                 warmupElementsCloudExporter,
                 globalConfig,
-                statsWarmupExportService);
+                statsWarmupExportService,
+                shapingLoggerFactory);
         workerTaskExecutorService.delaySubmit(delay, weGroupCloudExporterTask, this::handleConflict);
     }
 

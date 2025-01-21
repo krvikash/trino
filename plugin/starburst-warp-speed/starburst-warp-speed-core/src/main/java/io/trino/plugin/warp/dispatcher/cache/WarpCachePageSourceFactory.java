@@ -38,6 +38,7 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -79,6 +80,7 @@ public class WarpCachePageSourceFactory
         extends DispatcherPageSourceFactory
 {
     private final MetricsManager metricsManager;
+    private final GlobalConfig globalConfig;
     private final StorageEngineTxService txService;
     private final WorkerMemoryManager workerMemoryManager;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
@@ -99,7 +101,8 @@ public class WarpCachePageSourceFactory
             MatchService matchService,
             StorageEngineTxService txService,
             WorkerMemoryManager workerMemoryManager,
-            DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider)
+            DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         super(storageEngineConstants,
                 rowGroupDataService,
@@ -107,7 +110,7 @@ public class WarpCachePageSourceFactory
                 dispatcherProxiedConnectorTransformer,
                 predicatesCacheService,
                 queryClassifier,
-                globalConfig,
+                shapingLoggerFactory,
                 readErrorHandler,
                 collectTxService,
                 storageCollectorService,
@@ -115,6 +118,7 @@ public class WarpCachePageSourceFactory
                 matchService);
 
         this.metricsManager = requireNonNull(metricsManager);
+        this.globalConfig = requireNonNull(globalConfig);
         this.txService = requireNonNull(txService);
         this.workerMemoryManager = requireNonNull(workerMemoryManager);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
@@ -231,7 +235,7 @@ public class WarpCachePageSourceFactory
                     queryParams,
                     predicatesCacheService,
                     customStatsContext,
-                    globalConfig,
+                    shapingLoggerFactory,
                     storageCollectorService,
                     lazyCollectorService,
                     matchService,
@@ -249,7 +253,8 @@ public class WarpCachePageSourceFactory
                     null,
                     0, // no proxied in case of cache
                     readErrorHandler,
-                    globalConfig);
+                    globalConfig,
+                    shapingLoggerFactory);
             return Optional.of(new WarpCachePageSource(txService, dispatcherPageSource, customStatsContext));
         }
         catch (Exception e) {
@@ -261,7 +266,7 @@ public class WarpCachePageSourceFactory
 
     private DispatcherTableHandle createDispatcherTableHandle(TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate, Map<CacheColumnId, ColumnHandle> columnIdToHandle)
     {
-        int predicateThreashold = globalConfig.getPredicateSimplifyThreshold(); // read from global config directly since there is no session
+        int predicateThreshold = globalConfig.getPredicateSimplifyThreshold(); // read from global config directly since there is no session
         ConnectorTableHandle connectorTableHandle = new WarpCacheTableHandle();
 
         // TODO: Currently, the classification process doesn't support a distinction
@@ -271,7 +276,7 @@ public class WarpCachePageSourceFactory
         TupleDomain<ColumnHandle> fullPredicate = predicate.intersect(unenforcedPredicate).transformKeys(columnIdToHandle::get);
 
         return dispatcherTableHandleBuilderProvider
-                .builder(predicateThreashold, connectorTableHandle)
+                .builder(predicateThreshold, connectorTableHandle)
                 .fullPredicate(fullPredicate)
                 .subsumedPredicates(true)
                 .build();

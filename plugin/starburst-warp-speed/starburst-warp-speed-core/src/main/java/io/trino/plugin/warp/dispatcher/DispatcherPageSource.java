@@ -23,6 +23,7 @@ import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.WarpStoragePageSource;
 import io.trino.spi.Page;
@@ -99,7 +100,8 @@ public class DispatcherPageSource
             DispatcherTableHandle dispatcherTableHandle,
             long deletedRowsCount,
             ReadErrorHandler readErrorHandler,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.proxiedConnectorPageSourceProvider = proxiedConnectorPageSourceProvider;
         this.queryClassifier = queryClassifier;
@@ -122,11 +124,7 @@ public class DispatcherPageSource
         this.proxiedPageRanges = new ArrayDeque<>();
         this.warpPageRanges = new ArrayDeque<>();
         this.startTime = System.nanoTime();
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
         this.warpWithoutPrefilledAndProxiedCollectTypes = warpWithoutPrefilledAndProxiedCollectTypes;
         this.emptyPagesCounter = 0;
         this.forceFinish = false;

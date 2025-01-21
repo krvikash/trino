@@ -29,11 +29,13 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.warmup.export.WeGroupCloudExporterTask;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.connector.ConnectorSession;
 import jakarta.annotation.PreDestroy;
+import org.slf4j.MDC;
 
 import java.util.Comparator;
 import java.util.Iterator;
@@ -92,13 +94,9 @@ public class WorkerTaskExecutorService
             GlobalConfig globalConfig,
             @ForWarp CloudVendorConfig cloudVendorConfig,
             NativeStorageStateHandler nativeStorageStateHandler,
-            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
         this.nativeConfig = requireNonNull(nativeConfig);
         this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new WorkerTaskExecutorServiceStats());
         this.globalConfig = requireNonNull(globalConfig);
@@ -107,6 +105,7 @@ public class WorkerTaskExecutorService
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         warpInitializedServiceRegistry.addService(this);
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     @Override
@@ -242,17 +241,23 @@ public class WorkerTaskExecutorService
 
     private void executeTask(WorkerSubmittableTask task)
     {
-        if (task instanceof PrioritizeTask) {
-            prioritizeExecutorService.execute(task);
+        try {
+            MDC.put(ShapingLogger.QUERY_ID_LOCAL_PROPERTY, task.getClass().getSimpleName());
+            if (task instanceof PrioritizeTask) {
+                prioritizeExecutorService.execute(task);
+            }
+            else if (task instanceof ImportExecutionTask || task instanceof WeGroupCloudExporterTask) {
+                cloudExecutorService.execute(task);
+            }
+            else if (task instanceof ProxyExecutionTask) {
+                proxyExecutorService.execute(task);
+            }
+            else if (task instanceof WarpCacheTask) {
+                proxyExecutorService.execute(task);
+            }
         }
-        else if (task instanceof ImportExecutionTask || task instanceof WeGroupCloudExporterTask) {
-            cloudExecutorService.execute(task);
-        }
-        else if (task instanceof ProxyExecutionTask) {
-            proxyExecutorService.execute(task);
-        }
-        else if (task instanceof WarpCacheTask) {
-            proxyExecutorService.execute(task);
+        finally {
+            MDC.remove(ShapingLogger.QUERY_ID_LOCAL_PROPERTY);
         }
     }
 

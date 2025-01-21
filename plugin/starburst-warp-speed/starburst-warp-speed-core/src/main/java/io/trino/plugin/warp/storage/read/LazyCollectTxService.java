@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.JbufType;
@@ -22,6 +21,7 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
@@ -41,10 +41,10 @@ public class LazyCollectTxService
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
             WorkerMemoryManager workerMemoryManager,
-            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory,
             NativeConfig nativeConfig)
     {
-        super(storageEngine, storageEngineConstants, bufferAllocator, globalConfig, nativeConfig);
+        super(storageEngine, storageEngineConstants, bufferAllocator, shapingLoggerFactory, nativeConfig);
         this.workerMemoryManager = workerMemoryManager;
     }
 

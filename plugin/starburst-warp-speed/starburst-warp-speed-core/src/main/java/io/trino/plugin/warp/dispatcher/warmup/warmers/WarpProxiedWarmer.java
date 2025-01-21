@@ -38,6 +38,7 @@ import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.write.PageSink;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
@@ -60,6 +61,7 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
+import org.slf4j.MDC;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -103,7 +105,8 @@ public class WarpProxiedWarmer
             GlobalConfig globalConfig,
             RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
-            StorageWriterService storageWriterService)
+            StorageWriterService storageWriterService,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.warpPageSinkFactory = warpPageSinkFactory;
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
@@ -113,11 +116,7 @@ public class WarpProxiedWarmer
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
-        shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     RowGroupData warm(ConnectorPageSourceProvider connectorPageSourceProvider,
@@ -135,122 +134,129 @@ public class WarpProxiedWarmer
             boolean extraDebug,
             List<DictionaryWarmInfo> outDictionariesWarmInfos)
     {
-        SetMultimap<WarpColumn, WarmUpElement> proxiedWarmupElementsMultimap = proxiedWarmupElements.stream()
-                .collect(Multimaps.toMultimap(WarmUpElement::getWarpColumn, Function.identity(), HashMultimap::create));
-        SchemaTableName schemaTableName = new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table());
-        List<Pair<WarmupElementWriteMetadata, ColumnHandle>> warmupElementsWriteMetadata = createWarmupElementWriteMetadata(proxiedWarmupElementsMultimap,
-                schemaTableName,
-                columnsToWarm,
-                requiredWarmUpTypeMap,
-                dispatcherTableHandle);
-        if (warmupElementsWriteMetadata.isEmpty()) {
-            return rowGroupData;
-        }
-
-        WarmupElementWriteMetadata currWarmUpElementWriteMetadata;
-        String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
-        long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
-        fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
-        StorageWriterSplitConfig storageWriterSplitConfig = null;
         try {
-            storageWarmerService.createFile(rowGroupKey);
-            fileCookieParams = storageWarmerService.fileOpen(rowGroupKey);
-            storageWriterSplitConfig = storageWriterService.startWarming(nodeIdentifier,
-                    rowGroupFilePath,
-                    WarpSessionProperties.getEnableDictionary(session),
-                    true);
+            MDC.put(ShapingLogger.QUERY_ID_LOCAL_PROPERTY, "WARMING");
+
+            SetMultimap<WarpColumn, WarmUpElement> proxiedWarmupElementsMultimap = proxiedWarmupElements.stream()
+                    .collect(Multimaps.toMultimap(WarmUpElement::getWarpColumn, Function.identity(), HashMultimap::create));
+            SchemaTableName schemaTableName = new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table());
+            List<Pair<WarmupElementWriteMetadata, ColumnHandle>> warmupElementsWriteMetadata = createWarmupElementWriteMetadata(proxiedWarmupElementsMultimap,
+                    schemaTableName,
+                    columnsToWarm,
+                    requiredWarmUpTypeMap,
+                    dispatcherTableHandle);
+            if (warmupElementsWriteMetadata.isEmpty()) {
+                return rowGroupData;
+            }
+
+            WarmupElementWriteMetadata currWarmUpElementWriteMetadata;
+            String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
+            long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
+            fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
+            StorageWriterSplitConfig storageWriterSplitConfig = null;
             try {
-                int fileOffset = firstOffset;
-                ConnectorSplit nonFilterSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
-                ConnectorTableHandle nonFilterTableHandle = dispatcherProxiedConnectorTransformer.createProxyTableHandleForWarming(dispatcherTableHandle);
-
-                for (Pair<WarmupElementWriteMetadata, ColumnHandle> pair : warmupElementsWriteMetadata) {
-                    ConnectorPageSource connectorPageSource = connectorPageSourceProvider.createPageSource(transactionHandle,
-                            session,
-                            nonFilterSplit,
-                            nonFilterTableHandle,
-                            List.of(pair.getValue()),
-                            DynamicFilter.EMPTY);
-                    logger.debug("create connectorPageSource for element %s offset %d connector %s", pair.getValue(), fileOffset, catalogNameProvider.get());
-
-                    PageSink pageSink = null;
-                    try {
-                        currWarmUpElementWriteMetadata = WarmupElementWriteMetadata.builder(pair.getKey()).connectorBlockIndex(0).build();
-                        pageSink = warpPageSinkFactory.create(storageWriterSplitConfig);
-                        boolean isValidWE = true;
-                        int rowCount = 0;
-                        while (isValidWE && !connectorPageSource.isFinished()) {
-                            Page nextPage = connectorPageSource.getNextPage();
-                            int pagePositionCount = (nextPage != null) ? nextPage.getPositionCount() : 0;
-                            if (pagePositionCount > 0) {
-                                if (rowCount == 0) { //first time
-                                    DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, fileOffset, currWarmUpElementWriteMetadata);
-                                    outDictionariesWarmInfos.add(dictionaryWarmInfo);
-                                }
-                                isValidWE = pageSink.appendPage(nextPage, rowCount);
-                                rowCount += pagePositionCount;
-                            }
-                            if (!skipWait) {
-                                storageWarmerService.waitForLoaders();
-                            }
-                        }
-
-                        WarmSinkResult warmSinkResult = storageWarmerService.sinkClose(pageSink, currWarmUpElementWriteMetadata, rowCount, isValidWE, fileOffset, fileCookieParams);
-                        pageSink = null;
-                        fileOffset = warmSinkResult.offset(); // if we failed it will set the same number again
-                        rowGroupData = rowGroupDataService.updateRowGroupData(rowGroupData, warmSinkResult.warmUpElement(), fileOffset, rowCount);
-                    }
-                    catch (Exception e) {
-                        if (pageSink != null) {
-                            boolean nativeThrowed = e instanceof TrinoException tx && ExceptionThrower.isNativeException(tx);
-                            pageSink.abort(nativeThrowed);
-                        }
-                        // fail permanently for this WarmupElement in case of 'Unsupported Trino column type'
-                        if (e instanceof TrinoException te && te.getErrorCode().equals(NOT_SUPPORTED.toErrorCode())) {
-                            rowGroupData = rowGroupDataService.markAsFailedPermanently(rowGroupData, pair.getKey().warmUpElement());
-                        }
-                        else {
-                            throw e;
-                        }
-                    }
-                    finally {
-                        closeConnector(connectorPageSource, rowGroupKey);
-                    }
-                }
-            }
-            catch (Exception e) {
-                // skip log if cause is 'Connection pool shut down'
-                if (!(ExceptionUtils.isCausedBy(e, FileNotFoundException.class) ||
-                        ExceptionUtils.isCausedBy(e, IllegalStateException.class))) {
-                    shapingLogger.error(e, "unexpected error in warm up file %s", rowGroupFilePath);
-                }
-                throw e;
-            }
-            finally {
-                storageWarmerService.flushRecords(fileCookieParams, rowGroupData); // a log will also be written here
-            }
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        finally {
-            if (storageWriterSplitConfig != null) {
+                storageWarmerService.createFile(rowGroupKey);
+                fileCookieParams = storageWarmerService.fileOpen(rowGroupKey);
+                storageWriterSplitConfig = storageWriterService.startWarming(nodeIdentifier,
+                        rowGroupFilePath,
+                        WarpSessionProperties.getEnableDictionary(session),
+                        true);
                 try {
-                    storageWriterService.finishWarming(storageWriterSplitConfig);
+                    int fileOffset = firstOffset;
+                    ConnectorSplit nonFilterSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
+                    ConnectorTableHandle nonFilterTableHandle = dispatcherProxiedConnectorTransformer.createProxyTableHandleForWarming(dispatcherTableHandle);
+
+                    for (Pair<WarmupElementWriteMetadata, ColumnHandle> pair : warmupElementsWriteMetadata) {
+                        ConnectorPageSource connectorPageSource = connectorPageSourceProvider.createPageSource(transactionHandle,
+                                session,
+                                nonFilterSplit,
+                                nonFilterTableHandle,
+                                List.of(pair.getValue()),
+                                DynamicFilter.EMPTY);
+                        logger.debug("create connectorPageSource for element %s offset %d connector %s", pair.getValue(), fileOffset, catalogNameProvider.get());
+
+                        PageSink pageSink = null;
+                        try {
+                            currWarmUpElementWriteMetadata = WarmupElementWriteMetadata.builder(pair.getKey()).connectorBlockIndex(0).build();
+                            pageSink = warpPageSinkFactory.create(storageWriterSplitConfig);
+                            boolean isValidWE = true;
+                            int rowCount = 0;
+                            while (isValidWE && !connectorPageSource.isFinished()) {
+                                Page nextPage = connectorPageSource.getNextPage();
+                                int pagePositionCount = (nextPage != null) ? nextPage.getPositionCount() : 0;
+                                if (pagePositionCount > 0) {
+                                    if (rowCount == 0) { //first time
+                                        DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, fileOffset, currWarmUpElementWriteMetadata);
+                                        outDictionariesWarmInfos.add(dictionaryWarmInfo);
+                                    }
+                                    isValidWE = pageSink.appendPage(nextPage, rowCount);
+                                    rowCount += pagePositionCount;
+                                }
+                                if (!skipWait) {
+                                    storageWarmerService.waitForLoaders();
+                                }
+                            }
+
+                            WarmSinkResult warmSinkResult = storageWarmerService.sinkClose(pageSink, currWarmUpElementWriteMetadata, rowCount, isValidWE, fileOffset, fileCookieParams);
+                            pageSink = null;
+                            fileOffset = warmSinkResult.offset(); // if we failed it will set the same number again
+                            rowGroupData = rowGroupDataService.updateRowGroupData(rowGroupData, warmSinkResult.warmUpElement(), fileOffset, rowCount);
+                        }
+                        catch (Exception e) {
+                            if (pageSink != null) {
+                                boolean nativeThrowed = e instanceof TrinoException tx && ExceptionThrower.isNativeException(tx);
+                                pageSink.abort(nativeThrowed);
+                            }
+                            // fail permanently for this WarmupElement in case of 'Unsupported Trino column type'
+                            if (e instanceof TrinoException te && te.getErrorCode().equals(NOT_SUPPORTED.toErrorCode())) {
+                                rowGroupData = rowGroupDataService.markAsFailedPermanently(rowGroupData, pair.getKey().warmUpElement());
+                            }
+                            else {
+                                throw e;
+                            }
+                        }
+                        finally {
+                            closeConnector(connectorPageSource, rowGroupKey);
+                        }
+                    }
                 }
                 catch (Exception e) {
-                    shapingLogger.error(e, "failed to release warming resources file %s", rowGroupFilePath);
+                    // skip log if cause is 'Connection pool shut down'
+                    if (!(ExceptionUtils.isCausedBy(e, FileNotFoundException.class) ||
+                            ExceptionUtils.isCausedBy(e, IllegalStateException.class))) {
+                        shapingLogger.error(e, "unexpected error in warm up file %s", rowGroupFilePath);
+                    }
+                    throw e;
+                }
+                finally {
+                    storageWarmerService.flushRecords(fileCookieParams, rowGroupData); // a log will also be written here
                 }
             }
-            storageWarmerService.fileClose(fileCookieParams, Optional.of(rowGroupData));
-        }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            finally {
+                if (storageWriterSplitConfig != null) {
+                    try {
+                        storageWriterService.finishWarming(storageWriterSplitConfig);
+                    }
+                    catch (Exception e) {
+                        shapingLogger.error(e, "failed to release warming resources file %s", rowGroupFilePath);
+                    }
+                }
+                storageWarmerService.fileClose(fileCookieParams, Optional.of(rowGroupData));
+            }
 
-        if (extraDebug &&
-                ((storageWriterSplitConfig != null) && storageWriterSplitConfig.warmUpStateOpt().isPresent())) {
-            WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().get();
-            storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements(), warmUpState);
+            if (extraDebug &&
+                    ((storageWriterSplitConfig != null) && storageWriterSplitConfig.warmUpStateOpt().isPresent())) {
+                WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().get();
+                storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements(), warmUpState);
+            }
+            return rowGroupData;
         }
-        return rowGroupData;
+        finally {
+            MDC.remove(ShapingLogger.QUERY_ID_LOCAL_PROPERTY);
+        }
     }
 
     private void closeConnector(ConnectorPageSource connectorPageSource,

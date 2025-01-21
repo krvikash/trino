@@ -14,15 +14,18 @@
 package io.trino.plugin.warp.log;
 
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.SharedConfig;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 import java.time.Duration;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -32,6 +35,8 @@ import static org.mockito.Mockito.when;
 
 public class ShapingLoggerTest
 {
+    private final String catalogName = "c";
+    private final ShapingLoggerFactory shapingLoggerFactory = new ShapingLoggerFactory(new CatalogName(catalogName), new SharedConfig());
     private Logger logger;
 
     @BeforeEach
@@ -43,7 +48,7 @@ public class ShapingLoggerTest
     @Test
     public void testSimple()
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 2, Duration.ZERO);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 2, Duration.ZERO, 1);
 
         shapingLogger.info("%s", "test");
         verify(logger, never()).info(eq("test"));
@@ -51,20 +56,24 @@ public class ShapingLoggerTest
         when(logger.isInfoEnabled()).thenReturn(true);
         shapingLogger.info("%s", "test");
         shapingLogger.info("%s", "test");
-        verify(logger, times(1)).info(eq("%s"), eq("test"));
-        verify(logger, times(1)).info(eq("%s - skipped 1 times"));
+        verify(logger, times(1))
+                .info(eq("catalog[%s]: %s".formatted(catalogName, "test")));
+        verify(logger, times(1))
+                .info(eq("catalog[%s]: %s - skipped 1 times"));
     }
 
     @Test
     public void testSimpleWithFirstOccurrences()
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 5, Duration.ZERO, 3);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 5, Duration.ZERO, 3);
 
         when(logger.isInfoEnabled()).thenReturn(true);
-        IntStream.range(0, 12).forEach((i) -> shapingLogger.info("%s", "test"));
+        IntStream.range(0, 12).forEach((_) -> shapingLogger.info("%s", "test"));
 
-        verify(logger, times(8)).info(eq("%s"), eq("test"));
-        verify(logger, times(2)).info(eq("%s - skipped 2 times"));
+        verify(logger, times(8))
+                .info(eq("catalog[%s]: %s".formatted(catalogName, "test")));
+        verify(logger, times(2))
+                .info(eq("catalog[%s]: %s - skipped 2 times"));
     }
 
     @Test
@@ -72,7 +81,7 @@ public class ShapingLoggerTest
     {
         when(logger.isInfoEnabled()).thenReturn(true);
 
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 5, Duration.ZERO);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 5, Duration.ZERO, 1);
 
         shapingLogger.info("%s", "test");
         shapingLogger.info("%s", "test");
@@ -80,13 +89,13 @@ public class ShapingLoggerTest
         shapingLogger.info("%s", "test");
         shapingLogger.info("%s", "test");
         verify(logger, times(1))
-                .info(eq("%s"), eq("test"));
+                .info(eq("catalog[%s]: %s".formatted(catalogName, "test")));
     }
 
     @Disabled
     public void testAfterThresholdShouldPrint()
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 2, Duration.ZERO);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 2, Duration.ZERO, 1);
         shapingLogger.warn("%s", "test");
         shapingLogger.warn("%s", "test");
         shapingLogger.warn("%s", "test");
@@ -97,29 +106,23 @@ public class ShapingLoggerTest
     @Test
     public void testPrintWithoutFormatIsShaped()
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(logger, 2, Duration.ZERO);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 2, Duration.ZERO, 1);
         shapingLogger.warn("test");
         shapingLogger.warn("test");
         shapingLogger.warn("test");
         verify(logger, times(2))
-                .warn(eq("%s"), eq("test"));
+                .warn(eq("catalog[%s]: %s".formatted(catalogName, "test")));
     }
 
     @Test
     public void testAfterShapingIntervalLogFirst()
             throws InterruptedException
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
                 logger,
                 0,
-                Duration.ofMillis(10));
-        shapingLogger.error("%s", "test");
-
-        Thread.sleep(13);
-
-        shapingLogger.error("%s", "test");
-
-        verify(logger, times(1)).error(eq("%s"), eq("test"));
+                Duration.ofMillis(10),
+                1);
 
         shapingLogger.error("%s", "test");
 
@@ -127,24 +130,36 @@ public class ShapingLoggerTest
 
         shapingLogger.error("%s", "test");
 
-        verify(logger, times(2)).error(eq("%s"), eq("test"));
+        verify(logger, times(1))
+                .error(eq("catalog[%s]: %s".formatted(catalogName, "test")));
+
+        shapingLogger.error("%s", "test");
+
+        Thread.sleep(13);
+
+        shapingLogger.error("%s", "test");
+
+        verify(logger, times(2))
+                .error(eq("catalog[%s]: %s".formatted(catalogName, "test")));
     }
 
     @Test
     public void testAfterShapingIntervalDontLogFirst()
             throws InterruptedException
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
                 logger,
                 2,
-                Duration.ofMillis(10));
+                Duration.ofMillis(10),
+                1);
         shapingLogger.error("%s", "test");
 
         Thread.sleep(13);
 
         shapingLogger.error("%s", "test");
 
-        verify(logger, times(1)).error(eq("%s"), eq("test"));
+        verify(logger, times(1))
+                .error(eq("catalog[%s]: %s".formatted(catalogName, "test")));
 
         shapingLogger.error("%s", "test");
 
@@ -152,21 +167,22 @@ public class ShapingLoggerTest
 
         shapingLogger.error("%s", "test");
 
-        verify(logger, times(2)).error(eq("%s"), eq("test"));
+        verify(logger, times(2))
+                .error(eq("catalog[%s]: %s".formatted(catalogName, "test")));
     }
 
     @Test
     public void testTwoCallsShouldReturnSameInstance()
     {
-        ShapingLogger shapingLogger1 = ShapingLogger.getInstance(logger, 10, Duration.ofMillis(3));
-        ShapingLogger shapingLogger2 = ShapingLogger.getInstance(logger, 10, Duration.ofMillis(3));
+        ShapingLogger shapingLogger1 = shapingLoggerFactory.getInstance(logger, 10, Duration.ofMillis(3), 1);
+        ShapingLogger shapingLogger2 = shapingLoggerFactory.getInstance(logger, 10, Duration.ofMillis(3), 1);
         assertThat(shapingLogger1).isSameAs(shapingLogger2);
     }
 
     @Test
     public void testByFormattedMessage()
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
                 logger,
                 10,
                 Duration.ZERO,
@@ -175,17 +191,17 @@ public class ShapingLoggerTest
 
         IntStream.range(0, 120).forEach(i -> shapingLogger.warn("Message %d", i % 3));
         verify(logger, times(8))
-                .warn(eq("Message %d"), eq(0));
+                .warn(eq("catalog[%s]: Message %d".formatted(catalogName, 0)));
         verify(logger, times(8))
-                .warn(eq("Message %d"), eq(1));
+                .warn(eq("catalog[%s]: Message %d".formatted(catalogName, 1)));
         verify(logger, times(8))
-                .warn(eq("Message %d"), eq(2));
+                .warn(eq("catalog[%s]: Message %d".formatted(catalogName, 2)));
     }
 
     @Test
     public void testByFormattedMessageWithoutLogFirst()
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
                 logger,
                 10,
                 Duration.ZERO,
@@ -194,18 +210,18 @@ public class ShapingLoggerTest
 
         IntStream.range(0, 120).forEach(i -> shapingLogger.warn("Message %d", i % 3));
         verify(logger, times(4))
-                .warn(eq("Message %d"), eq(0));
+                .warn(eq("catalog[%s]: Message %d".formatted(catalogName, 0)));
         verify(logger, times(4))
-                .warn(eq("Message %d"), eq(1));
+                .warn(eq("catalog[%s]: Message %d".formatted(catalogName, 1)));
         verify(logger, times(4))
-                .warn(eq("Message %d"), eq(2));
+                .warn(eq("catalog[%s]: Message %d".formatted(catalogName, 2)));
     }
 
     @Test
     public void testConcurrentByFormattedMessage()
             throws InterruptedException
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
                 logger,
                 10,
                 Duration.ZERO,
@@ -222,16 +238,16 @@ public class ShapingLoggerTest
         thread2.join();
 
         verify(logger, times(12))
-                .error(eq("Message %d"), eq(0));
+                .error(eq("catalog[%s]: Message %d".formatted(catalogName, 0)));
         verify(logger, times(12))
-                .error(eq("Message %d"), eq(1));
+                .error(eq("catalog[%s]: Message %d".formatted(catalogName, 1)));
     }
 
     @Test
     public void testConcurrentByFormat()
             throws InterruptedException
     {
-        ShapingLogger shapingLogger = ShapingLogger.getInstance(
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
                 logger,
                 10,
                 Duration.ZERO,
@@ -254,6 +270,36 @@ public class ShapingLoggerTest
         thread2.join();
 
         verify(logger, times(24))
-                .warn(eq("Message %d"), anyInt());
+                .warn(contains("catalog[%s]: Message".formatted(catalogName)));
+    }
+
+    @Test
+    public void testWithEnrichment()
+    {
+        MDC.put(ShapingLogger.QUERY_ID_LOCAL_PROPERTY, "my-query-id");
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                logger,
+                10,
+                Duration.ZERO,
+                2,
+                ShapingLogger.MODE.FULL);
+        shapingLogger.warn("%s", "test test test");
+        verify(logger, times(1))
+                .warn(eq("catalog[%s]: queryId[%s]: %s".formatted(catalogName, "my-query-id", "test test test")));
+        MDC.remove(ShapingLogger.QUERY_ID_LOCAL_PROPERTY);
+    }
+
+    @Test
+    public void testWithEnrichmentOnlyCatalog()
+    {
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                logger,
+                10,
+                Duration.ZERO,
+                2,
+                ShapingLogger.MODE.FULL);
+        shapingLogger.warn("%s", "test test test");
+        verify(logger, times(1))
+                .warn(eq("catalog[%s]: %s".formatted(catalogName, "test test test")));
     }
 }

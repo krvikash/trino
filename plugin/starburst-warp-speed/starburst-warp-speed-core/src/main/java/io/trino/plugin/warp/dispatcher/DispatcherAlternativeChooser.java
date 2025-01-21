@@ -28,6 +28,7 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -41,6 +42,7 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.predicate.TupleDomain;
+import org.slf4j.MDC;
 
 import java.util.List;
 import java.util.Objects;
@@ -278,6 +280,7 @@ public class DispatcherAlternativeChooser
         {
             if (!handled.getAndSet(true)) {
                 closeResources(closeHandler, rowGroupKey, queryContext);
+                MDC.remove(ShapingLogger.QUERY_ID_LOCAL_PROPERTY);
             }
         }
     }

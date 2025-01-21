@@ -18,13 +18,13 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpErrorCode;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.read.predicates.AllPredicateFiller;
@@ -92,7 +92,7 @@ public class PredicatesCacheService
             StorageEngineConstants storageEngineConstants,
             MetricsManager metricsManager,
             DomainToMapBlockConvertor domainToMapBlockConvertor,
-            GlobalConfig globalConfig)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -109,11 +109,7 @@ public class PredicatesCacheService
         this.activePredicatesSmall = new AtomicInteger(0);
         this.activePredicatesMedium = new AtomicInteger(0);
         this.activePredicatesLarge = new AtomicInteger(0);
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     private void initPredicateCachePoll()

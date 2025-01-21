@@ -20,7 +20,6 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.CacheManagerConfig;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
@@ -32,6 +31,7 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -64,7 +64,7 @@ public class WorkerCacheManager
 {
     private static final Logger logger = Logger.get(WorkerCacheManager.class);
 
-    private final GlobalConfig globalConfig;
+    private final ShapingLoggerFactory shapingLoggerFactory;
     private final CacheManagerConfig cacheManagerConfig;
     private final WarpCachePageSourceFactory warpCachePageSourceFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
@@ -86,7 +86,7 @@ public class WorkerCacheManager
 
     @Inject
     public WorkerCacheManager(
-            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory,
             CacheManagerConfig cacheManagerConfig,
             WarpCachePageSourceFactory warpCachePageSourceFactory,
             WorkerTaskExecutorService workerTaskExecutorService,
@@ -102,7 +102,7 @@ public class WorkerCacheManager
             CacheMgrWarmupRuleService warmupRuleService,
             NativeStorageStateHandler nativeStorageStateHandler)
     {
-        this.globalConfig = requireNonNull(globalConfig);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
         this.cacheManagerConfig = requireNonNull(cacheManagerConfig);
         this.warpCachePageSourceFactory = requireNonNull(warpCachePageSourceFactory);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
@@ -116,11 +116,7 @@ public class WorkerCacheManager
         this.warmupRuleService = requireNonNull(warmupRuleService);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
 
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
         this.chunkSize = 1 << requireNonNull(storageEngineConstants).getChunkSizeShift();
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
         this.statsPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create());
@@ -233,15 +229,15 @@ public class WorkerCacheManager
                                 Collectors.mapping(writeMetadata -> new CacheWarmupElementArgs(writeMetadata, new WarmupElementBlocks(chunkSize)),
                                         Collectors.toList())));
                 WarpCacheTask warpCacheTask = new WarpCacheTask(
-                        globalConfig,
                         cacheActions,
                         workerTaskExecutorService,
                         storageWarmerService,
-                        new WarmupCacheData(connectorIndexToWarmColumns, globalConfig),
+                        new WarmupCacheData(connectorIndexToWarmColumns, shapingLoggerFactory),
                         cacheWarmer,
                         statsWarmingService,
                         rowGroupKey,
-                        memoryContextService);
+                        memoryContextService,
+                        shapingLoggerFactory);
                 boolean taskAdded = memoryContextService.add(warpCacheTask);
                 if (taskAdded) {
                     return Optional.of(new WarpCachePageSink(warpCacheTask, workerTaskExecutorService));

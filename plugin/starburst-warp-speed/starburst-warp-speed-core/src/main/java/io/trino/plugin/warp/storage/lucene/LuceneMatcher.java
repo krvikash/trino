@@ -14,11 +14,11 @@
 package io.trino.plugin.warp.storage.lucene;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
@@ -62,7 +62,7 @@ public class LuceneMatcher
             String rowGroupFilePath,
             LucenePageCacheStats lucenePageCacheStats,
             DispatcherPageSourceStats statsDispatcherPageSource,
-            GlobalConfig globalConfig)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
@@ -73,10 +73,7 @@ public class LuceneMatcher
         this.rowGroupFilePath = rowGroupFilePath;
         this.matchOffset = luceneQueryMatchData.getWarmUpElement().getMatchOffset();
         this.statsDispatcherPageSource = statsDispatcherPageSource;
-        this.shapingLogger = ShapingLogger.getInstance(logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
         logger.debug("lucene matcher for luceneQueryMatchData %s", luceneQueryMatchData);
     }
 

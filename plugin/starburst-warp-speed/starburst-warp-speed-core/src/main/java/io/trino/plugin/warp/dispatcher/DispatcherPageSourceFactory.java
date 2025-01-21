@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -31,6 +30,7 @@ import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -62,7 +62,9 @@ public abstract class DispatcherPageSourceFactory
     public static final String PREFILLED = "prefilled";
 
     private static final Logger logger = Logger.get(DispatcherPageSourceFactory.class);
-    private final ShapingLogger shapingLogger;
+
+    protected final ShapingLoggerFactory shapingLoggerFactory;
+    protected final ShapingLogger shapingLogger;
     protected final ReadErrorHandler readErrorHandler;
     protected final CollectTxService collectTxService;
     protected final StorageCollectorService storageCollectorService;
@@ -73,7 +75,6 @@ public abstract class DispatcherPageSourceFactory
     protected final PredicatesCacheService predicatesCacheService;
     protected final QueryClassifier queryClassifier;
 
-    protected final GlobalConfig globalConfig;
     protected final LazyCollectorService lazyCollectorService;
 
     public DispatcherPageSourceFactory(
@@ -83,7 +84,7 @@ public abstract class DispatcherPageSourceFactory
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             PredicatesCacheService predicatesCacheService,
             QueryClassifier queryClassifier,
-            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory,
             ReadErrorHandler readErrorHandler,
             CollectTxService collectTxService,
             StorageCollectorService storageCollectorService,
@@ -95,18 +96,14 @@ public abstract class DispatcherPageSourceFactory
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
         this.queryClassifier = requireNonNull(queryClassifier);
-        this.globalConfig = requireNonNull(globalConfig);
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
         this.readErrorHandler = requireNonNull(readErrorHandler);
         this.collectTxService = requireNonNull(collectTxService);
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
         this.matchService = requireNonNull(matchService);
 
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
         metricsManager.registerMetric(DispatcherPageSourceStats.create());
         metricsManager.registerMetric(LucenePageCacheStats.create());
     }

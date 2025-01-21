@@ -16,12 +16,12 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -43,6 +43,7 @@ import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_MATCH_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
+import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class MatchService
@@ -54,26 +55,22 @@ public class MatchService
     private final BufferAllocator bufferAllocator;
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
-    private final GlobalConfig globalConfig;
+    private final ShapingLoggerFactory shapingLoggerFactory;
     private final NativeConfig nativeConfig;
 
     @Inject
     MatchService(BufferAllocator bufferAllocator,
             StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
-            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory,
             NativeConfig nativeConfig)
     {
         this.bufferAllocator = bufferAllocator;
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
-        this.globalConfig = globalConfig;
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
         this.nativeConfig = nativeConfig;
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     public MatcherArgs open(QueryArgs queryArgs, CustomStatsContext customStatsContext)
@@ -111,7 +108,7 @@ public class MatchService
                         queryArgs.queryParams().getFilePath(),
                         lucenePageCacheStats,
                         dispatcherPageSourceStats,
-                        globalConfig);
+                        shapingLoggerFactory);
             }
             matchIx++;
         }

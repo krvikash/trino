@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.connector.ConnectorMetadata;
 
 import static java.util.Objects.requireNonNull;
@@ -28,18 +29,21 @@ public class DispatcherMetadataFactory
     private final DispatcherStatisticsProvider dispatcherStatisticsProvider;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
     private final GlobalConfig globalConfig;
+    private final ShapingLoggerFactory shapingLoggerFactory;
 
     @Inject
     public DispatcherMetadataFactory(
             ExpressionService expressionService,
             DispatcherStatisticsProvider dispatcherStatisticsProvider,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.expressionService = requireNonNull(expressionService);
         this.dispatcherStatisticsProvider = requireNonNull(dispatcherStatisticsProvider);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
         this.globalConfig = requireNonNull(globalConfig);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
     }
 
     public DispatcherMetadata createMetadata(ConnectorMetadata connectorMetadata)
@@ -49,6 +53,7 @@ public class DispatcherMetadataFactory
                 expressionService,
                 dispatcherStatisticsProvider,
                 dispatcherTableHandleBuilderProvider,
-                globalConfig);
+                globalConfig,
+                shapingLoggerFactory);
     }
 }

@@ -20,6 +20,7 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.dispatcher.CompletedDynamicFilter;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -57,6 +58,7 @@ import io.trino.plugin.warp.juffer.PredicateBufferInfo;
 import io.trino.plugin.warp.juffer.PredicateBufferPoolType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
@@ -201,7 +203,9 @@ public class QueryClassifierTest
                 bufferAllocator,
                 nativeConfig,
                 dispatcherProxiedConnectorTransformer,
-                matchCollectIdService, globalConfig);
+                matchCollectIdService,
+                globalConfig,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
         testingConnectorColumnHandles = new ArrayList<>();
         testingConnectorColumnHandles.add(mockColumnHandle("h0", IntegerType.INTEGER, dispatcherProxiedConnectorTransformer));
@@ -380,7 +384,9 @@ public class QueryClassifierTest
                 bufferAllocator,
                 nativeConfig,
                 dispatcherProxiedConnectorTransformer,
-                matchCollectIdService, globalConfig);
+                matchCollectIdService,
+                globalConfig,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
         QueryClassifier queryClassifier = new QueryClassifier(
                 classifierFactory,
@@ -442,7 +448,9 @@ public class QueryClassifierTest
                 bufferAllocator,
                 nativeConfig,
                 dispatcherProxiedConnectorTransformer,
-                matchCollectIdService, globalConfig);
+                matchCollectIdService,
+                globalConfig,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
         QueryClassifier queryClassifier = new QueryClassifier(
                 classifierFactory,

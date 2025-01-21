@@ -26,6 +26,7 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
 import org.gaul.modernizer_maven_annotations.SuppressModernizer;
@@ -57,17 +58,15 @@ public class RowGroupDataDao
     @Inject
     public RowGroupDataDao(
             GlobalConfig globalConfig,
+            StorageEngineConstants storageEngineConstants,
             ObjectMapperProvider objectMapperProvider,
-            StorageEngineConstants storageEngineConstants)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
         this.globalConfig = requireNonNull(globalConfig);
+        this.storageEngineConstants = requireNonNull(storageEngineConstants);
 
         objectMapper = requireNonNull(objectMapperProvider).get();
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
 
         CacheLoader<RowGroupKey, Optional<RowGroupData>> loader = new CacheLoader<>()
         {
@@ -117,7 +116,6 @@ public class RowGroupDataDao
         cache = buildUnsafeCache(CacheBuilder.newBuilder()
                         .maximumSize(Integer.MAX_VALUE), // replace MAX_VALUE with a config
                 loader);
-        this.storageEngineConstants = requireNonNull(storageEngineConstants);
     }
 
     @SuppressModernizer

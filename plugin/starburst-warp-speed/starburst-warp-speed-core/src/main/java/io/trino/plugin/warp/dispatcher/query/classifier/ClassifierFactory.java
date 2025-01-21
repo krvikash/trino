@@ -23,6 +23,7 @@ import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 
 import java.util.List;
@@ -39,6 +40,8 @@ public class ClassifierFactory
     private final GlobalConfig globalConfig;
     private final NativeConfig nativeConfig;
     private final BufferAllocator bufferAllocator;
+    private final ShapingLoggerFactory shapingLoggerFactory;
+
     private ImmutableMap<ClassificationType, List<Classifier>> classificationTypeToClassifiers;
 
     @Inject
@@ -48,7 +51,8 @@ public class ClassifierFactory
             NativeConfig nativeConfig,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             MatchCollectIdService matchCollectIdService,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
@@ -57,6 +61,7 @@ public class ClassifierFactory
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.matchCollectIdService = requireNonNull(matchCollectIdService);
         this.globalConfig = requireNonNull(globalConfig);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
     }
 
     private void buildClassifiers()
@@ -65,7 +70,7 @@ public class ClassifierFactory
         MatchClassifier matchClassifier = getMatchClassifier();
         PrefilledCollectClassifier prefilledCollectClassifier = new PrefilledCollectClassifier(
                 dispatcherProxiedConnectorTransformer,
-                globalConfig);
+                shapingLoggerFactory);
         NativeCollectClassifier nativeCollectClassifier = new NativeCollectClassifier(
                 storageEngineConstants.getMatchCollectBufferSize(),
                 storageEngineConstants.getMaxChunksInRange(),
@@ -76,7 +81,7 @@ public class ClassifierFactory
                 dispatcherProxiedConnectorTransformer);
         MatchPrepareAfterCollectClassifier matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService,
                 storageEngineConstants.getMaxMatchColumns());
-        PredicateBufferClassifier predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService, globalConfig);
+        PredicateBufferClassifier predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService, shapingLoggerFactory);
         AllProxyDecisionClassifier allProxyDecisionClassifier = new AllProxyDecisionClassifier(dispatcherProxiedConnectorTransformer);
         List<Classifier> classifiers = List.of(
                 matchClassifier,
@@ -103,12 +108,12 @@ public class ClassifierFactory
     {
         ImmutableList.Builder<Matcher> matchers = ImmutableList.builder();
         if (globalConfig.getEnableRangeFilter()) {
-            matchers.add(new RangeMatcher(globalConfig));
+            matchers.add(new RangeMatcher(shapingLoggerFactory));
         }
         matchers.add(
                 new LuceneElementsMatcher(dispatcherProxiedConnectorTransformer),
                 new BasicMatcher());
-        return new MatchClassifier(matchers.build(), globalConfig);
+        return new MatchClassifier(matchers.build(), shapingLoggerFactory);
     }
 
     List<Classifier> getClassifiers(ClassificationType classificationType)

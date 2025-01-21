@@ -13,10 +13,9 @@ package io.trino.plugin.warp.storage.read;
  * limitations under the License.
  */
 
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
@@ -33,7 +32,6 @@ import static java.util.Objects.requireNonNull;
 public class WarpPageSource
         implements WarpStoragePageSource
 {
-    private static final Logger logger = Logger.get(WarpPageSource.class);
     public static final int INVALID_COL_IX = -1;
     private final ShapingLogger shapingLogger;
 
@@ -52,7 +50,7 @@ public class WarpPageSource
             QueryParams queryParams,
             PredicatesCacheService predicatesCacheService,
             CustomStatsContext customStatsContext,
-            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory,
             StorageCollectorService storageCollectorService,
             LazyCollectorService lazyCollectorService,
             MatchService matchService,
@@ -62,11 +60,7 @@ public class WarpPageSource
         this.predicatesCacheService = predicatesCacheService;
         this.sortedRowRanges = RowRanges.EMPTY;
         this.queryParams = queryParams;
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(WarpPageSource.class);
         boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
         StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
         reader = new WarpReader(
@@ -75,7 +69,7 @@ public class WarpPageSource
                 collectorService,
                 matchService,
                 workerMemoryManager,
-                globalConfig,
+                shapingLoggerFactory,
                 storageEngineConstants.getPageSize(),
                 rowsLimit);
     }

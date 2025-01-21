@@ -17,11 +17,11 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.DictionaryConfig;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -55,18 +55,14 @@ public class AttachDictionaryService
             DictionaryConfig dictionaryConfig,
             MetricsManager metricsManager,
             DictionaryWriterFactory dictionaryWriterFactory,
-            GlobalConfig globalConfig)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.dictionaryConfig = requireNonNull(dictionaryConfig);
         this.dictionaryStats = metricsManager.registerMetric(DictionaryStats.create());
         this.dictionaryWriterFactory = requireNonNull(dictionaryWriterFactory);
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     public int save(
@@ -140,7 +136,7 @@ public class AttachDictionaryService
             long length = randomAccessFile.readLong();
 
             if (length == 0) {
-                logger.error("load dictionary failed dictionaryKey %s rowGroupFilePath %s dictionaryOffset %d length %d",
+                shapingLogger.error("load dictionary failed dictionaryKey %s rowGroupFilePath %s dictionaryOffset %d length %d",
                         dictionaryKey, rowGroupFilePath, dictionaryOffset, length);
                 throw new RuntimeException("end of file reached");
             }
@@ -150,7 +146,7 @@ public class AttachDictionaryService
             int readBytes = randomAccessFile.read(dictionaryBytes);
 
             if (readBytes <= 0) {
-                logger.error("load dictionary failed dictionaryKey %s rowGroupFilePath %s length %d readBytes %d", dictionaryKey, rowGroupFilePath, length, readBytes);
+                shapingLogger.error("load dictionary failed dictionaryKey %s rowGroupFilePath %s length %d readBytes %d", dictionaryKey, rowGroupFilePath, length, readBytes);
                 throw new RuntimeException("end of file reached");
             }
             logger.debug("load dictionary dictionaryKey %s rowGroupFilePath %s recTypeCode %s", dictionaryKey, rowGroupFilePath, recTypeCode);
@@ -160,7 +156,7 @@ public class AttachDictionaryService
             dataValuesDictionary.setImmutable();
         }
         catch (IOException e) {
-            logger.error("load dictionary failed dictionaryKey %s rowGroupFilePath %s message %s", dictionaryKey, rowGroupFilePath, e.getMessage());
+            shapingLogger.error("load dictionary failed dictionaryKey %s rowGroupFilePath %s message %s", dictionaryKey, rowGroupFilePath, e.getMessage());
             throw new RuntimeException(e);
         }
         return dataValuesDictionary;

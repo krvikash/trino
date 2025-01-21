@@ -25,6 +25,7 @@ import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.connector.TestingConnectorTableHandle;
@@ -43,8 +44,10 @@ import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.ExperimentSupportedFunction;
 import io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.NativeExpressionRulesHandler;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorSession;
@@ -111,6 +114,7 @@ public class DispatcherMetadataTest
     private DispatcherStatisticsProvider dispatcherStatisticsProvider;
     private DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
     private final GlobalConfig globalConfig = new GlobalConfig();
+    private final ShapingLoggerFactory shapingLoggerFactory = new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig());
 
     @BeforeEach
     public void before()
@@ -165,7 +169,8 @@ public class DispatcherMetadataTest
                 expressionService,
                 dispatcherStatisticsProvider,
                 dispatcherTableHandleBuilderProvider,
-                globalConfig);
+                globalConfig,
+                shapingLoggerFactory);
 
         // Apply predicate pushdown on the first column.
         DispatcherTableHandle dispatcherTableHandle = createDispatcherTableHandle();
@@ -420,7 +425,8 @@ public class DispatcherMetadataTest
                 expressionService,
                 dispatcherStatisticsProvider,
                 dispatcherTableHandleBuilderProvider,
-                globalConfig);
+                globalConfig,
+                shapingLoggerFactory);
         when(session.getProperty(ENABLE_OR_PUSHDOWN, Boolean.class)).thenReturn(true);
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> result = dispatcherMetadata.applyFilter(
                 session, dispatcherTableHandle, constraint);
@@ -448,7 +454,8 @@ public class DispatcherMetadataTest
                 expressionService,
                 dispatcherStatisticsProvider,
                 dispatcherTableHandleBuilderProvider,
-                globalConfig);
+                globalConfig,
+                shapingLoggerFactory);
         Optional<LimitApplicationResult<ConnectorTableHandle>> result = dispatcherMetadata.applyLimit(session, dispatcherTableHandle, 1);
         assertThat(result.isPresent()).isTrue();
         DispatcherTableHandle dispatcherTableHandle1 = (DispatcherTableHandle) result.orElseThrow().getHandle();
@@ -524,7 +531,8 @@ public class DispatcherMetadataTest
                 expressionService,
                 spyDispatcherStatisticsProvider,
                 dispatcherTableHandleBuilderProvider,
-                globalConfig);
+                globalConfig,
+                shapingLoggerFactory);
 
         dispatcherMetadata.getTableHandle(session, schemaTableName, Optional.empty(), Optional.empty());
         dispatcherMetadata.getTableHandle(session, schemaTableName, Optional.empty(), Optional.empty());

@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup;
 
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -23,6 +22,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -41,7 +41,7 @@ public class ImportExecutionTask
     public ImportExecutionTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
             WarmingServiceStats statsWarmingService,
             WorkerWarmingService workerWarmingService,
-            GlobalConfig globalConfig,
+            ShapingLoggerFactory shapingLoggerFactory,
             ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
@@ -58,7 +58,26 @@ public class ImportExecutionTask
             int iterationCount,
             int executionTaskPriority)
     {
-        super(warmExecutionTaskFactory, workerTaskExecutorService, statsWarmingService, warmingManager, workerWarmingService, globalConfig, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, nativeStorageStateHandler, iterationCount);
+        super(
+                warmExecutionTaskFactory,
+                workerTaskExecutorService,
+                statsWarmingService,
+                warmingManager,
+                workerWarmingService,
+                shapingLoggerFactory,
+                connectorPageSourceProvider,
+                transactionHandle,
+                session,
+                dispatcherTableHandle,
+                rowGroupKey,
+                columns,
+                dispatcherSplit,
+                dynamicFilter,
+                rowGroupDataService,
+                queryClassifier,
+                warmupElementsCreator,
+                nativeStorageStateHandler,
+                iterationCount);
         this.executionTaskPriority = executionTaskPriority;
     }
 

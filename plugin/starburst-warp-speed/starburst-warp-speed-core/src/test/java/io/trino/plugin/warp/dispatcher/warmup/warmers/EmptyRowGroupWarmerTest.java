@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
 import com.google.common.collect.SetMultimap;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -28,9 +28,11 @@ import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.Pair;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.IntegerType;
@@ -77,7 +79,7 @@ public class EmptyRowGroupWarmerTest
                 mock(StorageEngineConstants.class),
                 mock(BufferAllocator.class),
                 new TestingConnectorProxiedConnectorTransformer(),
-                new GlobalConfig());
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
         EmptyRowGroupWarmer emptyRowGroupWarmer = new EmptyRowGroupWarmer(rowGroupDataService);
         String columnName = "C1";

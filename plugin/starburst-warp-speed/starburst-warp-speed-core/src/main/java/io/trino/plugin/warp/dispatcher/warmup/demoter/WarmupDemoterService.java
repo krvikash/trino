@@ -19,11 +19,11 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
@@ -71,7 +71,7 @@ public class WarmupDemoterService
             WarpDeleteService warpDeleteService,
             NodeManager nodeManager,
             FlowsSequencer flowsSequencer,
-            GlobalConfig globalConfig)
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
@@ -81,11 +81,7 @@ public class WarmupDemoterService
         this.eventBus = requireNonNull(eventBus);
         this.warpDeleteService = requireNonNull(warpDeleteService);
 
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
 
         demoteKey = demoterSync.registerCatalog(
                 this,

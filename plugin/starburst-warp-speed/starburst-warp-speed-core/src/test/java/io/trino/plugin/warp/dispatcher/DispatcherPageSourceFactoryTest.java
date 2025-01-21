@@ -18,6 +18,7 @@ import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorPageSource;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.connector.TestingConnectorTableHandle;
@@ -43,6 +44,7 @@ import io.trino.plugin.warp.juffer.PredicateBufferInfo;
 import io.trino.plugin.warp.juffer.PredicateBufferPoolType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
@@ -198,7 +200,8 @@ public class DispatcherPageSourceFactoryTest
                 nativeConfig,
                 dispatcherProxiedConnectorTransformer,
                 matchCollectIdService,
-                globalConfig);
+                globalConfig,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         QueryClassifier queryClassifier = new QueryClassifier(classifierFactory,
                 storageEngine,
                 matchCollectIdService,
@@ -228,8 +231,11 @@ public class DispatcherPageSourceFactoryTest
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 workerWarmingService,
-                new WorkerMemoryManager(globalConfig2, new CatalogName("f")),
-                nativeStorageStateHandler);
+                new WorkerMemoryManager(
+                        new CatalogName("f"),
+                        new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),
+                nativeStorageStateHandler,
+                new ShapingLoggerFactory(new CatalogName("catalog-name"), new SharedConfig()));
     }
 
     @Test

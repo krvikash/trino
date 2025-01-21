@@ -19,7 +19,10 @@ import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoInput;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.plugin.warp.cloudstorage.CloudStorage;
+import io.trino.plugin.warp.config.SharedConfig;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +55,9 @@ public class CloudVendorStorageServiceTest
     void setUp()
     {
         cloudStorage = Mockito.mock(CloudStorage.class);
-        cloudVendorStorageService = new CloudVendorStorageService(cloudStorage);
+        cloudVendorStorageService = new CloudVendorStorageService(
+                cloudStorage,
+                new ShapingLoggerFactory(new CatalogName("catalog"), new SharedConfig()));
     }
 
     @Test

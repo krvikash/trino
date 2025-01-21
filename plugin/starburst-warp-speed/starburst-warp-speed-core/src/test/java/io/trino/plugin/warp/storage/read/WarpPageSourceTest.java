@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -31,12 +31,14 @@ import io.trino.plugin.warp.juffer.PredicateBufferInfo;
 import io.trino.plugin.warp.juffer.PredicateBufferPoolType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.Page;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.IntegerType;
@@ -55,7 +57,7 @@ public class WarpPageSourceTest
 {
     private StorageEngineConstants storageEngineConstants;
     private CustomStatsContext customStatsContext;
-    private GlobalConfig globalConfig;
+    private ShapingLoggerFactory shapingLoggerFactory;
 
     @BeforeEach
     public void before()
@@ -67,7 +69,7 @@ public class WarpPageSourceTest
         this.customStatsContext = new CustomStatsContext(metricsManager, Collections.emptyList());
         customStatsContext.getOrRegister(new DispatcherPageSourceStats());
         customStatsContext.getOrRegister(new DictionaryStats());
-        globalConfig = new GlobalConfig();
+        shapingLoggerFactory = new ShapingLoggerFactory(new CatalogName("catalog-name"), new SharedConfig());
     }
 
     @Disabled
@@ -81,7 +83,7 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,
-                globalConfig,
+                shapingLoggerFactory,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),
@@ -132,7 +134,7 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,
-                globalConfig,
+                shapingLoggerFactory,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),
@@ -175,7 +177,7 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,
-                globalConfig,
+                shapingLoggerFactory,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),
@@ -209,7 +211,7 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,
-                globalConfig,
+                shapingLoggerFactory,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),
@@ -266,7 +268,7 @@ public class WarpPageSourceTest
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,
-                globalConfig,
+                shapingLoggerFactory,
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class),
                 mock(MatchService.class),

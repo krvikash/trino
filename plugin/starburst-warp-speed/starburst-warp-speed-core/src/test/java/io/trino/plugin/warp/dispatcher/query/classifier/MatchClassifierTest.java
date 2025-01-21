@@ -15,6 +15,7 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
@@ -31,6 +32,8 @@ import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
@@ -77,7 +80,9 @@ class MatchClassifierTest
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         dispatcherTableHandle = mock(DispatcherTableHandle.class);
         BasicMatcher basicMatcher = new BasicMatcher();
-        matchClassifier = new MatchClassifier(List.of(basicMatcher), new GlobalConfig());
+        matchClassifier = new MatchClassifier(
+                List.of(basicMatcher),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         List<String> columnNames = List.of("a", "b", "c", "d");
         columns = columnNames.stream().map(columnName -> mockColumnHandle(columnName, IntegerType.INTEGER, dispatcherProxiedConnectorTransformer)).collect(Collectors.toMap(TestingConnectorColumnHandle::name, columnHandle -> columnHandle));
         predicateContextFactory = new PredicateContextFactory(new GlobalConfig(),

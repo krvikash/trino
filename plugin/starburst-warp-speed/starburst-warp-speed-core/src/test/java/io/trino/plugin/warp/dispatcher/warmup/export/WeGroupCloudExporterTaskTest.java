@@ -19,6 +19,7 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.model.FastWarmingState;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -30,6 +31,8 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -111,7 +114,8 @@ public class WeGroupCloudExporterTaskTest
                 rowGroupDataService,
                 warmupElementsCloudExporter,
                 globalConfig,
-                warmupExportServiceStats);
+                warmupExportServiceStats,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         task.run();
 
         verify(warmupElementsCloudExporter, times(1)).exportFile(any(RowGroupData.class), eq(cloudImportExportPath));
@@ -139,7 +143,8 @@ public class WeGroupCloudExporterTaskTest
                 rowGroupDataService,
                 warmupElementsCloudExporter,
                 globalConfig,
-                warmupExportServiceStats);
+                warmupExportServiceStats,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         task.run();
 
         verify(warmupElementsCloudExporter, times(1))

@@ -18,6 +18,7 @@ import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -39,6 +40,7 @@ public class WorkerStorageEngineProvider
     private final CatalogName catalogName;
     private final ExceptionThrower exceptionThrower;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
+    private final ShapingLoggerFactory shapingLoggerFactory;
 
     private StorageEngine storageEngine;
 
@@ -49,7 +51,8 @@ public class WorkerStorageEngineProvider
             ConnectorSync connectorSync,
             CatalogName catalogName,
             ExceptionThrower exceptionThrower,
-            FailureGeneratorInvocationHandler failureGeneratorInvocationHandler)
+            FailureGeneratorInvocationHandler failureGeneratorInvocationHandler,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.sharedConfig = requireNonNull(sharedConfig);
         this.nativeConfig = requireNonNull(nativeConfig);
@@ -57,6 +60,7 @@ public class WorkerStorageEngineProvider
         this.catalogName = requireNonNull(catalogName);
         this.exceptionThrower = requireNonNull(exceptionThrower);
         this.failureGeneratorInvocationHandler = requireNonNull(failureGeneratorInvocationHandler);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
     }
 
     @Override
@@ -68,7 +72,8 @@ public class WorkerStorageEngineProvider
                     nativeConfig,
                     exceptionThrower,
                     connectorSync,
-                    catalogName);
+                    catalogName,
+                    shapingLoggerFactory);
 
             if (sharedConfig.isFailureGeneratorEnabled()) {
                 storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),

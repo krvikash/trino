@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
@@ -33,6 +32,7 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.Domain;
@@ -70,7 +70,9 @@ class PredicateBufferClassifier
     private final PredefinedPredicate luceneWithNulls;
     private final PredefinedPredicate luceneWithoutNulls;
 
-    PredicateBufferClassifier(PredicatesCacheService predicatesCacheService, GlobalConfig globalConfig)
+    PredicateBufferClassifier(
+            PredicatesCacheService predicatesCacheService,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.predicatesCacheService = predicatesCacheService;
         this.noneWithNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_NONE, true);
@@ -79,11 +81,7 @@ class PredicateBufferClassifier
         this.allWithoutNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_ALL, false);
         this.luceneWithNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_LUCENE, true);
         this.luceneWithoutNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_LUCENE, false);
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     @Override

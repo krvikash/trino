@@ -19,6 +19,7 @@ import com.google.common.eventbus.EventBus;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -42,6 +43,7 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -49,6 +51,7 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -145,7 +148,8 @@ public class ProxyExecutionTaskTest
                 metricsManager,
                 mock(StorageEngineConstants.class),
                 mock(BufferAllocator.class),
-                new TestingConnectorProxiedConnectorTransformer(), globalConfig);
+                new TestingConnectorProxiedConnectorTransformer(),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
     }
@@ -309,7 +313,8 @@ public class ProxyExecutionTaskTest
                 flowsSequencer,
                 TestingTxService.createMetricsManager(),
                 workerCapacityManager,
-                mock(NativeStorageStateHandler.class));
+                mock(NativeStorageStateHandler.class),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
         return new ProxyExecutionTask(mock(WarmExecutionTaskFactory.class),
                 eventBus,
@@ -333,6 +338,7 @@ public class ProxyExecutionTaskTest
                 1,
                 0,
                 mock(WorkerTaskExecutorService.class),
-                storageWarmerService);
+                storageWarmerService,
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }
 }

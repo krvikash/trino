@@ -14,9 +14,11 @@
 package io.trino.plugin.warp.storage.write;
 
 import io.airlift.slice.Slices;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.IntegerType;
@@ -33,7 +35,7 @@ public class WarmupElementStatsServiceTest
     @BeforeAll
     public static void beforeAll()
     {
-        warmupElementStatsService = new WarmupElementStatsService(new GlobalConfig());
+        warmupElementStatsService = new WarmupElementStatsService(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }
 
     @Test

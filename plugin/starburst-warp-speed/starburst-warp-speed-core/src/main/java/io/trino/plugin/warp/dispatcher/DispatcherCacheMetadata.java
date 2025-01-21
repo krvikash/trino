@@ -18,10 +18,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.json.ObjectMapperProvider;
-import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.cache.ConnectorCacheMetadata;
@@ -47,17 +47,14 @@ public class DispatcherCacheMetadata
             @ForWarp ConnectorCacheMetadata proxiedConnectorCacheMetadata,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
             GlobalConfig globalConfig,
-            ObjectMapperProvider objectMapperProvider)
+            ObjectMapperProvider objectMapperProvider,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.proxiedConnectorCacheMetadata = requireNonNull(proxiedConnectorCacheMetadata);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
         predicateThreashold = requireNonNull(globalConfig).getPredicateSimplifyThreshold();
-        this.objectMapper = objectMapperProvider.get();
-        this.shapingLogger = ShapingLogger.getInstance(
-                Logger.get(DispatcherCacheMetadata.class),
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
+        objectMapper = requireNonNull(objectMapperProvider).get();
+        shapingLogger = requireNonNull(shapingLoggerFactory).getInstance(DispatcherCacheMetadata.class);
     }
 
     @Override
