@@ -42,6 +42,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static com.google.common.io.Resources.getResource;
@@ -172,16 +173,28 @@ public abstract class BaseElasticsearchConnectorTest
                         server.getAddress().getPort(),
                         new File(getResource("truststore.jks").toURI()).getPath());
         assertUpdate(createCatalogSql);
-        assertCatalogs("system", "elasticsearch", "tpch", "mock_dynamic_listing", "jmx", catalog);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
 
         assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "elasticsearch", "tpch", "mock_dynamic_listing", "jmx");
+        assertCatalogs(availableCatalogs(Optional.empty()));
         // re-add the same catalog
         assertUpdate(createCatalogSql);
-        assertCatalogs("system", "elasticsearch", "tpch", "mock_dynamic_listing", "jmx", catalog);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
 
         assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "elasticsearch", "tpch", "mock_dynamic_listing", "jmx");
+        assertCatalogs(availableCatalogs(Optional.empty()));
+    }
+
+    protected String[] availableCatalogs(Optional<String> catalog)
+    {
+        ImmutableList.Builder<String> catalogs = ImmutableList.builder();
+        catalogs.add("system")
+                .add("elasticsearch")
+                .add("tpch")
+                .add("mock_dynamic_listing")
+                .add("jmx");
+        catalog.ifPresent(catalogs::add);
+        return catalogs.build().toArray(new String[0]);
     }
 
     @Test

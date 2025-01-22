@@ -124,7 +124,7 @@ public abstract class BaseIcebergConnectorSmokeTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
+    protected void testCreateDropDynamicCatalog()
     {
         String catalog = "new_catalog_" + randomNameSuffix();
         String createCatalogSql = "CREATE CATALOG %s USING iceberg".formatted(catalog);

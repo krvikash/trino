@@ -48,6 +48,7 @@ import static io.trino.testing.QueryAssertions.copyTpchTables;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 final class TestHiveOzoneWithOfsConnectorSmokeTest
         extends TestHiveConnectorSmokeTest
@@ -130,6 +131,43 @@ final class TestHiveOzoneWithOfsConnectorSmokeTest
             List<MaterializedRow> paths = getQueryRunner().execute(getSession(), "SELECT distinct \"$path\" FROM " + table.getName()).getMaterializedRows();
             paths.stream().map(row -> row.getField(0))
                     .forEach(path -> assertThat(path).asString().startsWith(pathToBucket));
+        }
+    }
+
+    @Test
+    @Override
+    public void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        String schemaName = "test_dynamic";
+        try {
+            String createCatalogSql = "CREATE CATALOG %s USING hive";
+            // "fs.hadoop.enabled" = 'true' is needed to provide Apache Ozone libraries to recognize ofs filesystem. Otherwise:
+            // Invalid location URI: ofs://
+            // No factory for location: ofs://
+            createCatalogSql +=
+                    """
+
+                    WITH (
+                       "fs.hadoop.enabled" = 'true'
+                    )""";
+            assertUpdate(createCatalogSql.formatted(catalog));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                    .isEqualTo(createCatalogSql.formatted(catalog));
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                       "hive.security" = 'read-only'
+                    """
+                            .formatted(catalog));
+            assertThatThrownBy(() -> assertUpdate("CREATE SCHEMA %s.%s".formatted(catalog, schemaName))).hasMessageContaining("Access Denied: Cannot create schema " + schemaName);
+            assertUpdate(alterCatalogSql(catalog));
+            assertUpdate(createSchemaSql("%s.%s".formatted(catalog, schemaName)));
+        }
+        finally {
+            assertUpdate("DROP SCHEMA IF EXISTS %s.%s".formatted(catalog, schemaName));
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
     }
 

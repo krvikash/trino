@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.mysql;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.mysql.cj.jdbc.exceptions.MysqlDataTruncation;
 import io.trino.Session;
@@ -103,16 +104,27 @@ public abstract class BaseMySqlConnectorTest
         @Language("SQL")
         String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, mySqlServer.getPassword(), mySqlServer.getJdbcUrl(), mySqlServer.getUsername());
         assertUpdate(createCatalogSql);
-        assertCatalogs("system", "mysql", "tpch", "mock_dynamic_listing", catalog);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
 
         assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "mysql", "tpch", "mock_dynamic_listing");
+        assertCatalogs(availableCatalogs(Optional.empty()));
         // re-add the same catalog
         assertUpdate(createCatalogSql);
-        assertCatalogs("system", "mysql", "tpch", "mock_dynamic_listing", catalog);
+        assertCatalogs(availableCatalogs(Optional.of(catalog)));
 
         assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "mysql", "tpch", "mock_dynamic_listing");
+        assertCatalogs(availableCatalogs(Optional.empty()));
+    }
+
+    protected String[] availableCatalogs(Optional<String> catalog)
+    {
+        ImmutableList.Builder<String> catalogs = ImmutableList.builder();
+        catalogs.add("system")
+                .add("mysql")
+                .add("tpch")
+                .add("mock_dynamic_listing");
+        catalog.ifPresent(catalogs::add);
+        return catalogs.build().toArray(new String[0]);
     }
 
     @Test

@@ -186,6 +186,7 @@ public class TestHiveConnectorSmokeTest
     public void testCatalogSetProperties()
     {
         String catalog = "catalog_set_props_" + randomNameSuffix();
+        String schemaName = "test_dynamic";
         try {
             String createCatalogSql = "CREATE CATALOG %s USING hive";
             assertUpdate(createCatalogSql.formatted(catalog));
@@ -198,19 +199,22 @@ public class TestHiveConnectorSmokeTest
                        "hive.security" = 'read-only'
                     """
                             .formatted(catalog));
-            assertThatThrownBy(() -> assertUpdate("CREATE SCHEMA %s.test_dynamic".formatted(catalog))).hasMessageContaining("Access Denied: Cannot create schema test_dynamic");
-            assertUpdate(
-                    """
-                    ALTER CATALOG %s SET PROPERTIES
-                      "hive.security" = 'allow-all'
-                    """
-                            .formatted(catalog));
-            assertUpdate("CREATE SCHEMA %s.test_dynamic".formatted(catalog));
+            assertThatThrownBy(() -> assertUpdate("CREATE SCHEMA %s.%s".formatted(catalog, schemaName))).hasMessageContaining("Access Denied: Cannot create schema " + schemaName);
+            assertUpdate(alterCatalogSql(catalog));
+            assertUpdate(createSchemaSql("%s.%s".formatted(catalog, schemaName)));
         }
         finally {
-            assertUpdate("DROP SCHEMA IF EXISTS %s.test_dynamic".formatted(catalog));
+            assertUpdate("DROP SCHEMA IF EXISTS %s.%s".formatted(catalog, schemaName));
             assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
+    }
+
+    protected String alterCatalogSql(String catalog)
+    {
+        return """
+               ALTER CATALOG %s SET PROPERTIES
+               "hive.security" = 'allow-all'
+               """.formatted(catalog);
     }
 
     private static String[] availableCatalogs(Optional<String> catalog)
