@@ -110,6 +110,7 @@ public class TestHiveCacheIds
                 SqlStandardAccessControlMetadata::new,
                 new CachingDirectoryLister(config),
                 new TransactionScopeCachingDirectoryListerFactory(config),
+                true,
                 true);
 
         metadata = new HiveCacheMetadata(
