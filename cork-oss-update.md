@@ -159,8 +159,8 @@ using following benchmarks:
 
 ```shell
 PR_LINK=$(gh pr list -H update/cork/trino-${NEW} --json url --jq '.[].url')
-gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_unpart"
-gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_part_c5"
+gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_unpart" -fUseOnDemandNodes=true
+gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_part_c5" -fUseOnDemandNodes=true
 ```
 
 Above workflow on completion will add a comment to the PR with status of benchmark run, and a link to Tableau
