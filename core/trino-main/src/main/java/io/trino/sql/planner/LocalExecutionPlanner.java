@@ -167,7 +167,6 @@ import io.trino.operator.window.pattern.SetEvaluator.SetEvaluatorSupplier;
 import io.trino.plugin.base.MappedRecordSet;
 import io.trino.server.protocol.spooling.QueryDataEncoder;
 import io.trino.server.protocol.spooling.QueryDataEncoders;
-import io.trino.server.protocol.spooling.SpoolingConfig;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
@@ -462,7 +461,6 @@ public class LocalExecutionPlanner
     private final SpillerFactory spillerFactory;
     private final QueryDataEncoders encoders;
     private final Optional<SpoolingManager> spoolingManager;
-    private final Optional<SpoolingConfig> spoolingConfig;
     private final SingleStreamSpillerFactory singleStreamSpillerFactory;
     private final PartitioningSpillerFactory partitioningSpillerFactory;
     private final PagesIndex.Factory pagesIndexFactory;
@@ -519,7 +517,6 @@ public class LocalExecutionPlanner
             SpillerFactory spillerFactory,
             QueryDataEncoders encoders,
             Optional<SpoolingManager> spoolingManager,
-            Optional<SpoolingConfig> spoolingConfig,
             SingleStreamSpillerFactory singleStreamSpillerFactory,
             PartitioningSpillerFactory partitioningSpillerFactory,
             PagesIndex.Factory pagesIndexFactory,
@@ -554,7 +551,6 @@ public class LocalExecutionPlanner
         this.spillerFactory = requireNonNull(spillerFactory, "spillerFactory is null");
         this.encoders = requireNonNull(encoders, "encoders is null");
         this.spoolingManager = requireNonNull(spoolingManager, "spoolingManager is null");
-        this.spoolingConfig = requireNonNull(spoolingConfig, "spoolingConfig is null");
         this.singleStreamSpillerFactory = requireNonNull(singleStreamSpillerFactory, "singleStreamSpillerFactory is null");
         this.partitioningSpillerFactory = requireNonNull(partitioningSpillerFactory, "partitioningSpillerFactory is null");
         this.maxPartialAggregationMemorySize = taskManagerConfig.getMaxPartialAggregationMemoryUsage();
@@ -1139,8 +1135,7 @@ public class LocalExecutionPlanner
                     node.getId(),
                     spooledLayout,
                     queryDataEncoder,
-                    spoolingManager.orElseThrow(),
-                    spoolingConfig.orElseThrow());
+                    spoolingManager.orElseThrow());
 
             return new PhysicalOperation(outputSpoolingOperatorFactory, spooledLayout, operation);
         }
