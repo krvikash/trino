@@ -387,7 +387,11 @@ public class WarmUpElement
     @JsonIgnore
     public static int getRecTypeLength(MemorySegment warmUpElementAtt)
     {
-        return (int) warmUpElementAtt.get(ValueLayout.JAVA_SHORT, WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_LENGTH);
+        int recTypeLength = (int) warmUpElementAtt.get(ValueLayout.JAVA_SHORT, WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_LENGTH);
+        if (recTypeLength < 0) {
+            throw new RuntimeException("record length is negative");
+        }
+        return recTypeLength;
     }
 
     @JsonIgnore

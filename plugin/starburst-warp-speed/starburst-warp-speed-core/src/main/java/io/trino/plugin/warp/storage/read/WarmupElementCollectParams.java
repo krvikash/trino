@@ -94,6 +94,9 @@ public class WarmupElementCollectParams
         collectParamsMem.set(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_IS_COLLECT_NULLS, isCollectNulls ? (byte) 1 : (byte) 0);
         collectParamsMem.set(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_ID, (byte) warmId);
 
+        if (recTypeLength < 0) {
+            throw new RuntimeException("record length is negative");
+        }
         MemorySegment warmupElementAtt = getWarmupElementAtt();
         WarmUpElement.setRecTypeCode(warmupElementAtt, TypeUtils.nativeRecTypeCode(recTypeCode));
         WarmUpElement.setRecTypeLength(warmupElementAtt, recTypeLength);
