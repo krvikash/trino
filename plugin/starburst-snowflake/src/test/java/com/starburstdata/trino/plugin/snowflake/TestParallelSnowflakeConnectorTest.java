@@ -1636,7 +1636,7 @@ public class TestParallelSnowflakeConnectorTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
+    public void testCreateDropDynamicCatalog()
     {
         String catalog = "new_catalog_" + randomNameSuffix();
         @Language("SQL")
@@ -1655,7 +1655,7 @@ public class TestParallelSnowflakeConnectorTest
     }
 
     @Test
-    void testCreateDropMultipleCatalogs()
+    public void testCreateDropMultipleCatalogs()
     {
         String firstCatalog = "catalog1_" + randomNameSuffix();
         String secondCatalog = "catalog2_" + randomNameSuffix();
@@ -1678,7 +1678,7 @@ public class TestParallelSnowflakeConnectorTest
     }
 
     @Test
-    void testRenameCatalog()
+    public void testRenameCatalog()
     {
         String catalog = "catalog_rename_" + randomNameSuffix();
         try {
@@ -1699,7 +1699,7 @@ public class TestParallelSnowflakeConnectorTest
     }
 
     @Test
-    void testCatalogSetProperties()
+    public void testCatalogSetProperties()
     {
         String catalog = "catalog_set_props_" + randomNameSuffix();
         try {
