@@ -63,7 +63,7 @@ public class QueryUtils
     {
     }
 
-    public void runQueries(TestFormat test)
+    public void runQueries(String catalogName, TestFormat test)
     {
         List<TestFormat.QueryData> queriesData = test.queries_data();
         if (queriesData == null) {
@@ -77,10 +77,10 @@ public class QueryUtils
             }
             logger.debug("run the query with/without planAlternative");
             onTrino().executeQuery("set session use_sub_plan_alternatives = true");
-            queryAndValidate(query, true, softAssertions);
+            queryAndValidate(catalogName, query, true, softAssertions);
             onTrino().executeQuery("set session use_sub_plan_alternatives = false");
             //we assert on correctness without sub_plan_alternatives session, counters according to default config
-            queryAndValidate(query, false, softAssertions);
+            queryAndValidate(catalogName, query, false, softAssertions);
         }
 
         softAssertions.assertAll();
@@ -148,21 +148,22 @@ public class QueryUtils
         return queryResult;
     }
 
-    private void queryAndValidate(TestFormat.QueryData query, boolean assertOnCounters, SoftAssertions softAssert)
+    private void queryAndValidate(String catalogName, TestFormat.QueryData query, boolean assertOnCounters, SoftAssertions softAssert)
     {
-        String defaultWarmingSession = "warp.enable_default_warming";
+        String defaultWarmingSession = catalogName + ".enable_default_warming";
         try {
             @Language("SQL") String queryToExecute = query.query();
             List<Object> expectedResult = query.expected_result();
             Map<String, Long> expectedCounters = query.expected_counters();
             String queryId = query.query_id();
             CachingType cachingType = CachingType.ACCORDING_TO_COUNTERS;
+
             logger.debug("Going to execute query {%s}, data: {%s}", queryToExecute, query);
             if (query.session_properties() == null || query.session_properties().isEmpty()) {
                 onTrino().executeQuery(format("set session %s = false", defaultWarmingSession));
             }
             else {
-                Map<String, Object> sessionPropertiesWithCatalog = query.session_properties().entrySet().stream().collect(Collectors.toMap(e -> "warp." + e.getKey(), Map.Entry::getValue));
+                Map<String, Object> sessionPropertiesWithCatalog = query.session_properties().entrySet().stream().collect(Collectors.toMap(e -> catalogName + "." + e.getKey(), Map.Entry::getValue));
                 warmUtils.setSessions(sessionPropertiesWithCatalog);
             }
             logger.info("Going to execute query: %s", queryToExecute);
@@ -182,7 +183,7 @@ public class QueryUtils
                 onTrino().executeQuery(format("reset session %s", defaultWarmingSession));
             }
             else {
-                Map<String, Object> sessionPropertiesWithCatalog = query.session_properties().entrySet().stream().collect(Collectors.toMap(e -> "warp." + e.getKey(), Map.Entry::getValue));
+                Map<String, Object> sessionPropertiesWithCatalog = query.session_properties().entrySet().stream().collect(Collectors.toMap(e -> catalogName + "." + e.getKey(), Map.Entry::getValue));
                 warmUtils.resetSessions(sessionPropertiesWithCatalog);
             }
         }

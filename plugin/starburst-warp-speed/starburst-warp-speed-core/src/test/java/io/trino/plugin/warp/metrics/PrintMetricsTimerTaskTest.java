@@ -48,6 +48,7 @@ public class PrintMetricsTimerTaskTest
         printMetricsTimerTask = new PrintMetricsTimerTask(metricsConfig,
                 metricsManager,
                 new CatalogNameProvider("warp"),
+                new ScheduledMetricsHandler(),
                 new ShapingLoggerFactory(new CatalogName(CATALOG_NAME), new SharedConfig()));
     }
 

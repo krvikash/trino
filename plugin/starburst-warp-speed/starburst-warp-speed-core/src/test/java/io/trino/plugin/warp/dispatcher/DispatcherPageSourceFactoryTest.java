@@ -202,12 +202,10 @@ public class DispatcherPageSourceFactoryTest
                 globalConfig,
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         QueryClassifier queryClassifier = new QueryClassifier(classifierFactory,
-                storageEngine,
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig,
-                new CatalogName("catalog-name"));
+                globalConfig);
 
         nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);

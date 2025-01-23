@@ -16,12 +16,9 @@ package io.trino.plugin.warp.metrics;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.trino.plugin.warp.config.MetricsConfig;
-import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,8 +35,7 @@ public class ScheduledMetricsHandlerTest
 
         AtomicBoolean isRun = new AtomicBoolean(false);
 
-        Set<MetricsTimerTask> metricsTimerTasks = new HashSet<>();
-        metricsTimerTasks.add(new MetricsTimerTask(metricsConfig)
+        MetricsTimerTask metricsTimerTask = new MetricsTimerTask(metricsConfig)
         {
             @Override
             public Duration getInterval()
@@ -52,10 +48,12 @@ public class ScheduledMetricsHandlerTest
             {
                 isRun.set(true);
             }
-        });
+        };
 
-        ScheduledMetricsHandler scheduledMetricsHandler = new ScheduledMetricsHandler(metricsTimerTasks, new WarpInitializedServiceRegistry());
-        scheduledMetricsHandler.init();
+        ScheduledMetricsHandler scheduledMetricsHandler = new ScheduledMetricsHandler();
+
+        scheduledMetricsHandler.scheduleMetricsTimerTask(metricsTimerTask);
+
         Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
                         .withMaxRetries(50)

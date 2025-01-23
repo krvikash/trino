@@ -94,7 +94,7 @@ public class TestWarpCache
                 initialized = true;
             }
         }
-        ruleUtils.resetAllRules();
+        ruleUtils.resetAllRules(RestUtils.CATALOG_1_PORT);
     }
 
     @AfterMethodWithContext
@@ -159,14 +159,18 @@ public class TestWarpCache
     {
         try {
             demoterUtils.resetToDefaultDemoterConfiguration(true);
-            onTrino().executeQuery("USE warp.synthetic");
-            onTrino().executeQuery(format("set session warp.enable_default_warming=%s", testFormat.default_warming()));
+
+            onTrino().executeQuery(format("USE %s.%s", CATALOG_NAME, SCHEMA_NAME));
+            onTrino().executeQuery(format("set session %s.enable_default_warming=%s", CATALOG_NAME, testFormat.default_warming()));
+
             QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
             if (testFormat.warm_query() == null) {
                 cacheUtils.runQueries(testFormat.queries_data(), false);
             }
             else {
                 warmUtils.warmAndValidate(
+                        RestUtils.CATALOG_1_PORT,
+                        CATALOG_NAME,
                         testFormat.name(),
                         testFormat.warm_query(),
                         0,
@@ -176,9 +180,11 @@ public class TestWarpCache
                         false);
             }
             cacheUtils.runQueries(testFormat.queries_data(), true);
+
             QueryResult warmingStatsAfter = JMXCachingManager.getWarmingStats();
             long rowGroupCount = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.ROW_GROUP_COUNT);
             long warmupElementCount = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.WARMUP_ELEMENTS_COUNT);
+
             assertThat(rowGroupCount).isEqualTo(testFormat.expected_row_group());
             assertThat(warmupElementCount).isEqualTo(testFormat.expected_warmup_elements());
         }

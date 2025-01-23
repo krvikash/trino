@@ -13,7 +13,6 @@
  */
 package io.trino.tests.product.warp;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.tools.util.StringUtils;
@@ -23,21 +22,20 @@ import io.trino.tempto.query.QueryExecutor;
 import io.trino.tests.product.warp.utils.DemoterUtils;
 import io.trino.tests.product.warp.utils.FastWarming;
 import io.trino.tests.product.warp.utils.QueryUtils;
+import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.TestFormat;
+import io.trino.tests.product.warp.utils.TestUtils;
 import io.trino.tests.product.warp.utils.WarmUtils;
 import io.trino.tests.product.warp.utils.syntheticconfig.TableType;
 import org.testng.ITestContext;
 import org.testng.annotations.DataProvider;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 
 public abstract class WarpSpeedCloudTestBase
 {
@@ -106,7 +104,7 @@ public abstract class WarpSpeedCloudTestBase
                             .formatted(CATALOG_NAME, schema, getPathForSchema(SCHEMA_NAME)));
 
             queryExecutor.executeQuery("USE %s.%s".formatted(CATALOG_NAME, schema));
-            queryExecutor.executeQuery("CREATE TABLE %s AS SELECT * FROM tpch.tiny.nation".formatted(table));
+            queryExecutor.executeQuery("CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM tpch.tiny.nation".formatted(table));
 
             Map<String, Object> sessionProperties = testFormat.session_properties() != null ?
                     testFormat.session_properties().entrySet().stream().collect(Collectors.toMap(e -> CATALOG_NAME + "." + e.getKey(), Map.Entry::getValue)) :
@@ -115,17 +113,17 @@ public abstract class WarpSpeedCloudTestBase
 
             boolean fastWarming = (boolean) sessionProperties.getOrDefault(CATALOG_NAME + ".enable_import_export", true);
             if (fastWarming) {
-                warmUtils.warmAndValidate(testFormat, FastWarming.EXPORT);
-                demoterUtils.demote(schema, table, testFormat);
-                demoterUtils.resetToDefaultDemoterConfiguration();
-                warmUtils.warmAndValidate(testFormat, FastWarming.IMPORT);
+                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.EXPORT);
+                demoterUtils.demote(RestUtils.CATALOG_1_PORT, schema, table, testFormat);
+                demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
+                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.IMPORT);
             }
             else {
-                warmUtils.warmAndValidate(testFormat, FastWarming.NONE);
+                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.NONE);
             }
             warmUtils.resetSessions(sessionProperties);
 
-            queryUtils.runQueries(testFormat);
+            queryUtils.runQueries(CATALOG_NAME, testFormat);
             logger.info("successfully finish run test %s", testFormat.name());
         }
         catch (Throwable e) {
@@ -133,8 +131,8 @@ public abstract class WarpSpeedCloudTestBase
             throw new RuntimeException(e);
         }
         finally {
-            demoterUtils.demote(schema, table, testFormat);
-            demoterUtils.resetToDefaultDemoterConfiguration();
+            demoterUtils.demote(RestUtils.CATALOG_1_PORT, schema, table, testFormat);
+            demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
             cleanup();
         }
     }
@@ -143,19 +141,9 @@ public abstract class WarpSpeedCloudTestBase
     public Iterator<TestFormat> synth_clouds(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/trino-product-tests/warp/synth_clouds.json");
-    }
-
-    private Iterator<TestFormat> executeDataProvider(String filePath)
-            throws Exception
-    {
+        String filePath = "file:///docker/trino-product-tests/warp/synth_clouds.json";
         logger.info("running %s", filePath);
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
-                .readValue(new URI(filePath).toURL());
-        return tests.stream()
-                .filter(TestFormat::pt_enable)
-                .filter(testFormat -> !testFormat.skip())
-                .iterator();
+        return TestUtils.executeDataProvider(filePath);
     }
 
     private void cleanup()
@@ -163,11 +151,9 @@ public abstract class WarpSpeedCloudTestBase
         try (QueryExecutor queryExecutor = onTrino()) {
             if (StringUtils.isNotEmpty(schema)) {
                 if (StringUtils.isNotEmpty(table)) {
-                    queryExecutor.executeQuery(
-                            "DROP TABLE IF EXISTS %s.%s.%s".formatted(CATALOG_NAME, schema, table));
+                    queryExecutor.executeQuery("DROP TABLE IF EXISTS %s.%s.%s".formatted(CATALOG_NAME, schema, table));
                 }
-                queryExecutor.executeQuery(
-                        "DROP SCHEMA IF EXISTS %s.%s".formatted(CATALOG_NAME, schema));
+                queryExecutor.executeQuery("DROP SCHEMA IF EXISTS %s.%s".formatted(CATALOG_NAME, schema));
             }
         }
         catch (Throwable e) {

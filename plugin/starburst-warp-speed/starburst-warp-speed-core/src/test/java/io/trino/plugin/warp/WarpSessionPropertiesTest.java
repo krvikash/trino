@@ -15,6 +15,7 @@ package io.trino.plugin.warp;
 
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.session.PropertyMetadata;
 import org.junit.jupiter.api.Test;
@@ -38,12 +39,11 @@ public class WarpSessionPropertiesTest
     {
         List<String> allowedNullProps = List.of(
                 WarpSessionProperties.IMPORT_EXPORT_S3_PATH,
-                WarpSessionProperties.MATCH_COLLECT_CATALOG,
                 WarpSessionProperties.UNSUPPORTED_FUNCTIONS,
                 WarpSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS,
                 WarpSessionProperties.SPLIT_TO_WORKER,
                 WarpSessionProperties.ENABLE_DICTIONARY);
-        WarpSessionProperties warpSessionProperties = new WarpSessionProperties(new GlobalConfig());
+        WarpSessionProperties warpSessionProperties = new WarpSessionProperties(new SharedConfig(), new GlobalConfig());
         List<PropertyMetadata<?>> sessionProperties = warpSessionProperties.getSessionProperties();
         sessionProperties.stream().filter(sessionProperty -> !allowedNullProps.contains(sessionProperty.getName())).forEach((property) -> assertThat(property.getDefaultValue()).isNotNull());
     }

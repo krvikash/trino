@@ -16,21 +16,17 @@ package io.trino.plugin.warp.di;
 import com.google.inject.Binder;
 import com.google.inject.matcher.Matchers;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.engine.nativeimpl.CoordinatorNativeConnectorSync;
-import io.trino.plugin.warp.storage.engine.nativeimpl.NativeConnectorSync;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeExceptionThrower;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterruptInterceptor;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageEngineConstants;
-import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.read.NativeRangeFillerService;
 import io.trino.plugin.warp.storage.read.RangeFillerService;
-import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.NodeManager;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -55,9 +51,9 @@ public class WarpNativeStorageEngineModule
     private static final String baseNativeLibName = "presto-varada-jni";
     private final boolean isSingle;
 
-    public WarpNativeStorageEngineModule(ConnectorContext context, Map<String, String> config)
+    public WarpNativeStorageEngineModule(NodeManager nodeManager, Map<String, String> config)
     {
-        this.isWorker = WarpBaseModule.isWorker(context, config);
+        this.isWorker = WarpBaseModule.isWorker(nodeManager, config);
         this.isSingle = WarpBaseModule.isSingle(config);
     }
 
@@ -119,26 +115,19 @@ public class WarpNativeStorageEngineModule
     public void configure(Binder binder)
     {
         if (isWorker) {
-            logger.debug("loading nativeConnectorSync");
-            binder.bind(ConnectorSync.class).to(NativeConnectorSync.class);
-            binder.bind(RangeFillerService.class).to(NativeRangeFillerService.class);
             binder.bind(StorageEngine.class).toProvider(WorkerStorageEngineProvider.class);
         }
         else {
-            logger.debug("loading nativeConnectorSync");
             if (isSingle) {
-                binder.bind(ConnectorSync.class).to(NativeConnectorSync.class);
                 binder.bind(StorageEngine.class).toProvider(WorkerStorageEngineProvider.class);
-                binder.bind(RangeFillerService.class).to(NativeRangeFillerService.class);
             }
             else {
-                binder.bind(ConnectorSync.class).to(CoordinatorNativeConnectorSync.class);
                 binder.bind(StorageEngine.class).toProvider(CoordinatorStorageEngineProvider.class);
             }
         }
+        binder.bind(RangeFillerService.class).to(NativeRangeFillerService.class);
         binder.bind(StorageEngineConstants.class).to(NativeStorageEngineConstants.class);
         binder.bind(ExceptionThrower.class).to(NativeExceptionThrower.class).asEagerSingleton();
-        binder.bind(NativeStorageStateHandler.class);
         binder.bindInterceptor(Matchers.any(), Matchers.annotatedWith(NativeInterrupt.class), new NativeInterruptInterceptor());
     }
 

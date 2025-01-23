@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import com.google.inject.Module;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
@@ -28,11 +27,9 @@ import static com.google.common.base.Throwables.throwIfUnchecked;
 public class DispatcherCacheManagerFactory
 {
     public static final String DISPATCHER_CACHE_MANAGER_NAME = "warp_cache";
-    private final Module storageEngineModule;
 
-    public DispatcherCacheManagerFactory(Module storageEngineModule)
+    public DispatcherCacheManagerFactory()
     {
-        this.storageEngineModule = storageEngineModule;
     }
 
     public CacheManager create(Map<String, String> config,
@@ -42,7 +39,6 @@ public class DispatcherCacheManagerFactory
     {
         try {
             ClassLoader classLoader = this.getClass().getClassLoader();
-            Class<?> moduleClass = classLoader.loadClass(Module.class.getName());
 
             Optional<List<Object>> optionalModuleInstances =
                     optionalModules.map(classes -> classes.stream()
@@ -64,7 +60,6 @@ public class DispatcherCacheManagerFactory
                             String.class,
                             Map.class,
                             Optional.class,
-                            moduleClass,
                             CacheManagerContext.class,
                             WarpCacheMgrConnectorContext.class)
                     .invoke(
@@ -72,7 +67,6 @@ public class DispatcherCacheManagerFactory
                             DISPATCHER_CACHE_MANAGER_NAME,
                             config,
                             optionalModuleInstances,
-                            storageEngineModule,
                             context,
                             warpCacheMgrConnectorContext);
         }

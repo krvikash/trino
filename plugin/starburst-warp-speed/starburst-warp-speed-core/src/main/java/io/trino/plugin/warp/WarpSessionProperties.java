@@ -21,6 +21,7 @@ import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.session.PropertyMetadata;
@@ -49,7 +50,6 @@ public final class WarpSessionProperties
     public static final String IMPORT_EXPORT_RELATIVE_S3_PATH = "import_export";
     public static final String PREDICATE_SIMPLIFY_THRESHOLD = "simplify_predicate_threshold";
     public static final String SPLIT_TO_WORKER = "split_to_worker";
-    public static final String MATCH_COLLECT_CATALOG = "match_collect_catalog";
     public static final String ENABLE_IMPORT_EXPORT = "enable_import_export";
     public static final String ENABLE_DICTIONARY = "enable_dictionary";
     public static final String ENABLE_MATCH_COLLECT = "enable_match_collect";
@@ -69,7 +69,7 @@ public final class WarpSessionProperties
      * @param globalConfig - global config
      */
     @Inject
-    public WarpSessionProperties(GlobalConfig globalConfig)
+    public WarpSessionProperties(SharedConfig sharedConfig, GlobalConfig globalConfig)
     {
         sessionProperties = List.of(
                 booleanProperty(
@@ -100,17 +100,17 @@ public final class WarpSessionProperties
                 booleanProperty(
                         ENABLE_MATCH_COLLECT,
                         "match collect feature enabled",
-                        globalConfig.getEnableMatchCollect(),
+                        sharedConfig.getEnableMatchCollect(),
                         true),
                 booleanProperty(
                         ENABLE_MAPPED_MATCH_COLLECT,
                         "mapped match collect feature enabled",
-                        globalConfig.getEnableMappedMatchCollect(),
+                        sharedConfig.getEnableMappedMatchCollect(),
                         true),
                 booleanProperty(
                         ENABLE_VARCHAR_MAPPED_MATCH_COLLECT,
                         "mapped match collect for varchar enabled",
-                        globalConfig.getEnableVarcharMappedMatchCollect(),
+                        sharedConfig.getEnableVarcharMappedMatchCollect(),
                         true),
                 booleanProperty(
                         ENABLE_INVERSE_WITH_NULLS,
@@ -140,11 +140,6 @@ public final class WarpSessionProperties
                 stringProperty(
                         SPLIT_TO_WORKER,
                         "pass splits to a specific worker number (for example 0, 1, 2), to a random worker in case of -1, or pass nodeIdentifier for a specific node",
-                        null,
-                        true),
-                stringProperty(
-                        MATCH_COLLECT_CATALOG,
-                        "override default catalog for match collect. only one catalog can use it at a time.",
                         null,
                         true),
                 booleanProperty(
@@ -318,11 +313,6 @@ public final class WarpSessionProperties
             return (int) obj;
         }
         return globalConfig.getPredicateSimplifyThreshold();
-    }
-
-    public static String getMatchCollectCatalog(ConnectorSession session)
-    {
-        return getProperty(session, MATCH_COLLECT_CATALOG, String.class);
     }
 
     public static String getNodeByBySession(ConnectorSession session)

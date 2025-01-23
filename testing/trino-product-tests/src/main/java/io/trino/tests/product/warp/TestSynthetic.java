@@ -26,6 +26,7 @@ import io.trino.tempto.query.QueryResult;
 import io.trino.tests.product.warp.utils.DemoterUtils;
 import io.trino.tests.product.warp.utils.FastWarming;
 import io.trino.tests.product.warp.utils.QueryUtils;
+import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.RuleUtils;
 import io.trino.tests.product.warp.utils.TestFormat;
 import io.trino.tests.product.warp.utils.WarmUtils;
@@ -59,6 +60,7 @@ public class TestSynthetic
 {
     private static final Logger logger = Logger.get(TestSynthetic.class);
 
+    private static final String CATALOG_NAME = "warp";
     private static final String DELTA_TYPE_PREFIX = "dl_";
     private static final String ICEBERG_TYPE_PREFIX = "iceberg_";
 
@@ -84,7 +86,7 @@ public class TestSynthetic
     public void before()
             throws Exception
     {
-        ruleUtils.resetAllRules();
+        ruleUtils.resetAllRules(RestUtils.CATALOG_1_PORT);
     }
 
     @AfterMethodWithContext
@@ -269,8 +271,8 @@ public class TestSynthetic
         @Language("SQL") String countSql = "select count(*) from %s".formatted(tableName);
 
         try (QueryExecutor queryExecutor = onTrino()) {
-            queryExecutor.executeQuery("CREATE SCHEMA IF NOT EXISTS warp.%s".formatted(schemaName));
-            queryExecutor.executeQuery("USE warp.%s".formatted(schemaName));
+            queryExecutor.executeQuery("CREATE SCHEMA IF NOT EXISTS %s.%s".formatted(CATALOG_NAME, schemaName));
+            queryExecutor.executeQuery("USE %s.%s".formatted(CATALOG_NAME, schemaName));
 
             if (!queryUtils.isTableExists(schemaName, tableName)) {
                 @Language("SQL") String createTableSql = getCreateTableSql(schemaName, tableName, testFormat, tableType);
@@ -297,29 +299,29 @@ public class TestSynthetic
                 }
             }
 
-            queryExecutor.executeQuery("set session warp.import_export_s3_path = 's3://systemtest-export-import/test_export_import/pt/%s'".formatted(formattedDateTime));
+            queryExecutor.executeQuery("set session %s.import_export_s3_path = 's3://systemtest-export-import/test_export_import/pt/%s'".formatted(CATALOG_NAME, formattedDateTime));
             Map<String, Object> warpSessionProperties = testFormat.session_properties() != null ?
-                    testFormat.session_properties().entrySet().stream().collect(Collectors.toMap(e -> "warp." + e.getKey(), Map.Entry::getValue)) :
+                    testFormat.session_properties().entrySet().stream().collect(Collectors.toMap(e -> CATALOG_NAME + "." + e.getKey(), Map.Entry::getValue)) :
                     Map.of();
-            boolean defaultWarming = (boolean) warpSessionProperties.getOrDefault("warp.enable_default_warming", false);
+            boolean defaultWarming = (boolean) warpSessionProperties.getOrDefault("%s.enable_default_warming".formatted(CATALOG_NAME), false);
             if (!defaultWarming) {
-                ruleUtils.createWarmupRules(schemaName, testFormat);
+                ruleUtils.createWarmupRules(RestUtils.CATALOG_1_PORT, schemaName, testFormat);
             }
             warmUtils.setSessions(warpSessionProperties);
 
-            boolean fastWarming = (boolean) warpSessionProperties.getOrDefault("warp.enable_import_export", false);
+            boolean fastWarming = (boolean) warpSessionProperties.getOrDefault("%s.enable_import_export".formatted(CATALOG_NAME), false);
             if (fastWarming) {
-                warmUtils.warmAndValidate(testFormat, FastWarming.EXPORT);
-                demoterUtils.demote(schemaName, tableName, testFormat);
-                demoterUtils.resetToDefaultDemoterConfiguration();
-                warmUtils.warmAndValidate(testFormat, FastWarming.IMPORT);
+                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.EXPORT);
+                demoterUtils.demote(RestUtils.CATALOG_1_PORT, schemaName, tableName, testFormat);
+                demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
+                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.IMPORT);
             }
             else {
-                warmUtils.warmAndValidate(testFormat, FastWarming.NONE);
+                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.NONE);
             }
             warmUtils.resetSessions(warpSessionProperties);
 
-            queryUtils.runQueries(testFormat);
+            queryUtils.runQueries(CATALOG_NAME, testFormat);
             logger.info("successfully finish run test %s", testFormat.name());
         }
         catch (Exception e) {
@@ -327,9 +329,9 @@ public class TestSynthetic
             throw new RuntimeException(e);
         }
         finally {
-            ruleUtils.resetTableRules(schemaName, testFormat);
-            demoterUtils.demote(schemaName, tableName, testFormat);
-            demoterUtils.resetToDefaultDemoterConfiguration();
+            ruleUtils.resetTableRules(RestUtils.CATALOG_1_PORT, schemaName, testFormat);
+            demoterUtils.demote(RestUtils.CATALOG_1_PORT, schemaName, tableName, testFormat);
+            demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
         }
     }
 

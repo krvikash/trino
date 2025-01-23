@@ -22,6 +22,7 @@ import io.trino.tempto.query.QueryResult;
 import io.trino.testing.minio.MinioClient;
 import io.trino.tests.product.warp.utils.DemoterUtils;
 import io.trino.tests.product.warp.utils.QueryUtils;
+import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.WarmUtils;
 import org.intellij.lang.annotations.Language;
 import org.testng.ITestContext;
@@ -188,8 +189,8 @@ public class TestWarpSpeedMinio
     private void cleanup(String tableName, String[] columnNames)
     {
         try {
-            demoterUtils.demote(SCHEMA_NAME, tableName, Arrays.stream(columnNames).toList(), -0.99, 0, true, true, false);
-            demoterUtils.resetToDefaultDemoterConfiguration();
+            demoterUtils.demote(RestUtils.CATALOG_1_PORT, SCHEMA_NAME, tableName, Arrays.stream(columnNames).toList(), -0.99, 0, true, true, false);
+            demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
         }
         catch (Exception e) {
             logger.error(e, "demote failed");

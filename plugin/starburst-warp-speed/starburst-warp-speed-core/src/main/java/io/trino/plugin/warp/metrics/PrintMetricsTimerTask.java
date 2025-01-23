@@ -52,11 +52,13 @@ public class PrintMetricsTimerTask
             MetricsConfig metricsConfig,
             MetricsManager metricsManager,
             CatalogNameProvider catalogNameProvider,
+            ScheduledMetricsHandler scheduledMetricsHandler,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         super(metricsConfig);
         this.metricsManager = requireNonNull(metricsManager);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
+        scheduledMetricsHandler.scheduleMetricsTimerTask(this);
         this.shapingLogger = shapingLoggerFactory.getInstance(
                 this.getClass(),
                 dumpLogger,

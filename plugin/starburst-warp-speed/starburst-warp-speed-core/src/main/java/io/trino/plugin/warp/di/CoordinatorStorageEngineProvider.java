@@ -16,7 +16,7 @@ package io.trino.plugin.warp.di;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.DelegateStorageEngine;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
@@ -27,16 +27,16 @@ import java.lang.reflect.Proxy;
 public class CoordinatorStorageEngineProvider
         implements Provider<StorageEngine>
 {
-    private final GlobalConfig globalConfig;
+    private final SharedConfig sharedConfig;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
     private StorageEngine storageEngine;
 
     @Inject
     public CoordinatorStorageEngineProvider(
-            GlobalConfig globalConfig,
+            SharedConfig sharedConfig,
             FailureGeneratorInvocationHandler failureGeneratorInvocationHandler)
     {
-        this.globalConfig = globalConfig;
+        this.sharedConfig = sharedConfig;
         this.failureGeneratorInvocationHandler = failureGeneratorInvocationHandler;
     }
 
@@ -45,7 +45,7 @@ public class CoordinatorStorageEngineProvider
     {
         if (storageEngine == null) {
             this.storageEngine = new DelegateStorageEngine();
-            if (globalConfig.isFailureGeneratorEnabled()) {
+            if (sharedConfig.isFailureGeneratorEnabled()) {
                 this.storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),
                         new Class<?>[] {StorageEngine.class},
                         failureGeneratorInvocationHandler.getMethodInvocationHandler(storageEngine));

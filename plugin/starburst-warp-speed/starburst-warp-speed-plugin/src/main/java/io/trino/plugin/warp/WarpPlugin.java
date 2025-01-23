@@ -81,19 +81,19 @@ public class WarpPlugin
     private synchronized WarpPluginSharedInstancesFactory getSharedInstancesFactory()
     {
         if (warpPluginSharedInstancesFactory == null) {
-            warpPluginSharedInstancesFactory = new WarpPluginSharedInstancesFactory();
+            warpPluginSharedInstancesFactory = new WarpPluginSharedInstancesFactory(storageEngineModule);
         }
         return warpPluginSharedInstancesFactory;
     }
 
     private DispatcherConnectorFactory getConnectorFactory()
     {
-        return new DispatcherConnectorFactory(storageEngineModule, proxyModule);
+        return new DispatcherConnectorFactory(proxyModule);
     }
 
     private DispatcherCacheManagerFactory getCacheManagerFactory()
     {
-        return new DispatcherCacheManagerFactory(storageEngineModule);
+        return new DispatcherCacheManagerFactory();
     }
 
     @VisibleForTesting

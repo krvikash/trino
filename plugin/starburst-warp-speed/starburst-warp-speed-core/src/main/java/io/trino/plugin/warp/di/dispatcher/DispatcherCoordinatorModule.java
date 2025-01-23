@@ -48,7 +48,7 @@ public class DispatcherCoordinatorModule
     @Override
     public void configure(Binder binder)
     {
-        if (WarpBaseModule.isCoordinator(context)) {
+        if (WarpBaseModule.isCoordinator(context.getNodeManager())) {
             binder.bind(DispatcherTransactionManager.class);
             binder.bind(DispatcherStatisticsProvider.class);
             binder.bind(DispatcherMetadataFactory.class);
@@ -64,7 +64,7 @@ public class DispatcherCoordinatorModule
     @Override
     public boolean shouldInstall()
     {
-        return WarpBaseModule.isCoordinator(context);
+        return WarpBaseModule.isCoordinator(context.getNodeManager());
     }
 
     @Override

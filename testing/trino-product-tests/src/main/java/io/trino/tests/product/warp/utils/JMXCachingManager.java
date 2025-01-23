@@ -160,7 +160,7 @@ public class JMXCachingManager
     {
         String statSumColNames = statColNames
                 .stream()
-                .map(x -> "sum(" + x + ")" + " as " + x)
+                .map(x -> "sum(" + x + ") as " + x)
                 .collect(Collectors.joining(","));
         @Language("SQL") String format = format("SELECT %s FROM %s", statSumColNames, jmxTable);
 

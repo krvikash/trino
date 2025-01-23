@@ -25,6 +25,10 @@ public class SharedConfig
 
     private boolean isSingle;
 
+    private boolean enableMatchCollect = true;
+    private boolean enableMappedMatchCollect = true;
+    private boolean enableVarcharMappedMatchCollect = true;
+
     private int shapingLoggerThreshold = 1000;
     private Duration shapingLoggerDuration = Duration.ofSeconds(60);
     private int shapingLoggerNumberOfSamples = 3;
@@ -41,6 +45,39 @@ public class SharedConfig
     public void setIsSingle(boolean isSingle)
     {
         this.isSingle = isSingle;
+    }
+
+    public boolean getEnableMatchCollect()
+    {
+        return enableMatchCollect;
+    }
+
+    @Config("warp-speed.enable.match-collect")
+    public void setEnableMatchCollect(boolean enableMatchCollect)
+    {
+        this.enableMatchCollect = enableMatchCollect;
+    }
+
+    public boolean getEnableMappedMatchCollect()
+    {
+        return enableMappedMatchCollect;
+    }
+
+    @Config("warp-speed.enable.mapped-match-collect")
+    public void setEnableMappedMatchCollect(boolean enableMappedMatchCollect)
+    {
+        this.enableMappedMatchCollect = enableMappedMatchCollect;
+    }
+
+    public boolean getEnableVarcharMappedMatchCollect()
+    {
+        return enableVarcharMappedMatchCollect;
+    }
+
+    @Config("warp-speed.enable.varchar-mapped-match-collect")
+    public void setEnableVarcharMappedMatchCollect(boolean enableVarcharMappedMatchCollect)
+    {
+        this.enableVarcharMappedMatchCollect = enableVarcharMappedMatchCollect;
     }
 
     public int getShapingLoggerThreshold()
@@ -106,6 +143,9 @@ public class SharedConfig
         }
         SharedConfig that = (SharedConfig) object;
         return (isSingle == that.isSingle) &&
+                (enableMatchCollect == that.enableMatchCollect) &&
+                (enableMappedMatchCollect == that.enableMappedMatchCollect) &&
+                (enableVarcharMappedMatchCollect == that.enableVarcharMappedMatchCollect) &&
                 (shapingLoggerThreshold == that.shapingLoggerThreshold) &&
                 (shapingLoggerNumberOfSamples == that.shapingLoggerNumberOfSamples) &&
                 Objects.equals(shapingLoggerDuration, that.shapingLoggerDuration);
@@ -114,7 +154,8 @@ public class SharedConfig
     @Override
     public int hashCode()
     {
-        return Objects.hash(isSingle, shapingLoggerThreshold, shapingLoggerDuration, shapingLoggerNumberOfSamples);
+        return Objects.hash(isSingle, enableMatchCollect, enableMappedMatchCollect, enableVarcharMappedMatchCollect,
+                shapingLoggerThreshold, shapingLoggerDuration, shapingLoggerNumberOfSamples);
     }
 
     @Override
@@ -122,6 +163,7 @@ public class SharedConfig
     {
         return "SharedConfig{" +
                 "isSingle=" + isSingle +
+                ", enableMatchCollect=" + enableMatchCollect +
                 ", shapingLoggerThreshold=" + shapingLoggerThreshold +
                 ", shapingLoggerDuration=" + shapingLoggerDuration +
                 ", shapingLoggerNumberOfSamples=" + shapingLoggerNumberOfSamples +

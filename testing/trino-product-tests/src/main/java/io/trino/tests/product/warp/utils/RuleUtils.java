@@ -56,39 +56,39 @@ public class RuleUtils
 
     public RuleUtils() {}
 
-    public void resetAllRules()
+    public void resetAllRules(int port)
             throws IOException
     {
-        List<WarmupColRuleData> existingRules = getExistingRules();
+        List<WarmupColRuleData> existingRules = getExistingRules(port);
         List<Integer> rulesId = existingRules.stream()
                 .map(WarmupColRuleData::getId)
                 .toList();
-        deleteRules(rulesId);
-        assertThat(getExistingRules()).isEmpty();
+        deleteRules(port, rulesId);
+        assertThat(getExistingRules(port)).isEmpty();
     }
 
-    public void resetTableRules(String schema, TestFormat testFormat)
+    public void resetTableRules(int port, String schema, TestFormat testFormat)
             throws IOException
     {
-        List<WarmupColRuleData> existingRules = getExistingRules();
+        List<WarmupColRuleData> existingRules = getExistingRules(port);
         List<Integer> rulesId = existingRules.stream().filter(x -> x.getSchema().equalsIgnoreCase(schema) &&
                         x.getTable().equalsIgnoreCase(testFormat.getTableName()))
                 .map(WarmupColRuleData::getId)
                 .toList();
-        deleteRules(rulesId);
+        deleteRules(port, rulesId);
     }
 
-    private void deleteRules(List<Integer> rulesId)
+    private void deleteRules(int port, List<Integer> rulesId)
             throws IOException
     {
-        restUtils.executeDeleteCommand(WARMUP_PATH, TASK_NAME_DELETE, rulesId);
+        restUtils.executeDeleteCommand(port, WARMUP_PATH, TASK_NAME_DELETE, rulesId);
         logger.info("deleted %s rules", rulesId.size());
     }
 
-    public List<WarmupColRuleData> getExistingRules()
+    public List<WarmupColRuleData> getExistingRules(int port)
             throws IOException
     {
-        String rules = restUtils.executeGetCommand(WARMUP_PATH, TASK_NAME_GET);
+        String rules = restUtils.executeGetCommand(port, WARMUP_PATH, TASK_NAME_GET);
         return objectMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {}).readValue(rules);
     }
 
@@ -114,7 +114,7 @@ public class RuleUtils
         return columnWarmupTypes;
     }
 
-    public void createWarmupRules(String schema, TestFormat testFormat)
+    public void createWarmupRules(int port, String schema, TestFormat testFormat)
             throws IOException
     {
         List<TestFormat.WarmupRule> warmupRules = testFormat.warmup_rules();
@@ -159,13 +159,13 @@ public class RuleUtils
             logger.info("no rules for test %s", testFormat.name());
             return;
         }
-        createRules(schema, testFormat.getTableName(), rules);
+        createRules(port, schema, testFormat.getTableName(), rules);
     }
 
-    public void createRules(String schema, String tableName, Set<WarmupColRuleData> rules)
+    public void createRules(int port, String schema, String tableName, Set<WarmupColRuleData> rules)
             throws IOException
     {
-        String result = restUtils.executePostCommandWithReturnValue(WARMUP_PATH, TASK_NAME_SET, rules);
+        String result = restUtils.executePostCommandWithReturnValue(port, WARMUP_PATH, TASK_NAME_SET, rules);
         RuleResultDTO res = objectMapper.readerFor(new TypeReference<RuleResultDTO>() {}).readValue(result);
         assertThat(res.rejectedRules().isEmpty() && !res.appliedRules().isEmpty())
                 .as("some rules are rejected. %s", res.rejectedRules())

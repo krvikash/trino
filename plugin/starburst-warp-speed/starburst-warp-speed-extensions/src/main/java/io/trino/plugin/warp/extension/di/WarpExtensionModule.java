@@ -73,7 +73,7 @@ public class WarpExtensionModule
         install(new WarpClientModule());
 
         ImmutableSet.Builder<Class<? extends BooleanSupplier>> booleanSuppliers = ImmutableSet.builder();
-        if (WarpBaseModule.isCoordinator(connectorContext)) {
+        if (WarpBaseModule.isCoordinator(connectorContext.getNodeManager())) {
             booleanSuppliers.add(ClusterReadyTaskExecutionIsAllowedSupplier.class);
         }
         else {
@@ -83,8 +83,8 @@ public class WarpExtensionModule
         CacheManagerConfig cacheManagerConfig = configFactory.build(CacheManagerConfig.class);
         install(
                 new WarpTasksModule(
-                        WarpBaseModule.isCoordinator(connectorContext),
-                        WarpBaseModule.isWorker(connectorContext, config),
+                        WarpBaseModule.isCoordinator(connectorContext.getNodeManager()),
+                        WarpBaseModule.isWorker(connectorContext.getNodeManager(), config),
                         cacheManagerConfig.getIsCache(),
                         booleanSuppliers.build()));
         if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
@@ -101,7 +101,7 @@ public class WarpExtensionModule
         configBinder(binder).bindConfig(WarpExtensionConfig.class);
 
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        if (WarpBaseModule.isWorker(connectorContext, config) &&
+        if (WarpBaseModule.isWorker(connectorContext.getNodeManager(), config) &&
                 !cacheManagerConfig.getIsCache() &&
                 StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(WorkerWarmupRuleFetcher.class);
@@ -123,16 +123,19 @@ public class WarpExtensionModule
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         JaxrsModule jaxrsModule = new JaxrsModule();
         configFactory.registerConfigurationClasses(jaxrsModule);
+
         HttpServerModule httpServerModule = new HttpServerModule();
         configFactory.registerConfigurationClasses(httpServerModule);
+
         install(new NodeModule());
         install(httpServerModule);
         install(new JsonModule());
 
         CacheManagerConfig cacheManagerConfig = configFactory.build(CacheManagerConfig.class);
-        WarpJaxrsModule module = new WarpJaxrsModule(WarpBaseModule.isCoordinator(connectorContext),
-                WarpBaseModule.isWorker(connectorContext, config),
+        WarpJaxrsModule module = new WarpJaxrsModule(WarpBaseModule.isCoordinator(connectorContext.getNodeManager()),
+                WarpBaseModule.isWorker(connectorContext.getNodeManager(), config),
                 cacheManagerConfig.getIsCache());
+
         module.setConfigurationFactory(configFactory);
         install(module);
         install(binder1 -> binder1.bind(HttpServerLifeCycleHandler.class));

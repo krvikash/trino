@@ -127,9 +127,9 @@ public class TestStatistics
 
         // Cleaning possible previous run results
         try {
-            ruleUtils.resetAllRules();
-            demoterUtils.demote(SCHEMA_NAME, TABLE_NAME, testFormat);
-            demoterUtils.resetToDefaultDemoterConfiguration();
+            ruleUtils.resetAllRules(RestUtils.CATALOG_1_PORT);
+            demoterUtils.demote(RestUtils.CATALOG_1_PORT, SCHEMA_NAME, TABLE_NAME, testFormat);
+            demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
         }
         catch (Exception e) {
             logger.error(e, "Preparing clean failed");
@@ -139,7 +139,7 @@ public class TestStatistics
         logger.info("Prepared Rules=%s", rules);
 
         try {
-            String result = restUtils.executePostCommandWithReturnValue(WARMUP_PATH, TASK_NAME_SET, rules);
+            String result = restUtils.executePostCommandWithReturnValue(RestUtils.CATALOG_1_PORT, WARMUP_PATH, TASK_NAME_SET, rules);
             RuleResultDTO res = objectMapper.readerFor(new TypeReference<RuleResultDTO>() {}).readValue(result);
 
             assertThat(res.rejectedRules().isEmpty() && !res.appliedRules().isEmpty())
@@ -147,7 +147,7 @@ public class TestStatistics
                     .isTrue();
             logger.debug("created %s rules for schemaTable=%s.%s", res.appliedRules(), SCHEMA_NAME, TABLE_NAME);
 
-            warmUtils.warmAndValidate(testFormat, FastWarming.NONE);
+            warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.NONE);
         }
         catch (Exception e) {
             logger.error(e, "failed on ADDING RULES");

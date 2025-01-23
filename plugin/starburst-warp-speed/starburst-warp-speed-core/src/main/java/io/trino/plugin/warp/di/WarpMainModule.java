@@ -19,7 +19,6 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
-import com.google.inject.multibindings.Multibinder;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
 import io.opentelemetry.api.OpenTelemetry;
@@ -42,15 +41,19 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.metrics.MetricsTimerTask;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
 import io.trino.plugin.warp.node.CoordinatorInitializedEventHandler;
 import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.plugin.warp.node.WorkerNodeManager;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.storage.engine.ExceptionThrower;
+import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
+import io.trino.plugin.warp.storage.read.RangeFillerService;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.util.json.SliceSerializer;
 import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
@@ -82,10 +85,10 @@ public class WarpMainModule
     @Override
     public void configure(Binder binder)
     {
-        if (WarpBaseModule.isCoordinator(context)) {
+        if (WarpBaseModule.isCoordinator(context.getNodeManager())) {
             configureCoordinator(binder);
         }
-        if (WarpBaseModule.isWorker(context, config)) {
+        if (WarpBaseModule.isWorker(context.getNodeManager(), config)) {
             configureWorker(binder);
         }
         configureCommon(binder);
@@ -113,20 +116,25 @@ public class WarpMainModule
 
     private void configureCommon(Binder binder)
     {
-        binder.bind(StorageEngineTxService.class);
         binder.bind(EventBus.class).asEagerSingleton();
+
         // bind block serializers for the purpose of TupleDomain serde
         binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
         jsonBinder(binder).addSerializerBinding(Block.class).to(BlockJsonSerde.Serializer.class);
         jsonBinder(binder).addDeserializerBinding(Block.class).to(BlockJsonSerde.Deserializer.class);
-        binder.bind(WarpSessionProperties.class);
-        binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
-
-        binder.bind(MetricsManager.class);
 
         binder.bind(FlowsSequencer.class);
-
+        binder.bind(MetricsManager.class);
+        binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
+        binder.bind(StorageEngineTxService.class);
         binder.bind(WarmupRuleService.class);
+        binder.bind(WarpSessionProperties.class);
+
+        binder.bind(ExceptionThrower.class).toInstance(context.getWarpPluginSharedInstances().exceptionThrower());
+        binder.bind(NativeStorageStateHandler.class);
+        binder.bind(RangeFillerService.class).toInstance(context.getWarpPluginSharedInstances().rangeFillerService());
+        binder.bind(StorageEngine.class).toInstance(context.getWarpPluginSharedInstances().storageEngine());
+        binder.bind(StorageEngineConstants.class).toInstance(context.getWarpPluginSharedInstances().storageEngineConstants());
     }
 
     private void configureCoordinator(Binder binder)
@@ -146,9 +154,7 @@ public class WarpMainModule
 
     private void bindMetricsServices(Binder binder)
     {
-        binder.bind(ScheduledMetricsHandler.class).asEagerSingleton();
-        Multibinder<MetricsTimerTask> multibinder = Multibinder.newSetBinder(binder, MetricsTimerTask.class);
-        multibinder.addBinding().to(PrintMetricsTimerTask.class);
+        binder.bind(ScheduledMetricsHandler.class).toInstance(context.getWarpPluginSharedInstances().scheduledMetricsHandler());
         binder.bind(PrintMetricsTimerTask.class);
     }
 

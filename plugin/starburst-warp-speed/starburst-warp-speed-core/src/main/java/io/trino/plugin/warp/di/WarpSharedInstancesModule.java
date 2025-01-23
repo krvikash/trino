@@ -14,27 +14,68 @@
 package io.trino.plugin.warp.di;
 
 import com.google.inject.Binder;
+import com.google.inject.Module;
+import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
+import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.metrics.MetricsRegistry;
+import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
+import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
+import io.trino.spi.NodeManager;
 import io.trino.spi.catalog.CatalogName;
+
+import java.util.Map;
+import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class WarpSharedInstancesModule
         implements WarpBaseModule
 {
+    // fake catalog name in order to use ShapingLogger
+    private static final String WARP_SHARED = "warp-shared";
+
+    private final Optional<Module> storageEngineModule;
+    private final NodeManager nodeManager;
+    private final Map<String, String> config;
+
+    public WarpSharedInstancesModule(Module storageEngineModule, NodeManager nodeManager, Map<String, String> config)
+    {
+        this.storageEngineModule = Optional.ofNullable(storageEngineModule);
+        this.nodeManager = nodeManager;
+        this.config = config;
+    }
+
     @Override
     public void configure(Binder binder)
     {
         configBinder(binder).bindConfig(SharedConfig.class);
         configBinder(binder).bindConfig(NativeConfig.class);
+        configBinder(binder).bindConfig(MetricsConfig.class);
+
+        binder.bind(CatalogName.class).toInstance(new CatalogName(WARP_SHARED));
+        binder.bind(CatalogNameProvider.class).toInstance(new CatalogNameProvider(WARP_SHARED));
+        binder.bind(ShapingLoggerFactory.class);
+
+        binder.bind(FailureGeneratorInvocationHandler.class);
+
+        binder.bind(MetricsManager.class);
+        binder.bind(MetricsRegistry.class);
+        binder.bind(PrintMetricsTimerTask.class);
+        binder.bind(ScheduledMetricsHandler.class).asEagerSingleton();
+
+        binder.bind(NativeLogger.class);
+        binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(nodeManager, config)));
+
+        binder.bind(MatchCollectIdService.class);
 
         binder.bind(DemoterSync.class);
-        binder.bind(ShapingLoggerFactory.class);
-        binder.bind(NativeLogger.class);
-        binder.bind(CatalogName.class).toInstance(new CatalogName("SharedDummyCatalog"));
     }
 }

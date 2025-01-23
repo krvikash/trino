@@ -123,6 +123,7 @@ public final class TestGroups
     public static final String WARP_SPEED_AWS_HIVE = "warp-speed-aws-hive";
     public static final String WARP_SPEED_AZURE_HIVE = "warp-speed-azure-hive";
     public static final String WARP_SPEED_GCS_HIVE = "warp-speed-gcs-hive";
+    public static final String WARP_SPEED_SHARED = "warp-speed-shared";
     public static final String WARP_SPEED_MINIO = "warp-speed-minio";
 
     private TestGroups() {}

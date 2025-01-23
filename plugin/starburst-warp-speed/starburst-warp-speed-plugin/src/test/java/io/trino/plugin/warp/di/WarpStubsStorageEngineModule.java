@@ -18,11 +18,10 @@ import com.google.inject.Module;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
+import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubExceptionThrower;
-import io.trino.plugin.warp.storage.engine.StubsConnectorSync;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -41,6 +40,7 @@ public class WarpStubsStorageEngineModule
     private final StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants(100);
     private final StorageEngine storageEngine = new StubsStorageEngine();
     private final RangeFillerService rangeFillerService = new StubsRangeFillerService();
+    private final ExceptionThrower exceptionThrower = new StubExceptionThrower();
 
     @Override
     public void configure(Binder binder)
@@ -48,11 +48,11 @@ public class WarpStubsStorageEngineModule
         binder.bind(StorageEngine.class).toInstance(storageEngine);
         binder.bind(RangeFillerService.class).toInstance(rangeFillerService);
         binder.bind(StorageEngineConstants.class).toInstance(storageEngineConstants);
-        binder.bind(ConnectorSync.class).to(StubsConnectorSync.class);
+        binder.bind(ExceptionThrower.class).toInstance(exceptionThrower);
 
         NativeStorageStateHandler nativeStorageStateHandler = new NativeStorageStateHandler(
                 new NativeConfig(),
-                new StubExceptionThrower(),
+                exceptionThrower,
                 new CatalogNameProvider("catalogName"),
                 new ShapingLoggerFactory(new CatalogName("catalogName"), new SharedConfig()));
         binder.bind(NativeStorageStateHandler.class).toInstance(nativeStorageStateHandler);

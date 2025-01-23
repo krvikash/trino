@@ -22,7 +22,6 @@ import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.spi.TrinoException;
@@ -163,7 +162,6 @@ public class NativeStorageEngine
             NativeConfig nativeConfig,
             ExceptionThrower exceptionThrower,
             NativeLogger nativeLogger,
-            ConnectorSync connectorSync,
             CatalogName catalogName,
             ShapingLoggerFactory shapingLoggerFactory)
     {
@@ -282,8 +280,6 @@ public class NativeStorageEngine
             logger.error(t, "failed loading native storage engine");
             throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed loading native storage engine", t);
         }
-
-        ((NativeConnectorSync) connectorSync).init();
     }
 
     @Override

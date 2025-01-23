@@ -43,6 +43,10 @@ public class RestUtils
 {
     private static final Logger logger = Logger.get(RuleUtils.class);
 
+    public static final int CATALOG_1_PORT = 8089;
+    public static final int CATALOG_2_PORT = 8085;
+    public static final int CACHE_PORT = 8098;
+
     public RestUtils() {}
 
     public String executeTrinoCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)
@@ -52,34 +56,34 @@ public class RestUtils
         return executeCommand(baseUrl, prefix, ext, inObj, httpMethod, responseCode);
     }
 
-    public void executeDeleteCommand(String prefix, String ext, Object inObj)
+    public void executeDeleteCommand(int port, String prefix, String ext, Object inObj)
             throws IOException
     {
-        executeRestCommand(prefix, ext, inObj, HttpMethod.DELETE, HttpURLConnection.HTTP_NO_CONTENT);
+        executeRestCommand(port, prefix, ext, inObj, HttpMethod.DELETE, HttpURLConnection.HTTP_NO_CONTENT);
     }
 
-    public String executeGetCommand(String prefix, String ext)
+    public String executeGetCommand(int port, String prefix, String ext)
             throws IOException
     {
-        return executeRestCommand(prefix, ext, null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
+        return executeRestCommand(port, prefix, ext, null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
     }
 
-    public void executePostCommand(String prefix, String ext, Object inObj)
+    public void executePostCommand(int port, String prefix, String ext, Object inObj)
             throws IOException
     {
-        executeRestCommand(prefix, ext, inObj, HttpMethod.POST, HttpURLConnection.HTTP_NO_CONTENT);
+        executeRestCommand(port, prefix, ext, inObj, HttpMethod.POST, HttpURLConnection.HTTP_NO_CONTENT);
     }
 
-    public String executePostCommandWithReturnValue(String prefix, String ext, Object inObj)
+    public String executePostCommandWithReturnValue(int port, String prefix, String ext, Object inObj)
             throws IOException
     {
-        return executeRestCommand(prefix, ext, inObj, HttpMethod.POST, HttpURLConnection.HTTP_OK);
+        return executeRestCommand(port, prefix, ext, inObj, HttpMethod.POST, HttpURLConnection.HTTP_OK);
     }
 
-    public String executeRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)
+    private String executeRestCommand(int port, String prefix, String ext, Object inObj, String httpMethod, int responseCode)
             throws IOException
     {
-        URI baseUrl = URI.create("http://presto-master:8089");
+        URI baseUrl = URI.create("http://presto-master:" + port);
         return executeCommand(baseUrl, prefix, ext, inObj, httpMethod, responseCode);
     }
 

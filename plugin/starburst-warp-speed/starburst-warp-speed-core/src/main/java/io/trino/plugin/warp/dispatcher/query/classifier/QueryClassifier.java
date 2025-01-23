@@ -29,8 +29,6 @@ import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.WarpExpression;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
-import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
@@ -50,31 +48,25 @@ public class QueryClassifier
 {
     private static final Logger logger = Logger.get(QueryClassifier.class);
     public static final int INVALID_TOTAL_RECORDS = -1;
+
     private final ClassifierFactory classifierFactory;
     private final MatchCollectIdService matchCollectIdService;
     private final PredicateContextFactory predicateContextFactory;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final GlobalConfig globalConfig;
-    private final CatalogName catalogName;
-
-    private final boolean isFirstCatalog;
 
     @Inject
     public QueryClassifier(ClassifierFactory classifierFactory,
-            StorageEngine storageEngine,
             MatchCollectIdService matchCollectIdService,
             PredicateContextFactory predicateContextFactory,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            GlobalConfig globalConfig,
-            CatalogName catalogName)
+            GlobalConfig globalConfig)
     {
         this.classifierFactory = requireNonNull(classifierFactory);
         this.matchCollectIdService = requireNonNull(matchCollectIdService);
         this.predicateContextFactory = requireNonNull(predicateContextFactory);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.globalConfig = requireNonNull(globalConfig);
-        this.catalogName = requireNonNull(catalogName);
-        this.isFirstCatalog = storageEngine.isFirstLoaded();
     }
 
     public QueryContext classify(QueryContext baseQueryContext,
@@ -223,10 +215,8 @@ public class QueryClassifier
         PredicateContextData predicateContextData = predicateContextFactory.create(session,
                 dynamicFilter,
                 dispatcherTableHandle);
-        String matchCollectCatalog = WarpSessionProperties.getMatchCollectCatalog(session);
         boolean enableMatchCollect = (classificationType == ClassificationType.QUERY) &&
-                WarpSessionProperties.getEnableMatchCollect(session) &&
-                ((matchCollectCatalog == null) ? isFirstCatalog : matchCollectCatalog.equals(catalogName.toString()));
+                WarpSessionProperties.getEnableMatchCollect(session);
         if (enableMatchCollect) {
             WarpExpression expression = predicateContextData.getRootExpression();
             if (expression instanceof WarpCall warpCall && (warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||

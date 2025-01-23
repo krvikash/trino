@@ -16,11 +16,9 @@ package io.trino.plugin.warp.di.dispatcher;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
-import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
-import com.google.inject.multibindings.Multibinder;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
 import io.trino.plugin.hive.util.BlockJsonSerde;
@@ -38,7 +36,6 @@ import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.ExtraModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
-import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dictionary.AttachDictionaryService;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -75,14 +72,17 @@ import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.MetricsModule;
-import io.trino.plugin.warp.metrics.MetricsTimerTask;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
-import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
+import io.trino.plugin.warp.storage.engine.ExceptionThrower;
+import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectTxService;
 import io.trino.plugin.warp.storage.read.MatchService;
+import io.trino.plugin.warp.storage.read.RangeFillerService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
@@ -112,17 +112,14 @@ public class DispatcherCacheManagerModule
     private final String cacheManagerName;
     private final WarpCacheMgrConnectorContext warpCacheMgrConnectorContext;
     private Map<String, String> config;
-    private final Optional<Module> storageEngineModule;
 
     public DispatcherCacheManagerModule(String cacheManagerName,
             Map<String, String> config,
-            Module storageEngineModule,
             WarpCacheMgrConnectorContext warpCacheMgrConnectorContext)
     {
         this.cacheManagerName = cacheManagerName;
         this.warpCacheMgrConnectorContext = warpCacheMgrConnectorContext;
         withConfig(config);
-        this.storageEngineModule = Optional.ofNullable(storageEngineModule);
     }
 
     @Override
@@ -139,7 +136,7 @@ public class DispatcherCacheManagerModule
         configBinder(binder).bindConfig(CacheManagerConfig.class);
         binder.bind(CacheMgrWarmupRuleService.class);
 
-        if (!WarpBaseModule.isWorker(warpCacheMgrConnectorContext, config)) {
+        if (!WarpBaseModule.isWorker(warpCacheMgrConnectorContext.getNodeManager(), config)) {
             return;
         }
         configBinder(binder).bindConfig(CloudVendorConfig.class, ForWarp.class);
@@ -153,10 +150,16 @@ public class DispatcherCacheManagerModule
         binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
         jsonBinder(binder).addSerializerBinding(Block.class).to(BlockJsonSerde.Serializer.class);
         jsonBinder(binder).addDeserializerBinding(Block.class).to(BlockJsonSerde.Deserializer.class);
-        binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(warpCacheMgrConnectorContext, config)));
+
+        binder.bind(ExceptionThrower.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().exceptionThrower());
+        binder.bind(NativeStorageStateHandler.class);
+        binder.bind(RangeFillerService.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().rangeFillerService());
+        binder.bind(StorageEngine.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().storageEngine());
+        binder.bind(StorageEngineConstants.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().storageEngineConstants());
+
         binder.install(CloudVendorModule.getModule(warpCacheMgrConnectorContext, ForWarp.class, cacheManagerName, config));
 
-        binder.bind(ShapingLoggerFactory.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().shapingLoggerFactory());
+        binder.bind(ShapingLoggerFactory.class);
         binder.bind(AttachDictionaryService.class);
         binder.bind(BlockAppenderFactory.class);
         binder.bind(BlockFillersFactory.class);
@@ -174,8 +177,7 @@ public class DispatcherCacheManagerModule
         binder.bind(FailureGeneratorInvocationHandler.class);
         binder.bind(FlowsSequencer.class);
         binder.bind(LazyCollectTxService.class);
-        binder.bind(NativeLogger.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().nativeLogger());
-        binder.bind(MatchCollectIdService.class);
+        binder.bind(MatchCollectIdService.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().matchCollectIdService());
         binder.bind(MatchService.class);
         binder.bind(PredicateContextFactory.class);
         binder.bind(PredicateHashCalculator.class);
@@ -203,9 +205,7 @@ public class DispatcherCacheManagerModule
 
     private void bindMetricsServices(Binder binder)
     {
-        binder.bind(ScheduledMetricsHandler.class).asEagerSingleton();
-        Multibinder<MetricsTimerTask> multibinder = Multibinder.newSetBinder(binder, MetricsTimerTask.class);
-        multibinder.addBinding().to(PrintMetricsTimerTask.class);
+        binder.bind(ScheduledMetricsHandler.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().scheduledMetricsHandler());
         binder.bind(PrintMetricsTimerTask.class);
     }
 

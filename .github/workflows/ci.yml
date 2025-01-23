@@ -1345,6 +1345,9 @@ jobs:
               if: >-
                 ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.GCP_CREDENTIALS_KEY != '' }}
               runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
+            - config: default
+              suite: suite-warp-speed-shared
+              runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
 
           EOF
       - name: Build PT matrix (all)

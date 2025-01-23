@@ -16,48 +16,35 @@ package io.trino.plugin.warp.metrics;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
-import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 
-import java.util.Set;
 import java.util.Timer;
 import java.util.concurrent.TimeUnit;
 
-import static java.util.Objects.requireNonNull;
-
 @Singleton
 public class ScheduledMetricsHandler
-        implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(ScheduledMetricsHandler.class);
 
-    private final Set<MetricsTimerTask> metricsTimerTasks;
     private final Timer timer;
 
     @Inject
-    public ScheduledMetricsHandler(
-            Set<MetricsTimerTask> metricsTimerTasks,
-            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
+    public ScheduledMetricsHandler()
     {
-        this.metricsTimerTasks = requireNonNull(metricsTimerTasks);
-        warpInitializedServiceRegistry.addService(this);
         this.timer = new Timer();
     }
 
-    @Override
-    public void init()
+    public void scheduleMetricsTimerTask(MetricsTimerTask metricsTimerTask)
     {
-        logger.debug("init metricsTimerTasks");
-        metricsTimerTasks.forEach(metricsTimerTask -> {
-            long delayMillis = metricsTimerTask.getDelay().toSeconds() > 0
-                    ? TimeUnit.SECONDS.toMillis(metricsTimerTask.getDelay().toSeconds())
-                    : TimeUnit.NANOSECONDS.toMillis(metricsTimerTask.getDelay().toNanosPart());
+        logger.debug("init metricsTimerTask");
 
-            long intervalInSeconds = metricsTimerTask.getInterval().toSeconds();
-            int intervalInNanos = metricsTimerTask.getInterval().toNanosPart();
-            long intervalMillis = intervalInSeconds > 0 ? TimeUnit.SECONDS.toMillis(intervalInSeconds) : TimeUnit.NANOSECONDS.toMillis(intervalInNanos);
+        long delayMillis = metricsTimerTask.getDelay().toSeconds() > 0
+                ? TimeUnit.SECONDS.toMillis(metricsTimerTask.getDelay().toSeconds())
+                : TimeUnit.NANOSECONDS.toMillis(metricsTimerTask.getDelay().toNanosPart());
 
-            timer.scheduleAtFixedRate(metricsTimerTask, delayMillis, intervalMillis);
-        });
+        long intervalInSeconds = metricsTimerTask.getInterval().toSeconds();
+        int intervalInNanos = metricsTimerTask.getInterval().toNanosPart();
+        long intervalMillis = intervalInSeconds > 0 ? TimeUnit.SECONDS.toMillis(intervalInSeconds) : TimeUnit.NANOSECONDS.toMillis(intervalInNanos);
+
+        timer.scheduleAtFixedRate(metricsTimerTask, delayMillis, intervalMillis);
     }
 }

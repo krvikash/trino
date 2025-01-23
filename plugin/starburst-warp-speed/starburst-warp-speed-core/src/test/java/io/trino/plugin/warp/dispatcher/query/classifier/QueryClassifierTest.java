@@ -59,7 +59,6 @@ import io.trino.plugin.warp.juffer.PredicateBufferPoolType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.type.TypeUtils;
@@ -129,7 +128,6 @@ public class QueryClassifierTest
     private RowGroupData rowGroupData;
     private RowGroupData rowGroupDataWithPartitionKeys;
     private PredicatesCacheService predicatesCacheService;
-    private StorageEngine storageEngine;
     private StorageEngineConstants storageEngineConstants;
     private QueryClassifier queryClassifier;
     private BufferAllocator bufferAllocator;
@@ -172,8 +170,6 @@ public class QueryClassifierTest
     public void before()
     {
         dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName);
-        storageEngine = mock(StorageEngine.class);
-        when(storageEngine.isFirstLoaded()).thenReturn(true);
         storageEngineConstants = mock(StorageEngineConstants.class);
         when(storageEngineConstants.getMatchCollectBufferSize()).thenReturn(1024 * 1024);
         when(storageEngineConstants.getMaxChunksInRange()).thenReturn(1);
@@ -248,12 +244,10 @@ public class QueryClassifierTest
         when(session.getProperty(eq(ENABLE_MATCH_COLLECT), eq(Boolean.class))).thenReturn(true);
         queryClassifier = new QueryClassifier(
                 classifierFactory,
-                storageEngine,
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig,
-                new CatalogName("catalog-name"));
+                globalConfig);
     }
 
     /**
@@ -390,12 +384,11 @@ public class QueryClassifierTest
 
         QueryClassifier queryClassifier = new QueryClassifier(
                 classifierFactory,
-                storageEngine,
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig,
-                new CatalogName("catalog-name"));
+                globalConfig);
+
         QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchCollectIntColumn), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
@@ -454,12 +447,10 @@ public class QueryClassifierTest
 
         QueryClassifier queryClassifier = new QueryClassifier(
                 classifierFactory,
-                storageEngine,
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig,
-                new CatalogName("catalog-name"));
+                globalConfig);
 
         QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchCollectIntColumn), true, "query-id"),
                 rowGroupData,

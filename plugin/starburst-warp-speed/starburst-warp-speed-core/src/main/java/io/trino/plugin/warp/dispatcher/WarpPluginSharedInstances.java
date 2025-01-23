@@ -15,15 +15,23 @@ package io.trino.plugin.warp.dispatcher;
 
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
+import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
-import io.trino.plugin.warp.log.ShapingLoggerFactory;
-import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
+import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
+import io.trino.plugin.warp.storage.engine.ExceptionThrower;
+import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.read.RangeFillerService;
 
 public record WarpPluginSharedInstances(
         SharedConfig sharedConfig,
         NativeConfig nativeConfig,
-        DemoterSync demoterSync,
-        ShapingLoggerFactory shapingLoggerFactory,
-        NativeLogger nativeLogger)
+        ScheduledMetricsHandler scheduledMetricsHandler,
+        ExceptionThrower exceptionThrower,
+        RangeFillerService rangeFillerService,
+        StorageEngine storageEngine,
+        StorageEngineConstants storageEngineConstants,
+        MatchCollectIdService matchCollectIdService,
+        DemoterSync demoterSync)
 {
 }

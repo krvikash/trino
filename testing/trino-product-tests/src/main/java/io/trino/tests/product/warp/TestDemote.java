@@ -89,7 +89,7 @@ public class TestDemote
     public void before()
             throws Exception
     {
-        ruleUtils.resetAllRules();
+        ruleUtils.resetAllRules(RestUtils.CATALOG_1_PORT);
     }
 
     @AfterMethodWithContext
@@ -225,7 +225,7 @@ public class TestDemote
                                         Duration.ofSeconds(10),
                                         ImmutableSet.of());
 
-                                ruleUtils.createRules(SCHEMA_NAME, testFormat.getTableName(), Set.of(warmupColRuleData));
+                                ruleUtils.createRules(RestUtils.CATALOG_1_PORT, SCHEMA_NAME, testFormat.getTableName(), Set.of(warmupColRuleData));
 
                                 onTrino().executeQuery("USE warp.%s".formatted(SCHEMA_NAME));
 
@@ -251,9 +251,9 @@ public class TestDemote
                     finally {
                         logger.info("FINISH test [%s]", testCase.case_info());
                         try {
-                            ruleUtils.resetTableRules(SCHEMA_NAME, testFormat);
-                            demoterUtils.demote(SCHEMA_NAME, testFormat.getTableName(), testFormat);
-                            demoterUtils.resetToDefaultDemoterConfiguration();
+                            ruleUtils.resetTableRules(RestUtils.CATALOG_1_PORT, SCHEMA_NAME, testFormat);
+                            demoterUtils.demote(RestUtils.CATALOG_1_PORT, SCHEMA_NAME, testFormat.getTableName(), testFormat);
+                            demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
                         }
                         catch (IOException e) {
                             throw new RuntimeException(e);
@@ -279,14 +279,14 @@ public class TestDemote
             queryExecutor.executeQuery("USE warp.%s".formatted(SCHEMA_NAME));
 
             if (!defaultWarming) {
-                ruleUtils.createWarmupRules(SCHEMA_NAME, testFormat);
+                ruleUtils.createWarmupRules(RestUtils.CATALOG_1_PORT, SCHEMA_NAME, testFormat);
             }
 
             TestFormat newTestFormat = TestFormat.builder(testFormat)
                     .sessionProperties(Map.of("enable_default_warming", Boolean.toString(defaultWarming)))
                     .build();
 
-            warmUtils.warmAndValidate(newTestFormat, FastWarming.NONE);
+            warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, "warp", newTestFormat, FastWarming.NONE);
 
             QueryResult demoterStatsBefore = JMXCachingManager.getDemoterStats();
 
@@ -314,6 +314,7 @@ public class TestDemote
                                 .maxUsageThresholdInPercentage(demoteThreshold)
                                 .cleanupUsageThresholdInPercentage(demoteThreshold)
                                 .build(),
+                        RestUtils.CATALOG_1_PORT,
                         false);
 
                 QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();
@@ -323,7 +324,7 @@ public class TestDemote
             }
             else {
                 // in case of expected_warm_failures run manual demoter with default thresholds and forceDeleteFailedObjects=true to delete failed WE
-                String string = restUtils.executeGetCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME);
+                String string = restUtils.executeGetCommand(RestUtils.CATALOG_1_PORT, RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME);
                 RowGroupCountResult rowGroupCountResultBefore = objectMapper.readerFor(new TypeReference<RowGroupCountResult>() {}).readValue(string);
 
                 demoterUtils.demote(
@@ -332,6 +333,7 @@ public class TestDemote
                                 .modifyConfig(true)
                                 .forceDeleteFailedObjects(true)
                                 .build(),
+                        RestUtils.CATALOG_1_PORT,
                         false);
 
                 QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();
@@ -339,7 +341,7 @@ public class TestDemote
                 assertThat(getValue(demoterStatsAfter, JMXCachingConstants.WarmupDemoter.FAILED_OBJECTS_DELETED))
                         .isEqualTo(getValue(demoterStatsBefore, JMXCachingConstants.WarmupDemoter.FAILED_OBJECTS_DELETED) + testFormat.expected_warm_failures());
 
-                string = restUtils.executeGetCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME);
+                string = restUtils.executeGetCommand(RestUtils.CATALOG_1_PORT, RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME);
                 RowGroupCountResult rowGroupCountResultAfter = objectMapper.readerFor(new TypeReference<RowGroupCountResult>() {}).readValue(string);
 
                 logger.info("############################### rowGroupCountResultBefore=%s", rowGroupCountResultBefore);
@@ -356,9 +358,9 @@ public class TestDemote
         }
         finally {
             if (reset) {
-                ruleUtils.resetTableRules(SCHEMA_NAME, testFormat);
-                demoterUtils.demote(SCHEMA_NAME, tableName, testFormat);
-                demoterUtils.resetToDefaultDemoterConfiguration();
+                ruleUtils.resetTableRules(RestUtils.CATALOG_1_PORT, SCHEMA_NAME, testFormat);
+                demoterUtils.demote(RestUtils.CATALOG_1_PORT, SCHEMA_NAME, tableName, testFormat);
+                demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
             }
         }
     }

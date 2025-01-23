@@ -70,7 +70,7 @@ public class WarmupCloudFetcherModule
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        if (WarpBaseModule.isWorker(context, config)) {
+        if (WarpBaseModule.isWorker(context.getNodeManager(), config)) {
             if (StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
                 binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(EmptyWarmupRuleFetcher.class);
                 binder.bind(new TypeLiteral<WarmupRuleFetcher<CacheManagerRule>>() {}).to(EmptyCacheMgrWarmupRuleFetcher.class);

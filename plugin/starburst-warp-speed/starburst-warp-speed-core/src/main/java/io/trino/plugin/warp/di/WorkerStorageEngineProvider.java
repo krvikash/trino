@@ -19,7 +19,6 @@ import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
@@ -37,7 +36,6 @@ public class WorkerStorageEngineProvider
 {
     private final SharedConfig sharedConfig;
     private final NativeConfig nativeConfig;
-    private final ConnectorSync connectorSync;
     private final CatalogName catalogName;
     private final ExceptionThrower exceptionThrower;
     private final NativeLogger nativeLogger;
@@ -50,7 +48,6 @@ public class WorkerStorageEngineProvider
     public WorkerStorageEngineProvider(
             SharedConfig sharedConfig,
             NativeConfig nativeConfig,
-            ConnectorSync connectorSync,
             CatalogName catalogName,
             ExceptionThrower exceptionThrower,
             NativeLogger nativeLogger,
@@ -59,7 +56,6 @@ public class WorkerStorageEngineProvider
     {
         this.sharedConfig = requireNonNull(sharedConfig);
         this.nativeConfig = requireNonNull(nativeConfig);
-        this.connectorSync = requireNonNull(connectorSync);
         this.catalogName = requireNonNull(catalogName);
         this.exceptionThrower = requireNonNull(exceptionThrower);
         this.nativeLogger = requireNonNull(nativeLogger);
@@ -76,7 +72,6 @@ public class WorkerStorageEngineProvider
                     nativeConfig,
                     exceptionThrower,
                     nativeLogger,
-                    connectorSync,
                     catalogName,
                     shapingLoggerFactory);
 

@@ -52,7 +52,6 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.WarpProxiedWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer;
 import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
-import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectTxService;
 import io.trino.plugin.warp.storage.read.MatchService;
@@ -86,7 +85,7 @@ public class DispatcherMainModule
     public void configure(Binder binder)
     {
         binder.bind(FailureGeneratorInvocationHandler.class);
-        if (WarpBaseModule.isWorker(context, config)) {
+        if (WarpBaseModule.isWorker(context.getNodeManager(), config)) {
             binder.bind(AttachDictionaryService.class);
             binder.bind(BlockAppenderFactory.class);
             binder.bind(BlockFillersFactory.class);
@@ -101,9 +100,8 @@ public class DispatcherMainModule
             binder.bind(DomainToMapBlockConvertor.class);
             binder.bind(EmptyRowGroupWarmer.class);
             binder.bind(LazyCollectTxService.class);
-            binder.bind(MatchCollectIdService.class);
+            binder.bind(MatchCollectIdService.class).toInstance(context.getWarpPluginSharedInstances().matchCollectIdService());
             binder.bind(MatchService.class);
-            binder.bind(NativeLogger.class).toInstance(context.getWarpPluginSharedInstances().nativeLogger());
             binder.bind(PredicateContextFactory.class);
             binder.bind(PredicatesCacheService.class);
             binder.bind(QueryClassifier.class);
@@ -129,11 +127,11 @@ public class DispatcherMainModule
             binder.bind(WorkerWarmingService.class);
         }
         if (WarpBaseModule.isSingle(config)) {
-            binder.bind(DispatcherConnectorBase.class).to(SingleDispatcherConnector.class);
             binder.bind(CoordinatorDispatcherConnector.class);
+            binder.bind(DispatcherConnectorBase.class).to(SingleDispatcherConnector.class);
             binder.bind(WorkerDispatcherConnector.class);
         }
-        else if (WarpBaseModule.isCoordinator(context)) {
+        else if (WarpBaseModule.isCoordinator(context.getNodeManager())) {
             binder.bind(DispatcherConnectorBase.class).to(CoordinatorDispatcherConnector.class);
         }
         else {

@@ -63,19 +63,20 @@ public class DemoterUtils
     {
     }
 
-    public void demote(String schema, String table, TestFormat test)
+    public void demote(int port, String schema, String table, TestFormat test)
     {
-        demote(schema, table, test.structure().stream().map(TestFormat.Column::name).toList());
+        demote(port, schema, table, test.structure().stream().map(TestFormat.Column::name).toList());
     }
 
-    public void demote(String schema, String table, TableFormat tableFormat)
+    public void demote(int port, String schema, String table, TableFormat tableFormat)
     {
-        demote(schema, table, tableFormat.structure().stream().map(TestFormat.Column::name).toList());
+        demote(port, schema, table, tableFormat.structure().stream().map(TestFormat.Column::name).toList());
     }
 
-    public void demote(String schema, String table, List<String> columnNames)
+    public void demote(int port, String schema, String table, List<String> columnNames)
     {
-        demote(schema,
+        demote(port,
+                schema,
                 table,
                 columnNames,
                 -0.99,
@@ -86,6 +87,7 @@ public class DemoterUtils
     }
 
     public void demote(
+            int port,
             String schema,
             String table,
             List<String> columnNames,
@@ -116,10 +118,10 @@ public class DemoterUtils
                                 .toList());
             }
         }
-        demote(warmupDemoterDataBuilder.build(), false);
+        demote(warmupDemoterDataBuilder.build(), port, false);
     }
 
-    public Map<String, Object> demote(WarmupDemoterData warmupDemoterData, boolean isCache)
+    public Map<String, Object> demote(WarmupDemoterData warmupDemoterData, int port, boolean isCache)
     {
         Map<String, Object> res = new HashMap<>();
         try {
@@ -133,7 +135,7 @@ public class DemoterUtils
                 result = restUtils.executeCacheRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WorkerWarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData, HttpMethod.POST, HttpURLConnection.HTTP_OK);
             }
             else {
-                result = restUtils.executePostCommandWithReturnValue(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
+                result = restUtils.executePostCommandWithReturnValue(port, WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
             }
             res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
             logger.debug("%s", res);
@@ -172,13 +174,19 @@ public class DemoterUtils
                 });
     }
 
-    public void resetToDefaultDemoterConfiguration()
+    public void resetToDefaultDemoterConfiguration(int port)
             throws IOException
     {
-        resetToDefaultDemoterConfiguration(false);
+        resetToDefaultDemoterConfiguration(port, false);
     }
 
     public void resetToDefaultDemoterConfiguration(boolean isCache)
+            throws IOException
+    {
+        resetToDefaultDemoterConfiguration(-1, isCache);
+    }
+
+    private void resetToDefaultDemoterConfiguration(int port, boolean isCache)
             throws IOException
     {
         WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
@@ -197,12 +205,22 @@ public class DemoterUtils
             result = restUtils.executeCacheRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WorkerWarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData, HttpMethod.POST, HttpURLConnection.HTTP_OK);
         }
         else {
-            result = restUtils.executePostCommandWithReturnValue(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
+            result = restUtils.executePostCommandWithReturnValue(port, WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
         }
         logger.debug("result demoter configuration: %s", result);
     }
 
+    public void demoteAllByMaxUsage(int port)
+    {
+        demoteAllByMaxUsage(port, false);
+    }
+
     public void demoteAllByMaxUsage(boolean useCachePort)
+    {
+        demoteAllByMaxUsage(-1, useCachePort);
+    }
+
+    private void demoteAllByMaxUsage(int port, boolean useCachePort)
     {
         QueryResult demoterStatsBefore = JMXCachingManager.getDemoterStats();
 
@@ -216,7 +234,7 @@ public class DemoterUtils
                 .forceExecuteDeadObjects(true)
                 .forceDeleteFailedObjects(true)
                 .build();
-        Map<String, Object> demoteResultStats = demote(warmupDemoterData, useCachePort);
+        Map<String, Object> demoteResultStats = demote(warmupDemoterData, port, useCachePort);
 
         long deletedByLowPriority = (long) (Integer) demoteResultStats.get("warmupDemoter:" + JMXCachingConstants.WarmupDemoter.DELETED_BY_LOW_PRIORITY);
         logger.info("demote according to max usage: deletedByLowPriority=%s", deletedByLowPriority);

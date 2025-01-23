@@ -1,0 +1,86 @@
+[
+  {
+    "name": "single_chunks_table",
+    "pt_enable": true,
+    "structure": [
+      {
+        "name": "single_short",
+        "type": "smallint",
+        "comment": "There is no short type in iceberg"
+      },
+      {
+        "name": "single_int",
+        "type": "integer"
+      },
+      {
+        "name": "single_long",
+        "type": "bigint"
+      },
+      {
+        "name": "single_long_dec",
+        "type": "decimal",
+        "args": [
+          38,
+          10
+        ]
+      }
+    ],
+    "session_properties": {
+      "enable_default_warming": false,
+      "enable_import_export": true
+    },
+    "warmup_rules": [
+      {
+        "colNameId": "single_short",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA",
+          "WARM_UP_TYPE_BASIC"
+        ]
+      },
+      {
+        "colNameId": "single_int",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA",
+          "WARM_UP_TYPE_BASIC"
+        ]
+      },
+      {
+        "colNameId": "single_long",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA",
+          "WARM_UP_TYPE_BASIC"
+        ]
+      },
+      {
+        "colNameId": "single_long_dec",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA",
+          "WARM_UP_TYPE_BASIC"
+        ]
+      }
+    ],
+    "warm_query": "select * from single_chunks_table",
+    "queries_data": [
+      {
+        "query": "select count(single_short), count(single_int), count(single_long), count(single_long_dec) from single_chunks_table where (single_short=-28525 or single_short=-19117) and (single_int=-1147252207 or single_int=-1893809485) and (single_long=-8169362783863696309 or single_long=-9142099609788909568) and (single_long_dec=4283625318878608300000000000.1234567891 or single_long=3757825518217793400000000000.1234567891)",
+        "query_id": "single_chunks_table_11",
+        "expected_result": [
+          65536, 65536, 65536, 65536
+        ],
+        "expected_counters": {
+          "warp_match_columns": 12,
+          "warp_collect_columns": 6,
+          "warp_prefilled_collect_columns": 6,
+          "warp_match_collect_columns": 6,
+          "warp_mapped_match_collect_columns": 6,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      }
+    ]
+  }
+]

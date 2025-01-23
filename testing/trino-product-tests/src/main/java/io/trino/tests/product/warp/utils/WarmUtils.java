@@ -90,7 +90,7 @@ public class WarmUtils
         return "select " + columns + " from " + tableName;
     }
 
-    public void warmAndValidate(TestFormat testFormat, FastWarming fastWarming)
+    public void warmAndValidate(int port, String catalogName, TestFormat testFormat, FastWarming fastWarming)
     {
         @Language("SQL")
         String warmQuery = testFormat.warm_query();
@@ -98,16 +98,22 @@ public class WarmUtils
             warmQuery = createWarmupQuery(testFormat.getTableName(), testFormat.structure());
         }
         warmAndValidate(
+                port,
+                catalogName,
                 testFormat.getTableName(),
                 warmQuery,
                 testFormat.expected_warm_failures(),
-                testFormat.session_properties() != null ? testFormat.session_properties().entrySet().stream().collect(Collectors.toMap(e -> "warp." + e.getKey(), Map.Entry::getValue)) : new HashMap<>(),
+                testFormat.session_properties() != null ?
+                        testFormat.session_properties().entrySet().stream().collect(Collectors.toMap(e -> catalogName + "." + e.getKey(), Map.Entry::getValue)) :
+                        Map.of(),
                 testFormat.expected_dictionary_counters(),
                 fastWarming,
                 true);
     }
 
     public void warmAndValidate(
+            int port,
+            String catalogName,
             String tableName,
             @Language("SQL") String warmQuery,
             int expectedFailures,
@@ -120,18 +126,19 @@ public class WarmUtils
         QueryResult dictionaryRowBefore = JMXCachingManager.getDictionaryStats();
         QueryResult exportRowBefore = JMXCachingManager.getExportStats();
         QueryResult importRowBefore = JMXCachingManager.getImportStats();
+
         boolean defaultWarming = sessionPropertiesWithCatalog != null &&
                 Boolean.parseBoolean(
-                        sessionPropertiesWithCatalog.getOrDefault("warp.enable_default_warming", "false").toString());
+                        sessionPropertiesWithCatalog.getOrDefault("%s.enable_default_warming".formatted(catalogName), "false").toString());
         logger.info("STARTING WARMUP=%s, fastWarming=%s, defaultWarming=%b", warmQuery, fastWarming, defaultWarming);
         QueryExecutor queryExecutor = onTrino();
         if (useEmptyQuery) {
-            queryExecutor.executeQuery("SET SESSION warp.empty_query=True");
+            queryExecutor.executeQuery("SET SESSION %s.empty_query=True".formatted(catalogName));
         }
-        queryExecutor.executeQuery(format("set session warp.enable_default_warming = %b", defaultWarming));
+        queryExecutor.executeQuery(format("set session %s.enable_default_warming = %b", catalogName, defaultWarming));
         queryExecutor.executeQuery(warmQuery);
         if (useEmptyQuery) {
-            queryExecutor.executeQuery("SET SESSION warp.empty_query=false");
+            queryExecutor.executeQuery("SET SESSION %s.empty_query=false".formatted(catalogName));
         }
 
         assertEventually(
@@ -170,7 +177,7 @@ public class WarmUtils
 
                         try {
                             RestUtils restUtils = new RestUtils();
-                            String string = restUtils.executeGetCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME);
+                            String string = restUtils.executeGetCommand(port, RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME);
                             RowGroupCountResult rowGroupCountResultBefore = objectMapper.readerFor(new TypeReference<RowGroupCountResult>() {}).readValue(string);
                             logger.info("11111111 rowGroupCountResultBefore=%s", rowGroupCountResultBefore);
                         }

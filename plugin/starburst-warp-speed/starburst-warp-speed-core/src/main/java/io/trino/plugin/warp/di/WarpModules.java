@@ -33,7 +33,7 @@ public class WarpModules
     private final String connectorId;
     private final Map<String, String> config;
     private final WarpConnectorContext context;
-    private Optional<Module> storageEngineModule = Optional.empty();
+
     private Optional<Module> cloudVendorModule = Optional.empty();
     private final Optional<List<ExtraModule>> extraModules = Optional.empty();
 
@@ -48,7 +48,6 @@ public class WarpModules
     protected void configure()
     {
         install(new MetricsModule());
-        install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(context, config)));
         install(cloudVendorModule.orElse(CloudVendorModule.getModule(context, ForWarp.class, connectorId, config)));
         install(new WarpMainModule(context, config));
 
@@ -56,11 +55,5 @@ public class WarpModules
                 .map(externalModule -> externalModule.withConfig(config).withContext(context))
                 .filter(WarpBaseModule::shouldInstall)
                 .forEach(this::install));
-    }
-
-    public WarpModules withStorageEngineModule(Module module)
-    {
-        this.storageEngineModule = Optional.ofNullable(module);
-        return this;
     }
 }

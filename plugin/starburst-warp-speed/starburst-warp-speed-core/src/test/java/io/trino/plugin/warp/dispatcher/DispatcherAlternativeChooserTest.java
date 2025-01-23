@@ -178,12 +178,10 @@ public class DispatcherAlternativeChooserTest
                         matchCollectIdService,
                         globalConfig,
                         new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),
-                storageEngine,
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
-                globalConfig,
-                new CatalogName("catalog-name"));
+                globalConfig);
         connectorPageSourceProvider = new TestingConnectorPageSourceProvider();
         dispatcherAlternativeChooser = createAlternativeChooser(queryClassifier);
     }

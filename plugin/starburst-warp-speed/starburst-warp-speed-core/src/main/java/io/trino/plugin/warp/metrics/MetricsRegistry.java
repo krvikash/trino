@@ -32,6 +32,7 @@ import static java.util.Objects.requireNonNull;
 public class MetricsRegistry
 {
     private static final Logger logger = Logger.get(MetricsRegistry.class);
+
     private final CatalogNameProvider catalogNameProvider;
     private final MBeanExporter exporter;
     private final MetricsConfig metricsConfig;
@@ -76,7 +77,7 @@ public class MetricsRegistry
     public void unregisterMetric(String key)
     {
         String jmxKey = getKey(key);
-        logger.debug(" unregisterMetric: %s (%s)", key, jmxKey);
+        logger.debug("unregisterMetric: %s (%s)", key, jmxKey);
         WarpStatsBase removedObject = metricsRegistry.remove(jmxKey);
         if (removedObject != null) {
             if (metricsConfig.isEnabled()) {

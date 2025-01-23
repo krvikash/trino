@@ -15,7 +15,7 @@ package io.trino.plugin.warp.di;
 
 import com.google.inject.Module;
 import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
-import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.NodeManager;
 
 import java.util.Map;
 
@@ -34,14 +34,14 @@ public interface WarpBaseModule
         return this;
     }
 
-    static boolean isCoordinator(ConnectorContext context)
+    static boolean isCoordinator(NodeManager nodeManager)
     {
-        return context.getNodeManager().getCurrentNode().isCoordinator();
+        return nodeManager.getCurrentNode().isCoordinator();
     }
 
-    static boolean isWorker(ConnectorContext context, Map<String, String> config)
+    static boolean isWorker(NodeManager nodeManager, Map<String, String> config)
     {
-        return isSingle(config) || !isCoordinator(context);
+        return isSingle(config) || !isCoordinator(nodeManager);
     }
 
     static boolean isSingle(Map<String, String> config)
