@@ -417,9 +417,9 @@ public class PredicatesCacheService
             if (predicateCacheData == null) {
                 // free cache if needed
                 if (predicateCachePool.get(predicateBufferPoolType).size() == bufferAllocator.getPoolSize(predicateBufferPoolType)) {
-                    shapingLogger.warn("predicate cache for %s is full. maxSize=%d. clean old predicates",
-                            predicateBufferPoolType, bufferAllocator.getPoolSize(predicateBufferPoolType));
                     if (!freeCache(predicateCachePool.get(predicateBufferPoolType), predicateBufferPoolType)) {
+                        shapingLogger.warn("predicate cache for %s is full and could not be freed. maxSize=%d.",
+                                predicateBufferPoolType, bufferAllocator.getPoolSize(predicateBufferPoolType));
                         return Optional.empty();
                     }
                 }
