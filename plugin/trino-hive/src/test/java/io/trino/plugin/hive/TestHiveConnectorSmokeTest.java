@@ -111,7 +111,7 @@ public class TestHiveConnectorSmokeTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
+    public void testCreateDropDynamicCatalog()
     {
         String catalog = "new_catalog_" + randomNameSuffix();
         String createCatalogSql = "CREATE CATALOG %s USING hive".formatted(catalog);
