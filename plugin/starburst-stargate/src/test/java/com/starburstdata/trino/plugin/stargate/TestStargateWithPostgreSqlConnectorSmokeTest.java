@@ -25,6 +25,7 @@ import static com.starburstdata.trino.plugin.stargate.StargateQueryRunner.POSTGR
 import static com.starburstdata.trino.plugin.stargate.StargateQueryRunner.stargateConnectionUrl;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestStargateWithPostgreSqlConnectorSmokeTest
         extends BaseJdbcConnectorSmokeTest
@@ -130,6 +131,55 @@ public class TestStargateWithPostgreSqlConnectorSmokeTest
         finally {
             assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
             assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            @Language("SQL")
+            String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
+                    .formatted(oldCatalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME), postgreSqlServer.getUser());
+            assertUpdate(createCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, POSTGRESQL_TPCH_SCHEMA));
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog)).hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME), postgreSqlServer.getUser()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, POSTGRESQL_TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, "jdbc:trino://invalid:8080/postgresql", postgreSqlServer.getUser());
+            assertUpdate(catalogWithIncorrectPassword);
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog)).isEqualTo(catalogWithIncorrectPassword);
+            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, POSTGRESQL_TPCH_SCHEMA),
+                    "Error executing query: java.net.UnknownHostException: invalid.*");
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "connection-url" = '%s'
+                    """.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME)));
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME), postgreSqlServer.getUser()));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, POSTGRESQL_TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
     }
 }
