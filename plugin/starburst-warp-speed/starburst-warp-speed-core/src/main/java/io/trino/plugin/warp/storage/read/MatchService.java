@@ -132,7 +132,6 @@ public class MatchService
                 long startTime = System.nanoTime();
                 MatchState matchState = new MatchState(queryArgs,
                         pageArena,
-                        aggregatorPageArgs.readerId(),
                         aggregatorPageArgs.matchCollectMetadata(),
                         storageEngineConstants.getMatchStatePayload(),
                         nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize(),

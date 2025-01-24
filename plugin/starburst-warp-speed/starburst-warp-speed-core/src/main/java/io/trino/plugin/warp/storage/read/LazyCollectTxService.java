@@ -22,7 +22,6 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
@@ -40,13 +39,12 @@ public class LazyCollectTxService
     @Inject
     public LazyCollectTxService(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
-            ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
             WorkerMemoryManager workerMemoryManager,
             GlobalConfig globalConfig,
             NativeConfig nativeConfig)
     {
-        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig, nativeConfig);
+        super(storageEngine, storageEngineConstants, bufferAllocator, globalConfig, nativeConfig);
         this.workerMemoryManager = workerMemoryManager;
     }
 
@@ -59,7 +57,6 @@ public class LazyCollectTxService
         final int recTypeLength = WarmUpElement.getRecTypeLength(warmupElementAtt);
 
         // initialize memory parameters
-        final int readerId = allocReaderId();
         final int recordBufferSize = bufferAllocator.getCollectRecordBufferSizeMust(recTypeCode, recTypeLength) + bufferAllocator.getCollectRecordBufferSizeOptional(recTypeCode, recTypeLength);
         final int nullBufferSize = bufferAllocator.getQueryNullBufferSize(recTypeCode);
 
@@ -99,15 +96,13 @@ public class LazyCollectTxService
                 nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize());
         collectState.setLazyState(lazyCollectorLoaderArgs.queryParams(),
                 lazyCollectorLoaderArgs.fileCookie(),
-                readerId,
                 lazyCollectorLoaderArgs.numChunksInRange(),
                 recordBufferStates,
                 recordIndexes,
                 collectBuffers,
                 collectParams.getMemory());
         collectOpen(collectState, dispatcherPageSourceStats);
-        return new LazyCollectOpenResult(readerId,
-                collectState,
+        return new LazyCollectOpenResult(collectState,
                 pageArena,
                 recordIndexes,
                 collectBuffers,
@@ -124,6 +119,5 @@ public class LazyCollectTxService
 
         collectOpenResult.readStats().fillStats(nativeStats);
         collectOpenResult.pageArena().close();
-        freeQueryMemory(collectOpenResult.readerId());
     }
 }

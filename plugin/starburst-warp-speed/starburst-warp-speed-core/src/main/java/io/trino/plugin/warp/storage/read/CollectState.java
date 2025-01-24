@@ -37,7 +37,6 @@ public class CollectState
     private static final long COLLECT_STATE_OFFSET_FILE_COOKIE;
     private static final long COLLECT_STATE_OFFSET_MIN_FILE_OFFSET;
     private static final long COLLECT_STATE_OFFSET_NUM_RECORDS;
-    private static final long COLLECT_STATE_OFFSET_TX_ID;
     private static final long COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS;
     private static final long COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS;
     private static final long COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE;
@@ -56,7 +55,6 @@ public class CollectState
                 RowGroupData.FILE_COOKIE_LAYOUT.withName("file_cookie"),
                 ValueLayout.JAVA_INT.withName("min_offset"),
                 ValueLayout.JAVA_INT.withName("nrecs"),
-                ValueLayout.JAVA_INT.withName("tx_id"),
                 ValueLayout.JAVA_BYTE.withName("nwes"),
                 ValueLayout.JAVA_BYTE.withName("nmatch_collect"),
                 ValueLayout.JAVA_BYTE.withName("nmultiple_match"),
@@ -69,7 +67,6 @@ public class CollectState
         COLLECT_STATE_OFFSET_FILE_COOKIE = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("file_cookie"));
         COLLECT_STATE_OFFSET_MIN_FILE_OFFSET = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("min_offset"));
         COLLECT_STATE_OFFSET_NUM_RECORDS = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("nrecs"));
-        COLLECT_STATE_OFFSET_TX_ID = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("tx_id"));
         COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("nwes"));
         COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("nmatch_collect"));
         COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("nmultiple_match"));
@@ -101,7 +98,6 @@ public class CollectState
                 fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinCollectOffset());
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
-        collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_TX_ID, aggregatorPageArgs.readerId());
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) queryParams.getNumCollectElements());
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) queryParams.getNumMatchCollect());
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) queryArgs.numChunksInRange());
@@ -110,7 +106,6 @@ public class CollectState
 
     public void setLazyState(QueryParams queryParams,
             long[] fileCookie,
-            int readerId,
             int numChunksInRange,
             MemorySegment recordBufferStates,
             RecordIndexes recordIndexes,
@@ -128,7 +123,6 @@ public class CollectState
                 fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinCollectOffset());
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
-        collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_TX_ID, readerId);
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) 1);
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) 0);
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) numChunksInRange);

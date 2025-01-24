@@ -52,8 +52,6 @@ public class NativeConnectorSync
     private final MethodHandle mGetContextSize;
     private final MethodHandle mRegister;
     private final MethodHandle mUnregister;
-    private final MethodHandle mAllocReaderId;
-    private final MethodHandle mFreeReaderId;
 
     @Inject
     public NativeConnectorSync(
@@ -72,10 +70,6 @@ public class NativeConnectorSync
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
             mUnregister = linker.downcallHandle(libraryHandle.find("syncher_unregister").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
-            mAllocReaderId = linker.downcallHandle(libraryHandle.find("syncher_alloc_reader_id").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_INT));
-            mFreeReaderId = linker.downcallHandle(libraryHandle.find("syncher_free_reader_id").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.JAVA_INT));
 
             this.catalogName = catalogName;
             this.eventBus = requireNonNull(eventBus);
@@ -154,40 +148,5 @@ public class NativeConnectorSync
     private int readCatalogId()
     {
         return catalogContext.get(ValueLayout.JAVA_INT, 0);
-    }
-
-    // native resources API
-    @Override
-    public int allocReaderId()
-    {
-        try {
-            int readerId = (int) mAllocReaderId.invokeExact();
-            if ((readerId >= 0) && (readerId < numWorkerThreads)) {
-                return readerId;
-            }
-        }
-        catch (Throwable t) {
-            logger.error(t, "failed to allocate query memory");
-        }
-        throw new RuntimeException("failed to allocate query memory");
-    }
-
-    @Override
-    public void freeReaderId(int readerId)
-    {
-        long result = -1;
-        try {
-            result = (long) mFreeReaderId.invokeExact(readerId);
-            if (result > 0) {
-                logger.warn("query memory was held too long %d millis", result);
-            }
-            if (result >= 0) {
-                return;
-            }
-        }
-        catch (Throwable t) {
-            logger.error(t, "failed to free query memory");
-        }
-        throw new RuntimeException("failed to free query memory");
     }
 }

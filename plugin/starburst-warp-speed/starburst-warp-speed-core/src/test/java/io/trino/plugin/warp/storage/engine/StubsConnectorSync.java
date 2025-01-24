@@ -40,15 +40,4 @@ public class StubsConnectorSync
     {
         return false;
     }
-
-    @Override
-    public int allocReaderId()
-    {
-        return 0;
-    }
-
-    @Override
-    public void freeReaderId(int readerId)
-    {
-    }
 }

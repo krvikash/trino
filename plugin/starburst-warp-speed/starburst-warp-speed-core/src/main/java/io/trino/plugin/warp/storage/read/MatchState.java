@@ -58,7 +58,6 @@ public class MatchState
     private static final long MATCH_STATE_OFFSET_NUM_RECORDS;
     private static final long MATCH_STATE_OFFSET_MIN_FILE_OFFSET;
     private static final long MATCH_STATE_OFFSET_MATCH_COLLECT_ID;
-    private static final long MATCH_STATE_OFFSET_TX_ID;
     private static final long MATCH_STATE_OFFSET_NUM_WARM_UP_ELEMENTS;
     private static final long MATCH_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS;
     private static final long MATCH_STATE_OFFSET_NUM_CHUNKS_IN_RANGE;
@@ -102,7 +101,6 @@ public class MatchState
                 ValueLayout.JAVA_INT.withName("nrecs"),
                 ValueLayout.JAVA_INT.withName("min_offset"),
                 ValueLayout.JAVA_INT.withName("match_collect_buff_ix"),
-                ValueLayout.JAVA_INT.withName("tx_id"),
                 ValueLayout.JAVA_BYTE.withName("nwes"),
                 ValueLayout.JAVA_BYTE.withName("nmatch_collect"),
                 ValueLayout.JAVA_BYTE.withName("nmultiple_match"),
@@ -119,7 +117,6 @@ public class MatchState
         MATCH_STATE_OFFSET_NUM_RECORDS = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("nrecs"));
         MATCH_STATE_OFFSET_MIN_FILE_OFFSET = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("min_offset"));
         MATCH_STATE_OFFSET_MATCH_COLLECT_ID = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("match_collect_buff_ix"));
-        MATCH_STATE_OFFSET_TX_ID = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("tx_id"));
         MATCH_STATE_OFFSET_NUM_WARM_UP_ELEMENTS = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("nwes"));
         MATCH_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("nmatch_collect"));
         MATCH_STATE_OFFSET_NUM_CHUNKS_IN_RANGE = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("nmultiple_match"));
@@ -128,7 +125,6 @@ public class MatchState
 
     public MatchState(QueryArgs queryArgs,
             ThreadArena arena,
-            int readerId,
             Optional<MemorySegment> matchCollectMetadata,
             int payloadSize, // payload is taken at the begining of the memory layout
             int storageBufferMetadaSize, // this memory is allocated as a buffer following the match state struct
@@ -144,7 +140,7 @@ public class MatchState
         this.matchBitmapsDescriptors = Optional.empty();
         this.luceneBitmaps = Optional.empty();
         setMemory(arena, payloadSize, queryArgs.numChunksInRange(), storageBufferMetadaSize);
-        setState(queryArgs, readerId, matchCollectMetadata);
+        setState(queryArgs, matchCollectMetadata);
     }
 
     private void setMemory(ThreadArena arena, int payloadSize, int numChunksInRange, int storageBufferMetadaSize)
@@ -161,7 +157,7 @@ public class MatchState
         this.matchState = matchStateWithPayload.asSlice(payloadSize, MATCH_STATE_LAYOUT);
     }
 
-    private void setState(QueryArgs queryArgs, int readerId, Optional<MemorySegment> matchCollectMetadata)
+    private void setState(QueryArgs queryArgs, Optional<MemorySegment> matchCollectMetadata)
     {
         QueryParams queryParams = queryArgs.queryParams();
         long[] fileCookie = queryArgs.fileCookie();
@@ -209,7 +205,6 @@ public class MatchState
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinMatchOffset());
         matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_MATCH_COLLECT_ID, queryParams.getMatchCollectId());
-        matchState.set(ValueLayout.JAVA_INT, MATCH_STATE_OFFSET_TX_ID, readerId);
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) queryParams.getNumMatchElements());
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) queryParams.getNumMatchCollect());
         matchState.set(ValueLayout.JAVA_BYTE, MATCH_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) queryArgs.numChunksInRange());

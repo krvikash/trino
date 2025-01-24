@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Optional;
 
 public record AggregatorPageArgs(CollectState collectState,
-        int readerId,
         int rowsLimit,
         int numCollectedInPreviousRounds,
         Optional<MemorySegment> collectMemory,

@@ -29,14 +29,4 @@ public interface ConnectorSync
     {
         throw new UnsupportedOperationException();
     }
-
-    default int allocReaderId()
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default void freeReaderId(int readerId)
-    {
-        throw new UnsupportedOperationException();
-    }
 }

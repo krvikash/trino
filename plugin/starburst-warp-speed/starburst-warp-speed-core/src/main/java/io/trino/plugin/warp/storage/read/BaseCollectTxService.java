@@ -20,7 +20,6 @@ import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -37,7 +36,6 @@ public abstract class BaseCollectTxService
 
     protected final StorageEngine storageEngine;
     protected final StorageEngineConstants storageEngineConstants;
-    protected final ConnectorSync connectorSync;
     protected final BufferAllocator bufferAllocator;
     protected final GlobalConfig globalConfig;
     protected final NativeConfig nativeConfig;
@@ -45,14 +43,12 @@ public abstract class BaseCollectTxService
 
     public BaseCollectTxService(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
-            ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
             GlobalConfig globalConfig,
             NativeConfig nativeConfig)
     {
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
-        this.connectorSync = connectorSync;
         this.bufferAllocator = bufferAllocator;
         this.globalConfig = globalConfig;
         this.nativeConfig = nativeConfig;
@@ -60,16 +56,6 @@ public abstract class BaseCollectTxService
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
-    }
-
-    protected int allocReaderId()
-    {
-        return connectorSync.allocReaderId();
-    }
-
-    protected void freeQueryMemory(int readerId)
-    {
-        connectorSync.freeReaderId(readerId);
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()

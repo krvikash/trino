@@ -21,7 +21,6 @@ import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
@@ -47,13 +46,12 @@ public class CollectTxService
     @Inject
     public CollectTxService(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
-            ConnectorSync connectorSync,
             BufferAllocator bufferAllocator,
             RangeFillerService rangeFillerService,
             GlobalConfig globalConfig,
             NativeConfig nativeConfig)
     {
-        super(storageEngine, storageEngineConstants, connectorSync, bufferAllocator, globalConfig, nativeConfig);
+        super(storageEngine, storageEngineConstants, bufferAllocator, globalConfig, nativeConfig);
         this.rangeFillerService = rangeFillerService;
     }
 
@@ -111,7 +109,6 @@ public class CollectTxService
                 storageEngineConstants.getCollectStatePayload(),
                 nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize());
         AggregatorPageArgs aggregatorPageArgs = new AggregatorPageArgs(collectState,
-                allocReaderId(),
                 rowsLimit,
                 numCollectedInPrevRounds,
                 collectMemory,
@@ -149,14 +146,12 @@ public class CollectTxService
         queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
 
         int totalReadPages = aggregatorPageArgs.readStats().fillStats(queryArgs.nativeStats());
-        freeQueryMemory(aggregatorPageArgs.readerId());
         return new CollectCloseResult(storeRowListResult, totalReadPages);
     }
 
     void collectAbort(AggregatorPageArgs aggregatorPageArgs, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         collectAbort(e, aggregatorPageArgs.collectState(), dispatcherPageSourceStats);
-        freeQueryMemory(aggregatorPageArgs.readerId());
     }
 
     private Optional<MemorySegment> allocCollectBuffers(List<WarmupElementCollectParams> collectParamsList,
