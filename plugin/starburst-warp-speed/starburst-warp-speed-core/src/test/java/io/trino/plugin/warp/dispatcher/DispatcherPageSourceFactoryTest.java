@@ -46,7 +46,6 @@ import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -182,7 +181,6 @@ public class DispatcherPageSourceFactoryTest
         workerWarmingService = mock(WorkerWarmingService.class);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         NodeManager nodeManager = mockNodeManager();
-        ConnectorSync connectorSync = mock(ConnectorSync.class);
         RowGroupDataService rowGroupDataService = new RowGroupDataService(
                 rowGroupDataDao,
                 storageEngine,

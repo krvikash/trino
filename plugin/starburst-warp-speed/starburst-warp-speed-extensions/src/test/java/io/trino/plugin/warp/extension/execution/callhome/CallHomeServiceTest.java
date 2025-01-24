@@ -18,7 +18,6 @@ import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.extension.config.CallHomeConfig;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.spi.NodeManager;
@@ -54,7 +53,6 @@ public class CallHomeServiceTest
     @BeforeEach
     public void beforeEach()
     {
-        ConnectorSync connectorSync = mock(ConnectorSync.class);
         NodeManager nodeManager = NodeUtils.mockNodeManager();
 
         CloudVendorConfig cloudVendorConfig = new CloudVendorConfig();
@@ -75,8 +73,7 @@ public class CallHomeServiceTest
                 eq(Integer.valueOf(callHomeConfig.getIntervalInSeconds()).longValue()),
                 eq(TimeUnit.SECONDS))).thenReturn(unusedScheduledFuture);
 
-        callHomeService = new CallHomeService(connectorSync,
-                nodeManager,
+        callHomeService = new CallHomeService(nodeManager,
                 catalogNameProvider,
                 cloudVendorConfig,
                 callHomeConfig,

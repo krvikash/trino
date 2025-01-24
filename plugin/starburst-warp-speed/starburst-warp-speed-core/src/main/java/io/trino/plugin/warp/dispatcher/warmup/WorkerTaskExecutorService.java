@@ -30,7 +30,6 @@ import io.trino.plugin.warp.dispatcher.warmup.export.WeGroupCloudExporterTask;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.connector.ConnectorSession;
@@ -68,7 +67,6 @@ public class WorkerTaskExecutorService
     private final ShapingLogger shapingLogger;
 
     private final NativeConfig nativeConfig;
-    private final ConnectorSync connectorSync;
     private final WorkerTaskExecutorServiceStats statsWorkerTaskExecutorService;
     private final Map<RowGroupKey, UUID> submittedRowGroups = new ConcurrentHashMap<>();
     private final SetMultimap<RowGroupKey, WorkerSubmittableTask> pendingTasks = Multimaps.newSetMultimap(new ConcurrentHashMap<>(), () -> {
@@ -90,7 +88,6 @@ public class WorkerTaskExecutorService
     public WorkerTaskExecutorService(
             WarmupDemoterConfig warmupDemoterConfig,
             NativeConfig nativeConfig,
-            ConnectorSync connectorSync,
             MetricsManager metricsManager,
             GlobalConfig globalConfig,
             @ForWarp CloudVendorConfig cloudVendorConfig,
@@ -103,7 +100,6 @@ public class WorkerTaskExecutorService
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
         this.nativeConfig = requireNonNull(nativeConfig);
-        this.connectorSync = requireNonNull(connectorSync);
         this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new WorkerTaskExecutorServiceStats());
         this.globalConfig = requireNonNull(globalConfig);
         requireNonNull(warmupDemoterConfig);

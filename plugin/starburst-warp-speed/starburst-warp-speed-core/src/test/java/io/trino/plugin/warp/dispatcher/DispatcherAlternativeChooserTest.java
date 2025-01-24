@@ -35,7 +35,6 @@ import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -148,7 +147,6 @@ public class DispatcherAlternativeChooserTest
         GlobalConfig globalConfig = new GlobalConfig();
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         NodeManager nodeManager = mockNodeManager();
-        ConnectorSync connectorSync = mock(ConnectorSync.class);
         rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
                 globalConfig,

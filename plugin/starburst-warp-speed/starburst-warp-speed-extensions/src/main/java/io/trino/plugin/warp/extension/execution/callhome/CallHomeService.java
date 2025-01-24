@@ -24,7 +24,6 @@ import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.cloudvendors.config.StoreType;
 import io.trino.plugin.warp.extension.config.CallHomeConfig;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.StringUtils;
@@ -58,7 +57,6 @@ public class CallHomeService
     private static final String DEFAULT_CATALOG_PATH = "/etc/presto/catalog";
     private static final String DEFAULT_SERVER_LOG_PATH = "/var/log/presto/server.log";
     static final String CATALOG_PROPERTY_KEY = "catalog.config-dir";
-    private final ConnectorSync connectorSync;
     private final ScheduledExecutorService scheduledExecutorService;
     private final NodeManager nodeManager;
     private final CloudVendorConfig cloudVendorConfig;
@@ -71,16 +69,14 @@ public class CallHomeService
 
     @SuppressWarnings("unused")
     @Inject
-    public CallHomeService(ConnectorSync connectorSync,
-            NodeManager nodeManager,
+    public CallHomeService(NodeManager nodeManager,
             CatalogNameProvider catalogNameProvider,
             @ForWarp CloudVendorConfig cloudVendorConfig,
             CallHomeConfig callHomeConfig,
             @ForWarp CloudVendorService cloudVendorService,
             EventBus eventBus)
     {
-        this(connectorSync,
-                nodeManager,
+        this(nodeManager,
                 catalogNameProvider,
                 cloudVendorConfig,
                 callHomeConfig,
@@ -95,8 +91,7 @@ public class CallHomeService
     }
 
     @VisibleForTesting
-    public CallHomeService(ConnectorSync connectorSync,
-            NodeManager nodeManager,
+    public CallHomeService(NodeManager nodeManager,
             CatalogNameProvider catalogNameProvider,
             CloudVendorConfig cloudVendorConfig,
             CallHomeConfig callHomeConfig,
@@ -104,7 +99,6 @@ public class CallHomeService
             EventBus eventBus,
             ScheduledExecutorService scheduledExecutorService)
     {
-        this.connectorSync = requireNonNull(connectorSync);
         this.nodeManager = requireNonNull(nodeManager);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.callHomeConfig = requireNonNull(callHomeConfig);
