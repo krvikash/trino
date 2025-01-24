@@ -859,7 +859,7 @@ class TestUnloadFunction
                 .setSystemProperty("hive.timestamp_precision", precisionName)
                 .build();
 
-        String input = "CAST('1970-01-01 00:00:00' AS timestamp(" + precision + "))";
+        String input = "CAST('1932-04-01 00:00:00' AS timestamp(" + precision + "))";
 
         // The failure occurs during daylight savings time gap for America/Bahia_Banderas timezone because
         // timestamps in that hour don't round trip convertLocalToUTC/convertUTCToLocal

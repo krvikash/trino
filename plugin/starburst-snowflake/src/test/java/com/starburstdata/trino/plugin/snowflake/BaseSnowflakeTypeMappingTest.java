@@ -87,7 +87,7 @@ public abstract class BaseSnowflakeTypeMappingTest
 
         jvmZone = ZoneId.systemDefault();
 
-        dateTimeGapInJvmZone1 = LocalDateTime.of(1970, 1, 1, 0, 13, 42);
+        dateTimeGapInJvmZone1 = LocalDateTime.of(1932, 4, 1, 0, 13, 42);
         checkIsGap(jvmZone, dateTimeGapInJvmZone1);
         dateTimeGapInJvmZone2 = LocalDateTime.of(2018, 4, 1, 2, 13, 55, 123_000_000);
         checkIsGap(jvmZone, dateTimeGapInJvmZone2);
@@ -601,7 +601,7 @@ public abstract class BaseSnowflakeTypeMappingTest
         testTimestampWithTimeZone(true, "TIMESTAMP_TZ", ZoneId.of("UTC"));
         testTimestampWithTimeZone(false, "TIMESTAMP_TZ", ZoneId.of("UTC"));
         testTimestampWithTimeZone(true, "TIMESTAMP_LTZ", ZoneId.of("UTC"));
-        testTimestampWithTimeZone(false, "TIMESTAMP_LTZ", ZoneId.of("America/Bahia_Banderas"));
+        testTimestampWithTimeZone(false, "TIMESTAMP_LTZ", ZoneId.of("America/Los_Angeles"));
     }
 
     private void testTimestampWithTimeZone(boolean insertWithTrino, String timestampType, ZoneId resultZone)

@@ -65,13 +65,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestStargateTypeMapping
         extends AbstractTestQueryFramework
 {
-    private static final LocalDate EPOCH_DAY = LocalDate.ofEpochDay(0);
-
     private DistributedQueryRunner starburstEnterprise;
     private TrinoSqlExecutor remoteExecutor;
 
     private final ZoneId jvmZone = ZoneId.systemDefault();
-    private final LocalDateTime timeGapInJvmZone1 = LocalDateTime.of(1970, 1, 1, 0, 13, 42);
+    private final LocalDateTime timeGapInJvmZone1 = LocalDateTime.of(1932, 4, 1, 0, 13, 42);
     private final LocalDateTime timeGapInJvmZone2 = LocalDateTime.of(2018, 4, 1, 2, 13, 55, 123_000_000);
     private final LocalDateTime timeDoubledInJvmZone = LocalDateTime.of(2018, 10, 28, 1, 33, 17, 456_000_000);
 
@@ -272,7 +270,7 @@ public class TestStargateTypeMapping
     {
         ZoneId jvmZone = ZoneId.systemDefault();
         checkState(jvmZone.getId().equals("America/Bahia_Banderas"), "This test assumes certain JVM time zone");
-        LocalDate dateOfLocalTimeChangeForwardAtMidnightInJvmZone = LocalDate.of(1970, 1, 1);
+        LocalDate dateOfLocalTimeChangeForwardAtMidnightInJvmZone = LocalDate.of(1932, 4, 1);
         checkIsGap(jvmZone, dateOfLocalTimeChangeForwardAtMidnightInJvmZone.atStartOfDay());
 
         ZoneId someZone = ZoneId.of("Europe/Vilnius");
@@ -328,7 +326,7 @@ public class TestStargateTypeMapping
                 .build();
 
         LocalTime timeGapInJvmZone = LocalTime.of(0, 12, 34);
-        checkIsGap(jvmZone, timeGapInJvmZone.atDate(EPOCH_DAY));
+        checkIsGap(jvmZone, timeGapInJvmZone.atDate(timeGapInJvmZone1.toLocalDate()));
 
         SqlDataTypeTest.create()
                 .addRoundTrip("time(9)", "TIME '23:59:59.000000000'", createTimeType(9), "TIME '23:59:59.000000000'")
@@ -400,7 +398,7 @@ public class TestStargateTypeMapping
                 .build();
 
         LocalTime timeGapInJvmZone = LocalTime.of(0, 12, 34);
-        checkIsGap(jvmZone, timeGapInJvmZone.atDate(EPOCH_DAY));
+        checkIsGap(jvmZone, timeGapInJvmZone.atDate(timeGapInJvmZone1.toLocalDate()));
 
         SqlDataTypeTest.create()
                 .addRoundTrip("time(0) with time zone", "TIME '01:12:34+00:00'", createTimeWithTimeZoneType(0), "TIME '01:12:34+00:00'")

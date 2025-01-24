@@ -243,7 +243,7 @@ public class TestDynamoDbTypeMapping
     {
         ZoneId jvmZone = ZoneId.systemDefault();
         checkState(jvmZone.getId().equals("America/Bahia_Banderas"), "This test assumes certain JVM time zone");
-        LocalDate dateOfLocalTimeChangeForwardAtMidnightInJvmZone = LocalDate.of(1970, 1, 1);
+        LocalDate dateOfLocalTimeChangeForwardAtMidnightInJvmZone = LocalDate.of(1932, 4, 1);
         checkIsGap(jvmZone, dateOfLocalTimeChangeForwardAtMidnightInJvmZone.atStartOfDay());
 
         ZoneId someZone = ZoneId.of("Europe/Vilnius");

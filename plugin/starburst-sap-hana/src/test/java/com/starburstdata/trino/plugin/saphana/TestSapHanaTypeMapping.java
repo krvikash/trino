@@ -65,12 +65,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class TestSapHanaTypeMapping
         extends AbstractTestQueryFramework
 {
-    private static final LocalDate EPOCH_DAY = LocalDate.ofEpochDay(0);
-
     private TestingSapHanaServer server;
 
     private final ZoneId jvmZone = ZoneId.systemDefault();
-    private final LocalDateTime timeGapInJvmZone1 = LocalDateTime.of(1970, 1, 1, 0, 13, 42);
+    private final LocalDateTime timeGapInJvmZone1 = LocalDateTime.of(1932, 4, 1, 0, 13, 42);
     private final LocalDateTime timeGapInJvmZone2 = LocalDateTime.of(2018, 4, 1, 2, 13, 55, 123_000_000);
     private final LocalDateTime timeDoubledInJvmZone = LocalDateTime.of(2018, 10, 28, 1, 33, 17, 456_000_000);
 
@@ -514,7 +512,7 @@ public class TestSapHanaTypeMapping
     {
         ZoneId jvmZone = ZoneId.systemDefault();
         checkState(jvmZone.getId().equals("America/Bahia_Banderas"), "This test assumes certain JVM time zone");
-        LocalDate dateOfLocalTimeChangeForwardAtMidnightInJvmZone = LocalDate.of(1970, 1, 1);
+        LocalDate dateOfLocalTimeChangeForwardAtMidnightInJvmZone = LocalDate.of(1932, 4, 1);
         checkIsGap(jvmZone, dateOfLocalTimeChangeForwardAtMidnightInJvmZone.atStartOfDay());
 
         ZoneId someZone = ZoneId.of("Europe/Vilnius");
@@ -574,7 +572,7 @@ public class TestSapHanaTypeMapping
                 .build();
 
         LocalTime timeGapInJvmZone = LocalTime.of(0, 12, 34, 567_000_000);
-        checkIsGap(jvmZone, timeGapInJvmZone.atDate(EPOCH_DAY));
+        checkIsGap(jvmZone, timeGapInJvmZone.atDate(timeGapInJvmZone1.toLocalDate()));
 
         // SAP HANA's TIME does not support second fraction
         SqlDataTypeTest.create()
@@ -604,7 +602,7 @@ public class TestSapHanaTypeMapping
                 .build();
 
         LocalTime timeGapInJvmZone = LocalTime.of(0, 12, 34);
-        checkIsGap(jvmZone, timeGapInJvmZone.atDate(EPOCH_DAY));
+        checkIsGap(jvmZone, timeGapInJvmZone.atDate(timeGapInJvmZone1.toLocalDate()));
 
         // TODO: Need to check round up behavior
         SqlDataTypeTest.create()
