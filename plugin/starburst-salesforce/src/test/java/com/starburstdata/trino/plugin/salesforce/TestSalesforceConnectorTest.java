@@ -2590,8 +2590,6 @@ public class TestSalesforceConnectorTest
         Session noJoinPushdown = Session.builder(getSession())
                 // Disable dynamic filtering so that expected plans in case of no pushdown remain "simple"
                 .setSystemProperty("enable_dynamic_filtering", "false")
-                // Disable optimized hash generation so that expected plans in case of no pushdown remain "simple"
-                .setSystemProperty("optimize_hash_generation", "false")
                 .build();
 
         assertThat(query(noJoinPushdown, "SELECT r.name__c, n.name__c FROM " + salesforceNationTableName + " n JOIN " + salesforceRegionTableName + " r ON n.regionkey__c = r.regionkey__c"))
