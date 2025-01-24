@@ -45,6 +45,7 @@ import static java.util.Objects.requireNonNull;
 public final class StargateQueryRunner
 {
     public static final LicenseVerifier NOOP_LICENSE_MANAGER = () -> true;
+    static final String POSTGRESQL_TPCH_SCHEMA = "tiny";
 
     private StargateQueryRunner() {}
 
