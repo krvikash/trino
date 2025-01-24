@@ -55,10 +55,4 @@ public class CoordinatorNativeConnectorSync
             throw new RuntimeException(e);
         }
     }
-
-    @Override
-    public boolean isDefaultCatalog()
-    {
-        return true;
-    }
 }

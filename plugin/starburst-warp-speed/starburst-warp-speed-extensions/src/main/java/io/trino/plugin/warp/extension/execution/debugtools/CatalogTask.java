@@ -17,7 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
+import io.trino.plugin.warp.storage.engine.StorageEngine;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 
@@ -30,18 +30,18 @@ public class CatalogTask
     public static final String TASK_NAME = "catalog";
     public static final String IS_DEFAULT = "is-default";
 
-    private final ConnectorSync connectorSync;
+    private final StorageEngine storageEngine;
 
     @Inject
-    public CatalogTask(ConnectorSync connectorSync)
+    public CatalogTask(StorageEngine storageEngine)
     {
-        this.connectorSync = connectorSync;
+        this.storageEngine = storageEngine;
     }
 
     @GET
     @Path(IS_DEFAULT)
     public boolean isDefault()
     {
-        return connectorSync.isDefaultCatalog();
+        return storageEngine.isFirstLoaded();
     }
 }

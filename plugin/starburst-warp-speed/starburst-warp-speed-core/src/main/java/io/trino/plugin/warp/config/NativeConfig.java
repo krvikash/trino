@@ -34,7 +34,6 @@ public class NativeConfig
     private static final int MIN_WARMING_THREADS = 2;
     private static final int DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES = 1024 * 1024;
     private static final String EXCEPTIONAL_LIST_COMPRESSION = "enable.compression.exceptional-list";
-    private static final int TASK_MIN_WORKER_THREADS = 4;
 
     private DataSize maxRecJufferSize = DataSize.of(10, DataSize.Unit.MEGABYTE);
     private int lz4HcPercent = 10;
@@ -201,11 +200,6 @@ public class NativeConfig
     public int getTaskMaxWorkerThreads()
     {
         return taskMaxWorkerThreads;
-    }
-
-    public int getTaskMinWorkerThreads()
-    {
-        return Math.min(TASK_MIN_WORKER_THREADS, taskMaxWorkerThreads);
     }
 
     @Config("warp-speed." + EXCEPTIONAL_LIST_COMPRESSION)

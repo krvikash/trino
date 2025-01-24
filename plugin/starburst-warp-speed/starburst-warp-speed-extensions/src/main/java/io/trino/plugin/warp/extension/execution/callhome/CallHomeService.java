@@ -167,9 +167,6 @@ public class CallHomeService
         }
 
         if ((scheduledFuture == null) || (scheduledFuture.getDelay(TimeUnit.SECONDS) > 0)) {
-            if (!connectorSync.isDefaultCatalog()) {
-                logger.debug("trigger non default catalog");
-            }
             logger.debug("storePath = %s, nodeStorePathPrefix=%s", storePath, nodeStorePathPrefix);
             CallHomeJob callHomeJob = new CallHomeJob(
                     cloudVendorService,

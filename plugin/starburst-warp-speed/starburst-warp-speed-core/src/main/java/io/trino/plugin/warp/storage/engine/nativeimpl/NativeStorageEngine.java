@@ -82,7 +82,8 @@ public class NativeStorageEngine
     private final Optional<ExceptionThrower> exceptionThrower; // we keep a reference to hold this object for native layer ref
     private final CatalogName catalogName;
     private MemorySegment logMem;
-    private final boolean loaded;
+    private final boolean isLoaded;
+    private final boolean isFirstLoaded;
 
     // file API
     private final MethodHandle mFileOpen;
@@ -293,18 +294,18 @@ public class NativeStorageEngine
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID, sharedConfig.getDebugWarming() ? (byte) 1 : (byte) 0);
 
             long logMemAddress = (long) mInitEnv.invokeExact(envProperties, envEnableConfig);
-            if (logMemAddress != 0) {
+            this.isFirstLoaded = logMemAddress == 0;
+            if (!isFirstLoaded) {
                 // we throw away our allocated log buffer and take the one storage engine gave us
                 logMem = MemorySegment.ofAddress(logMemAddress).reinterpret(LOGGER_LOG_LAYOUT.byteSize());
             }
             checkForLogs();
-            loaded = true;
+            this.isLoaded = true;
         }
         catch (Throwable t) {
             logger.error(t, "failed loading native storage engine");
             throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed loading native storage engine", t);
         }
-        logger.debug("finish initializing storage engine");
 
         ((NativeConnectorSync) connectorSync).init();
     }
@@ -312,7 +313,13 @@ public class NativeStorageEngine
     @Override
     public boolean isLoaded()
     {
-        return loaded;
+        return isLoaded;
+    }
+
+    @Override
+    public boolean isFirstLoaded()
+    {
+        return isFirstLoaded;
     }
 
     @Override

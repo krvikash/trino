@@ -183,7 +183,6 @@ public class DispatcherPageSourceFactoryTest
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         NodeManager nodeManager = mockNodeManager();
         ConnectorSync connectorSync = mock(ConnectorSync.class);
-        when(connectorSync.isDefaultCatalog()).thenReturn(true);
         RowGroupDataService rowGroupDataService = new RowGroupDataService(
                 rowGroupDataDao,
                 storageEngine,
@@ -203,7 +202,7 @@ public class DispatcherPageSourceFactoryTest
                 matchCollectIdService,
                 globalConfig);
         QueryClassifier queryClassifier = new QueryClassifier(classifierFactory,
-                connectorSync,
+                storageEngine,
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,

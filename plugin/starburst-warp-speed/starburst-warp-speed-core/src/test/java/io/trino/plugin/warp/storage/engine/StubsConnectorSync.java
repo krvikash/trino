@@ -22,22 +22,4 @@ public class StubsConnectorSync
 {
     @Inject
     public StubsConnectorSync() {}
-
-    @Override
-    public long getCatalogContext()
-    {
-        return 0;
-    }
-
-    @Override
-    public boolean isDefaultCatalog()
-    {
-        return true;
-    }
-
-    @Override
-    public boolean isCatalogReducedResources()
-    {
-        return false;
-    }
 }

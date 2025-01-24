@@ -229,4 +229,9 @@ public interface StorageEngine
     {
         return true;
     }
+
+    default boolean isFirstLoaded()
+    {
+        return true;
+    }
 }

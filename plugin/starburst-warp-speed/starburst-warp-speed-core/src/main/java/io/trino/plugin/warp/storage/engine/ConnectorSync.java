@@ -15,18 +15,4 @@ package io.trino.plugin.warp.storage.engine;
 
 public interface ConnectorSync
 {
-    default boolean isDefaultCatalog()
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default boolean isCatalogReducedResources()
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default long getCatalogContext()
-    {
-        throw new UnsupportedOperationException();
-    }
 }

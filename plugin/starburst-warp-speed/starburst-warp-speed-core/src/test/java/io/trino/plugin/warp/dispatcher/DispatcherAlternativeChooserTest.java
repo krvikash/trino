@@ -149,7 +149,6 @@ public class DispatcherAlternativeChooserTest
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         NodeManager nodeManager = mockNodeManager();
         ConnectorSync connectorSync = mock(ConnectorSync.class);
-        when(connectorSync.isDefaultCatalog()).thenReturn(true);
         rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
                 globalConfig,
@@ -178,7 +177,7 @@ public class DispatcherAlternativeChooserTest
                         dispatcherProxiedConnectorTransformer,
                         matchCollectIdService,
                         globalConfig),
-                connectorSync,
+                storageEngine,
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,

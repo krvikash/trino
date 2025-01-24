@@ -199,4 +199,10 @@ public class StubsStorageEngine
     {
         return true;
     }
+
+    @Override
+    public boolean isFirstLoaded()
+    {
+        return true;
+    }
 }

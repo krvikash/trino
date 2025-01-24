@@ -374,7 +374,7 @@ public class WorkerWarmingServiceTest
                 rowGroupKey,
                 false);
 
-        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableList.of(), 0, true, "query-id");
+        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableList.of(), true, "query-id");
         queryContext = queryContext.asBuilder().matchData(Optional.empty()).build();
         WarmData warmData = act(columns,
                 rowGroupData,
@@ -944,7 +944,7 @@ public class WorkerWarmingServiceTest
             List<WarmupRule> warmupRules,
             int batchSize)
     {
-        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableList.copyOf(columns), 0, true, "query-id");
+        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableList.copyOf(columns), true, "query-id");
         return act(columns, rowGroupData, warmupDemoterService, defaultWarmingTestState, warmupRules, queryContext, batchSize);
     }
 

@@ -17,7 +17,6 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
 import io.trino.spi.catalog.CatalogName;
@@ -31,7 +30,6 @@ import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -43,9 +41,6 @@ public class NativeConnectorSync
 
     private final CatalogName catalogName;
     private final EventBus eventBus;
-    private final NativeConfig nativeConfig;
-
-    private int numWorkerThreads;
     private MemorySegment catalogContext;
 
     // syncher API
@@ -56,8 +51,7 @@ public class NativeConnectorSync
     @Inject
     public NativeConnectorSync(
             CatalogName catalogName,
-            EventBus eventBus,
-            NativeConfig nativeConfig)
+            EventBus eventBus)
     {
         try {
             SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
@@ -73,7 +67,6 @@ public class NativeConnectorSync
 
             this.catalogName = catalogName;
             this.eventBus = requireNonNull(eventBus);
-            this.nativeConfig = requireNonNull(nativeConfig);
 
             int contextSize = (int) mGetContextSize.invokeExact();
             if (contextSize <= 0) {
@@ -90,10 +83,7 @@ public class NativeConnectorSync
     public void init()
     {
         try {
-            this.numWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
-            checkArgument(numWorkerThreads > 0, "no segments configured for match bitmaps");
             // register and get memory address. note that the name is not passed to native. no need.
-
             boolean success = (boolean) mRegister.invokeExact(catalogContext);
             if (success) {
                 // complete the regisgtration
@@ -125,28 +115,5 @@ public class NativeConnectorSync
         catch (Throwable t) {
             logger.error(t, "failed to call unregister");
         }
-    }
-
-    @Override
-    public boolean isDefaultCatalog()
-    {
-        return (readCatalogId() == 0);
-    }
-
-    @Override
-    public boolean isCatalogReducedResources()
-    {
-        return (readCatalogId() >= 8);
-    }
-
-    @Override
-    public long getCatalogContext()
-    {
-        return catalogContext.address();
-    }
-
-    private int readCatalogId()
-    {
-        return catalogContext.get(ValueLayout.JAVA_INT, 0);
     }
 }

@@ -118,16 +118,7 @@ public class WorkerTaskExecutorService
     {
         prioritizeExecutorService = getPrioritizeExecutorService();
         initImportExport(null);
-
-        int numWorkerThreads;
-        if (connectorSync.isCatalogReducedResources()) {
-            numWorkerThreads = nativeConfig.getTaskMinWorkerThreads();
-            logger.warn("This is a catalog with reduced resources. Will use minimum worker threads of %d (instead of %d)", numWorkerThreads, nativeConfig.getTaskMaxWorkerThreads());
-        }
-        else {
-            numWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
-        }
-        proxyExecutorService = getProxyExecutorService(numWorkerThreads);
+        proxyExecutorService = getProxyExecutorService(nativeConfig.getTaskMaxWorkerThreads());
     }
 
     public void initImportExport(ConnectorSession session)

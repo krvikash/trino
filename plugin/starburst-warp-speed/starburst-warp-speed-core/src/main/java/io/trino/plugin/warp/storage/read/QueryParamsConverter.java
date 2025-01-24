@@ -128,7 +128,6 @@ public class QueryParamsConverter
                 collectAndMatchCollectParams.matchCollectId(),
                 collectAndMatchCollectParams.collectParamsList(),
                 queryContext.getTotalRecords(),
-                queryContext.getCatalogContext(),
                 minOffsets[MATCH],
                 minOffsets[COLLECT],
                 filePath,
