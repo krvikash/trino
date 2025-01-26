@@ -197,11 +197,10 @@ public interface StorageEngine
      *
      * @param collectState - collect state
      * @param chunkIndex - chunk to collect from
-     * @param outQueryResultTypes - array to hold updated result type for each collected WE
      *
      * @return TRUE for success, FALSE for error
      */
-    default boolean openChunk(MemorySegment collectState, int chunkIndex, MemorySegment outQueryResultTypes)
+    default boolean openChunk(MemorySegment collectState, int chunkIndex)
     {
         throw new UnsupportedOperationException();
     }

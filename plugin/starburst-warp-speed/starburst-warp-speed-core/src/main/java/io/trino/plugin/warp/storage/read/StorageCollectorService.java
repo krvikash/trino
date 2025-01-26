@@ -161,7 +161,6 @@ public class StorageCollectorService
     {
         collectTxService.openChunk(aggregatorPageArgs.collectState(),
                 chunksQueue.getCurrent(),
-                aggregatorPageArgs.prepareQueryResultTypes().orElse(MemorySegment.NULL),
                 queryArgs.dispatcherPageSourceStats());
     }
 

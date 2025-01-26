@@ -179,7 +179,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public boolean openChunk(MemorySegment collectState, int chunkIndex, MemorySegment outQueryResultTypes)
+    public boolean openChunk(MemorySegment collectState, int chunkIndex)
     {
         return true;
     }

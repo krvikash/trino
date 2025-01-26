@@ -265,7 +265,7 @@ public class NativeStorageEngine
             mCollectOpen = linker.downcallHandle(libraryHandle.find("warp_speed_collect_open").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
             mCollectOpenChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_open_chunk").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.ADDRESS));
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT));
             mCollectCollectChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_collect_chunk").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_BOOLEAN, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
             mCollectClose = linker.downcallHandle(libraryHandle.find("warp_speed_collect_close").orElseThrow(),
@@ -785,10 +785,10 @@ public class NativeStorageEngine
     }
 
     @Override
-    public boolean openChunk(MemorySegment collectState, int chunkIndex, MemorySegment outQueryResultTypes)
+    public boolean openChunk(MemorySegment collectState, int chunkIndex)
     {
         try {
-            boolean res = (boolean) mCollectOpenChunk.invokeExact(collectState, (short) chunkIndex, outQueryResultTypes);
+            boolean res = (boolean) mCollectOpenChunk.invokeExact(collectState, (short) chunkIndex);
             checkForLogs();
             return res;
         }

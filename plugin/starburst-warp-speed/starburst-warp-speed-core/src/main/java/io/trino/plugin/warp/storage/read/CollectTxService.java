@@ -80,7 +80,6 @@ public class CollectTxService
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
-                Optional.empty(),
                 Collections.emptyList());
         if (numCollectElements > 0) {
             collectMetadataMemory = allocCollectMetadataMemory(collectMetadataMemory,
@@ -117,7 +116,6 @@ public class CollectTxService
                 collectMetadataMemory.warmupElementRecordBufferStates(),
                 collectMetadataMemory.recordBufferStatesOpt(),
                 collectMetadataMemory.queryResultTypesOpt(),
-                collectMetadataMemory.prepareQueryResultTypesOpt(),
                 collectMetadataMemory.matchCollectMetadataOpt(),
                 new ReadStats(pageArena));
         collectState.setState(queryArgs, aggregatorPageArgs);
@@ -262,7 +260,7 @@ public class CollectTxService
         final long matchCollectMetadataSize = storeMatchCollectMetadataBuff.map(s -> s.length).orElse(0);
         final long totalSize = collectBuffersSize +
                 recordBufferStatesSize +
-                queryResultTypesSize * 2 +
+                queryResultTypesSize +
                 matchCollectMetadataSize +
                 ValueLayout.JAVA_LONG.byteSize();
 
@@ -286,7 +284,6 @@ public class CollectTxService
                 Optional.of(collectBuffers),
                 Optional.of(recordBufferStates),
                 Optional.of(allocator.allocate(queryResultTypesSize, ValueLayout.JAVA_INT.byteSize())),
-                Optional.of(allocator.allocate(queryResultTypesSize, ValueLayout.JAVA_INT.byteSize())),
                 (matchCollectMetadataSize > 0) ? Optional.of(allocator.allocate(matchCollectMetadataSize, ValueLayout.JAVA_INT.byteSize())) : Optional.empty(),
                 warmupElementRecordBufferStates);
     }
@@ -304,7 +301,6 @@ public class CollectTxService
             Optional<MemorySegment> collectBuffersOpt,
             Optional<MemorySegment> recordBufferStatesOpt,
             Optional<MemorySegment> queryResultTypesOpt,
-            Optional<MemorySegment> prepareQueryResultTypesOpt,
             Optional<MemorySegment> matchCollectMetadataOpt,
             List<WarmupElementRecordBufferState> warmupElementRecordBufferStates)
     {

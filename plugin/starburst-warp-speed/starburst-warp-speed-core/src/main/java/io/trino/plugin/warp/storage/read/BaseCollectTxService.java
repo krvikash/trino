@@ -69,14 +69,12 @@ public abstract class BaseCollectTxService
     // open chunk before collect
     void openChunk(CollectState collectState,
             int chunkIndex,
-            MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         logger.debug("openChunk chunkIndex %d", chunkIndex);
         long startTime = System.nanoTime();
         boolean success = storageEngine.openChunk(collectState.getStateMemory(),
-                chunkIndex,
-                outQueryResultTypes);
+                chunkIndex);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         if (!success) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,

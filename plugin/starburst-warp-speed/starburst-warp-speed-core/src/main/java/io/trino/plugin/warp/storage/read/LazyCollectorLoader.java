@@ -81,7 +81,6 @@ public class LazyCollectorLoader
             MemorySegment queryResultTypeMem = collectOpenResult.pageArena().allocate(ValueLayout.JAVA_INT.byteSize(), ValueLayout.JAVA_INT.byteSize());
             collectTxService.openChunk(collectOpenResult.collectState(),
                     chunkIndexToCollect,
-                    queryResultTypeMem,
                     dispatcherPageSourceStats);
             collectTxService.collectChunk(collectOpenResult.collectState(),
                     true,

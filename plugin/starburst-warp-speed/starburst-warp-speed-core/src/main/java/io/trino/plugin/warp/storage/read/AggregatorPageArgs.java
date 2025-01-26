@@ -26,7 +26,6 @@ public record AggregatorPageArgs(CollectState collectState,
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates,
         Optional<MemorySegment> recordBufferStates,
         Optional<MemorySegment> queryResultTypes,
-        Optional<MemorySegment> prepareQueryResultTypes,
         Optional<MemorySegment> matchCollectMetadata,
         ReadStats readStats)
 {
