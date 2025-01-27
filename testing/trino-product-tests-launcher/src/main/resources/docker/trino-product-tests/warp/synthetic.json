@@ -12177,6 +12177,73 @@
       }
     ],
     "data": "resources/synthetic/arr_collect_more_first_str.jsonl"
+  },
+  {
+    "name": "arr_collect_200k",
+    "overriding": {
+      "warp_iceberg": {
+        "skip" : true
+      },
+      "warp_delta_lake": {
+        "skip" : true
+      }
+    },
+    "structure": [
+      {
+        "name": "char_8_one_val",
+        "type": "array",
+        "args": [
+          "char",
+          "8"
+        ]
+      },
+      {
+        "name": "int_col",
+        "type": "integer"
+      }
+    ],
+    "warmup_rules": [
+      {
+        "colNameId": "char_8_one_val",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA"
+        ]
+      },
+      {
+        "colNameId": "int_col",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA"
+        ]
+      }],
+    "queries_data":[
+      {
+        "query": "select count(char_8_one_val) from arr_collect_200k where char_8_one_val[2]='Hdskskhf' and int_col < 10",
+        "expected_result": [21871],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
+          "empty_collect_columns": 0,
+          "external_match_columns": 1,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(char_8_one_val) from arr_collect_200k where char_8_one_val[2]='Hdskskhf'",
+        "expected_result": [
+          73331
+        ],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      }
+    ],
+    "data": "resources/synthetic/arr_collect_200k.jsonl"
   }
 ]
 
