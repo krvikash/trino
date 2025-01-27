@@ -132,6 +132,54 @@ public class TestStargateParallelWithMemoryWritesEnabledConnectorTest
     }
 
     @Test
+    void testRenameCatalog()
+    {
+        String catalog = "catalog_rename_" + randomNameSuffix();
+        try {
+            String oldCatalog = "catalog_rename_" + randomNameSuffix();
+            @Language("SQL")
+            String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME));
+            assertUpdate(createCatalogSql);
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, MEMORY_TPCH_SCHEMA));
+
+            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
+            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog)).hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME)));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, MEMORY_TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
+    void testCatalogSetProperties()
+    {
+        String catalog = "catalog_set_props_" + randomNameSuffix();
+        try {
+            @Language("SQL")
+            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, "jdbc:trino://invalid:8080/hive");
+            assertUpdate(catalogWithIncorrectPassword);
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog)).isEqualTo(catalogWithIncorrectPassword);
+            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, MEMORY_TPCH_SCHEMA),
+                    "Error executing query: java.net.UnknownHostException: invalid.*");
+
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s SET PROPERTIES
+                      "connection-url" = '%s'
+                    """.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME)));
+            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
+                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME)));
+            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, MEMORY_TPCH_SCHEMA));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
+        }
+    }
+
+    @Test
     @Override
     public void testSetColumnTypeWithDefaultColumn()
     {
