@@ -28,10 +28,12 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
+import static io.trino.plugin.iceberg.IcebergTestUtils.getQualifiedSchemaName;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingProperties.requiredNonEmptySystemProperty;
 import static java.lang.String.format;
@@ -105,7 +107,39 @@ public class TestIcebergAbfsConnectorSmokeTest
     @Override
     protected String createSchemaSql(String schemaName)
     {
-        return "CREATE SCHEMA IF NOT EXISTS " + schemaName + " WITH (location = '" + formatAbfsUrl(container, account, bucketName) + schemaName + "')";
+        return createSchemaSql(Optional.empty(), schemaName);
+    }
+
+    @Override
+    protected String createSchemaSql(Optional<String> catalogName, String schemaName)
+    {
+        return "CREATE SCHEMA IF NOT EXISTS " + getQualifiedSchemaName(catalogName, schemaName) + " WITH (location = '" + formatAbfsUrl(container, account, bucketName) + schemaName + "')";
+    }
+
+    @Override
+    protected String getCreateCatalogSqlTemplate()
+    {
+        return getCreateCatalogSqlTemplate(accessKey);
+    }
+
+    private String getCreateCatalogSqlTemplate(String accessKey)
+    {
+        return """
+                CREATE CATALOG %s USING iceberg
+                WITH (
+                   "azure.access-key" = '%s',
+                   "azure.auth-type" = 'ACCESS_KEY',
+                   "fs.hadoop.enabled" = 'false',
+                   "fs.native-azure.enabled" = 'true',
+                   "hive.metastore.uri" = '%s',
+                   "iceberg.catalog.type" = 'HIVE_METASTORE',
+                   "iceberg.file-format" = '%s'
+                )""".formatted(
+                "%1$s", // Catalog name
+                accessKey,
+                hiveHadoop.getHiveMetastoreEndpoint().toString(),
+                "%2$s" // File format
+        );
     }
 
     @Test

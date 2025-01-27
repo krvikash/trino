@@ -33,10 +33,12 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Base64;
+import java.util.Optional;
 
 import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
 import static io.trino.plugin.hive.containers.HiveHadoop.HIVE3_IMAGE;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
+import static io.trino.plugin.iceberg.IcebergTestUtils.getQualifiedSchemaName;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingProperties.requiredNonEmptySystemProperty;
 import static java.lang.String.format;
@@ -57,6 +59,7 @@ public class TestIcebergGcsConnectorSmokeTest
     private final String schema;
 
     private HiveHadoop hiveHadoop;
+    private String gcpCredentials;
 
     public TestIcebergGcsConnectorSmokeTest()
     {
@@ -74,7 +77,7 @@ public class TestIcebergGcsConnectorSmokeTest
         Path gcpCredentialsFile = Files.createTempFile("gcp-credentials", ".json", READ_ONLY_PERMISSIONS);
         gcpCredentialsFile.toFile().deleteOnExit();
         Files.write(gcpCredentialsFile, jsonKeyBytes);
-        String gcpCredentials = new String(jsonKeyBytes, UTF_8);
+        gcpCredentials = new String(jsonKeyBytes, UTF_8);
 
         String gcpSpecificCoreSiteXmlContent = Resources.toString(Resources.getResource("hdp3.1-core-site.xml.gcs-template"), UTF_8)
                 .replace("%GCP_CREDENTIALS_FILE_PATH%", "/etc/hadoop/conf/gcp-credentials.json");
@@ -135,7 +138,38 @@ public class TestIcebergGcsConnectorSmokeTest
     @Override
     protected String createSchemaSql(String schema)
     {
-        return format("CREATE SCHEMA %1$s WITH (location = '%2$s%1$s')", schema, schemaPath());
+        return createSchemaSql(Optional.empty(), schema);
+    }
+
+    @Override
+    protected String createSchemaSql(Optional<String> catalogName, String schemaName)
+    {
+        return format("CREATE SCHEMA %1$s WITH (location = '%3$s%2$s')", getQualifiedSchemaName(catalogName, schemaName), schemaName, schemaPath());
+    }
+
+    @Override
+    protected String getCreateCatalogSqlTemplate()
+    {
+        return getCreateCatalogSqlTemplate(gcpCredentials);
+    }
+
+    private String getCreateCatalogSqlTemplate(String gcsJsonKey)
+    {
+        return """
+                CREATE CATALOG %s USING iceberg
+                WITH (
+                   "fs.hadoop.enabled" = 'false',
+                   "fs.native-gcs.enabled" = 'true',
+                   "gcs.json-key" = '%s',
+                   "hive.metastore.uri" = '%s',
+                   "iceberg.catalog.type" = 'HIVE_METASTORE',
+                   "iceberg.file-format" = '%s'
+                )""".formatted(
+                "%1$s", // Catalog name
+                gcsJsonKey,
+                hiveHadoop.getHiveMetastoreEndpoint().toString(),
+                "%2$s" // File format
+        );
     }
 
     @Override

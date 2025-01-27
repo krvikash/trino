@@ -40,6 +40,7 @@ import static io.trino.metastore.PrincipalPrivileges.NO_PRIVILEGES;
 import static io.trino.plugin.hive.TableType.EXTERNAL_TABLE;
 import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
+import static io.trino.plugin.iceberg.IcebergTestUtils.getQualifiedSchemaName;
 import static io.trino.plugin.iceberg.catalog.AbstractIcebergTableOperations.ICEBERG_METASTORE_STORAGE_FORMAT;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.containers.Floci.FLOCI_ACCESS_KEY;
@@ -130,7 +131,44 @@ public abstract class BaseIcebergFlociConnectorSmokeTest
     @Override
     protected String createSchemaSql(String schemaName)
     {
-        return "CREATE SCHEMA IF NOT EXISTS " + schemaName + " WITH (location = 's3://" + bucketName + "/" + schemaName + "')";
+        return createSchemaSql(Optional.empty(), schemaName);
+    }
+
+    @Override
+    protected String createSchemaSql(Optional<String> catalogName, String schemaName)
+    {
+        return "CREATE SCHEMA IF NOT EXISTS " + getQualifiedSchemaName(catalogName, schemaName) + " WITH (location = 's3://" + bucketName + "/" + schemaName + "')";
+    }
+
+    @Override
+    protected String getCreateCatalogSqlTemplate()
+    {
+        return getCreateCatalogSqlTemplate(FLOCI_SECRET_KEY);
+    }
+
+    private String getCreateCatalogSqlTemplate(String secretKey)
+    {
+        return """
+               CREATE CATALOG %s USING iceberg
+               WITH (
+                  "fs.hadoop.enabled" = 'false',
+                  "fs.s3.enabled" = 'true',
+                  "hive.metastore.uri" = '%s',
+                  "iceberg.catalog.type" = 'HIVE_METASTORE',
+                  "iceberg.file-format" = '%s',
+                  "s3.aws-access-key" = '%s',
+                  "s3.aws-secret-key" = '%s',
+                  "s3.endpoint" = '%s',
+                  "s3.path-style-access" = 'true',
+                  "s3.region" = '%s'
+               )""".formatted(
+                "%1$s", // Catalog name
+                hiveFlociDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString(),
+                "%2$s", // File format
+                FLOCI_ACCESS_KEY,
+                secretKey,
+                hiveFlociDataLake.floci().endpoint(),
+                FLOCI_REGION);
     }
 
     @Test

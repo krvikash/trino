@@ -363,4 +363,10 @@ public final class IcebergTestUtils
         }
         return files.build();
     }
+
+    public static String getQualifiedSchemaName(Optional<String> catalogName, String schemaName)
+    {
+        String catalogPrefix = catalogName.map(catalog -> catalog + ".").orElse("");
+        return catalogPrefix + schemaName;
+    }
 }
