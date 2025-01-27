@@ -365,12 +365,6 @@ public class DynamoDbJdbcClient
     }
 
     @Override
-    public void addColumn(ConnectorSession session, JdbcTableHandle handle, ColumnMetadata column)
-    {
-        throw new TrinoException(NOT_SUPPORTED, "This connector does not support adding columns");
-    }
-
-    @Override
     public void dropColumn(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column)
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support dropping columns");

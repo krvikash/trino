@@ -720,8 +720,7 @@ public class SnowflakeClient
         }
     }
 
-    @Override
-    public void addColumn(ConnectorSession session, JdbcTableHandle handle, ColumnMetadata column)
+    private void addColumn(ConnectorSession session, JdbcTableHandle handle, ColumnMetadata column)
     {
         checkColumnsForInvalidCharacters(ImmutableList.of(column));
         verify(handle.getAuthorization().isEmpty(), "Unexpected authorization is required for table: %s".formatted(handle));
