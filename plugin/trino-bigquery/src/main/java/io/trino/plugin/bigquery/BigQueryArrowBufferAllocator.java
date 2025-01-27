@@ -29,13 +29,16 @@ public class BigQueryArrowBufferAllocator
     private static final Logger log = Logger.get(BigQueryArrowBufferAllocator.class);
 
     private final long maximumAllocation;
+    private final long maximumAllocationPerSplit;
     private final BigQueryArrowAllocatorStats stats;
     private final BufferAllocator rootAllocator;
 
     @Inject
     public BigQueryArrowBufferAllocator(BigQueryArrowConfig config, BigQueryArrowAllocatorStats stats)
     {
+        long estimatedMaxSplits = (long) Runtime.getRuntime().availableProcessors() * 2;
         this.maximumAllocation = requireNonNull(config, "config is null").getMaxAllocation().toBytes();
+        this.maximumAllocationPerSplit = maximumAllocation / estimatedMaxSplits;
         this.stats = requireNonNull(stats, "stats is null");
         this.rootAllocator = new RootAllocator(stats, maximumAllocation);
     }
@@ -45,8 +48,8 @@ public class BigQueryArrowBufferAllocator
         return rootAllocator.newChildAllocator(
                 split.streamName(),
                 new RetryingAllocationListener(split.streamName(), stats),
-                split.dataSize().orElse(0),
-                maximumAllocation);
+                0, // no reservation
+                maximumAllocationPerSplit);
     }
 
     @Managed
