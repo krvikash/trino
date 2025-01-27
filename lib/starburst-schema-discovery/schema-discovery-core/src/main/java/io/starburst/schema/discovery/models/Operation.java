@@ -68,7 +68,7 @@ public sealed interface Operation
         }
     }
 
-    record CreateSchema(SlashEndedPath rootUri, LowerCaseString schemaName)
+    record CreateSchema(SlashEndedPath rootUri, DiscoveredIdentifier schemaName)
             implements Operation
     {
         public CreateSchema

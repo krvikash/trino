@@ -40,6 +40,7 @@ import static io.starburst.schema.discovery.Util.orcDataSourceFactory;
 import static io.starburst.schema.discovery.Util.parquetDataSourceFactory;
 import static io.starburst.schema.discovery.generation.Dialect.TRINO;
 import static io.starburst.schema.discovery.io.LocationUtils.uriFromLocation;
+import static io.starburst.schema.discovery.models.IdentifierConstraint.VALID_IN_TRINO;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,7 +59,7 @@ public class TestDiscoveryRecursiveMode
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, directExecutor());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, directExecutor());
         Location directory = Util.testFilePath("recursive");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), OPTIONS));
         DiscoveredSchema discoveredSchema = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -107,7 +108,7 @@ public class TestDiscoveryRecursiveMode
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, directExecutor());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, directExecutor());
         Location directory = Util.testFilePath("csv/nested_partitions");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), OPTIONS));
         DiscoveredSchema discoveredSchema = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -139,7 +140,7 @@ public class TestDiscoveryRecursiveMode
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, directExecutor());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, directExecutor());
         Location directory = Util.testFilePath("csv/nested_partitions/npschema");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), OPTIONS));
         DiscoveredSchema discoveredSchema = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -171,7 +172,7 @@ public class TestDiscoveryRecursiveMode
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, directExecutor());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, directExecutor());
         Location directory = Util.testFilePath("csv/nested_partitions/npschema/nptable");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), OPTIONS));
         DiscoveredSchema discoveredSchema = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -203,7 +204,7 @@ public class TestDiscoveryRecursiveMode
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, directExecutor());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, directExecutor());
         Location directory = Util.testFilePath("recursive");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.discoverTablesShallow(new GuessRequest(uriFromLocation(directory), OPTIONS));
         DiscoveredSchema discoveredSchema = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -244,7 +245,7 @@ public class TestDiscoveryRecursiveMode
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, directExecutor());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, directExecutor());
         Location directory = Util.testFilePath("csv/nested_partitions/npschema");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.discoverTablesShallow(new GuessRequest(uriFromLocation(directory), OPTIONS));
         DiscoveredSchema discoveredSchema = discoveryFuture.get(5, TimeUnit.SECONDS);

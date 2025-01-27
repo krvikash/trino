@@ -19,6 +19,7 @@ import io.starburst.schema.discovery.TableChanges.PartitionValueChanges;
 import io.starburst.schema.discovery.TableChanges.TableColumnChanges;
 import io.starburst.schema.discovery.TableChanges.TablePathName;
 import io.starburst.schema.discovery.infer.InferredPartitionProjection;
+import io.starburst.schema.discovery.models.DiscoveredIdentifier;
 import io.starburst.schema.discovery.models.DiscoveredPartitionValues;
 import io.starburst.schema.discovery.models.DiscoveredPartitions;
 import io.starburst.schema.discovery.models.DiscoveredPartitions.IntegerProjectionMinMaxRange;
@@ -74,7 +75,7 @@ public class TableChangesBuilder
 
     public TableChanges build()
     {
-        SetView<LowerCaseString> schemaToAdd = Sets.difference(schemaNames(currentTables), schemaNames(previousTables));
+        SetView<DiscoveredIdentifier> schemaToAdd = Sets.difference(schemaNames(currentTables), schemaNames(previousTables));
         Map<TablePathName, DiscoveredTable> tablesToDrop = difference(previousTables, currentTables);
         Map<TablePathName, DiscoveredTable> tablesToAdd = difference(currentTables, previousTables);
 
@@ -103,7 +104,7 @@ public class TableChangesBuilder
                 errors.buildPathErrors());
     }
 
-    private Set<LowerCaseString> schemaNames(Map<TablePathName, DiscoveredTable> tables)
+    private Set<DiscoveredIdentifier> schemaNames(Map<TablePathName, DiscoveredTable> tables)
     {
         return tables.values().stream().flatMap(table -> table.tableName().schemaName().stream()).collect(toImmutableSet());
     }

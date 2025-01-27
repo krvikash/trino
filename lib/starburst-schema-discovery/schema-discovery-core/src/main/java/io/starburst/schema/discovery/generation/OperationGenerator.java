@@ -11,9 +11,9 @@ package io.starburst.schema.discovery.generation;
 
 import com.google.common.collect.ImmutableList;
 import io.starburst.schema.discovery.TableChanges;
+import io.starburst.schema.discovery.models.DiscoveredIdentifier;
 import io.starburst.schema.discovery.models.DiscoveredSchema;
 import io.starburst.schema.discovery.models.DiscoveredTable;
-import io.starburst.schema.discovery.models.LowerCaseString;
 import io.starburst.schema.discovery.models.Operation;
 import io.starburst.schema.discovery.models.Operation.AddBucket;
 import io.starburst.schema.discovery.models.Operation.AddColumn;
@@ -42,7 +42,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
 import static java.util.Objects.requireNonNull;
 
@@ -117,12 +116,12 @@ public class OperationGenerator
         return builder.build();
     }
 
-    public List<String> generateSql(String defaultSchemaName, List<Operation> operations)
+    public List<String> generateSql(DiscoveredIdentifier defaultSchemaName, List<Operation> operations)
     {
         return operations.stream()
                 .map(operation -> {
                     SimpleWriter writer = new SimpleWriter();
-                    SqlGenerator sqlGenerator = new SqlGenerator(toLowerCase(defaultSchemaName), options, writer, dialect);
+                    SqlGenerator sqlGenerator = new SqlGenerator(defaultSchemaName, options, writer, dialect);
                     sqlGenerator.apply(operation);
                     return writer.toString();
                 })
@@ -143,12 +142,12 @@ public class OperationGenerator
                 .filter(DiscoveredTable::valid)
                 .map(discoveredTable -> discoveredTable.tableName().schemaName()
                         .map(schemaName -> new CreateSchema(mergeRootAndSchema(rootPath, schemaName), schemaName))
-                        .orElseGet(() -> new CreateSchema(rootPath, toLowerCase(options.defaultSchemaName()))))
+                        .orElseGet(() -> new CreateSchema(rootPath, options.defaultSchemaName())))
                 .distinct()
                 .forEach(builder::add);
     }
 
-    private SlashEndedPath mergeRootAndSchema(SlashEndedPath rootPath, LowerCaseString schemaName)
+    private SlashEndedPath mergeRootAndSchema(SlashEndedPath rootPath, DiscoveredIdentifier schemaName)
     {
         return ensureEndsWithSlash(Location.of(rootPath.toString()).appendPath(schemaName.string()).toString());
     }

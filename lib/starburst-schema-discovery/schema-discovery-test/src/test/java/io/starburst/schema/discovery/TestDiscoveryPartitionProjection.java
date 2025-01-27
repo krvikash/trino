@@ -32,6 +32,7 @@ import static io.starburst.schema.discovery.Util.orcDataSourceFactory;
 import static io.starburst.schema.discovery.Util.parquetDataSourceFactory;
 import static io.starburst.schema.discovery.generation.Dialect.TRINO;
 import static io.starburst.schema.discovery.io.LocationUtils.uriFromLocation;
+import static io.starburst.schema.discovery.models.DiscoveredIdentifierTestingUtils.toTestingIdentifier;
 import static io.starburst.schema.discovery.models.DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.options.GeneralOptions.DISCOVER_PARTITION_PROJECTION;
@@ -100,7 +101,7 @@ public class TestDiscoveryPartitionProjection
 
     private static void assertStartsWithProjectedTable(DiscoveredSchema discoveredSchema)
     {
-        DiscoveredTable startsWithProjectedTable = discoveredSchema.tables().stream().filter(t -> t.tableName().tableName().equals(toLowerCase("starts_with_projected"))).findFirst().orElseThrow();
+        DiscoveredTable startsWithProjectedTable = discoveredSchema.tables().stream().filter(t -> t.tableName().tableName().equals(toTestingIdentifier("starts_with_projected"))).findFirst().orElseThrow();
         assertThat(startsWithProjectedTable.hasAnyProjectedPartition()).isTrue();
         assertThat(startsWithProjectedTable.discoveredPartitions().columns()).containsExactly(
                 new Column(toLowerCase("partition_1"), new HiveType(HiveTypes.STRING_TYPE)),
@@ -162,7 +163,7 @@ public class TestDiscoveryPartitionProjection
 
     private static void assertProjectedNestedTable(DiscoveredSchema discoveredSchema)
     {
-        DiscoveredTable projectedNestedTable = discoveredSchema.tables().stream().filter(t -> t.tableName().tableName().equals(toLowerCase("projected_nested"))).findFirst().orElseThrow();
+        DiscoveredTable projectedNestedTable = discoveredSchema.tables().stream().filter(t -> t.tableName().tableName().equals(toTestingIdentifier("projected_nested"))).findFirst().orElseThrow();
         assertThat(projectedNestedTable.hasAnyProjectedPartition()).isTrue();
         assertThat(projectedNestedTable.discoveredPartitions().columns()).containsExactly(
                 new Column(toLowerCase("year"), new HiveType(HiveTypes.HIVE_INT)),
@@ -180,7 +181,7 @@ public class TestDiscoveryPartitionProjection
 
     private static void assertOnlyProjectedTable(DiscoveredSchema discoveredSchema)
     {
-        DiscoveredTable onlyProjectedTable = discoveredSchema.tables().stream().filter(t -> t.tableName().tableName().equals(toLowerCase("only_projected"))).findFirst().orElseThrow();
+        DiscoveredTable onlyProjectedTable = discoveredSchema.tables().stream().filter(t -> t.tableName().tableName().equals(toTestingIdentifier("only_projected"))).findFirst().orElseThrow();
         assertThat(onlyProjectedTable.hasAnyProjectedPartition()).isTrue();
         assertThat(onlyProjectedTable.discoveredPartitions().columns()).containsExactly(
                 new Column(toLowerCase("partition_1"), new HiveType(HiveTypes.STRING_TYPE)));
@@ -194,7 +195,7 @@ public class TestDiscoveryPartitionProjection
 
     private static void assertWrongProjectionTable(DiscoveredSchema discoveredSchema)
     {
-        DiscoveredTable wrongProjectionTable = discoveredSchema.tables().stream().filter(t -> t.tableName().tableName().equals(toLowerCase("wrong_projection"))).findFirst().orElseThrow();
+        DiscoveredTable wrongProjectionTable = discoveredSchema.tables().stream().filter(t -> t.tableName().tableName().equals(toTestingIdentifier("wrong_projection"))).findFirst().orElseThrow();
         assertThat(wrongProjectionTable.hasAnyProjectedPartition()).isFalse();
         assertThat(wrongProjectionTable.discoveredPartitions()).isEqualTo(EMPTY_DISCOVERED_PARTITIONS);
         assertThat(wrongProjectionTable.errors()).isNotEmpty();

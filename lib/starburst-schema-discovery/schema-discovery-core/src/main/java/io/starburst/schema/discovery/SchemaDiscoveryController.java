@@ -9,6 +9,7 @@
  */
 package io.starburst.schema.discovery;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -28,6 +29,7 @@ import io.starburst.schema.discovery.models.DiscoveredFormat;
 import io.starburst.schema.discovery.models.DiscoveredSchema;
 import io.starburst.schema.discovery.models.DiscoveredTable;
 import io.starburst.schema.discovery.models.GeneratedOperations;
+import io.starburst.schema.discovery.models.IdentifierConstraint;
 import io.starburst.schema.discovery.models.Operation;
 import io.starburst.schema.discovery.models.TableFormat;
 import io.starburst.schema.discovery.options.OptionsMap;
@@ -40,11 +42,14 @@ import io.starburst.schema.discovery.request.GuessRequest;
 import io.trino.filesystem.Location;
 
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
+import static io.starburst.schema.discovery.models.IdentifierConstraint.VALID_IN_TRINO;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
 import static java.util.Objects.requireNonNull;
 
@@ -54,16 +59,29 @@ public class SchemaDiscoveryController
     private final Function<URI, DiscoveryTrinoFileSystem> fileSystemSupplier;
     private final Map<TableFormat, SchemaDiscovery> schemaDiscoveryInstances;
     private final Dialect dialect;
+    private final IdentifierConstraint identifierConstraint;
 
+    public SchemaDiscoveryController(
+            Function<URI, DiscoveryTrinoFileSystem> fileSystemSupplier,
+            ParquetDataSourceFactory parquetDataSourceFactory,
+            OrcDataSourceFactory orcDataSourceFactory,
+            Dialect dialect,
+            IdentifierConstraint identifierConstraint)
+    {
+        this(fileSystemSupplier, parquetDataSourceFactory, orcDataSourceFactory, dialect, identifierConstraint, MoreExecutors.directExecutor());
+    }
+
+    @VisibleForTesting
     public SchemaDiscoveryController(
             Function<URI, DiscoveryTrinoFileSystem> fileSystemSupplier,
             ParquetDataSourceFactory parquetDataSourceFactory,
             OrcDataSourceFactory orcDataSourceFactory,
             Dialect dialect)
     {
-        this(fileSystemSupplier, parquetDataSourceFactory, orcDataSourceFactory, dialect, MoreExecutors.directExecutor());
+        this(fileSystemSupplier, parquetDataSourceFactory, orcDataSourceFactory, dialect, VALID_IN_TRINO, MoreExecutors.directExecutor());
     }
 
+    // for backwards compatibility with galaxy-trino / SEP
     public SchemaDiscoveryController(
             Function<URI, DiscoveryTrinoFileSystem> fileSystemSupplier,
             ParquetDataSourceFactory parquetDataSourceFactory,
@@ -71,9 +89,21 @@ public class SchemaDiscoveryController
             Dialect dialect,
             Executor executor)
     {
+        this(fileSystemSupplier, parquetDataSourceFactory, orcDataSourceFactory, dialect, VALID_IN_TRINO, executor);
+    }
+
+    public SchemaDiscoveryController(
+            Function<URI, DiscoveryTrinoFileSystem> fileSystemSupplier,
+            ParquetDataSourceFactory parquetDataSourceFactory,
+            OrcDataSourceFactory orcDataSourceFactory,
+            Dialect dialect,
+            IdentifierConstraint identifierConstraint,
+            Executor executor)
+    {
         this.fileSystemSupplier = requireNonNull(fileSystemSupplier, "fileSystemSupplier is null");
         this.dialect = requireNonNull(dialect, "dialect is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.identifierConstraint = requireNonNull(identifierConstraint, "identifierConstraint is null");
         schemaDiscoveryInstances = ImmutableMap.of(
                 TableFormat.CSV, CsvSchemaDiscovery.INSTANCE,
                 TableFormat.JSON, JsonSchemaDiscovery.INSTANCE,
@@ -84,7 +114,7 @@ public class SchemaDiscoveryController
     public ListenableFuture<DiscoveredSchema> guess(GuessRequest guess)
     {
         URI uri = normalizeUri(guess.uri());
-        Processor processor = new Processor(schemaDiscoveryInstances, fileSystemSupplier.apply(uri), Location.of(uri.toString()), new OptionsMap(guess.options()), executor);
+        Processor processor = new Processor(schemaDiscoveryInstances, fileSystemSupplier.apply(uri), Location.of(uri.toString()), new OptionsMap(guess.options()), identifierConstraint, executor);
         processor.startRootProcessing();
         return processor;
     }
@@ -94,7 +124,7 @@ public class SchemaDiscoveryController
         URI uri = normalizeUri(discover.uri());
         Location rootPath = Location.of(uri.toString());
         DiscoveredFormat format = new DiscoveredFormat(discover.format(), discover.options());
-        Processor processor = new Processor(schemaDiscoveryInstances, fileSystemSupplier.apply(uri), rootPath, new OptionsMap(format.options()), executor);
+        Processor processor = new Processor(schemaDiscoveryInstances, fileSystemSupplier.apply(uri), rootPath, new OptionsMap(format.options()), identifierConstraint, executor);
         URI discoverUri = normalizeUri(discover.path());
         Location path = Location.of(discoverUri.toString());
         processor.startSubPathProcessing(path, format.format(), format.options());
@@ -104,7 +134,7 @@ public class SchemaDiscoveryController
     public ListenableFuture<DiscoveredSchema> discoverTablesShallow(GuessRequest guess)
     {
         URI uri = normalizeUri(guess.uri());
-        Processor processor = new Processor(schemaDiscoveryInstances, fileSystemSupplier.apply(uri), Location.of(uri.toString()), new OptionsMap(guess.options()), executor);
+        Processor processor = new Processor(schemaDiscoveryInstances, fileSystemSupplier.apply(uri), Location.of(uri.toString()), new OptionsMap(guess.options()), identifierConstraint, executor);
         processor.startShallowProcessing();
         return processor;
     }
@@ -143,6 +173,8 @@ public class SchemaDiscoveryController
 
     private static URI normalizeUri(URI uri)
     {
+        // use raw string for comparisons and replacements, as .toString() returns encoded URI while .getPath() returns raw value
+        String uriRawString = URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
         String path = uri.getPath();
         if (path.endsWith("/")) {
             path = path.substring(0, path.length() - 1);
@@ -151,7 +183,7 @@ public class SchemaDiscoveryController
             path = "/";
         }
         // this is needed due to new TrinoFileSystem requiring triple slash sometimes, f.e. local:///x/y/z, where URI strips it off to local:/x/y/z
-        String pathPrefix = uri.toString().substring(0, uri.toString().indexOf(uri.getPath()));
+        String pathPrefix = uriRawString.substring(0, uriRawString.indexOf(uri.getPath()));
 
         return uri.resolve(path).toString().startsWith(pathPrefix) ?
                 uri.resolve(path) :

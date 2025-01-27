@@ -13,7 +13,8 @@ import com.google.common.collect.ImmutableList;
 import io.starburst.schema.discovery.internal.Column;
 import io.starburst.schema.discovery.internal.HiveType;
 import io.starburst.schema.discovery.internal.HiveTypes;
-import io.starburst.schema.discovery.models.LowerCaseString;
+import io.starburst.schema.discovery.models.DiscoveredIdentifier;
+import io.starburst.schema.discovery.models.IdentifierConstraint;
 import io.starburst.schema.discovery.options.DiscoveryMode;
 import io.starburst.schema.discovery.options.GeneralOptions;
 import io.trino.filesystem.Location;
@@ -27,18 +28,19 @@ import static io.starburst.schema.discovery.infer.InferredPartitionProjection.eq
 import static io.starburst.schema.discovery.internal.HiveTypes.STRING_TYPE;
 import static io.starburst.schema.discovery.io.LocationUtils.directoryOrFileName;
 import static io.starburst.schema.discovery.io.LocationUtils.parentOf;
+import static io.starburst.schema.discovery.models.DiscoveredIdentifier.identifierFromString;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 
 public class InferPartitions
 {
     private final List<InferredPartition> partitions;
-    private final LowerCaseString tableName;
+    private final DiscoveredIdentifier tableName;
     private final Location path;
 
     public static final String PARTITION_SEPARATOR = "=";
     public static final String PROJECTED_PARTITION_NAME = "partition_";
 
-    public InferPartitions(GeneralOptions options, Location root, Location path)
+    public InferPartitions(GeneralOptions options, Location root, Location path, IdentifierConstraint identifierConstraint)
     {
         AtomicInteger partitionProjectionCounter = new AtomicInteger();
         boolean lookForBuckets = options.lookForBuckets();
@@ -87,7 +89,7 @@ public class InferPartitions
             builder.add(new InferredPartition(partitionPath, partitionColumn, value, value.isEmpty(), equalSignSeparatedFromHiveType(partitionType)));
             path = parentOf(path);
         }
-        tableName = (path != null) ? toLowerCase(directoryOrFileName(path)) : toLowerCase("-");
+        tableName = (path != null) ? identifierFromString(directoryOrFileName(path), identifierConstraint) : identifierFromString("-", identifierConstraint);
         this.path = (path != null) ? path : root;
         partitions = builder.build().reverse();
     }
@@ -102,7 +104,7 @@ public class InferPartitions
         return partitions;
     }
 
-    public LowerCaseString tableName()
+    public DiscoveredIdentifier tableName()
     {
         return tableName;
     }

@@ -14,6 +14,7 @@ import io.starburst.schema.discovery.formats.csv.CsvFlags;
 import io.starburst.schema.discovery.formats.csv.CsvOptions;
 import io.starburst.schema.discovery.infer.InferredPartitionProjection;
 import io.starburst.schema.discovery.internal.Column;
+import io.starburst.schema.discovery.models.DiscoveredIdentifier;
 import io.starburst.schema.discovery.models.DiscoveredPartitionValues;
 import io.starburst.schema.discovery.models.DiscoveredPartitions;
 import io.starburst.schema.discovery.models.DiscoveredPartitions.IntegerProjectionMinMaxRange;
@@ -37,12 +38,12 @@ import static java.util.Objects.requireNonNull;
 class SqlGenerator
         extends OperationsHandler<SqlGenerator>
 {
-    private final LowerCaseString schemaName;
+    private final DiscoveredIdentifier schemaName;
     private final GenerateOptions options;
     private final SimpleWriter writer;
     private final Dialect dialect;
 
-    SqlGenerator(LowerCaseString defaultSchemaName, GenerateOptions options, SimpleWriter writer, Dialect dialect)
+    SqlGenerator(DiscoveredIdentifier defaultSchemaName, GenerateOptions options, SimpleWriter writer, Dialect dialect)
     {
         this.schemaName = requireNonNull(defaultSchemaName, "defaultSchemaName is null");
         this.options = requireNonNull(options, "options is null");

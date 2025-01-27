@@ -9,10 +9,12 @@
  */
 package io.starburst.schema.discovery;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.starburst.schema.discovery.internal.Column;
+import io.starburst.schema.discovery.models.DiscoveredIdentifier;
 import io.starburst.schema.discovery.models.DiscoveredPartitionValues;
 import io.starburst.schema.discovery.models.DiscoveredTable;
 import io.starburst.schema.discovery.models.LowerCaseString;
@@ -26,11 +28,10 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static java.util.Objects.requireNonNull;
 
 public record TableChanges(SlashEndedPath rootPath,
-                           Collection<LowerCaseString> addedSchema,
+                           Collection<DiscoveredIdentifier> addedSchema,
                            Collection<DiscoveredTable> droppedTables,
                            List<DiscoveredTable> addedTables,
                            List<DiscoveredTable> tablesToRecreateForProjectionChanges,
@@ -54,7 +55,7 @@ public record TableChanges(SlashEndedPath rootPath,
         errorsPerPath = ImmutableMap.copyOf(errorsPerPath);
     }
 
-    public record TableName(Optional<LowerCaseString> schemaName, LowerCaseString tableName)
+    public record TableName(Optional<DiscoveredIdentifier> schemaName, DiscoveredIdentifier tableName)
     {
         public TableName
         {
@@ -63,24 +64,30 @@ public record TableChanges(SlashEndedPath rootPath,
             checkArgument(!isNullOrEmpty(tableName.toString()), "tableName cannot be empty");
         }
 
-        public String toStringQuoted(Optional<String> catalogNameMaybe, LowerCaseString defaultSchemaName)
+        @VisibleForTesting
+        public TableName(Optional<LowerCaseString> schemaName, LowerCaseString tableName)
+        {
+            this(schemaName.map(DiscoveredIdentifier::toTrinoIdentifier), DiscoveredIdentifier.toTrinoIdentifier(tableName));
+        }
+
+        public String toStringQuoted(Optional<String> catalogNameMaybe, DiscoveredIdentifier defaultSchemaName)
         {
             return catalogNameMaybe.map(catalogName -> "\"%s\".\"%s\".\"%s\"".formatted(catalogName, schemaName.orElse(defaultSchemaName), tableName))
                     .orElseGet(() -> toStringQuoted(defaultSchemaName));
         }
 
-        public String toString(Optional<String> catalogNameMaybe, LowerCaseString defaultSchemaName)
+        public String toString(Optional<String> catalogNameMaybe, DiscoveredIdentifier defaultSchemaName)
         {
             return catalogNameMaybe.map(catalogName -> "%s.%s.%s".formatted(catalogName, schemaName.orElse(defaultSchemaName), tableName))
                     .orElseGet(() -> toString(defaultSchemaName));
         }
 
-        public String toString(LowerCaseString defaultSchemaName)
+        public String toString(DiscoveredIdentifier defaultSchemaName)
         {
             return "%s.%s".formatted(schemaName.orElse(defaultSchemaName), tableName);
         }
 
-        public String toStringQuoted(LowerCaseString defaultSchemaName)
+        public String toStringQuoted(DiscoveredIdentifier defaultSchemaName)
         {
             return "\"%s\".\"%s\"".formatted(schemaName.orElse(defaultSchemaName), tableName);
         }
@@ -88,7 +95,7 @@ public record TableChanges(SlashEndedPath rootPath,
         @Override
         public String toString()
         {
-            return schemaName.map(__ -> toString(toLowerCase("dummy"))).orElse(tableName.toString());
+            return schemaName.map(this::toString).orElse(tableName.toString());
         }
     }
 

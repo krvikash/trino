@@ -67,6 +67,10 @@ import static io.starburst.schema.discovery.internal.HiveTypes.adjustType;
 import static io.starburst.schema.discovery.internal.HiveTypes.arrayType;
 import static io.starburst.schema.discovery.internal.HiveTypes.structType;
 import static io.starburst.schema.discovery.io.LocationUtils.uriFromLocation;
+import static io.starburst.schema.discovery.models.DiscoveredIdentifierTestingUtils.toTestingHiveIdentifier;
+import static io.starburst.schema.discovery.models.DiscoveredIdentifierTestingUtils.toTestingIdentifier;
+import static io.starburst.schema.discovery.models.IdentifierConstraint.VALID_IN_HIVE_AND_TRINO;
+import static io.starburst.schema.discovery.models.IdentifierConstraint.VALID_IN_TRINO;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.models.TableFormat.ERROR;
 import static io.starburst.schema.discovery.models.TableFormat.JSON;
@@ -340,14 +344,14 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, newCachedThreadPool());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, newCachedThreadPool());
         Location directory = Util.testFilePath("json/with_empty");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.discover(new DiscoverRequest(uriFromLocation(directory), uriFromLocation(directory), TableFormat.JSON, CSV_OPTIONS));
         DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
         assertThat(discoveredTableSet.tables().getFirst().columns().columns())
                 .containsExactly(jsonWithEmptyValuesOnlyColumns());
 
-        GeneratedOperations generatedOperations = controller.generateOperations(new GenerateOperationsRequest(discoveredTableSet, new GenerateOptions("schema123", 5, true, Optional.of("catalog123"))));
+        GeneratedOperations generatedOperations = controller.generateOperations(new GenerateOperationsRequest(discoveredTableSet, new GenerateOptions(toTestingIdentifier("schema123"), 5, true, Optional.of("catalog123"))));
         assertThat(generatedOperations.operations())
                 .element(0).isInstanceOf(Operation.CreateSchema.class);
         assertThat(generatedOperations.operations())
@@ -359,7 +363,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, newCachedThreadPool());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, newCachedThreadPool());
         Location directory = Util.testFilePath("json/not_overlapping");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.discover(new DiscoverRequest(uriFromLocation(directory), uriFromLocation(directory), TableFormat.JSON, CSV_OPTIONS));
         DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -385,7 +389,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, newCachedThreadPool());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, newCachedThreadPool());
         Location directory = Util.testFilePath("mixed/mix_recursive_formats_fail");
         Map<String, String> options = ImmutableMap.<String, String>builder()
                 .putAll(CSV_OPTIONS)
@@ -409,7 +413,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, newCachedThreadPool());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, newCachedThreadPool());
         Location directory = Util.testFilePath("parquet_tables/columns_subset");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), CSV_OPTIONS));
         DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -434,7 +438,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, newCachedThreadPool());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, newCachedThreadPool());
         Location directory = Util.testFilePath("parquet_tables/with_empty_file");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), CSV_OPTIONS));
         DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -449,7 +453,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, newCachedThreadPool());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, newCachedThreadPool());
         Location directory = Util.testFilePath("parquet_tables/with_hidden_file");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), CSV_OPTIONS));
         DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -464,7 +468,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, newCachedThreadPool());
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, newCachedThreadPool());
         Location directory = Util.testFilePath("parquet_tables/with_hidden_file");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(
                 uriFromLocation(directory),
@@ -490,6 +494,40 @@ public class TestSchemaFromDirectory
                 .allMatch(t -> t.format() == JSON)
                 .allMatch(t -> t.tableName().equals(new TableName(Optional.empty(), toLowerCase("dummy"))))
                 .allMatch(t -> t.columns().equals(new DiscoveredColumns(ImmutableList.of(new Column(toLowerCase("key"), new HiveType(STRING_TYPE), Optional.of("value"))), ImmutableList.of())));
+    }
+
+    @Test
+    public void testDiscoveryOnFolderWithIllegalTableNameWithHiveCompatibility()
+            throws Exception
+    {
+        DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_HIVE_AND_TRINO, newCachedThreadPool());
+        Location directory = Util.testFilePath("recursive/rtable1/March-2025/year=2025/month=1/day=24");
+        ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), CSV_OPTIONS));
+        DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
+
+        assertThat(discoveredTableSet.tables())
+                .hasSize(1)
+                .allMatch(DiscoveredTable::valid)
+                // equal sign in directory is filtered out from table name, to make it valid
+                .allMatch(table -> table.tableName().equals(new TableName(Optional.empty(), toTestingHiveIdentifier("day24"))));
+    }
+
+    @Test
+    public void testDiscoveryOnFolderWithIllegalTableNameWithTrinoCompatibility()
+            throws Exception
+    {
+        DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, newCachedThreadPool());
+        Location directory = Util.testFilePath("recursive/rtable1/March-2025/year=2025/month=1/day=24");
+        ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), CSV_OPTIONS));
+        DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
+
+        assertThat(discoveredTableSet.tables())
+                .hasSize(1)
+                .allMatch(DiscoveredTable::valid)
+                // equal sign in directory is NOT filtered out from table name, as trino allows it when its quoted
+                .allMatch(table -> table.tableName().equals(new TableName(Optional.empty(), toTestingIdentifier("day=24"))));
     }
 
     private static Column jsonWithEmptyValuesOnlyColumns()
@@ -523,7 +561,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, executor);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, executor);
         Location directory = Util.testFilePath("csv/coalesce");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), CSV_OPTIONS));
         DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -534,7 +572,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, executor);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, executor);
         Location directory = Util.testFilePath("csv");
         Location fileDirectory = Util.testFilePath("csv/coalesce");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.discover(new DiscoverRequest(uriFromLocation(directory), uriFromLocation(fileDirectory), TableFormat.ORC, CSV_OPTIONS));
@@ -551,7 +589,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, executor);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, executor);
         Location directory = Util.testFilePath("csv");
         Location fileDirectory = Util.testFilePath("csv/coalesce");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.discover(new DiscoverRequest(uriFromLocation(directory), uriFromLocation(fileDirectory), TableFormat.CSV, CSV_OPTIONS));
@@ -563,7 +601,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, executor);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, executor);
         Location directory = Util.testFilePath("csv/coalesce");
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.discover(new DiscoverRequest(uriFromLocation(directory), uriFromLocation(directory), TableFormat.CSV, CSV_OPTIONS));
         DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
@@ -574,7 +612,7 @@ public class TestSchemaFromDirectory
             throws Exception
     {
         DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, executor);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_TRINO, executor);
         Location directory = Util.testFilePath("csv/coalesce");
         ListenableFuture<DiscoveredSchema> shallowDiscoveryFuture = controller.discoverTablesShallow(new GuessRequest(uriFromLocation(directory), ImmutableMap.of()));
         DiscoveredSchema discoveredShallowSchema = shallowDiscoveryFuture.get(5, TimeUnit.SECONDS);

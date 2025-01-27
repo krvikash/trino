@@ -9,11 +9,13 @@
  */
 package io.starburst.schema.discovery.request;
 
+import io.starburst.schema.discovery.models.DiscoveredIdentifier;
+
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record GenerateOptions(String defaultSchemaName, int bucketQty, boolean includePartitions, Optional<String> catalogName)
+public record GenerateOptions(DiscoveredIdentifier defaultSchemaName, int bucketQty, boolean includePartitions, Optional<String> catalogName)
 {
     public GenerateOptions
     {

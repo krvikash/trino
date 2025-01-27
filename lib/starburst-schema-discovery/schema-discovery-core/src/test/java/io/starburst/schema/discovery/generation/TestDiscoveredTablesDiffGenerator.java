@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
 
+import static io.starburst.schema.discovery.models.DiscoveredIdentifierTestingUtils.toTestingIdentifier;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -187,7 +188,7 @@ public class TestDiscoveredTablesDiffGenerator
                 .hasSize(5)
                 .containsExactly(
                         new NewTable(
-                                new TableName(Optional.of(toLowerCase(schemaName)), newTable2.tableName().tableName()),
+                                new TableName(Optional.of(toTestingIdentifier(schemaName)), newTable2.tableName().tableName()),
                                 newTable2.path(),
                                 newTable2.format(),
                                 ImmutableList.of(new NewColumn(toLowerCase("ncolumn123"), new HiveType(HiveTypes.STRING_TYPE), Optional.empty())),
@@ -196,7 +197,7 @@ public class TestDiscoveredTablesDiffGenerator
                                         new NewPartitionValue(ensureEndsWithSlash("s3://dummy/date=2022-04"), ImmutableMap.of(toLowerCase("date"), "2022-04"))),
                                 ImmutableList.of()),
                         new DroppedTable(
-                                new TableName(Optional.of(toLowerCase(schemaName)), prevTableToDrop.tableName().tableName()),
+                                new TableName(Optional.of(toTestingIdentifier(schemaName)), prevTableToDrop.tableName().tableName()),
                                 prevTableToDrop.path(),
                                 prevTableToDrop.format(),
                                 ImmutableList.of(new DroppedColumn(toLowerCase("pcolumn1234"), new HiveType(HiveTypes.STRING_TYPE), Optional.empty())),
@@ -205,7 +206,7 @@ public class TestDiscoveredTablesDiffGenerator
                                         new DroppedPartitionValue(ensureEndsWithSlash("s3://dummy/date=2022-04"), ImmutableMap.of(toLowerCase("date"), "2022-04"))),
                                 ImmutableList.of()),
                         new UpdatedTable(
-                                new TableName(Optional.of(toLowerCase(schemaName)), updatedTable1.tableName().tableName()),
+                                new TableName(Optional.of(toTestingIdentifier(schemaName)), updatedTable1.tableName().tableName()),
                                 updatedTable1.path(),
                                 updatedTable1.format(),
                                 ImmutableList.of(
@@ -218,7 +219,7 @@ public class TestDiscoveredTablesDiffGenerator
                                         new UnchangedPartitionValue(ensureEndsWithSlash("s3://dummy/date=2022-04"), ImmutableMap.of(toLowerCase("date"), "2022-04"))),
                                 ImmutableList.of()),
                         new UnchangedTable(
-                                new TableName(Optional.of(toLowerCase(schemaName)), notModifiedTable3.tableName().tableName()),
+                                new TableName(Optional.of(toTestingIdentifier(schemaName)), notModifiedTable3.tableName().tableName()),
                                 notModifiedTable3.path(),
                                 notModifiedTable3.format(),
                                 ImmutableList.of(new UnchangedColumn(toLowerCase("pcolumn12345"), new HiveType(HiveTypes.STRING_TYPE), Optional.empty())),
@@ -227,7 +228,7 @@ public class TestDiscoveredTablesDiffGenerator
                                         new UnchangedPartitionValue(ensureEndsWithSlash("s3://dummy/date=2022-04"), ImmutableMap.of(toLowerCase("date"), "2022-04"))),
                                 ImmutableList.of()),
                         new RecreatedTable(
-                                new TableName(Optional.of(toLowerCase(schemaName)), updatedTable2.tableName().tableName()),
+                                new TableName(Optional.of(toTestingIdentifier(schemaName)), updatedTable2.tableName().tableName()),
                                 updatedTable2.path(),
                                 updatedTable2.format(),
                                 ImmutableList.of(

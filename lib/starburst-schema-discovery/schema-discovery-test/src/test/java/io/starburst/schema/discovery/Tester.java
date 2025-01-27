@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.starburst.schema.discovery.generation.Dialect.TRINO;
+import static io.starburst.schema.discovery.models.DiscoveredIdentifierTestingUtils.toTestingIdentifier;
 
 public class Tester
 {
@@ -51,7 +52,7 @@ public class Tester
         options.put(GeneralOptions.EXCLUDE_PATTERNS, ".*|*.sql");
         options.put(GeneralOptions.MAX_SAMPLE_TABLES, "500");
         DiscoveredSchema discoveredSchema = controller.guess(new GuessRequest(uri, options)).get();
-        GenerateOptions generateOptions = new GenerateOptions("test", 10, true, Optional.empty());
+        GenerateOptions generateOptions = new GenerateOptions(toTestingIdentifier("test"), 10, true, Optional.empty());
         GeneratedOperations operations = controller.generateOperations(new GenerateOperationsRequest(discoveredSchema, generateOptions));
         System.out.println(String.join("", operations.sql()));
 /*

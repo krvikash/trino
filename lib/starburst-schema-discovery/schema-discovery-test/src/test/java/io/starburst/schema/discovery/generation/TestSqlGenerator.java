@@ -45,6 +45,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.Optional;
 
+import static io.starburst.schema.discovery.models.DiscoveredIdentifierTestingUtils.toTestingIdentifier;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
 import static io.trino.metastore.type.TypeInfoFactory.getListTypeInfo;
@@ -80,44 +81,44 @@ public class TestSqlGenerator
 
         String expectedSql = switch (dialect) {
             case TRINO -> """
-                CREATE TABLE "catalog123"."schema123"."table123" (
-                    "column123" varchar,
-                    "date" date
-                )
-                WITH (
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    partitioned_by = ARRAY['date'],
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    CREATE TABLE "catalog123"."schema123"."table123" (
+                        "column123" varchar,
+                        "date" date
+                    )
+                    WITH (
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        partitioned_by = ARRAY['date'],
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
-                CALL catalog123.system.sync_partition_metadata('schema123', 'table123', 'ADD');
+                    CALL catalog123.system.sync_partition_metadata('schema123', 'table123', 'ADD');
 
-                """;
+                    """;
             case GALAXY -> """
-                CREATE TABLE "catalog123"."schema123"."table123" (
-                    "column123" varchar,
-                    "date" date
-                )
-                WITH (
-                    type = 'hive',
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    partitioned_by = ARRAY['date'],
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    CREATE TABLE "catalog123"."schema123"."table123" (
+                        "column123" varchar,
+                        "date" date
+                    )
+                    WITH (
+                        type = 'hive',
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        partitioned_by = ARRAY['date'],
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
-                CALL catalog123.system.sync_partition_metadata('schema123', 'table123', 'ADD');
+                    CALL catalog123.system.sync_partition_metadata('schema123', 'table123', 'ADD');
 
-                """;
+                    """;
         };
         String expectedSummary = "Created table: [table123], with location: [s3://dummy/]";
 
@@ -144,44 +145,44 @@ public class TestSqlGenerator
 
         String expectedSql = switch (dialect) {
             case TRINO -> """
-                CREATE TABLE "catalog123"."schema123456"."table123" (
-                    "column123" varchar,
-                    "date" date
-                )
-                WITH (
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    partitioned_by = ARRAY['date'],
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    CREATE TABLE "catalog123"."schema123456"."table123" (
+                        "column123" varchar,
+                        "date" date
+                    )
+                    WITH (
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        partitioned_by = ARRAY['date'],
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
-                CALL catalog123.system.sync_partition_metadata('schema123456', 'table123', 'ADD');
+                    CALL catalog123.system.sync_partition_metadata('schema123456', 'table123', 'ADD');
 
-                """;
+                    """;
             case GALAXY -> """
-                CREATE TABLE "catalog123"."schema123456"."table123" (
-                    "column123" varchar,
-                    "date" date
-                )
-                WITH (
-                    type = 'hive',
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    partitioned_by = ARRAY['date'],
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    CREATE TABLE "catalog123"."schema123456"."table123" (
+                        "column123" varchar,
+                        "date" date
+                    )
+                    WITH (
+                        type = 'hive',
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        partitioned_by = ARRAY['date'],
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
-                CALL catalog123.system.sync_partition_metadata('schema123456', 'table123', 'ADD');
+                    CALL catalog123.system.sync_partition_metadata('schema123456', 'table123', 'ADD');
 
-                """;
+                    """;
         };
         String expectedSummary = "Created table: [schema123456.table123], with location: [s3://dummy/]";
 
@@ -207,46 +208,46 @@ public class TestSqlGenerator
                 ImmutableList.of(toLowerCase("s3://dummy"))));
         String expectedSql = switch (dialect) {
             case TRINO -> """
-                USE "schema123456";
-                CREATE TABLE "table123" (
-                    "column123" varchar,
-                    "date" date
-                )
-                WITH (
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    partitioned_by = ARRAY['date'],
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    USE "schema123456";
+                    CREATE TABLE "table123" (
+                        "column123" varchar,
+                        "date" date
+                    )
+                    WITH (
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        partitioned_by = ARRAY['date'],
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
-                CALL system.sync_partition_metadata('schema123456', 'table123', 'ADD');
+                    CALL system.sync_partition_metadata('schema123456', 'table123', 'ADD');
 
-                """;
+                    """;
             case GALAXY -> """
-                USE "schema123456";
-                CREATE TABLE "table123" (
-                    "column123" varchar,
-                    "date" date
-                )
-                WITH (
-                    type = 'hive',
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    partitioned_by = ARRAY['date'],
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    USE "schema123456";
+                    CREATE TABLE "table123" (
+                        "column123" varchar,
+                        "date" date
+                    )
+                    WITH (
+                        type = 'hive',
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        partitioned_by = ARRAY['date'],
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
-                CALL system.sync_partition_metadata('schema123456', 'table123', 'ADD');
+                    CALL system.sync_partition_metadata('schema123456', 'table123', 'ADD');
 
-                """;
+                    """;
         };
         String expectedSummary = "Created table: [schema123456.table123], with location: [s3://dummy/]";
 
@@ -293,82 +294,82 @@ public class TestSqlGenerator
                 ImmutableList.of(toLowerCase("s3://dummy"))));
         String expectedSql = switch (dialect) {
             case TRINO -> """
-                USE "schema123456";
-                CREATE TABLE "table123" (
-                    "column123" varchar,
-                    "country" varchar WITH (
-                        partition_projection_type = 'ENUM',
-                        partition_projection_values = ARRAY['GERMANY', 'POLAND']
-                    ),
-                    "projection_1" int WITH (
-                        partition_projection_type = 'INTEGER',
-                        partition_projection_range = ARRAY['5', '6']
-                    ),
-                    "projection_2" varchar WITH (
-                        partition_projection_type = 'ENUM',
-                        partition_projection_values = ARRAY['April-2021', 'May-2020']
-                    ),
-                    "projection_3" varchar WITH (
-                        partition_projection_type = 'ENUM',
-                        partition_projection_values = ARRAY['north', 'south']
-                    ),
-                    "year" int WITH (
-                        partition_projection_type = 'INTEGER',
-                        partition_projection_range = ARRAY['2020', '2020']
+                    USE "schema123456";
+                    CREATE TABLE "table123" (
+                        "column123" varchar,
+                        "country" varchar WITH (
+                            partition_projection_type = 'ENUM',
+                            partition_projection_values = ARRAY['GERMANY', 'POLAND']
+                        ),
+                        "projection_1" int WITH (
+                            partition_projection_type = 'INTEGER',
+                            partition_projection_range = ARRAY['5', '6']
+                        ),
+                        "projection_2" varchar WITH (
+                            partition_projection_type = 'ENUM',
+                            partition_projection_values = ARRAY['April-2021', 'May-2020']
+                        ),
+                        "projection_3" varchar WITH (
+                            partition_projection_type = 'ENUM',
+                            partition_projection_values = ARRAY['north', 'south']
+                        ),
+                        "year" int WITH (
+                            partition_projection_type = 'INTEGER',
+                            partition_projection_range = ARRAY['2020', '2020']
+                        )
                     )
-                )
-                WITH (
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    partition_projection_enabled = true,
-                    partition_projection_location_template = 's3://dummy/country=${country}/${projection_1}/${projection_2}/${projection_3}/year=${year}/',
-                    partitioned_by = ARRAY['country', 'projection_1', 'projection_2', 'projection_3', 'year'],
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    WITH (
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        partition_projection_enabled = true,
+                        partition_projection_location_template = 's3://dummy/country=${country}/${projection_1}/${projection_2}/${projection_3}/year=${year}/',
+                        partitioned_by = ARRAY['country', 'projection_1', 'projection_2', 'projection_3', 'year'],
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
                     """;
             case GALAXY -> """
-                USE "schema123456";
-                CREATE TABLE "table123" (
-                    "column123" varchar,
-                    "country" varchar WITH (
-                        partition_projection_type = 'ENUM',
-                        partition_projection_values = ARRAY['GERMANY', 'POLAND']
-                    ),
-                    "projection_1" int WITH (
-                        partition_projection_type = 'INTEGER',
-                        partition_projection_range = ARRAY['5', '6']
-                    ),
-                    "projection_2" varchar WITH (
-                        partition_projection_type = 'ENUM',
-                        partition_projection_values = ARRAY['April-2021', 'May-2020']
-                    ),
-                    "projection_3" varchar WITH (
-                        partition_projection_type = 'ENUM',
-                        partition_projection_values = ARRAY['north', 'south']
-                    ),
-                    "year" int WITH (
-                        partition_projection_type = 'INTEGER',
-                        partition_projection_range = ARRAY['2020', '2020']
+                    USE "schema123456";
+                    CREATE TABLE "table123" (
+                        "column123" varchar,
+                        "country" varchar WITH (
+                            partition_projection_type = 'ENUM',
+                            partition_projection_values = ARRAY['GERMANY', 'POLAND']
+                        ),
+                        "projection_1" int WITH (
+                            partition_projection_type = 'INTEGER',
+                            partition_projection_range = ARRAY['5', '6']
+                        ),
+                        "projection_2" varchar WITH (
+                            partition_projection_type = 'ENUM',
+                            partition_projection_values = ARRAY['April-2021', 'May-2020']
+                        ),
+                        "projection_3" varchar WITH (
+                            partition_projection_type = 'ENUM',
+                            partition_projection_values = ARRAY['north', 'south']
+                        ),
+                        "year" int WITH (
+                            partition_projection_type = 'INTEGER',
+                            partition_projection_range = ARRAY['2020', '2020']
+                        )
                     )
-                )
-                WITH (
-                    type = 'hive',
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    partition_projection_enabled = true,
-                    partition_projection_location_template = 's3://dummy/country=${country}/${projection_1}/${projection_2}/${projection_3}/year=${year}/',
-                    partitioned_by = ARRAY['country', 'projection_1', 'projection_2', 'projection_3', 'year'],
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    WITH (
+                        type = 'hive',
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        partition_projection_enabled = true,
+                        partition_projection_location_template = 's3://dummy/country=${country}/${projection_1}/${projection_2}/${projection_3}/year=${year}/',
+                        partitioned_by = ARRAY['country', 'projection_1', 'projection_2', 'projection_3', 'year'],
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
                     """;
         };
@@ -398,40 +399,40 @@ public class TestSqlGenerator
 
         String expectedSql = switch (dialect) {
             case TRINO -> """
-                CREATE TABLE "catalog123"."schema123456"."non_primitive_type_table" (
-                    "map_column" map(varchar,varchar),
-                    "list_column" array(varchar),
-                    "struct_column" row("child_column" varchar)
-                )
-                WITH (
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    CREATE TABLE "catalog123"."schema123456"."non_primitive_type_table" (
+                        "map_column" map(varchar,varchar),
+                        "list_column" array(varchar),
+                        "struct_column" row("child_column" varchar)
+                    )
+                    WITH (
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
-                """;
+                    """;
             case GALAXY -> """
-                CREATE TABLE "catalog123"."schema123456"."non_primitive_type_table" (
-                    "map_column" map(varchar,varchar),
-                    "list_column" array(varchar),
-                    "struct_column" row("child_column" varchar)
-                )
-                WITH (
-                    type = 'hive',
-                    format = 'TEXTFILE',
-                    textfile_field_separator = ',',
-                    textfile_field_separator_escape = '\\',
-                    skip_header_line_count = 1,
-                    external_location = 's3://dummy/',
-                    bucketed_by = ARRAY['s3://dummy'],
-                    bucket_count = 10
-                );
+                    CREATE TABLE "catalog123"."schema123456"."non_primitive_type_table" (
+                        "map_column" map(varchar,varchar),
+                        "list_column" array(varchar),
+                        "struct_column" row("child_column" varchar)
+                    )
+                    WITH (
+                        type = 'hive',
+                        format = 'TEXTFILE',
+                        textfile_field_separator = ',',
+                        textfile_field_separator_escape = '\\',
+                        skip_header_line_count = 1,
+                        external_location = 's3://dummy/',
+                        bucketed_by = ARRAY['s3://dummy'],
+                        bucket_count = 10
+                    );
 
-                """;
+                    """;
         };
         String expectedSummary = "Created table: [schema123456.non_primitive_type_table], with location: [s3://dummy/]";
 
@@ -726,7 +727,7 @@ public class TestSqlGenerator
     @EnumSource(Dialect.class)
     public void testCreateSchemaWithCatalogName(Dialect dialect)
     {
-        CreateSchema operation = new CreateSchema(ensureEndsWithSlash("s3://dummy"), toLowerCase("test_schema"));
+        CreateSchema operation = new CreateSchema(ensureEndsWithSlash("s3://dummy"), toTestingIdentifier("test_schema"));
         String expectedSql = """
                 CREATE SCHEMA IF NOT EXISTS "catalog123"."test_schema" WITH (location = 's3://dummy/');
 
@@ -740,7 +741,7 @@ public class TestSqlGenerator
     @EnumSource(Dialect.class)
     public void testCreateSchemaWithoutCatalogName(Dialect dialect)
     {
-        CreateSchema operation = new CreateSchema(ensureEndsWithSlash("s3://dummy"), toLowerCase("test_schema"));
+        CreateSchema operation = new CreateSchema(ensureEndsWithSlash("s3://dummy"), toTestingIdentifier("test_schema"));
         String expectedSql = """
                 CREATE SCHEMA IF NOT EXISTS "test_schema" WITH (location = 's3://dummy/');
 
@@ -1080,7 +1081,7 @@ public class TestSqlGenerator
     private void testOperation(Optional<String> catalogName, Operation operation, String expectedSql, String expectedSummary, Dialect dialect)
     {
         SimpleWriter writer = new SimpleWriter();
-        SqlGenerator sqlGenerator = new SqlGenerator(toLowerCase(DEFAULT_SCHEMA_NAME), new GenerateOptions(DEFAULT_SCHEMA_NAME, 10, true, catalogName), writer, dialect);
+        SqlGenerator sqlGenerator = new SqlGenerator(toTestingIdentifier(DEFAULT_SCHEMA_NAME), new GenerateOptions(toTestingIdentifier(DEFAULT_SCHEMA_NAME), 10, true, catalogName), writer, dialect);
         sqlGenerator.apply(operation);
         assertThat(writer.toString())
                 .isEqualTo(expectedSql);

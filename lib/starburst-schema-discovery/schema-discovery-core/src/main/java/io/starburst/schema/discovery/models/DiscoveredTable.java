@@ -23,8 +23,9 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.starburst.schema.discovery.models.DiscoveredColumns.EMPTY_DISCOVERED_COLUMNS;
+import static io.starburst.schema.discovery.models.DiscoveredIdentifier.identifierFromString;
 import static io.starburst.schema.discovery.models.DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS;
-import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
+import static io.starburst.schema.discovery.models.IdentifierConstraint.VALID_IN_TRINO;
 import static io.starburst.schema.discovery.models.TableFormat.ERROR;
 import static java.util.Objects.requireNonNull;
 
@@ -43,7 +44,7 @@ public record DiscoveredTable(
     public static final DiscoveredTable EMPTY_DISCOVERED_TABLE = new DiscoveredTable(
             false,
             SlashEndedPath.SINGLE_SLASH_EMPTY,
-            new TableName(Optional.empty(), toLowerCase("error")),
+            new TableName(Optional.empty(), identifierFromString("error", VALID_IN_TRINO)),
             ERROR,
             CsvOptions.standard(),
             EMPTY_DISCOVERED_COLUMNS,

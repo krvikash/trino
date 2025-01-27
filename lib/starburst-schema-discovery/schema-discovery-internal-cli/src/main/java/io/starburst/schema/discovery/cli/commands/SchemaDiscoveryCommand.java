@@ -22,6 +22,7 @@ import io.starburst.schema.discovery.formats.orc.OrcDataSourceFactory;
 import io.starburst.schema.discovery.formats.parquet.ParquetDataSourceFactory;
 import io.starburst.schema.discovery.generation.Dialect;
 import io.starburst.schema.discovery.internal.RescanMerger;
+import io.starburst.schema.discovery.models.DiscoveredIdentifier;
 import io.starburst.schema.discovery.models.DiscoveredSchema;
 import io.starburst.schema.discovery.models.DiscoveredTable;
 import io.starburst.schema.discovery.models.GeneratedOperations;
@@ -133,7 +134,7 @@ public final class SchemaDiscoveryCommand
 
             DiscoveredSchema discoveredSchema = mergeRescan(guess.get(timeout.toMillis(), TimeUnit.MILLISECONDS));
 
-            GenerateOptions generateOptions = new GenerateOptions(schemaName, bucketQty, includePartitions, catalogName);
+            GenerateOptions generateOptions = new GenerateOptions(DiscoveredIdentifier.of(schemaName), bucketQty, includePartitions, catalogName);
             GeneratedOperations operations = previousMetadata.map(previous -> generateDiff(parsedUri, controller, previous, discoveredSchema, generateOptions)).orElseGet(() -> generateOperations(controller, discoveredSchema, generateOptions));
 
             discoveredSchema.errors().forEach(error -> System.err.println("! " + error));
