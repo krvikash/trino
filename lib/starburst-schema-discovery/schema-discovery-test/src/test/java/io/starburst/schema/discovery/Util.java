@@ -92,6 +92,11 @@ public class Util
         return new DiscoveryTrinoFileSystem(new SortedTrinoFileSystem(new LocalFileSystem(Paths.get("/"))));
     }
 
+    public static TypeInfo struct(List<String> names, List<TypeInfo> types)
+    {
+        return getStructTypeInfo(names, types);
+    }
+
     public static TypeInfo struct(String name1, TypeInfo type1, String name2, TypeInfo type2, String name3, TypeInfo type3)
     {
         return getStructTypeInfo(Arrays.asList(name1, name2, name3), Arrays.asList(type1, type2, type3));

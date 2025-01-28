@@ -55,7 +55,7 @@ class Converter
         return STRING_TYPE;
     }
 
-    private static TypeInfo fromGroupType(org.apache.parquet.schema.Type type)
+    static TypeInfo fromGroupType(org.apache.parquet.schema.Type type)
     {
         GroupType group = (GroupType) type;
         ImmutableList<String> names = group.getFields()

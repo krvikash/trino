@@ -27,11 +27,13 @@ import org.apache.parquet.schema.LogicalTypeAnnotation.StringLogicalTypeAnnotati
 import org.apache.parquet.schema.LogicalTypeAnnotation.TimeLogicalTypeAnnotation;
 import org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation;
 import org.apache.parquet.schema.LogicalTypeAnnotation.UUIDLogicalTypeAnnotation;
+import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
 import java.util.Optional;
 
 import static io.starburst.schema.discovery.SchemaDiscoveryErrorCode.UNEXPECTED_DATA_TYPE;
+import static io.starburst.schema.discovery.formats.parquet.Converter.fromGroupType;
 import static io.starburst.schema.discovery.formats.parquet.Converter.fromParquetType;
 import static io.starburst.schema.discovery.internal.HiveTypes.HIVE_BYTE;
 import static io.starburst.schema.discovery.internal.HiveTypes.HIVE_DATE;
@@ -76,6 +78,12 @@ class TypeVisitor
                     if (nestedGroup.getFieldCount() == 1) {
                         return Optional.of(HiveTypes.arrayType(fromParquetType(nestedGroup.getType(0))));
                     }
+                    else {
+                        return Optional.of(HiveTypes.arrayType(fromGroupType(nestedGroup)));
+                    }
+                }
+                else if (field instanceof PrimitiveType primitiveType) {
+                    return Optional.of(HiveTypes.arrayType(fromParquetType(primitiveType)));
                 }
             }
         }

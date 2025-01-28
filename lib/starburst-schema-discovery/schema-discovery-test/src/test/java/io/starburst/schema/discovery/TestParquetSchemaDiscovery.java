@@ -9,6 +9,7 @@
  */
 package io.starburst.schema.discovery;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.starburst.schema.discovery.internal.HiveTypes;
 import io.starburst.schema.discovery.models.DiscoveredColumns;
@@ -99,5 +100,64 @@ public class TestParquetSchemaDiscovery
         DiscoveredColumns schemaColumns = parquetSchemaDiscovery.discoverColumns(Util.testFile("parquet/char.parquet"), ImmutableMap.of());
         assertThat(schemaColumns.columns()).containsExactly(
                 column("type_char", HiveTypes.HIVE_STRING));
+    }
+
+    @Test
+    public void testComplexArray()
+    {
+        DiscoveredColumns schemaColumns = parquetSchemaDiscovery.discoverColumns(Util.testFile("parquet/raw-cnr-spol-abp-datastreamsbetslipplacementmessage+0+0000000010.snappy.parquet"), ImmutableMap.of());
+        assertThat(schemaColumns.columns()).containsExactly(
+                column("cdc", HiveTypes.HIVE_LONG),
+                column("payload", struct(
+                        "rejectreasonlist", arrayType(struct(
+                                ImmutableList.of(
+                                        "betslipid",
+                                        "rejectcode",
+                                        "rejectdescription",
+                                        "betid",
+                                        "betcomponentid",
+                                        "id"),
+                                ImmutableList.of(
+                                        HiveTypes.HIVE_LONG,
+                                        HiveTypes.STRING_TYPE,
+                                        HiveTypes.STRING_TYPE,
+                                        HiveTypes.HIVE_LONG,
+                                        HiveTypes.HIVE_LONG,
+                                        HiveTypes.HIVE_LONG))),
+                        "betslip", struct(
+                                ImmutableList.of(
+                                        "createdat",
+                                        "pricelineid",
+                                        "initialbetidlist",
+                                        "cappedstakeamount",
+                                        "cappedstake",
+                                        "origin",
+                                        "channel",
+                                        "betslipreference",
+                                        "currency",
+                                        "id",
+                                        "playerid"),
+                                ImmutableList.of(
+                                        HiveTypes.STRING_TYPE,
+                                        HiveTypes.HIVE_LONG,
+                                        arrayType(HiveTypes.HIVE_LONG),
+                                        struct(
+                                                ImmutableList.of("colour", "origin", "scale", "currency", "value"),
+                                                ImmutableList.of(HiveTypes.STRING_TYPE, HiveTypes.STRING_TYPE, HiveTypes.HIVE_LONG, HiveTypes.STRING_TYPE, HiveTypes.HIVE_LONG)),
+                                        HiveTypes.HIVE_DOUBLE,
+                                        HiveTypes.STRING_TYPE,
+                                        HiveTypes.STRING_TYPE,
+                                        HiveTypes.STRING_TYPE,
+                                        HiveTypes.STRING_TYPE,
+                                        HiveTypes.HIVE_LONG,
+                                        HiveTypes.HIVE_LONG)))),
+                column("dayid", HiveTypes.HIVE_LONG),
+                column("gameexternalid", HiveTypes.STRING_TYPE),
+                column("mediatype", HiveTypes.STRING_TYPE),
+                column("applicationid", HiveTypes.STRING_TYPE),
+                column("version", HiveTypes.STRING_TYPE),
+                column("pam", HiveTypes.STRING_TYPE),
+                column("operator", HiveTypes.STRING_TYPE),
+                column("timestamp", HiveTypes.STRING_TYPE));
     }
 }
