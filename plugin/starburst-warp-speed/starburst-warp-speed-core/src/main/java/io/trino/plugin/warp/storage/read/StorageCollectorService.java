@@ -177,31 +177,6 @@ public class StorageCollectorService
         return false;
     }
 
-    private boolean isSingle(QueryResultType queryResultType)
-    {
-        return queryResultType == QueryResultType.QUERY_RESULT_TYPE_SINGLE ||
-                queryResultType == QueryResultType.QUERY_RESULT_TYPE_SINGLE_NO_NULL ||
-                queryResultType == QueryResultType.QUERY_RESULT_TYPE_ALL_NULL;
-    }
-
-    boolean stopForOptimization(AggregatorPageArgs aggregatorPageArgs, int numWes)
-    {
-        if (numWes == 0) {
-            return false;
-        }
-
-        MemorySegment currQueryResultTypes = aggregatorPageArgs.prepareQueryResultTypes().get();
-        MemorySegment prevQueryResultTypes = aggregatorPageArgs.queryResultTypes().get();
-        for (int weIx = 0; weIx < numWes; weIx++) {
-            QueryResultType currResultType = QueryResultType.values()[currQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
-            QueryResultType prevResultType = QueryResultType.values()[prevQueryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
-            if (isSingle(currResultType) || isSingle(prevResultType)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     void collectChunk(AggregatorPageArgs aggregatorPageArgs,
             boolean isFullScan,
             int startRecIx,
@@ -242,10 +217,6 @@ public class StorageCollectorService
 
             if (queryParams.getNumCollectElements() > 0) {
                 openChunk(chunksQueue, queryArgs, aggregatorPageArgs);
-                if ((numCollectedRows > 0) && stopForOptimization(aggregatorPageArgs, queryParams.getNumCollectElements())) {
-                    canPrepareMore = false;
-                    break;
-                }
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, aggregatorPageArgs.rangeData());
                 numToCollect = getNumToCollect(queryArgs, numCollectedFromCurrentChunk, aggregatorPageArgs, numCollectedRows);
                 if (numToCollect > 0) {
