@@ -603,7 +603,7 @@ public class TrinoRestCatalog
     @Override
     public void updateMaterializedViewRefreshSchedule(ConnectorSession session, SchemaTableName viewName, Optional<String> schedule)
     {
-        throw new TrinoException(NOT_SUPPORTED, "updateMaterializedViewColumnComment is not supported for Iceberg REST catalog");
+        throw new TrinoException(NOT_SUPPORTED, "updateMaterializedViewRefreshSchedule is not supported for Iceberg REST catalog");
     }
 
     @Override
