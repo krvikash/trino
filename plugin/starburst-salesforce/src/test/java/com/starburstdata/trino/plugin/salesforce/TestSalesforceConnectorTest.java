@@ -55,7 +55,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -903,17 +902,6 @@ public class TestSalesforceConnectorTest
         assertUpdate("CREATE TABLE " + tableName + "(key integer) COMMENT 'new table comment__c'");
         assertThat(getTableComment(tableName)).isEqualTo("new table comment__c");
         assertUpdate("DROP TABLE " + tableName);
-    }
-
-    private String getTableComment(String tableName)
-    {
-        // TODO use information_schema.tables.table_comment
-        String result = (String) computeActual("SHOW CREATE TABLE " + tableName).getOnlyValue();
-        Matcher matcher = Pattern.compile("COMMENT '([^']*)'").matcher(result);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return null;
     }
 
     @Test
