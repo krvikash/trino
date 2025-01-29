@@ -217,7 +217,7 @@ public class TestHiveConnectorSmokeTest
                """.formatted(catalog);
     }
 
-    private static String[] availableCatalogs(Optional<String> catalog)
+    protected String[] availableCatalogs(Optional<String> catalog)
     {
         ImmutableList.Builder<String> catalogs = ImmutableList.builder();
         catalogs.add("system")
