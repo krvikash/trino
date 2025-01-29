@@ -26,8 +26,7 @@ public interface BlocksAggregator
     AggregatorPageArgs openPage(QueryArgs queryArgs,
             ThreadArena pageArena,
             AggregatorArgs aggregatorArgs,
-            WarpQueryState queryState,
-            int rowsLimit);
+            WarpQueryState queryState);
 
     void prepareBlocks(ChunkProperties chunk,
             QueryArgs queryArgs,

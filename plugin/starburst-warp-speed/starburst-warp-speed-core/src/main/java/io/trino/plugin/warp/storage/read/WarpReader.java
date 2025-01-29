@@ -88,8 +88,7 @@ public class WarpReader
         aggregatorPageArgs = blocksAggregator.openPage(queryArgs,
                 pageArena,
                 aggregatorArgs,
-                queryState,
-                (int) Math.min(rowsLimit - queryState.getTotalNumReadRecords(), Integer.MAX_VALUE));
+                queryState);
 
         matcherPageArgs = matcher.openPage(pageArena,
                 queryArgs,

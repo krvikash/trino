@@ -63,8 +63,7 @@ public class CollectTxService
      */
     AggregatorPageArgs collectOpenAndRestore(QueryArgs queryArgs,
             ThreadArena pageArena,
-            int rowsLimit,
-            AggregatorArgs aggregatorArgs)
+              AggregatorArgs aggregatorArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
@@ -98,7 +97,6 @@ public class CollectTxService
                 storageEngineConstants.getCollectStatePayload(),
                 nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize());
         AggregatorPageArgs aggregatorPageArgs = new AggregatorPageArgs(collectState,
-                rowsLimit,
                 collectMemory,
                 new RangeData(collectMetadataMemory.recordIndexes()),
                 collectMetadataMemory.collectBuffersOpt(),

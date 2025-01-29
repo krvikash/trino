@@ -136,13 +136,11 @@ public class StorageCollectorService
     public AggregatorPageArgs openPage(QueryArgs queryArgs,
             ThreadArena pageArena,
             AggregatorArgs aggregatorArgs,
-            WarpQueryState queryState,
-            int rowsLimit)
+            WarpQueryState queryState)
     {
         queryState.resetNumRecordsInCurPage();
         return collectTxService.collectOpenAndRestore(queryArgs,
                 pageArena,
-                rowsLimit,
                 aggregatorArgs);
     }
 
@@ -288,7 +286,7 @@ public class StorageCollectorService
 
     public WarpStoragePageSource.RowRanges getRanges(AggregatorPageArgs aggregatorPageArgs)
     {
-        return rangeFillerService.collectRanges(aggregatorPageArgs.rangeData(), aggregatorPageArgs.rowsLimit());
+        return rangeFillerService.collectRanges(aggregatorPageArgs.rangeData());
     }
 
     public long closePage(QueryArgs queryArgs,

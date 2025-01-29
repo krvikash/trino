@@ -15,13 +15,10 @@ package io.trino.plugin.warp.storage.read;
 
 public interface RangeFillerService
 {
-    // check if the current chunk is done
-    boolean updateStartIxIfNotCompleted(RangeData rangeData);
-
     // return the number of rows collected in this round
     int add(ChunkProperties chunkProperties, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService);
 
     WarpStoragePageSource.RowRanges reset(RangeData rangeData);
 
-    WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit);
+    WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData);
 }

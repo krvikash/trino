@@ -18,8 +18,6 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 public class RangeData
 {
     private final RecordIndexes recordIndexes;
-    private int numChunkRowsCollected;
-    private int lastChunkIndex;
     private final LongArrayList lowerInclusive;
     private final LongArrayList upperExclusive;
 
@@ -27,8 +25,6 @@ public class RangeData
     {
         this.recordIndexes = recordIndexes;
         // ranges are gathered only if needed (mixed query)
-        this.numChunkRowsCollected = 0;
-        this.lastChunkIndex = 0;
         this.upperExclusive = new LongArrayList();
         this.lowerInclusive = new LongArrayList();
     }
@@ -36,31 +32,6 @@ public class RangeData
     public RecordIndexes getRecordIndexes()
     {
         return recordIndexes;
-    }
-
-    public int getLastChunkIndex()
-    {
-        return lastChunkIndex;
-    }
-
-    public int getNumChunkRowsCollected()
-    {
-        return numChunkRowsCollected;
-    }
-
-    public void incNumChunkRowsCollected(int numRows)
-    {
-        numChunkRowsCollected += numRows;
-    }
-
-    public void setLastChunkIndex(int chunkIndex)
-    {
-        lastChunkIndex = chunkIndex;
-    }
-
-    public void resetNumChunkRowsCollected()
-    {
-        numChunkRowsCollected = 0;
     }
 
     public void addLowerInclusive(long value)

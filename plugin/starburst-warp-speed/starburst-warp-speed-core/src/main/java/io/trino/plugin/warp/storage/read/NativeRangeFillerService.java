@@ -29,30 +29,12 @@ public class NativeRangeFillerService
     {
     }
 
-    // update start index. Return true if we have completed the chunk
-    @Override
-    public boolean updateStartIxIfNotCompleted(RangeData rangeData)
-    {
-        // if we have not started collecting the chunk we return false
-        if (rangeData.getNumChunkRowsCollected() == 0) {
-            return false;
-        }
-
-        int curStart = rangeData.getRecordIndexes().getStart() + rangeData.getNumChunkRowsCollected();
-        if (rangeData.getRecordIndexes().getSize() == curStart) {
-            return true;
-        }
-        rangeData.getRecordIndexes().setStart(curStart);
-        return false;
-    }
-
     // return the number of rows collected in this round
     @Override
     public int add(ChunkProperties chunkProperties, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService)
     {
         RangeData rangeData = aggregatorPageArgs.rangeData();
         RecordIndexes recordIndexes = rangeData.getRecordIndexes();
-        advanceChunkIfNeeded(chunkProperties.chunkIndex(), rangeData);
         int numRows = chunkProperties.numRecordsInChunk();
 
         // in case collected count is zero, it means nothing was collected regardless of the type
@@ -111,8 +93,6 @@ public class NativeRangeFillerService
             default -> throw new RuntimeException("unknown list type " + listType);
         }
 
-        // update number of rows collected from current chunk
-        rangeData.incNumChunkRowsCollected(numRows);
         return numRows;
     }
 
@@ -124,14 +104,6 @@ public class NativeRangeFillerService
         long[] upperExclusive = rangeData.getUpperExclusiveAsArray();
         rangeData.clearUpperExclusive();
         return new WarpStoragePageSource.RowRanges(lowerInclusive, upperExclusive, false);
-    }
-
-    private void advanceChunkIfNeeded(int chunkIndex, RangeData rangeData)
-    {
-        if (rangeData.getLastChunkIndex() != chunkIndex) {
-            rangeData.setLastChunkIndex(chunkIndex);
-            rangeData.resetNumChunkRowsCollected();
-        }
     }
 
     // in case merge was successful, removes the previous range and returns its min, otherwise return the input min
@@ -150,26 +122,17 @@ public class NativeRangeFillerService
      * @return rangesCount - ranges in juffer
      */
     @Override
-    public WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
+    public WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData)
     {
         WarpStoragePageSource.RowRanges ranges = reset(rangeData);
-        if (rowsLimit == Integer.MAX_VALUE) {
-            return ranges;
-        }
 
         LongArrayList limitedLowerInclusive = new LongArrayList();
         LongArrayList limitedUpperExclusive = new LongArrayList();
-        int sum = 0;
         int currRange = 0;
 
-        while (currRange < ranges.getRangesCount() && (sum < rowsLimit)) {
+        while (currRange < ranges.getRangesCount()) {
             int min = (int) ranges.getLowerInclusive(currRange);
             int max = (int) ranges.getUpperExclusive(currRange);
-            sum += max - min;
-            if (sum > rowsLimit) {
-                max -= (sum - rowsLimit);
-                sum = rowsLimit;
-            }
             limitedLowerInclusive.add(min);
             limitedUpperExclusive.add(max);
             currRange++;

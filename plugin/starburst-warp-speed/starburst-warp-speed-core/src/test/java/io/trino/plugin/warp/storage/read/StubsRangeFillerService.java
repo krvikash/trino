@@ -23,13 +23,6 @@ public class StubsRangeFillerService
     {
     }
 
-    // check if the current chunk is done
-    @Override
-    public boolean updateStartIxIfNotCompleted(RangeData rangeData)
-    {
-        return true;
-    }
-
     // return the number of rows collected in this round
     @Override
     public int add(ChunkProperties chunkProperties, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService)
@@ -44,7 +37,7 @@ public class StubsRangeFillerService
     }
 
     @Override
-    public WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
+    public WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData)
     {
         return WarpStoragePageSource.RowRanges.EMPTY;
     }
