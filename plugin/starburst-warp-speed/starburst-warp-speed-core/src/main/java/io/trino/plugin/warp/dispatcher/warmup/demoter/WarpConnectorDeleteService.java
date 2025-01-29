@@ -49,7 +49,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -116,9 +115,9 @@ public class WarpConnectorDeleteService
                         new SchemaTableName(warmupRule.getSchema(), warmupRule.getTable()),
                         warmupRule.getWarpColumn())));
 
-        // all tupleRanks of the same shared rowGroup should be gathered together to reduce the number of saved
-        // the key of this map make sure that all rg+WarmupType will be handled in a single batch
-        Map<String, TupleRank> tupleRanksByKey = new TreeMap<>();
+        List<TupleRank> tupleRankList = new ArrayList<>();
+        List<TupleRank> immediateObjects = new ArrayList<>();
+        List<TupleRank> failedObjects = new ArrayList<>();
 
         for (RowGroupData rowGroupData : rowGroupDataList) {
             RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
@@ -147,31 +146,23 @@ public class WarpConnectorDeleteService
                         warmUpElement,
                         Stream.concat(warmupRuleList.stream(), wildcardWarmupRules).toList());
 
-                String warmupElementKey = rowGroupKey + "_" + warmUpElement.getWarpColumn() + "_" + warmUpElement.getWarmUpType();
-                tupleRanksByKey.put(warmupElementKey, new TupleRank(warmupProperties, warmUpElement, rowGroupKey));
-            }
-        }
-        List<TupleRank> tupleRankList = new ArrayList<>();
-        List<TupleRank> immediateObjects = new ArrayList<>();
-        List<TupleRank> failedObjects = new ArrayList<>();
-        for (TupleRank tupleRank : tupleRanksByKey.values()) {
-            WarmUpElement warmUpElement = tupleRank.warmUpElement();
-            WarmupProperties warmupProperties = tupleRank.warmupProperties();
+                TupleRank tupleRank = new TupleRank(warmupProperties, warmUpElement, rowGroupKey);
 
-            if (forceDeleteFailedObjects && !warmUpElement.isValid()) {
-                logger.debug("add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s",
-                        warmUpElement.getWarpColumn(), warmupProperties.warmUpType());
-                failedObjects.add(tupleRank);
-            }
-            else if (isDeleteImmediatelyObject(tupleRank, now, tupleFilters)) {
-                logger.debug("add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s",
-                        warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.ttl());
-                immediateObjects.add(tupleRank);
-            }
-            else {
-                tupleRankList.add(tupleRank);
-                logger.debug("add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s",
-                        warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.priority());
+                if (forceDeleteFailedObjects && !warmUpElement.isValid()) {
+                    logger.debug("add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s",
+                            warmUpElement.getWarpColumn(), warmupProperties.warmUpType());
+                    failedObjects.add(tupleRank);
+                }
+                else if (isDeleteImmediatelyObject(tupleRank, now, tupleFilters)) {
+                    logger.debug("add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s",
+                            warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.ttl());
+                    immediateObjects.add(tupleRank);
+                }
+                else {
+                    tupleRankList.add(tupleRank);
+                    logger.debug("add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s",
+                            warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.priority());
+                }
             }
         }
 
