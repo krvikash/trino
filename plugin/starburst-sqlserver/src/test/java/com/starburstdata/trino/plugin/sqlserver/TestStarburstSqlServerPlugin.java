@@ -44,6 +44,6 @@ public class TestStarburstSqlServerPlugin
                         "connection-url", "jdbc:sqlserver:test",
                         SQLSERVER_OVERRIDE_CATALOG_NAME, "irrelevant"),
                 new TestingConnectorContext()))
-                .hasMessageContaining(SQLSERVER_OVERRIDE_CATALOG_ENABLED + " needs to be set in order to use " + SQLSERVER_OVERRIDE_CATALOG_NAME + " parameter");
+                .hasStackTraceContaining(SQLSERVER_OVERRIDE_CATALOG_ENABLED + " needs to be set in order to use " + SQLSERVER_OVERRIDE_CATALOG_NAME + " parameter");
     }
 }
