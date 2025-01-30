@@ -20,12 +20,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NO_EXPIRY;
-
 public interface WarpDeleteService
 {
     TupleRankResult buildTupleRank(List<TupleFilter> tupleFilters,
-                                   boolean forceDeleteFailedObjects);
+            boolean forceDeleteFailedObjects);
 
     long delete(List<TupleRank> tupleRankList, DemoteContext demoteContext)
             throws ExecutionException, InterruptedException;
@@ -33,8 +31,7 @@ public interface WarpDeleteService
     default boolean isDeleteImmediatelyObject(TupleRank tupleRank, Instant currentTime, List<TupleFilter> tupleFilters)
     {
         return CollectionUtils.isNotEmpty(tupleFilters) || // since tupleRanks were already filtered by tupleFilters
-                (tupleRank.warmupProperties().ttl() > NO_EXPIRY &&
                 currentTime.isAfter(Instant.ofEpochMilli(tupleRank.warmUpElement().getLastUsedTimestamp())
-                                            .plus(tupleRank.warmupProperties().ttl(), ChronoUnit.SECONDS)));
+                        .plus(tupleRank.warmupProperties().ttl(), ChronoUnit.SECONDS));
     }
 }

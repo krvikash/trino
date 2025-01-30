@@ -40,8 +40,8 @@ public class WarmupDemoterData
     private final boolean resetHighestPriority;
     private final boolean forceDeleteFailedObjects;
     private final WarmupDemoterThreshold warmupDemoterThreshold;
-
     private final boolean enableDemoteFeature;
+    private final int defaultRuleTtlInSeconds;
 
     @JsonCreator
     public WarmupDemoterData(@JsonProperty(value = "maxUsageThresholdInPercentage") Double maxUsageThresholdInPercentage,
@@ -58,7 +58,8 @@ public class WarmupDemoterData
             @JsonProperty(value = "warmupDemoterThreshold") WarmupDemoterThreshold warmupDemoterThreshold,
             @JsonProperty(value = "epsilon") Double epsilon,
             @JsonProperty(value = "maxElementsToDemoteInIteration") Long maxElementsToDemoteInIteration,
-            @JsonProperty(value = "enableDemoteFeature", defaultValue = "true") Boolean enableDemoteFeature)
+            @JsonProperty(value = "enableDemoteFeature", defaultValue = "true") Boolean enableDemoteFeature,
+            @JsonProperty(value = "defaultRuleTtlInSeconds", defaultValue = "1200") int defaultRuleTtlInSeconds)
     {
         this.maxUsageThresholdInPercentage = maxUsageThresholdInPercentage != null ? maxUsageThresholdInPercentage : -1;
         this.cleanupUsageThresholdInPercentage = cleanupUsageThresholdInPercentage != null ? cleanupUsageThresholdInPercentage : -1;
@@ -75,6 +76,7 @@ public class WarmupDemoterData
         this.epsilon = epsilon != null ? epsilon : -1;
         this.maxElementsToDemoteInIteration = maxElementsToDemoteInIteration != null ? maxElementsToDemoteInIteration : -1;
         this.enableDemoteFeature = enableDemoteFeature != null ? enableDemoteFeature : true;
+        this.defaultRuleTtlInSeconds = defaultRuleTtlInSeconds;
     }
 
     public static Builder builder()
@@ -178,6 +180,12 @@ public class WarmupDemoterData
         return enableDemoteFeature;
     }
 
+    @JsonProperty
+    public int getDefaultRuleTtlInSeconds()
+    {
+        return defaultRuleTtlInSeconds;
+    }
+
     @Override
     public String toString()
     {
@@ -197,6 +205,7 @@ public class WarmupDemoterData
                 ", epsilon=" + epsilon +
                 ", maxElementsToDemoteInIteration=" + maxElementsToDemoteInIteration +
                 ", enableDemoteFeature=" + enableDemoteFeature +
+                ", defaultRuleTtlInSeconds=" + defaultRuleTtlInSeconds +
                 '}';
     }
 
@@ -217,6 +226,7 @@ public class WarmupDemoterData
         private boolean resetHighestPriority;
         private WarmupDemoterThreshold warmupDemoterThreshold;
         private boolean enableDemoteFeature = true;
+        private int defaultRuleTtlInSeconds = 1200;
 
         private Builder()
         {
@@ -312,6 +322,12 @@ public class WarmupDemoterData
             return this;
         }
 
+        public Builder defaultRuleTtlInSeconds(int defaultRuleTtlInSeconds)
+        {
+            this.defaultRuleTtlInSeconds = defaultRuleTtlInSeconds;
+            return this;
+        }
+
         public WarmupDemoterData build()
         {
             return new WarmupDemoterData(maxUsageThresholdInPercentage,
@@ -328,7 +344,8 @@ public class WarmupDemoterData
                     warmupDemoterThreshold,
                     epsilon,
                     maxElementsToDemoteInIteration,
-                    enableDemoteFeature);
+                    enableDemoteFeature,
+                    defaultRuleTtlInSeconds);
         }
     }
 }

@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -26,6 +28,7 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
+import io.trino.plugin.warp.dispatcher.warmup.events.WarmupDemoterConfigChangedEvent;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
@@ -36,14 +39,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NO_EXPIRY;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -52,20 +53,28 @@ public class WarpCacheManagerDeleteService
 {
     private static final Logger logger = Logger.get(WarpCacheManagerDeleteService.class);
     private final RowGroupDataService rowGroupDataService;
+    private final WarmupDemoterConfig warmupDemoterConfig;
     private final CacheMgrWarmupRuleService cacheMgrWarmupRuleService;
     private final ExecutorService rowGroupExecutorService;
 
-    private final WarmupProperties defaultWarmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 10, NO_EXPIRY, TransformFunction.NONE);
+    private WarmupProperties defaultWarmupProperties;
 
     @Inject
     public WarpCacheManagerDeleteService(
             RowGroupDataService rowGroupDataService,
             CacheMgrWarmupRuleService cacheMgrWarmupRuleService,
             WarmupDemoterConfig warmupDemoterConfig,
-            NativeConfig nativeConfig)
+            NativeConfig nativeConfig,
+            EventBus eventBus)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cacheMgrWarmupRuleService = requireNonNull(cacheMgrWarmupRuleService);
+        this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
+
+        eventBus.register(this);
+
+        initDefaultWarmupProperties();
+
         rowGroupExecutorService = new ThreadPoolExecutor(
                 0,
                 nativeConfig.getTaskMaxWorkerThreads(),
@@ -73,6 +82,15 @@ public class WarpCacheManagerDeleteService
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(warmupDemoterConfig.getTasksExecutorQueueSize()),
                 new ThreadFactoryBuilder().setNameFormat("warp-speed-row-group-%s").setDaemon(true).build());
+    }
+
+    private void initDefaultWarmupProperties()
+    {
+        defaultWarmupProperties = new WarmupProperties(
+                WarmUpType.WARM_UP_TYPE_DATA,
+                10,
+                warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                TransformFunction.NONE);
     }
 
     @Override
@@ -95,7 +113,11 @@ public class WarpCacheManagerDeleteService
             WarmupProperties warmupProperties = rule == null ? defaultWarmupProperties :
                     new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, rule.priority(), (int) rule.ttl().toSeconds(), TransformFunction.NONE);
 
-            TupleRank tupleRank = new TupleRank(warmupProperties, getWarmupElementWithMaxLastUsedTimestamp(rowGroupData).orElse(null), rowGroupData.getRowGroupKey());
+            TupleRank tupleRank = new TupleRank(
+                    warmupProperties,
+                    getWarmupElementWithMaxLastUsedTimestamp(rowGroupData),
+                    rowGroupData.getRowGroupKey());
+
             if (forceDeleteFailedObjects && !rowGroupData.getWarmUpElements().stream().allMatch(WarmUpElement::isValid)) {
                 logger.debug("add failed Row to failedObjects: rowGroupKey = %s", rowGroupData.getRowGroupKey());
                 failedObjects.add(tupleRank);
@@ -112,12 +134,15 @@ public class WarpCacheManagerDeleteService
         return new TupleRankResult(tupleRankList, immediateObjects, failedObjects);
     }
 
-    private Optional<WarmUpElement> getWarmupElementWithMaxLastUsedTimestamp(RowGroupData rowGroupData)
+    private WarmUpElement getWarmupElementWithMaxLastUsedTimestamp(RowGroupData rowGroupData)
     {
         if (rowGroupData == null || rowGroupData.getWarmUpElements() == null || rowGroupData.getWarmUpElements().isEmpty()) {
-            return Optional.empty();
+            return null;
         }
-        return rowGroupData.getWarmUpElements().stream().max(Comparator.comparingLong(WarmUpElement::getLastUsedTimestamp));
+        return rowGroupData.getWarmUpElements()
+                .stream()
+                .max(Comparator.comparingLong(WarmUpElement::getLastUsedTimestamp))
+                .orElse(null);
     }
 
     @Override
@@ -141,5 +166,12 @@ public class WarpCacheManagerDeleteService
                 .stream()
                 .mapToLong(Integer::longValue)
                 .sum();
+    }
+
+    @Subscribe
+    private void handleWarmupDemoterConfigChanged(WarmupDemoterConfigChangedEvent event)
+    {
+        logger.debug("handleWarmupDemoterConfigChanged=%s", event);
+        initDefaultWarmupProperties();
     }
 }

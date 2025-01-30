@@ -253,8 +253,8 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 1,
                 0);
 
-        int expectedDeadObjects = 3; // 1 from previous snapshot and 3 objects with ttl 0 (tmpColumn ttl -1)
-        validateDemoter(Target.COORDINATOR, new DemoteInput(catalog, expectedDeadObjects, 2));
+        int expectedDeadObjects = 5; // 1 from previous snapshot and 3 objects with ttl 0 (tmpColumn ttl -1)
+        validateDemoter(Target.COORDINATOR, new DemoteInput(catalog, expectedDeadObjects, 0));
     }
 
     @Test

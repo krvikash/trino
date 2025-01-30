@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
+import com.google.common.eventbus.EventBus;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
@@ -38,7 +39,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.IntStream;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NO_EXPIRY;
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterServiceTest.buildWarmupElement;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -66,7 +66,8 @@ public class WarpCacheManagerDeleteServiceTest
                 rowGroupDataService,
                 cacheMgrWarmupRuleService,
                 new WarmupDemoterConfig(),
-                new NativeConfig());
+                new NativeConfig(),
+                new EventBus());
         int defaultBatchSize = 2;
         int defaultEpsilon = 1;
         double defaultMaxThreshold = 95;
@@ -80,7 +81,7 @@ public class WarpCacheManagerDeleteServiceTest
                 true,
                 true,
                 true,
-                new TupleRankResult(new ArrayList<>(), List.of(), List.of()));
+                new TupleRankResult(new ArrayList<>(), new ArrayList<>(), List.of()));
     }
 
     @Test
@@ -102,7 +103,12 @@ public class WarpCacheManagerDeleteServiceTest
         assertThat(result.failedObjects().size()).isEqualTo(0);
         assertThat(result.immediateObjects().size()).isEqualTo(0);
 
-        WarmupProperties expectedProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 10, NO_EXPIRY, TransformFunction.NONE); //from defaultWarmupProperties
+        WarmupDemoterConfig warmupDemoterConfig = new WarmupDemoterConfig();
+        WarmupProperties expectedProperties = new WarmupProperties(
+                WarmUpType.WARM_UP_TYPE_DATA,
+                10,
+                warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                TransformFunction.NONE); //from defaultWarmupProperties
         TupleRank tupleRank = result.tupleRankList().getFirst();
 
         assertThat(tupleRank.warmupProperties()).isEqualTo(expectedProperties);
@@ -187,7 +193,13 @@ public class WarpCacheManagerDeleteServiceTest
         RowGroupData rowGroupData = createRowGroupData(warmupElements);
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
 
-        WarmupProperties warmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 10, NO_EXPIRY, TransformFunction.NONE); //from defaultWarmupProperties
+        WarmupDemoterConfig warmupDemoterConfig = new WarmupDemoterConfig();
+        WarmupProperties warmupProperties = new WarmupProperties(
+                WarmUpType.WARM_UP_TYPE_DATA,
+                10,
+                warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                TransformFunction.NONE); //from defaultWarmupProperties
+
         TupleRank tupleRank = new TupleRank(warmupProperties, null, rowGroupKey);
         List<TupleRank> tupleRanks = List.of(tupleRank);
 

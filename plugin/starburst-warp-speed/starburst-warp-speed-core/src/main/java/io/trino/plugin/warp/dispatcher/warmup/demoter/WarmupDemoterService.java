@@ -20,6 +20,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
+import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.log.ShapingLogger;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -192,7 +194,16 @@ public class WarmupDemoterService
 
             demoteContext.get().statsWarmupDemoter().incnumber_of_runs();
 
-            executeDemote();
+            logger.debug("catalog[%s]: execute demote", catalogName);
+
+            // In case of isForceDeleteFailedObjects = false, failed objects will be deleted regularly (as dead objects \ low priority)
+            if (demoteContext.get().isForceDeleteFailedObjects()) {
+                deleteFailedObjects();
+            }
+
+            deleteImmediateObjects();
+
+            tupleFilters = null;
 
             logger.debug("catalog[%s]: call demoteCycleEnd", catalogName);
 
@@ -255,29 +266,6 @@ public class WarmupDemoterService
                     demoteContext.get().statsWarmupDemoter().statsCounterMapper());
             logger.debug("catalog[%s]: fire event demote %s", catalogName, event);
             eventBus.post(event);
-        }
-    }
-
-    private void executeDemote()
-            throws ExecutionException, InterruptedException
-    {
-        if (isExecuting()) {
-            logger.debug("catalog[%s]: execute demote", catalogName);
-
-            if (demoteContext.get().isForceDeleteFailedObjects()) {
-                // In case of isForceDeleteFailedObjects = false, failed objects will be deleted regularly (as dead objects \ low priority)
-                logger.debug("catalog[%s]: deleteFailedObjects = %d",
-                        catalogName,
-                        demoteContext.get().tupleRankResult().failedObjects().size());
-                deleteFailedObjects(demoteContext.get().tupleRankResult().failedObjects());
-            }
-            logger.debug("catalog[%s]: deleteImmediateObjects = %d",
-                    catalogName,
-                    demoteContext.get().tupleRankResult().immediateObjects().size());
-
-            deleteImmediateObjects(demoteContext.get().tupleRankResult().immediateObjects());
-
-            tupleFilters = null;
         }
     }
 
@@ -358,20 +346,14 @@ public class WarmupDemoterService
     private boolean demoteCycle(double maxPriorityToDemote, boolean isSingleConnector)
             throws ExecutionException, InterruptedException
     {
+        long maxElementsToDemote = isSingleConnector ? Integer.MAX_VALUE : demoteContext.get().maxElementsToDemote();
         long elementsDeleted = 0;
-        boolean aboveThreshold = true;
         logger.debug("catalog[%s]: demoteCycle: start demoteCycle", catalogName);
-        while (aboveThreshold && shouldContinueDemote(isSingleConnector, elementsDeleted, maxPriorityToDemote)) {
-            aboveThreshold = aboveThreshold(demoteContext.get().cleanupUsageThresholdPercentage());
-            if (aboveThreshold) {
-                long maxElementsToDemote = isSingleConnector ? Integer.MAX_VALUE : demoteContext.get().maxElementsToDemote();
-                long numberOfElementsToDemote = Math.min(maxElementsToDemote - elementsDeleted, demoteContext.get().batchSize());
-                long newElementsDeleted = deleteByTupleRank(numberOfElementsToDemote, maxPriorityToDemote);
-                elementsDeleted += newElementsDeleted;
-            }
-            else {
-                logger.debug("catalog[%s]: demoteCycle: while loop: reached below threshold", catalogName);
-            }
+        while (aboveThreshold(demoteContext.get().cleanupUsageThresholdPercentage()) &&
+                shouldContinueDemote(isSingleConnector, elementsDeleted, maxPriorityToDemote)) {
+            long numberOfElementsToDemote = Math.min(maxElementsToDemote - elementsDeleted, demoteContext.get().batchSize());
+            long newElementsDeleted = deleteByTupleRank(numberOfElementsToDemote, maxPriorityToDemote);
+            elementsDeleted += newElementsDeleted;
         }
         logger.debug("catalog[%s]: demoteCycle: tupleRankListSize = %d, elementsDeleted = %d, maxElementsToDemote = %d, maxPriorityToDemote = %f, lowestPriorityLeft = %f",
                 catalogName,
@@ -381,7 +363,7 @@ public class WarmupDemoterService
                 maxPriorityToDemote,
                 demoteContext.get().tupleRankResult().getLowestPriority());
 
-        return !aboveThreshold;
+        return !aboveThreshold(demoteContext.get().cleanupUsageThresholdPercentage());
     }
 
     private boolean shouldContinueDemote(boolean isSingleConnector, long elementsDeleted, double maxPriorityToDemote)
@@ -411,9 +393,9 @@ public class WarmupDemoterService
         }
     }
 
-    private boolean aboveThreshold(double usageThresholdPercentage)
+    private boolean aboveThreshold(double thresholdPercentage)
     {
-        return workerCapacityManager.getFractionCurrentUsageFromTotal() > usageThresholdPercentage / 100;
+        return workerCapacityManager.getFractionCurrentUsageFromTotal() > thresholdPercentage / 100;
     }
 
     public boolean canAllowWarmup(double priority)
@@ -440,55 +422,78 @@ public class WarmupDemoterService
         return true;
     }
 
-    @VisibleForTesting
-    void deleteImmediateObjects(List<TupleRank> tupleRanks)
+    private void deleteFailedObjects()
             throws ExecutionException, InterruptedException
     {
-        logger.debug("catalog[%s]: deleteImmediateObjects deleting %d immediate objects",
-                catalogName, tupleRanks.size());
-        long deletedObjectsCount = warpDeleteService.delete(
-                tupleRanks,
-                demoteContext.get());
-        demoteContext.get().statsWarmupDemoter().adddead_objects_deleted(deletedObjectsCount);
-    }
-
-    @VisibleForTesting
-    void deleteFailedObjects(List<TupleRank> failedObjects)
-            throws ExecutionException, InterruptedException
-    {
+        List<TupleRank> failedObjects = demoteContext.get().tupleRankResult().failedObjects();
         logger.debug("catalog[%s]: deleteFailedObjects deleting %d failed objects", catalogName, failedObjects.size());
-        long deletedObjectsCount = warpDeleteService.delete(
-                failedObjects,
-                demoteContext.get());
+        long deletedObjectsCount = failedObjects.isEmpty() ? 0 :
+                warpDeleteService.delete(failedObjects, demoteContext.get());
         WarmupDemoterStats statsWarmupDemoter = demoteContext.get().statsWarmupDemoter();
         statsWarmupDemoter.addfailed_objects_deleted(deletedObjectsCount);
     }
 
-    @VisibleForTesting
-    long deleteByTupleRank(long maxElementsToDemote, double maxPriorityToDemote)
+    private void deleteImmediateObjects()
             throws ExecutionException, InterruptedException
     {
-        List<TupleRank> currentTupleRankList = demoteContext.get().tupleRankResult().tupleRankList();
-        if (currentTupleRankList.isEmpty()) {
+        List<TupleRank> tupleRanks = demoteContext.get().tupleRankResult().immediateObjects();
+        long numElementsDemoted = 0;
+        while (!tupleRanks.isEmpty() && aboveThreshold(demoteContext.get().cleanupUsageThresholdPercentage())) {
+            numElementsDemoted += deleteByMaxElementsToDemote(
+                    tupleRanks,
+                    demoteContext.get().maxElementsToDemote(),
+                    _ -> true);
+        }
+
+        logger.debug("catalog[%s]: deleteImmediateObjects -> deleted %d elements",
+                catalogName, numElementsDemoted);
+        demoteContext.get().statsWarmupDemoter().adddead_objects_deleted(numElementsDemoted);
+    }
+
+    private long deleteByTupleRank(long maxElementsToDemote, double maxPriorityToDemote)
+            throws ExecutionException, InterruptedException
+    {
+        long numElementsDemoted = deleteByMaxElementsToDemote(
+                demoteContext.get().tupleRankResult().tupleRankList(),
+                maxElementsToDemote,
+                warmupProperties -> warmupProperties.priority() < maxPriorityToDemote);
+
+        demoteContext.get().statsWarmupDemoter().adddeleted_by_low_priority(numElementsDemoted);
+
+        logger.debug("catalog[%s]: deleteByTupleRank -> deleted %d elements, highestPriorityDeleted=%s, maxPriorityToDemote=%s",
+                catalogName,
+                numElementsDemoted,
+                demoteContext.get().highestPriorityDemoted(),
+                maxPriorityToDemote);
+
+        return numElementsDemoted;
+    }
+
+    private long deleteByMaxElementsToDemote(
+            List<TupleRank> tupleRankList,
+            long maxElementsToDemote,
+            Predicate<WarmupProperties> predicate)
+            throws ExecutionException, InterruptedException
+    {
+        if (tupleRankList.isEmpty()) {
             return 0;
         }
         int toIndex = 0;
         List<TupleRank> elementsToDemote = new ArrayList<>();
-        while (currentTupleRankList.size() > toIndex && toIndex < maxElementsToDemote &&
-                currentTupleRankList.get(toIndex).warmupProperties().priority() < maxPriorityToDemote) {
-            elementsToDemote.add(currentTupleRankList.get(toIndex));
+        while (tupleRankList.size() > toIndex && toIndex < maxElementsToDemote &&
+                predicate.test(tupleRankList.get(toIndex).warmupProperties())) {
+            elementsToDemote.add(tupleRankList.get(toIndex));
             toIndex++;
         }
 
         long deletedObjectsCount = warpDeleteService.delete(elementsToDemote, demoteContext.get());
-        currentTupleRankList.subList(0, elementsToDemote.size()).clear();
-        demoteContext.get().statsWarmupDemoter().adddeleted_by_low_priority(deletedObjectsCount);
+
+        tupleRankList.subList(0, elementsToDemote.size()).clear();
+
         double highestPriorityDeleted = elementsToDemote.getLast().warmupProperties().priority();
 
-        logger.debug("catalog[%s]: deleteByTupleRank -> deleted %d elements, highestPriorityDeleted=%s, maxPriorityToDemote=%s",
-                catalogName, elementsToDemote.size(), highestPriorityDeleted, maxPriorityToDemote);
-
         demoteContext.get().highestPriorityDemoted().set(highestPriorityDeleted);
+
         return deletedObjectsCount;
     }
 

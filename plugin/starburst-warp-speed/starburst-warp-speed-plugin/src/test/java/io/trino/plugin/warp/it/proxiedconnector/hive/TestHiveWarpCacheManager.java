@@ -30,6 +30,7 @@ import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
 import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.TupleRankResult;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
@@ -144,6 +145,7 @@ public class TestHiveWarpCacheManager
                                     .put(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.toString(warpExtensionConfig.isUseHttpServerPort()))
                                     .put(WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.toString(warpExtensionConfig.isRestHttpDefaultPortEnabled()))
                                     .put(WarpExtensionConfig.HTTP_REST_PORT, Integer.toString(warpExtensionConfig.getRestHttpPort()))
+                                    .put(WarmupDemoterConfig.DEFAULT_RULE_TTL_IN_SECONDS, "1200")
                                     .put("node.environment", "warp")
                                     .buildOrThrow());
                 });
@@ -244,7 +246,7 @@ public class TestHiveWarpCacheManager
         runQueryAndValidateReadFromCache(getDistributedQueryRunner(), query, true, Target.CACHE_MGR);
 
         validateDemoter(Target.CACHE_MGR,
-                new DemoteInput(catalog, 0, 12),
+                new DemoteInput(catalog, 6, 6),
                 new DemoteInput(DISPATCHER_CACHE_MANAGER_NAME, 0, 1));
     }
 
@@ -257,7 +259,7 @@ public class TestHiveWarpCacheManager
 
         validateDemoter(
                 Target.COORDINATOR,
-                new DemoteInput(catalog, 0, 12),
+                new DemoteInput(catalog, 6, 6),
                 new DemoteInput(DISPATCHER_CACHE_MANAGER_NAME, 0, 1));
     }
 

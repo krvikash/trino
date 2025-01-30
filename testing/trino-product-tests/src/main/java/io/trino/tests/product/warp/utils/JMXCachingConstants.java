@@ -64,8 +64,12 @@ public class JMXCachingConstants
 
     public static class WarmupDemoter
     {
+        public static final String TOTAL_CAPACITY = "totalUsage";
+        public static final String CURRENT_USAGE = "currentUsage";
         public static final String NUMBER_OF_RUNS = "number_of_runs";
         public static final String NUMBER_OF_RUNS_FAIL = "number_of_runs_fail";
+        public static final String FAILED_OBJECTS_DELETED = "failed_objects_deleted";
+        public static final String DEAD_OBJECTS_DELETED = "dead_objects_deleted";
         public static final String DELETED_BY_LOW_PRIORITY = "deleted_by_low_priority";
     }
 

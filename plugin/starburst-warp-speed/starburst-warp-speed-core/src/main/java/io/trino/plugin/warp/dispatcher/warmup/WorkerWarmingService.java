@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
@@ -46,6 +47,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.WarmedWarmupTypes;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
+import io.trino.plugin.warp.dispatcher.warmup.events.WarmupDemoterConfigChangedEvent;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -81,7 +83,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NO_EXPIRY;
 import static io.trino.plugin.warp.type.TypeUtils.isWarmBasicSupported;
 import static java.util.Objects.requireNonNull;
 
@@ -116,17 +117,17 @@ public class WorkerWarmingService
 
     @Inject
     public WorkerWarmingService(MetricsManager metricsManager,
-                                DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-                                WorkerTaskExecutorService workerTaskExecutorService,
-                                WarmExecutionTaskFactory warmExecutionTaskFactory,
-                                WarmupDemoterService warmupDemoterService,
-                                WarmupRuleService warmupRuleService,
-                                RowGroupDataService rowGroupDataService,
-                                WarmupDemoterConfig warmupDemoterConfig,
-                                GlobalConfig globalConfig,
-                                StorageWarmerService storageWarmerService,
-                                EventBus eventBus,
-                                WorkerCapacityManager workerCapacityManager)
+            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
+            WorkerTaskExecutorService workerTaskExecutorService,
+            WarmExecutionTaskFactory warmExecutionTaskFactory,
+            WarmupDemoterService warmupDemoterService,
+            WarmupRuleService warmupRuleService,
+            RowGroupDataService rowGroupDataService,
+            WarmupDemoterConfig warmupDemoterConfig,
+            GlobalConfig globalConfig,
+            StorageWarmerService storageWarmerService,
+            EventBus eventBus,
+            WorkerCapacityManager workerCapacityManager)
     {
         this(metricsManager,
                 dispatcherProxiedConnectorTransformer,
@@ -145,18 +146,18 @@ public class WorkerWarmingService
 
     @VisibleForTesting
     public WorkerWarmingService(MetricsManager metricsManager,
-                                DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-                                WorkerTaskExecutorService workerTaskExecutorService,
-                                WarmExecutionTaskFactory warmExecutionTaskFactory,
-                                WarmupDemoterService warmupDemoterService,
-                                WorkerCapacityManager workerCapacityManager,
-                                WarmupRuleService warmupRuleService,
-                                RowGroupDataService rowGroupDataService,
-                                WarmupDemoterConfig warmupDemoterConfig,
-                                GlobalConfig globalConfig,
-                                StorageWarmerService storageWarmerService,
-                                EventBus eventBus,
-                                int batchSize)
+            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
+            WorkerTaskExecutorService workerTaskExecutorService,
+            WarmExecutionTaskFactory warmExecutionTaskFactory,
+            WarmupDemoterService warmupDemoterService,
+            WorkerCapacityManager workerCapacityManager,
+            WarmupRuleService warmupRuleService,
+            RowGroupDataService rowGroupDataService,
+            WarmupDemoterConfig warmupDemoterConfig,
+            GlobalConfig globalConfig,
+            StorageWarmerService storageWarmerService,
+            EventBus eventBus,
+            int batchSize)
     {
         this.warmExecutionTaskFactory = warmExecutionTaskFactory;
         this.dispatcherProxiedConnectorTransformer = dispatcherProxiedConnectorTransformer;
@@ -173,6 +174,7 @@ public class WorkerWarmingService
         this.batchSize = batchSize;
         initDefaultRules();
         initWarmUpTypeValidators();
+        eventBus.register(this);
     }
 
     public void warm(ConnectorPageSourceProvider connectorPageSourceProvider,
@@ -498,9 +500,10 @@ public class WorkerWarmingService
                 }
                 else if (warpColumn instanceof TransformedColumn transformedColumn) {
                     // we already validated that TransformedColumn isWarmBasicSupported at Coordinator.
-                    WarmupProperties warmingProperty = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC,
+                    WarmupProperties warmingProperty = new WarmupProperties(
+                            WarmUpType.WARM_UP_TYPE_BASIC,
                             warmupDemoterConfig.getDefaultRulePriority(),
-                                                                            NO_EXPIRY,
+                            warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
                             transformedColumn.getTransformFunction());
                     properties.add(warmingProperty);
                 }
@@ -513,8 +516,11 @@ public class WorkerWarmingService
                         }
                         else {
                             for (PredicateContext remainingPredicates : remainingPredicatesByColumn) {
-                                WarmupProperties defaultWarmingProperty = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, warmupDemoterConfig.getDefaultRulePriority(),
-                                                                                               NO_EXPIRY, remainingPredicates.getTransformedColumn());
+                                WarmupProperties defaultWarmingProperty = new WarmupProperties(
+                                        WarmUpType.WARM_UP_TYPE_BASIC,
+                                        warmupDemoterConfig.getDefaultRulePriority(),
+                                        warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                                        remainingPredicates.getTransformedColumn());
                                 properties.add(defaultWarmingProperty);
                             }
                         }
@@ -629,10 +635,22 @@ public class WorkerWarmingService
 
     private void initDefaultRules()
     {
-        this.defaultRules = ImmutableMap.<WarmUpType, WarmupProperties>builder()
-                .put(WarmUpType.WARM_UP_TYPE_DATA, new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfig.getDefaultRulePriority(), NO_EXPIRY, TransformFunction.NONE))
-                .put(WarmUpType.WARM_UP_TYPE_BASIC, new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, warmupDemoterConfig.getDefaultRulePriority(), NO_EXPIRY, TransformFunction.NONE))
-                .put(WarmUpType.WARM_UP_TYPE_LUCENE, new WarmupProperties(WarmUpType.WARM_UP_TYPE_LUCENE, warmupDemoterConfig.getDefaultRulePriority(), NO_EXPIRY, TransformFunction.NONE))
+        defaultRules = ImmutableMap.<WarmUpType, WarmupProperties>builder()
+                .put(WarmUpType.WARM_UP_TYPE_DATA,
+                        new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA,
+                                warmupDemoterConfig.getDefaultRulePriority(),
+                                warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                                TransformFunction.NONE))
+                .put(WarmUpType.WARM_UP_TYPE_BASIC,
+                        new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC,
+                                warmupDemoterConfig.getDefaultRulePriority(),
+                                warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                                TransformFunction.NONE))
+                .put(WarmUpType.WARM_UP_TYPE_LUCENE,
+                        new WarmupProperties(WarmUpType.WARM_UP_TYPE_LUCENE,
+                                warmupDemoterConfig.getDefaultRulePriority(),
+                                warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                                TransformFunction.NONE))
                 .buildOrThrow();
     }
 
@@ -728,6 +746,13 @@ public class WorkerWarmingService
         return warmupRuleList.stream()
                 .collect(Collectors.groupingBy(warmupRule -> new SchemaTableName(warmupRule.getSchema(), warmupRule.getTable())))
                 .getOrDefault(schemaTableName, Collections.emptyList());
+    }
+
+    @Subscribe
+    private void handleWarmupDemoterConfigChanged(WarmupDemoterConfigChangedEvent event)
+    {
+        logger.debug("handleWarmupDemoterConfigChanged=%s", event);
+        initDefaultRules();
     }
 
     private record WarmDataState(

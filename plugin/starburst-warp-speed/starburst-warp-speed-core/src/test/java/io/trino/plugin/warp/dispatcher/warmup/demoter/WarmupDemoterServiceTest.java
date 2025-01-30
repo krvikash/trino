@@ -171,13 +171,14 @@ public class WarmupDemoterServiceTest
     public void testDeadObject()
     {
         List<TupleRank> immediateObjects = new ArrayList<>();
-        IntStream.range(0, 20).forEach(index -> {
+        IntStream.range(0, 200).forEach(index -> {
             WarmupProperties warmupProperties = new WarmupProperties(defaultWarmupType, defaultPriority, 1, TransformFunction.NONE);
             RowGroupKey rowGroupKey = buildRowGroupKey(index);
             immediateObjects.add(new TupleRank(warmupProperties, buildWarmupElement(index, 0), rowGroupKey));
         });
 
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
+        when(workerCapacityManager.getFractionCurrentUsageFromTotal())
+                .thenReturn(0.98, 0.98, 0.9);
 
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         when(deleteService.buildTupleRank(anyList(), anyBoolean()))
@@ -206,7 +207,7 @@ public class WarmupDemoterServiceTest
                 warmupDemoterConfig.isForceDeleteFailedObjects(),
                 warmupDemoterConfig.isResetHighestPriority());
 
-        assertThat(warmupDemoterService.getCurrentRunStats().getdead_objects_deleted()).isEqualTo(20);
+        assertThat(warmupDemoterService.getCurrentRunStats().getdead_objects_deleted()).isEqualTo(100);
         verify(demoterSync, times(1))
                 .finishDemoteProcess(eq(demoteKey),
                         anyDouble(),
@@ -227,7 +228,7 @@ public class WarmupDemoterServiceTest
         warmupDemoterConfig.setForceDeleteFailedObjects(true);
 
         when(deleteService.buildTupleRank(anyList(), anyBoolean()))
-                .thenReturn(new TupleRankResult(new ArrayList<>(), List.of(), failedObjects));
+                .thenReturn(new TupleRankResult(new ArrayList<>(), new ArrayList<>(), failedObjects));
         when(demoterSync.tryStartDemoteProcess(
                 eq(demoteKey),
                 eq(warmupDemoterConfig.getMaxUsageThresholdPercentage()),
@@ -275,7 +276,7 @@ public class WarmupDemoterServiceTest
         });
         setConfig(0, 0, 1, 100, List.of());
         when(deleteService.buildTupleRank(anyList(), anyBoolean()))
-                .thenReturn(new TupleRankResult(tupleRankList, List.of(), List.of()));
+                .thenReturn(new TupleRankResult(tupleRankList, new ArrayList<>(), List.of()));
         when(demoterSync.tryStartDemoteProcess(
                 demoteKey,
                 warmupDemoterConfig.getMaxUsageThresholdPercentage(),
@@ -327,7 +328,7 @@ public class WarmupDemoterServiceTest
 
         setConfig(85, 80, 2, 100, List.of());
         when(deleteService.buildTupleRank(anyList(), anyBoolean()))
-                .thenReturn(new TupleRankResult(tupleRankList, List.of(), List.of()));
+                .thenReturn(new TupleRankResult(tupleRankList, new ArrayList<>(), List.of()));
         when(demoterSync.tryStartDemoteProcess(
                 demoteKey,
                 warmupDemoterConfig.getMaxUsageThresholdPercentage(),

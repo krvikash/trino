@@ -23,6 +23,7 @@ public record TupleRankResult(
 {
     public TupleRankResult
     {
+        Collections.sort(immediateObjects);
         Collections.sort(tupleRankList);
     }
 

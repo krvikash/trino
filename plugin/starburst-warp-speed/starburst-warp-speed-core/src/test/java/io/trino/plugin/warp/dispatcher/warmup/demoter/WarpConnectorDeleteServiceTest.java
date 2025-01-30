@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
+import com.google.common.eventbus.EventBus;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
@@ -91,7 +92,8 @@ class WarpConnectorDeleteServiceTest
                 warmupDemoterConfig,
                 new NativeConfig(),
                 warmupRuleProvider,
-                mock(WorkerCapacityManager.class)));
+                mock(WorkerCapacityManager.class),
+                new EventBus()));
         int defaultBatchSize = 2;
         int defaultEpsilon = 1;
         double defaultMaxThreshold = 95;
@@ -105,7 +107,7 @@ class WarpConnectorDeleteServiceTest
                 true,
                 true,
                 true,
-                new TupleRankResult(new ArrayList<>(), List.of(), List.of()));
+                new TupleRankResult(new ArrayList<>(), new ArrayList<>(), List.of()));
 
         initDefaultMembers();
     }
@@ -486,12 +488,47 @@ class WarpConnectorDeleteServiceTest
                 false,
                 true,
                 true,
-                new TupleRankResult(new ArrayList<>(), List.of(), List.of()));
+                new TupleRankResult(new ArrayList<>(), new ArrayList<>(), List.of()));
         warpDeleteService.delete(
                 tupleRankResult.tupleRankList(),
                 demoteContextTmp);
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData1), anyCollection());
         verify(rowGroupDataService, times(1)).removeElements(eq(rowGroupData1));
+    }
+
+    @Test
+    public void testIsDeleteImmediatelyObject()
+    {
+        WarmUpElement warmUpElement = buildWarmupElement(1, Instant.now().toEpochMilli());
+
+        RowGroupData rowGroupData1 = buildRowGroupData(
+                defaultSchemaName,
+                "aaa",
+                List.of(warmUpElement),
+                Map.of(),
+                1,
+                false);
+
+        when(warmupRuleProvider.getAll())
+                .thenReturn(List.of(buildWarmupRule(
+                        defaultSchemaName,
+                        1,
+                        defaultWarmupType,
+                        10,
+                        1,
+                        defaultPredicates)));
+
+        TupleRank tupleRank = new TupleRank(
+                new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 1, 0, TransformFunction.NONE),
+                warmUpElement,
+                rowGroupData1.getRowGroupKey());
+
+        assertThat(warpDeleteService.isDeleteImmediatelyObject(tupleRank, Instant.now().minusSeconds(1), List.of()))
+                .isFalse();
+        assertThat(warpDeleteService.isDeleteImmediatelyObject(tupleRank, Instant.now(), List.of()))
+                .isTrue();
+        assertThat(warpDeleteService.isDeleteImmediatelyObject(tupleRank, Instant.now().plusSeconds(1), List.of()))
+                .isTrue();
     }
 
     private WarmupRule buildWarmupRule(

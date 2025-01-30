@@ -122,7 +122,7 @@ public class DemoterUtils
         demote(warmupDemoterDataBuilder.build(), false);
     }
 
-    private Map<String, Object> demote(WarmupDemoterData warmupDemoterData, boolean isCache)
+    public Map<String, Object> demote(WarmupDemoterData warmupDemoterData, boolean isCache)
     {
         Map<String, Object> res = new HashMap<>();
         try {
@@ -140,8 +140,10 @@ public class DemoterUtils
             }
             res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
             logger.debug("%s", res);
-            QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();
-            assertDemoteCompleted(demoterStatsAfter, demoterStatsBefore);
+            if (warmupDemoterData.isExecuteDemoter()) {
+                QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();
+                assertDemoteCompleted(demoterStatsAfter, demoterStatsBefore);
+            }
         }
         catch (Exception e) {
             logger.error(e, "demoter failed %s", warmupDemoterData);

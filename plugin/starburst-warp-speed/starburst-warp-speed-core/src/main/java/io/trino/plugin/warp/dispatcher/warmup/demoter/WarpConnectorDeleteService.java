@@ -14,6 +14,8 @@
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -24,17 +26,16 @@ import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
-import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
-import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmUtils;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
+import io.trino.plugin.warp.dispatcher.warmup.events.WarmupDemoterConfigChangedEvent;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
@@ -62,7 +63,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.dispatcher.warmup.WarmupProperties.NO_EXPIRY;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
@@ -75,10 +75,11 @@ public class WarpConnectorDeleteService
 
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterConfig warmupDemoterConfig;
-    private final WarmupProperties defaultWarmupProperties;
     private final WarmupRuleProvider warmupRuleProvider;
     private final ExecutorService rowGroupExecutorService;
     private final WorkerCapacityManager workerCapacityManager;
+
+    private WarmupProperties defaultWarmupProperties;
 
     @Inject
     public WarpConnectorDeleteService(
@@ -86,13 +87,17 @@ public class WarpConnectorDeleteService
             WarmupDemoterConfig warmupDemoterConfig,
             NativeConfig nativeConfig,
             WarmupRuleProvider warmupRuleProvider,
-            WorkerCapacityManager workerCapacityManager)
+            WorkerCapacityManager workerCapacityManager,
+            EventBus eventBus)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.defaultWarmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfig.getDefaultRulePriority(), NO_EXPIRY, TransformFunction.NONE);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.warmupRuleProvider = requireNonNull(warmupRuleProvider);
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
+
+        eventBus.register(this);
+
+        initDefaultWarmupProperties();
 
         rowGroupExecutorService = new ThreadPoolExecutor(
                 0,
@@ -101,6 +106,15 @@ public class WarpConnectorDeleteService
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(warmupDemoterConfig.getTasksExecutorQueueSize()),
                 new ThreadFactoryBuilder().setNameFormat("warp-speed-row-group-%s").setDaemon(true).build());
+    }
+
+    private void initDefaultWarmupProperties()
+    {
+        defaultWarmupProperties = new WarmupProperties(
+                WarmUpType.WARM_UP_TYPE_DATA,
+                warmupDemoterConfig.getDefaultRulePriority(),
+                warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                TransformFunction.NONE);
     }
 
     public TupleRankResult buildTupleRank(
@@ -115,9 +129,9 @@ public class WarpConnectorDeleteService
                         new SchemaTableName(warmupRule.getSchema(), warmupRule.getTable()),
                         warmupRule.getWarpColumn())));
 
-        List<TupleRank> tupleRankList = new ArrayList<>();
-        List<TupleRank> immediateObjects = new ArrayList<>();
         List<TupleRank> failedObjects = new ArrayList<>();
+        List<TupleRank> immediateObjects = new ArrayList<>();
+        List<TupleRank> tupleRankList = new ArrayList<>();
 
         for (RowGroupData rowGroupData : rowGroupDataList) {
             RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
@@ -131,7 +145,11 @@ public class WarpConnectorDeleteService
                     continue;
                 }
 
-                List<WarmupRule> warmupRuleList = findExistingWarmupElementRules(rowGroupKey, schemaTableColumnToRulesMap, warmUpElement);
+                List<WarmupRule> warmupRuleList = schemaTableColumnToRulesMap.getOrDefault(
+                        new SchemaTableColumn(
+                                new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table()),
+                                warmUpElement.getWarpColumn()),
+                        List.of());
 
                 Stream<WarmupRule> wildcardWarmupRules = schemaTableColumnToRulesMap.getOrDefault(
                                 new SchemaTableColumn(
@@ -149,18 +167,18 @@ public class WarpConnectorDeleteService
                 TupleRank tupleRank = new TupleRank(warmupProperties, warmUpElement, rowGroupKey);
 
                 if (forceDeleteFailedObjects && !warmUpElement.isValid()) {
-                    logger.debug("add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s",
+                    logger.info("add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s",
                             warmUpElement.getWarpColumn(), warmupProperties.warmUpType());
                     failedObjects.add(tupleRank);
                 }
                 else if (isDeleteImmediatelyObject(tupleRank, now, tupleFilters)) {
-                    logger.debug("add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s",
+                    logger.info("add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s",
                             warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.ttl());
                     immediateObjects.add(tupleRank);
                 }
                 else {
                     tupleRankList.add(tupleRank);
-                    logger.debug("add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s",
+                    logger.info("add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s",
                             warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.priority());
                 }
             }
@@ -185,26 +203,6 @@ public class WarpConnectorDeleteService
         Optional<WarmupRule> optionalWarmupRule = WarmUtils.findMostRelevantRuleForWarmupElement(rowGroupData, warmUpElement, rulesForWarmupElement);
         return optionalWarmupRule.map(warmupRule -> new WarmupProperties(warmupRule.getWarmUpType(), warmupRule.getPriority(), warmupRule.getTtl(), TransformFunction.NONE))
                 .orElse(defaultWarmupProperties);
-    }
-
-    private List<WarmupRule> findExistingWarmupElementRules(
-            RowGroupKey rowGroupKey,
-            Map<SchemaTableColumn, List<WarmupRule>> schemaTableColumnToRulesMap,
-            WarmUpElement warmUpElement)
-    {
-        WarpColumn warpColumn = warmUpElement.getWarpColumn();
-        WarpColumn newWarpColumn;
-        if (warpColumn instanceof RegularColumn regularColumn) {
-            newWarpColumn = new RegularColumn(regularColumn.getName());
-        }
-        else {
-            newWarpColumn = warpColumn;
-        }
-
-        SchemaTableColumn schemaTableColumn = new SchemaTableColumn(
-                new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table()),
-                newWarpColumn);
-        return schemaTableColumnToRulesMap.getOrDefault(schemaTableColumn, List.of());
     }
 
     @Override
@@ -349,5 +347,12 @@ public class WarpConnectorDeleteService
                 rowGroupData.getLock().writeUnlock();
             }
         }
+    }
+
+    @Subscribe
+    private void handleWarmupDemoterConfigChanged(WarmupDemoterConfigChangedEvent event)
+    {
+        logger.debug("handleWarmupDemoterConfigChanged=%s", event);
+        initDefaultWarmupProperties();
     }
 }

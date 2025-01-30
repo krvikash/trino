@@ -68,6 +68,7 @@ import java.util.StringJoiner;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.warp.it.DispatcherQueryRunner.configDefaultTtlInSeconds;
 import static java.lang.String.format;
 import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
@@ -184,6 +185,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                             .modifyConfig(true)
                             .resetHighestPriority(true)
                             .forceDeleteFailedObjects(true)
+                            .defaultRuleTtlInSeconds(configDefaultTtlInSeconds)
                             .build(),
                     HttpMethod.POST,
                     HttpURLConnection.HTTP_OK,
@@ -233,6 +235,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     .modifyConfig(true)
                     .resetHighestPriority(true)
                     .executeDemoter(false)
+                    .defaultRuleTtlInSeconds(configDefaultTtlInSeconds)
                     .build();
             Map<String, Object> res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {})
                     .readValue(executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH,
@@ -617,6 +620,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                         .resetHighestPriority(true)
                         .forceDeleteFailedObjects(true)
                         .forceExecuteDeadObjects(true)
+                        .defaultRuleTtlInSeconds(configDefaultTtlInSeconds)
                         .build(),
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_OK,

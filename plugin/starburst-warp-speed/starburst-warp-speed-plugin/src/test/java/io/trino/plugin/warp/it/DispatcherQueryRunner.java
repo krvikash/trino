@@ -24,6 +24,7 @@ import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.spi.Plugin;
 import io.trino.testing.DistributedQueryRunner;
@@ -34,6 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_SINGLE;
@@ -44,6 +46,8 @@ import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.CLUSTER_
 public class DispatcherQueryRunner
 {
     private static final Logger logger = Logger.get(DispatcherQueryRunner.class);
+
+    public static int configDefaultTtlInSeconds;
 
     private DispatcherQueryRunner() {}
 
@@ -61,10 +65,15 @@ public class DispatcherQueryRunner
     {
         Path localStorePath = Files.createTempDirectory("local_store_");
 
+        Set<String> filterOutEntries = Set.of(WarpExtensionConfig.ENABLED, WarmupDemoterConfig.DEFAULT_RULE_TTL_IN_SECONDS);
         boolean isExtensionsEnabled = Boolean.parseBoolean(warpConfig.getOrDefault(WarpExtensionConfig.ENABLED, "true"));
+        String defaultRuleTtlInSeconds = warpConfig.getOrDefault(WarmupDemoterConfig.DEFAULT_RULE_TTL_IN_SECONDS, Integer.toString(configDefaultTtlInSeconds));
 
         ImmutableMap<String, String> additionalCatalogConfig = ImmutableMap.<String, String>builder()
-                .putAll(warpConfig.entrySet().stream().filter(entry -> !entry.getKey().equals(WarpExtensionConfig.ENABLED)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
+                .putAll(warpConfig.entrySet()
+                        .stream()
+                        .filter(entry -> !filterOutEntries.contains(entry.getKey()))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
                 // replace this config with the other 3 when you want to use a real thrift meta-store (E.g. local docker)
 //          .put("hive.metastore.uri", "thrift://localhost:9083").build();
 //                .put("testMode", "true")
@@ -82,6 +91,7 @@ public class DispatcherQueryRunner
 //                .put("hive.metastore", "glue")
                 .put(DictionaryConfig.EXCEPTIONAL_LIST_DICTIONARY, "REC_TYPE_ARRAY_INT,REC_TYPE_ARRAY_BIGINT")
                 .put("warp-speed.config.dictionary.max-size", "3")
+                .put(WarmupDemoterConfig.DEFAULT_RULE_TTL_IN_SECONDS, defaultRuleTtlInSeconds)
 //                .put(HTTP_REST_PORT, "" + restPort)
                 .put(WarpExtensionConfig.ENABLED, Boolean.toString(isExtensionsEnabled))
                 .put(WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.FALSE.toString())

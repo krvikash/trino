@@ -19,7 +19,4 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import java.io.Serializable;
 
 public record WarmupProperties(WarmUpType warmUpType, double priority, int ttl, TransformFunction transformFunction)
-        implements Serializable
-{
-    public static final int NO_EXPIRY = -1;
-}
+        implements Serializable {}

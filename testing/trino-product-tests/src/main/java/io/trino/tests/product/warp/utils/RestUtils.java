@@ -130,7 +130,7 @@ public class RestUtils
             request.setBodyGenerator(createStaticBodyGenerator(input.getBytes(Charset.defaultCharset())));
         }
         StringResponseHandler stringResponseHandler = StringResponseHandler.createStringResponseHandler();
-        logger.info("request %s", request.build());
+        logger.info("Request [%s], Body [%s] ", request.build(), inObj);
         StringResponseHandler.StringResponse response = client.execute(request.build(), stringResponseHandler);
         assertThat(response.getStatusCode()).describedAs(response.getBody()).isEqualTo(responseCode);
         client.close();

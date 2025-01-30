@@ -587,6 +587,7 @@ public final class WarmupDemoterStats
         res.put("number_of_cycles", getnumber_of_cycles());
         res.put("number_fail_acquire", getnumber_fail_acquire());
         res.put("currentUsage", getcurrentUsage());
+        res.put("totalCapacity", gettotalUsage());
         res.put("reserved_tx", getreserved_tx());
         res.put("failed_row_group_data", getfailed_row_group_data());
         return res;

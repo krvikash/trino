@@ -25,6 +25,7 @@ import io.trino.plugin.warp.dispatcher.warmup.demoter.TupleRankResult;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
+import io.trino.plugin.warp.dispatcher.warmup.events.WarmupDemoterConfigChangedEvent;
 import io.trino.plugin.warp.execution.debugtools.ColumnFilter;
 import io.trino.plugin.warp.execution.debugtools.FileFilter;
 import io.trino.plugin.warp.extension.execution.TaskResource;
@@ -87,6 +88,8 @@ public class WorkerWarmupDemoterTask
     private final CatalogName catalogName;
     private final WarmupDemoterStats globalStatsDemoter;
     private final NativeStorageStateHandler nativeStorageStateHandler;
+    private final EventBus eventBus;
+
     private final AtomicReference<CompletableFuture<WarmupDemoterFinishEvent>> demoteFuture = new AtomicReference<>();
 
     @Inject
@@ -105,6 +108,7 @@ public class WorkerWarmupDemoterTask
         this.workerCapacityManager = workerCapacityManager;
         this.catalogName = catalogName;
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
+        this.eventBus = requireNonNull(eventBus);
 
         this.globalStatsDemoter = metricsManager.registerMetric(WarmupDemoterStats.create());
         eventBus.register(this);
@@ -258,18 +262,21 @@ public class WorkerWarmupDemoterTask
             if (warmupDemoterData.getMaxElementsToDemoteInIteration() > -1) {
                 warmupDemoterConfig.setMaxElementsToDemoteInIteration(warmupDemoterData.getMaxElementsToDemoteInIteration());
             }
+
+            if (warmupDemoterData.getDefaultRuleTtlInSeconds() > 0) {
+                warmupDemoterConfig.setDefaultRuleTtlInSeconds(warmupDemoterData.getDefaultRuleTtlInSeconds());
+            }
+
             warmupDemoterService.setTupleFilters(calculateTupleFilter(warmupDemoterData));
             warmupDemoterConfig.setForceDeleteDeadObjects(warmupDemoterData.isForceExecuteDeadObjects());
             warmupDemoterConfig.setForceDeleteFailedObjects(warmupDemoterData.isForceDeleteFailedObjects());
             warmupDemoterConfig.setResetHighestPriority(warmupDemoterData.isResetHighestPriority());
             warmupDemoterConfig.setEnableDemote(warmupDemoterData.isEnableDemoteFeature());
+
+            eventBus.post(new WarmupDemoterConfigChangedEvent());
+
+            logger.info("catalog[%s]: config changed -> %s", catalogName, warmupDemoterConfig);
         }
-        logger.debug("%s, modifyConfigIfRequired: current config = batchSize=%d, maxUsageThresholdPercentage=%f, cleanupUsageThresholdPercentage=%f, enableDemoteFeature=%b",
-                catalogName,
-                warmupDemoterConfig.getBatchSize(),
-                warmupDemoterConfig.getMaxUsageThresholdPercentage(),
-                warmupDemoterConfig.getCleanupUsageThresholdPercentage(),
-                warmupDemoterData.isEnableDemoteFeature());
     }
 
     private List<TupleFilter> calculateTupleFilter(WarmupDemoterData warmupDemoterData)

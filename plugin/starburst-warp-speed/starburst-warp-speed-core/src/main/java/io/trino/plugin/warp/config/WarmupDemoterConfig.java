@@ -19,12 +19,15 @@ import java.time.Duration;
 
 public class WarmupDemoterConfig
 {
+    public static final String DEFAULT_RULE_TTL_IN_SECONDS = "warp-speed.warmup-demoter.default-rule-ttl-in-seconds";
+
     public static final int MAX_SUPPORTED_BATCH_SIZE = 100;
 
     private double maxUsageThresholdPercentage = 90;
     private double cleanupUsageThresholdPercentage = 85;
     private int batchSize = MAX_SUPPORTED_BATCH_SIZE;
     private int defaultRulePriority;
+    private int defaultRuleTtlInSeconds = 1200;
     private int warmingPriorityAllowThreshold = 2;
     private long maxElementsToDemoteInIteration = 100;
     private double epsilon = 1;
@@ -91,6 +94,17 @@ public class WarmupDemoterConfig
     public void setDefaultRulePriority(int defaultRulePriority)
     {
         this.defaultRulePriority = defaultRulePriority;
+    }
+
+    public int getDefaultRuleTtlInSeconds()
+    {
+        return defaultRuleTtlInSeconds;
+    }
+
+    @Config(DEFAULT_RULE_TTL_IN_SECONDS)
+    public void setDefaultRuleTtlInSeconds(int defaultRuleTtlInSeconds)
+    {
+        this.defaultRuleTtlInSeconds = defaultRuleTtlInSeconds;
     }
 
     public long getMaxElementsToDemoteInIteration()
@@ -218,11 +232,19 @@ public class WarmupDemoterConfig
                 ", cleanupUsageThresholdPercentage=" + cleanupUsageThresholdPercentage +
                 ", batchSize=" + batchSize +
                 ", defaultRulePriority=" + defaultRulePriority +
-                ", warmupHysteresis=" + warmingPriorityAllowThreshold +
+                ", defaultRuleTtlInSeconds=" + defaultRuleTtlInSeconds +
+                ", warmingPriorityAllowThreshold=" + warmingPriorityAllowThreshold +
                 ", maxElementsToDemoteInIteration=" + maxElementsToDemoteInIteration +
                 ", epsilon=" + epsilon +
+                ", delayAcquireThread=" + delayAcquireThread +
+                ", maxDurationAcquireThread=" + maxDurationAcquireThread +
+                ", maxRetriesAcquireThread=" + maxRetriesAcquireThread +
                 ", tasksExecutorQueueSize=" + tasksExecutorQueueSize +
-                ", enableDemote=" + isEnableDemote +
+                ", isEnableDemote=" + isEnableDemote +
+                ", isForceDeleteDeadObjects=" + isForceDeleteDeadObjects +
+                ", isForceDeleteFailedObjects=" + isForceDeleteFailedObjects +
+                ", isResetHighestPriority=" + isResetHighestPriority +
+                ", isDeleteEmptyRowGroups=" + isDeleteEmptyRowGroups +
                 '}';
     }
 }

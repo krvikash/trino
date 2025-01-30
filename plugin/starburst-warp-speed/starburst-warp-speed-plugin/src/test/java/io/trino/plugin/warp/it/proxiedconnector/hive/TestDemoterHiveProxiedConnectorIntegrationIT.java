@@ -17,6 +17,7 @@ import io.trino.Session;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
+import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
@@ -47,6 +48,7 @@ import java.util.stream.IntStream;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
+import static io.trino.plugin.warp.it.DispatcherQueryRunner.configDefaultTtlInSeconds;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,6 +56,9 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
         extends DispatcherStubsIntegrationSmokeIT
 {
     private static final String WIDE_TABLE_NAME = "wide";
+    public static final String COL_0 = "C0";
+    public static final String COL_1 = "C1";
+    public static final String COL_2 = "C2";
 
     public TestDemoterHiveProxiedConnectorIntegrationIT()
     {
@@ -72,7 +77,8 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
                         "hive.s3.aws-access-key", "this is a fake key",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
-                        PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
+                        PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME,
+                        WarmupDemoterConfig.DEFAULT_RULE_TTL_IN_SECONDS, "1"),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
                 catalog,
@@ -102,13 +108,14 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
                 .getFirst();
         long numOfRuns0 = (long) materializedRow0.getField(0);
         long numberOfDeletedByLowPrio0 = (long) materializedRow0.getField(1);
-        buildAndWarmWideTable(10, false, 30, Optional.empty());
+        buildAndWarmTable(10, false, 30, Optional.empty());
 
         demote(WarmupDemoterData.builder()
                 .batchSize(2)
                 .executeDemoter(false)
                 .modifyConfig(true)
                 .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.6))
+                .defaultRuleTtlInSeconds(configDefaultTtlInSeconds)
                 .build());
 
         MaterializedRow materializedRow1 = computeActual(jmxSession, statQuery)
@@ -150,7 +157,7 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
     public void testSimpleWarmupSyncDemoter()
             throws IOException
     {
-        buildAndWarmWideTable(3, false, 9, Optional.of(Duration.ofMinutes(0)));
+        buildAndWarmTable(3, false, 9, Optional.of(Duration.ZERO));
         Map<String, Object> res = demote(WarmupDemoterData.builder()
                 .maxUsageThresholdInPercentage(31d)
                 .cleanupUsageThresholdInPercentage(21d)
@@ -159,6 +166,7 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
                 .forceExecuteDeadObjects(true)
                 .forceDeleteFailedObjects(true)
                 .modifyConfig(true)
+                .defaultRuleTtlInSeconds(configDefaultTtlInSeconds)
                 .build());
 
         Integer deadObjectsDeletedCount = (Integer) res.entrySet()
@@ -183,13 +191,13 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
     {
         int numberOfColumns = 3;
         int expectedElementCount = 9;
-        buildAndWarmWideTable(numberOfColumns, false, expectedElementCount, Optional.empty());
+        buildAndWarmTable(numberOfColumns, false, expectedElementCount, Optional.empty());
 
         List<WarmupDemoterWarmupElementData> warmupDemoterWarmupElementDataList = new ArrayList<>(expectedElementCount);
         IntStream.range(0, numberOfColumns).forEach(columnId -> {
-            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c0" + columnId, Collections.emptyList()));
-            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c1" + columnId, Collections.emptyList()));
-            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c2" + columnId, Collections.emptyList()));
+            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData(COL_0 + columnId, Collections.emptyList()));
+            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData(COL_1 + columnId, Collections.emptyList()));
+            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData(COL_2 + columnId, Collections.emptyList()));
         });
 
         Map<String, Object> res = demote(WarmupDemoterData.builder()
@@ -201,6 +209,7 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
                 .schemaTableName(new SchemaTableName(DEFAULT_SCHEMA, WIDE_TABLE_NAME))
                 .warmupElementsData(warmupDemoterWarmupElementDataList)
                 .resetHighestPriority(true)
+                .defaultRuleTtlInSeconds(configDefaultTtlInSeconds)
                 .build());
 
         Integer deadObjectsDeletedCount = (Integer) res.entrySet()
@@ -226,7 +235,7 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
         assertThat(deletedByLowPriorityCount).isEqualTo(0);
     }
 
-    private void buildAndWarmWideTable(
+    private void buildAndWarmTable(
             int numberOfColumns,
             boolean defaultWarm,
             int expectedElementsToWarm,
@@ -237,22 +246,22 @@ public class TestDemoterHiveProxiedConnectorIntegrationIT
         StringJoiner values = new StringJoiner(",");
         Map<String, Set<WarmupPropertiesData>> rules = new HashMap<>();
         IntStream.range(0, numberOfColumns).forEach(columnId -> {
-            columnDefinition.add("C0" + columnId + " varchar(20)");
+            columnDefinition.add(COL_0 + columnId + " varchar(20)");
             values.add("'value0" + columnId + "'");
-            if (!defaultWarm) {
-                rules.put("C0" + columnId, Collections.singleton(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 7.5, duration.orElse(Duration.ofMinutes(columnId * 10L)))));
-            }
 
-            columnDefinition.add("C1" + columnId + " integer");
+            columnDefinition.add(COL_1 + columnId + " integer");
             values.add(String.valueOf(columnId));
-            if (!defaultWarm) {
-                rules.put("C1" + columnId, Collections.singleton(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 7.1, duration.orElse(Duration.ofMinutes(columnId)))));
-            }
 
-            columnDefinition.add("C2" + columnId + " tinyint");
+            columnDefinition.add(COL_2 + columnId + " tinyint");
             values.add("1");
+
             if (!defaultWarm) {
-                rules.put("C2" + columnId, Collections.singleton(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 6.3, duration.orElse(Duration.ofSeconds(columnId * 10L)))));
+                rules.put(COL_0 + columnId,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 7.5, duration.orElse(Duration.ofMinutes(columnId * 10L)))));
+                rules.put(COL_1 + columnId,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 7.1, duration.orElse(Duration.ofMinutes(columnId)))));
+                rules.put(COL_2 + columnId,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 6.3, duration.orElse(Duration.ofSeconds(columnId * 10L)))));
             }
         });
 
