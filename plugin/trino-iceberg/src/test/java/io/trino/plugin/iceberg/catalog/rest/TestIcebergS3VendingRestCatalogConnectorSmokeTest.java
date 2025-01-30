@@ -127,6 +127,29 @@ public class TestIcebergS3VendingRestCatalogConnectorSmokeTest
     }
 
     @Override
+    protected String getCreateCatalogSqlTemplate()
+    {
+        return """
+               CREATE CATALOG %s USING iceberg
+               WITH (
+                  "fs.hadoop.enabled" = 'false',
+                  "fs.s3.enabled" = 'true',
+                  "iceberg.catalog.type" = 'rest',
+                  "iceberg.file-format" = '%s',
+                  "iceberg.rest-catalog.uri" = '%s',
+                  "iceberg.rest-catalog.vended-credentials-enabled" = 'true',
+                  "s3.endpoint" = '%s',
+                  "s3.path-style-access" = 'true',
+                  "s3.region" = '%s'
+               )""".formatted(
+                "%1$s", // Catalog name
+                "%2$s", // File format
+                "http://" + restCatalogBackendContainer.getRestCatalogEndpoint(),
+                floci.endpoint(),
+                FLOCI_REGION);
+    }
+
+    @Override
     @BeforeAll
     public void initFileSystem()
     {

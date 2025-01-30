@@ -37,6 +37,8 @@ import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.MoreCollectors.onlyElement;
@@ -45,6 +47,7 @@ import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -86,6 +89,29 @@ public class TestIcebergGlueCatalogConnectorSmokeTest
                                 .withSchemaName(schemaName)
                                 .build())
                 .build();
+    }
+
+    @Override
+    protected String getCreateCatalogSqlTemplate()
+    {
+        String catalogProperties = Stream.concat(
+                        Stream.of(
+                                Map.entry("fs.hadoop.enabled", "false"),
+                                Map.entry("fs.native-s3.enabled", "true"),
+                                Map.entry("hive.metastore.glue.default-warehouse-dir", schemaPath()),
+                                Map.entry("iceberg.catalog.type", "glue"),
+                                Map.entry("iceberg.file-format", "%2$s")), // File format
+                        floci.s3AndGlueProperties().entrySet().stream())
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> format("\"%s\" = '%s'", entry.getKey(), entry.getValue()))
+                .collect(joining(",\n   "));
+        return """
+               CREATE CATALOG %s USING iceberg
+               WITH (
+                  %s
+               )""".formatted(
+                "%1$s", // Catalog name
+                catalogProperties);
     }
 
     @AfterAll

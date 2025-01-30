@@ -67,6 +67,7 @@ public abstract class BaseIcebergJdbcCatalogConnectorSmokeTest
 
     protected JdbcCatalog jdbcCatalog;
     private File warehouseLocation;
+    private TestingIcebergJdbcServer server;
 
     public BaseIcebergJdbcCatalogConnectorSmokeTest(SchemaVersion schemaVersion)
     {
@@ -91,7 +92,7 @@ public abstract class BaseIcebergJdbcCatalogConnectorSmokeTest
     {
         warehouseLocation = Files.createTempDirectory("test_iceberg_jdbc_catalog_smoke_test").toFile();
         closeAfterClass(() -> deleteRecursively(warehouseLocation.toPath(), ALLOW_INSECURE));
-        TestingIcebergJdbcServer server = closeAfterClass(new TestingIcebergJdbcServer());
+        server = closeAfterClass(new TestingIcebergJdbcServer());
         jdbcCatalog = (JdbcCatalog) buildIcebergCatalog(
                 "tpch",
                 ImmutableMap.<String, String>builder()
@@ -123,6 +124,35 @@ public abstract class BaseIcebergJdbcCatalogConnectorSmokeTest
                 .addIcebergProperty("fs.hadoop.enabled", "true")
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
+    }
+
+    @Override
+    protected String getCreateCatalogSqlTemplate()
+    {
+        return getCreateCatalogSqlTemplate(server.getJdbcUrl(), PASSWORD);
+    }
+
+    private String getCreateCatalogSqlTemplate(String url, String password)
+    {
+        return """
+               CREATE CATALOG %s USING iceberg
+               WITH (
+                  "fs.hadoop.enabled" = 'true',
+                  "iceberg.catalog.type" = 'jdbc',
+                  "iceberg.file-format" = '%s',
+                  "iceberg.jdbc-catalog.catalog-name" = 'test_catalog',
+                  "iceberg.jdbc-catalog.connection-password" = '%s',
+                  "iceberg.jdbc-catalog.connection-url" = '%s',
+                  "iceberg.jdbc-catalog.connection-user" = '%s',
+                  "iceberg.jdbc-catalog.default-warehouse-dir" = '%s',
+                  "iceberg.jdbc-catalog.driver-class" = 'org.postgresql.Driver'
+               )""".formatted(
+                "%1$s", // Catalog name
+                "%2$s", // File format
+                password,
+                url,
+                USER,
+                warehouseLocation.getAbsolutePath());
     }
 
     @AfterAll

@@ -216,4 +216,35 @@ final class TestIcebergOzoneS3GatewayConnectorSmokeTest
     {
         return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
     }
+
+    @Override
+    protected String getCreateCatalogSqlTemplate()
+    {
+        return getCreateCatalogSqlTemplate(DUMMY_SECRET_KEY);
+    }
+
+    private String getCreateCatalogSqlTemplate(String secretKey)
+    {
+        return """
+               CREATE CATALOG %s USING iceberg
+               WITH (
+                  "fs.hadoop.enabled" = 'false',
+                  "fs.s3.enabled" = 'true',
+                  "hive.metastore.uri" = '%s',
+                  "iceberg.catalog.type" = 'HIVE_METASTORE',
+                  "iceberg.file-format" = '%s',
+                  "s3.aws-access-key" = '%s',
+                  "s3.aws-secret-key" = '%s',
+                  "s3.endpoint" = '%s',
+                  "s3.path-style-access" = 'true',
+                  "s3.region" = '%s'
+               )""".formatted(
+                "%1$s", // Catalog name
+                hiveHadoop.getHiveMetastoreEndpoint(),
+                "%2$s", // Metastore URI
+                DUMMY_ACCESS_KEY,
+                secretKey,
+                hiveOzoneS3Gateway.getApacheOzoneContainer().getS3EndpointAddress(),
+                DEFAULT_REGION);
+    }
 }

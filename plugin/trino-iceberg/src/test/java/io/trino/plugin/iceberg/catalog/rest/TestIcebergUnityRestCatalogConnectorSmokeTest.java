@@ -42,6 +42,7 @@ final class TestIcebergUnityRestCatalogConnectorSmokeTest
         extends BaseIcebergConnectorSmokeTest
 {
     private final Path warehouseLocation;
+    private String restCatalogUri;
     private UnityCatalogContainer unityCatalog;
 
     public TestIcebergUnityRestCatalogConnectorSmokeTest()
@@ -69,13 +70,14 @@ final class TestIcebergUnityRestCatalogConnectorSmokeTest
         closeAfterClass(() -> deleteRecursively(warehouseLocation, ALLOW_INSECURE));
         unityCatalog = closeAfterClass(new UnityCatalogContainer("unity", "tpch"));
 
+        restCatalogUri = unityCatalog.uri() + "/iceberg";
         DistributedQueryRunner queryRunner = IcebergQueryRunner.builder()
                 .addIcebergProperty("fs.hadoop.enabled", "true")
                 .setBaseDataDir(Optional.of(warehouseLocation))
                 .addIcebergProperty("iceberg.file-format", format.name())
                 .addIcebergProperty("iceberg.security", "read_only")
                 .addIcebergProperty("iceberg.catalog.type", "rest")
-                .addIcebergProperty("iceberg.rest-catalog.uri", unityCatalog.uri() + "/iceberg")
+                .addIcebergProperty("iceberg.rest-catalog.uri", restCatalogUri)
                 .addIcebergProperty("iceberg.rest-catalog.warehouse", "unity")
                 .addIcebergProperty("iceberg.register-table-procedure.enabled", "true")
                 .disableSchemaInitializer()
@@ -84,6 +86,24 @@ final class TestIcebergUnityRestCatalogConnectorSmokeTest
         unityCatalog.copyTpchTables(REQUIRED_TPCH_TABLES);
 
         return queryRunner;
+    }
+
+    @Override
+    protected String getCreateCatalogSqlTemplate()
+    {
+        return """
+               CREATE CATALOG %s USING iceberg
+               WITH (
+                  "fs.hadoop.enabled" = 'true',
+                  "iceberg.catalog.type" = 'rest',
+                  "iceberg.file-format" = '%s',
+                  "iceberg.rest-catalog.uri" = '%s',
+                  "iceberg.rest-catalog.warehouse" = 'unity',
+                  "iceberg.security" = 'read_only'
+               )""".formatted(
+                "%1$s", // Catalog name
+                "%2$s", // File format
+                restCatalogUri);
     }
 
     @Override
@@ -528,6 +548,14 @@ final class TestIcebergUnityRestCatalogConnectorSmokeTest
     public void testTruncateTable()
     {
         testFailsDueToReadOnlyCatalog(super::testTruncateTable);
+    }
+
+    @Test
+    @Override
+    public void testCatalogSetProperties()
+    {
+        assertThatThrownBy(super::testCatalogSetProperties)
+                .hasMessageContaining("Access Denied");
     }
 
     @Test

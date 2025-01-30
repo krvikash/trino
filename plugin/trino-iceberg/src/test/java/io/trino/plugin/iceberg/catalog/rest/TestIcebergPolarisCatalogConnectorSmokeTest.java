@@ -59,6 +59,7 @@ final class TestIcebergPolarisCatalogConnectorSmokeTest
     private final String bucketName;
     private TestingPolarisCatalog polarisCatalog;
     private final String warehouseLocation;
+    private String catalogUri;
 
     public TestIcebergPolarisCatalogConnectorSmokeTest()
     {
@@ -83,6 +84,7 @@ final class TestIcebergPolarisCatalogConnectorSmokeTest
     {
         polarisCatalog = closeAfterClass(new TestingPolarisCatalog(warehouseLocation, bucketName));
 
+        catalogUri = polarisCatalog.restUri() + "/api/catalog";
         return IcebergQueryRunner.builder()
                 .addIcebergProperty("fs.s3.enabled", "true")
                 .addIcebergProperty("iceberg.file-format", format.name())
@@ -90,7 +92,7 @@ final class TestIcebergPolarisCatalogConnectorSmokeTest
                 .addIcebergProperty("iceberg.writer-sort-buffer-size", "1MB")
                 .addIcebergProperty("iceberg.catalog.type", "rest")
                 .addIcebergProperty("iceberg.rest-catalog.nested-namespace-enabled", "true")
-                .addIcebergProperty("iceberg.rest-catalog.uri", polarisCatalog.restUri() + "/api/catalog")
+                .addIcebergProperty("iceberg.rest-catalog.uri", catalogUri)
                 .addIcebergProperty("iceberg.rest-catalog.warehouse", TestingPolarisCatalog.WAREHOUSE)
                 .addIcebergProperty("iceberg.rest-catalog.security", "OAUTH2")
                 .addIcebergProperty("iceberg.rest-catalog.oauth2.credential", TestingPolarisCatalog.CREDENTIAL)
@@ -117,6 +119,42 @@ final class TestIcebergPolarisCatalogConnectorSmokeTest
                         .setAwsAccessKey(MINIO_ROOT_USER)
                         .setAwsSecretKey(MINIO_ROOT_PASSWORD),
                 new S3FileSystemStats()).create(SESSION);
+    }
+
+    @Override
+    protected String getCreateCatalogSqlTemplate()
+    {
+        return getCreateCatalogSqlTemplate(TestingPolarisCatalog.CREDENTIAL);
+    }
+
+    private String getCreateCatalogSqlTemplate(String credential)
+    {
+        return """
+               CREATE CATALOG %s USING iceberg
+               WITH (
+                  "fs.s3.enabled" = 'true',
+                  "iceberg.catalog.type" = 'rest',
+                  "iceberg.file-format" = '%s',
+                  "iceberg.rest-catalog.http-headers" = '%s:%s',
+                  "iceberg.rest-catalog.oauth2.credential" = '%s',
+                  "iceberg.rest-catalog.oauth2.scope" = 'PRINCIPAL_ROLE:ALL',
+                  "iceberg.rest-catalog.security" = 'OAUTH2',
+                  "iceberg.rest-catalog.uri" = '%s',
+                  "iceberg.rest-catalog.vended-credentials-enabled" = 'true',
+                  "iceberg.rest-catalog.warehouse" = '%s',
+                  "s3.endpoint" = '%s',
+                  "s3.path-style-access" = 'true',
+                  "s3.region" = '%s'
+               )""".formatted(
+                "%1$s", // Catalog name
+                "%2$s", // File format
+                TestingPolarisCatalog.POLARIS_REALM_HEADER,
+                TestingPolarisCatalog.POLARIS_REALM_NAME,
+                credential,
+                catalogUri,
+                TestingPolarisCatalog.WAREHOUSE,
+                polarisCatalog.minio().getMinioAddress(),
+                MINIO_REGION);
     }
 
     @Override
