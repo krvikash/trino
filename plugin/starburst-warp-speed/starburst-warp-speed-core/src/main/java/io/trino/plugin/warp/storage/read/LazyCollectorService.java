@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
@@ -38,7 +37,6 @@ public class LazyCollectorService
         extends StorageCollectorService
 {
     private final LazyCollectTxService lazyCollectTxService;
-    private final NativeConfig nativeConfig;
     private final ShapingLoggerFactory shapingLoggerFactory;
 
     @Inject
@@ -51,7 +49,6 @@ public class LazyCollectorService
             StorageEngineConstants storageEngineConstants,
             BlockFillersFactory blockFillersFactory,
             DictionaryCacheService dictionaryCacheService,
-            NativeConfig nativeConfig,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         super(storageEngine,
@@ -63,10 +60,8 @@ public class LazyCollectorService
                 blockFillersFactory,
                 dictionaryCacheService,
                 shapingLoggerFactory);
-
-        this.lazyCollectTxService = requireNonNull(lazyCollectTxService);
-        this.nativeConfig = requireNonNull(nativeConfig);
         this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
+        this.lazyCollectTxService = lazyCollectTxService;
     }
 
     public boolean useLazyCollect(QueryParams queryParams)
@@ -94,9 +89,6 @@ public class LazyCollectorService
 
     @Override
     void collectChunk(AggregatorPageArgs aggregatorPageArgs,
-            boolean isFullScan,
-            int startRecIx,
-            int numToCollect,
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
@@ -131,12 +123,5 @@ public class LazyCollectorService
         queryArgs.dispatcherPageSourceStats().addlazy_collect_total_blocks(collectElementsParamsList.size());
         queryArgs.dispatcherPageSourceStats().addcached_read_rows(rowsToFill);
         return blocks;
-    }
-
-    @Override
-    int getFreeBytes(WarmupElementRecordBufferState warmupElementRecordBufferState)
-    {
-        // for lazy collect we can use the whole juffer size as we are collecting only one we each cycle
-        return nativeConfig.getMaxRecJufferSize();
     }
 }

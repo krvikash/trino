@@ -18,7 +18,10 @@ import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 import java.util.List;
 
 public record AggregatorArgs(List<BlockFiller<?>> blockFillers,
-        byte[] storeRowListBuff,
         CollectBuffersParams collectBuffersParams)
 {
+    public int getAggregatorPageLimit()
+    {
+        return collectBuffersParams.maxRecordsInJuffer();
+    }
 }

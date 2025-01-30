@@ -15,6 +15,7 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.gen.constants.QueryResultType;
+import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
@@ -66,20 +67,19 @@ public class LazyCollectorLoader
         int chunkIndexToCollect = lazyCollectorLoaderArgs.lazyCollectStartRowIndex() / lazyCollectorLoaderArgs.chunkSize();
         int startRowIndexInChunk = lazyCollectorLoaderArgs.lazyCollectStartRowIndex() % lazyCollectorLoaderArgs.chunkSize();
         int numRowsToCollect = lazyCollectorLoaderArgs.numToCollect();
+        ChunkProperties chunkProperties = new ChunkProperties(chunkIndexToCollect, numRowsToCollect, RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL, startRowIndexInChunk);
         LazyCollectOpenResult collectOpenResult = null;
         try {
             // open
             collectOpenResult = collectTxService.collectOpen(lazyCollectorLoaderArgs, dispatcherPageSourceStats);
 
             // prepare and collect
+            collectOpenResult.recordIndexes().setCurChunkProperties(chunkProperties);
             MemorySegment queryResultTypeMem = collectOpenResult.pageArena().allocate(ValueLayout.JAVA_INT.byteSize(), ValueLayout.JAVA_INT.byteSize());
             collectTxService.openChunk(collectOpenResult.collectState(),
                     chunkIndexToCollect,
                     dispatcherPageSourceStats);
             collectTxService.collectChunk(collectOpenResult.collectState(),
-                    true,
-                    startRowIndexInChunk,
-                    numRowsToCollect,
                     queryResultTypeMem,
                     dispatcherPageSourceStats);
 
@@ -95,8 +95,8 @@ public class LazyCollectorLoader
                     dispatcherPageSourceStats);
         }
         catch (Exception e) {
-            shapingLogger.error(e, "lazy collect failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
-                    lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
+            shapingLogger.error(e, "lazy collect failed chunk %s LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
+                    chunkProperties, lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
             dispatcherPageSourceStats.inclazy_collect_failed_load();
             if (collectOpenResult != null) {
                 collectTxService.collectAbort(e, collectOpenResult.collectState(), dispatcherPageSourceStats);

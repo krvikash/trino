@@ -15,20 +15,15 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
-import java.util.Optional;
 
 @Singleton
 public class NativeRangeFillerService
         implements RangeFillerService
 {
-    private static final Logger logger = Logger.get(NativeRangeFillerService.class);
-
     @Inject
     public NativeRangeFillerService()
     {
@@ -53,11 +48,12 @@ public class NativeRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int numRows, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService)
+    public int add(ChunkProperties chunkProperties, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService)
     {
         RangeData rangeData = aggregatorPageArgs.rangeData();
         RecordIndexes recordIndexes = rangeData.getRecordIndexes();
-        advanceChunkIfNeeded(chunkIndex, rangeData);
+        advanceChunkIfNeeded(chunkProperties.chunkIndex(), rangeData);
+        int numRows = chunkProperties.numRecordsInChunk();
 
         // in case collected count is zero, it means nothing was collected regardless of the type
         if (numRows == 0) {
@@ -65,13 +61,13 @@ public class NativeRangeFillerService
         }
 
         // if we are here we have at least one row that was collected
-        RecordIndexListType listType = recordIndexes.getType();
-        int baseRow = chunkIndex * queryArgs.chunkSize();
+        RecordIndexListType listType = chunkProperties.type();
+        int baseRow = chunkProperties.chunkIndex() * queryArgs.chunkSize();
         boolean rangesRequired = queryArgs.queryParams().isRangesRequired();
         switch (listType) {
             case RECORD_INDEX_LIST_TYPE_ALL -> {
                 if (rangesRequired) {
-                    int min = baseRow + aggregatorPageArgs.rangeData().getRecordIndexes().getStart();
+                    int min = baseRow + chunkProperties.startIx();
                     long minValue = mergeRanges(min, rangeData);
                     rangeData.addLowerInclusive(minValue);
                     rangeData.addUpperExclusive(min + numRows);
@@ -81,7 +77,7 @@ public class NativeRangeFillerService
                 if (rangesRequired) {
                     // we take the rows from where we stopped last time
                     MemorySegment recordIndexesList = recordIndexes.getList();
-                    int listIdx = rangeData.getNumChunkRowsCollected();
+                    int listIdx = chunkProperties.startIx();
 
                     // handle the first row and check if it extends that last range we already have
                     int min = baseRow + recordIndexes.getRowFromList(recordIndexesList, listIdx);
@@ -98,6 +94,7 @@ public class NativeRangeFillerService
                             max++;
                             continue;
                         }
+
                         // close and add the current range
                         rangeData.addLowerInclusive(min);
                         rangeData.addUpperExclusive(max);
@@ -127,73 +124,6 @@ public class NativeRangeFillerService
         long[] upperExclusive = rangeData.getUpperExclusiveAsArray();
         rangeData.clearUpperExclusive();
         return new WarpStoragePageSource.RowRanges(lowerInclusive, upperExclusive, false);
-    }
-
-    @Override
-    public int getNumCollectedFromCurrentChunk(int chunkIndex, RangeData rangeData)
-    {
-        advanceChunkIfNeeded(chunkIndex, rangeData);
-        return rangeData.getNumChunkRowsCollected();
-    }
-
-    // list type and size are kept as memebers
-    // in type all we store the first row index in the byte array
-    // in type all we store the part of the list we have not collected yet in the byte array
-    @Override
-    public StoreRowListResult storeRowList(ChunksQueue chunksQueue,
-            QueryArgs queryArgs,
-            AggregatorArgs aggregatorArgs,
-            RangeData rangeData)
-    {
-        int currChunkIndex = chunksQueue.getCurrent();
-        advanceChunkIfNeeded(currChunkIndex, rangeData);
-
-        RecordIndexes recordIndexes = rangeData.getRecordIndexes();
-        RecordIndexListType storeRowListType = recordIndexes.getType();
-        byte[] storeRowListBuff = aggregatorArgs.storeRowListBuff();
-        int storeRowListSize;
-        Optional<Integer> storeRowListStart = Optional.empty(); // only for type ALL
-        switch (storeRowListType) {
-            case RECORD_INDEX_LIST_TYPE_ALL:
-                storeRowListSize = rangeData.getRecordIndexes().getSize();
-                storeRowListStart = Optional.of(recordIndexes.getStart());
-                break;
-            case RECORD_INDEX_LIST_TYPE_VALUES:
-                storeRowListSize = rangeData.getRecordIndexes().getSize() - rangeData.getNumChunkRowsCollected();
-                if (storeRowListSize == queryArgs.chunkSize()) {
-                    storeRowListType = RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL;
-                    break;
-                }
-                MemorySegment.copy(recordIndexes.getList(),
-                        rangeData.getNumChunkRowsCollected() * ValueLayout.JAVA_SHORT.byteSize(),
-                        MemorySegment.ofArray(storeRowListBuff),
-                        0,
-                        storeRowListSize * ValueLayout.JAVA_SHORT.byteSize());
-                break;
-            default:
-                throw new RuntimeException("unknown list type " + storeRowListType);
-        }
-        logger.debug("storeRowList lastChunkIndex %d type %s size %d", rangeData.getLastChunkIndex(), storeRowListType, storeRowListSize);
-        return new StoreRowListResult(storeRowListType, storeRowListSize, storeRowListStart, currChunkIndex);
-    }
-
-    @Override
-    public void restoreRowList(RecordIndexes recordIndexes, StoreRowListResult storeRowListResult, byte[] storeRowListBuff)
-    {
-        RecordIndexListType storeRowListType = storeRowListResult.storeRowListType();
-        recordIndexes.setType(storeRowListType);
-        recordIndexes.setSize(storeRowListResult.storeRowListSize());
-        switch (storeRowListType) {
-            case RECORD_INDEX_LIST_TYPE_ALL:
-                recordIndexes.setStart(storeRowListResult.storeRowListStart().get());
-                break;
-            case RECORD_INDEX_LIST_TYPE_VALUES:
-                MemorySegment dstSegment = recordIndexes.getList();
-                MemorySegment.copy(MemorySegment.ofArray(storeRowListBuff), 0, dstSegment, 0, storeRowListResult.storeRowListSize() * ValueLayout.JAVA_SHORT.byteSize());
-                break;
-            default:
-                throw new RuntimeException("unknown list type " + storeRowListType);
-        }
     }
 
     private void advanceChunkIfNeeded(int chunkIndex, RangeData rangeData)

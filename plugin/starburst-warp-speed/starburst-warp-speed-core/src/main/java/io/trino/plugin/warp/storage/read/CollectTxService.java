@@ -36,7 +36,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.query.classifier.NativeCollectClassifier.COLLECT_BUFFER_MAX_MEMORY;
 import static java.lang.Math.min;
@@ -44,18 +43,14 @@ import static java.lang.Math.min;
 public class CollectTxService
         extends BaseCollectTxService
 {
-    private final RangeFillerService rangeFillerService;
-
     @Inject
     public CollectTxService(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
-            RangeFillerService rangeFillerService,
             ShapingLoggerFactory shapingLoggerFactory,
             NativeConfig nativeConfig)
     {
         super(storageEngine, storageEngineConstants, bufferAllocator, shapingLoggerFactory, nativeConfig);
-        this.rangeFillerService = rangeFillerService;
     }
 
     @PreDestroy
@@ -69,9 +64,7 @@ public class CollectTxService
     AggregatorPageArgs collectOpenAndRestore(QueryArgs queryArgs,
             ThreadArena pageArena,
             int rowsLimit,
-            int numCollectedInPrevRounds,
-            AggregatorArgs aggregatorArgs,
-            Optional<StoreRowListResult> storeRowListResult)
+            AggregatorArgs aggregatorArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
@@ -97,21 +90,15 @@ public class CollectTxService
             }
         }
 
-        if (storeRowListResult.isPresent()) {
-            // restore row list
-            rangeFillerService.restoreRowList(collectMetadataMemory.recordIndexes(), storeRowListResult.get(), aggregatorArgs.storeRowListBuff());
-
-            // restore match collect metadata
-            Optional<MemorySegment> matchCollectMetadataOpt = collectMetadataMemory.matchCollectMetadataOpt();
-            queryArgs.storeMatchCollectMetadataBuff().ifPresent(s -> MemorySegment.copy(MemorySegment.ofArray(s), 0, matchCollectMetadataOpt.get(), 0, s.length));
-        }
+        // restore match collect metadata
+        Optional<MemorySegment> matchCollectMetadataOpt = collectMetadataMemory.matchCollectMetadataOpt();
+        queryArgs.storeMatchCollectMetadataBuff().ifPresent(s -> MemorySegment.copy(MemorySegment.ofArray(s), 0, matchCollectMetadataOpt.get(), 0, s.length));
 
         CollectState collectState = new CollectState(pageArena,
                 storageEngineConstants.getCollectStatePayload(),
                 nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize());
         AggregatorPageArgs aggregatorPageArgs = new AggregatorPageArgs(collectState,
                 rowsLimit,
-                numCollectedInPrevRounds,
                 collectMemory,
                 new RangeData(collectMetadataMemory.recordIndexes()),
                 collectMetadataMemory.collectBuffersOpt(),
@@ -126,27 +113,18 @@ public class CollectTxService
         return aggregatorPageArgs;
     }
 
-    CollectCloseResult collectStoreAndClose(QueryArgs queryArgs,
-            AggregatorPageArgs aggregatorPageArgs,
-            AggregatorArgs aggregatorArgs,
-            ChunksQueue chunksQueue)
+    long collectStoreAndClose(QueryArgs queryArgs,
+            AggregatorPageArgs aggregatorPageArgs)
     {
-        Optional<StoreRowListResult> storeRowListResult = Optional.empty();
-        if (!chunksQueue.isChunkRangeCompleted()) {
-            // store row list
-            storeRowListResult = Optional.of(rangeFillerService.storeRowList(chunksQueue, queryArgs, aggregatorArgs, aggregatorPageArgs.rangeData()));
-
-            // store match collect metadata
-            queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
-                    MemorySegment.copy(aggregatorPageArgs.matchCollectMetadata().get(), 0, MemorySegment.ofArray(s), 0, s.length));
-        }
+        // store match collect metadata
+        queryArgs.storeMatchCollectMetadataBuff().ifPresent(s ->
+                MemorySegment.copy(aggregatorPageArgs.matchCollectMetadata().get(), 0, MemorySegment.ofArray(s), 0, s.length));
 
         long startTime = System.nanoTime();
         storageEngine.collectClose(aggregatorPageArgs.collectState().getStateMemory(), aggregatorPageArgs.readStats().getMemory());
         queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
 
-        int totalReadPages = aggregatorPageArgs.readStats().fillStats(queryArgs.nativeStats());
-        return new CollectCloseResult(storeRowListResult, totalReadPages);
+        return aggregatorPageArgs.readStats().fillStats(queryArgs.nativeStats());
     }
 
     void collectAbort(AggregatorPageArgs aggregatorPageArgs, Exception e, DispatcherPageSourceStats dispatcherPageSourceStats)
@@ -286,13 +264,10 @@ public class CollectTxService
 
         MemorySegment collectBuffers = allocator.allocate(collectBuffersSize, ValueLayout.JAVA_LONG.byteSize());
         MemorySegment recordBufferStates = allocator.allocate(recordBufferStatesSize, ValueLayout.JAVA_INT.byteSize());
-        List<MemorySegment> recordBufferStatesList = recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT).toList();
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates =
-                IntStream.range(0, recordBufferStatesList.size())
-                        .mapToObj(index ->
-                                new WarmupElementRecordBufferState(recordBufferStatesList.get(index),
-                                        WarmUpElement.getRecTypeLength(queryParams.getCollectElementsParamsList().get(index).getWarmupElementAtt())))
-                        .toList();
+                recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT)
+                .map(recordBufferState -> new WarmupElementRecordBufferState(recordBufferState))
+                .toList();
 
         return new CollectMetadataMemory(collectMetadataMemory.recordIndexes(),
                 Optional.of(collectBuffers),

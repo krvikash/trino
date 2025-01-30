@@ -79,21 +79,12 @@ public abstract class BaseCollectTxService
     }
 
     void collectChunk(CollectState collectState,
-            boolean isFullScan,
-            int startRecIx,
-            int numToCollect,
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        try {
-            long startTime = System.nanoTime();
-            storageEngine.collectChunk(collectState.getStateMemory(), isFullScan, startRecIx, numToCollect, outQueryResultTypes);
-            dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
-        }
-        catch (Exception e) {
-            shapingLogger.error(e, "collect failed isFullScan %b, startRecIx %d, numToCollect %d", isFullScan, startRecIx, numToCollect);
-            throw e;
-        }
+        long startTime = System.nanoTime();
+        storageEngine.collectChunk(collectState.getStateMemory(), outQueryResultTypes);
+        dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
     }
 
     void collectAbort(Exception e, CollectState collectState, DispatcherPageSourceStats dispatcherPageSourceStats)

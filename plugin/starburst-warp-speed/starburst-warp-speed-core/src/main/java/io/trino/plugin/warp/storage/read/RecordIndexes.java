@@ -26,6 +26,8 @@ import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.trino.plugin.warp.gen.constants.RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES;
+
 public class RecordIndexes
 {
     private static final byte[][] PRECOMPUTED_INDICES;
@@ -39,14 +41,18 @@ public class RecordIndexes
     static final long RECORD_INDEXES_OFFSET_LIST; // not private for test
     private final int bytesInChunk;
 
-    private MemorySegment recordIndexes;
+    private final MemorySegment recordIndexes;
+    // The recordIndexes are shared between several chunk and is being populated chunk by chunk.
+    // curOffset is the offset to start the next chunk from
+    private int curOffset;
 
     static {
         RECORD_INDEX_SIZE = (byte) ValueLayout.JAVA_SHORT.byteSize();
         PRECOMPUTED_INDICES = precomputeIndexes();
 
-        // since chunk size is not available in static initializer, we will allocate the largest array possible for shorts
-        RECORD_INDEXES_LIST_LAYOUT = MemoryLayout.sequenceLayout(1 << Short.SIZE, ValueLayout.JAVA_SHORT);
+        // max page is (1 << Short.SIZE).
+        // we need twice the size for case we prepare an almost full chunk but have only 1 record left in page
+        RECORD_INDEXES_LIST_LAYOUT = MemoryLayout.sequenceLayout(2 * (1 << Short.SIZE), ValueLayout.JAVA_SHORT);
         RECORD_INDEXES_LAYOUT = MemoryLayout.structLayout(
                 ValueLayout.JAVA_INT.withName("size"),
                 ValueLayout.JAVA_SHORT.withName("type"), /* cannot be BYTE since will cause a layout exception for the following short */
@@ -152,19 +158,50 @@ public class RecordIndexes
         for (long byteIndex = 0; byteIndex < bytesInChunk; byteIndex++) {
             int byteValue = Byte.toUnsignedInt(bm.get(ValueLayout.JAVA_BYTE, byteIndex));
             for (int bitOffset : PRECOMPUTED_INDICES[byteValue]) {
-                long recIxOffset = RECORD_INDEXES_OFFSET_LIST + numRecords * RECORD_INDEX_SIZE;
+                long recIxOffset = RECORD_INDEXES_OFFSET_LIST + (curOffset + numRecords) * RECORD_INDEX_SIZE;
                 recordIndexes.set(ValueLayout.JAVA_SHORT, recIxOffset,
                         (short) (byteIndex * Byte.SIZE + bitOffset));
                 numRecords++;
             }
         }
+        curOffset += numRecords;
         return numRecords;
     }
 
-    public void reset(int size, RecordIndexListType type)
+    public int getCurOffset()
     {
-        setSize(size);
-        setType(type);
-        setStart(0);
+        return curOffset;
+    }
+
+    public void setCurChunkProperties(ChunkProperties chunk)
+    {
+        setSize(chunk.numRecordsInChunk());
+        setType(chunk.type());
+        setStart(chunk.startIx());
+    }
+
+    public void storeRowList(ChunkProperties chunkToStore,
+            byte[] storeRowListBuff)
+    {
+        RecordIndexListType storeRowListType = chunkToStore.type();
+        if (storeRowListType == RECORD_INDEX_LIST_TYPE_VALUES) {
+            MemorySegment.copy(getList(),
+                    (getCurOffset() - chunkToStore.numRecordsInChunk()) * ValueLayout.JAVA_SHORT.byteSize(),
+                    MemorySegment.ofArray(storeRowListBuff),
+                    0,
+                    chunkToStore.numRecordsInChunk() * ValueLayout.JAVA_SHORT.byteSize());
+        }
+    }
+
+    public void restoreRowList(ChunkProperties chunkToRestore,
+            byte[] storeRowListBuff)
+    {
+        RecordIndexListType storeRowListType = chunkToRestore.type();
+
+        if (storeRowListType == RECORD_INDEX_LIST_TYPE_VALUES) {
+            MemorySegment dstSegment = getList();
+            MemorySegment.copy(MemorySegment.ofArray(storeRowListBuff), 0, dstSegment, 0, chunkToRestore.numRecordsInChunk() * ValueLayout.JAVA_SHORT.byteSize());
+            curOffset = chunkToRestore.numRecordsInChunk();
+        }
     }
 }

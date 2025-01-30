@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +23,9 @@ import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
-import static org.assertj.core.api.Assertions.assertThat;
+import static io.trino.plugin.warp.gen.constants.RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL;
+import static io.trino.plugin.warp.gen.constants.RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -68,13 +69,11 @@ public class RangeDataServiceTest
     public void testAllOneShot()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        recordIndexes.setSize(0);
-        recordIndexes.setStart(3);
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(aggregatorPageArgs.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 5, queryArgs, aggregatorPageArgs, storageCollectorService);
+        ChunkProperties chunkProperties = new ChunkProperties(0, 5, RECORD_INDEX_LIST_TYPE_ALL, 3);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(1);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(3);
@@ -85,16 +84,14 @@ public class RangeDataServiceTest
     public void testAllTwoShots()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        recordIndexes.setStart(3);
-        recordIndexes.setSize(0);
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(aggregatorPageArgs.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 5, queryArgs, aggregatorPageArgs, storageCollectorService);
+        ChunkProperties chunkProperties = new ChunkProperties(0, 5, RECORD_INDEX_LIST_TYPE_ALL, 3);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
-        recordIndexes.setStart(8);
-        rangeFillerService.add(0, 10, queryArgs, aggregatorPageArgs, storageCollectorService);
+        chunkProperties = new ChunkProperties(0, 10, RECORD_INDEX_LIST_TYPE_ALL, 8);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(1);
@@ -106,8 +103,6 @@ public class RangeDataServiceTest
     public void testValuesOneShot()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
-        recordIndexes.setSize(0);
 
         // 1st range [3-6)
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 3);
@@ -126,7 +121,9 @@ public class RangeDataServiceTest
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(aggregatorPageArgs.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 10, queryArgs, aggregatorPageArgs, storageCollectorService);
+
+        ChunkProperties chunkProperties = new ChunkProperties(0, 10, RECORD_INDEX_LIST_TYPE_VALUES, 0);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(4);
@@ -144,8 +141,7 @@ public class RangeDataServiceTest
     public void testValuesTwoShots()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
-        recordIndexes.setSize(0);
+
         // 1st range [3-6)
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 3);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 1, (short) 4);
@@ -158,14 +154,17 @@ public class RangeDataServiceTest
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(aggregatorPageArgs.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 6, queryArgs, aggregatorPageArgs, storageCollectorService);
+
+        ChunkProperties chunkProperties = new ChunkProperties(0, 6, RECORD_INDEX_LIST_TYPE_VALUES, 0);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 6, (short) 51);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 7, (short) 52);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 8, (short) 53);
         // 4th range [63-64)
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 9, (short) 63);
-        rangeFillerService.add(0, 4, queryArgs, aggregatorPageArgs, storageCollectorService);
+        chunkProperties = new ChunkProperties(0, 4, RECORD_INDEX_LIST_TYPE_VALUES, 6);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(4);
@@ -183,23 +182,23 @@ public class RangeDataServiceTest
     public void testAllAndThenValues()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        recordIndexes.setStart(3);
-        recordIndexes.setSize(0);
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(aggregatorPageArgs.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 5, queryArgs, aggregatorPageArgs, storageCollectorService);
+        ChunkProperties chunkProperties = new ChunkProperties(0, 5, RECORD_INDEX_LIST_TYPE_ALL, 3);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
-        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 5, (short) 8);
-        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 6, (short) 9);
-        rangeFillerService.add(0, 2, queryArgs, aggregatorPageArgs, storageCollectorService);
+        // start in record list from index 0
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 8);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 1, (short) 9);
+        chunkProperties = new ChunkProperties(0, 2, RECORD_INDEX_LIST_TYPE_VALUES, 0); // start ix in the recordList is 0
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
-        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 7, (short) 13);
-        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 8, (short) 14);
-        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 9, (short) 15);
-        rangeFillerService.add(0, 3, queryArgs, aggregatorPageArgs, storageCollectorService);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 2, (short) 13);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 3, (short) 14);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 4, (short) 15);
+        chunkProperties = new ChunkProperties(0, 3, RECORD_INDEX_LIST_TYPE_VALUES, 2);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(2);
@@ -213,25 +212,25 @@ public class RangeDataServiceTest
     public void testValuesAndThenAllAndThenValues()
     {
         RangeData rangeData = new RangeData(recordIndexes);
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
-        recordIndexes.setSize(0);
+
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 0, (short) 25);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 1, (short) 26);
         recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 2, (short) 27);
 
         when(queryArgs.chunkSize()).thenReturn(1);
         when(aggregatorPageArgs.rangeData()).thenReturn(rangeData);
-        rangeFillerService.add(0, 3, queryArgs, aggregatorPageArgs, storageCollectorService);
+        ChunkProperties chunkProperties = new ChunkProperties(0, 3, RECORD_INDEX_LIST_TYPE_VALUES, 0);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL);
-        recordIndexes.setStart(28);
-        rangeFillerService.add(0, 22, queryArgs, aggregatorPageArgs, storageCollectorService);
+        chunkProperties = new ChunkProperties(0, 22, RECORD_INDEX_LIST_TYPE_ALL, 28);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
-        recordIndexes.setType(RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES);
-        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 25, (short) 50);
-        rangeFillerService.add(0, 1, queryArgs, aggregatorPageArgs, storageCollectorService);
-        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 26, (short) 60);
-        rangeFillerService.add(0, 1, queryArgs, aggregatorPageArgs, storageCollectorService);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 3, (short) 50);
+        chunkProperties = new ChunkProperties(0, 1, RECORD_INDEX_LIST_TYPE_VALUES, 3);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
+        recordIndexesList.setAtIndex(ValueLayout.JAVA_SHORT, 4, (short) 60);
+        chunkProperties = new ChunkProperties(0, 1, RECORD_INDEX_LIST_TYPE_VALUES, 4);
+        rangeFillerService.add(chunkProperties, queryArgs, aggregatorPageArgs, storageCollectorService);
 
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(2);

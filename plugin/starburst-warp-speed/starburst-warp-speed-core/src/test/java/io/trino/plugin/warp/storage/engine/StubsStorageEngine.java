@@ -185,7 +185,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void collectChunk(MemorySegment collectState, boolean isFullScan, int startRecIx, int numToCollect, MemorySegment outQueryResultTypes)
+    public void collectChunk(MemorySegment collectState, MemorySegment outQueryResultTypes)
     {
     }
 

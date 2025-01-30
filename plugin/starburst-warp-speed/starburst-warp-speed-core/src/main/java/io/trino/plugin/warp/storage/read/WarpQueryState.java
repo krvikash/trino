@@ -13,18 +13,10 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import java.util.Optional;
-
 public class WarpQueryState
 {
     private int numRecordsInCurPage;
     private int totalNumReadRecords;
-    private Optional<StoreRowListResult> storeRowListResult;
-
-    public WarpQueryState()
-    {
-        this.storeRowListResult = Optional.empty();
-    }
 
     public int getNumRecordsInCurPage()
     {
@@ -49,15 +41,5 @@ public class WarpQueryState
     public void addTotalNumReadRecords(int toAdd)
     {
         this.totalNumReadRecords += toAdd;
-    }
-
-    public Optional<StoreRowListResult> getStoreRowListResult()
-    {
-        return storeRowListResult;
-    }
-
-    public void setStoreRowListResult(Optional<StoreRowListResult> storeRowListResult)
-    {
-        this.storeRowListResult = storeRowListResult;
     }
 }

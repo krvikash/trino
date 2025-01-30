@@ -18,6 +18,9 @@ import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
 
 import java.util.List;
 
-public record MatcherArgs(List<ReadJuffersWarmUpElement> matchJuffersWe, LuceneMatcher[] luceneMatchers)
+public record MatcherArgs(List<ReadJuffersWarmUpElement> matchJuffersWe,
+                          LuceneMatcher[] luceneMatchers,
+                          byte[] storeRowListBuff,
+                          ChunksQueue chunksQueue)
 {
 }

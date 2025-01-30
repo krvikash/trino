@@ -209,12 +209,9 @@ public interface StorageEngine
      * Collect records from the provided chunk
      *
      * @param collectState - collect state
-     * @param isFullScan - whether this chunk is a full scan
-     * @param startRecIx - the startRecIx in case of a full scan
-     * @param numToCollect - how many rows to collect
      * @param outQueryResultTypes - array to hold updated result type for each collected WE for java to process the collect buffers
      */
-    default void collectChunk(MemorySegment collectState, boolean isFullScan, int startRecIx, int numToCollect, MemorySegment outQueryResultTypes)
+    default void collectChunk(MemorySegment collectState, MemorySegment outQueryResultTypes)
     {
         throw new UnsupportedOperationException();
     }

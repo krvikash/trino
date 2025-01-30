@@ -15,10 +15,6 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Singleton;
 
-import java.util.Optional;
-
-import static io.trino.plugin.warp.gen.constants.RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL;
-
 @Singleton
 public class StubsRangeFillerService
         implements RangeFillerService
@@ -36,7 +32,7 @@ public class StubsRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService)
+    public int add(ChunkProperties chunkProperties, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService)
     {
         return 0;
     }
@@ -45,26 +41,6 @@ public class StubsRangeFillerService
     public WarpStoragePageSource.RowRanges reset(RangeData rangeData)
     {
         return WarpStoragePageSource.RowRanges.EMPTY;
-    }
-
-    @Override
-    public int getNumCollectedFromCurrentChunk(int chunkIndex, RangeData rangeData)
-    {
-        return 0;
-    }
-
-    // list type and size are kept as memebers
-    // in type all we store the first row index in the byte array
-    // in type all we store the part of the list we have not collected yet in the byte array
-    @Override
-    public StoreRowListResult storeRowList(ChunksQueue chunksQueue, QueryArgs queryArgs, AggregatorArgs aggregatorArgs, RangeData rangeData)
-    {
-        return new StoreRowListResult(RECORD_INDEX_LIST_TYPE_ALL, 0, Optional.of(0), 0);
-    }
-
-    @Override
-    public void restoreRowList(RecordIndexes recordIndexes, StoreRowListResult storeRowListResult, byte[] storeRowListBuff)
-    {
     }
 
     @Override

@@ -29,7 +29,7 @@ public interface BlocksAggregator
             WarpQueryState queryState,
             int rowsLimit);
 
-    boolean prepareBlocks(ChunksQueue chunksQueue,
+    void prepareBlocks(ChunkProperties chunk,
             QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState);
@@ -42,10 +42,7 @@ public interface BlocksAggregator
     WarpStoragePageSource.RowRanges getRanges(AggregatorPageArgs aggregatorPageArgs);
 
     long closePage(QueryArgs queryArgs,
-            AggregatorArgs aggregatorArgs,
-            AggregatorPageArgs aggregatorPageArgs,
-            WarpQueryState queryState,
-            ChunksQueue chunksQueue);
+            AggregatorPageArgs aggregatorPageArgs);
 
     void abortPage(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Exception e);
 

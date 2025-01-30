@@ -11828,7 +11828,7 @@
               "warp_collect_columns": 10,
               "empty_collect_columns": 0,
               "lazy_collect_total_blocks": 38,
-              "lazy_collect_loaded_blocks": 38,
+              "lazy_collect_loaded_blocks": 37,
               "external_match_columns": 5,
               "external_collect_columns": 0
             }
@@ -11978,7 +11978,7 @@
           "warp_collect_columns": 2,
           "empty_collect_columns": 0,
           "lazy_collect_total_blocks": 38,
-          "lazy_collect_loaded_blocks": 38,
+          "lazy_collect_loaded_blocks": 37,
           "external_match_columns": 1,
           "external_collect_columns": 0
         }

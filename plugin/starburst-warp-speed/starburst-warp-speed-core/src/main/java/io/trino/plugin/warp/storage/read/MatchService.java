@@ -82,7 +82,12 @@ public class MatchService
                 .map(we -> we.hasLuceneParams() ? new ReadJuffersWarmUpElement(bufferAllocator, false) : new ReadJuffersWarmUpElement())
                 .collect(Collectors.toList());
 
-        MatcherArgs matcherArgs = new MatcherArgs(matchJuffersWe, new LuceneMatcher[queryParams.getNumLucene()]);
+        // The Record Indexes buffer should fit to a full page indexes plus the last chunk that might not fit the in the
+        // page, while the storeRowListBuff should only fit to the last chunk indexes therefor a chunk size is enough here.
+        byte[] storeRowListBuff = new byte[queryArgs.chunkSize() * Short.BYTES];
+        ChunksQueue chunksQueue = new ChunksQueue(queryArgs.maxMatchedChunks(), queryArgs.chunkSize(), storageEngineConstants.getPageSize());
+
+        MatcherArgs matcherArgs = new MatcherArgs(matchJuffersWe, new LuceneMatcher[queryParams.getNumLucene()], storeRowListBuff, chunksQueue);
         createLuceneMatchers(queryArgs, matcherArgs, customStatsContext); // this call must be after creating the matchJuffersWE
         return matcherArgs;
     }
@@ -114,14 +119,13 @@ public class MatchService
         }
     }
 
-    public MatcherPageArgs openPage(ChunksQueue chunksQueue,
-            ThreadArena pageArena,
+    public MatcherPageArgs openPage(ThreadArena pageArena,
             QueryArgs queryArgs,
             MatcherArgs matcherArgs,
             AggregatorPageArgs aggregatorPageArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
-        chunksQueue.initRootBitmaps();
+        matcherArgs.chunksQueue().initRootBitmaps();
 
         Optional<MatchState> matchStateOpt = Optional.empty();
         if (queryParams.getNumMatchElements() > 0) {
@@ -156,16 +160,22 @@ public class MatchService
                 matchIx++;
             }
         }
-        matchStateOpt.ifPresent(m -> chunksQueue.setRootBitmaps(m.getMatchBitmaps(), m.getRootBitmapsDescriptors()));
+        matchStateOpt.ifPresent(m -> matcherArgs.chunksQueue().setRootBitmaps(m.getMatchBitmaps(), m.getRootBitmapsDescriptors()));
 
-        return new MatcherPageArgs(matchStateOpt);
+        RecordIndexes recordIndexes = aggregatorPageArgs.rangeData().getRecordIndexes();
+
+        // restore processed chunk
+        matcherArgs.chunksQueue().getOptLoadedChunkProperties().ifPresent(chunk ->
+                recordIndexes.restoreRowList(chunk, matcherArgs.storeRowListBuff()));
+
+        return new MatcherPageArgs(matchStateOpt, recordIndexes);
     }
 
     @SuppressWarnings("Finally")
     @NativeInterrupt
-    public boolean match(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs)
+    private boolean matchMultiChunk(ChunksQueue chunksQueue, QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs)
     {
-        boolean matchExhausted = chunksQueue.isChunkRangeCompleted();
+        boolean matchExhausted = chunksQueue.matchedChunksCompleted();
         if (matchExhausted) {
             if (matcherPageArgs.matchState().isEmpty()) {
                 matchExhausted = chunksQueue.updateChunkRangeFullScan(queryArgs.numChunks(), queryArgs.numChunksInRange());
@@ -178,7 +188,7 @@ public class MatchService
                 boolean hasMacthedChunks = false;
                 MemorySegment matchStateMem = matcherPageArgs.matchState().get().getStateMemory();
                 StopWatch readStopWatch = new StopWatch();
-                // we loop until either agg result returnes 0 which means no more chunks (break under if inside the loop)
+                // we loop until either agg result returns 0 which means no more chunks (break under if inside the loop)
                 // or if chunkQueue indicates after match call that at least one chunk has matched records
                 // in addition, on every call to storage engine we check for error
                 try {
@@ -245,6 +255,50 @@ public class MatchService
         return !matchExhausted;
     }
 
+    public Optional<ChunkProperties> match(int recordsPageLimit,
+            QueryArgs queryArgs,
+            MatcherArgs matcherArgs,
+            MatcherPageArgs matcherPageArgs,
+            WarpQueryState queryState)
+    {
+        ChunksQueue chunksQueue = matcherArgs.chunksQueue();
+        RecordIndexes recordIndexes = matcherPageArgs.recordIndexes();
+        int numRecordsInPage = queryState.getNumRecordsInCurPage();
+
+        // done with this page
+        // in full-scan we dont return more than 1 chunk in a page
+        if (numRecordsInPage >= recordsPageLimit ||
+                (queryArgs.queryParams().getNumMatchElements() == 0 && numRecordsInPage > 0)) {
+            return Optional.empty();
+        }
+
+        // if done with matched chunks - match. If finished to match all the chunks in the split return empty chunk.
+        if (chunksQueue.matchedChunksCompleted() && !matchMultiChunk(chunksQueue, queryArgs, matcherArgs, matcherPageArgs)) {
+            return Optional.empty();
+        }
+
+        // prepare stored/matched bms.
+        ChunkProperties chunk = chunksQueue.loadChunk(recordIndexes, queryArgs.numRecordsInChunk(chunksQueue.getCurrent()));
+
+        if (chunk.numRecordsInChunk() + numRecordsInPage > recordsPageLimit) {
+            // we prefer to avoid decompressing twice the same chunk so if we can we wait for the next page and collect the entire chunk
+            // return this chunk in the next page
+            if (numRecordsInPage > 0) {
+                chunksQueue.returnLoadedChunk(chunk);
+                return Optional.empty();
+            }
+            // return a partial chunk in this page and store the rest
+            int extraInLastChunk = chunk.numRecordsInChunk() + numRecordsInPage - recordsPageLimit;
+            chunk.reduceNumRecordsInChunk(extraInLastChunk);
+            ChunkProperties chunkToStore = new ChunkProperties(chunk.chunkIndex(),
+                    extraInLastChunk,
+                    chunk.type(),
+                    chunk.startIx() + chunk.numRecordsInChunk());
+            chunksQueue.returnLoadedChunk(chunkToStore);
+        }
+        return Optional.of(chunk);
+    }
+
     private boolean isNativeMatchException(Exception e)
     {
         return e instanceof TrinoException trinoException &&
@@ -263,8 +317,14 @@ public class MatchService
         }
     }
 
-    public void closePage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs)
+    public void closePage(QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs)
     {
+        // store records list if needed
+        matcherArgs.chunksQueue().getOptLoadedChunkProperties().ifPresent(chunk ->
+                matcherPageArgs.recordIndexes().storeRowList(chunk, matcherArgs.storeRowListBuff()));
+
+        // store the bitmaps that were added during this round and not processed
+        matcherArgs.chunksQueue().storeMatchBitmaps(queryArgs);
         if (matcherPageArgs.matchState().isPresent()) {
             long startTime = System.nanoTime();
 

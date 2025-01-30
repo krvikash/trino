@@ -22,6 +22,8 @@ import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 
+import java.util.Optional;
+
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static java.util.Objects.requireNonNull;
 
@@ -33,7 +35,6 @@ public class WarpReader
     private final QueryArgs queryArgs;
     private final WarpQueryState queryState;
     private final long rowsLimit;
-    private final ChunksQueue chunksQueue;
     private ThreadArena pageArena;
 
     private final AggregatorArgs aggregatorArgs;
@@ -50,7 +51,6 @@ public class WarpReader
             Matcher matcher,
             WorkerMemoryManager workerMemoryManager,
             ShapingLoggerFactory shapingLoggerFactory,
-            int pageSize,
             long rowsLimit)
     {
         this.workerMemoryManager = requireNonNull(workerMemoryManager);
@@ -62,7 +62,6 @@ public class WarpReader
         this.matcherArgs = matcher.open(queryArgs, customStatsContext);
 
         queryState = new WarpQueryState();
-        chunksQueue = new ChunksQueue(queryArgs.maxMatchedChunks(), queryArgs.chunkSize(), pageSize);
 
         this.shapingLogger = shapingLoggerFactory.getInstance(WarpReader.class);
     }
@@ -92,8 +91,7 @@ public class WarpReader
                 queryState,
                 (int) Math.min(rowsLimit - queryState.getTotalNumReadRecords(), Integer.MAX_VALUE));
 
-        matcherPageArgs = matcher.openPage(chunksQueue,
-                pageArena,
+        matcherPageArgs = matcher.openPage(pageArena,
                 queryArgs,
                 matcherArgs,
                 aggregatorPageArgs);
@@ -109,17 +107,17 @@ public class WarpReader
         }
 
         // we continue as long as we didn't reach the rowsLimit nor a limit from the matcher or aggregator
-        while (queryState.getNumRecordsInCurPage() < rowsLimit - queryState.getTotalNumReadRecords()) {
-            if (chunksQueue.isChunkRangeCompleted() && !matcher.match(chunksQueue, queryArgs, matcherArgs, matcherPageArgs)) {
+        int recordsPageLimit = (int) Math.min(aggregatorArgs.getAggregatorPageLimit(), (rowsLimit - queryState.getTotalNumReadRecords()));
+
+        while (queryState.getNumRecordsInCurPage() < recordsPageLimit) {
+            Optional<ChunkProperties> chunk = matcher.match(recordsPageLimit, queryArgs, matcherArgs, matcherPageArgs, queryState);
+            if (chunk.isEmpty()) {
                 break;
             }
-
-            if (!blocksAggregator.prepareBlocks(chunksQueue,
+            blocksAggregator.prepareBlocks(chunk.get(),
                     queryArgs,
                     aggregatorPageArgs,
-                    queryState)) {
-                break;
-            }
+                    queryState);
         }
 
         return queryState.getNumRecordsInCurPage() > 0;
@@ -127,6 +125,7 @@ public class WarpReader
 
     ReadResult getPage()
     {
+        ReadResult readResult;
         try {
             Block[] blocks = new Block[0];
             WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
@@ -151,12 +150,13 @@ public class WarpReader
             }
             long numReadPages = closePage();
 
-            return new ReadResult(blocks, queryState.getNumRecordsInCurPage(), ranges, numReadPages);
+            readResult = new ReadResult(blocks, queryState.getNumRecordsInCurPage(), ranges, numReadPages);
         }
         catch (Exception e) {
             abortPage(e);
             throw e;
         }
+        return readResult;
     }
 
     @NativeInterrupt
@@ -165,19 +165,13 @@ public class WarpReader
         long readPages = 0;
 
         try {
-            chunksQueue.storeMatchBitmaps(queryArgs); // only the bitmaps that were added during this round and not processed are stored
-
             if (matcherPageArgs != null) {
-                matcher.closePage(queryArgs, matcherPageArgs);
+                matcher.closePage(queryArgs, matcherArgs, matcherPageArgs);
             }
 
             if (aggregatorPageArgs != null) {
                 queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
-                readPages = blocksAggregator.closePage(queryArgs,
-                        aggregatorArgs,
-                        aggregatorPageArgs,
-                        queryState,
-                        chunksQueue);
+                readPages = blocksAggregator.closePage(queryArgs, aggregatorPageArgs);
             }
 
             if (pageArena != null) {
