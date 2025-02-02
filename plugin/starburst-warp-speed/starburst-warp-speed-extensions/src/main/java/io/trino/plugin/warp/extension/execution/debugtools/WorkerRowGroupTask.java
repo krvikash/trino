@@ -20,7 +20,6 @@ import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.warp.execution.debugtools.DebugToolResult;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import jakarta.ws.rs.Consumes;
@@ -32,7 +31,6 @@ import jakarta.ws.rs.core.MediaType;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -126,12 +124,5 @@ public class WorkerRowGroupTask
     public void invalidate()
     {
         rowGroupDataService.invalidateAll();
-    }
-
-    @POST
-    @Path(WORKER_ROW_GROUP_COLLECT_TASK_NAME)
-    public List<DebugToolResult> collect(RowGroupCollectData rowGroupCollectData)
-    {
-        return List.of();
     }
 }
