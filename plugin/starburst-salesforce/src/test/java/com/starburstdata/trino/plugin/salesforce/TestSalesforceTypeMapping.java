@@ -262,7 +262,7 @@ public class TestSalesforceTypeMapping
     {
         ZoneId jvmZone = ZoneId.systemDefault();
         checkState(jvmZone.getId().equals("America/Bahia_Banderas"), "This test assumes certain JVM time zone");
-        LocalDate dateOfLocalTimeChangeForwardAtMidnightInJvmZone = LocalDate.of(1970, 1, 1);
+        LocalDate dateOfLocalTimeChangeForwardAtMidnightInJvmZone = LocalDate.of(1932, 4, 1);
         checkIsGap(jvmZone, dateOfLocalTimeChangeForwardAtMidnightInJvmZone.atStartOfDay());
 
         ZoneId someZone = ZoneId.of("Europe/Vilnius");
@@ -271,7 +271,7 @@ public class TestSalesforceTypeMapping
         LocalDate dateOfLocalTimeChangeBackwardAtMidnightInSomeZone = LocalDate.of(1983, 10, 1);
         checkIsDoubled(someZone, dateOfLocalTimeChangeBackwardAtMidnightInSomeZone.atStartOfDay().minusMinutes(1));
 
-        String dateOfLocalTimeChangeForwardAtMidnightInJvmZoneLiteral = format("DATE '%s'", ISO_DATE.format(dateOfLocalTimeChangeForwardAtMidnightInJvmZone));
+        String dateOfLocalTimeChangeForwardAtMidnightInJvmZoneLiteral = format("DATE '%s'", ISO_DATE.format(dateOfLocalTimeChangeBackwardAtMidnightInSomeZone.atStartOfDay().plusDays(1)));
         String dateOfLocalTimeChangeForwardAtMidnightInSomeZoneLiteral = format("DATE '%s'", ISO_DATE.format(dateOfLocalTimeChangeForwardAtMidnightInSomeZone));
         String dateOfLocalTimeChangeBackwardAtMidnightInSomeZoneLiteral = format("DATE '%s'", ISO_DATE.format(dateOfLocalTimeChangeBackwardAtMidnightInSomeZone));
 
