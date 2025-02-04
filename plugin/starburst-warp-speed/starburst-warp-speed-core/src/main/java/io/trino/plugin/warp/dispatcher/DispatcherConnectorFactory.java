@@ -20,6 +20,7 @@ import io.trino.spi.connector.Connector;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -75,16 +76,7 @@ public class DispatcherConnectorFactory
                             catalogName,
                             config,
                             optionalModule,
-                            proxiedConnectorInitializerMap.entrySet()
-                                    .stream()
-                                    .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
-                                        try {
-                                            return classLoader.loadClass(entry.getValue()).getDeclaredConstructor().newInstance();
-                                        }
-                                        catch (ClassNotFoundException | InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-                                            throw new RuntimeException(e);
-                                        }
-                                    })),
+                            createProxiedConnectorInitializers(proxiedConnectorInitializerMap, classLoader),
                             optionalProxyModule,
                             context);
         }
@@ -96,5 +88,56 @@ public class DispatcherConnectorFactory
         catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public Set<String> getSecuritySensitivePropertyNames(
+            String catalogName,
+            Map<String, String> config,
+            WarpConnectorContext context,
+            Class<? extends InitializationModule> optionalModules,
+            Map<String, String> proxiedConnectorInitializerMap)
+    {
+        try {
+            ClassLoader classLoader = this.getClass().getClassLoader();
+            Class<?> supplierClass = classLoader.loadClass(Supplier.class.getName());
+            Supplier<Optional<Module>> optionalProxyModule = () -> Optional.ofNullable(proxyModule);
+
+            return (Set<String>) classLoader.loadClass(InternalDispatcherConnectorFactory.class.getName())
+                    .getMethod(
+                            "getSecuritySensitivePropertyNames",
+                            String.class,
+                            Map.class,
+                            Map.class,
+                            supplierClass,
+                            WarpConnectorContext.class)
+                    .invoke(null,
+                            catalogName,
+                            config,
+                            createProxiedConnectorInitializers(proxiedConnectorInitializerMap, classLoader),
+                            optionalProxyModule,
+                            context);
+        }
+        catch (InvocationTargetException e) {
+            Throwable targetException = e.getTargetException();
+            throwIfUnchecked(targetException);
+            throw new RuntimeException(targetException);
+        }
+        catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Map<String, ?> createProxiedConnectorInitializers(Map<String, String> proxiedConnectorInitializerMap, ClassLoader classLoader)
+    {
+        return proxiedConnectorInitializerMap.entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
+                    try {
+                        return classLoader.loadClass(entry.getValue()).getDeclaredConstructor().newInstance();
+                    }
+                    catch (ClassNotFoundException | InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+                        throw new RuntimeException(e);
+                    }
+                }));
     }
 }

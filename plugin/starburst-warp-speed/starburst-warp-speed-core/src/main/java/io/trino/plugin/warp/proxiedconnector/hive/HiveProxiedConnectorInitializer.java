@@ -13,17 +13,25 @@
  */
 package io.trino.plugin.warp.proxiedconnector.hive;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Module;
+import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
+import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.metastore.HiveMetastore;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.hive.HiveConnectorFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.ProxiedConnectorInitializer;
+import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static com.google.inject.util.Modules.EMPTY_MODULE;
@@ -32,6 +40,11 @@ import static io.trino.plugin.warp.proxiedconnector.utils.ConfigurationUtils.get
 public class HiveProxiedConnectorInitializer
         implements ProxiedConnectorInitializer
 {
+    private static final Module DEFAULT_ADDITIONAL_MODULE = EMPTY_MODULE;
+    private static final Optional<HiveMetastore> DEFAULT_METASTORE = Optional.empty();
+    private static final boolean DEFAULT_METASTORE_IMPERSONATION_ENABLED = false;
+    private static final Optional<TrinoFileSystemFactory> DEFAULT_FILESYSTEM_FACTORY = Optional.empty();
+
     @Override
     public Supplier<List<Module>> getModules(ConnectorContext context)
     {
@@ -52,13 +65,37 @@ public class HiveProxiedConnectorInitializer
                     catalogName,
                     hiveConfig,
                     context,
-                    () -> EMPTY_MODULE,
-                    Optional.empty(),
-                    false,
-                    Optional.empty());
+                    () -> DEFAULT_ADDITIONAL_MODULE,
+                    DEFAULT_METASTORE,
+                    DEFAULT_METASTORE_IMPERSONATION_ENABLED,
+                    DEFAULT_FILESYSTEM_FACTORY);
         }
         catch (Exception e) {
             throw new RuntimeException("cant create hive connector", e);
+        }
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context, Optional<Module> optionalProxyModule)
+    {
+        Map<String, String> hiveConfig = getHiveFilteredConfig(config);
+
+        ClassLoader classLoader = HiveConnectorFactory.class.getClassLoader();
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            Bootstrap app = HiveConnectorFactory.createBootstrap(
+                    catalogName,
+                    hiveConfig,
+                    ImmutableMap.of(),
+                    context,
+                    () -> DEFAULT_ADDITIONAL_MODULE,
+                    DEFAULT_METASTORE,
+                    DEFAULT_METASTORE_IMPERSONATION_ENABLED,
+                    DEFAULT_FILESYSTEM_FACTORY,
+                    true);
+
+            Set<ConfigPropertyMetadata> usedProperties = app.configure();
+
+            return ConfigUtils.getSecuritySensitivePropertyNames(hiveConfig, usedProperties);
         }
     }
 }

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
@@ -45,6 +46,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -54,6 +56,8 @@ public class InternalDispatcherConnectorFactory
 {
     public static final String WARP_PREFIX = "WARP__";
     private static final Logger logger = Logger.get(InternalDispatcherConnectorFactory.class);
+
+    private static final String INTERNAL_COMMUNICATION_SHARED_SECRET = "warp-speed.config.internal-communication.shared-secret";
 
     private InternalDispatcherConnectorFactory() {}
 
@@ -68,18 +72,7 @@ public class InternalDispatcherConnectorFactory
     {
         config = ConfigurationUtils.replaceEnvironmentVariables(config);
         logger.debug("catalogName: %s, config:%s", catalogName, config);
-        Map<String, String> warpConfig = config.entrySet().stream()
-                .filter(e ->
-                        e.getKey().startsWith("warp-speed") ||
-                                e.getKey().startsWith(WARP_PREFIX) ||
-                                // TrinoFileSystem hdfs config
-                                e.getKey().startsWith("hive.s3") || e.getKey().startsWith("hive.azure") || e.getKey().startsWith("hive.gcs") ||
-                                // TrinoFileSystem native config
-                                e.getKey().startsWith("fs.") || e.getKey().startsWith("s3.") || e.getKey().startsWith("azure.") || e.getKey().startsWith("gcs.") ||
-                                e.getKey().startsWith("http") ||
-                                e.getKey().startsWith("internal-communication") ||
-                                e.getKey().equals("node.environment"))
-                .collect(Collectors.toMap(entry -> entry.getKey().startsWith(WARP_PREFIX) ? entry.getKey().substring(WARP_PREFIX.length()) : entry.getKey(), Entry::getValue));
+        Map<String, String> warpConfig = getWarpConfig(config);
 
         String proxiedConnectorName = warpConfig.get(ProxiedConnectorConfig.PROXIED_CONNECTOR);
         ProxiedConnectorInitializer proxiedConnectorInitializer = getProxiedConnectorInitializer(proxiedConnectorName, proxiedConnectorInitializerMap);
@@ -110,6 +103,52 @@ public class InternalDispatcherConnectorFactory
 
         initializeSystemServices(injector);
         return injector.getInstance(DispatcherConnectorBase.class);
+    }
+
+    @SuppressWarnings({"unused", "OptionalUsedAsFieldOrParameterType"})
+    public static Set<String> getSecuritySensitivePropertyNames(
+            String catalogName,
+            Map<String, String> config,
+            Map<String, ProxiedConnectorInitializer> proxiedConnectorInitializerMap,
+            Supplier<Optional<Module>> optionalProxyModule,
+            WarpConnectorContext warpConnectorContext)
+    {
+        Map<String, String> resolvedConfig = ConfigurationUtils.replaceEnvironmentVariables(config);
+        Map<String, String> warpConfig = getWarpConfig(resolvedConfig);
+
+        String proxiedConnectorName = warpConfig.get(ProxiedConnectorConfig.PROXIED_CONNECTOR);
+        ProxiedConnectorInitializer proxiedConnectorInitializer = getProxiedConnectorInitializer(proxiedConnectorName, proxiedConnectorInitializerMap);
+
+        Set<String> proxiedConnectorSensitiveProperties = proxiedConnectorInitializer.getSecuritySensitivePropertyNames(
+                catalogName,
+                resolvedConfig,
+                warpConnectorContext,
+                optionalProxyModule.get());
+
+        if (resolvedConfig.containsKey(INTERNAL_COMMUNICATION_SHARED_SECRET)) {
+            return ImmutableSet.<String>builder()
+                    .addAll(proxiedConnectorSensitiveProperties)
+                    .add(INTERNAL_COMMUNICATION_SHARED_SECRET)
+                    .build();
+        }
+
+        return proxiedConnectorSensitiveProperties;
+    }
+
+    private static Map<String, String> getWarpConfig(Map<String, String> config)
+    {
+        return config.entrySet().stream()
+                .filter(e ->
+                        e.getKey().startsWith("warp-speed") ||
+                                e.getKey().startsWith(WARP_PREFIX) ||
+                                // TrinoFileSystem hdfs config
+                                e.getKey().startsWith("hive.s3") || e.getKey().startsWith("hive.azure") || e.getKey().startsWith("hive.gcs") ||
+                                // TrinoFileSystem native config
+                                e.getKey().startsWith("fs.") || e.getKey().startsWith("s3.") || e.getKey().startsWith("azure.") || e.getKey().startsWith("gcs.") ||
+                                e.getKey().startsWith("http") ||
+                                e.getKey().startsWith("internal-communication") ||
+                                e.getKey().equals("node.environment"))
+                .collect(Collectors.toMap(entry -> entry.getKey().startsWith(WARP_PREFIX) ? entry.getKey().substring(WARP_PREFIX.length()) : entry.getKey(), Entry::getValue));
     }
 
     private static void initializeSystemServices(Injector injector)

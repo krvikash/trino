@@ -13,17 +13,23 @@
  */
 package io.trino.plugin.warp.proxiedconnector.deltalake;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Module;
+import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.deltalake.DeltaLakeConnectorFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.ProxiedConnectorInitializer;
+import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static io.trino.plugin.warp.proxiedconnector.utils.ConfigurationUtils.getDeltaLakeFilteredConfig;
@@ -31,6 +37,8 @@ import static io.trino.plugin.warp.proxiedconnector.utils.ConfigurationUtils.get
 public class DeltaLakeProxiedConnectorInitializer
         implements ProxiedConnectorInitializer
 {
+    private static final Optional<Module> DEFAULT_METASTORE_MODULE = Optional.empty();
+
     @Override
     public Supplier<List<Module>> getModules(ConnectorContext context)
     {
@@ -54,11 +62,38 @@ public class DeltaLakeProxiedConnectorInitializer
                     catalogName,
                     deltaLakeConfig,
                     context,
-                    Optional.empty(),
-                    optionalProxyModule.orElse(_ -> {}));
+                    DEFAULT_METASTORE_MODULE,
+                    createAdditionalModule(optionalProxyModule));
         }
         catch (Exception e) {
             throw new RuntimeException("cant create delta-lake connector", e);
         }
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context, Optional<Module> optionalProxyModule)
+    {
+        Map<String, String> deltaLakeConfig = getDeltaLakeFilteredConfig(config);
+
+        ClassLoader classLoader = DeltaLakeConnectorFactory.class.getClassLoader();
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            Bootstrap app = DeltaLakeConnectorFactory.createBootstrap(
+                    catalogName,
+                    deltaLakeConfig,
+                    ImmutableMap.of(),
+                    context,
+                    DEFAULT_METASTORE_MODULE,
+                    createAdditionalModule(optionalProxyModule),
+                    true);
+
+            Set<ConfigPropertyMetadata> usedProperties = app.configure();
+
+            return ConfigUtils.getSecuritySensitivePropertyNames(deltaLakeConfig, usedProperties);
+        }
+    }
+
+    private static Module createAdditionalModule(Optional<Module> optionalProxyModule)
+    {
+        return optionalProxyModule.orElse(_ -> {});
     }
 }

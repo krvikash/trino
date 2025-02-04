@@ -31,12 +31,18 @@ import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
 public class WarpConnectorFactory
         implements ConnectorFactory
 {
+    private static final Map<String, String> PROXIED_CONNECTOR_INITIALIZERS = Map.of(
+            ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME, DeltaLakeProxiedConnectorInitializer.class.getName(),
+            ProxiedConnectorConfig.HIVE_CONNECTOR_NAME, HiveProxiedConnectorInitializer.class.getName(),
+            ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME, IcebergProxiedConnectorInitializer.class.getName());
+
     private final WarpPluginSharedInstancesFactory warpPluginSharedInstancesFactory;
     private final DispatcherConnectorFactory dispatcherConnectorFactory;
     private final LicenseVerifier licenseVerifier;
@@ -62,6 +68,35 @@ public class WarpConnectorFactory
     {
         requireNonNull(licenseVerifier, "licenseManager is null");
 
+        WarpConnectorContext warpConnectorContext = new WarpConnectorContext(
+                context,
+                warpPluginSharedInstancesFactory.create("io.trino.bootstrap.catalog." + catalogName, WarpBaseModule.isWorker(context), config));
+
+        return new StarburstWarpConnector(dispatcherConnectorFactory.create(
+                catalogName,
+                buildConfig(config),
+                warpConnectorContext,
+                WarpExtensionHandlerModule.class,
+                PROXIED_CONNECTOR_INITIALIZERS));
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        WarpConnectorContext warpConnectorContext = new WarpConnectorContext(
+                context,
+                warpPluginSharedInstancesFactory.create("io.trino.bootstrap.catalog." + catalogName, WarpBaseModule.isWorker(context), config));
+
+        return dispatcherConnectorFactory.getSecuritySensitivePropertyNames(
+                catalogName,
+                buildConfig(config),
+                warpConnectorContext,
+                WarpExtensionHandlerModule.class,
+                PROXIED_CONNECTOR_INITIALIZERS);
+    }
+
+    private static Map<String, String> buildConfig(Map<String, String> config)
+    {
         Map<String, String> configMap = new HashMap<>(config);
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
@@ -76,18 +111,6 @@ public class WarpConnectorFactory
             }
         }
 
-        WarpConnectorContext warpConnectorContext = new WarpConnectorContext(
-                context,
-                warpPluginSharedInstancesFactory.create("io.trino.bootstrap.catalog." + catalogName, WarpBaseModule.isWorker(context), configMap));
-
-        return new StarburstWarpConnector(dispatcherConnectorFactory.create(
-                catalogName,
-                configMap,
-                warpConnectorContext,
-                WarpExtensionHandlerModule.class,
-                Map.of(
-                        ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME, DeltaLakeProxiedConnectorInitializer.class.getName(),
-                        ProxiedConnectorConfig.HIVE_CONNECTOR_NAME, HiveProxiedConnectorInitializer.class.getName(),
-                        ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME, IcebergProxiedConnectorInitializer.class.getName())));
+        return configMap;
     }
 }
