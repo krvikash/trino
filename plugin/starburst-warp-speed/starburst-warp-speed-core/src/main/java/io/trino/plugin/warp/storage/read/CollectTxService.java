@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.query.classifier.NativeCollectClassifier.COLLECT_BUFFER_MAX_MEMORY;
 import static java.lang.Math.min;
@@ -286,9 +287,12 @@ public class CollectTxService
         MemorySegment collectBuffers = allocator.allocate(collectBuffersSize, ValueLayout.JAVA_LONG.byteSize());
         MemorySegment recordBufferStates = allocator.allocate(recordBufferStatesSize, ValueLayout.JAVA_INT.byteSize());
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates =
-                recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT)
-                .map(recordBufferState -> new WarmupElementRecordBufferState(recordBufferState))
-                .toList();
+                IntStream.range(0, recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT).toList().size())
+                        .mapToObj(index -> {
+                            MemorySegment recordBufferState = recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT).toList().get(index);
+                            return new WarmupElementRecordBufferState(recordBufferState, WarmUpElement.getRecTypeLength(queryParams.getCollectElementsParamsList().get(index).getWarmupElementAtt()));
+                        })
+                        .toList();
 
         return new CollectMetadataMemory(collectMetadataMemory.recordIndexes(),
                 Optional.of(collectBuffers),

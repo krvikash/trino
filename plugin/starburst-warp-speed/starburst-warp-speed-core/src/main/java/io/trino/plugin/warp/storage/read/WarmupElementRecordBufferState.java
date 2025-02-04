@@ -38,8 +38,9 @@ class WarmupElementRecordBufferState
         RECORD_BUFFER_STATE_OFFSET_MAX_REC_LEN = RECORD_BUFFER_STATE_LAYOUT.byteOffset(PathElement.groupElement("maxRecordLength"));
     }
 
-    WarmupElementRecordBufferState(MemorySegment recordBufferState)
+    WarmupElementRecordBufferState(MemorySegment recordBufferState, int recordLen)
     {
+        recordBufferState.set(ValueLayout.JAVA_INT, RECORD_BUFFER_STATE_OFFSET_MAX_REC_LEN, recordLen);
         this.recordBufferState = recordBufferState;
     }
 
