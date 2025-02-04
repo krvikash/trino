@@ -286,12 +286,12 @@ public class CollectTxService
 
         MemorySegment collectBuffers = allocator.allocate(collectBuffersSize, ValueLayout.JAVA_LONG.byteSize());
         MemorySegment recordBufferStates = allocator.allocate(recordBufferStatesSize, ValueLayout.JAVA_INT.byteSize());
+        List<MemorySegment> recordBufferStatesList = recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT).toList();
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates =
-                IntStream.range(0, recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT).toList().size())
-                        .mapToObj(index -> {
-                            MemorySegment recordBufferState = recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT).toList().get(index);
-                            return new WarmupElementRecordBufferState(recordBufferState, WarmUpElement.getRecTypeLength(queryParams.getCollectElementsParamsList().get(index).getWarmupElementAtt()));
-                        })
+                IntStream.range(0, recordBufferStatesList.size())
+                        .mapToObj(index ->
+                                new WarmupElementRecordBufferState(recordBufferStatesList.get(index),
+                                        WarmUpElement.getRecTypeLength(queryParams.getCollectElementsParamsList().get(index).getWarmupElementAtt())))
                         .toList();
 
         return new CollectMetadataMemory(collectMetadataMemory.recordIndexes(),
