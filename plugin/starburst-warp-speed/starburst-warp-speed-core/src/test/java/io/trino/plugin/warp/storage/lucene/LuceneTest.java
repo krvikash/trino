@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.lucene;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
-import org.apache.lucene.backward_codecs.lucene99.Lucene99Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
@@ -51,8 +50,6 @@ public class LuceneTest
             throws IOException
     {
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
-        Lucene99Codec lucene84Codec = new Lucene99Codec(Lucene99Codec.Mode.BEST_SPEED);
-        config.setCodec(lucene84Codec);
         config.setUseCompoundFile(true);
         LogDocMergePolicy logDocMergePolicy = new LogDocMergePolicy();
         logDocMergePolicy.setMaxCFSSegmentSizeMB(Double.POSITIVE_INFINITY);
