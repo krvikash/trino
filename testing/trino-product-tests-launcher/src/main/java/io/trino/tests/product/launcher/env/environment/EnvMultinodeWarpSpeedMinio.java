@@ -41,6 +41,7 @@ import static io.trino.tests.product.launcher.env.EnvironmentContainers.HADOOP;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.TESTS;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.WORKER;
 import static io.trino.tests.product.launcher.env.common.Minio.MINIO_CONTAINER_NAME;
+import static io.trino.tests.product.launcher.env.common.Standard.CONTAINER_TRINO_CONFIG_PROPERTIES;
 import static io.trino.tests.product.launcher.env.common.Standard.CONTAINER_TRINO_ETC;
 import static io.trino.tests.product.launcher.env.common.Standard.CONTAINER_TRINO_JVM_CONFIG;
 import static java.util.Objects.requireNonNull;
@@ -81,7 +82,7 @@ public final class EnvMultinodeWarpSpeedMinio
         // Using hdp3.1 so we are using Hive metastore with version close to versions of hive-*.jars Spark uses
         builder.configureContainer(HADOOP, container -> container.setDockerImageName("ghcr.io/trinodb/testing/hdp3.1-hive:" + hadoopImagesVersion));
 
-        builder.configureContainer(COORDINATOR, this::configureTrinoContainer);
+        builder.configureContainer(COORDINATOR, this::configureCoordinatorTrinoContainer);
         builder.configureContainer(COORDINATOR, this::configureWarpResource);
         builder.configureContainer(WORKER, this::configureTrinoContainer);
         builder.configureContainer(WORKER, this::configureWarpStorage);
@@ -114,6 +115,18 @@ public final class EnvMultinodeWarpSpeedMinio
                 .withCopyFileToContainer(
                         forHostPath(envGeneralConfigDir.getPath("jvm.config")),
                         CONTAINER_TRINO_JVM_CONFIG);
+    }
+
+    private void configureCoordinatorTrinoContainer(DockerContainer container)
+    {
+        configureTrinoContainer(container);
+        container.withCopyFileToContainer(forHostPath(envConfigDir.getPath("master-config.properties")), CONTAINER_TRINO_CONFIG_PROPERTIES);
+    }
+
+    private void configureWorkerTrinoContainer(DockerContainer container)
+    {
+        configureTrinoContainer(container);
+        container.withCopyFileToContainer(forHostPath(envConfigDir.getPath("worker-config.properties")), CONTAINER_TRINO_CONFIG_PROPERTIES);
     }
 
     private void configureWarpResource(DockerContainer container)

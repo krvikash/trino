@@ -21,6 +21,7 @@ import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
+import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import org.intellij.lang.annotations.Language;
@@ -69,6 +70,81 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         new IcebergPlugin().getFunctions().forEach(functions::functions);
         queryRunner.addFunctions(functions.build());
         return queryRunner;
+    }
+
+    @Test
+    public void testCreateMultipleCatalogs()
+    {
+        String firstCatalog = "catalog_" + StringUtils.randomAlphanumeric(5);
+        String secondCatalog = "catalog2_" + StringUtils.randomAlphanumeric(5);
+        String renameCatalog = "catalog_rename_" + StringUtils.randomAlphanumeric(5);
+        @SuppressWarnings("InlineFormatString")
+        String expectedShowTemplate =
+                """
+                CREATE CATALOG %s USING warp_speed
+                WITH (
+                   "hive.metastore.uri" = '***',
+                   "iceberg.table-statistics-enabled" = '***',
+                   "warp-speed.proxied-connector" = '***'
+                )""";
+
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING warp_speed
+                WITH (
+                   "iceberg.table-statistics-enabled" = '%2$s',
+                   "warp-speed.proxied-connector" = 'iceberg',
+                   "hive.metastore.uri" = 'thrift://localhost:9083'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(firstCatalog, "true"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
+                    .isEqualTo(expectedShowTemplate.formatted(firstCatalog));
+            assertUpdate(createCatalogSql.formatted(secondCatalog, "false"));
+            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
+                    .contains(secondCatalog);
+            assertUpdate(
+                    """
+                    ALTER CATALOG %s RENAME TO %s
+                    """
+                            .formatted(firstCatalog, renameCatalog));
+            assertQueryFails("SHOW CREATE CATALOG " + firstCatalog, ".*Catalog '%s' not found".formatted(firstCatalog));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + renameCatalog);
+            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
+        }
+    }
+
+    @Test
+    public void testCreateReadingCatalog()
+    {
+        String schemaName = "schema_" + StringUtils.randomAlphanumeric(5);
+        String firstCatalog = "catalog_" + StringUtils.randomAlphanumeric(5);
+        String createCatalogSql =
+                """
+                CREATE CATALOG %1$s USING warp_speed
+                WITH (
+                   "iceberg.table-statistics-enabled" = '%2$s',
+                   "warp-speed.proxied-connector" = 'iceberg',
+                   "iceberg.catalog.type" =  'TESTING_FILE_METASTORE',
+                   "hive.metastore.catalog.dir" = 'file://%3$s',
+                   "fs.hadoop.enabled" = 'true'
+                )""";
+        try {
+            assertUpdate(createCatalogSql.formatted(firstCatalog, "true", hiveDir.toAbsolutePath()));
+            assertUpdate("CREATE SCHEMA %s.%s".formatted(firstCatalog, schemaName));
+            createTable(schemaName, "t", format("(%s integer, %s varchar(20))", C1, C2));
+
+            computeActual("INSERT INTO %s.%s.t VALUES (1, 'shlomi')".formatted(firstCatalog, schemaName));
+            MaterializedResult materializedRows = computeActual("SELECT * FROM %s.%s.t".formatted(firstCatalog, schemaName));
+            assertThat(materializedRows.getRowCount()).isEqualTo(1);
+            assertUpdate("DROP CATALOG " + firstCatalog);
+            assertUpdate(createCatalogSql.formatted(firstCatalog, "true", hiveDir.toAbsolutePath()));
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
+        }
     }
 
     @Test
