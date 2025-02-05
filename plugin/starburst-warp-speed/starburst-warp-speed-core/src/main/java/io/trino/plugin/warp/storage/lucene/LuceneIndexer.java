@@ -28,7 +28,6 @@ import io.trino.spi.TrinoException;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
-import org.apache.lucene.backward_codecs.lucene99.Lucene99Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
@@ -165,7 +164,6 @@ public class LuceneIndexer
             logDocMergePolicy.setMinMergeDocs(1_000_000);
 
             IndexWriterConfig config = new IndexWriterConfig(analyzer);
-            config.setCodec(new Lucene99Codec(Lucene99Codec.Mode.BEST_SPEED));
             config.setUseCompoundFile(true);
             config.setMergePolicy(logDocMergePolicy);
 
