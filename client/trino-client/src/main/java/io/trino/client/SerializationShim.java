@@ -18,13 +18,13 @@ import io.trino.client.spooling.Segment;
 
 import java.util.List;
 
-import static io.trino.client.JsonCodec.jsonCodec;
-import static io.trino.client.JsonCodec.listJsonCodec;
+import static io.trino.client.TrinoJsonCodec.jsonCodec;
+import static io.trino.client.TrinoJsonCodec.listJsonCodec;
 
 public class SerializationShim
 {
-    private static final JsonCodec<Segment> SEGMENT_CODEC = jsonCodec(Segment.class);
-    private static final JsonCodec<List<Column>> COLUMNS_CODEC = listJsonCodec(Column.class);
+    private static final TrinoJsonCodec<Segment> SEGMENT_CODEC = jsonCodec(Segment.class);
+    private static final TrinoJsonCodec<List<Column>> COLUMNS_CODEC = listJsonCodec(Column.class);
 
     private SerializationShim() {}
 
