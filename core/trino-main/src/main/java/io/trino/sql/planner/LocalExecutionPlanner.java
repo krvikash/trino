@@ -1193,6 +1193,9 @@ public class LocalExecutionPlanner
 
             List<Symbol> orderBySymbols = node.getOrderingScheme().orderBy();
             List<Integer> sortChannels = getChannelsForSymbols(orderBySymbols, source.getLayout());
+            List<Type> sortTypes = sortChannels.stream()
+                    .map(channel -> source.getTypes().get(channel))
+                    .collect(toImmutableList());
             List<SortOrder> sortOrder = orderBySymbols.stream()
                     .map(symbol -> node.getOrderingScheme().ordering(symbol))
                     .collect(toImmutableList());
@@ -1215,14 +1218,13 @@ public class LocalExecutionPlanner
                     partitionChannels,
                     partitionTypes,
                     sortChannels,
-                    sortOrder,
                     node.getMaxRankingPerPartition(),
                     isPartial,
                     hashChannel,
                     1000,
                     maxPartialTopNMemorySize,
                     hashStrategyCompiler,
-                    plannerContext.getTypeOperators(),
+                    orderingCompiler.compilePageWithPositionComparator(sortTypes, sortChannels, sortOrder),
                     blockTypeOperators);
 
             return new PhysicalOperation(operatorFactory, makeLayout(node), source);
