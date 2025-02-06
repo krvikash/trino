@@ -19,6 +19,7 @@ import io.trino.spi.TrinoException;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -70,7 +71,7 @@ class PredicateBufferPool
     void free(MemorySegment buff)
     {
         if (!queue.offer(buff)) {
-            throw new TrinoException(WARP_PREDICATE_BUFFER_ALLOCATION, String.format("failed to release predicate buffer to queue %s", this));
+            throw new TrinoException(WARP_PREDICATE_BUFFER_ALLOCATION, String.format(Locale.US, "failed to release predicate buffer to queue %s", this));
         }
     }
 

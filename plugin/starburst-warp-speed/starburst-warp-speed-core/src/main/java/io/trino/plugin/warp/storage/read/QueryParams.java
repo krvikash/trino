@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -228,7 +229,7 @@ public class QueryParams
     @Override
     public String toString()
     {
-        return String.format("rootMatchNode %s collectParamsList %s numLoadDataValues %d numLucene %d",
+        return String.format(Locale.US, "rootMatchNode %s collectParamsList %s numLoadDataValues %d numLucene %d",
                 rootMatchNode, collectParams, numLoadDataValues, numLucene);
     }
 

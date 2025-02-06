@@ -20,6 +20,7 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.TrinoException;
 
+import java.util.Locale;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -62,7 +63,7 @@ public class MatchCollectIdService
 
         if (!matchCollectIdsQueue.offer(id)) {
             logger.error("failed to release match collect id %d", id);
-            throw new TrinoException(WARP_MATCH_COLLECT_ID_ALLOCATION, String.format("failed to release match collect id %d", id));
+            throw new TrinoException(WARP_MATCH_COLLECT_ID_ALLOCATION, String.format(Locale.US, "failed to release match collect id %d", id));
         }
     }
 

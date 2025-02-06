@@ -34,6 +34,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -84,11 +85,11 @@ public class FailureGeneratorResource
             aClass = Class.forName(className);
         }
         catch (ClassNotFoundException e) {
-            throw new RuntimeException(String.format("class doesn't exist - %s", className));
+            throw new RuntimeException(String.format(Locale.US, "class doesn't exist - %s", className));
         }
         Optional<Method> m = Arrays.stream(aClass.getMethods()).filter(method -> method.getName().equals(methodName)).findFirst();
         if (m.isEmpty()) {
-            throw new RuntimeException(String.format("class + method doesn't exist - %s::%s", className, methodName));
+            throw new RuntimeException(String.format(Locale.US, "class + method doesn't exist - %s::%s", className, methodName));
         }
     }
 

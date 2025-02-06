@@ -38,6 +38,7 @@ import jakarta.ws.rs.core.MediaType;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -192,7 +193,7 @@ public class WarmupDemoterTask
     {
         Map<String, Object> res = new HashMap<>();
         allRes.forEach((workerIp, workerResMap) ->
-                workerResMap.forEach((k, v) -> res.put(String.format("%s:%s", workerIp, k), v)));
+                workerResMap.forEach((k, v) -> res.put(String.format(Locale.US, "%s:%s", workerIp, k), v)));
 
         logger.debug("mergeResults: %s", res);
         return res;

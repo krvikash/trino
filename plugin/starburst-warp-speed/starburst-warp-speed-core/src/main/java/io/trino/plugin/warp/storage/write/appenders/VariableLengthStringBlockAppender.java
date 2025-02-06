@@ -29,6 +29,7 @@ import io.trino.spi.type.Type;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
+import java.util.Locale;
 import java.util.function.Function;
 
 /**
@@ -97,7 +98,7 @@ public class VariableLengthStringBlockAppender
         if (slice.length() > warmDataVarcharMaxLengthWithDictionary) {
             // we do not warm data that has a string longer than max supported
             throw new WarmupException(
-                    String.format("appendVarlenBlock with dictionary found a string length %d longer than max %d", slice.length(), warmDataVarcharMaxLengthWithDictionary),
+                    String.format(Locale.US, "appendVarlenBlock with dictionary found a string length %d longer than max %d", slice.length(), warmDataVarcharMaxLengthWithDictionary),
                     WarmUpElementState.State.FAILED_PERMANENTLY);
         }
         return sliceConverter.apply(slice);
@@ -146,7 +147,7 @@ public class VariableLengthStringBlockAppender
                 if (value.length() > warmDataVarcharMaxLength) {
                     // we do not warm data that has a string longer than max supported
                     throw new WarmupException(
-                            String.format("appendVarlenBlock found a string length %d longer than max %d", value.length(), warmDataVarcharMaxLength),
+                            String.format(Locale.US, "appendVarlenBlock found a string length %d longer than max %d", value.length(), warmDataVarcharMaxLength),
                             WarmUpElementState.State.FAILED_PERMANENTLY);
                 }
                 value = sliceConverter.apply(value);

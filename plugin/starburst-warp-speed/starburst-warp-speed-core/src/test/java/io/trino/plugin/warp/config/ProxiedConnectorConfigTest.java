@@ -15,6 +15,8 @@ package io.trino.plugin.warp.config;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Locale;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -26,12 +28,12 @@ public class ProxiedConnectorConfigTest
         ProxiedConnectorConfig proxiedConnectorConfig = new ProxiedConnectorConfig();
 
         proxiedConnectorConfig.setPassThroughDispatcherSet(
-                String.format(" %s , %s ", ProxiedConnectorConfig.HUDI_CONNECTOR_NAME, ProxiedConnectorConfig.HIVE_CONNECTOR_NAME));
+                String.format(Locale.US, " %s , %s ", ProxiedConnectorConfig.HUDI_CONNECTOR_NAME, ProxiedConnectorConfig.HIVE_CONNECTOR_NAME));
         assertThat(proxiedConnectorConfig.getPassThroughDispatcherSet())
                 .containsExactlyInAnyOrder(ProxiedConnectorConfig.HUDI_CONNECTOR_NAME, ProxiedConnectorConfig.HIVE_CONNECTOR_NAME);
 
         proxiedConnectorConfig.setPassThroughDispatcherSet(
-                String.format(" %s,%s, %s ",
+                String.format(Locale.US, " %s,%s, %s ",
                         ProxiedConnectorConfig.HUDI_CONNECTOR_NAME,
                         ProxiedConnectorConfig.HIVE_CONNECTOR_NAME,
                         ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME));

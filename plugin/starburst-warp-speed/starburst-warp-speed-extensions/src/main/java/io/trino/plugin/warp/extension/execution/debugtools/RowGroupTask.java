@@ -35,6 +35,7 @@ import jakarta.ws.rs.core.MediaType;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -129,7 +130,7 @@ public class RowGroupTask
     {
         Map<String, Integer> res = new HashMap<>();
         allRes.forEach((workerIp, workerResMap) ->
-                workerResMap.forEach((k, v) -> res.put(String.format("%s:%s", workerIp, k), v)));
+                workerResMap.forEach((k, v) -> res.put(String.format(Locale.US, "%s:%s", workerIp, k), v)));
         return res;
     }
 

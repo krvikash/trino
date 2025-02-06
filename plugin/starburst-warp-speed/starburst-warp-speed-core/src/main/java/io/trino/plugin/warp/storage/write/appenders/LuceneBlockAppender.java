@@ -23,6 +23,7 @@ import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 
 import java.io.IOException;
+import java.util.Locale;
 
 public class LuceneBlockAppender
         extends DataBlockAppender // since it does not use aggregates in the chunk header, it acts like data
@@ -70,7 +71,7 @@ public class LuceneBlockAppender
         }
         catch (Exception e) {
             throw new WarmupException(
-                    String.format("failed indexing value at position %d", blockPos.getPos()),
+                    String.format(Locale.US, "failed indexing value at position %d", blockPos.getPos()),
                     WarmUpElementState.State.FAILED_PERMANENTLY);
         }
         return new AppendResult(nullsCount);

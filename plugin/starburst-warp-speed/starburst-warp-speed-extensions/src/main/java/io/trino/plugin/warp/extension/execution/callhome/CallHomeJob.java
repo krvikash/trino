@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -203,7 +204,7 @@ public class CallHomeJob
                         File file = tempFile.orElse(srcFile);
                         String key = String.join("/", uploadPath, fileToUpload.getRight());
                         cloudVendorService.uploadFileToCloud(file.getPath(), key);
-                        traceLogBuilder.append(String.format("uploading file %s to %s", file.getPath(), key));
+                        traceLogBuilder.append(String.format(Locale.US, "uploading file %s to %s", file.getPath(), key));
                         numberOfUploaded++;
                         logger.debug("uploaded file %s to %s", file.getPath(), key);
                     }

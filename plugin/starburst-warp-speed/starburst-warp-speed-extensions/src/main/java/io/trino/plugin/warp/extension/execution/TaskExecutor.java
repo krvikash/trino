@@ -44,6 +44,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -120,7 +121,7 @@ public class TaskExecutor
                     }
 
                     if (isTaskDataClass(parameterClass) && method.getParameterCount() > 1) {
-                        throw new RuntimeException(String.format(TOO_MANY_TASK_DATA_PARAMS, taskName, method.getParameterCount()));
+                        throw new RuntimeException(String.format(Locale.US, TOO_MANY_TASK_DATA_PARAMS, taskName, method.getParameterCount()));
                     }
 
                     taskInvocationParameterBuilder.add(new TaskInvocationParameter(parameterName, parameterClass, parameterTypeClass));
@@ -246,7 +247,7 @@ public class TaskExecutor
             if (ite.getTargetException() != null && ite.getTargetException() instanceof TrinoException) {
                 throw (TrinoException) ite.getTargetException();
             }
-            throw new RuntimeException(String.format("Task '%s' execution failed", taskName), ite);
+            throw new RuntimeException(String.format(Locale.US, "Task '%s' execution failed", taskName), ite);
         }
         catch (IllegalAccessException | IllegalArgumentException | IOException e) {
             throw new RuntimeException(format("Task '%s' execution failed with params %s", taskName, dataStr), e);

@@ -18,6 +18,7 @@ import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 
+import java.util.Locale;
 import java.util.function.Function;
 
 public class TransformedCrcDateBlockAppender
@@ -41,7 +42,7 @@ public class TransformedCrcDateBlockAppender
         catch (Exception e) {
             String invalidSlice = blockPos.getSlice().toStringUtf8();
             throw new WarmupException(
-                    String.format("failed to transform %s into date format", invalidSlice),
+                    String.format(Locale.US, "failed to transform %s into date format", invalidSlice),
                     WarmUpElementState.State.FAILED_PERMANENTLY);
         }
     }

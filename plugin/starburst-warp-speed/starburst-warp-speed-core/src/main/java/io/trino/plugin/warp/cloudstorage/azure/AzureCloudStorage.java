@@ -28,6 +28,7 @@ import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorageService;
 
 import java.io.IOException;
+import java.util.Locale;
 
 import static io.trino.plugin.warp.cloudstorage.azure.AzureUtils.handleAzureException;
 import static java.util.Objects.requireNonNull;
@@ -137,7 +138,7 @@ public class AzureCloudStorage
         BlobContainerClientBuilder builder = new BlobContainerClientBuilder()
                 .httpClient(httpClient)
                 .clientOptions(new ClientOptions().setTracingOptions(tracingOptions))
-                .endpoint(String.format("https://%s.blob.core.windows.net", location.account()));
+                .endpoint(String.format(Locale.US, "https://%s.blob.core.windows.net", location.account()));
         azureAuth.setAuth(location.account(), builder);
         location.container().ifPresent(builder::containerName);
         return builder.buildClient();

@@ -16,6 +16,7 @@ package io.trino.plugin.warp.cloudstorage.azure;
 import com.google.common.base.CharMatcher;
 import io.trino.filesystem.Location;
 
+import java.util.Locale;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -36,7 +37,7 @@ class AzureLocation
     {
         this.location = requireNonNull(location, "location is null");
         // abfss is also supported but not documented
-        String scheme = location.scheme().orElseThrow(() -> new IllegalArgumentException(String.format(INVALID_LOCATION_MESSAGE, location)));
+        String scheme = location.scheme().orElseThrow(() -> new IllegalArgumentException(String.format(Locale.US, INVALID_LOCATION_MESSAGE, location)));
         checkArgument("abfs".equals(scheme) || "abfss".equals(scheme), INVALID_LOCATION_MESSAGE, location);
 
         // container is interpolated into the URL path, so perform extra checks

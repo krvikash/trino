@@ -29,6 +29,7 @@ import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -62,7 +63,7 @@ public class ArrayBlockToVarcharBlockTransformer
         }
         else {
             throw new WarmupException(
-                    String.format("unsupported buffer type, received type %s", bufferType),
+                    String.format(Locale.US, "unsupported buffer type, received type %s", bufferType),
                     WarmUpElementState.State.FAILED_PERMANENTLY);
         }
         return new BlockPosHolder(convertedBlock, VarcharType.VARCHAR, 0, convertedBlock.getPositionCount());

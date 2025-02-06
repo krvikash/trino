@@ -35,6 +35,7 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -134,7 +135,7 @@ class MatchPrepareAfterCollectClassifier
                             deletedMatchData,
                             maxMatchColumns,
                             correspondingMatchCollects.isEmpty() ? "" :
-                                    String.format(". In addition, updated / removed the corresponding %s since they were match-collected using this MatchData", correspondingMatchCollects));
+                                    String.format(Locale.US, ". In addition, updated / removed the corresponding %s since they were match-collected using this MatchData", correspondingMatchCollects));
                 }
             }
             sortedMatchDatas.addAll(matchCollects);

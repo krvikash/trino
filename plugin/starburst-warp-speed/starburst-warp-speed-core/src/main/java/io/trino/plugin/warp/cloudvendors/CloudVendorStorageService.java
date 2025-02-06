@@ -39,6 +39,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -68,7 +69,7 @@ public class CloudVendorStorageService
         Location location = getLocation(outputPath);
         TrinoOutputFile outputFile = cloudStorage.newOutputFile(location);
 
-        String message = String.format("uploadToCloud bytes length %d => location [%s]", bytes.length, location);
+        String message = String.format(Locale.US, "uploadToCloud bytes length %d => location [%s]", bytes.length, location);
         logger.debug(message);
 
         try (OutputStream outputStream = outputFile.create()) {
@@ -120,7 +121,7 @@ public class CloudVendorStorageService
         Location location = getLocation(cloudPath);
         TrinoInputFile inputFile = cloudStorage.newInputFile(location);
 
-        String message = String.format("downloadCompressedFromCloud location [%s]", location);
+        String message = String.format(Locale.US, "downloadCompressedFromCloud location [%s]", location);
 
         try (TrinoInput input = inputFile.newInput()) {
             int length = (int) inputFile.length();
@@ -147,7 +148,7 @@ public class CloudVendorStorageService
         Location location = getLocation(cloudPath);
         TrinoInputFile inputFile = cloudStorage.newInputFile(location);
 
-        String message = String.format("downloadRangeFromCloud location [%s] startOffset %d length %d",
+        String message = String.format(Locale.US, "downloadRangeFromCloud location [%s] startOffset %d length %d",
                 location, startOffset, length);
         logger.debug(message);
 
@@ -183,7 +184,7 @@ public class CloudVendorStorageService
         Location source = getLocation(cloudPath);
         Location destination = getLocation(cloudPath + getTempFileSuffix());
 
-        String message = String.format("appendOnCloud source [%s] => destination [%s] metadata %s startOffset %d",
+        String message = String.format(Locale.US, "appendOnCloud source [%s] => destination [%s] metadata %s startOffset %d",
                 source, destination, metadata, startOffset);
         logger.debug(message);
 
@@ -240,7 +241,7 @@ public class CloudVendorStorageService
     {
         Location location = getLocation(cloudPath);
 
-        String message = String.format("listPath location [%s] isTopLevel %s", location, isTopLevel);
+        String message = String.format(Locale.US, "listPath location [%s] isTopLevel %s", location, isTopLevel);
         logger.debug(message);
 
         try {

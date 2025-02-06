@@ -41,6 +41,7 @@ import io.trino.spi.transaction.IsolationLevel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -214,7 +215,7 @@ public abstract class DispatcherConnectorBase
         }
         catch (Exception e) {
             logger.warn(e, "failed to execute connector task %s", taskJsonData);
-            throw new RuntimeException(String.format("failed to execute connector task %s", taskJsonData));
+            throw new RuntimeException(String.format(Locale.US, "failed to execute connector task %s", taskJsonData));
         }
     }
 

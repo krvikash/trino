@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -53,7 +54,7 @@ record WarmupElementDictionaryParams(DictionaryKey dictionaryKey,
     @Override
     public String toString()
     {
-        return String.format("dictionaryKey %s usedDictionarySize %d dataValuesRecTypeCode %s dataValuesRecTypeLength %d dictionaryOffset %d",
+        return String.format(Locale.US, "dictionaryKey %s usedDictionarySize %d dataValuesRecTypeCode %s dataValuesRecTypeLength %d dictionaryOffset %d",
                 dictionaryKey, usedDictionarySize, dataValuesRecTypeCode, dataValuesRecTypeLength, dictionaryOffset);
     }
 }

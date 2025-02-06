@@ -34,6 +34,7 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Random;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -81,7 +82,7 @@ public class WorkerCapacityManagerTest
         try {
             int numFiles = 10;
             for (int i = 0; i < numFiles; i++) {
-                String tempFileName = String.format(catalogLocalStorePath + "/test/case-%d/bucket/schema/table/part-%05d-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/", i, i);
+                String tempFileName = String.format(Locale.US, catalogLocalStorePath + "/test/case-%d/bucket/schema/table/part-%05d-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/", i, i);
                 unused = new File(tempFileName).mkdirs();
                 File tempFile = new File(tempFileName + "1549797223000-" + i);
 

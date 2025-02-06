@@ -28,6 +28,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import java.util.Locale;
+
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -59,7 +61,7 @@ public class WarpExtResource
         }
         catch (Exception e) {
             logger.warn(e, "failed to execute connector task %s", taskJsonData);
-            throw new RuntimeException(String.format("failed to execute connector task %s", taskJsonData), e);
+            throw new RuntimeException(String.format(Locale.US, "failed to execute connector task %s", taskJsonData), e);
         }
     }
 

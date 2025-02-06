@@ -60,6 +60,7 @@ import io.trino.spi.type.Type;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.ValueLayout;
+import java.util.Locale;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
@@ -427,7 +428,7 @@ public class StorageWriterService
         WarmUpElement abortedWarmupElement = storageWriterContext.getWarmupElementBuilder().build();
         if (nativeThrowed) {
             logger.error("warm failed path %s native throwed on element %s", storageWriterSplitConfig.rowGroupFilePath(), abortedWarmupElement);
-            metricsTimerTask.print(false, Optional.of(String.format("warm failed path %s native throwed on element %s", storageWriterSplitConfig.rowGroupFilePath(), abortedWarmupElement)));
+            metricsTimerTask.print(false, Optional.of(String.format(Locale.US, "warm failed path %s native throwed on element %s", storageWriterSplitConfig.rowGroupFilePath(), abortedWarmupElement)));
         }
         return abortedWarmupElement;
     }

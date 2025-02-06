@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.StringJoiner;
@@ -137,7 +138,7 @@ public class DispatcherPageSource
         boolean finishedOnPractice = warpPageRanges.isEmpty() && warpPageSource.isFinished();
 
         if (emptyPagesCounter == maxEmptyPageSourceIterations) {
-            String info = String.format("queryId=%s, finishedOnPractice=%b, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
+            String info = String.format(Locale.US, "queryId=%s, finishedOnPractice=%b, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
                             "currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, " +
                             "wasProxiedPagedLoaded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",
                     queryContext.getQueryId(),

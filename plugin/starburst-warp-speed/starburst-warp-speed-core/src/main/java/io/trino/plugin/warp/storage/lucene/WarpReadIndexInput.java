@@ -24,6 +24,7 @@ import org.apache.lucene.store.IndexInput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -78,7 +79,7 @@ public class WarpReadIndexInput
         this.sliceOffset = sliceOffset;
         this.sliceDescription = sliceDescription;
         this.digest = new BufferedChecksum(new CRC32());
-        this.logPrefix = String.format("%d(%s_%s_%d-%d)", indexUniqueIdInRowGroup, luceneFileType, sliceDescription, sliceOffset, sliceOffset + length);
+        this.logPrefix = String.format(Locale.US, "%d(%s_%s_%d-%d)", indexUniqueIdInRowGroup, luceneFileType, sliceDescription, sliceOffset, sliceOffset + length);
         this.pageSize = storageEngineConstants.getPageSize();
         currentPageIndex = (int) (sliceOffset / pageSize);
         setCurrentBuffer();

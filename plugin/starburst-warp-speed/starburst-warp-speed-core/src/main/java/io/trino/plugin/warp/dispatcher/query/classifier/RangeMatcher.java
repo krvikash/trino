@@ -37,6 +37,7 @@ import io.trino.spi.type.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -195,7 +196,7 @@ public class RangeMatcher
             }
         }
         else {
-            String errorMsg = String.format("cant find match for type=%s minValue=%s, maxValue=%s", type, minValue.getClass().getName(), maxValue.getClass().getName());
+            String errorMsg = String.format(Locale.US, "cant find match for type=%s minValue=%s, maxValue=%s", type, minValue.getClass().getName(), maxValue.getClass().getName());
             throw new IllegalArgumentException(errorMsg);
         }
         return res;

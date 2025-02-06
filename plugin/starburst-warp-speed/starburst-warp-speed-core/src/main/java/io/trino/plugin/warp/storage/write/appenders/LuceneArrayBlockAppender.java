@@ -25,6 +25,7 @@ import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 import io.trino.spi.block.Block;
 
 import java.io.IOException;
+import java.util.Locale;
 
 import static io.trino.plugin.warp.storage.lucene.LuceneIndexer.LUCENE_NULL_STRING;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -73,7 +74,7 @@ public class LuceneArrayBlockAppender
         }
         catch (Exception e) {
             throw new WarmupException(
-                    String.format("failed indexing value at position %d", blockPos.getPos()),
+                    String.format(Locale.US, "failed indexing value at position %d", blockPos.getPos()),
                     WarmUpElementState.State.FAILED_PERMANENTLY);
         }
         return new AppendResult(nullsCount);

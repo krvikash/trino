@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
@@ -35,7 +36,7 @@ class FlowPriorityQueue
     {
         String flowKey = createKey(flowType, flowId);
         if (pendingFlows.containsKey(flowKey)) {
-            throw new RuntimeException(String.format("flow %s already exists", flowKey));
+            throw new RuntimeException(String.format(Locale.US, "flow %s already exists", flowKey));
         }
         Flow flow = new Flow(new CompletableFuture<>(), flowId, flowType, additionalInfo);
         priorityQueue.add(flow);

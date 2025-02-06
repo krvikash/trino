@@ -27,6 +27,7 @@ import io.trino.spi.TrinoException;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
+import java.util.Locale;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 
@@ -78,7 +79,7 @@ public abstract class BaseCollectTxService
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         if (!success) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
-                    String.format("openChunk failed unexpectedly chunkIndex %d", chunkIndex));
+                    String.format(Locale.US, "openChunk failed unexpectedly chunkIndex %d", chunkIndex));
         }
     }
 

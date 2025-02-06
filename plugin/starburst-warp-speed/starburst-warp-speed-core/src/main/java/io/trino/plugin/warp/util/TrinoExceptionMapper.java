@@ -19,6 +19,7 @@ import io.trino.spi.TrinoException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 
+import java.util.Locale;
 import java.util.Optional;
 
 import static jakarta.ws.rs.core.HttpHeaders.CONTENT_TYPE;
@@ -38,7 +39,7 @@ public class TrinoExceptionMapper
         if (trinoExceptionOpt.isPresent()) {
             Optional<WarpErrorCode> warpErrorCodeOpt = getFromCode(trinoExceptionOpt.get().getErrorCode().getCode());
             if (warpErrorCodeOpt.isPresent()) {
-                message = String.format("%s (code %d)", trinoExceptionOpt.get().getMessage(), trinoExceptionOpt.get().getErrorCode().getCode() - WARP_ERROR_CODE_OFFSET);
+                message = String.format(Locale.US, "%s (code %d)", trinoExceptionOpt.get().getMessage(), trinoExceptionOpt.get().getErrorCode().getCode() - WARP_ERROR_CODE_OFFSET);
             }
         }
 

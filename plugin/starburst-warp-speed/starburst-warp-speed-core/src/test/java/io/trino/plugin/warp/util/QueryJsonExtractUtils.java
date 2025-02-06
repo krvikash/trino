@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
@@ -121,7 +122,7 @@ public class QueryJsonExtractUtils
         for (JsonNode node : operatorsNode) {
             ObjectNode convertedNode = convertNode((ObjectNode) node);
             if (convertedNode != null) {
-                String key = String.format("%2d_%2d_%2d_%2d", convertedNode.get("1.stageId").intValue(), convertedNode.get("2.pipelineId").intValue(), convertedNode.get("3.alternativeId").intValue(), convertedNode.get("4.operatorId").intValue());
+                String key = String.format(Locale.US, "%2d_%2d_%2d_%2d", convertedNode.get("1.stageId").intValue(), convertedNode.get("2.pipelineId").intValue(), convertedNode.get("3.alternativeId").intValue(), convertedNode.get("4.operatorId").intValue());
                 s.put(key, convertedNode);
             }
         }
@@ -187,7 +188,7 @@ public class QueryJsonExtractUtils
 
     private static String getKey(String key)
     {
-        return String.format("%2s", key.trim());
+        return String.format(Locale.US, "%2s", key.trim());
     }
 
     private static ObjectNode convertNode(ObjectNode node)

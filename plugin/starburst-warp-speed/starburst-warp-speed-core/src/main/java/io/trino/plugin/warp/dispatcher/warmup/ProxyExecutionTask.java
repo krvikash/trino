@@ -43,6 +43,7 @@ import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -230,7 +231,7 @@ public class ProxyExecutionTask
                 eventBus.post(new WarmingFinishedEvent(rowGroupKey, session));
                 break;
             default:
-                throw new RuntimeException(String.format("state: %s is not valid, only warm or NOTHING_TO_WARM are valid", warmExecutionState));
+                throw new RuntimeException(String.format(Locale.US, "state: %s is not valid, only warm or NOTHING_TO_WARM are valid", warmExecutionState));
         }
     }
 
