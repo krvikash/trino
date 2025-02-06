@@ -1972,10 +1972,13 @@ public class LocalExecutionPlanner
 
             List<Symbol> orderBySymbols = node.getOrderingScheme().orderBy();
 
+            List<Type> sortTypes = new ArrayList<>();
             List<Integer> sortChannels = new ArrayList<>();
             List<SortOrder> sortOrders = new ArrayList<>();
             for (Symbol symbol : orderBySymbols) {
-                sortChannels.add(source.getLayout().get(symbol));
+                int sortChannel = source.getLayout().get(symbol);
+                sortTypes.add(source.getTypes().get(sortChannel));
+                sortChannels.add(sortChannel);
                 sortOrders.add(node.getOrderingScheme().ordering(symbol));
             }
 
@@ -1984,9 +1987,7 @@ public class LocalExecutionPlanner
                     node.getId(),
                     source.getTypes(),
                     (int) node.getCount(),
-                    sortChannels,
-                    sortOrders,
-                    plannerContext.getTypeOperators());
+                    orderingCompiler.compilePageWithPositionComparator(sortTypes, sortChannels, sortOrders));
 
             return new PhysicalOperation(operator, source.getLayout(), source);
         }
