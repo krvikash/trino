@@ -380,9 +380,9 @@ public class QueryManagerConfig
     }
 
     @Config("query.manager-executor-pool-size")
-    public QueryManagerConfig setQueryManagerExecutorPoolSize(int queryManagerExecutorPoolSize)
+    public QueryManagerConfig setQueryManagerExecutorPoolSize(String queryManagerExecutorPoolSize)
     {
-        this.queryManagerExecutorPoolSize = queryManagerExecutorPoolSize;
+        this.queryManagerExecutorPoolSize = ThreadCountParser.DEFAULT.parse(queryManagerExecutorPoolSize);
         return this;
     }
 
@@ -393,9 +393,9 @@ public class QueryManagerConfig
     }
 
     @Config("query.executor-pool-size")
-    public QueryManagerConfig setQueryExecutorPoolSize(int queryExecutorPoolSize)
+    public QueryManagerConfig setQueryExecutorPoolSize(String queryExecutorPoolSize)
     {
-        this.queryExecutorPoolSize = queryExecutorPoolSize;
+        this.queryExecutorPoolSize = ThreadCountParser.DEFAULT.parse(queryExecutorPoolSize);
         return this;
     }
 
@@ -407,9 +407,9 @@ public class QueryManagerConfig
 
     @Config("query.max-state-machine-callback-threads")
     @ConfigDescription("The maximum number of threads allowed to run query and stage state machine listener callbacks concurrently for each query")
-    public QueryManagerConfig setMaxStateMachineCallbackThreads(int maxStateMachineCallbackThreads)
+    public QueryManagerConfig setMaxStateMachineCallbackThreads(String maxStateMachineCallbackThreads)
     {
-        this.maxStateMachineCallbackThreads = maxStateMachineCallbackThreads;
+        this.maxStateMachineCallbackThreads = ThreadCountParser.DEFAULT.parse(maxStateMachineCallbackThreads);
         return this;
     }
 
@@ -421,9 +421,9 @@ public class QueryManagerConfig
 
     @Config("query.max-split-manager-callback-threads")
     @ConfigDescription("The maximum number of threads allowed to run splits generation callbacks concurrently")
-    public QueryManagerConfig setMaxSplitManagerCallbackThreads(int maxSplitManagerCallbackThreads)
+    public QueryManagerConfig setMaxSplitManagerCallbackThreads(String maxSplitManagerCallbackThreads)
     {
-        this.maxSplitManagerCallbackThreads = maxSplitManagerCallbackThreads;
+        this.maxSplitManagerCallbackThreads = ThreadCountParser.DEFAULT.parse(maxSplitManagerCallbackThreads);
         return this;
     }
 
@@ -527,9 +527,9 @@ public class QueryManagerConfig
     }
 
     @Config("query.dispatcher-query-pool-size")
-    public QueryManagerConfig setDispatcherQueryPoolSize(int dispatcherQueryPoolSize)
+    public QueryManagerConfig setDispatcherQueryPoolSize(String dispatcherQueryPoolSize)
     {
-        this.dispatcherQueryPoolSize = dispatcherQueryPoolSize;
+        this.dispatcherQueryPoolSize = ThreadCountParser.DEFAULT.parse(dispatcherQueryPoolSize);
         return this;
     }
 
@@ -540,9 +540,9 @@ public class QueryManagerConfig
     }
 
     @Config("query.remote-task.max-callback-threads")
-    public QueryManagerConfig setRemoteTaskMaxCallbackThreads(int remoteTaskMaxCallbackThreads)
+    public QueryManagerConfig setRemoteTaskMaxCallbackThreads(String remoteTaskMaxCallbackThreads)
     {
-        this.remoteTaskMaxCallbackThreads = remoteTaskMaxCallbackThreads;
+        this.remoteTaskMaxCallbackThreads = ThreadCountParser.DEFAULT.parse(remoteTaskMaxCallbackThreads);
         return this;
     }
 
