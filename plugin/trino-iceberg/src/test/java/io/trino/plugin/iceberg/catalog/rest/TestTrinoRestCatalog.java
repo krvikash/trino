@@ -32,10 +32,11 @@ import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.type.TestingTypeManager;
 import org.apache.iceberg.rest.DelegatingRestSessionCatalog;
 import org.apache.iceberg.rest.RESTSessionCatalog;
-import org.assertj.core.util.Files;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 
@@ -58,14 +59,16 @@ public class TestTrinoRestCatalog
 {
     @Override
     protected TrinoCatalog createTrinoCatalog(boolean useUniqueTableLocations)
+            throws IOException
     {
         return createTrinoRestCatalog(useUniqueTableLocations, ImmutableMap.of());
     }
 
     private static TrinoRestCatalog createTrinoRestCatalog(boolean useUniqueTableLocations, Map<String, String> properties)
+            throws IOException
     {
-        File warehouseLocation = Files.newTemporaryFolder();
-        warehouseLocation.deleteOnExit();
+        Path warehouseLocation = Files.createTempDirectory(null);
+        warehouseLocation.toFile().deleteOnExit();
 
         String catalogName = "iceberg_rest";
         RESTSessionCatalog restSessionCatalog = DelegatingRestSessionCatalog
@@ -92,6 +95,7 @@ public class TestTrinoRestCatalog
     @Test
     @Override
     public void testNonLowercaseNamespace()
+            throws Exception
     {
         TrinoCatalog catalog = createTrinoCatalog(false);
 
@@ -140,6 +144,7 @@ public class TestTrinoRestCatalog
 
     @Test
     public void testPrefix()
+            throws Exception
     {
         TrinoCatalog catalog = createTrinoRestCatalog(false, ImmutableMap.of("prefix", "dev"));
 
