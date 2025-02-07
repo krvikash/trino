@@ -35,6 +35,8 @@ import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
 import jakarta.annotation.PreDestroy;
+import software.amazon.awssdk.auth.signer.AwsS3V4Signer;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -152,6 +154,7 @@ public class S3SpoolingStorage
     private PutObjectRequest createPutObjectRequest(String fileName)
     {
         PutObjectRequest.Builder requestBuilder = PutObjectRequest.builder()
+                .overrideConfiguration(disableStrongIntegrityChecksums())
                 .bucket(bucketName)
                 .key(fileName);
         if (compatibilityMode == AWS) {
@@ -202,6 +205,7 @@ public class S3SpoolingStorage
                 Futures.allAsList(listObjectsFuturesBuilder.build()),
                 nestedList -> Futures.allAsList(Lists.partition(nestedList.stream().flatMap(Collection::stream).collect(toImmutableList()), 1000).stream().map(list -> {
                     DeleteObjectsRequest request = DeleteObjectsRequest.builder()
+                            .overrideConfiguration(disableStrongIntegrityChecksums())
                             .bucket(bucketName)
                             .delete(Delete.builder().objects(list.stream().map(key -> ObjectIdentifier.builder().key(key).build()).collect(toImmutableList())).build())
                             .build();
@@ -214,6 +218,7 @@ public class S3SpoolingStorage
     public ListenableFuture<Void> writeMetadataFile(long bufferNodeId, Slice metadataSlice)
     {
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .overrideConfiguration(disableStrongIntegrityChecksums())
                 .bucket(bucketName)
                 .key(getMetadataFileName(bufferNodeId))
                 .build();
@@ -258,5 +263,15 @@ public class S3SpoolingStorage
             }
             batch.submit();
         })));
+    }
+
+    // TODO (https://github.com/trinodb/trino/issues/24955):
+    // remove me once all of the S3-compatible storage support strong integrity checks
+    @SuppressWarnings("deprecation")
+    private static AwsRequestOverrideConfiguration disableStrongIntegrityChecksums()
+    {
+        return AwsRequestOverrideConfiguration.builder()
+                .signer(AwsS3V4Signer.create())
+                .build();
     }
 }
