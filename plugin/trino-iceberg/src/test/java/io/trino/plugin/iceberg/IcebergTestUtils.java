@@ -198,7 +198,7 @@ public final class IcebergTestUtils
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
                 new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 directExecutor());
-        return (BaseTable) loadIcebergTable(catalog, tableOperationsProvider, SESSION, new SchemaTableName(schemaName, tableName));
+        return loadIcebergTable(catalog, tableOperationsProvider, SESSION, new SchemaTableName(schemaName, tableName));
     }
 
     public static Map<String, Long> getMetadataFileAndUpdatedMillis(TrinoFileSystem trinoFileSystem, String tableLocation)

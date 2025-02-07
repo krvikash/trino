@@ -534,7 +534,7 @@ public class IcebergMetadata
 
         BaseTable table;
         try {
-            table = (BaseTable) catalog.loadTable(session, new SchemaTableName(tableName.getSchemaName(), tableName.getTableName()));
+            table = catalog.loadTable(session, new SchemaTableName(tableName.getSchemaName(), tableName.getTableName()));
         }
         catch (TableNotFoundException e) {
             return null;
@@ -890,7 +890,7 @@ public class IcebergMetadata
         IcebergTableHandle tableHandle = checkValidTableHandle(table);
         // This method does not calculate column metadata for the projected columns
         checkArgument(tableHandle.getProjectedColumns().isEmpty(), "Unexpected projected columns");
-        Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
+        BaseTable icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
         List<ColumnMetadata> columns = getColumnMetadatas(SchemaParser.fromJson(tableHandle.getTableSchemaJson()), typeManager);
         return new ConnectorTableMetadata(tableHandle.getSchemaTableName(), columns, getIcebergTableProperties(icebergTable), getTableComment(icebergTable));
     }
@@ -1872,11 +1872,11 @@ public class IcebergMetadata
             IcebergTableHandle table)
     {
         IcebergOptimizeHandle optimizeHandle = (IcebergOptimizeHandle) executeHandle.procedureHandle();
-        Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
 
         validateNotModifyingOldSnapshot(table, icebergTable);
 
-        int tableFormatVersion = ((BaseTable) icebergTable).operations().current().formatVersion();
+        int tableFormatVersion = icebergTable.operations().current().formatVersion();
         if (tableFormatVersion > OPTIMIZE_MAX_SUPPORTED_TABLE_VERSION) {
             throw new TrinoException(NOT_SUPPORTED, format(
                     "%s is not supported for Iceberg table format version > %d. Table %s format version is %s.",
@@ -2070,7 +2070,7 @@ public class IcebergMetadata
     {
         checkArgument(executeHandle.procedureHandle() instanceof IcebergOptimizeManifestsHandle, "Unexpected procedure handle %s", executeHandle.procedureHandle());
 
-        BaseTable icebergTable = (BaseTable) catalog.loadTable(session, executeHandle.schemaTableName());
+        BaseTable icebergTable = catalog.loadTable(session, executeHandle.schemaTableName());
         List<ManifestFile> manifests = icebergTable.currentSnapshot().allManifests(icebergTable.io());
         if (manifests.isEmpty()) {
             return;
@@ -2114,7 +2114,7 @@ public class IcebergMetadata
     {
         IcebergExpireSnapshotsHandle expireSnapshotsHandle = (IcebergExpireSnapshotsHandle) executeHandle.procedureHandle();
 
-        Table table = catalog.loadTable(session, executeHandle.schemaTableName());
+        BaseTable table = catalog.loadTable(session, executeHandle.schemaTableName());
         Duration retention = requireNonNull(expireSnapshotsHandle.retentionThreshold(), "retention is null");
         validateTableExecuteParameters(
                 table,
@@ -2156,7 +2156,7 @@ public class IcebergMetadata
     }
 
     private static void validateTableExecuteParameters(
-            Table table,
+            BaseTable table,
             SchemaTableName schemaTableName,
             String procedureName,
             Duration retentionThreshold,
@@ -2164,7 +2164,7 @@ public class IcebergMetadata
             String minRetentionParameterName,
             String sessionMinRetentionParameterName)
     {
-        int tableFormatVersion = ((BaseTable) table).operations().current().formatVersion();
+        int tableFormatVersion = table.operations().current().formatVersion();
         if (tableFormatVersion > CLEANING_UP_PROCEDURES_MAX_SUPPORTED_TABLE_VERSION) {
             // It is not known if future version won't bring any new kind of metadata or data files
             // because of the way procedures are implemented it is safer to fail here than to potentially remove
@@ -2196,7 +2196,7 @@ public class IcebergMetadata
     {
         IcebergRemoveOrphanFilesHandle removeOrphanFilesHandle = (IcebergRemoveOrphanFilesHandle) executeHandle.procedureHandle();
 
-        Table table = catalog.loadTable(session, executeHandle.schemaTableName());
+        BaseTable table = catalog.loadTable(session, executeHandle.schemaTableName());
         Duration retention = requireNonNull(removeOrphanFilesHandle.retentionThreshold(), "retention is null");
         validateTableExecuteParameters(
                 table,

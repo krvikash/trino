@@ -41,7 +41,6 @@ import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
-import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.Transaction;
@@ -201,7 +200,7 @@ public class TrinoNessieCatalog
     }
 
     @Override
-    public Table loadTable(ConnectorSession session, SchemaTableName table)
+    public BaseTable loadTable(ConnectorSession session, SchemaTableName table)
     {
         TableMetadata metadata;
         try {

@@ -265,7 +265,7 @@ public class TrinoSnowflakeCatalog
     }
 
     @Override
-    public Table loadTable(ConnectorSession session, SchemaTableName schemaTableName)
+    public BaseTable loadTable(ConnectorSession session, SchemaTableName schemaTableName)
     {
         TableMetadata metadata;
         try {
