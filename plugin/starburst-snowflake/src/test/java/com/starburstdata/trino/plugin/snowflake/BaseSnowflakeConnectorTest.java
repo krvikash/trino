@@ -816,8 +816,8 @@ public abstract class BaseSnowflakeConnectorTest
                 TestTable rightTable = new TestTable(
                         getQueryRunner()::execute,
                         "right_table_",
-                        "(c_bigint bigint, c_varchar_50 VARCHAR(50))",
-                        ImmutableList.of("(11, 'abc')", "(44, 'ghi')"))) {
+                        "(c_bigint bigint, c_varchar_50 VARCHAR(50), c_varchar VARCHAR)",
+                        ImmutableList.of("(11, 'abc', 'def')", "(44, 'ghi', 'mno')"))) {
             Session session = joinPushdownEnabled(getSession());
 
             for (String joinType : List.of("LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "FULL JOIN")) {
@@ -826,6 +826,9 @@ public abstract class BaseSnowflakeConnectorTest
                         .isFullyPushedDown();
                 // Implicit cast between varchar - varchar(10) is upcasted to varchar(50) during query optimization
                 assertThat(query(session, "SELECT id FROM %s l %s %s r ON l.c_varchar_10 = r.c_varchar_50".formatted(leftTable.getName(), joinType, rightTable.getName())))
+                        .isFullyPushedDown();
+                // Implicit cast between varchar - varchar(10) is upcasted to varchar during query optimization
+                assertThat(query(session, "SELECT id FROM %s l %s %s r ON l.c_varchar_10 = r.c_varchar".formatted(leftTable.getName(), joinType, rightTable.getName())))
                         .isFullyPushedDown();
             }
         }

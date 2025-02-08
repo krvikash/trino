@@ -104,7 +104,12 @@ public class RewriteCast
                 };
             };
             case CharType _, VarcharType _ -> switch (sourceType.jdbcType()) {
-                case CHAR, VARCHAR -> sourceType.jdbcTypeName().map(name -> name.equals("CHAR") || name.equals("VARCHAR")).orElse(false);
+                case CHAR, VARCHAR -> {
+                    if (targetType instanceof VarcharType && ((VarcharType) targetType).isUnbounded()) {
+                        yield false;
+                    }
+                    yield sourceType.jdbcTypeName().map(name -> name.equals("CHAR") || name.equals("VARCHAR")).orElse(false);
+                }
                 default -> false;
             };
             case DateType _ -> switch (sourceType.jdbcType()) {

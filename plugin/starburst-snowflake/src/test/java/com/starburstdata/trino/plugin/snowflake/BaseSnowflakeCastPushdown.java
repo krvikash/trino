@@ -493,6 +493,8 @@ public abstract class BaseSnowflakeCastPushdown
                 new CastTestCase("c_float8", "real", "c_real"),
                 new CastTestCase("c_decimal_3_0", "varchar(50)", "c_varchar_50"),
                 new CastTestCase("c_decimal_38_5", "varchar(50)", "c_varchar_50"),
+                new CastTestCase("c_char_10", "varchar", "c_varchar_10"),
+                new CastTestCase("c_varchar_50", "varchar", "c_varchar_10"),
                 new CastTestCase("c_date", "varchar(50)", "c_varchar_50"),
                 new CastTestCase("c_date", "timestamp(9)", "c_timestamp_9"),
                 new CastTestCase("c_time", "varchar(50)", "c_varchar_50"),
