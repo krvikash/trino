@@ -1,2 +1,0 @@
-# These owners will be the default owners for everything in the repo.
-plugin/starburst-warp-speed/starburst-warp-speed-core/src/main/java/io/trino/plugin/warp/storage/engine/nativeimpl/NativeStorageEngine.java  @kobiluz
