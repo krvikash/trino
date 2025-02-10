@@ -1,6 +1,2 @@
 # These owners will be the default owners for everything in the repo.
-plugin/starburst-warp-speed/starburst-warp-speed-core/src/main/java/io/trino/plugin/warp/storage/engine/**/*.java  @kobiluz
-plugin/starburst-warp-speed/starburst-warp-speed-core/src/main/java/io/trino/plugin/warp/storage/juffers/**/*.java  @kobiluz
-plugin/starburst-warp-speed/starburst-warp-speed-core/src/main/java/io/trino/plugin/warp/storage/memory/**/*.java  @kobiluz
-plugin/starburst-warp-speed/starburst-warp-speed-core/src/main/java/io/trino/plugin/warp/storage/read/**/*.java  @kobiluz
-plugin/starburst-warp-speed/starburst-warp-speed-core/src/main/java/io/trino/plugin/warp/storage/write/**/*.java  @kobiluz
+plugin/starburst-warp-speed/starburst-warp-speed-core/src/main/java/io/trino/plugin/warp/storage/engine/nativeimpl/NativeStorageEngine.java  @kobiluz
