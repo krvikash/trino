@@ -197,7 +197,7 @@ public class WarmupDemoterService
             logger.debug("catalog[%s]: execute demote", catalogName);
 
             // In case of isForceDeleteFailedObjects = false, failed objects will be deleted regularly (as dead objects \ low priority)
-            if (demoteContext.get().isForceDeleteFailedObjects()) {
+            if (isForceDeleteFailedObjects) {
                 deleteFailedObjects();
             }
 
@@ -289,7 +289,6 @@ public class WarmupDemoterService
                 maxElementsToDemoteInIteration,
                 epsilon,
                 isDeleteEmptyRowGroups,
-                isForceDeleteFailedObjects,
                 isResetHighestPriority,
                 tupleRankResult));
         logger.debug("catalog[%s]: initDemoteContext: %s", catalogName, demoteContext);

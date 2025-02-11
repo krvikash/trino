@@ -106,7 +106,6 @@ class WarpConnectorDeleteServiceTest
                 defaultEpsilon,
                 true,
                 true,
-                true,
                 new TupleRankResult(new ArrayList<>(), new ArrayList<>(), List.of()));
 
         initDefaultMembers();
@@ -486,7 +485,6 @@ class WarpConnectorDeleteServiceTest
                 demoteContext.batchSize(),
                 demoteContext.epsilon(),
                 false,
-                true,
                 true,
                 new TupleRankResult(new ArrayList<>(), new ArrayList<>(), List.of()));
         warpDeleteService.delete(

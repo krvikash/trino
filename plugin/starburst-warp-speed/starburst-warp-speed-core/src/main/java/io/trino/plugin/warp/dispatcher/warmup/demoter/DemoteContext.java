@@ -29,7 +29,6 @@ public record DemoteContext(
         long maxElementsToDemote,
         double epsilon,
         boolean isDeleteEmptyRowGroups,
-        boolean isForceDeleteFailedObjects,
         boolean isResetHighestPriority,
         TupleRankResult tupleRankResult,
         WarmupDemoterStats statsWarmupDemoter,
@@ -43,7 +42,6 @@ public record DemoteContext(
             long maxElementsToDemote,
             double epsilon,
             boolean deleteEmptyRowGroups,
-            boolean forceDeleteFailedObjects,
             boolean resetHighestPriority,
             TupleRankResult tupleRankResult)
     {
@@ -53,7 +51,6 @@ public record DemoteContext(
                 maxElementsToDemote,
                 epsilon,
                 deleteEmptyRowGroups,
-                forceDeleteFailedObjects,
                 resetHighestPriority,
                 tupleRankResult,
                 WarmupDemoterStats.create(),
@@ -78,7 +75,6 @@ public record DemoteContext(
                 ", maxElementsToDemote=" + maxElementsToDemote +
                 ", epsilon=" + epsilon +
                 ", isDeleteEmptyRowGroups=" + isDeleteEmptyRowGroups +
-                ", isForceDeleteFailedObjects=" + isForceDeleteFailedObjects +
                 ", isResetHighestPriority=" + isResetHighestPriority +
                 ", tupleRankList=" + (tupleRankResult != null ? tupleRankResult.toShortString() : null) +
                 ", statsWarmupDemoter=" + statsWarmupDemoterJson +

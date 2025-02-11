@@ -14,13 +14,17 @@
 
 package io.trino.tests.product.warp.utils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
+import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
+import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
 import io.trino.tempto.query.QueryExecutor;
 import io.trino.tempto.query.QueryResult;
 import org.assertj.core.api.SoftAssertions;
 import org.intellij.lang.annotations.Language;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +33,7 @@ import java.util.stream.Collectors;
 
 import static io.trino.tests.product.utils.QueryAssertions.assertEventually;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
+import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_MAX_EXCEPTION_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_REJECTED_ELEMENTS_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_SUCCESS_ELEMENTS_COUNT;
@@ -90,10 +95,10 @@ public class WarmUtils
         @Language("SQL")
         String warmQuery = testFormat.warm_query();
         if (warmQuery == null) {
-            warmQuery = createWarmupQuery(testFormat.name(), testFormat.structure());
+            warmQuery = createWarmupQuery(testFormat.getTableName(), testFormat.structure());
         }
         warmAndValidate(
-                testFormat.name(),
+                testFormat.getTableName(),
                 warmQuery,
                 testFormat.expected_warm_failures(),
                 testFormat.session_properties() != null ? testFormat.session_properties().entrySet().stream().collect(Collectors.toMap(e -> "warp." + e.getKey(), Map.Entry::getValue)) : new HashMap<>(),
@@ -160,6 +165,19 @@ public class WarmUtils
                             .as("warm_started must be equal to warm_accomplished but wasn't. tableName=%s", tableName)
                             .isEqualTo(getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, WARM_ACCOMPLISHED));
                     if (expectedFailures > 0) {
+//                        logger.info("$$$$$$$$$$$$$$$$$$$$$$$ warmingStatsBefore=%s", getValue(warmingStatsBefore, WARM_FAILED));
+//                        logger.info("$$$$$$$$$$$$$$$$$$$$$$$ warmingStatsAfter=%s", getValue(warmingStatsAfter, WARM_FAILED));
+
+                        try {
+                            RestUtils restUtils = new RestUtils();
+                            String string = restUtils.executeGetCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME);
+                            RowGroupCountResult rowGroupCountResultBefore = objectMapper.readerFor(new TypeReference<RowGroupCountResult>() {}).readValue(string);
+                            logger.info("11111111 rowGroupCountResultBefore=%s", rowGroupCountResultBefore);
+                        }
+                        catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+
                         assertThat(getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, WARM_FAILED))
                                 .as("warm_failed must be greaterThanOrEqual to expectedFailures=%s. tableName=%s", expectedFailures, tableName)
                                 .isGreaterThanOrEqualTo(expectedFailures);
@@ -197,7 +215,7 @@ public class WarmUtils
             verifyDictionaryCounters(expectedDictionaryCounters, dictionaryRowBefore, tableName, softAssertions);
         }
         softAssertions.assertAll();
-        logger.info("Warmup process has finished %s %s", tableName, fastWarming);
+        logger.info("Warmup process has finished tableName[%s], fastWarming[%s]", tableName, fastWarming);
     }
 
     public QueryResult warmAndValidate(@Language("SQL") String query, Map<String, Long> expectedResults)

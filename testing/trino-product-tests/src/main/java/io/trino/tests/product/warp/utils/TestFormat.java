@@ -14,8 +14,10 @@
 package io.trino.tests.product.warp.utils;
 
 import io.trino.plugin.warp.api.warmup.WarmUpType;
+import io.trino.plugin.warp.api.warmup.WarmupPredicateRule;
 import io.trino.tests.product.warp.utils.syntheticconfig.TableType;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,13 +30,18 @@ import java.util.stream.Collectors;
 public record TestFormat(String name, int lines, String table_name, List<Column> structure, String data_format, List<WarmupRule> warmup_rules,
                          Map<String, Object> session_properties, String warm_query, boolean skip, boolean pt_enable, boolean skip_caching,
                          List<QueryData> queries_data, WarmTypeForStrings warm_type_for_strings, String description,
-                         int expected_warm_failures, Map<String, Long> expected_dictionary_counters, Set<TableType> skip_type,
+                         int expected_warm_failures, List<String> failed_warmup_elements, Map<String, Long> expected_dictionary_counters, Set<TableType> skip_type,
                          Map<String, Long> iceberg_expected_dictionary_counters, Map<String, Long> dl_expected_dictionary_counters, int split_count,
-                         List<Object> partition_by, List<Object> bucketed_by, int bucket_count, Optional<String> orig_table_name, Map<String, TestFormat> overriding)
+                         List<String> partition_by, List<Object> bucketed_by, int bucket_count, Optional<String> orig_table_name, Map<String, TestFormat> overriding)
 {
     public record Column(String name, String type, List<Object> args) {}
 
-    public record WarmupRule(String colNameId, List<String> predicates, List<WarmUpType> warmUpTypes) {}
+    public record WarmupRule(
+            String colNameId,
+            List<WarmupPredicateRule> predicates,
+            List<WarmUpType> warmUpTypes,
+            int priority,
+            Duration ttl) {}
 
     public record QueryData(String query, List<Object> expected_result, String query_id,
                             Map<String, Long> expected_counters, Map<String, Object> session_properties,
@@ -163,12 +170,13 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
         private WarmTypeForStrings warmTypeForStrings;
         private String description;
         private int expectedWarmFailures;
+        List<String> failedWarmupElements;
         private Map<String, Long> expectedDictionaryCounters;
         private Set<TableType> skipType;
         private Map<String, Long> expectedIcebergDictionaryCounters;
         private Map<String, Long> expectedDLDictionaryCounters;
         private int splitCount;
-        private List<Object> partitionBy;
+        private List<String> partitionBy;
         private List<Object> bucketedBy;
         private int bucketCount;
         private Optional<String> origTableName = Optional.empty();
@@ -266,6 +274,12 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             return this;
         }
 
+        public Builder failedWarmupElements(List<String> failedWarmupElements)
+        {
+            this.failedWarmupElements = failedWarmupElements;
+            return this;
+        }
+
         public Builder expectedDictionaryCounters(Map<String, Long> expectedDictionaryCounters)
         {
             this.expectedDictionaryCounters = expectedDictionaryCounters;
@@ -296,7 +310,7 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             return this;
         }
 
-        public Builder partitionBy(List<Object> partitionBy)
+        public Builder partitionBy(List<String> partitionBy)
         {
             this.partitionBy = partitionBy;
             return this;
@@ -330,7 +344,7 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
         {
             return new TestFormat(name, lines, tableName, structure, dataFormat, warmupRules, sessionProperties, warmQuery,
                     skip, ptEnable, skipCaching, queriesData, warmTypeForStrings, description,
-                    expectedWarmFailures, expectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
+                    expectedWarmFailures, failedWarmupElements, expectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
                     expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName, overriding);
         }
 
@@ -338,7 +352,7 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
         {
             TestFormat testFormat = new TestFormat(name, lines, tableName, structure, dataFormat, warmupRules, sessionProperties, warmQuery,
                     skip, ptEnable, skipCaching, queriesData, warmTypeForStrings, description,
-                    expectedWarmFailures, expectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
+                    expectedWarmFailures, failedWarmupElements, expectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
                     expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName, overriding);
             if (overriding != null) {
                 TestFormat overridingTestFormat = overriding.get(overridingKey);
@@ -360,13 +374,14 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             Map<String, Object> calculatedSessionProperties = overridingTestFormat.session_properties == null ? baseTestFormat.session_properties : overridingTestFormat.session_properties;
             Map<String, Long> calculatedExpectedDictionaryCounters = overridingTestFormat.expected_dictionary_counters == null ? baseTestFormat.expected_dictionary_counters : overridingTestFormat.expected_dictionary_counters;
             int calculatedExpectedWarmFailures = overridingTestFormat.expected_warm_failures != 0 ? baseTestFormat.expected_warm_failures : overridingTestFormat.expected_warm_failures;
+            List<String> calculatedFailedWarmupElements = overridingTestFormat.failed_warmup_elements() != null ? baseTestFormat.failed_warmup_elements() : overridingTestFormat.failed_warmup_elements();
             List<QueryData> queriesData = baseTestFormat.queries_data;
             if (overridingTestFormat.queries_data != null && !overridingTestFormat.queries_data.isEmpty()) {
                 queriesData = mergeQueriesWithOverrding(queriesData, overridingTestFormat.queries_data);
             }
             return new TestFormat(calculatedName, calculatedLines, calculatedTableName, structure, calculatedDataFormat, warmupRules, calculatedSessionProperties, calculatedWarmQuery,
                     overridingTestFormat.skip, overridingTestFormat.pt_enable, skipCaching, queriesData, warmTypeForStrings, description,
-                    calculatedExpectedWarmFailures, calculatedExpectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
+                    calculatedExpectedWarmFailures, calculatedFailedWarmupElements, calculatedExpectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
                     expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName, new HashMap<>());
         }
 

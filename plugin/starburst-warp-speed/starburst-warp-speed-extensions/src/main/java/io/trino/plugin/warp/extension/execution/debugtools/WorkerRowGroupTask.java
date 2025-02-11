@@ -17,7 +17,6 @@ import com.google.inject.Inject;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
-import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.extension.execution.TaskResource;
@@ -85,8 +84,9 @@ public class WorkerRowGroupTask
         Map<String, Integer> colNameToCount = new HashMap<>();
 
         rowGroupDataService.getAll()
-                .forEach(rowGroupData -> rowGroupData.getWarmUpElements().stream()
-                        .filter(WarmUpElement::isHot)
+                .forEach(rowGroupData -> rowGroupData.getWarmUpElements()
+                        .stream()
+//                        .filter(WarmUpElement::isHot)
                         .forEach(warmUpElement -> {
                             RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
                             WarpColumn warpColumn = warmUpElement.getWarpColumn();

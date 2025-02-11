@@ -2608,6 +2608,24 @@
         ]
       }
     },
+    "cache_manager_rules_data": [
+      {
+        "query": "select count(cs_sold_time_sk) from partition_null_values where cs_sold_date_sk is NULL AND cs_quantity > 50",
+        "priority": 5.0,
+        "ttl": 1200,
+        "expected_result": [
+          9012
+        ]
+      },
+      {
+        "query": "select count(cs_sold_time_sk) from partition_null_values where cs_sold_date_sk is NULL OR cs_quantity > 50",
+        "priority": 4.0,
+        "ttl": 900,
+        "expected_result": [
+          40343
+        ]
+      }
+    ],
     "queries_data":[
       {
         "query": "select count(*) from partition_null_values",

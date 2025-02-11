@@ -167,18 +167,18 @@ public class WarpConnectorDeleteService
                 TupleRank tupleRank = new TupleRank(warmupProperties, warmUpElement, rowGroupKey);
 
                 if (forceDeleteFailedObjects && !warmUpElement.isValid()) {
-                    logger.info("add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s",
+                    logger.debug("add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s",
                             warmUpElement.getWarpColumn(), warmupProperties.warmUpType());
                     failedObjects.add(tupleRank);
                 }
                 else if (isDeleteImmediatelyObject(tupleRank, now, tupleFilters)) {
-                    logger.info("add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s",
+                    logger.debug("add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s",
                             warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.ttl());
                     immediateObjects.add(tupleRank);
                 }
                 else {
                     tupleRankList.add(tupleRank);
-                    logger.info("add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s",
+                    logger.debug("add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s",
                             warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.priority());
                 }
             }

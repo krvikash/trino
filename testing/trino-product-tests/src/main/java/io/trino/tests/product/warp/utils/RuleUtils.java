@@ -23,6 +23,7 @@ import io.trino.plugin.warp.api.warmup.RuleResultDTO;
 import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
 import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
+import io.trino.plugin.warp.api.warmup.column.WildcardColumnData;
 import jakarta.ws.rs.HttpMethod;
 
 import java.io.IOException;
@@ -71,7 +72,7 @@ public class RuleUtils
     {
         List<WarmupColRuleData> existingRules = getExistingRules();
         List<Integer> rulesId = existingRules.stream().filter(x -> x.getSchema().equalsIgnoreCase(schema) &&
-                        x.getTable().equalsIgnoreCase(testFormat.name()))
+                        x.getTable().equalsIgnoreCase(testFormat.getTableName()))
                 .map(WarmupColRuleData::getId)
                 .toList();
         deleteRules(rulesId);
@@ -122,25 +123,35 @@ public class RuleUtils
                 testFormat.warm_type_for_strings() :
                 lucene_data_basic;
         if (warmupRules == null) {
-            rules = createRulesFromStructure(schema, testFormat, warmTypeForStrings);
+            rules.addAll(createRulesFromStructure(schema, testFormat, warmTypeForStrings));
         }
         else {
             for (TestFormat.WarmupRule warmupRule : warmupRules) {
                 List<WarmUpType> warmUpTypes = warmupRule.warmUpTypes();
                 if (warmUpTypes == null) {
-                    TestFormat.Column column = testFormat.structure().stream().filter(x -> x.name().equalsIgnoreCase(warmupRule.colNameId())).findFirst().orElseThrow();
-                    warmUpTypes = calcWarmupTypesForColumn(column, warmTypeForStrings);
+                    if (warmupRule.colNameId() != null) {
+                        TestFormat.Column column = testFormat.structure()
+                                .stream()
+                                .filter(x -> x.name().equalsIgnoreCase(warmupRule.colNameId()))
+                                .findFirst()
+                                .orElseThrow();
+                        warmUpTypes = calcWarmupTypesForColumn(column, warmTypeForStrings);
+                    }
                 }
+
+                if ((warmUpTypes == null) || warmUpTypes.isEmpty()) {
+                    throw new RuntimeException("[%s] no warmup types found for rule: %s".formatted(testFormat.name(), warmupRule));
+                }
+
                 for (WarmUpType warmUpType : warmUpTypes) {
-                    WarmupColRuleData rule = new WarmupColRuleData(0,
+                    rules.add(new WarmupColRuleData(0,
                             schema,
-                            testFormat.name(),
-                            new RegularColumnData(warmupRule.colNameId()),
+                            testFormat.getTableName(),
+                            warmupRule.colNameId() != null ? new RegularColumnData(warmupRule.colNameId()) : new WildcardColumnData(),
                             warmUpType,
-                            DEFAULT_PRIORITY,
-                            DEFAULT_TTL,
-                            ImmutableSet.of());
-                    rules.add(rule);
+                            warmupRule.priority() > 0 ? warmupRule.priority() : DEFAULT_PRIORITY,
+                            warmupRule.ttl() != null ? warmupRule.ttl() : DEFAULT_TTL,
+                            warmupRule.predicates() != null ? ImmutableSet.copyOf(warmupRule.predicates()) : ImmutableSet.of()));
                 }
             }
         }
@@ -148,12 +159,19 @@ public class RuleUtils
             logger.info("no rules for test %s", testFormat.name());
             return;
         }
+        createRules(schema, testFormat.getTableName(), rules);
+    }
+
+    public void createRules(String schema, String tableName, Set<WarmupColRuleData> rules)
+            throws IOException
+    {
         String result = restUtils.executePostCommandWithReturnValue(WARMUP_PATH, TASK_NAME_SET, rules);
         RuleResultDTO res = objectMapper.readerFor(new TypeReference<RuleResultDTO>() {}).readValue(result);
         assertThat(res.rejectedRules().isEmpty() && !res.appliedRules().isEmpty())
                 .as("some rules are rejected. %s", res.rejectedRules())
                 .isTrue();
-        logger.info("created %s rules for schemaTable=%s.%s", res.appliedRules().size(), schema, testFormat.name());
+        logger.info("created %s rules for schemaTable=%s.%s",
+                res.appliedRules().size(), schema, tableName);
     }
 
     public SetMultimap<String, Object> getCustomStats(String queryId, String summaryType)
@@ -214,7 +232,7 @@ public class RuleUtils
             WarmTypeForStrings warmTypeForStrings)
     {
         List<TestFormat.Column> structure = testFormat.structure();
-        String tableName = testFormat.name();
+        String tableName = testFormat.getTableName();
         Set<WarmupColRuleData> rulesFromStructure = new HashSet<>();
         for (TestFormat.Column column : structure) {
             List<WarmUpType> columnWarmupTypes = calcWarmupTypesForColumn(column, warmTypeForStrings);

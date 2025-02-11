@@ -31,7 +31,6 @@ import jakarta.ws.rs.HttpMethod;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,18 +104,16 @@ public class DemoterUtils
                 .cleanupUsageThresholdInPercentage(cleanupUsageThresholdInPercentage)
                 .resetHighestPriority(true)
                 .forceExecuteDeadObjects(true)
-                .forceDeleteFailedObjects(false);
+                .forceDeleteFailedObjects(false)
+                .defaultRuleTtlInSeconds(1200);
 
         if (schema != null && table != null) {
             warmupDemoterDataBuilder.schemaTableName(new SchemaTableName(schema, table));
-            if (columnNames != null && columnNames.size() > 0) {
-                List<WarmupDemoterWarmupElementData> warmupElementsData = new ArrayList<>();
-                for (String columnName : columnNames) {
-                    warmupElementsData.add(new WarmupDemoterWarmupElementData(
-                            columnName,
-                            allWarmUpTypes));
-                }
-                warmupDemoterDataBuilder.warmupElementsData(warmupElementsData);
+            if (columnNames != null && !columnNames.isEmpty()) {
+                warmupDemoterDataBuilder.warmupElementsData(
+                        columnNames.stream()
+                                .map(columnName -> new WarmupDemoterWarmupElementData(columnName, allWarmUpTypes))
+                                .toList());
             }
         }
         demote(warmupDemoterDataBuilder.build(), false);

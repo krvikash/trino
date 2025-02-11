@@ -65,20 +65,22 @@ public class WarmUtils
     }
 
     public static Optional<WarmupRule> findMostRelevantRuleForWarmupElement(RowGroupData rowGroupData,
-                                                                            WarmUpElement warmUpElement,
-                                                                            List<WarmupRule> rulesForWarmupElement)
+            WarmUpElement warmUpElement,
+            List<WarmupRule> rulesForWarmupElement)
     {
         Map<RegularColumn, String> partitionKeys = rowGroupData
                 .getPartitionKeys()
                 .entrySet()
                 .stream()
                 .collect(Collectors.toMap(entry -> (RegularColumn) entry.getKey(),
-                                          Map.Entry::getValue));
+                        Map.Entry::getValue));
+
         return Objects.nonNull(rulesForWarmupElement) ?
                 rulesForWarmupElement.stream()
                         .filter(warmupRule -> warmUpElement.getWarmUpType() == warmupRule.getWarmUpType())
                         .filter(warmupRule -> (CollectionUtils.isEmpty(warmupRule.getPredicates()) ||
-                                warmupRule.getPredicates().stream().allMatch(warmupPredicateRule -> warmupPredicateRule.test(partitionKeys)))).max(WorkerWarmingService.warmupRuleComparator)
+                                warmupRule.getPredicates().stream().allMatch(warmupPredicateRule -> warmupPredicateRule.test(partitionKeys))))
+                        .max(WorkerWarmingService.warmupRuleComparator)
                 : Optional.empty();
     }
 }

@@ -80,7 +80,6 @@ public class WarpCacheManagerDeleteServiceTest
                 defaultEpsilon,
                 true,
                 true,
-                true,
                 new TupleRankResult(new ArrayList<>(), new ArrayList<>(), List.of()));
     }
 
