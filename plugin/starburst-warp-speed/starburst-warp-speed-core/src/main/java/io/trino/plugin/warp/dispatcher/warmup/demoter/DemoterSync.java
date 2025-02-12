@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.DemoteStatus.NOT_COMPLETED;
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.DemoteStatus.UNKNOWN;
+import static io.trino.plugin.warp.storage.flows.FlowsSequencer.INVALID_FLOW_ID;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -218,6 +219,7 @@ public class DemoterSync
             Futures.allAsList(demoterServiceContextMap
                             .entrySet()
                             .stream()
+                            .filter(entry -> entry.getValue().flowId() != INVALID_FLOW_ID)
                             .map(entry -> {
                                 logger.debug("catalog[%s]: callConnectorSyncStartDemote start calling connectorSyncStartDemote catalog[%s]",
                                         catalogName,
@@ -267,6 +269,7 @@ public class DemoterSync
         while (demoterServiceContextMap
                 .entrySet()
                 .stream()
+                .filter(entry -> entry.getValue().flowId() != INVALID_FLOW_ID)
                 .anyMatch(entry -> NOT_COMPLETED.equals(entry.getValue().demoteStatus))) {
             logger.debug("catalog[%s] loopUntilNothingToDemote not all catalogs completed", catalogName);
 
@@ -277,6 +280,7 @@ public class DemoterSync
                 Futures.allAsList(demoterServiceContextMap
                                 .entrySet()
                                 .stream()
+                                .filter(entry -> entry.getValue().flowId() != INVALID_FLOW_ID)
                                 .filter(entry -> !entry.getKey().equals(demoteKey)) //run all but the initiator
                                 .filter(entry -> !DemoteStatus.NO_ELEMENTS_TO_DEMOTE.equals(demoterServiceContextMap.get(entry.getKey()).demoteStatus))
                                 .map(entry -> {
@@ -318,6 +322,7 @@ public class DemoterSync
             Futures.allAsList(demoterServiceContextMap
                             .entrySet()
                             .stream()
+                            .filter(entry -> entry.getValue().flowId() != INVALID_FLOW_ID)
                             .filter(entry -> !entry.getKey().equals(demoteKey))
                             .map(entry -> {
                                 logger.debug("catalog[%s]: callConnectorSyncDemoteEnd before calling future connectorSyncDemoteEnd on catalog[%s] with maxHighestPriorityDemoted=%s",
@@ -379,16 +384,7 @@ public class DemoterSync
 
         demoterServiceContextMap
                 .computeIfPresent(demoteKey,
-                        (_, demoteContextTmp) -> new DemoteContext(
-                                demoteContextTmp.catalogName(),
-                                demoteContextTmp.warmupDemoterService(),
-                                demoteContextTmp.flowsSequencer(),
-                                demoteContextTmp.lowestPriorityExist(),
-                                demoteContextTmp.highestPriorityDemoted(),
-                                demoteContextTmp.exclude(),
-                                demoteContextTmp.demoteStatus(),
-                                flowId,
-                                demoteContextTmp.stopWatch()));
+                        (_, demoteContextTmp) -> new DemoteContext(flowId, demoteContextTmp));
 
         logger.debug("catalog[%s]: flowStart finish got flowId[%s], start demote nano sec waited = %d",
                 catalogName, flowId, stopWatch.getNanoTime());
@@ -400,13 +396,19 @@ public class DemoterSync
         CatalogName catalogName = demoteContext.catalogName();
         logger.debug("catalog[%s]: flowFinish start for flowId[%s]", catalogName, demoteContext.flowId());
 
+        if (demoteContext.flowId() == INVALID_FLOW_ID) {
+            return;
+        }
+
         demoteContext.flowsSequencer()
                 .flowFinished(
                         FlowType.WARMUP_DEMOTER,
                         demoteContext.flowId(),
                         true);
 
-        demoteContext.stopWatch().stop();
+        if (demoteContext.stopWatch().isStarted()) {
+            demoteContext.stopWatch().stop();
+        }
 
         resetDemoterContext(
                 demoteKey,
@@ -439,6 +441,7 @@ public class DemoterSync
         return demoterServiceContextMap
                 .values()
                 .stream()
+                .filter(demoteContext -> demoteContext.flowId() != INVALID_FLOW_ID)
                 .filter(demoteContext -> NOT_COMPLETED.equals(demoteContext.demoteStatus()))
                 .map(DemoteContext::lowestPriorityExist)
                 .min(Double::compareTo)
@@ -450,6 +453,7 @@ public class DemoterSync
         return demoterServiceContextMap
                 .values()
                 .stream()
+                .filter(demoteContext -> demoteContext.flowId() != INVALID_FLOW_ID)
                 .map(DemoteContext::highestPriorityDemoted)
                 .max(Double::compareTo)
                 .orElseThrow();
@@ -477,7 +481,7 @@ public class DemoterSync
                     -1,
                     false,
                     UNKNOWN,
-                    -1,
+                    INVALID_FLOW_ID,
                     new StopWatch());
         }
 
@@ -510,6 +514,19 @@ public class DemoterSync
                     demoteContext.stopWatch());
         }
 
+        DemoteContext(long flowId, DemoteContext demoteContext)
+        {
+            this(demoteContext.catalogName(),
+                    demoteContext.warmupDemoterService(),
+                    demoteContext.flowsSequencer(),
+                    demoteContext.lowestPriorityExist(),
+                    demoteContext.highestPriorityDemoted(),
+                    demoteContext.exclude(),
+                    demoteContext.demoteStatus(),
+                    flowId,
+                    demoteContext.stopWatch());
+        }
+
         @Override
         public String toString()
         {
@@ -520,7 +537,6 @@ public class DemoterSync
                     ", exclude=" + exclude +
                     ", demoteStatus=" + demoteStatus +
                     ", flowId=" + flowId +
-                    ", stopWatch=" + stopWatch.getTime() +
                     '}';
         }
     }
