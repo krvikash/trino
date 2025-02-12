@@ -147,7 +147,7 @@ public class LuceneMatcher
         catch (Exception e) {
             shapingLogger.error(e, "error in lucene search indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
                     indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, chunkState);
-            throw new TrinoException(WARP_MATCH_LUCENE_FAILED, e.getMessage());
+            throw new TrinoException(WARP_MATCH_LUCENE_FAILED, e.getMessage(), e);
         }
         finally {
             statsDispatcherPageSource.addlucene_execution_time(System.currentTimeMillis() - startTime);

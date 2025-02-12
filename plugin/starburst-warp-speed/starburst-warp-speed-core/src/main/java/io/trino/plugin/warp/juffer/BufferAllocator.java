@@ -236,7 +236,7 @@ public class BufferAllocator
         }
         catch (Throwable t) {
             logger.error(t, "failed to initialize buffer allocator");
-            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + catalogName + " failed to load");
+            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + catalogName + " failed to load", t);
         }
     }
 

@@ -140,10 +140,10 @@ public class MatchService
             catch (Throwable t) {
                 shapingLogger.error(t, "matchOpen failed");
                 if (t instanceof TrinoException trinoException && ExceptionThrower.isNativeException(trinoException)) {
-                    throw new TrinoException(WARP_NATIVE_MATCH_ERROR, "failed to open match " + t.getMessage());
+                    throw new TrinoException(WARP_NATIVE_MATCH_ERROR, "failed to open match " + t.getMessage(), t);
                 }
                 else {
-                    throw new TrinoException(WARP_MATCH_ERROR, "failed to open match " + t.getMessage());
+                    throw new TrinoException(WARP_MATCH_ERROR, "failed to open match " + t.getMessage(), t);
                 }
             }
 
@@ -218,14 +218,14 @@ public class MatchService
                 catch (Exception e) {
                     if (e instanceof TrinoException trinoException && ExceptionThrower.isNativeException(trinoException)) {
                         if (trinoException.getErrorCode().getCode() == WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode().getCode()) {
-                            throw new TrinoException(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR, "failed to match: " + e.getMessage());
+                            throw new TrinoException(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR, "failed to match: " + e.getMessage(), e);
                         }
                         else {
-                            throw new TrinoException(WARP_NATIVE_MATCH_ERROR, "failed to match: " + e.getMessage());
+                            throw new TrinoException(WARP_NATIVE_MATCH_ERROR, "failed to match: " + e.getMessage(), e);
                         }
                     }
                     else {
-                        throw new TrinoException(WARP_MATCH_ERROR, "failed to match: " + e.getMessage());
+                        throw new TrinoException(WARP_MATCH_ERROR, "failed to match: " + e.getMessage(), e);
                     }
                 }
                 finally {
