@@ -20,6 +20,7 @@ import io.trino.tests.product.launcher.env.Environment;
 import io.trino.tests.product.launcher.env.common.EnvironmentExtender;
 import io.trino.tests.product.launcher.testcontainers.PortBinder;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.COORDINATOR;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.WORKER;
 

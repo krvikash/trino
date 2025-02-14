@@ -20,10 +20,10 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_AZURE_HIVE;
 import static io.trino.tests.product.warp.utils.TestUtils.countMethodsWithAnnotation;
-import static java.util.Objects.requireNonNull;
 
 public class TestWarpSpeedAzure
         extends WarpSpeedCloudTestBase
@@ -40,10 +40,10 @@ public class TestWarpSpeedAzure
     protected void setUp()
     {
         if (abfsContainer == null) {
-            abfsContainer = requireNonNull(System.getenv("ABFS_CONTAINER"), "Environment variable not set: ABFS_CONTAINER");
+            abfsContainer = requireEnv("ABFS_CONTAINER");
         }
         if (abfsAccount == null) {
-            abfsAccount = requireNonNull(System.getenv("ABFS_ACCOUNT"), "Environment variable not set: ABFS_ACCOUNT");
+            abfsAccount = requireEnv("ABFS_ACCOUNT");
         }
     }
 

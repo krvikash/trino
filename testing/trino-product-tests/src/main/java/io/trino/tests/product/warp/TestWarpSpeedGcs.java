@@ -18,10 +18,10 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_GCS_HIVE;
 import static io.trino.tests.product.warp.utils.TestUtils.countMethodsWithAnnotation;
-import static java.util.Objects.requireNonNull;
 
 public class TestWarpSpeedGcs
         extends WarpSpeedCloudTestBase
@@ -32,7 +32,7 @@ public class TestWarpSpeedGcs
     protected void setUp()
     {
         if (gcpStorageBucket == null) {
-            gcpStorageBucket = requireNonNull(System.getenv("GCP_STORAGE_BUCKET"), "Environment variable not set: GCP_STORAGE_BUCKET");
+            gcpStorageBucket = requireEnv("GCP_STORAGE_BUCKET");
         }
     }
 

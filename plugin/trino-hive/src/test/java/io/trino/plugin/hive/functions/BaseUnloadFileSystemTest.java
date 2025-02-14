@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class BaseUnloadFileSystemTest
@@ -83,10 +82,5 @@ public abstract class BaseUnloadFileSystemTest
         finally {
             fileSystem.deleteDirectory(Location.of(location));
         }
-    }
-
-    static String requireEnv(String variable)
-    {
-        return requireNonNull(System.getenv(variable), () -> "environment variable not set: " + variable);
     }
 }

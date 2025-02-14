@@ -31,6 +31,7 @@ import io.trino.testing.QueryRunner;
 
 import java.io.IOException;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 
 public class TestUnloadAbfs

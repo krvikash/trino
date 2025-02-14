@@ -103,9 +103,4 @@ public abstract class MultinodeWarpBase
         container.withCopyFileToContainer(forClasspathResource("/docker/trino-product-tests/warp/trino/setup-warp-speed.sh", 493),
                 "/docker/presto-init.d/setup-warp-speed.sh");
     }
-
-    protected static String requireEnv(String variable)
-    {
-        return requireNonNull(System.getenv(variable), "environment variable not set: " + variable);
-    }
 }

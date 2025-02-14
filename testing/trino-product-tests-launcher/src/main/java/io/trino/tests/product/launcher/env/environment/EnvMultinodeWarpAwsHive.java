@@ -22,6 +22,7 @@ import io.trino.tests.product.launcher.testcontainers.PortBinder;
 
 import java.util.Map;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.TESTS;
 
 @TestsEnvironment

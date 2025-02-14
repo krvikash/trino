@@ -24,6 +24,7 @@ import io.trino.testing.QueryRunner;
 import java.io.IOException;
 import java.util.Base64;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class TestUnloadGcs

@@ -22,6 +22,7 @@ import io.trino.tests.product.launcher.env.EnvironmentProvider;
 import io.trino.tests.product.launcher.env.common.StandardMultinode;
 import io.trino.tests.product.launcher.env.common.TestsEnvironment;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.COORDINATOR;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.WORKER;
 import static io.trino.tests.product.launcher.env.common.Standard.CONTAINER_TRINO_ETC;
@@ -67,12 +68,12 @@ public class EnvMultinodeStarburstSnowflake
 
     private String getSnowflakeEndpoint()
     {
-        String accountName = requireNonNull(System.getenv("SNOWFLAKE_ACCOUNT_NAME"), "Expected SNOWFLAKE_ACCOUNT_NAME environment variable to be set");
+        String accountName = requireEnv("SNOWFLAKE_ACCOUNT_NAME");
         return format("jdbc:snowflake://%s.snowflakecomputing.com/", accountName);
     }
 
     private String getSnowflakePassword()
     {
-        return requireNonNull(System.getenv("SNOWFLAKE_PASSWORD"), "Expected SNOWFLAKE_PASSWORD environment variable to be set");
+        return requireEnv("SNOWFLAKE_PASSWORD");
     }
 }

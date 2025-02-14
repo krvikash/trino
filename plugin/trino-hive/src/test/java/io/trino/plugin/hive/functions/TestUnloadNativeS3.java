@@ -25,6 +25,8 @@ import io.trino.testing.QueryRunner;
 import java.io.IOException;
 import java.nio.file.Files;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
+
 public class TestUnloadNativeS3
         extends BaseUnloadFileSystemTest
 {

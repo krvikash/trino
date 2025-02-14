@@ -18,10 +18,10 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_AWS_HIVE;
 import static io.trino.tests.product.warp.utils.TestUtils.countMethodsWithAnnotation;
-import static java.util.Objects.requireNonNull;
 
 public class TestWarpSpeedAws
         extends WarpSpeedCloudTestBase
@@ -31,7 +31,7 @@ public class TestWarpSpeedAws
     @Override
     protected void setUp()
     {
-        s3TestBucket = requireNonNull(System.getenv("S3_BUCKET"), "Environment variable not set: S3_BUCKET");
+        s3TestBucket = requireEnv("S3_BUCKET");
     }
 
     @Override

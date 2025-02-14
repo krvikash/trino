@@ -21,11 +21,11 @@ import io.trino.tests.product.launcher.env.EnvironmentProvider;
 import io.trino.tests.product.launcher.env.common.StandardMultinode;
 import io.trino.tests.product.launcher.env.common.TestsEnvironment;
 
+import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.COORDINATOR;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.TESTS;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.WORKER;
 import static io.trino.tests.product.launcher.env.common.Standard.CONTAINER_TRINO_ETC;
-import static java.util.Objects.requireNonNull;
 import static org.testcontainers.utility.MountableFile.forHostPath;
 
 /**
@@ -66,18 +66,18 @@ public class EnvMultinodeSynapse
 
     private static String getSynapseUrl()
     {
-        String synapseEndpoint = requireNonNull(System.getenv("SYNAPSE_ENDPOINT"), "Expected SYNAPSE_ENDPOINT environment variable to be set");
+        String synapseEndpoint = requireEnv("SYNAPSE_ENDPOINT");
         return String.format("jdbc:sqlserver://%s:%d;database=%s", synapseEndpoint, SYNAPSE_PORT, SYNAPSE_DATABASE);
     }
 
     private static String getSynapseUsername()
     {
-        return requireNonNull(System.getenv("SYNAPSE_USER"), "Expected SYNAPSE_USER environment variable to be set");
+        return requireEnv("SYNAPSE_USER");
     }
 
     private static String getSynapsePassword()
     {
-        return requireNonNull(System.getenv("SYNAPSE_PASSWORD"), "Expected SYNAPSE_PASSWORD environment variable to be set");
+        return requireEnv("SYNAPSE_PASSWORD");
     }
 
     private DockerContainer withAuthenticationEnvironmentVariables(DockerContainer container)
