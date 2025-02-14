@@ -114,6 +114,8 @@ import static java.util.stream.Collectors.joining;
 public class Unload
         implements Provider<ConnectorTableFunction>
 {
+    private static final String TABLE_ARGUMENT_NAME = "INPUT";
+
     private enum ExistingDirectory
     {
         CHECK,
@@ -123,24 +125,33 @@ public class Unload
 
     private final LocationAccessControl locationAccessControl;
     private final TrinoFileSystemFactory fileSystemFactory;
+    private final TableArgumentSpecification tableArgumentSpecification;
 
     @Inject
-    public Unload(LocationAccessControl locationAccessControl, TrinoFileSystemFactory fileSystemFactory)
+    public Unload(LocationAccessControl locationAccessControl, TrinoFileSystemFactory fileSystemFactory, UnloadConfig config)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
+
+        TableArgumentSpecification.Builder builder = TableArgumentSpecification.builder()
+                .name(TABLE_ARGUMENT_NAME)
+                .pruneWhenEmpty();
+
+        if (config.isUseRowSemantics()) {
+            builder.rowSemantics();
+        }
+        tableArgumentSpecification = builder.build();
     }
 
     @Override
     public ConnectorTableFunction get()
     {
-        return new ClassLoaderSafeConnectorTableFunction(new UnloadFunction(locationAccessControl, fileSystemFactory), getClass().getClassLoader());
+        return new ClassLoaderSafeConnectorTableFunction(new UnloadFunction(locationAccessControl, fileSystemFactory, tableArgumentSpecification), getClass().getClassLoader());
     }
 
     public static class UnloadFunction
             extends AbstractConnectorTableFunction
     {
-        private static final String TABLE_ARGUMENT_NAME = "INPUT";
         private static final String LOCATION_ARGUMENT_NAME = "LOCATION";
         private static final String FORMAT_ARGUMENT_NAME = "FORMAT";
         private static final String COMPRESSION_ARGUMENT_NAME = "COMPRESSION";
@@ -151,16 +162,13 @@ public class Unload
         private final LocationAccessControl locationAccessControl;
         private final TrinoFileSystemFactory fileSystemFactory;
 
-        public UnloadFunction(LocationAccessControl locationAccessControl, TrinoFileSystemFactory fileSystemFactory)
+        public UnloadFunction(LocationAccessControl locationAccessControl, TrinoFileSystemFactory fileSystemFactory, TableArgumentSpecification tableArgumentSpecification)
         {
             super(
                     "system",
                     "unload",
                     ImmutableList.of(
-                            TableArgumentSpecification.builder()
-                                    .name(TABLE_ARGUMENT_NAME)
-                                    .pruneWhenEmpty()
-                                    .build(),
+                            tableArgumentSpecification,
                             ScalarArgumentSpecification.builder()
                                     .name(LOCATION_ARGUMENT_NAME)
                                     .type(VARCHAR)

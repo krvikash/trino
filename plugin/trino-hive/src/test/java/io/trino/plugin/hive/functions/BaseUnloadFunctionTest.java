@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.functions;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveCompressionOption;
 import io.trino.plugin.hive.HiveQueryRunner;
@@ -33,6 +34,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
@@ -52,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
-class TestUnloadFunction
+abstract class BaseUnloadFunctionTest
         extends AbstractTestQueryFramework
 {
     private Path directory;
@@ -62,11 +64,17 @@ class TestUnloadFunction
             throws Exception
     {
         DistributedQueryRunner queryRunner = HiveQueryRunner.builder()
+                .setHiveProperties(getAdditionalConnectorProperties())
                 .addHiveProperty("parquet.writer.validation-percentage", "100")
                 .build();
         directory = queryRunner.getCoordinator().getBaseDataDir().resolve("unload");
         Files.createDirectory(directory);
         return queryRunner;
+    }
+
+    protected Map<String, String> getAdditionalConnectorProperties()
+    {
+        return ImmutableMap.of();
     }
 
     @AfterAll
@@ -549,7 +557,7 @@ class TestUnloadFunction
                 "format => 'ORC'))");
 
         assertThat(result.getColumnNames()).containsExactly("path", "count");
-        assertThat(result.getRowCount()).isEqualTo(1);
+        assertThat(result.getRowCount()).isGreaterThanOrEqualTo(minFilesCreated());
         long actual = result.project("count").getOnlyColumn().mapToLong(n -> (long) n).sum();
         assertThat(actual).isEqualTo(1500000L);
 
@@ -558,6 +566,8 @@ class TestUnloadFunction
 
         assertUpdate("DROP TABLE " + tableName);
     }
+
+    abstract protected int minFilesCreated();
 
     @Test
     void testUnloadPartitionLargeResult()
@@ -1152,6 +1162,12 @@ class TestUnloadFunction
         assertQueryFails(
                 "SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT 1 x), location => '" + location + "', format => 'ORC', existing_directory => 'WRONG'))",
                 "WRONG existing_directory isn't supported");
+    }
+
+    @Test
+    void testUnloadInvalidPartitionArgument()
+    {
+        String location = directory.resolve("test_missing_argument").toUri().toString();
 
         // input contains only partition columns
         assertQueryFails(
