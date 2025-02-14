@@ -20,6 +20,7 @@ import io.trino.tests.product.launcher.env.Environment;
 import io.trino.tests.product.launcher.env.common.EnvironmentExtender;
 import io.trino.tests.product.launcher.testcontainers.PortBinder;
 
+import static io.trino.testing.SystemEnvironmentUtils.isEnvSet;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.COORDINATOR;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.WORKER;
@@ -53,7 +54,7 @@ public abstract class MultinodeWarpGlueBase
         container.withEnv("AWS_ACCESS_KEY_ID", requireEnv("AWS_ACCESS_KEY_ID"))
                 .withEnv("AWS_REGION", "us-east-1")
                 .withEnv("AWS_SECRET_ACCESS_KEY", requireEnv("AWS_SECRET_ACCESS_KEY"));
-        if (System.getenv("AWS_SESSION_TOKEN") != null) {
+        if (isEnvSet("AWS_SESSION_TOKEN")) {
             container.withEnv("AWS_SESSION_TOKEN", requireEnv("AWS_SESSION_TOKEN"));
         }
     }
