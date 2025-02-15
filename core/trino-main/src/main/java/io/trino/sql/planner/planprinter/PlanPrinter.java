@@ -534,6 +534,10 @@ public class PlanPrinter
                             stageStats.getPeakUserMemoryReservation().succinct(),
                             tasks.size(),
                             maxPeakTaskMemoryUsage.succinct()));
+            if (stageStats.getGetSplitDistribution().getTotal() > 0) {
+                builder.append(indentString(1))
+                        .append(format("Total split distribution time: %sms\n", formatDouble(stageStats.getGetSplitDistribution().getTotal() / 1_000_000)));
+            }
             Optional<DistributionSnapshot> outputBufferUtilization = stageInfo.get().getStageStats().getOutputBufferUtilization();
             if (verbose && outputBufferUtilization.isPresent()) {
                 builder.append(indentString(1))
@@ -1174,6 +1178,7 @@ public class PlanPrinter
                         formatPositions(nodeStats.getPlanNodeInputPositions()),
                         nodeStats.getPlanNodeInputDataSize().toString());
                 addPhysicalInputStats(nodeStats, inputDetailBuilder, argsBuilder);
+                addSplits(nodeStats, inputDetailBuilder, argsBuilder);
                 appendDetailsFromBuilder(nodeOutput, inputDetailBuilder, argsBuilder);
             }
             return null;
@@ -1308,6 +1313,7 @@ public class PlanPrinter
                             nodeStats.getPlanNodeInputDataSize().toString(),
                             formatDouble(filtered));
                     addPhysicalInputStats(nodeStats, inputDetailBuilder, argsBuilder);
+                    addSplits(nodeStats, inputDetailBuilder, argsBuilder);
                     appendDetailsFromBuilder(nodeOutput, inputDetailBuilder, argsBuilder);
                 }
                 List<DynamicFilterDomainStats> collectedDomainStats = dynamicFilters.stream()
@@ -1336,6 +1342,11 @@ public class PlanPrinter
 
             sourceNode.accept(this, new Context(context.isInitialPlan()));
             return null;
+        }
+
+        private void addSplits(PlanNodeStats nodeStats, StringBuilder inputDetailBuilder, ImmutableList.Builder<String> argsBuilder)
+        {
+            buildFormatString(inputDetailBuilder, argsBuilder, ", Splits: %s", String.valueOf(nodeStats.getOperatorStats().values().iterator().next().getTotalDrivers()));
         }
 
         private static void addPhysicalInputStats(PlanNodeStats nodeStats, StringBuilder inputDetailBuilder, ImmutableList.Builder<String> argsBuilder)
