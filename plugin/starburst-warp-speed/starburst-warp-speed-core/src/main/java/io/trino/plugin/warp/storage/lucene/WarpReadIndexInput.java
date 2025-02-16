@@ -24,7 +24,6 @@ import org.apache.lucene.store.IndexInput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -46,7 +45,6 @@ public class WarpReadIndexInput
     private final LuceneFileType luceneFileType;
     private final int pageSize;
     private final Checksum digest;
-    private final String logPrefix;
     private final long length;
     private final String sliceDescription;
     private final long sliceOffset;
@@ -79,7 +77,6 @@ public class WarpReadIndexInput
         this.sliceOffset = sliceOffset;
         this.sliceDescription = sliceDescription;
         this.digest = new BufferedChecksum(new CRC32());
-        this.logPrefix = String.format(Locale.US, "%d(%s_%s_%s-%s)", indexUniqueIdInRowGroup, luceneFileType, sliceDescription, sliceOffset, sliceOffset + length);
         this.pageSize = storageEngineConstants.getPageSize();
         currentPageIndex = (int) (sliceOffset / pageSize);
         setCurrentBuffer();
@@ -239,7 +236,7 @@ public class WarpReadIndexInput
             ret.seek(getFilePointer());
         }
         catch (IOException e) {
-            logger.error(e, "txId=%s, failed clone", logPrefix);
+            logger.error(e, "txId=%s, failed clone", this);
             throw new RuntimeException(e);
         }
         return ret;
