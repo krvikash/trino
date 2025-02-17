@@ -42,10 +42,10 @@ cross join:
                         join (INNER, REPLICATED):
                             join (INNER, REPLICATED):
                                 alternatives
-                                    dynamic filter (await [ws_ship_hdemo_sk_15::EQUAL, ws_sold_time_sk_6::EQUAL, ws_web_page_sk_17::EQUAL])
+                                    dynamic filter (await [ws_ship_hdemo_sk_18::EQUAL, ws_sold_time_sk_9::EQUAL, ws_web_page_sk_20::EQUAL])
                                         scan web_sales
                                     cache data
-                                        dynamic filter (await [ws_ship_hdemo_sk_15::EQUAL, ws_sold_time_sk_6::EQUAL, ws_web_page_sk_17::EQUAL])
+                                        dynamic filter (await [ws_ship_hdemo_sk_18::EQUAL, ws_sold_time_sk_9::EQUAL, ws_web_page_sk_20::EQUAL])
                                             scan web_sales
                                     load from cache
                                 local exchange (GATHER, SINGLE, [])

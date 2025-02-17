@@ -59,7 +59,7 @@ local exchange (GATHER, SINGLE, [])
                                                                 scan customer_address
                                                             load from cache
                     local exchange (GATHER, SINGLE, [])
-                        remote exchange (REPARTITION, HASH, [ca_address_sk_11])
+                        remote exchange (REPARTITION, HASH, [ca_address_sk_16])
                             alternatives
                                 scan customer_address
                                 cache data

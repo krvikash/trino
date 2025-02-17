@@ -1,19 +1,19 @@
 remote exchange (GATHER, SINGLE, [])
     local exchange (GATHER, UNKNOWN, [])
         remote exchange (REPARTITION, ROUND_ROBIN, [])
-            final aggregation over (expr_gid, name_18, name_23)
+            final aggregation over (expr_gid, name_21, name_27)
                 local exchange (GATHER, SINGLE, [])
-                    remote exchange (REPARTITION, HASH, [expr_gid, name_18, name_23])
-                        partial aggregation over (expr_gid, name_18, name_23)
+                    remote exchange (REPARTITION, HASH, [expr_gid, name_21, name_27])
+                        partial aggregation over (expr_gid, name_21, name_27)
                             join (INNER, PARTITIONED):
                                 remote exchange (REPARTITION, HASH, [custkey])
                                     join (INNER, PARTITIONED):
-                                        remote exchange (REPARTITION, HASH, [orderkey_4])
+                                        remote exchange (REPARTITION, HASH, [orderkey_5])
                                             alternatives
-                                                dynamic filter ([custkey::EQUAL, orderkey_4::EQUAL])
+                                                dynamic filter ([custkey::EQUAL, orderkey_5::EQUAL])
                                                     scan orders
                                                 cache data
-                                                    dynamic filter ([custkey::EQUAL, orderkey_4::EQUAL])
+                                                    dynamic filter ([custkey::EQUAL, orderkey_5::EQUAL])
                                                         scan orders
                                                 load from cache
                                         local exchange (GATHER, SINGLE, [])
@@ -44,13 +44,13 @@ remote exchange (GATHER, SINGLE, [])
                                                                                 scan nation
                                                                             load from cache
                                 local exchange (GATHER, SINGLE, [])
-                                    remote exchange (REPARTITION, HASH, [custkey_8])
+                                    remote exchange (REPARTITION, HASH, [custkey_10])
                                         join (INNER, REPLICATED):
                                             alternatives
-                                                dynamic filter (await [nationkey_11::EQUAL])
+                                                dynamic filter (await [nationkey_13::EQUAL])
                                                     scan customer
                                                 cache data
-                                                    dynamic filter (await [nationkey_11::EQUAL])
+                                                    dynamic filter (await [nationkey_13::EQUAL])
                                                         scan customer
                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])

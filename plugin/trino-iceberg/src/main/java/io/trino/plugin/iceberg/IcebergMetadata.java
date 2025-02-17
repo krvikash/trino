@@ -256,6 +256,7 @@ import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_PARTITION_
 import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_ROW_ID;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_ROW_ID_NAME;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.fileModifiedTimeColumnHandle;
+import static io.trino.plugin.iceberg.IcebergColumnHandle.partitionColumnHandle;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.pathColumnHandle;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_CATALOG_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_COMMIT_ERROR;
@@ -266,6 +267,7 @@ import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_UNSUPPORTED_VIEW_
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.REFRESH_SCHEDULE;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_MODIFIED_TIME;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_PATH;
+import static io.trino.plugin.iceberg.IcebergMetadataColumn.PARTITION;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
 import static io.trino.plugin.iceberg.IcebergPartitionFunction.Transform.BUCKET;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
@@ -925,6 +927,7 @@ public class IcebergMetadata
         for (IcebergColumnHandle columnHandle : getTopLevelColumns(SchemaParser.fromJson(table.getTableSchemaJson()), typeManager)) {
             columnHandles.put(columnHandle.getName(), columnHandle);
         }
+        columnHandles.put(PARTITION.getColumnName(), partitionColumnHandle());
         columnHandles.put(FILE_PATH.getColumnName(), pathColumnHandle());
         columnHandles.put(FILE_MODIFIED_TIME.getColumnName(), fileModifiedTimeColumnHandle());
         return columnHandles.buildOrThrow();
@@ -3351,7 +3354,7 @@ public class IcebergMetadata
                     newEnforced.put(columnHandle, domain);
                 }
                 else if (isMetadataColumnId(columnHandle.getId())) {
-                    if (columnHandle.isPathColumn() || columnHandle.isFileModifiedTimeColumn()) {
+                    if (columnHandle.isPartitionColumn() || columnHandle.isPathColumn() || columnHandle.isFileModifiedTimeColumn()) {
                         newEnforced.put(columnHandle, domain);
                     }
                     else {

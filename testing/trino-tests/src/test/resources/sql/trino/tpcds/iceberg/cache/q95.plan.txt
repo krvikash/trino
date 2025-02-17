@@ -28,38 +28,38 @@ final aggregation over ()
                                                 local exchange (GATHER, SINGLE, [])
                                                     remote exchange (REPLICATE, BROADCAST, [])
                                                         join (INNER, PARTITIONED):
-                                                            final aggregation over (ws_order_number_22)
+                                                            final aggregation over (ws_order_number_25)
                                                                 local exchange (GATHER, SINGLE, [])
-                                                                    partial aggregation over (ws_order_number_22)
+                                                                    partial aggregation over (ws_order_number_25)
                                                                         join (INNER, PARTITIONED, can skip output duplicates):
-                                                                            remote exchange (REPARTITION, HASH, [ws_order_number_22])
+                                                                            remote exchange (REPARTITION, HASH, [ws_order_number_25])
                                                                                 alternatives
-                                                                                    dynamic filter ([ws_order_number_22::EQUAL, ws_order_number_22::EQUAL])
+                                                                                    dynamic filter ([ws_order_number_25::EQUAL, ws_order_number_25::EQUAL])
                                                                                         scan web_sales
                                                                                     cache data
-                                                                                        dynamic filter ([ws_order_number_22::EQUAL, ws_order_number_22::EQUAL])
+                                                                                        dynamic filter ([ws_order_number_25::EQUAL, ws_order_number_25::EQUAL])
                                                                                             scan web_sales
                                                                                     load from cache
                                                                             local exchange (GATHER, SINGLE, [])
-                                                                                remote exchange (REPARTITION, HASH, [ws_order_number_58])
+                                                                                remote exchange (REPARTITION, HASH, [ws_order_number_62])
                                                                                     alternatives
-                                                                                        dynamic filter ([ws_order_number_58::EQUAL])
+                                                                                        dynamic filter ([ws_order_number_62::EQUAL])
                                                                                             scan web_sales
                                                                                         cache data
-                                                                                            dynamic filter ([ws_order_number_58::EQUAL])
+                                                                                            dynamic filter ([ws_order_number_62::EQUAL])
                                                                                                 scan web_sales
                                                                                         load from cache
-                                                            final aggregation over (ws_order_number_100)
+                                                            final aggregation over (ws_order_number_106)
                                                                 local exchange (GATHER, SINGLE, [])
-                                                                    partial aggregation over (ws_order_number_100)
+                                                                    partial aggregation over (ws_order_number_106)
                                                                         join (INNER, PARTITIONED, can skip output duplicates):
                                                                             join (INNER, PARTITIONED, can skip output duplicates):
-                                                                                remote exchange (REPARTITION, HASH, [ws_order_number_100])
+                                                                                remote exchange (REPARTITION, HASH, [ws_order_number_106])
                                                                                     alternatives
-                                                                                        dynamic filter ([ws_order_number_100::EQUAL], await [ws_order_number_100::EQUAL])
+                                                                                        dynamic filter ([ws_order_number_106::EQUAL], await [ws_order_number_106::EQUAL])
                                                                                             scan web_sales
                                                                                         cache data
-                                                                                            dynamic filter ([ws_order_number_100::EQUAL], await [ws_order_number_100::EQUAL])
+                                                                                            dynamic filter ([ws_order_number_106::EQUAL], await [ws_order_number_106::EQUAL])
                                                                                                 scan web_sales
                                                                                         load from cache
                                                                                 local exchange (GATHER, SINGLE, [])
@@ -72,7 +72,7 @@ final aggregation over ()
                                                                                                     scan web_returns
                                                                                             load from cache
                                                                             local exchange (GATHER, SINGLE, [])
-                                                                                remote exchange (REPARTITION, HASH, [ws_order_number_136])
+                                                                                remote exchange (REPARTITION, HASH, [ws_order_number_143])
                                                                                     alternatives
                                                                                         scan web_sales
                                                                                         cache data

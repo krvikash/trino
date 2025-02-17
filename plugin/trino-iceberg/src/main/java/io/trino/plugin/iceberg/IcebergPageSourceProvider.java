@@ -143,6 +143,7 @@ import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_CANNOT_OPEN_SPLIT
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_CURSOR_ERROR;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_MODIFIED_TIME;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_PATH;
+import static io.trino.plugin.iceberg.IcebergMetadataColumn.PARTITION;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getOrcLazyReadSmallRanges;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getOrcMaxBufferSize;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getOrcMaxMergeDistance;
@@ -290,6 +291,7 @@ public class IcebergPageSourceProvider
             Optional<NameMapping> nameMapping)
     {
         Set<IcebergColumnHandle> deleteFilterRequiredColumns = requiredColumnsForDeletes(tableSchema, deletes);
+        String partition = partitionSpec.partitionToPath(partitionData);
         Map<Integer, Optional<String>> partitionKeys = getPartitionKeys(partitionData, partitionSpec);
 
         List<IcebergColumnHandle> requiredColumns = new ArrayList<>(icebergColumns);
@@ -339,6 +341,7 @@ public class IcebergPageSourceProvider
                 requiredColumns,
                 effectivePredicate,
                 nameMapping,
+                partition,
                 partitionKeys);
         ReaderPageSource dataPageSource = readerPageSourceWithRowPositions.readerPageSource();
 
@@ -429,6 +432,7 @@ public class IcebergPageSourceProvider
                 columns,
                 tupleDomain,
                 Optional.empty(),
+                "",
                 ImmutableMap.of())
                 .readerPageSource()
                 .get();
@@ -532,6 +536,7 @@ public class IcebergPageSourceProvider
             List<IcebergColumnHandle> dataColumns,
             TupleDomain<IcebergColumnHandle> predicate,
             Optional<NameMapping> nameMapping,
+            String partition,
             Map<Integer, Optional<String>> partitionKeys)
     {
         return switch (fileFormat) {
@@ -553,6 +558,7 @@ public class IcebergPageSourceProvider
                     fileFormatDataSourceStats,
                     typeManager,
                     nameMapping,
+                    partition,
                     partitionKeys);
             case PARQUET -> createParquetPageSource(
                     inputFile,
@@ -572,6 +578,7 @@ public class IcebergPageSourceProvider
                     predicate,
                     fileFormatDataSourceStats,
                     nameMapping,
+                    partition,
                     partitionKeys);
             case AVRO -> createAvroPageSource(
                     inputFile,
@@ -579,6 +586,7 @@ public class IcebergPageSourceProvider
                     length,
                     fileSchema,
                     nameMapping,
+                    partition,
                     dataColumns);
         };
     }
@@ -628,6 +636,7 @@ public class IcebergPageSourceProvider
             FileFormatDataSourceStats stats,
             TypeManager typeManager,
             Optional<NameMapping> nameMapping,
+            String partition,
             Map<Integer, Optional<String>> partitionKeys)
     {
         OrcDataSource orcDataSource = null;
@@ -670,6 +679,9 @@ public class IcebergPageSourceProvider
                     columnAdaptations.add(ColumnAdaptation.constantColumn(nativeValueToBlock(
                             trinoType,
                             deserializePartitionValue(trinoType, partitionKeys.get(column.getId()).orElse(null), column.getName()))));
+                }
+                else if (column.isPartitionColumn()) {
+                    columnAdaptations.add(ColumnAdaptation.constantColumn(nativeValueToBlock(PARTITION.getType(), utf8Slice(partition))));
                 }
                 else if (column.isPathColumn()) {
                     columnAdaptations.add(ColumnAdaptation.constantColumn(nativeValueToBlock(FILE_PATH.getType(), utf8Slice(inputFile.location().toString()))));
@@ -895,6 +907,7 @@ public class IcebergPageSourceProvider
             TupleDomain<IcebergColumnHandle> effectivePredicate,
             FileFormatDataSourceStats fileFormatDataSourceStats,
             Optional<NameMapping> nameMapping,
+            String partition,
             Map<Integer, Optional<String>> partitionKeys)
     {
         AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
@@ -962,6 +975,9 @@ public class IcebergPageSourceProvider
                     pageSourceBuilder.addConstantColumn(nativeValueToBlock(
                             trinoType,
                             deserializePartitionValue(trinoType, partitionKeys.get(column.getId()).orElse(null), column.getName())));
+                }
+                else if (column.isPartitionColumn()) {
+                    pageSourceBuilder.addConstantColumn(nativeValueToBlock(PARTITION.getType(), utf8Slice(partition)));
                 }
                 else if (column.isPathColumn()) {
                     pageSourceBuilder.addConstantColumn(nativeValueToBlock(FILE_PATH.getType(), utf8Slice(inputFile.location().toString())));
@@ -1082,6 +1098,7 @@ public class IcebergPageSourceProvider
             long length,
             Schema fileSchema,
             Optional<NameMapping> nameMapping,
+            String partition,
             List<IcebergColumnHandle> columns)
     {
         ConstantPopulatingPageSource.Builder constantPopulatingPageSourceBuilder = ConstantPopulatingPageSource.builder();
@@ -1124,7 +1141,10 @@ public class IcebergPageSourceProvider
                 verify(column.isBaseColumn(), "Column projections must be based from a root column");
                 org.apache.avro.Schema.Field field = fileColumnsByIcebergId.get(column.getId());
 
-                if (column.isPathColumn()) {
+                if (column.isPartitionColumn()) {
+                    constantPopulatingPageSourceBuilder.addConstantColumn(nativeValueToBlock(PARTITION.getType(), utf8Slice(partition)));
+                }
+                else if (column.isPathColumn()) {
                     constantPopulatingPageSourceBuilder.addConstantColumn(nativeValueToBlock(FILE_PATH.getType(), utf8Slice(file.location())));
                 }
                 else if (column.isFileModifiedTimeColumn()) {

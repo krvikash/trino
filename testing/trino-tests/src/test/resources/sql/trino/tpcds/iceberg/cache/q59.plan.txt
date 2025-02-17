@@ -36,10 +36,10 @@ local exchange (GATHER, SINGLE, [])
                                 local exchange (GATHER, SINGLE, [])
                                     remote exchange (REPLICATE, BROADCAST, [])
                                         alternatives
-                                            dynamic filter ([d_week_seq_20::EQUAL])
+                                            dynamic filter ([d_week_seq_22::EQUAL])
                                                 scan date_dim
                                             cache data
-                                                dynamic filter ([d_week_seq_20::EQUAL])
+                                                dynamic filter ([d_week_seq_22::EQUAL])
                                                     scan date_dim
                                             load from cache
                             local exchange (GATHER, SINGLE, [])
@@ -52,34 +52,34 @@ local exchange (GATHER, SINGLE, [])
                                                 scan store
                                         load from cache
                     local exchange (GATHER, SINGLE, [])
-                        remote exchange (REPARTITION, HASH, [operator_subtract, s_store_id_116])
+                        remote exchange (REPARTITION, HASH, [operator_subtract, s_store_id_121])
                             join (INNER, REPLICATED):
                                 join (INNER, REPLICATED):
-                                    final aggregation over (d_week_seq_75, ss_store_sk_52)
+                                    final aggregation over (d_week_seq_79, ss_store_sk_55)
                                         local exchange (GATHER, SINGLE, [])
-                                            remote exchange (REPARTITION, HASH, [d_week_seq_75, ss_store_sk_52])
-                                                partial aggregation over (d_week_seq_75, ss_store_sk_52)
-                                                    final aggregation over (d_day_name_85, d_week_seq_75, ss_store_sk_52)
+                                            remote exchange (REPARTITION, HASH, [d_week_seq_79, ss_store_sk_55])
+                                                partial aggregation over (d_week_seq_79, ss_store_sk_55)
+                                                    final aggregation over (d_day_name_89, d_week_seq_79, ss_store_sk_55)
                                                         local exchange (GATHER, SINGLE, [])
-                                                            remote exchange (REPARTITION, HASH, [d_day_name_85, d_week_seq_75, ss_store_sk_52])
-                                                                intermediate aggregation over (d_day_name_85, d_week_seq_75, ss_store_sk_52)
+                                                            remote exchange (REPARTITION, HASH, [d_day_name_89, d_week_seq_79, ss_store_sk_55])
+                                                                intermediate aggregation over (d_day_name_89, d_week_seq_79, ss_store_sk_55)
                                                                     join (INNER, REPLICATED):
                                                                         alternatives
-                                                                            partial aggregation over (ss_sold_date_sk_68, ss_store_sk_52)
-                                                                                dynamic filter (await [ss_sold_date_sk_68::EQUAL, ss_store_sk_52::EQUAL])
+                                                                            partial aggregation over (ss_sold_date_sk_71, ss_store_sk_55)
+                                                                                dynamic filter (await [ss_sold_date_sk_71::EQUAL, ss_store_sk_55::EQUAL])
                                                                                     scan store_sales
                                                                             cache data
-                                                                                partial aggregation over (ss_sold_date_sk_68, ss_store_sk_52)
-                                                                                    dynamic filter (await [ss_sold_date_sk_68::EQUAL, ss_store_sk_52::EQUAL])
+                                                                                partial aggregation over (ss_sold_date_sk_71, ss_store_sk_55)
+                                                                                    dynamic filter (await [ss_sold_date_sk_71::EQUAL, ss_store_sk_55::EQUAL])
                                                                                         scan store_sales
                                                                             load from cache
                                                                         local exchange (GATHER, SINGLE, [])
                                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                                 alternatives
-                                                                                    dynamic filter (await [d_week_seq_75::EQUAL])
+                                                                                    dynamic filter (await [d_week_seq_79::EQUAL])
                                                                                         scan date_dim
                                                                                     cache data
-                                                                                        dynamic filter (await [d_week_seq_75::EQUAL])
+                                                                                        dynamic filter (await [d_week_seq_79::EQUAL])
                                                                                             scan date_dim
                                                                                     load from cache
                                     local exchange (GATHER, SINGLE, [])

@@ -27,7 +27,7 @@ remote exchange (GATHER, SINGLE, [])
                                                                     scan part
                                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])
-                                                remote exchange (REPARTITION, HASH, [suppkey_4])
+                                                remote exchange (REPARTITION, HASH, [suppkey_5])
                                                     alternatives
                                                         scan supplier
                                                         cache data

@@ -95,12 +95,12 @@ local exchange (GATHER, SINGLE, [])
                                                                                 scan web_sales
                                                                         load from cache
                                                                     join (INNER, PARTITIONED):
-                                                                        remote exchange (REPARTITION, HASH, [ws_item_sk_82, ws_order_number_96])
+                                                                        remote exchange (REPARTITION, HASH, [ws_item_sk_91, ws_order_number_105])
                                                                             alternatives
-                                                                                dynamic filter ([ws_item_sk_82::EQUAL], await [ws_order_number_96::EQUAL, ws_web_site_sk_92::EQUAL])
+                                                                                dynamic filter ([ws_item_sk_91::EQUAL], await [ws_order_number_105::EQUAL, ws_web_site_sk_101::EQUAL])
                                                                                     scan web_sales
                                                                                 cache data
-                                                                                    dynamic filter ([ws_item_sk_82::EQUAL], await [ws_order_number_96::EQUAL, ws_web_site_sk_92::EQUAL])
+                                                                                    dynamic filter ([ws_item_sk_91::EQUAL], await [ws_order_number_105::EQUAL, ws_web_site_sk_101::EQUAL])
                                                                                         scan web_sales
                                                                                 load from cache
                                                                         local exchange (GATHER, SINGLE, [])

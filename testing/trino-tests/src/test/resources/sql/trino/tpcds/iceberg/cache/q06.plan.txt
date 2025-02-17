@@ -33,10 +33,10 @@ local exchange (GATHER, SINGLE, [])
                                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                                             local exchange (GATHER, SINGLE, [])
                                                                                 remote exchange (GATHER, SINGLE, [])
-                                                                                    final aggregation over (d_month_seq_11)
+                                                                                    final aggregation over (d_month_seq_15)
                                                                                         local exchange (GATHER, SINGLE, [])
-                                                                                            remote exchange (REPARTITION, HASH, [d_month_seq_11])
-                                                                                                partial aggregation over (d_month_seq_11)
+                                                                                            remote exchange (REPARTITION, HASH, [d_month_seq_15])
+                                                                                                partial aggregation over (d_month_seq_15)
                                                                                                     alternatives
                                                                                                         scan date_dim
                                                                                                         cache data
@@ -69,10 +69,10 @@ local exchange (GATHER, SINGLE, [])
                                                         load from cache
                                         local exchange (GATHER, SINGLE, [])
                                             remote exchange (REPLICATE, BROADCAST, [])
-                                                final aggregation over (i_category_50)
+                                                final aggregation over (i_category_55)
                                                     local exchange (GATHER, SINGLE, [])
-                                                        remote exchange (REPARTITION, HASH, [i_category_50])
-                                                            partial aggregation over (i_category_50)
+                                                        remote exchange (REPARTITION, HASH, [i_category_55])
+                                                            partial aggregation over (i_category_55)
                                                                 alternatives
                                                                     scan item
                                                                     cache data

@@ -38,53 +38,53 @@ remote exchange (GATHER, SINGLE, [])
                                                                 scan date_dim
                                                         load from cache
                     local exchange (GATHER, SINGLE, [])
-                        remote exchange (REPARTITION, HASH, [d_week_seq_20])
+                        remote exchange (REPARTITION, HASH, [d_week_seq_22])
                             alternatives
-                                dynamic filter ([d_week_seq_20::EQUAL])
+                                dynamic filter ([d_week_seq_22::EQUAL])
                                     scan date_dim
                                 cache data
-                                    dynamic filter ([d_week_seq_20::EQUAL])
+                                    dynamic filter ([d_week_seq_22::EQUAL])
                                         scan date_dim
                                 load from cache
                 local exchange (GATHER, SINGLE, [])
                     remote exchange (REPARTITION, HASH, [operator_subtract])
                         join (INNER, PARTITIONED):
-                            single aggregation over (d_week_seq_124)
-                                final aggregation over (d_day_name_134, d_week_seq_124)
+                            single aggregation over (d_week_seq_129)
+                                final aggregation over (d_day_name_139, d_week_seq_129)
                                     local exchange (GATHER, SINGLE, [])
-                                        remote exchange (REPARTITION, HASH, [d_week_seq_124])
-                                            intermediate aggregation over (d_day_name_134, d_week_seq_124)
+                                        remote exchange (REPARTITION, HASH, [d_week_seq_129])
+                                            intermediate aggregation over (d_day_name_139, d_week_seq_129)
                                                 join (INNER, REPLICATED):
                                                     local exchange (REPARTITION, ROUND_ROBIN, [])
                                                         alternatives
-                                                            partial aggregation over (ws_sold_date_sk_81)
-                                                                dynamic filter (await [ws_sold_date_sk_81::EQUAL])
+                                                            partial aggregation over (ws_sold_date_sk_84)
+                                                                dynamic filter (await [ws_sold_date_sk_84::EQUAL])
                                                                     scan web_sales
                                                             cache data
-                                                                partial aggregation over (ws_sold_date_sk_81)
-                                                                    dynamic filter (await [ws_sold_date_sk_81::EQUAL])
+                                                                partial aggregation over (ws_sold_date_sk_84)
+                                                                    dynamic filter (await [ws_sold_date_sk_84::EQUAL])
                                                                         scan web_sales
                                                             load from cache
                                                         alternatives
-                                                            partial aggregation over (cs_sold_date_sk_117)
-                                                                dynamic filter (await [cs_sold_date_sk_117::EQUAL])
+                                                            partial aggregation over (cs_sold_date_sk_121)
+                                                                dynamic filter (await [cs_sold_date_sk_121::EQUAL])
                                                                     scan catalog_sales
                                                             cache data
-                                                                partial aggregation over (cs_sold_date_sk_117)
-                                                                    dynamic filter (await [cs_sold_date_sk_117::EQUAL])
+                                                                partial aggregation over (cs_sold_date_sk_121)
+                                                                    dynamic filter (await [cs_sold_date_sk_121::EQUAL])
                                                                         scan catalog_sales
                                                             load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             alternatives
-                                                                dynamic filter (await [d_week_seq_124::EQUAL])
+                                                                dynamic filter (await [d_week_seq_129::EQUAL])
                                                                     scan date_dim
                                                                 cache data
-                                                                    dynamic filter (await [d_week_seq_124::EQUAL])
+                                                                    dynamic filter (await [d_week_seq_129::EQUAL])
                                                                         scan date_dim
                                                                 load from cache
                             local exchange (GATHER, SINGLE, [])
-                                remote exchange (REPARTITION, HASH, [d_week_seq_168])
+                                remote exchange (REPARTITION, HASH, [d_week_seq_174])
                                     alternatives
                                         scan date_dim
                                         cache data

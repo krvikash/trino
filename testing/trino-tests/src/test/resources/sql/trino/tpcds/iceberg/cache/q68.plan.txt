@@ -3,12 +3,12 @@ local exchange (GATHER, SINGLE, [])
         local exchange (GATHER, SINGLE, [])
             local exchange (REPARTITION, ROUND_ROBIN, [])
                 join (INNER, PARTITIONED):
-                    remote exchange (REPARTITION, HASH, [ca_address_sk_12])
+                    remote exchange (REPARTITION, HASH, [ca_address_sk_17])
                         alternatives
-                            dynamic filter ([ca_address_sk_12::EQUAL])
+                            dynamic filter ([ca_address_sk_17::EQUAL])
                                 scan customer_address
                             cache data
-                                dynamic filter ([ca_address_sk_12::EQUAL])
+                                dynamic filter ([ca_address_sk_17::EQUAL])
                                     scan customer_address
                             load from cache
                     local exchange (GATHER, SINGLE, [])

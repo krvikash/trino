@@ -26,13 +26,13 @@ remote exchange (GATHER, SINGLE, [])
                                                                     cache data
                                                                         scan customer
                                                                     load from cache
-                                final aggregation over (custkey_10)
+                                final aggregation over (custkey_11)
                                     local exchange (GATHER, SINGLE, [])
-                                        remote exchange (REPARTITION, HASH, [custkey_10])
+                                        remote exchange (REPARTITION, HASH, [custkey_11])
                                             alternatives
-                                                partial aggregation over (custkey_10)
+                                                partial aggregation over (custkey_11)
                                                     scan orders
                                                 cache data
-                                                    partial aggregation over (custkey_10)
+                                                    partial aggregation over (custkey_11)
                                                         scan orders
                                                 load from cache

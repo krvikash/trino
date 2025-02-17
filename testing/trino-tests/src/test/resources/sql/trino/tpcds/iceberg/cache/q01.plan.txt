@@ -44,20 +44,20 @@ local exchange (GATHER, SINGLE, [])
                                                     load from cache
                         local exchange (GATHER, SINGLE, [])
                             remote exchange (REPLICATE, BROADCAST, [])
-                                final aggregation over (sr_store_sk_12)
+                                final aggregation over (sr_store_sk_15)
                                     local exchange (GATHER, SINGLE, [])
-                                        remote exchange (REPARTITION, HASH, [sr_store_sk_12])
-                                            partial aggregation over (sr_store_sk_12)
-                                                final aggregation over (sr_customer_sk_8, sr_store_sk_12)
+                                        remote exchange (REPARTITION, HASH, [sr_store_sk_15])
+                                            partial aggregation over (sr_store_sk_15)
+                                                final aggregation over (sr_customer_sk_11, sr_store_sk_15)
                                                     local exchange (GATHER, SINGLE, [])
-                                                        remote exchange (REPARTITION, HASH, [sr_customer_sk_8, sr_store_sk_12])
-                                                            partial aggregation over (sr_customer_sk_8, sr_store_sk_12)
+                                                        remote exchange (REPARTITION, HASH, [sr_customer_sk_11, sr_store_sk_15])
+                                                            partial aggregation over (sr_customer_sk_11, sr_store_sk_15)
                                                                 join (INNER, REPLICATED):
                                                                     alternatives
-                                                                        dynamic filter (await [sr_returned_date_sk_25::EQUAL])
+                                                                        dynamic filter (await [sr_returned_date_sk_28::EQUAL])
                                                                             scan store_returns
                                                                         cache data
-                                                                            dynamic filter (await [sr_returned_date_sk_25::EQUAL])
+                                                                            dynamic filter (await [sr_returned_date_sk_28::EQUAL])
                                                                                 scan store_returns
                                                                         load from cache
                                                                     local exchange (GATHER, SINGLE, [])

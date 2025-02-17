@@ -2,17 +2,17 @@ local exchange (GATHER, SINGLE, [])
     remote exchange (GATHER, SINGLE, [])
         local exchange (GATHER, SINGLE, [])
             local exchange (REPARTITION, ROUND_ROBIN, [])
-                final aggregation over (custkey_0, name, orderdate, orderkey_4, totalprice)
+                final aggregation over (custkey_0, name, orderdate, orderkey_5, totalprice)
                     local exchange (GATHER, SINGLE, [])
                         join (INNER, PARTITIONED):
-                            remote exchange (REPARTITION, HASH, [orderkey_4])
+                            remote exchange (REPARTITION, HASH, [orderkey_5])
                                 alternatives
-                                    partial aggregation over (orderkey_4)
-                                        dynamic filter ([orderkey_4::EQUAL])
+                                    partial aggregation over (orderkey_5)
+                                        dynamic filter ([orderkey_5::EQUAL])
                                             scan lineitem
                                     cache data
-                                        partial aggregation over (orderkey_4)
-                                            dynamic filter ([orderkey_4::EQUAL])
+                                        partial aggregation over (orderkey_5)
+                                            dynamic filter ([orderkey_5::EQUAL])
                                                 scan lineitem
                                     load from cache
                             local exchange (GATHER, SINGLE, [])
@@ -28,14 +28,14 @@ local exchange (GATHER, SINGLE, [])
                                                             dynamic filter ([custkey_0::EQUAL, orderkey::EQUAL])
                                                                 scan orders
                                                         load from cache
-                                                final aggregation over (orderkey_8)
+                                                final aggregation over (orderkey_10)
                                                     local exchange (GATHER, SINGLE, [])
-                                                        remote exchange (REPARTITION, HASH, [orderkey_8])
+                                                        remote exchange (REPARTITION, HASH, [orderkey_10])
                                                             alternatives
-                                                                partial aggregation over (orderkey_8)
+                                                                partial aggregation over (orderkey_10)
                                                                     scan lineitem
                                                                 cache data
-                                                                    partial aggregation over (orderkey_8)
+                                                                    partial aggregation over (orderkey_10)
                                                                         scan lineitem
                                                                 load from cache
                                         local exchange (GATHER, SINGLE, [])

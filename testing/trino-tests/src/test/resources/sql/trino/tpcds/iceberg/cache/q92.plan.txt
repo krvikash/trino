@@ -29,16 +29,16 @@ final aggregation over ()
                                         load from cache
                         local exchange (GATHER, SINGLE, [])
                             remote exchange (REPLICATE, BROADCAST, [])
-                                final aggregation over (ws_item_sk_6)
+                                final aggregation over (ws_item_sk_8)
                                     local exchange (GATHER, SINGLE, [])
-                                        remote exchange (REPARTITION, HASH, [ws_item_sk_6])
-                                            partial aggregation over (ws_item_sk_6)
+                                        remote exchange (REPARTITION, HASH, [ws_item_sk_8])
+                                            partial aggregation over (ws_item_sk_8)
                                                 join (INNER, REPLICATED):
                                                     alternatives
-                                                        dynamic filter (await [ws_sold_date_sk_37::EQUAL])
+                                                        dynamic filter (await [ws_sold_date_sk_39::EQUAL])
                                                             scan web_sales
                                                         cache data
-                                                            dynamic filter (await [ws_sold_date_sk_37::EQUAL])
+                                                            dynamic filter (await [ws_sold_date_sk_39::EQUAL])
                                                                 scan web_sales
                                                         load from cache
                                                     local exchange (GATHER, SINGLE, [])
