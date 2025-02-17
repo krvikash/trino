@@ -29,6 +29,7 @@ import com.google.common.reflect.TypeToken;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -117,6 +118,16 @@ public class TrinoJsonCodec<T>
             throws IOException
     {
         try (JsonParser parser = mapper.createParser(inputStream)) {
+            T value = mapper.readerFor(javaType).readValue(parser);
+            checkArgument(parser.nextToken() == null, "Found characters after the expected end of input");
+            return value;
+        }
+    }
+
+    public T fromJson(Reader inputReader)
+            throws IOException
+    {
+        try (JsonParser parser = mapper.createParser(inputReader)) {
             T value = mapper.readerFor(javaType).readValue(parser);
             checkArgument(parser.nextToken() == null, "Found characters after the expected end of input");
             return value;
