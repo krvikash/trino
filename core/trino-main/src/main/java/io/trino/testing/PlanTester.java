@@ -422,7 +422,6 @@ public class PlanTester
                 typeManager,
                 nodeSchedulerConfig,
                 optimizerConfig,
-                new LocalMemoryManager(new NodeMemoryConfig()),
                 secretsResolver));
         this.splitManager = new SplitManager(createSplitManagerProvider(catalogManager), tracer, new QueryManagerConfig());
         this.pageSourceManager = new PageSourceManager(createPageSourceProviderFactory(catalogManager));
