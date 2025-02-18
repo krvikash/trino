@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -372,7 +373,7 @@ class TestAsyncResultIterator
             }
 
             @Override
-            public Long getUpdateCount()
+            public OptionalLong getUpdateCount()
             {
                 throw new UnsupportedOperationException();
             }
