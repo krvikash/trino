@@ -113,7 +113,9 @@ public class DispatcherWrapperPageSource
     @Override
     public long getReadTimeNanos()
     {
-        return (connectorPageSource != null) ? connectorPageSource.getReadTimeNanos() : 0;
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(new DispatcherPageSourceStats().getJmxKey());
+        long proxyReadTimeNanos = (connectorPageSource != null) ? connectorPageSource.getReadTimeNanos() : 0;
+        return stats.getnative_read_time() + proxyReadTimeNanos;
     }
 
     @Override
