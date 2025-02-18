@@ -110,17 +110,17 @@ public class HudiProxiedConnectorTransformerTest
                 false,
                 Set.of());
 
-        List<PartitionKey> partitionKeys = hudiSplit.getPartitionKeys()
+        List<PartitionKey> partitionKeys = hudiSplit.partitionKeys()
                 .stream()
                 .map(hivePartitionKey -> new PartitionKey(new RegularColumn(hivePartitionKey.name()), hivePartitionKey.value()))
                 .toList();
         DispatcherSplit expectedDispatcherSplit = new DispatcherSplit(
                 dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
-                hudiSplit.getLocation(),
-                hudiSplit.getStart(),
-                hudiSplit.getLength(),
-                hudiSplit.getFileModifiedTime(),
+                hudiSplit.location(),
+                hudiSplit.start(),
+                hudiSplit.length(),
+                hudiSplit.fileModifiedTime(),
                 List.of(node.getHostAndPort()),
                 partitionKeys,
                 "",

@@ -106,13 +106,13 @@ public class HudiProxiedConnectorTransformer
     public ConnectorSplit createProxiedConnectorNonFilteredSplit(ConnectorSplit connectorSplit)
     {
         HudiSplit originalSplit = (HudiSplit) connectorSplit;
-        return new HudiSplit(originalSplit.getLocation(),
-                originalSplit.getStart(),
-                originalSplit.getLength(),
-                originalSplit.getFileSize(),
-                originalSplit.getFileModifiedTime(),
+        return new HudiSplit(originalSplit.location(),
+                originalSplit.start(),
+                originalSplit.length(),
+                originalSplit.fileSize(),
+                originalSplit.fileModifiedTime(),
                 TupleDomain.all(),
-                originalSplit.getPartitionKeys(),
+                originalSplit.partitionKeys(),
                 originalSplit.getSplitWeight());
     }
 
@@ -144,20 +144,20 @@ public class HudiProxiedConnectorTransformer
         HudiSplit hudiSplit = (HudiSplit) proxyConnectorSplit;
 
         List<HostAddress> hostAddresses = getHostAddressForSplit(
-                getSplitKey(hudiSplit.getLocation(), hudiSplit.getStart(), hudiSplit.getLength()),
+                getSplitKey(hudiSplit.location(), hudiSplit.start(), hudiSplit.length()),
                 connectorSplitNodeDistributor);
 
         List<PartitionKey> partitionKeys = new ArrayList<>();
-        for (HivePartitionKey hivePartitionKey : hudiSplit.getPartitionKeys()) {
+        for (HivePartitionKey hivePartitionKey : hudiSplit.partitionKeys()) {
             partitionKeys.add(new PartitionKey(new RegularColumn(hivePartitionKey.name()), hivePartitionKey.value()));
         }
 
         return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
-                hudiSplit.getLocation(),
-                hudiSplit.getStart(),
-                hudiSplit.getLength(),
-                hudiSplit.getFileModifiedTime(),
+                hudiSplit.location(),
+                hudiSplit.start(),
+                hudiSplit.length(),
+                hudiSplit.fileModifiedTime(),
                 hostAddresses,
                 partitionKeys,
                 "",
