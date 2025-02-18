@@ -144,7 +144,7 @@ public class WarpReader
                         aggregatorPageArgs,
                         queryState);
                 if (queryArgs.queryParams().isRangesRequired()) {
-                    ranges = blocksAggregator.getRanges(aggregatorPageArgs);
+                    ranges = matcher.getRanges(matcherPageArgs);
                 }
             }
             long numReadPages = closePage();

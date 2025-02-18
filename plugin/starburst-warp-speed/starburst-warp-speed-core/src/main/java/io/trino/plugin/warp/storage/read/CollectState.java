@@ -90,7 +90,7 @@ public class CollectState
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_WARMUP_ELEMENT_PARAMS, queryParams.getWarmUpElementCollectParams().map(m -> m.address()).orElse(0L));
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_BUFFERS, aggregatorPageArgs.collectBuffers().map(m -> m.address()).orElse(0L));
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_RECORD_BUFFER_STATES, aggregatorPageArgs.recordBufferStates().map(m -> m.address()).orElse(0L));
-        collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_RECORD_INDEXES, aggregatorPageArgs.rangeData().getRecordIndexes().getAddress());
+        collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_RECORD_INDEXES, aggregatorPageArgs.recordIndexes().getAddress());
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_MATCH_COLLECT_METADATA, aggregatorPageArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L));
         RowGroupData.setFileCookie(collectState.asSlice(COLLECT_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
                 (int) fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()],

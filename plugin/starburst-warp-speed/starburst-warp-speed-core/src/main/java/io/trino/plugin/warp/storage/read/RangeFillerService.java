@@ -16,9 +16,7 @@ package io.trino.plugin.warp.storage.read;
 public interface RangeFillerService
 {
     // return the number of rows collected in this round
-    int add(ChunkProperties chunkProperties, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService);
-
-    WarpStoragePageSource.RowRanges reset(RangeData rangeData);
+    int add(RecordIndexes recordIndexes, ChunkProperties chunkProperties, QueryArgs queryArgs, RangeData rangeData);
 
     WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData);
 }

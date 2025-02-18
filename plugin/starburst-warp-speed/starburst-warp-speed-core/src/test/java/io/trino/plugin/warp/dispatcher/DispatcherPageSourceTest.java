@@ -864,13 +864,15 @@ public class DispatcherPageSourceTest
 
     private static RowRanges createRowRanges(long... ranges)
     {
+        long rowCount = 0;
         long[] lowInclusive = new long[ranges.length / 2];
         long[] upperExclusive = new long[ranges.length / 2];
         for (int i = 0; i < ranges.length / 2; i++) {
             lowInclusive[i] = ranges[i * 2];
             upperExclusive[i] = ranges[i * 2 + 1];
+            rowCount += upperExclusive[i] - lowInclusive[i];
         }
-        return new RowRanges(lowInclusive, upperExclusive, false);
+        return new RowRanges(lowInclusive, upperExclusive, rowCount);
     }
 
     public static class TestPage

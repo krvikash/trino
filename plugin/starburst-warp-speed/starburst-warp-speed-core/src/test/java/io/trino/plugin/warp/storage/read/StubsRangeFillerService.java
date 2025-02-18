@@ -25,15 +25,9 @@ public class StubsRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(ChunkProperties chunkProperties, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService)
+    public int add(RecordIndexes recordIndexes, ChunkProperties chunkProperties, QueryArgs queryArgs, RangeData rangeData)
     {
         return 0;
-    }
-
-    @Override
-    public WarpStoragePageSource.RowRanges reset(RangeData rangeData)
-    {
-        return WarpStoragePageSource.RowRanges.EMPTY;
     }
 
     @Override

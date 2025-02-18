@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read;
 import java.util.Optional;
 
 public record MatcherPageArgs(Optional<MatchState> matchState,
-                              RecordIndexes recordIndexes)
+                              RecordIndexes recordIndexes,
+                              RangeData rangeData)
 {
 }

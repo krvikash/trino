@@ -15,53 +15,42 @@ package io.trino.plugin.warp.storage.read;
 
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 public class RangeData
 {
-    private final RecordIndexes recordIndexes;
     private final LongArrayList lowerInclusive;
     private final LongArrayList upperExclusive;
+    private long rowCount;
 
-    public RangeData(RecordIndexes recordIndexes)
+    public RangeData()
     {
-        this.recordIndexes = recordIndexes;
         // ranges are gathered only if needed (mixed query)
         this.upperExclusive = new LongArrayList();
         this.lowerInclusive = new LongArrayList();
     }
 
-    public RecordIndexes getRecordIndexes()
+    public void addRange(long lowerBound, int upperBound)
     {
-        return recordIndexes;
-    }
+        checkArgument(lowerBound >= 0, "lowerInclusive %s must not be negative", lowerBound);
+        checkArgument(
+                upperBound > lowerBound,
+                "upperExclusive %s must be higher than lowerInclusive %s",
+                upperBound, lowerBound);
 
-    public void addLowerInclusive(long value)
-    {
-        this.lowerInclusive.add(value);
-    }
-
-    public long removeLowerInclusive(int value)
-    {
-        return this.lowerInclusive.removeLong(value);
-    }
-
-    public void removeUpperExclusive(int value)
-    {
-        this.upperExclusive.removeLong(value);
-    }
-
-    public void addUpperExclusive(int value)
-    {
-        this.upperExclusive.add(value);
-    }
-
-    public void clearUpperExclusive()
-    {
-        this.upperExclusive.clear();
-    }
-
-    public void clearLowerInclusive()
-    {
-        this.lowerInclusive.clear();
+        rowCount += upperBound - lowerBound;
+        if (!upperExclusive.isEmpty()) {
+            checkArgument(
+                    lowerBound >= upperExclusive.getLast(),
+                    "lowerInclusive %s must be greater than previous upperExclusive %s",
+                    lowerBound, upperExclusive.getLast());
+            if (lowerBound == upperExclusive.getLast()) { // merge ranges
+                upperExclusive.set(upperExclusive.size() - 1, upperBound);
+                return;
+            }
+        }
+        lowerInclusive.add(lowerBound);
+        upperExclusive.add(upperBound);
     }
 
     public long[] getLowerInclusiveAsArray()
@@ -74,18 +63,8 @@ public class RangeData
         return this.upperExclusive.toLongArray();
     }
 
-    public int getLowerInclusiveSize()
+    public long getRowCount()
     {
-        return this.lowerInclusive.size();
-    }
-
-    public int getUpperExclusiveSize()
-    {
-        return this.upperExclusive.size();
-    }
-
-    public long getUpperExclusiveValue(int index)
-    {
-        return this.upperExclusive.getLong(index);
+        return rowCount;
     }
 }

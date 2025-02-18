@@ -38,8 +38,6 @@ public interface BlocksAggregator
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState);
 
-    WarpStoragePageSource.RowRanges getRanges(AggregatorPageArgs aggregatorPageArgs);
-
     long closePage(QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs);
 

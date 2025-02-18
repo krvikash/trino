@@ -59,7 +59,6 @@ public class StorageCollectorService
     protected final StorageEngine storageEngine;
     protected final BufferAllocator bufferAllocator;
     protected final DictionaryStats dictionaryStats;
-    private final RangeFillerService rangeFillerService;
     private final CollectTxService collectTxService;
     private final StorageEngineConstants storageEngineConstants;
     private final BlockFillersFactory blockFillersFactory;
@@ -72,7 +71,6 @@ public class StorageCollectorService
             StorageEngine storageEngine,
             BufferAllocator bufferAllocator,
             MetricsManager metricsManager,
-            RangeFillerService rangeFillerService,
             CollectTxService collectTxService,
             StorageEngineConstants storageEngineConstants,
             BlockFillersFactory blockFillersFactory,
@@ -83,7 +81,6 @@ public class StorageCollectorService
         this.collectTxService = requireNonNull(collectTxService);
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create());
-        this.rangeFillerService = requireNonNull(rangeFillerService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
@@ -162,15 +159,13 @@ public class StorageCollectorService
                 dispatcherPageSourceStats);
     }
 
-    // returns indication if we can continue preparing more records, or we reached some limit by the storage collector
     @NativeInterrupt
     public void prepareBlocks(ChunkProperties chunk,
             QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState)
     {
-        int numCollectedRows = queryState.getNumRecordsInCurPage();
-        RecordIndexes recordIndexes = aggregatorPageArgs.rangeData().getRecordIndexes();
+        RecordIndexes recordIndexes = aggregatorPageArgs.recordIndexes();
 
         recordIndexes.setCurChunkProperties(chunk);
         if (queryArgs.queryParams().getNumCollectElements() > 0) {
@@ -182,14 +177,11 @@ public class StorageCollectorService
                 queryArgs.dispatcherPageSourceStats().addrecords_in_chunk(chunk.numRecordsInChunk());
             }
             catch (Exception e) {
-                shapingLogger.error(e, "Failed To collect chunk %s numCollectedRows %d", chunk, numCollectedRows);
+                shapingLogger.error(e, "Failed To collect chunk %s", chunk);
                 throw e;
             }
         }
-        numCollectedRows += rangeFillerService.add(chunk, queryArgs, aggregatorPageArgs, this);
-        logger.debug("collectFromStorage after native collect current chunk %s numCollectedRows %d", chunk, numCollectedRows);
-
-        queryState.setNumRecordsInCurPage(numCollectedRows);
+        logger.debug("collectFromStorage after native collect current chunk %s", chunk);
     }
 
     public Block[] aggregateBlocks(QueryArgs queryArgs,
@@ -282,11 +274,6 @@ public class StorageCollectorService
             numChunksInRange >>= 1;
         }
         return numChunksInRange;
-    }
-
-    public WarpStoragePageSource.RowRanges getRanges(AggregatorPageArgs aggregatorPageArgs)
-    {
-        return rangeFillerService.collectRanges(aggregatorPageArgs.rangeData());
     }
 
     public long closePage(QueryArgs queryArgs,

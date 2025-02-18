@@ -36,4 +36,6 @@ public interface Matcher
     void closePage(QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs);
 
     void abortPage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs, Exception e);
+
+    WarpStoragePageSource.RowRanges getRanges(MatcherPageArgs matcherPageArgs);
 }

@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.lang.foreign.MemorySegment;
 
@@ -31,10 +30,8 @@ public class NativeRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(ChunkProperties chunkProperties, QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, StorageCollectorService storageCollectorService)
+    public int add(RecordIndexes recordIndexes, ChunkProperties chunkProperties, QueryArgs queryArgs, RangeData rangeData)
     {
-        RangeData rangeData = aggregatorPageArgs.rangeData();
-        RecordIndexes recordIndexes = rangeData.getRecordIndexes();
         int numRows = chunkProperties.numRecordsInChunk();
 
         // in case collected count is zero, it means nothing was collected regardless of the type
@@ -50,9 +47,7 @@ public class NativeRangeFillerService
             case RECORD_INDEX_LIST_TYPE_ALL -> {
                 if (rangesRequired) {
                     int min = baseRow + chunkProperties.startIx();
-                    long minValue = mergeRanges(min, rangeData);
-                    rangeData.addLowerInclusive(minValue);
-                    rangeData.addUpperExclusive(min + numRows);
+                    rangeData.addRange(min, min + numRows);
                 }
             }
             case RECORD_INDEX_LIST_TYPE_VALUES -> {
@@ -65,7 +60,6 @@ public class NativeRangeFillerService
                     int min = baseRow + recordIndexes.getRowFromList(recordIndexesList, listIdx);
                     listIdx++;
                     int max = min + 1;
-                    min = (int) mergeRanges(min, rangeData);
 
                     // handle all the rest of the rows
                     for (int i = 1; i < numRows; i++) {
@@ -78,42 +72,20 @@ public class NativeRangeFillerService
                         }
 
                         // close and add the current range
-                        rangeData.addLowerInclusive(min);
-                        rangeData.addUpperExclusive(max);
+                        rangeData.addRange(min, max);
                         // open the next range
                         min = row;
                         max = row + 1;
                     }
 
                     // add the last range we have
-                    rangeData.addLowerInclusive(min);
-                    rangeData.addUpperExclusive(max);
+                    rangeData.addRange(min, max);
                 }
             }
             default -> throw new RuntimeException("unknown list type " + listType);
         }
 
         return numRows;
-    }
-
-    @Override
-    public WarpStoragePageSource.RowRanges reset(RangeData rangeData)
-    {
-        long[] lowerInclusive = rangeData.getLowerInclusiveAsArray();
-        rangeData.clearLowerInclusive();
-        long[] upperExclusive = rangeData.getUpperExclusiveAsArray();
-        rangeData.clearUpperExclusive();
-        return new WarpStoragePageSource.RowRanges(lowerInclusive, upperExclusive, false);
-    }
-
-    // in case merge was successful, removes the previous range and returns its min, otherwise return the input min
-    private long mergeRanges(long min, RangeData rangeData)
-    {
-        if (rangeData.getUpperExclusiveSize() > 0 && rangeData.getUpperExclusiveValue(rangeData.getUpperExclusiveSize() - 1) == min) {
-            min = rangeData.removeLowerInclusive(rangeData.getLowerInclusiveSize() - 1);
-            rangeData.removeUpperExclusive(rangeData.getUpperExclusiveSize() - 1);
-        }
-        return min;
     }
 
     /**
@@ -124,20 +96,6 @@ public class NativeRangeFillerService
     @Override
     public WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData)
     {
-        WarpStoragePageSource.RowRanges ranges = reset(rangeData);
-
-        LongArrayList limitedLowerInclusive = new LongArrayList();
-        LongArrayList limitedUpperExclusive = new LongArrayList();
-        int currRange = 0;
-
-        while (currRange < ranges.getRangesCount()) {
-            int min = (int) ranges.getLowerInclusive(currRange);
-            int max = (int) ranges.getUpperExclusive(currRange);
-            limitedLowerInclusive.add(min);
-            limitedUpperExclusive.add(max);
-            currRange++;
-        }
-
-        return new WarpStoragePageSource.RowRanges(limitedLowerInclusive.toLongArray(), limitedUpperExclusive.toLongArray(), false);
+        return new WarpStoragePageSource.RowRanges(rangeData.getLowerInclusiveAsArray(), rangeData.getUpperExclusiveAsArray(), rangeData.getRowCount());
     }
 }

@@ -98,7 +98,7 @@ public class CollectTxService
                 nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize());
         AggregatorPageArgs aggregatorPageArgs = new AggregatorPageArgs(collectState,
                 collectMemory,
-                new RangeData(collectMetadataMemory.recordIndexes()),
+                collectMetadataMemory.recordIndexes(),
                 collectMetadataMemory.collectBuffersOpt(),
                 collectMetadataMemory.warmupElementRecordBufferStates(),
                 collectMetadataMemory.recordBufferStatesOpt(),

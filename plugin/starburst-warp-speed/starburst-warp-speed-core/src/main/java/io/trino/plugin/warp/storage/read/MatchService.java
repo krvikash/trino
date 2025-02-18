@@ -57,17 +57,20 @@ public class MatchService
     private final StorageEngineConstants storageEngineConstants;
     private final ShapingLoggerFactory shapingLoggerFactory;
     private final NativeConfig nativeConfig;
+    private final RangeFillerService rangeFillerService;
 
     @Inject
     MatchService(BufferAllocator bufferAllocator,
             StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
+            RangeFillerService rangeFillerService,
             ShapingLoggerFactory shapingLoggerFactory,
             NativeConfig nativeConfig)
     {
         this.bufferAllocator = bufferAllocator;
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
+        this.rangeFillerService = rangeFillerService;
         this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
         this.nativeConfig = nativeConfig;
         this.shapingLogger = shapingLoggerFactory.getInstance(logger);
@@ -162,13 +165,14 @@ public class MatchService
         }
         matchStateOpt.ifPresent(m -> matcherArgs.chunksQueue().setRootBitmaps(m.getMatchBitmaps(), m.getRootBitmapsDescriptors()));
 
-        RecordIndexes recordIndexes = aggregatorPageArgs.rangeData().getRecordIndexes();
+        RecordIndexes recordIndexes = aggregatorPageArgs.recordIndexes();
 
         // restore processed chunk
         matcherArgs.chunksQueue().getOptLoadedChunkProperties().ifPresent(chunk ->
                 recordIndexes.restoreRowList(chunk, matcherArgs.storeRowListBuff()));
 
-        return new MatcherPageArgs(matchStateOpt, recordIndexes);
+        RangeData rangeData = new RangeData();
+        return new MatcherPageArgs(matchStateOpt, recordIndexes, rangeData);
     }
 
     @SuppressWarnings("Finally")
@@ -296,6 +300,10 @@ public class MatchService
                     chunk.startIx() + chunk.numRecordsInChunk());
             chunksQueue.returnLoadedChunk(chunkToStore);
         }
+
+        int numToCollect = rangeFillerService.add(recordIndexes, chunk, queryArgs, matcherPageArgs.rangeData());
+        queryState.addToNumRecordsInCurPage(numToCollect);
+
         return Optional.of(chunk);
     }
 
@@ -315,6 +323,12 @@ public class MatchService
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);
             }
         }
+    }
+
+    @Override
+    public WarpStoragePageSource.RowRanges getRanges(MatcherPageArgs matcherPageArgs)
+    {
+        return rangeFillerService.collectRanges(matcherPageArgs.rangeData());
     }
 
     public void closePage(QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs)

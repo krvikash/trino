@@ -23,9 +23,9 @@ public class WarpQueryState
         return numRecordsInCurPage;
     }
 
-    public void setNumRecordsInCurPage(int numRecordsInCurPage)
+    public void addToNumRecordsInCurPage(int numRecordsInCurPage)
     {
-        this.numRecordsInCurPage = numRecordsInCurPage;
+        this.numRecordsInCurPage += numRecordsInCurPage;
     }
 
     public void resetNumRecordsInCurPage()
