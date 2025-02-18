@@ -698,6 +698,7 @@ jobs:
         id: tests
         run: |
           $MAVEN test ${MAVEN_TEST} -pl '
+            !:starburst-ai,
             !:starburst-base-jdbc,
             !:starburst-dynamodb,
             !:starburst-license,
@@ -852,6 +853,7 @@ jobs:
             - { modules: lib/trino-filesystem-gcs, profile: cloud-tests }
             - { modules: lib/trino-filesystem-s3, profile: cloud-tests }
             - { modules: lib/trino-hdfs, profile: cloud-tests }
+            - { modules: plugin/starburst-ai }
             - { modules: plugin/starburst-dynamodb }
             - { modules: plugin/starburst-oracle }
             - { modules: plugin/starburst-sap-hana }
@@ -954,6 +956,7 @@ jobs:
         if: >-
           matrix.modules != 'plugin/trino-singlestore'
           && matrix.modules != 'plugin/starburst-snowflake'
+          && matrix.modules != 'plugin/starburst-ai'
           && ! (contains(matrix.modules, 'trino-mongodb') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-bigquery') && contains(matrix.profile, 'cloud-tests-2'))
           && ! (contains(matrix.modules, 'trino-delta-lake') && contains(matrix.profile, 'cloud-tests'))
@@ -1016,6 +1019,20 @@ jobs:
           -Dsnowflake.test.server.role=test_role \
           -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
           -Dsnowflake.test.account-url=https://"${SNOWFLAKE_AZURE_ACCOUNT_NAME}"."${SNOWFLAKE_AZURE_REGION}".azure.snowflakecomputing.com
+      - name: Run Starburst AI tests
+        id: tests-starburst-ai
+        env:
+          OPEN_AI_API_KEY: ${{ secrets.OPEN_AI_API_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ vars.TRINO_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TRINO_AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+        if: >-
+          contains(matrix.modules, 'starburst-ai') &&
+          (env.OPEN_AI_API_KEY != '' || env.AWS_ACCESS_KEY_ID != '' || env.AWS_SECRET_ACCESS_KEY != '' || env.AWS_REGION != '')
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
+            -Dtest.open-ai.api-key="${OPEN_AI_API_KEY}"
       - name: HDFS file system cache isolated JVM tests
         id: tests-hdfs-isolated
         if: contains(matrix.modules, 'trino-hdfs')
@@ -1295,6 +1312,7 @@ jobs:
             ${{ steps.tests.outcome == 'failure'
               || steps.tests-snowflake-aws.outcome == 'failure'
               || steps.tests-snowflake-azure.outcome == 'failure'
+              || steps.tests-starburst-ai.outcome == 'failure'
               || steps.tests-hdfs-isolated.outcome == 'failure'
               || steps.tests-hdfs.outcome == 'failure'
               || steps.tests-s3.outcome == 'failure'
