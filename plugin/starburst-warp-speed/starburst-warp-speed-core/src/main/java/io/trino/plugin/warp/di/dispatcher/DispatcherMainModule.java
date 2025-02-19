@@ -55,7 +55,6 @@ import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectTxService;
-import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
@@ -102,7 +101,6 @@ public class DispatcherMainModule
             binder.bind(DomainToMapBlockConvertor.class);
             binder.bind(EmptyRowGroupWarmer.class);
             binder.bind(LazyCollectTxService.class);
-            binder.bind(LazyCollectorService.class);
             binder.bind(MatchCollectIdService.class);
             binder.bind(MatchService.class);
             binder.bind(NativeLogger.class).toInstance(context.getWarpPluginSharedInstances().nativeLogger());

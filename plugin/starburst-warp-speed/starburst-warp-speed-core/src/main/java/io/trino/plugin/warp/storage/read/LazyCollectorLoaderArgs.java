@@ -16,12 +16,14 @@ package io.trino.plugin.warp.storage.read;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 
+import java.util.List;
+
 public record LazyCollectorLoaderArgs(QueryParams queryParams,
         long[] fileCookie,
         WarmupElementCollectParams collectParams,
         ReadJuffersWarmUpElement collectJufferWE,
         BlockFiller<?> blockFiller,
-        int lazyCollectStartRowIndex,
+        List<ChunkProperties> chunkPropertiesList,
         RecordIndexes recordIndexes,
         int numToCollect,
         int numChunksInRange,

@@ -17,7 +17,9 @@ import java.lang.foreign.MemorySegment;
 import java.util.List;
 import java.util.Optional;
 
-public record AggregatorPageArgs(CollectState collectState,
+public record AggregatorPageArgs(
+        CollectState collectState,
+        Optional<MemorySegment> preLoadedCollectParams,
         Optional<MemorySegment> collectMemory,
         Optional<MemorySegment> collectBuffers,
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates,

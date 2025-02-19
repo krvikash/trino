@@ -82,7 +82,6 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectTxService;
-import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
@@ -175,7 +174,6 @@ public class DispatcherCacheManagerModule
         binder.bind(FailureGeneratorInvocationHandler.class);
         binder.bind(FlowsSequencer.class);
         binder.bind(LazyCollectTxService.class);
-        binder.bind(LazyCollectorService.class);
         binder.bind(NativeLogger.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().nativeLogger());
         binder.bind(MatchCollectIdService.class);
         binder.bind(MatchService.class);

@@ -85,7 +85,6 @@ public class WarpPageSourceTest
                 customStatsContext,
                 shapingLoggerFactory,
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 mock(WorkerMemoryManager.class));
         Page nextPage = warpPageSource.getNextPage();
@@ -136,7 +135,6 @@ public class WarpPageSourceTest
                 customStatsContext,
                 shapingLoggerFactory,
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 mock(WorkerMemoryManager.class));
         assertThat(warpPageSource.getNextPage()).isNotNull();
@@ -179,7 +177,6 @@ public class WarpPageSourceTest
                 customStatsContext,
                 shapingLoggerFactory,
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 mock(WorkerMemoryManager.class));
         assertThat(warpPageSource.getNextPage()).isNotNull();
@@ -213,7 +210,6 @@ public class WarpPageSourceTest
                 customStatsContext,
                 shapingLoggerFactory,
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 mock(WorkerMemoryManager.class));
         Page nextPage = warpPageSource.getNextPage();
@@ -270,7 +266,6 @@ public class WarpPageSourceTest
                 customStatsContext,
                 shapingLoggerFactory,
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 mock(WorkerMemoryManager.class));
         assertThat(warpPageSource.getNextPage()).isNotNull();

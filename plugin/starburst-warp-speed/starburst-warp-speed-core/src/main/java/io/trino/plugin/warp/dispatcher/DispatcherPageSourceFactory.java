@@ -35,7 +35,6 @@ import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.read.CollectTxService;
-import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.spi.connector.ColumnHandle;
@@ -75,8 +74,6 @@ public abstract class DispatcherPageSourceFactory
     protected final PredicatesCacheService predicatesCacheService;
     protected final QueryClassifier queryClassifier;
 
-    protected final LazyCollectorService lazyCollectorService;
-
     public DispatcherPageSourceFactory(
             StorageEngineConstants storageEngineConstants,
             RowGroupDataService rowGroupDataService,
@@ -88,7 +85,6 @@ public abstract class DispatcherPageSourceFactory
             ReadErrorHandler readErrorHandler,
             CollectTxService collectTxService,
             StorageCollectorService storageCollectorService,
-            LazyCollectorService lazyCollectorService,
             MatchService matchService)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -100,7 +96,6 @@ public abstract class DispatcherPageSourceFactory
         this.readErrorHandler = requireNonNull(readErrorHandler);
         this.collectTxService = requireNonNull(collectTxService);
         this.storageCollectorService = requireNonNull(storageCollectorService);
-        this.lazyCollectorService = requireNonNull(lazyCollectorService);
         this.matchService = requireNonNull(matchService);
 
         shapingLogger = shapingLoggerFactory.getInstance(DispatcherPageSourceFactory.class);

@@ -17,6 +17,8 @@ import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.spi.block.Block;
 
+import java.util.List;
+
 public interface BlocksAggregator
 {
     QueryArgs getQueryArgs(QueryParams queryParams, CustomStatsContext customStatsContext);
@@ -32,6 +34,7 @@ public interface BlocksAggregator
     void prepareBlocks(ChunkProperties chunk,
             RecordIndexes recordIndexes,
             QueryArgs queryArgs,
+            AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState);
 
@@ -39,7 +42,8 @@ public interface BlocksAggregator
             QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
-            WarpQueryState queryState);
+            WarpQueryState queryState,
+            List<ChunkProperties> pageChunksList);
 
     long closePage(QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs);

@@ -22,6 +22,8 @@ import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
@@ -46,6 +48,7 @@ public class WarpReader
     private MatcherPageArgs matcherPageArgs;
 
     private RecordIndexes recordIndexes;
+    private List<ChunkProperties> pageChunksList;
 
     WarpReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
@@ -99,6 +102,8 @@ public class WarpReader
                 queryArgs,
                 matcherArgs,
                 aggregatorPageArgs);
+
+        pageChunksList = new ArrayList<>();
     }
 
     /**
@@ -121,8 +126,10 @@ public class WarpReader
             blocksAggregator.prepareBlocks(chunk.get(),
                     recordIndexes,
                     queryArgs,
+                    aggregatorArgs,
                     aggregatorPageArgs,
                     queryState);
+            pageChunksList.add(chunk.get());
         }
 
         return queryState.getNumRecordsInCurPage() > 0;
@@ -149,7 +156,8 @@ public class WarpReader
                         queryArgs,
                         aggregatorArgs,
                         aggregatorPageArgs,
-                        queryState);
+                        queryState,
+                        pageChunksList);
                 if (queryArgs.queryParams().isRangesRequired()) {
                     ranges = matcher.getRanges(matcherPageArgs);
                 }

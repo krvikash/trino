@@ -18,7 +18,9 @@ import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 import java.util.List;
 
 public record AggregatorArgs(List<BlockFiller<?>> blockFillers,
-        CollectBuffersParams collectBuffersParams)
+        CollectBuffersParams collectBuffersParams,
+        List<Boolean> preLoadedBlocks,
+        List<WarmupElementCollectParams> preLoadedCollectParamsList)
 {
     public int getAggregatorPageLimit()
     {

@@ -52,7 +52,6 @@ public class WarpPageSource
             CustomStatsContext customStatsContext,
             ShapingLoggerFactory shapingLoggerFactory,
             StorageCollectorService storageCollectorService,
-            LazyCollectorService lazyCollectorService,
             MatchService matchService,
             WorkerMemoryManager workerMemoryManager)
     {
@@ -61,12 +60,10 @@ public class WarpPageSource
         this.sortedRowRanges = RowRanges.EMPTY;
         this.queryParams = queryParams;
         this.shapingLogger = shapingLoggerFactory.getInstance(WarpPageSource.class);
-        boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
-        StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
         reader = new WarpReader(
                 queryParams,
                 customStatsContext,
-                collectorService,
+                storageCollectorService,
                 matchService,
                 workerMemoryManager,
                 shapingLoggerFactory,

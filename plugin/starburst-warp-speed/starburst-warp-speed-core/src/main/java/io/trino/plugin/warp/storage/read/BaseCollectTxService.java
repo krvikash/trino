@@ -54,7 +54,6 @@ public abstract class BaseCollectTxService
         this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
-    // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()
     void collectOpen(CollectState collectState, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         long startTime = System.nanoTime();

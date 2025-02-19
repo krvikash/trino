@@ -53,7 +53,6 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.read.CollectTxService;
-import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.QueryArgs;
@@ -228,7 +227,6 @@ public class DispatcherPageSourceFactoryTest
                 new ReadErrorHandler(rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),
                 storageCollectorService,
-                mock(LazyCollectorService.class),
                 mock(MatchService.class),
                 workerWarmingService,
                 new WorkerMemoryManager(

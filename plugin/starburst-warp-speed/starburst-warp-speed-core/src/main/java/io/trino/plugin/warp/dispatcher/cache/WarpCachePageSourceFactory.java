@@ -44,7 +44,6 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.read.CollectTxService;
-import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.QueryParams;
@@ -97,7 +96,6 @@ public class WarpCachePageSourceFactory
             ReadErrorHandler readErrorHandler,
             CollectTxService collectTxService,
             StorageCollectorService storageCollectorService,
-            LazyCollectorService lazyCollectorService,
             MatchService matchService,
             StorageEngineTxService txService,
             WorkerMemoryManager workerMemoryManager,
@@ -114,7 +112,6 @@ public class WarpCachePageSourceFactory
                 readErrorHandler,
                 collectTxService,
                 storageCollectorService,
-                lazyCollectorService,
                 matchService);
 
         this.metricsManager = requireNonNull(metricsManager);
@@ -237,7 +234,6 @@ public class WarpCachePageSourceFactory
                     customStatsContext,
                     shapingLoggerFactory,
                     storageCollectorService,
-                    lazyCollectorService,
                     matchService,
                     workerMemoryManager);
             DispatcherPageSource dispatcherPageSource = new DispatcherPageSource(EmptyPageSource::new,

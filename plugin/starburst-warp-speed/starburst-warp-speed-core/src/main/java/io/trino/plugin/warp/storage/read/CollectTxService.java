@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.query.classifier.NativeCollectClassifier.COLLECT_BUFFER_MAX_MEMORY;
 import static java.lang.Math.min;
@@ -66,28 +67,34 @@ public class CollectTxService
             ThreadArena pageArena,
             AggregatorArgs aggregatorArgs)
     {
-        QueryParams queryParams = queryArgs.queryParams();
-        List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
-        int numCollectElements = collectParamsList.size();
+        int numCollectElements = aggregatorArgs.preLoadedCollectParamsList().size();
 
         Optional<MemorySegment> collectMemory = Optional.empty();
         recordIndexes.allocateRecordIndexesSegment(pageArena);
-        CollectMetadataMemory collectMetadataMemory = new CollectMetadataMemory(Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Collections.emptyList());
+
+        CollectMetadataMemory collectMetadataMemory;
         if (numCollectElements > 0) {
-            collectMetadataMemory = allocCollectMetadataMemory(collectMetadataMemory,
-                    queryParams,
+            collectMetadataMemory = allocCollectMetadataMemory(numCollectElements,
                     queryArgs.storeMatchCollectMetadataBuff(),
                     pageArena);
-            // if there are no match elements we are lazy collecting and do not need to allocate all the buffers per element
-            if (queryParams.getNumMatchElements() > 0) {
-                collectMemory = allocCollectBuffers(aggregatorArgs.collectBuffersParams(),
-                        pageArena,
-                        collectMetadataMemory.collectBuffersOpt().get());
+            collectMemory = allocCollectBuffers(aggregatorArgs.collectBuffersParams(),
+                    pageArena,
+                    collectMetadataMemory.collectBuffersOpt().get(),
+                    aggregatorArgs.preLoadedBlocks());
+            MemorySegment collectParamsListMemory = collectMetadataMemory.collectParamsOpt().get();
+            MemorySegment elementCollectParamsMemory;
+            for (int preCollectIx = 0; preCollectIx < numCollectElements; preCollectIx++) {
+                elementCollectParamsMemory = aggregatorArgs.preLoadedCollectParamsList().get(preCollectIx).getMemory();
+                collectParamsListMemory.setAtIndex(ValueLayout.ADDRESS, preCollectIx, elementCollectParamsMemory);
             }
+        }
+        else {
+            collectMetadataMemory = new CollectMetadataMemory(Optional.empty(),
+                    Optional.empty(),
+                    Optional.empty(),
+                    Optional.empty(),
+                    Optional.empty(),
+                    Collections.emptyList());
         }
 
         // restore match collect metadata
@@ -98,6 +105,7 @@ public class CollectTxService
                 storageEngineConstants.getCollectStatePayload(),
                 nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize());
         AggregatorPageArgs aggregatorPageArgs = new AggregatorPageArgs(collectState,
+                collectMetadataMemory.collectParamsOpt(),
                 collectMemory,
                 collectMetadataMemory.collectBuffersOpt(),
                 collectMetadataMemory.warmupElementRecordBufferStates(),
@@ -106,7 +114,7 @@ public class CollectTxService
                 collectMetadataMemory.matchCollectMetadataOpt(),
                 new ReadStats(pageArena));
 
-        collectState.setState(queryArgs, aggregatorPageArgs, recordIndexes);
+        collectState.setState(queryArgs, aggregatorArgs, aggregatorPageArgs, recordIndexes);
         collectOpen(collectState, queryArgs.dispatcherPageSourceStats());
 
         return aggregatorPageArgs;
@@ -178,9 +186,14 @@ public class CollectTxService
 
     private Optional<MemorySegment> allocCollectBuffers(CollectBuffersParams collectBuffersParams,
             ThreadArena pageArena,
-            MemorySegment collectBuffers)
+            MemorySegment collectBuffers,
+            List<Boolean> preCollectIndexes)
     {
         List<CollectBuffersParams.CollectBufAllocParams> allocParamsList = collectBuffersParams.collectAllocParams();
+        List<CollectBuffersParams.CollectBufAllocParams> preLoadedAllocParamsList = IntStream.range(0, preCollectIndexes.size())
+                .filter(preCollectIndexes::get)
+                .mapToObj(allocParamsList::get)
+                .toList();
         final int pageSize = storageEngineConstants.getPageSize();
 
         // allocate total memory for records and nulls
@@ -197,7 +210,7 @@ public class CollectTxService
         int collectBufIx = 0;
         try {
             // perform actual allocation of record and null buffers and create the juffers
-            for (CollectBuffersParams.CollectBufAllocParams allocParams : allocParamsList) {
+            for (CollectBuffersParams.CollectBufAllocParams allocParams : preLoadedAllocParamsList) {
                 MemorySegment[] collectSegments = new MemorySegment[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()]; // used to create the juffers below
                 // record buffer size including the optional part which is calculated using the precentage and masked to page size
                 int recordBufferSize = bufferAllocator.calcWeRecordBufferSize(allocParams.requestedRecordBufferSize(), collectBuffersParams.satisfyPercentage());
@@ -236,17 +249,17 @@ public class CollectTxService
         return Optional.of(collectMemory);
     }
 
-    private CollectMetadataMemory allocCollectMetadataMemory(CollectMetadataMemory collectMetadataMemory,
-            QueryParams queryParams,
+    private CollectMetadataMemory allocCollectMetadataMemory(int numPreLoadedElements,
             Optional<byte[]> storeMatchCollectMetadataBuff,
             ThreadArena pageArena)
     {
-        final int numElements = queryParams.getNumCollectElements();
-        final long collectBuffersSize = (long) numElements * JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize();
-        final long recordBufferStatesSize = MemoryLayout.sequenceLayout(numElements, WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT).byteSize();
-        final long queryResultTypesSize = MemoryLayout.sequenceLayout(numElements, ValueLayout.JAVA_INT).byteSize();
+        final long collectParamsListSize = (long) numPreLoadedElements * ValueLayout.ADDRESS.byteSize();
+        final long collectBuffersSize = (long) numPreLoadedElements * JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize();
+        final long recordBufferStatesSize = MemoryLayout.sequenceLayout(numPreLoadedElements, WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT).byteSize();
+        final long queryResultTypesSize = MemoryLayout.sequenceLayout(numPreLoadedElements, ValueLayout.JAVA_INT).byteSize();
         final long matchCollectMetadataSize = storeMatchCollectMetadataBuff.map(s -> s.length).orElse(0);
-        final long totalSize = collectBuffersSize +
+        final long totalSize = collectParamsListSize +
+                collectBuffersSize +
                 recordBufferStatesSize +
                 queryResultTypesSize +
                 matchCollectMetadataSize +
@@ -261,6 +274,7 @@ public class CollectTxService
         }
         SegmentAllocator allocator = SegmentAllocator.slicingAllocator(collectMemory);
 
+        MemorySegment collectParams = allocator.allocate(collectParamsListSize, ValueLayout.ADDRESS.byteSize());
         MemorySegment collectBuffers = allocator.allocate(collectBuffersSize, ValueLayout.JAVA_LONG.byteSize());
         MemorySegment recordBufferStates = allocator.allocate(recordBufferStatesSize, ValueLayout.JAVA_INT.byteSize());
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates =
@@ -268,14 +282,16 @@ public class CollectTxService
                 .map(recordBufferState -> new WarmupElementRecordBufferState(recordBufferState))
                 .toList();
 
-        return new CollectMetadataMemory(Optional.of(collectBuffers),
+        return new CollectMetadataMemory(Optional.of(collectParams),
+                Optional.of(collectBuffers),
                 Optional.of(recordBufferStates),
                 Optional.of(allocator.allocate(queryResultTypesSize, ValueLayout.JAVA_INT.byteSize())),
                 (matchCollectMetadataSize > 0) ? Optional.of(allocator.allocate(matchCollectMetadataSize, ValueLayout.JAVA_INT.byteSize())) : Optional.empty(),
                 warmupElementRecordBufferStates);
     }
 
-    private record CollectMetadataMemory(Optional<MemorySegment> collectBuffersOpt,
+    private record CollectMetadataMemory(Optional<MemorySegment> collectParamsOpt,
+            Optional<MemorySegment> collectBuffersOpt,
             Optional<MemorySegment> recordBufferStatesOpt,
             Optional<MemorySegment> queryResultTypesOpt,
             Optional<MemorySegment> matchCollectMetadataOpt,

@@ -38,7 +38,6 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.read.CollectTxService;
-import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.QueryParams;
@@ -88,7 +87,6 @@ public class WarpDispatcherPageSourceFactory
             ReadErrorHandler readErrorHandler,
             CollectTxService collectTxService,
             StorageCollectorService storageCollectorService,
-            LazyCollectorService lazyCollectorService,
             MatchService matchService,
             WorkerWarmingService workerWarmingService,
             WorkerMemoryManager workerMemoryManager,
@@ -106,7 +104,6 @@ public class WarpDispatcherPageSourceFactory
                 readErrorHandler,
                 collectTxService,
                 storageCollectorService,
-                lazyCollectorService,
                 matchService);
 
         this.globalConfig = requireNonNull(globalConfig);
@@ -435,7 +432,6 @@ public class WarpDispatcherPageSourceFactory
                 customStatsContext,
                 shapingLoggerFactory,
                 storageCollectorService,
-                lazyCollectorService,
                 matchService,
                 workerMemoryManager);
 

@@ -42,6 +42,7 @@ import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
@@ -65,6 +66,8 @@ public class StorageCollectorService
     private final DictionaryCacheService dictionaryCacheService;
 
     private final ShapingLogger shapingLogger;
+    private final ShapingLoggerFactory shapingLoggerFactory;
+    private final LazyCollectTxService lazyCollectTxService;
 
     @Inject
     StorageCollectorService(
@@ -75,7 +78,8 @@ public class StorageCollectorService
             StorageEngineConstants storageEngineConstants,
             BlockFillersFactory blockFillersFactory,
             DictionaryCacheService dictionaryCacheService,
-            ShapingLoggerFactory shapingLoggerFactory)
+            ShapingLoggerFactory shapingLoggerFactory,
+            LazyCollectTxService lazyCollectTxService)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.collectTxService = requireNonNull(collectTxService);
@@ -84,7 +88,9 @@ public class StorageCollectorService
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
-        shapingLogger = shapingLoggerFactory.getInstance(StorageCollectorService.class);
+        this.shapingLogger = shapingLoggerFactory.getInstance(StorageCollectorService.class);
+        this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
+        this.lazyCollectTxService = lazyCollectTxService;
     }
 
     private void loadDictionaries(QueryArgs queryArgs)
@@ -165,21 +171,25 @@ public class StorageCollectorService
     public void prepareBlocks(ChunkProperties chunk,
             RecordIndexes recordIndexes,
             QueryArgs queryArgs,
+            AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState)
     {
         recordIndexes.setCurChunkProperties(chunk);
         if (queryArgs.queryParams().getNumCollectElements() > 0) {
-            openChunk(chunk.chunkIndex(), queryArgs, aggregatorPageArgs);
-            try {
-                collectChunk(aggregatorPageArgs,
-                        aggregatorPageArgs.queryResultTypes().get(),
-                        queryArgs.dispatcherPageSourceStats());
-                queryArgs.dispatcherPageSourceStats().addrecords_in_chunk(chunk.numRecordsInChunk());
-            }
-            catch (Exception e) {
-                shapingLogger.error(e, "Failed To collect chunk %s", chunk);
-                throw e;
+            if (!aggregatorArgs.preLoadedCollectParamsList().isEmpty()) {
+                openChunk(chunk.chunkIndex(), queryArgs, aggregatorPageArgs);
+                try {
+                    collectChunk(aggregatorPageArgs,
+                            aggregatorPageArgs.queryResultTypes().get(),
+                            queryArgs.dispatcherPageSourceStats());
+
+                    queryArgs.dispatcherPageSourceStats().addrecords_in_chunk(chunk.numRecordsInChunk());
+                }
+                catch (Exception e) {
+                    shapingLogger.error(e, "Failed To collect chunk %s", chunk);
+                    throw e;
+                }
             }
         }
         logger.debug("collectFromStorage after native collect current chunk %s", chunk);
@@ -189,25 +199,47 @@ public class StorageCollectorService
             QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
-            WarpQueryState queryState)
+            WarpQueryState queryState,
+            List<ChunkProperties> pageChunksList)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
         MemorySegment queryResultTypes = aggregatorPageArgs.queryResultTypes().orElse(MemorySegment.NULL);
         int rowsToFill = queryState.getNumRecordsInCurPage();
         Block[] blocks = new Block[collectElementsParamsList.size()];
+        int preLoadedBlockIx = 0;
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            QueryResultType queryResultType = QueryResultType.values()[queryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
             BlockFiller<?> blockFiller = aggregatorArgs.blockFillers().get(weIx);
-            ReadJuffersWarmUpElement readJuffersWarmUpElement = aggregatorArgs.collectBuffersParams().collectJuffersWE().get(weIx);
-            Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats, queryArgs.dispatcherPageSourceStats());
-            blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, () -> {
-                queryArgs.dispatcherPageSourceStats().incwrapped_collect_loaded_lazy_blocks();
-                return block;
-            });
+            if (aggregatorArgs.preLoadedBlocks().get(weIx)) {
+                ReadJuffersWarmUpElement readJuffersWarmUpElement = aggregatorArgs.collectBuffersParams().collectJuffersWE().get(preLoadedBlockIx);
+                QueryResultType queryResultType = QueryResultType.values()[queryResultTypes.getAtIndex(ValueLayout.JAVA_INT, preLoadedBlockIx)];
+                Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats, queryArgs.dispatcherPageSourceStats());
+                blocks[collectParams.getBlockIndex()] = block;
+                preLoadedBlockIx++;
+            }
+            else {
+                QueryParams queryParams = queryArgs.queryParams();
+                LazyCollectorLoaderArgs lazyCollectorLoaderArgs = new LazyCollectorLoaderArgs(queryParams,
+                        queryArgs.fileCookie(),
+                        collectParams,
+                        new ReadJuffersWarmUpElement(bufferAllocator, true),
+                        blockFiller,
+                        pageChunksList,
+                        recordIndexes,
+                        queryState.getNumRecordsInCurPage(),
+                        queryArgs.numChunksInRange(),
+                        queryArgs.chunkSize());
+                blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, new LazyCollectorLoader(
+                        lazyCollectTxService,
+                        lazyCollectorLoaderArgs,
+                        dictionaryStats,
+                        queryArgs.dispatcherPageSourceStats(),
+                        shapingLoggerFactory,
+                        queryArgs.nativeStats()));
+                queryArgs.dispatcherPageSourceStats().inclazy_collect_total_blocks();
+            }
         }
-        queryArgs.dispatcherPageSourceStats().addwrapped_collect_total_lazy_blocks(collectElementsParamsList.size());
         queryArgs.dispatcherPageSourceStats().addcached_read_rows(rowsToFill);
         return blocks;
     }
@@ -240,6 +272,13 @@ public class StorageCollectorService
                 storeMatchCollectMetadataBuff);
     }
 
+    public List<Boolean> getPreLoadedBlocks(QueryArgs queryArgs)
+    {
+        return queryArgs.queryParams().getCollectElementsParamsList().stream()
+                .map(WarmupElementCollectParams::hasMatchCollect)
+                .toList();
+    }
+
     private AggregatorArgs getStorageCollectorArgs(QueryArgs queryArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
@@ -249,17 +288,16 @@ public class StorageCollectorService
             blockFillers.add(blockFillersFactory.getBlockFiller(collectParams.getBlockRecTypeCode().ordinal()));
         }
 
-        int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
-
-        // number of chunks is number of records divided by the chunk size which is fixed. we round it up in case the last chunk is not full.
-        int numChunks = (int) Math.ceil((double) queryParams.getTotalNumRecords() / (double) chunkSize);
-        if (numChunks == 0) {
-            throw new RuntimeException("no chunks");
-        }
-
+        List<Boolean> preLoadedBlocks = getPreLoadedBlocks(queryArgs);
         CollectBuffersParams collectBuffersParams = collectTxService.getCollectBuffersAllocationParams(queryParams);
+        List<WarmupElementCollectParams> preLoadedCollectParamsList = IntStream.range(0, preLoadedBlocks.size())
+                .filter(preLoadedBlocks::get)
+                .mapToObj(queryParams.getCollectElementsParamsList()::get)
+                .toList();
         return new AggregatorArgs(blockFillers,
-                collectBuffersParams);
+                collectBuffersParams,
+                preLoadedBlocks,
+                preLoadedCollectParamsList);
     }
 
     private int getNumChunksInRange(QueryParams queryParams)

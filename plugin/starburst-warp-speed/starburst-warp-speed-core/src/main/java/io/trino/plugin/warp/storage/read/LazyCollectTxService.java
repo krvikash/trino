@@ -67,7 +67,7 @@ public class LazyCollectTxService
         try {
             final int pageSize = storageEngineConstants.getPageSize();
             collectMemory = pageArena.allocate(recordBufferSize + nullBufferSize + pageSize, pageSize);
-            metadataMemory = pageArena.allocate(JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize() +
+            metadataMemory = pageArena.allocate(ValueLayout.ADDRESS.byteSize() + JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize() +
                     WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize() +
                     ValueLayout.JAVA_LONG.byteSize(), ValueLayout.JAVA_LONG.byteSize());
         }
@@ -81,6 +81,8 @@ public class LazyCollectTxService
         lazyCollectorLoaderArgs.recordIndexes().allocateRecordIndexesSegment(pageArena);
         MemorySegment collectBuffers = metadataAllocator.allocate(JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize(), ValueLayout.JAVA_LONG.byteSize());
         MemorySegment recordBufferStates = metadataAllocator.allocate(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
+        MemorySegment collectParamsList = metadataAllocator.allocate(ValueLayout.ADDRESS.byteSize(), ValueLayout.ADDRESS.byteSize());
+        collectParamsList.setAtIndex(ValueLayout.ADDRESS, 0, collectParams.getMemory());
 
         // allcoate buffers
         MemorySegment[] collectSegments = new MemorySegment[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()];
@@ -99,7 +101,7 @@ public class LazyCollectTxService
                 recordBufferStates,
                 lazyCollectorLoaderArgs.recordIndexes(),
                 collectBuffers,
-                collectParams.getMemory());
+                collectParamsList);
         collectOpen(collectState, dispatcherPageSourceStats);
         return new LazyCollectOpenResult(collectState,
                 pageArena,
