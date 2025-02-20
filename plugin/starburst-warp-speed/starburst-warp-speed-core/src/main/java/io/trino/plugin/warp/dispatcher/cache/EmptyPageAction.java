@@ -15,6 +15,7 @@ package io.trino.plugin.warp.dispatcher.cache;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.airlift.log.Logger;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -23,6 +24,8 @@ import io.trino.plugin.warp.dispatcher.warmup.CacheWarmState;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.EmptyRowGroupWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingCandidate;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 
@@ -35,15 +38,21 @@ import static java.util.Objects.requireNonNull;
 public class EmptyPageAction
         implements CacheAction
 {
+    private static final Logger logger = Logger.get(EmptyPageAction.class);
+    private final ShapingLogger shapingLogger;
+
     private final WarmingServiceStats statsWarmingService;
     private final EmptyRowGroupWarmer emptyRowGroupWarmer;
     private final RowGroupDataService rowGroupDataService;
 
     @Inject
-    public EmptyPageAction(MetricsManager metricsManager,
-                           EmptyRowGroupWarmer emptyRowGroupWarmer,
-                           RowGroupDataService rowGroupDataService)
+    public EmptyPageAction(
+            ShapingLoggerFactory shapingLoggerFactory,
+            MetricsManager metricsManager,
+            EmptyRowGroupWarmer emptyRowGroupWarmer,
+            RowGroupDataService rowGroupDataService)
     {
+        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
         this.statsWarmingService = requireNonNull(metricsManager).registerMetric(WarmingServiceStats.create());
         this.emptyRowGroupWarmer = requireNonNull(emptyRowGroupWarmer);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
@@ -60,6 +69,10 @@ public class EmptyPageAction
             emptyRowGroupWarmer.saveImportedEmptyRowGroup(warmUpElementList, permanentRowGroupKey, Collections.emptyMap());
         }
         else {
+            if (!rowGroupData.isEmpty()) {
+                shapingLogger.error("Cannot add empty warmUpElements to a non-empty rowGroup, aborting. warmingCandidates=%s, rowGroupData=%s", warmingCandidates, rowGroupData);
+                return CacheWarmState.ABORT_ON_INIT_PROCESS;    // init was never called
+            }
             emptyRowGroupWarmer.warm(permanentRowGroupKey, warmUpElementList);
         }
         return CacheWarmState.EMPTY_PAGE;
