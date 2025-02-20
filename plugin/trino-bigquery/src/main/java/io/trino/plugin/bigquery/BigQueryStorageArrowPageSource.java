@@ -70,8 +70,8 @@ public class BigQueryStorageArrowPageSource
     {
         this.bigQueryReadClient = requireNonNull(bigQueryReadClient, "bigQueryReadClient is null");
         this.executor = requireNonNull(executor, "executor is null");
-        this.split = requireNonNull(split, "split is null");
         this.bufferAllocator = requireNonNull(bufferAllocator, "bufferAllocator is null");
+        this.split = requireNonNull(split, "split is null");
         requireNonNull(columns, "columns is null");
         Schema schema = deserializeSchema(split.schemaString());
         log.debug("Starting to read from %s", split.streamName());
@@ -115,16 +115,15 @@ public class BigQueryStorageArrowPageSource
         }
         nextResponse = CompletableFuture.supplyAsync(this::getResponse, executor);
 
+        Page page;
         long start = System.nanoTime();
-        BufferAllocator streamBufferAllocator = bufferAllocator.newChildAllocator(split);
-        try (ArrowRecordBatch batch = deserializeResponse(streamBufferAllocator, response)) {
-            bigQueryArrowToPageConverter.convert(pageBuilder, batch, streamBufferAllocator);
+        try (BufferAllocator streamBufferAllocator = bufferAllocator.newChildAllocator(split)) {
+            try (ArrowRecordBatch batch = deserializeResponse(streamBufferAllocator, response)) {
+                bigQueryArrowToPageConverter.convert(pageBuilder, batch, streamBufferAllocator);
+            }
+            page = pageBuilder.build();
+            pageBuilder.reset();
         }
-
-        Page page = pageBuilder.build();
-        pageBuilder.reset();
-        streamBufferAllocator.close();
-
         readTimeNanos.addAndGet(System.nanoTime() - start);
         return page;
     }

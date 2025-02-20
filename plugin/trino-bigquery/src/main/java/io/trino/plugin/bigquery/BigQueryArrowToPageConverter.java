@@ -108,7 +108,8 @@ public class BigQueryArrowToPageConverter
         for (int column = 0; column < columns.size(); column++) {
             BigQueryColumnHandle columnHandle = columns.get(column);
             FieldVector fieldVector = getFieldVector(root, columnHandle);
-            convertType(allocator,
+            convertType(
+                    allocator,
                     pageBuilder.getBlockBuilder(column),
                     columnHandle.trinoType(),
                     fieldVector,
