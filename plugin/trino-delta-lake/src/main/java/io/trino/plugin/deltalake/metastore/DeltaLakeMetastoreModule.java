@@ -19,6 +19,7 @@ import io.trino.plugin.deltalake.metastore.file.DeltaLakeFileMetastoreModule;
 import io.trino.plugin.deltalake.metastore.glue.DeltaLakeGlueMetastoreModule;
 import io.trino.plugin.deltalake.metastore.glue.v1.DeltaLakeGlueV1MetastoreModule;
 import io.trino.plugin.deltalake.metastore.thrift.DeltaLakeThriftMetastoreModule;
+import io.trino.plugin.deltalake.metastore.unity.DeltaLakeUnityMetastoreModule;
 import io.trino.plugin.hive.metastore.CachingHiveMetastoreModule;
 import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
 
@@ -33,7 +34,7 @@ public class DeltaLakeMetastoreModule
             case FILE -> new DeltaLakeFileMetastoreModule();
             case GLUE -> new DeltaLakeGlueMetastoreModule();
             case GLUE_V1 -> new DeltaLakeGlueV1MetastoreModule();
-            case UNITY -> throw new UnsupportedOperationException("Unity metastore is not supported");
+            case UNITY -> new DeltaLakeUnityMetastoreModule();
         });
 
         install(new CachingHiveMetastoreModule());

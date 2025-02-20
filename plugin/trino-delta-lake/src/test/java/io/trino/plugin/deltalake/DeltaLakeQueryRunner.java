@@ -37,6 +37,7 @@ import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.plugin.deltalake.DeltaLakeConnectorFactory.CONNECTOR_NAME;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
+import static io.trino.testing.TestingProperties.requiredNonEmptySystemProperty;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
@@ -75,6 +76,7 @@ public final class DeltaLakeQueryRunner
         private ImmutableMap.Builder<String, String> deltaProperties = ImmutableMap.builder();
         private Optional<String> schemaLocation = Optional.empty();
         private List<TpchTable<?>> initialTables = ImmutableList.of();
+        private boolean createTpchSchemas = true;
 
         protected Builder(String schemaName)
         {
@@ -140,6 +142,13 @@ public final class DeltaLakeQueryRunner
         }
 
         @CanIgnoreReturnValue
+        public Builder setCreateTpchSchemas(boolean createTpchSchemas)
+        {
+            this.createTpchSchemas = createTpchSchemas;
+            return self();
+        }
+
+        @CanIgnoreReturnValue
         public Builder setInitialTables(Iterable<TpchTable<?>> initialTables)
         {
             this.initialTables = ImmutableList.copyOf(requireNonNull(initialTables, "initialTables is null"));
@@ -167,14 +176,16 @@ public final class DeltaLakeQueryRunner
                 }
                 queryRunner.createCatalog(DELTA_CATALOG, CONNECTOR_NAME, deltaProperties);
 
-                String schemaName = queryRunner.getDefaultSession().getSchema().orElseThrow();
-                String createSchema = "CREATE SCHEMA IF NOT EXISTS " + schemaName;
-                if (schemaLocation.isPresent()) {
-                    createSchema += " WITH (location = '" + schemaLocation.get() + "')";
-                }
-                queryRunner.execute(createSchema);
+                if (createTpchSchemas) {
+                    String schemaName = queryRunner.getDefaultSession().getSchema().orElseThrow();
+                    String createSchema = "CREATE SCHEMA IF NOT EXISTS " + schemaName;
+                    if (schemaLocation.isPresent()) {
+                        createSchema += " WITH (location = '" + schemaLocation.get() + "')";
+                    }
+                    queryRunner.execute(createSchema);
 
-                copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, initialTables);
+                    copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, initialTables);
+                }
 
                 return queryRunner;
             }
@@ -271,6 +282,43 @@ public final class DeltaLakeQueryRunner
                     .build();
 
             Logger log = Logger.get(DeltaLakeQueryRunner.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static final class DeltaS3UnityQueryRunnerMain
+    {
+        private DeltaS3UnityQueryRunnerMain() {}
+
+        public static void main(String[] args)
+                throws Exception
+        {
+            String unityHost = requiredNonEmptySystemProperty("testing.hive.metastore.unity.host");
+            String unityToken = requiredNonEmptySystemProperty("testing.hive.metastore.unity.token");
+            String unityCatalog = requiredNonEmptySystemProperty("testing.hive.metastore.unity.catalog");
+            String unityCatalogSchema = requiredNonEmptySystemProperty("testing.unity.schema");
+
+            String s3Region = requiredNonEmptySystemProperty("testing.s3.region");
+            String accessKeyId = requiredNonEmptySystemProperty("testing.s3.aws-access-key");
+            String secretAccessKey = requiredNonEmptySystemProperty("testing.s3.aws-secret-key");
+
+            DistributedQueryRunner queryRunner = DeltaLakeQueryRunner.builder(unityCatalogSchema)
+                    .addCoordinatorProperty("http-server.http.port", "8080")
+                    .addDeltaProperty("hive.metastore", "unity")
+                    .addDeltaProperty("hive.metastore.unity.host", unityHost)
+                    .addDeltaProperty("hive.metastore.unity.token", unityToken)
+                    .addDeltaProperty("hive.metastore.unity.catalog-name", unityCatalog)
+                    .addDeltaProperty("delta.security", "read-only")
+                    .addDeltaProperty("fs.hadoop.enabled", "false")
+                    .addDeltaProperty("fs.native-s3.enabled", "true")
+                    .addDeltaProperty("s3.region", s3Region)
+                    .addDeltaProperty("s3.aws-access-key", accessKeyId)
+                    .addDeltaProperty("s3.aws-secret-key", secretAccessKey)
+                    .setCreateTpchSchemas(false)
+                    .build();
+
+            Logger log = Logger.get(DeltaS3UnityQueryRunnerMain.class);
             log.info("======== SERVER STARTED ========");
             log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
         }

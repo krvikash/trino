@@ -322,6 +322,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.databricks</groupId>
+            <artifactId>databricks-jdbc</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>com.github.docker-java</groupId>
             <artifactId>docker-java-api</artifactId>
             <scope>test</scope>
@@ -589,6 +595,18 @@
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.basepom.maven</groupId>
+                <artifactId>duplicate-finder-maven-plugin</artifactId>
+                <configuration>
+                    <ignoredResourcePatterns>
+                        <!-- com.databricks:databricks-jdbc:2.7.1, com.google.cloud.bigdataoss:gcs-connector:3.0.4:jar:shaded, org.apache.httpcomponents:httpclient:4.5.13 -->
+                        <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
+                        <!-- com.databricks:databricks-jdbc:2.7.1, org.apache.logging.log4j:log4j-api:2.24.3 -->
+                        <ignoredResourcePattern>Log4j-charsets.properties</ignoredResourcePattern>
+                    </ignoredResourcePatterns>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
@@ -612,6 +630,7 @@
                                 <exclude>**/TestDeltaLakeCleanUpGlueMetastore.java</exclude>
                                 <exclude>**/TestDeltaLakeSharedGlueMetastoreViews.java</exclude>
                                 <exclude>**/TestDeltaLakeSharedGlueMetastoreWithTableRedirections.java</exclude>
+                                <exclude>**/TestDeltaLakeSharedUnityWithTableRedirections.java</exclude>
                                 <exclude>**/TestDeltaLakeTableWithCustomLocationUsingGlueMetastore.java</exclude>
                                 <exclude>**/TestDeltaLakeRenameToWithGlueMetastore.java</exclude>
                                 <exclude>**/TestDeltaLakeRegisterTableProcedureWithGlue.java</exclude>
@@ -619,6 +638,7 @@
                                 <exclude>**/TestDeltaLakeConcurrentModificationGlueMetastore.java</exclude>
                                 <exclude>**/TestDeltaLakeGcsConnectorSmokeTest.java</exclude>
                                 <exclude>**/Test*FailureRecoveryTest.java</exclude>
+                                <exclude>**/TestS3AndUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -643,12 +663,14 @@
                                 <include>**/TestDeltaLakeCleanUpGlueMetastore.java</include>
                                 <include>**/TestDeltaLakeSharedGlueMetastoreViews.java</include>
                                 <include>**/TestDeltaLakeSharedGlueMetastoreWithTableRedirections.java</include>
+                                <include>**/TestDeltaLakeSharedUnityWithTableRedirections.java</include>
                                 <include>**/TestDeltaLakeTableWithCustomLocationUsingGlueMetastore.java</include>
                                 <include>**/TestDeltaLakeRenameToWithGlueMetastore.java</include>
                                 <include>**/TestDeltaLakeRegisterTableProcedureWithGlue.java</include>
                                 <include>**/TestDeltaLakeViewsGlueMetastore.java</include>
                                 <include>**/TestDeltaLakeConcurrentModificationGlueMetastore.java</include>
                                 <include>**/TestDeltaLakeGcsConnectorSmokeTest.java</include>
+                                <include>**/TestS3AndUnityMetastoreDeltaConnectorSmokeTest.java</include>
                             </includes>
                         </configuration>
                     </plugin>

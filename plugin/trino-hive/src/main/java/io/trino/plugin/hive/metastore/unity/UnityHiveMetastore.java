@@ -60,7 +60,9 @@ import java.util.OptionalLong;
 import java.util.Set;
 
 import static com.databricks.sdk.core.PatCredentialsProvider.PAT;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
 import static com.databricks.sdk.service.catalog.TableType.EXTERNAL;
+import static com.databricks.sdk.service.catalog.TableType.MANAGED;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.hive.thrift.metastore.hive_metastoreConstants.META_TABLE_LOCATION;
@@ -73,6 +75,7 @@ import static io.trino.plugin.hive.HiveStorageFormat.ORC;
 import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
 import static io.trino.plugin.hive.HiveStorageFormat.TEXTFILE;
 import static io.trino.plugin.hive.TableType.EXTERNAL_TABLE;
+import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static io.trino.spi.security.PrincipalType.USER;
@@ -84,14 +87,20 @@ public class UnityHiveMetastore
     private static final Logger LOG = Logger.get(UnityHiveMetastore.class);
 
     private static final String NAMESPACE_SEPARATOR = ".";
+    private static final String DELTA_PATH_PROPERTY = "path";
+    private static final String DELTA_TABLE_PROVIDER_PROPERTY = "spark.sql.sources.provider";
+    private static final String DELTA_TABLE_PROVIDER_VALUE = "DELTA";
     private static final Set<DataSourceFormat> SUPPORTED_UNITY_TABLE_FORMATS = ImmutableSet.of(
             DataSourceFormat.PARQUET,
             DataSourceFormat.ORC,
             DataSourceFormat.AVRO,
             DataSourceFormat.CSV,
             DataSourceFormat.JSON,
-            DataSourceFormat.TEXT);
-    private static final Map<com.databricks.sdk.service.catalog.TableType, TableType> SUPPORTED_TABLE_TYPES_MAPPING = ImmutableMap.of(EXTERNAL, EXTERNAL_TABLE);
+            DataSourceFormat.TEXT,
+            DELTA);
+    private static final Map<com.databricks.sdk.service.catalog.TableType, TableType> SUPPORTED_TABLE_TYPES_MAPPING = ImmutableMap.of(
+            MANAGED, MANAGED_TABLE,
+            EXTERNAL, EXTERNAL_TABLE);
 
     private final SchemasAPI schemasApi;
     private final TablesAPI tablesApi;
@@ -195,8 +204,15 @@ public class UnityHiveMetastore
     {
         try {
             return Streams.stream(tablesApi.list(catalogName, databaseName))
-                    .filter(tableInfo -> SUPPORTED_UNITY_TABLE_FORMATS.contains(tableInfo.getDataSourceFormat())
-                            && SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableInfo.getTableType()))
+                    .filter(tableInfo -> {
+                        DataSourceFormat dataSourceFormat = firstNonNull(tableInfo.getDataSourceFormat(), DELTA);
+                        com.databricks.sdk.service.catalog.TableType tableType = firstNonNull(tableInfo.getTableType(), MANAGED);
+                        if (dataSourceFormat != DELTA && tableType == MANAGED) {
+                            return false;
+                        }
+                        return SUPPORTED_UNITY_TABLE_FORMATS.contains(dataSourceFormat)
+                                && SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableType);
+                    })
                     .map(table -> new TableInfo(schemaTableName(table.getSchemaName(), table.getName()), TABLE))
                     .collect(toImmutableList());
         }
@@ -506,13 +522,16 @@ public class UnityHiveMetastore
 
     private static Optional<Table> fromUnityTable(com.databricks.sdk.service.catalog.TableInfo tableInfo)
     {
-        com.databricks.sdk.service.catalog.TableType tableType = tableInfo.getTableType();
+        com.databricks.sdk.service.catalog.TableType tableType = firstNonNull(tableInfo.getTableType(), MANAGED);
         if (!SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableType)) {
-            throw new TrinoException(NOT_SUPPORTED, "Unsupported table type: " + tableInfo.getTableType());
+            throw new TrinoException(NOT_SUPPORTED, "Unsupported table type: " + tableType);
         }
-        DataSourceFormat dataSourceFormat = tableInfo.getDataSourceFormat();
+        DataSourceFormat dataSourceFormat = firstNonNull(tableInfo.getDataSourceFormat(), DELTA);
         if (!SUPPORTED_UNITY_TABLE_FORMATS.contains(dataSourceFormat)) {
             throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + dataSourceFormat);
+        }
+        if (dataSourceFormat != DELTA && tableType == MANAGED) {
+            throw new TrinoException(NOT_SUPPORTED, "Only DELTA table format supports managed table type: " + dataSourceFormat);
         }
 
         requireNonNull(tableInfo.getColumns(), "columns is null");
@@ -534,10 +553,21 @@ public class UnityHiveMetastore
                 .setPartitionColumns(partitionColumns)
                 .setTableType(SUPPORTED_TABLE_TYPES_MAPPING.get(tableType).name())
                 .setOwner(Optional.ofNullable(tableInfo.getOwner()))
-                .withStorage(storage -> storage
-                        .setStorageFormat(getStorageFormat(dataSourceFormat))
-                        .setLocation(tableInfo.getStorageLocation()))
                 .setParameter(META_TABLE_LOCATION, tableInfo.getStorageLocation());
+
+        if (dataSourceFormat == DataSourceFormat.DELTA) {
+            tableBuilder.withStorage(storage -> storage
+                    .setStorageFormat(getStorageFormat(dataSourceFormat))
+                    .setLocation(tableInfo.getStorageLocation())
+                    .setSerdeParameters(Map.of(DELTA_PATH_PROPERTY, requireNonNull(tableInfo.getStorageLocation(), "storage location is null"))));
+            tableBuilder.setParameters(tableInfo.getProperties());
+            tableBuilder.setParameter(DELTA_TABLE_PROVIDER_PROPERTY, DELTA_TABLE_PROVIDER_VALUE);
+        }
+        else {
+            tableBuilder.withStorage(storage -> storage
+                    .setStorageFormat(getStorageFormat(dataSourceFormat))
+                    .setLocation(tableInfo.getStorageLocation()));
+        }
 
         return Optional.of(tableBuilder.build().withComment(Optional.ofNullable(tableInfo.getComment())));
     }
@@ -552,7 +582,7 @@ public class UnityHiveMetastore
         return switch (dataSourceFormat) {
             case AVRO -> AVRO.toStorageFormat();
             case ORC -> ORC.toStorageFormat();
-            case PARQUET -> PARQUET.toStorageFormat();
+            case PARQUET, DELTA -> PARQUET.toStorageFormat();
             case CSV -> CSV.toStorageFormat();
             case JSON -> JSON.toStorageFormat();
             case TEXT -> TEXTFILE.toStorageFormat();

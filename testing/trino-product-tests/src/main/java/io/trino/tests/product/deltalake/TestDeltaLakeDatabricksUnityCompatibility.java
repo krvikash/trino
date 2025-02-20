@@ -27,6 +27,7 @@ import static io.trino.tempto.assertions.QueryAssert.Row.row;
 import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
+import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY;
 import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY_HTTP_HMS;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_ISSUE;
@@ -120,6 +121,44 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                 .containsOnly(expectedRowsForMerge);
     }
 
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
+    public void testReadExternalTable()
+    {
+        String tableName = "test_read_" + randomNameSuffix();
+        String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
+        String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
+        String tableLocation = format("%s/%s/%s", externalLocationPath, schemaName, tableName);
+
+        onDelta().executeQuery("CREATE TABLE " + unityTableName + " (c1 int, c2 string) USING delta LOCATION '" + tableLocation + "'");
+        onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES (1, 'one')");
+
+        assertThat(onTrino().executeQuery("SHOW SCHEMAS FROM delta"))
+                .contains(row(schemaName.toLowerCase(ENGLISH)));
+        assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
+                .containsOnly(row(tableName.toLowerCase(ENGLISH)));
+        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                .containsOnly(row(1, "one"));
+    }
+
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
+    public void testReadManagedTable()
+    {
+        String tableName = "test_managed_table_" + randomNameSuffix();
+        String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
+        String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
+
+        onDelta().executeQuery("CREATE TABLE " + unityTableName + " (c1 int, c2 string)");
+        onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES (1, 'one')");
+        assertThat(onTrino().executeQuery("SHOW CREATE SCHEMA delta." + schemaName))
+                .containsOnly(row("CREATE SCHEMA delta." + schemaName));
+        assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
+                .contains(row(tableName));
+        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                .containsOnly(row(1, "one"));
+    }
+
     /**
      * The Unity Catalog's HMS API has a limitation where managed tables are not supported. This test
      * verifies that if a managed table is created using Databricks delta lake, Trino which connects
@@ -138,7 +177,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName)).hasNoRows();
     }
 
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testColumnTypes()
     {
@@ -147,6 +186,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
         String tableLocation = format("%s/%s/%s", externalLocationPath, schemaName, tableName);
 
+        // TODO add all the native Databricks supported types https://starburstdata.atlassian.net/browse/CONNECT-427
         onDelta().executeQuery(format("CREATE TABLE %s (" +
                 "int_col INT," +
                 "string_col STRING," +
@@ -154,6 +194,8 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                 "smallint_col SMALLINT," +
                 "bigint_col BIGINT," +
                 "decimal_col DECIMAL," +
+                "decimal_prec_short_col DECIMAL(4,2)," +
+                "decimal_prec_long_col DECIMAL(19,9)," +
                 "float_col FLOAT," +
                 "double_col DOUBLE," +
                 "date_col DATE," +
@@ -178,6 +220,8 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                     row("smallint_col", "smallint", "", ""),
                     row("bigint_col", "bigint", "", ""),
                     row("decimal_col", "decimal(10,0)", "", ""),
+                    row("decimal_prec_short_col", "decimal(4,2)", "", ""),
+                    row("decimal_prec_long_col", "decimal(19,9)", "", ""),
                     row("float_col", "real", "", ""),
                     row("double_col", "double", "", ""),
                     row("date_col", "date", "", ""),
@@ -209,5 +253,33 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                 .hasMessageContaining("DDL not enabled in Hive metastore interface.");
         assertQueryFailure(() -> onTrino().executeQuery(format("DROP SCHEMA delta.%s CASCADE", schemaName)))
                 .hasMessageContaining("DDL not enabled in Hive metastore interface.");
+    }
+
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
+    public void testPartitionedTables()
+    {
+        String managedTableName = "test_partitioned_managed_table_" + randomNameSuffix();
+        String unityManagedTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, managedTableName);
+        String deltaManagedTableName = "delta.%s.%s".formatted(schemaName, managedTableName);
+
+        onDelta().executeQuery("CREATE TABLE " + unityManagedTableName + " (c1 int, c2 string) PARTITIONED BY (c1)");
+        onDelta().executeQuery("INSERT INTO " + unityManagedTableName + "(c1, c2) VALUES (1, 'one')");
+        assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
+                .contains(row(managedTableName));
+        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaManagedTableName))
+                .containsOnly(row(1, "one"));
+
+        String externalTableName = "test_partitioned_external_table_" + randomNameSuffix();
+        String unityExternalTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, externalTableName);
+        String deltaExternalTableName = "delta.%s.%s".formatted(schemaName, externalTableName);
+        String unityExternalTableLocation = format("%s/%s/%s", externalLocationPath, schemaName, externalTableName);
+
+        onDelta().executeQuery("CREATE TABLE " + unityExternalTableName + " (c1 int, c2 string) PARTITIONED BY (c1) location '" + unityExternalTableLocation + "'");
+        onDelta().executeQuery("INSERT INTO " + unityExternalTableName + "(c1, c2) VALUES (2, 'two')");
+        assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
+                .contains(row(externalTableName));
+        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaExternalTableName))
+                .containsOnly(row(2, "two"));
     }
 }
