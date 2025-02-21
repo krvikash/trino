@@ -26,8 +26,6 @@ import io.trino.spi.procedure.Procedure;
 import java.util.Optional;
 import java.util.Set;
 
-import static java.util.Objects.requireNonNull;
-
 public class SnowflakeParallelConnector
         extends JdbcConnector
 {
@@ -44,12 +42,13 @@ public class SnowflakeParallelConnector
             Set<SessionPropertiesProvider> sessionProperties,
             Set<TablePropertiesProvider> tableProperties,
             JdbcTransactionManager transactionManager,
-            ConnectorPageSourceProvider connectorPageSourceProvider)
+            ConnectorPageSourceProvider jdbcPageSourceProvider,
+            StarburstResultStreamProvider streamProvider)
     {
         super(
                 lifeCycleManager,
                 jdbcSplitManager,
-                connectorPageSourceProvider,
+                jdbcPageSourceProvider,
                 jdbcPageSinkProvider,
                 accessControl,
                 procedures,
@@ -57,7 +56,7 @@ public class SnowflakeParallelConnector
                 sessionProperties,
                 tableProperties,
                 transactionManager);
-        this.connectorPageSourceProvider = requireNonNull(connectorPageSourceProvider, "connectorPageSourceProvider is null");
+        this.connectorPageSourceProvider = new SnowflakePageSourceProvider(jdbcPageSourceProvider, streamProvider);
     }
 
     @Override

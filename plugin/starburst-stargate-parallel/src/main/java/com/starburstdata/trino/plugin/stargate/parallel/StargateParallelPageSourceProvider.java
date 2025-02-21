@@ -20,20 +20,18 @@ import io.trino.client.spooling.EncodedQueryData;
 import io.trino.client.spooling.Segment;
 import io.trino.client.spooling.SegmentLoader;
 import io.trino.jdbc.StargateInMemoryResultSet;
-import io.trino.plugin.base.MappedRecordSet;
+import io.trino.plugin.base.MappedPageSource;
 import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.ConnectorRecordSetProvider;
+import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
-import io.trino.spi.connector.RecordCursor;
-import io.trino.spi.connector.RecordSet;
-import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeManager;
+import io.trino.spi.connector.DynamicFilter;
 
 import java.util.List;
 import java.util.Map;
@@ -44,39 +42,38 @@ import static io.trino.client.spooling.DataAttribute.SEGMENT_SIZE;
 import static io.trino.client.spooling.DataAttribute.UNCOMPRESSED_SIZE;
 import static java.util.Objects.requireNonNull;
 
-public class StargateParallelRecordSetProvider
-        implements ConnectorRecordSetProvider
+public class StargateParallelPageSourceProvider
+        implements ConnectorPageSourceProvider
 {
     private final JdbcClient jdbcClient;
-    private final TypeManager typeManager;
     private final SegmentLoader segmentLoader;
 
     @Inject
-    public StargateParallelRecordSetProvider(JdbcClient jdbcClient, SegmentLoader segmentLoader, TypeManager typeManager)
+    public StargateParallelPageSourceProvider(JdbcClient jdbcClient, SegmentLoader segmentLoader)
     {
         this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient is null");
-        this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.segmentLoader = requireNonNull(segmentLoader, "segmentLoader is null");
     }
 
     @Override
-    public RecordSet getRecordSet(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorSplit split, ConnectorTableHandle table, List<? extends ColumnHandle> columns)
+    public ConnectorPageSource createPageSource(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorSplit split,
+            ConnectorTableHandle table,
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter)
     {
         JdbcTableHandle tableHandle = (JdbcTableHandle) table;
 
         StargateParallelSplit stargateParallelSplit = (StargateParallelSplit) split;
 
-        List<Type> columnTypes = stargateParallelSplit.getColumns().stream()
-                .map(Column::getType)
-                .map(typeManager::fromSqlType)
-                .collect(toImmutableList());
-
         ResultRows rows = new ResultRowsDecoder(segmentLoader)
                 .toRows(stargateParallelSplit.getColumns(), EncodedQueryData
-                    .builder(stargateParallelSplit.encoding())
-                    .withAttributes(attributes(stargateParallelSplit.metadata()))
-                    .withSegments(stargateParallelSplit.getSegments())
-                    .build());
+                        .builder(stargateParallelSplit.encoding())
+                        .withAttributes(attributes(stargateParallelSplit.metadata()))
+                        .withSegments(stargateParallelSplit.getSegments())
+                        .build());
 
         ImmutableList.Builder<JdbcColumnHandle> handles = ImmutableList.builderWithExpectedSize(columns.size());
         for (ColumnHandle handle : columns) {
@@ -86,20 +83,14 @@ public class StargateParallelRecordSetProvider
         List<JdbcColumnHandle> columnHandles = handles.build();
         List<Integer> fieldIndex = remapColumns(columnHandles, stargateParallelSplit.getColumns());
 
-        return new MappedRecordSet(new RecordSet()
-        {
-            @Override
-            public List<Type> getColumnTypes()
-            {
-                return columnTypes;
-            }
-
-            @Override
-            public RecordCursor cursor()
-            {
-                return new StargateParallelRecordCursor(jdbcClient, new StargateInMemoryResultSet(stargateParallelSplit.getSerializedColumns(), rows.iterator()), session, tableHandle.getColumns().orElse(columnHandles), getEstimatedDataSize(stargateParallelSplit.getSegments()));
-            }
-        }, fieldIndex);
+        return new MappedPageSource(
+                new StargateParallelPageSource(
+                        jdbcClient,
+                        new StargateInMemoryResultSet(stargateParallelSplit.getSerializedColumns(), rows.iterator()),
+                        session,
+                        tableHandle.getColumns().orElse(columnHandles),
+                        getEstimatedDataSize(stargateParallelSplit.getSegments())),
+                fieldIndex);
     }
 
     private DataAttributes attributes(Map<String, Object> metadata)

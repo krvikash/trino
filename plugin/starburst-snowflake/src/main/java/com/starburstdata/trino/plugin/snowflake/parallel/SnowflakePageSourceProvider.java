@@ -9,19 +9,16 @@
  */
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
-import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
-import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.RecordPageSource;
 
 import java.util.List;
 
@@ -32,13 +29,12 @@ public class SnowflakePageSourceProvider
         implements ConnectorPageSourceProvider
 {
     private static final Logger log = Logger.get(SnowflakePageSourceProvider.class);
-    private final ConnectorRecordSetProvider recordSetProvider;
+    private final ConnectorPageSourceProvider jdbcPageSourceProvider;
     private final StarburstResultStreamProvider streamProvider;
 
-    @Inject
-    public SnowflakePageSourceProvider(ConnectorRecordSetProvider recordSetProvider, StarburstResultStreamProvider streamProvider)
+    public SnowflakePageSourceProvider(ConnectorPageSourceProvider jdbcPageSourceProvider, StarburstResultStreamProvider streamProvider)
     {
-        this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
+        this.jdbcPageSourceProvider = requireNonNull(jdbcPageSourceProvider, "jdbcPageSourceProvider is null");
         this.streamProvider = requireNonNull(streamProvider, "streamProvider is null");
     }
 
@@ -58,6 +54,6 @@ public class SnowflakePageSourceProvider
                     .collect(toImmutableList());
             return new SnowflakeArrowPageSource(session, snowflakeArrowSplit, jdbcColumnHandles, streamProvider);
         }
-        return new RecordPageSource(recordSetProvider.getRecordSet(transaction, session, split, table, columns));
+        return jdbcPageSourceProvider.createPageSource(transaction, session, split, table, columns, dynamicFilter);
     }
 }

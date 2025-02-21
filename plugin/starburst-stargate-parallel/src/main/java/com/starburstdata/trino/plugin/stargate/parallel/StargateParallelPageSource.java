@@ -19,24 +19,27 @@ import io.trino.plugin.jdbc.LongReadFunction;
 import io.trino.plugin.jdbc.ObjectReadFunction;
 import io.trino.plugin.jdbc.ReadFunction;
 import io.trino.plugin.jdbc.SliceReadFunction;
+import io.trino.spi.Page;
+import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.RecordCursor;
 import io.trino.spi.type.Type;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.util.Objects.requireNonNull;
 
-public class StargateParallelRecordCursor
-        implements RecordCursor
+public class StargateParallelPageSource
+        implements ConnectorPageSource
 {
     private final List<JdbcColumnHandle> columnHandles;
     private final ReadFunction[] readFunctions;
@@ -48,9 +51,11 @@ public class StargateParallelRecordCursor
     private final AtomicLong readTimeNanos = new AtomicLong(0);
     private final ResultSet resultSet;
     private final long dataSizeBytes;
+    private final PageBuilder pageBuilder;
     private boolean closed;
+    private long completedPositions;
 
-    public StargateParallelRecordCursor(JdbcClient client, ResultSet resultSet, ConnectorSession session, List<JdbcColumnHandle> columnHandles, long dataSizeBytes)
+    public StargateParallelPageSource(JdbcClient client, ResultSet resultSet, ConnectorSession session, List<JdbcColumnHandle> columnHandles, long dataSizeBytes)
     {
         this.columnHandles = requireNonNull(columnHandles, "columnHandles is null");
         this.resultSet = requireNonNull(resultSet, "resultSet is null");
@@ -91,6 +96,9 @@ public class StargateParallelRecordCursor
                     objectReadFunctions[i] = (ObjectReadFunction) readFunction;
                 }
             }
+            pageBuilder = new PageBuilder(columnHandles.stream()
+                    .map(JdbcColumnHandle::getColumnType)
+                    .collect(toImmutableList()));
         }
         catch (RuntimeException e) {
             throw handleSqlException(e);
@@ -110,25 +118,57 @@ public class StargateParallelRecordCursor
     }
 
     @Override
-    public Type getType(int field)
+    public boolean isFinished()
     {
-        return columnHandles.get(field).getColumnType();
+        return closed;
     }
 
     @Override
-    public boolean advanceNextPosition()
+    public OptionalLong getCompletedPositions()
     {
+        return OptionalLong.of(completedPositions);
+    }
+
+    @Override
+    public Page getNextPage()
+    {
+        verify(pageBuilder.isEmpty(), "Expected pageBuilder to be empty");
         if (closed) {
-            return false;
+            return null;
         }
 
         long start = System.nanoTime();
         try {
-            if (!resultSet.next()) {
-                closed = true;
-                return false;
+            while (!pageBuilder.isFull() && resultSet.next()) {
+                pageBuilder.declarePosition();
+                completedPositions++;
+                for (int i = 0; i < columnHandles.size(); i++) {
+                    BlockBuilder output = pageBuilder.getBlockBuilder(i);
+                    Type type = columnHandles.get(i).getColumnType();
+                    if (readFunctions[i].isNull(resultSet, i + 1)) {
+                        output.appendNull();
+                    }
+                    else if (booleanReadFunctions[i] != null) {
+                        type.writeBoolean(output, booleanReadFunctions[i].readBoolean(resultSet, i + 1));
+                    }
+                    else if (doubleReadFunctions[i] != null) {
+                        type.writeDouble(output, doubleReadFunctions[i].readDouble(resultSet, i + 1));
+                    }
+                    else if (longReadFunctions[i] != null) {
+                        type.writeLong(output, longReadFunctions[i].readLong(resultSet, i + 1));
+                    }
+                    else if (sliceReadFunctions[i] != null) {
+                        type.writeSlice(output, sliceReadFunctions[i].readSlice(resultSet, i + 1));
+                    }
+                    else {
+                        type.writeObject(output, objectReadFunctions[i].readObject(resultSet, i + 1));
+                    }
+                }
             }
-            return true;
+
+            if (!pageBuilder.isFull()) {
+                closed = true;
+            }
         }
         catch (SQLException e) {
             throw handleSqlException(e);
@@ -136,86 +176,10 @@ public class StargateParallelRecordCursor
         finally {
             readTimeNanos.addAndGet(System.nanoTime() - start);
         }
-    }
 
-    @Override
-    public boolean getBoolean(int field)
-    {
-        checkState(!closed, "cursor is closed");
-        requireNonNull(resultSet, "resultSet is null");
-        try {
-            return booleanReadFunctions[field].readBoolean(resultSet, field + 1);
-        }
-        catch (SQLException | RuntimeException e) {
-            throw handleSqlException(e);
-        }
-    }
-
-    @Override
-    public long getLong(int field)
-    {
-        checkState(!closed, "cursor is closed");
-        requireNonNull(resultSet, "resultSet is null");
-        try {
-            return longReadFunctions[field].readLong(resultSet, field + 1);
-        }
-        catch (SQLException | RuntimeException e) {
-            throw handleSqlException(e);
-        }
-    }
-
-    @Override
-    public double getDouble(int field)
-    {
-        checkState(!closed, "cursor is closed");
-        requireNonNull(resultSet, "resultSet is null");
-        try {
-            return doubleReadFunctions[field].readDouble(resultSet, field + 1);
-        }
-        catch (SQLException | RuntimeException e) {
-            throw handleSqlException(e);
-        }
-    }
-
-    @Override
-    public Slice getSlice(int field)
-    {
-        checkState(!closed, "cursor is closed");
-        requireNonNull(resultSet, "resultSet is null");
-        try {
-            return sliceReadFunctions[field].readSlice(resultSet, field + 1);
-        }
-        catch (SQLException | RuntimeException e) {
-            throw handleSqlException(e);
-        }
-    }
-
-    @Override
-    public Object getObject(int field)
-    {
-        checkState(!closed, "cursor is closed");
-        requireNonNull(resultSet, "resultSet is null");
-        try {
-            return objectReadFunctions[field].readObject(resultSet, field + 1);
-        }
-        catch (SQLException | RuntimeException e) {
-            throw handleSqlException(e);
-        }
-    }
-
-    @Override
-    public boolean isNull(int field)
-    {
-        checkState(!closed, "cursor is closed");
-        checkArgument(field < columnHandles.size(), "Invalid field index");
-        requireNonNull(resultSet, "resultSet is null");
-
-        try {
-            return readFunctions[field].isNull(resultSet, field + 1);
-        }
-        catch (SQLException | RuntimeException e) {
-            throw handleSqlException(e);
-        }
+        Page page = pageBuilder.build();
+        pageBuilder.reset();
+        return page;
     }
 
     @Override
@@ -225,6 +189,12 @@ public class StargateParallelRecordCursor
             return;
         }
         closed = true;
+    }
+
+    @Override
+    public long getMemoryUsage()
+    {
+        return dataSizeBytes + pageBuilder.getRetainedSizeInBytes();
     }
 
     private RuntimeException handleSqlException(Exception e)
@@ -239,11 +209,5 @@ public class StargateParallelRecordCursor
             }
         }
         return new TrinoException(JDBC_ERROR, e);
-    }
-
-    @Override
-    public long getMemoryUsage()
-    {
-        return dataSizeBytes;
     }
 }

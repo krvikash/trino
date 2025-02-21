@@ -27,7 +27,7 @@ import io.trino.plugin.jdbc.ForJdbcDynamicFiltering;
 import io.trino.plugin.jdbc.IdentityCacheMapping;
 import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcJoinPushdownSupportModule;
-import io.trino.plugin.jdbc.JdbcRecordSetProvider;
+import io.trino.plugin.jdbc.JdbcPageSourceProvider;
 import io.trino.plugin.jdbc.JdbcSplitManager;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.MaxDomainCompactionThreshold;
@@ -36,7 +36,7 @@ import io.trino.plugin.jdbc.ptf.Query;
 import io.trino.plugin.sqlserver.SqlServerConfig;
 import io.trino.plugin.sqlserver.SqlServerConnectionFactory;
 import io.trino.spi.catalog.CatalogName;
-import io.trino.spi.connector.ConnectorRecordSetProvider;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.function.table.ConnectorTableFunction;
 
@@ -80,9 +80,9 @@ public class StarburstSynapseModule
                 .to(JdbcSplitManager.class)
                 .in(Scopes.SINGLETON);
 
-        newOptionalBinder(binder, Key.get(ConnectorRecordSetProvider.class, ForBaseJdbc.class))
+        newOptionalBinder(binder, Key.get(ConnectorPageSourceProvider.class, ForBaseJdbc.class))
                 .setDefault()
-                .to(JdbcRecordSetProvider.class)
+                .to(JdbcPageSourceProvider.class)
                 .in(Scopes.SINGLETON);
 
         newOptionalBinder(binder, Key.get(ConnectionFactory.class, ForBaseJdbc.class))

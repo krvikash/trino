@@ -19,7 +19,6 @@ import com.starburstdata.trino.plugin.snowflake.SnowflakeProxyConfig;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.jdbc.ForJdbcDynamicFiltering;
 import io.trino.plugin.jdbc.JdbcSplitManager;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
 import net.snowflake.client.core.HttpClientSettingsKey;
 import net.snowflake.client.core.HttpUtil;
@@ -40,8 +39,6 @@ public class SnowflakeParallelModule
     @Override
     protected void setup(Binder binder)
     {
-        newOptionalBinder(binder, ConnectorPageSourceProvider.class)
-                .setBinding().to(SnowflakePageSourceProvider.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, Key.get(ConnectorSplitManager.class, ForJdbcDynamicFiltering.class))
                 .setBinding().to(SnowflakeSplitManager.class).in(SINGLETON);
         bindSessionPropertiesProvider(binder, SnowflakeParallelSessionProperties.class);

@@ -18,7 +18,7 @@ import io.trino.client.OkHttpSegmentLoader;
 import io.trino.client.spooling.SegmentLoader;
 import io.trino.plugin.jdbc.ForJdbcDynamicFiltering;
 import io.trino.plugin.jdbc.JdbcSplitManager;
-import io.trino.spi.connector.ConnectorRecordSetProvider;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
 
 import static com.google.inject.Scopes.SINGLETON;
@@ -31,9 +31,9 @@ public class StargateParallelModule
     @Override
     protected void setup(Binder binder)
     {
-        newOptionalBinder(binder, ConnectorRecordSetProvider.class)
+        newOptionalBinder(binder, ConnectorPageSourceProvider.class)
                 .setBinding()
-                .to(StargateParallelRecordSetProvider.class)
+                .to(StargateParallelPageSourceProvider.class)
                 .in(Scopes.SINGLETON);
         newOptionalBinder(binder, Key.get(ConnectorSplitManager.class, ForJdbcDynamicFiltering.class))
                 .setBinding().to(StargateParallelSplitManager.class).in(SINGLETON);
