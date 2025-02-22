@@ -137,12 +137,6 @@ public class StarburstWarpConnector
         return warpConnector.getTableProcedures();
     }
 
-    @Override
-    public long getInitialMemoryRequirement()
-    {
-        return warpConnector.getInitialMemoryRequirement();
-    }
-
     @SuppressWarnings("TrinoExperimentalSpi") // ConnectorTableFunction
     @Override
     public Set<ConnectorTableFunction> getTableFunctions()
