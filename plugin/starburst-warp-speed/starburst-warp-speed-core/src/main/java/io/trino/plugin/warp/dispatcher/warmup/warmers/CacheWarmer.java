@@ -29,6 +29,8 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.PageSink;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
@@ -59,6 +61,7 @@ import static java.util.Objects.requireNonNull;
 public class CacheWarmer
 {
     private static final Logger logger = Logger.get(CacheWarmer.class);
+    private final ShapingLogger shapingLogger;
     private static final UUID ORDER_DETERMINISTIC_UUID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     private final RowGroupDataService rowGroupDataService;
@@ -79,7 +82,8 @@ public class CacheWarmer
             StorageWriterService storageWriterService,
             DictionaryConfig dictionaryConfig,
             StorageEngineConstants storageEngineConstants,
-            BufferAllocator bufferAllocator)
+            BufferAllocator bufferAllocator,
+            ShapingLoggerFactory shapingLoggerFactory)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
@@ -90,6 +94,7 @@ public class CacheWarmer
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.tmpUniqueKeyMarker = new AtomicInteger(0);
+        shapingLogger = shapingLoggerFactory.getInstance(logger);
     }
 
     public List<WarmupElementWriteMetadata> getWarmupElementWriteMetadatasToWarm(List<CacheColumnId> columns,
@@ -229,13 +234,17 @@ public class CacheWarmer
                 tmpRowGroupKey);
     }
 
-    public StorageWriterSplitConfig startWarming(RowGroupKey permanentRowGroupKey)
+    public Optional<StorageWriterSplitConfig> startWarming(RowGroupKey permanentRowGroupKey)
     {
-        rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
-        return storageWriterService.startWarming("WarpCacheManager",
+        RowGroupData rowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
+        if (rowGroupData.isEmpty() && !rowGroupData.getWarmUpElements().isEmpty()) {
+            shapingLogger.error("Can't add non-empty WarmUpElements to an existing empty RowGroupData. rowGroupData=%s", rowGroupData);
+            return Optional.empty();
+        }
+        return Optional.of(storageWriterService.startWarming("WarpCacheManager",
                 permanentRowGroupKey.filePath(),
                 dictionaryConfig.getEnableDictionary(),
-                false);
+                false));
     }
 
     public void finishWarming(StorageWriterSplitConfig storageWriterSplitConfig)

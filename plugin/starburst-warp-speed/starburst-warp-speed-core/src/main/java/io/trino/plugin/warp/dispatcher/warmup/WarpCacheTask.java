@@ -36,6 +36,7 @@ import io.trino.spi.block.Block;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -147,7 +148,12 @@ public class WarpCacheTask
                     return;
                 }
                 if (initWarmUpProcess()) {
-                    storageWriterSplitConfig = cacheWarmer.startWarming(rowGroupKey);
+                    Optional<StorageWriterSplitConfig> storageWriterSplitConfigOptional = cacheWarmer.startWarming(rowGroupKey);
+                    if (storageWriterSplitConfigOptional.isEmpty()) {
+                        shapingLogger.error("Could not start warming. blocksToProcess=%s, warmupCacheData=%s", blocksToProcess, warmupCacheData);
+                        return; // cacheWarmState remains ABORT_ON_INIT_PROCESS
+                    }
+                    storageWriterSplitConfig = storageWriterSplitConfigOptional.get();
                     warmStarted = true;
                     cacheWarmState = initCandidates() ? CacheWarmState.RUNNING : CacheWarmState.ABORTING;
                 }
