@@ -15,6 +15,8 @@ package com.starburstdata.trino.plugin.ai;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import com.starburstdata.trino.plugin.ai.embedding.GenerateEmbeddingsFunctionHandle;
+import com.starburstdata.trino.plugin.ai.embedding.GenerateEmbeddingsTableFunction;
 import io.airlift.slice.Slice;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
@@ -28,6 +30,8 @@ import io.trino.spi.function.InvocationConvention;
 import io.trino.spi.function.ScalarFunctionAdapter;
 import io.trino.spi.function.ScalarFunctionImplementation;
 import io.trino.spi.function.Signature;
+import io.trino.spi.function.table.ConnectorTableFunctionHandle;
+import io.trino.spi.function.table.TableFunctionProcessorProvider;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.TypeSignature;
 
@@ -117,12 +121,12 @@ public class AiFunctions
         }
     }
 
-    private final ClientFactory clientFactory;
+    private final ClientProvider clientProvider;
 
     @Inject
-    public AiFunctions(ClientFactory clientFactory)
+    public AiFunctions(ClientProvider clientProvider)
     {
-        this.clientFactory = requireNonNull(clientFactory, "clientFactory is null");
+        this.clientProvider = requireNonNull(clientProvider, "clientProvider is null");
     }
 
     public List<FunctionMetadata> getFunctions()
@@ -179,6 +183,15 @@ public class AiFunctions
                 .build();
     }
 
+    @Override
+    public TableFunctionProcessorProvider getTableFunctionProcessorProvider(ConnectorTableFunctionHandle functionHandle)
+    {
+        if (functionHandle instanceof GenerateEmbeddingsFunctionHandle(Slice modelId)) {
+            return GenerateEmbeddingsTableFunction.getGenerateEmbeddingsFunctionProcessorProvider(clientProvider.embeddingModelClient(modelId));
+        }
+        throw new UnsupportedOperationException("Unsupported function: " + functionHandle);
+    }
+
     private Block generateEmbedding(Slice sourceString, Slice modelId)
     {
         if (sourceString.length() == 0) {
@@ -187,7 +200,7 @@ public class AiFunctions
 
         List<Double> data;
         try {
-            data = clientFactory.embeddingModelClient(modelId).generateEmbedding(sourceString);
+            data = clientProvider.embeddingModelClient(modelId).generateEmbedding(sourceString);
         }
         catch (TrinoException e) {
             throw e;
@@ -205,17 +218,17 @@ public class AiFunctions
 
     public Slice analyzeSentiment(Slice text, Slice modelId)
     {
-        return utf8Slice(clientFactory.languageModelClient(modelId).analyzeSentiment(text.toStringUtf8()));
+        return utf8Slice(clientProvider.languageModelClient(modelId).analyzeSentiment(text.toStringUtf8()));
     }
 
     public Slice classify(Slice text, Block labels, Slice modelId)
     {
-        return utf8Slice(clientFactory.languageModelClient(modelId).classify(text.toStringUtf8(), fromSqlArray(labels)));
+        return utf8Slice(clientProvider.languageModelClient(modelId).classify(text.toStringUtf8(), fromSqlArray(labels)));
     }
 
     public Slice fixGrammar(Slice text, Slice modelId)
     {
-        return utf8Slice(clientFactory.languageModelClient(modelId).fixGrammar(text.toStringUtf8()));
+        return utf8Slice(clientProvider.languageModelClient(modelId).fixGrammar(text.toStringUtf8()));
     }
 
     public Slice prompt(Slice prompt, Slice modelId)
@@ -223,7 +236,7 @@ public class AiFunctions
         if (prompt.length() == 0) {
             return null;
         }
-        return utf8Slice(clientFactory.languageModelClient(modelId).generate(prompt.toStringUtf8()));
+        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8()));
     }
 
     public Slice promptSystem(Slice systemPrompt, Slice prompt, Slice modelId)
@@ -231,17 +244,17 @@ public class AiFunctions
         if (prompt.length() == 0) {
             return null;
         }
-        return utf8Slice(clientFactory.languageModelClient(modelId).generate(prompt.toStringUtf8(), systemPrompt.toStringUtf8()));
+        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8(), systemPrompt.toStringUtf8()));
     }
 
     public Slice mask(Slice text, Block labels, Slice modelId)
     {
-        return utf8Slice(clientFactory.languageModelClient(modelId).mask(text.toStringUtf8(), fromSqlArray(labels)));
+        return utf8Slice(clientProvider.languageModelClient(modelId).mask(text.toStringUtf8(), fromSqlArray(labels)));
     }
 
     public Slice translate(Slice text, Slice language, Slice modelId)
     {
-        return utf8Slice(clientFactory.languageModelClient(modelId).translate(text.toStringUtf8(), language.toStringUtf8()));
+        return utf8Slice(clientProvider.languageModelClient(modelId).translate(text.toStringUtf8(), language.toStringUtf8()));
     }
 
     private static List<String> fromSqlArray(Block block)

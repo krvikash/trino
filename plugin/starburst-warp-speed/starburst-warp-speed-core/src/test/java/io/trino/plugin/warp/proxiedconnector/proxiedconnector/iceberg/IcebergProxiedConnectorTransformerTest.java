@@ -105,6 +105,7 @@ public class IcebergProxiedConnectorTransformerTest
                 Optional.empty(),
                 false,
                 Optional.of(DataSize.of(1, DataSize.Unit.BYTE)),
+                false,
                 Collections.emptySet(),
                 Optional.empty());
 
@@ -139,6 +140,7 @@ public class IcebergProxiedConnectorTransformerTest
                 Optional.empty(),
                 icebergTableHandle.isRecordScannedFiles(),
                 Optional.empty(),
+                false,
                 icebergTableHandle.getConstraintColumns(),
                 icebergTableHandle.getForAnalyze());
 
@@ -170,6 +172,7 @@ public class IcebergProxiedConnectorTransformerTest
                 Optional.empty(),
                 true,
                 Optional.of(DataSize.of(1, DataSize.Unit.BYTE)),
+                false,
                 Collections.emptySet(),
                 Optional.empty());
 
@@ -204,6 +207,7 @@ public class IcebergProxiedConnectorTransformerTest
                 Optional.empty(),
                 icebergTableHandle.isRecordScannedFiles(),
                 Optional.empty(),
+                false,
                 icebergTableHandle.getConstraintColumns(),
                 icebergTableHandle.getForAnalyze());
 
@@ -249,6 +253,7 @@ public class IcebergProxiedConnectorTransformerTest
                 Optional.empty(),
                 false,
                 Optional.empty(),
+                false,
                 Collections.emptySet(),
                 Optional.empty());
 

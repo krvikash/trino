@@ -117,6 +117,12 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>starburst-ai</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-cache</artifactId>
         </dependency>
 
@@ -503,6 +509,14 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>starburst-ai</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-blackhole</artifactId>
             <scope>test</scope>
         </dependency>
@@ -773,6 +787,7 @@
                                 <exclude>**/Test*FailureRecoveryTest.java</exclude>
                                 <exclude>**/TestIcebergSnowflakeCatalogConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestTrinoSnowflakeCatalog.java</exclude>
+                                <exclude>**/TestIcebergAiFunctions.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -839,6 +854,7 @@
                                 <include>**/TestIcebergAbfsConnectorSmokeTest.java</include>
                                 <include>**/TestIcebergSnowflakeCatalogConnectorSmokeTest.java</include>
                                 <include>**/TestTrinoSnowflakeCatalog.java</include>
+                                <include>**/TestIcebergAiFunctions.java</include>
                             </includes>
                         </configuration>
                     </plugin>

@@ -399,7 +399,7 @@ public class IcebergSplitSource
         }
         // If file has no deletions, and it's the only file seen so far for the partition
         // then we skip it from splits generation unless we encounter another file in the same partition
-        if (fileHasNoDeletions) {
+        if (fileHasNoDeletions && !tableHandle.isForceReadingAllFiles()) {
             scannedFilesByPartition.put(structLikeWrapperWithFieldIdToIndex, Optional.of(fileScanTaskWithDomain));
             return ImmutableList.of();
         }

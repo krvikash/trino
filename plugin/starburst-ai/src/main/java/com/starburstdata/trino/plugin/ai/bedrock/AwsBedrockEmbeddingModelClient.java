@@ -15,6 +15,8 @@ package com.starburstdata.trino.plugin.ai.bedrock;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 import com.starburstdata.trino.plugin.ai.AiErrorCode;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelClient;
 import io.airlift.json.ObjectMapperProvider;
@@ -25,6 +27,7 @@ import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelResponse;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -52,7 +55,7 @@ public class AwsBedrockEmbeddingModelClient
     public List<Double> generateEmbedding(Slice sourceString)
     {
         InvokeModelResponse response = bedrockRuntimeClient.invokeModel(builder -> {
-            builder.body(SdkBytes.fromUtf8String(embeddingCodec.generateRequestBody(sourceString.toStringUtf8().replaceAll("[\n\t\r\b\f\0\"\\\\]", " "))));
+            builder.body(SdkBytes.fromUtf8String(embeddingCodec.generateRequestBody(stripWhitespace(sourceString.toStringUtf8()))));
             builder.modelId(modelName);
         });
 
@@ -63,5 +66,34 @@ public class AwsBedrockEmbeddingModelClient
         catch (IOException e) {
             throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to read response from embedding model", e);
         }
+    }
+
+    @Override
+    public List<List<Double>> generateEmbeddings(List<Slice> sourceStrings)
+    {
+        Iterator<String> requests = embeddingCodec.generateBatchRequestBodies(Iterators.transform(sourceStrings.iterator(), slice -> stripWhitespace(slice.toStringUtf8())));
+        ImmutableList.Builder<List<Double>> embeddings = ImmutableList.builder();
+        while (requests.hasNext()) {
+            String requestBody = requests.next();
+            InvokeModelResponse response = bedrockRuntimeClient.invokeModel(builder -> {
+                builder.body(SdkBytes.fromUtf8String(requestBody));
+                builder.modelId(modelName);
+            });
+
+            try {
+                JsonNode responseBody = OBJECT_MAPPER.readTree(response.body().asInputStream());
+                embeddings.addAll(embeddingCodec.parseBatchResponse(responseBody));
+            }
+            catch (IOException e) {
+                throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to read response from embedding model", e);
+            }
+        }
+
+        return embeddings.build();
+    }
+
+    private static String stripWhitespace(String value)
+    {
+        return value.replaceAll("[\n\t\r\b\f\0\"\\\\]", " ");
     }
 }

@@ -20,6 +20,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.function.FunctionProvider;
+import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.transaction.IsolationLevel;
 
 import java.util.Optional;
@@ -32,16 +33,19 @@ public class AiConnector
 {
     private final ConnectorMetadata metadata;
     private final FunctionProvider functionProvider;
+    private final Set<ConnectorTableFunction> tableFunctions;
     private final Set<SystemTable> systemTables;
 
     @Inject
     public AiConnector(
             ConnectorMetadata metadata,
             FunctionProvider functionProvider,
+            Set<ConnectorTableFunction> tableFunctions,
             Set<SystemTable> systemTables)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.functionProvider = requireNonNull(functionProvider, "functionProvider is null");
+        this.tableFunctions = requireNonNull(tableFunctions, "tableFunctions is null");
         this.systemTables = requireNonNull(systemTables, "systemTables is null");
     }
 
@@ -61,6 +65,12 @@ public class AiConnector
     public Optional<FunctionProvider> getFunctionProvider()
     {
         return Optional.of(functionProvider);
+    }
+
+    @Override
+    public Set<ConnectorTableFunction> getTableFunctions()
+    {
+        return tableFunctions;
     }
 
     @Override

@@ -13,11 +13,16 @@
  */
 package com.starburstdata.trino.plugin.ai.bedrock;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelConnectionSpec;
+import io.airlift.json.ObjectMapperProvider;
 import io.trino.spi.TrinoException;
 
+import java.util.Iterator;
 import java.util.List;
 
 import static com.starburstdata.trino.plugin.ai.AiErrorCode.INVALID_MODEL_SPEC_PROPERTY;
@@ -26,6 +31,8 @@ import static java.util.Objects.requireNonNull;
 public final class CohereEmbedMultilingualV3Codec
         implements AwsEmbeddingCodec
 {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+    private static final int BATCH_SIZE = 96;
     public static final String MODEL_NAME = "cohere.embed-multilingual-v3";
 
     private static final String COHERE_REQUEST_TEMPLATE = """
@@ -36,6 +43,14 @@ public final class CohereEmbedMultilingualV3Codec
                 "embedding_types": ["float"]
             }
             """;
+    private static final String COHERE_BATCH_REQUEST_TEMPLATE = """
+                {
+                    "texts":%s,
+                    "input_type": "search_document",
+                    "truncate": "NONE",
+                    "embedding_types": ["float"]
+                }
+                """;
 
     private CohereEmbedMultilingualV3Codec() {}
 
@@ -62,6 +77,20 @@ public final class CohereEmbedMultilingualV3Codec
     }
 
     @Override
+    public Iterator<String> generateBatchRequestBodies(Iterator<String> sourceStrings)
+    {
+        Iterator<List<String>> batches = Iterators.partition(sourceStrings, BATCH_SIZE);
+        return Iterators.transform(batches, batch -> {
+            try {
+                return COHERE_BATCH_REQUEST_TEMPLATE.formatted(OBJECT_MAPPER.writeValueAsString(batch));
+            }
+            catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @Override
     public List<Double> parseResponse(JsonNode responseBody)
     {
         ImmutableList.Builder<Double> elements = ImmutableList.builder();
@@ -69,5 +98,19 @@ public final class CohereEmbedMultilingualV3Codec
             elements.add(doubleValue.asDouble());
         }
         return elements.build();
+    }
+
+    @Override
+    public List<List<Double>> parseBatchResponse(JsonNode responseBody)
+    {
+        ImmutableList.Builder<List<Double>> embeddings = ImmutableList.builder();
+        for (JsonNode embedding : responseBody.get("embeddings").get("float")) {
+            ImmutableList.Builder<Double> elements = ImmutableList.builder();
+            for (JsonNode doubleValue : embedding) {
+                elements.add(doubleValue.asDouble());
+            }
+            embeddings.add(elements.build());
+        }
+        return embeddings.build();
     }
 }

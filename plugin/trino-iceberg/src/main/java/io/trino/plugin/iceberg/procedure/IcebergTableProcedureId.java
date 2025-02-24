@@ -23,4 +23,5 @@ public enum IcebergTableProcedureId
     REMOVE_ORPHAN_FILES,
     ADD_FILES,
     ADD_FILES_FROM_TABLE,
+    GENERATE_EMBEDDINGS,
 }

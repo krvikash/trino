@@ -267,6 +267,7 @@ class TestFileBasedConflictDetection
                 Optional.empty(),
                 false,
                 Optional.empty(),
+                false,
                 ImmutableSet.of(),
                 Optional.of(false));
     }

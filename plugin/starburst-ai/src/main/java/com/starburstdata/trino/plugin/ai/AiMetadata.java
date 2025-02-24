@@ -31,7 +31,7 @@ import static java.util.Objects.requireNonNull;
 public class AiMetadata
         implements ConnectorMetadata
 {
-    static final String SCHEMA_NAME = "ai";
+    public static final String SCHEMA_NAME = "ai";
 
     private final List<FunctionMetadata> functions;
 

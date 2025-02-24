@@ -1,0 +1,168 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.starburstdata.trino.plugin.ai.embedding;
+
+import com.google.common.collect.ImmutableList;
+import com.starburstdata.trino.plugin.ai.AiMetadata;
+import com.starburstdata.trino.plugin.ai.EmbeddingModelClient;
+import io.airlift.slice.Slice;
+import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorAccessControl;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.function.table.AbstractConnectorTableFunction;
+import io.trino.spi.function.table.Argument;
+import io.trino.spi.function.table.ConnectorTableFunctionHandle;
+import io.trino.spi.function.table.Descriptor;
+import io.trino.spi.function.table.DescriptorArgument;
+import io.trino.spi.function.table.DescriptorArgumentSpecification;
+import io.trino.spi.function.table.ScalarArgument;
+import io.trino.spi.function.table.ScalarArgumentSpecification;
+import io.trino.spi.function.table.TableArgument;
+import io.trino.spi.function.table.TableArgumentSpecification;
+import io.trino.spi.function.table.TableFunctionAnalysis;
+import io.trino.spi.function.table.TableFunctionDataProcessor;
+import io.trino.spi.function.table.TableFunctionProcessorProvider;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.VarcharType;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.plugin.base.util.Functions.checkFunctionArgument;
+import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
+import static io.trino.spi.function.table.DescriptorArgument.NULL_DESCRIPTOR;
+import static io.trino.spi.function.table.ReturnTypeSpecification.GenericTable.GENERIC_TABLE;
+import static java.lang.String.format;
+import static java.util.Locale.ENGLISH;
+
+public class GenerateEmbeddingsTableFunction
+        extends AbstractConnectorTableFunction
+{
+    private static final String SOURCE_ARGUMENT_NAME = "SOURCE";
+    private static final String DATA_COLUMN_ARGUMENT_NAME = "DATA_COLUMN";
+    private static final String EMBEDDING_COLUMN_ARGUMENT_NAME = "EMBEDDING_COLUMN";
+    private static final String MODEL_ID_ARGUMENT_NAME = "MODEL_ID";
+
+    public GenerateEmbeddingsTableFunction()
+    {
+        super(
+                AiMetadata.SCHEMA_NAME,
+                "generate_embeddings",
+                ImmutableList.of(
+                        TableArgumentSpecification.builder()
+                                .name(SOURCE_ARGUMENT_NAME)
+                                .passThroughColumns()
+                                .rowSemantics()
+                                .build(),
+                        DescriptorArgumentSpecification.builder()
+                                .name(DATA_COLUMN_ARGUMENT_NAME)
+                                .build(),
+                        DescriptorArgumentSpecification.builder()
+                                .name(EMBEDDING_COLUMN_ARGUMENT_NAME)
+                                .build(),
+                        ScalarArgumentSpecification.builder()
+                                .name(MODEL_ID_ARGUMENT_NAME)
+                                .type(VarcharType.VARCHAR)
+                                .build()),
+                GENERIC_TABLE);
+    }
+
+    @Override
+    public TableFunctionAnalysis analyze(ConnectorSession session, ConnectorTransactionHandle transaction, Map<String, Argument> arguments, ConnectorAccessControl accessControl)
+    {
+        DescriptorArgument contentColumn = (DescriptorArgument) arguments.get(DATA_COLUMN_ARGUMENT_NAME);
+        if (contentColumn.equals(NULL_DESCRIPTOR)) {
+            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "DATA_COLUMN descriptor is null");
+        }
+        Descriptor contentColumnDescriptor = contentColumn.getDescriptor().orElseThrow();
+        if (contentColumnDescriptor.getFields().stream().anyMatch(field -> field.getType().isPresent())) {
+            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "DATA_COLUMN descriptor contains types");
+        }
+
+        if (contentColumnDescriptor.getFields().size() != 1) {
+            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "DATA_COLUMN descriptor contains more than one column");
+        }
+
+        DescriptorArgument embeddingColumn = (DescriptorArgument) arguments.get(EMBEDDING_COLUMN_ARGUMENT_NAME);
+        if (contentColumn.equals(NULL_DESCRIPTOR)) {
+            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "EMBEDDING_COLUMN descriptor is null");
+        }
+        Descriptor embeddingColumnDescriptor = embeddingColumn.getDescriptor().orElseThrow();
+        if (embeddingColumnDescriptor.getFields().stream().anyMatch(field -> field.getType().isPresent())) {
+            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "EMBEDDING_COLUMN descriptor contains types");
+        }
+
+        if (embeddingColumnDescriptor.getFields().size() != 1) {
+            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "EMBEDDING_COLUMN descriptor contains more than one column");
+        }
+
+        ScalarArgument modelIdArgument = (ScalarArgument) arguments.get(MODEL_ID_ARGUMENT_NAME);
+        checkFunctionArgument(modelIdArgument.getValue() != null, "MODEL_ID value cannot be null");
+        Slice modelId = ((Slice) modelIdArgument.getValue());
+        checkFunctionArgument(modelId.length() > 0, "MODEL_ID value cannot be empty");
+
+        String dataColumnName = getOnlyElement(contentColumnDescriptor.getFields()).getName().orElseThrow().toLowerCase(ENGLISH);
+
+        List<RowType.Field> inputSchema = ((TableArgument) arguments.get(SOURCE_ARGUMENT_NAME)).getRowType().getFields();
+        Set<String> inputNames = inputSchema.stream()
+                .map(RowType.Field::getName)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(name -> name.toLowerCase(ENGLISH))
+                .collect(toImmutableSet());
+
+        if (inputNames.contains(getOnlyElement(embeddingColumnDescriptor.getFields()).getName().orElseThrow().toLowerCase(ENGLISH))) {
+            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "Embedding column must not be present in SOURCE input");
+        }
+        if (!inputNames.contains(dataColumnName)) {
+            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, format("Column %s not present in the table", dataColumnName));
+        }
+
+        ImmutableList.Builder<Integer> requiredColumns = ImmutableList.builder();
+        for (int i = 0; i < inputSchema.size(); i++) {
+            Optional<String> columnName = inputSchema.get(i).getName();
+            if (columnName.map(name -> name.equalsIgnoreCase(dataColumnName)).orElse(false)) {
+                requiredColumns.add(i);
+            }
+        }
+
+        ImmutableList.Builder<Descriptor.Field> returnedColumns = ImmutableList.builder();
+        returnedColumns.add(new Descriptor.Field(getOnlyElement(embeddingColumnDescriptor.getFields()).getName().orElseThrow(), Optional.of(new ArrayType(DoubleType.DOUBLE))));
+
+        return TableFunctionAnalysis.builder()
+                .requiredColumns(SOURCE_ARGUMENT_NAME, requiredColumns.build())
+                .returnedType(new Descriptor(returnedColumns.build()))
+                .handle(new GenerateEmbeddingsFunctionHandle(modelId))
+                .build();
+    }
+
+    public static TableFunctionProcessorProvider getGenerateEmbeddingsFunctionProcessorProvider(EmbeddingModelClient embeddingModelClient)
+    {
+        return new TableFunctionProcessorProvider()
+        {
+            @Override
+            public TableFunctionDataProcessor getDataProcessor(ConnectorSession session, ConnectorTableFunctionHandle handle)
+            {
+                return new GenerateEmbeddingsFunctionDataProcessor(embeddingModelClient);
+            }
+        };
+    }
+}

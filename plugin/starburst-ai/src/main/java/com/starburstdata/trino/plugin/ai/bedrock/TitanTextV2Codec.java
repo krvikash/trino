@@ -16,9 +16,11 @@ package com.starburstdata.trino.plugin.ai.bedrock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelConnectionSpec;
 import io.trino.spi.TrinoException;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -78,6 +80,12 @@ public final class TitanTextV2Codec
     }
 
     @Override
+    public Iterator<String> generateBatchRequestBodies(Iterator<String> sourceStrings)
+    {
+        return Iterators.transform(sourceStrings, this::generateRequestBody);
+    }
+
+    @Override
     public List<Double> parseResponse(JsonNode responseBody)
     {
         ImmutableList.Builder<Double> elements = ImmutableList.builder();
@@ -85,5 +93,11 @@ public final class TitanTextV2Codec
             elements.add(doubleValue.asDouble());
         }
         return elements.build();
+    }
+
+    @Override
+    public List<List<Double>> parseBatchResponse(JsonNode responseBody)
+    {
+        return List.of(parseResponse(responseBody));
     }
 }

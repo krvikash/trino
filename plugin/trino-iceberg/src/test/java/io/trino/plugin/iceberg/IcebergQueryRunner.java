@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
+import com.starburstdata.trino.plugin.ai.AiPlugin;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
@@ -202,6 +203,50 @@ public final class IcebergQueryRunner
         return IcebergQueryRunner.builder()
                 .addCoordinatorProperty("http-server.http.port", "8080")
                 .setTpcdsCatalogEnabled(true);
+    }
+
+    public static final class IcebergAiMinIoQueryRunnerMain
+    {
+        private IcebergAiMinIoQueryRunnerMain() {}
+
+        public static void main(String[] args)
+                throws Exception
+        {
+            File modelsFile = new File(System.getProperty("iceberg.model-file.path"));
+            String bucketName = "test-bucket";
+            @SuppressWarnings("resource")
+            Minio minio = Minio.builder().build();
+            minio.start();
+            minio.createBucket(bucketName);
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
+                    .setIcebergProperties(Map.of(
+                            "iceberg.catalog.type", "TESTING_FILE_METASTORE",
+                            "hive.metastore.catalog.dir", "s3://%s/".formatted(bucketName),
+                            "fs.native-s3.enabled", "true",
+                            "s3.aws-access-key", MINIO_ACCESS_KEY,
+                            "s3.aws-secret-key", MINIO_SECRET_KEY,
+                            "s3.region", MINIO_REGION,
+                            "s3.endpoint", "http://" + minio.getMinioApiEndpoint(),
+                            "s3.path-style-access", "true",
+                            "s3.streaming.part-size", "5MB"))
+                    .addIcebergProperty("ai.models-file", modelsFile.getAbsolutePath())
+                    .setSchemaInitializer(
+                            SchemaInitializer.builder()
+                                    .withSchemaName("tpch")
+                                    .withClonedTpchTables(TpchTable.getTables())
+                                    .build())
+                    .setAdditionalSetup(runner -> {
+                        runner.installPlugin(new AiPlugin());
+                        runner.createCatalog("ai", "starburst_ai", Map.of("ai.models-file", modelsFile.getAbsolutePath()));
+                    })
+                    .build();
+
+            Logger log = Logger.get(IcebergAiMinIoQueryRunnerMain.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
     }
 
     public static final class IcebergRestQueryRunnerMain

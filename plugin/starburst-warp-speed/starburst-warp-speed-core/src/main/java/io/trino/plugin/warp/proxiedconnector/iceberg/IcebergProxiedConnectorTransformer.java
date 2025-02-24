@@ -103,6 +103,7 @@ public class IcebergProxiedConnectorTransformer
                 Optional.empty(),
                 icebergTableHandle.isRecordScannedFiles(),
                 Optional.empty(),
+                icebergTableHandle.isForceReadingAllFiles(),
                 Collections.emptySet(),
                 icebergTableHandle.getForAnalyze()); // don't limit
     }
@@ -149,6 +150,7 @@ public class IcebergProxiedConnectorTransformer
                 Optional.empty(),
                 tableHandle.isRecordScannedFiles(),
                 Optional.empty(),
+                tableHandle.isForceReadingAllFiles(),
                 tableHandle.getConstraintColumns(),
                 tableHandle.getForAnalyze());  // must be empty to allow mixed query (see isValidForAcceleration())
     }

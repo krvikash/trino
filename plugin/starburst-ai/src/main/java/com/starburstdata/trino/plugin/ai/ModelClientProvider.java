@@ -30,7 +30,8 @@ import static com.starburstdata.trino.plugin.ai.AiErrorCode.AI_ERROR;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static java.util.Objects.requireNonNull;
 
-public class ClientFactory
+public class ModelClientProvider
+        implements ClientProvider
 {
     private final Tracer tracer;
     private final PromptProvider defaultPromptProvider;
@@ -41,7 +42,7 @@ public class ClientFactory
     private final Cache<Slice, EmbeddingModelClient> embeddingClientCache = buildNonEvictableCache(CacheBuilder.newBuilder().maximumSize(100));
 
     @Inject
-    public ClientFactory(
+    public ModelClientProvider(
             Tracer tracer,
             PromptProvider defaultPromptProvider,
             ModelConnectionSpecDao modelConnectionSpecDao,
@@ -55,6 +56,7 @@ public class ClientFactory
         this.openAiClientFactory = requireNonNull(openAiClientFactory, "openAiClientFactory is null");
     }
 
+    @Override
     public LanguageModelClient languageModelClient(Slice modelId)
     {
         try {
@@ -75,6 +77,7 @@ public class ClientFactory
         };
     }
 
+    @Override
     public EmbeddingModelClient embeddingModelClient(Slice modelId)
     {
         try {

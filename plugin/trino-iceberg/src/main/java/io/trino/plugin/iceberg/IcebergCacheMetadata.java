@@ -70,6 +70,7 @@ public class IcebergCacheMetadata
                 icebergTableHandle.getTablePartitioning(),
                 icebergTableHandle.isRecordScannedFiles(),
                 icebergTableHandle.getMaxScannedFileSize(),
+                icebergTableHandle.isForceReadingAllFiles(),
                 icebergTableHandle.getConstraintColumns(),
                 icebergTableHandle.getForAnalyze());
 

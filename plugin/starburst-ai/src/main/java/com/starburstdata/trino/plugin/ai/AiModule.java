@@ -18,9 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
-import com.starburstdata.trino.plugin.ai.bedrock.AwsBedrockClientFactory;
-import com.starburstdata.trino.plugin.ai.bedrock.AwsBedrockEmbeddingCodecsModule;
-import com.starburstdata.trino.plugin.ai.openai.OpenAiClientFactory;
+import com.starburstdata.trino.plugin.ai.embedding.GenerateEmbeddingsTableFunction;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.trino.spi.TrinoException;
@@ -29,6 +27,7 @@ import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.FunctionProvider;
+import io.trino.spi.function.table.ConnectorTableFunction;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -57,17 +56,14 @@ public class AiModule
         binder.bind(ConnectorMetadata.class).to(AiMetadata.class).in(Scopes.SINGLETON);
         binder.bind(FunctionProvider.class).to(AiFunctions.class).in(Scopes.SINGLETON);
 
-        binder.bind(PromptProvider.class).to(StaticPromptProvider.class).in(Scopes.SINGLETON);
-        binder.bind(ModelConnectionSpecDao.class).to(StaticModelConnectionSpecDao.class).in(Scopes.SINGLETON);
-
-        binder.install(new AwsBedrockEmbeddingCodecsModule());
-        binder.bind(AwsBedrockClientFactory.class).in(Scopes.SINGLETON);
-        binder.bind(OpenAiClientFactory.class).in(Scopes.SINGLETON);
-        binder.bind(ClientFactory.class).in(Scopes.SINGLETON);
+        install(new AiClientModule());
+        binder.bind(ClientProvider.class).to(ModelClientProvider.class).in(Scopes.SINGLETON);
 
         var systemTableBinder = newSetBinder(binder, SystemTable.class);
         systemTableBinder.addBinding().to(LanguageModelSystemTable.class).in(Scopes.SINGLETON);
         systemTableBinder.addBinding().to(EmbeddingModelSystemTable.class).in(Scopes.SINGLETON);
+
+        newSetBinder(binder, ConnectorTableFunction.class).addBinding().to(GenerateEmbeddingsTableFunction.class).in(Scopes.SINGLETON);
     }
 
     @Provides

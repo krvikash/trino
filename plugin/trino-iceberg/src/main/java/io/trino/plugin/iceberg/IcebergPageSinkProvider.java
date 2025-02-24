@@ -14,9 +14,12 @@
 package io.trino.plugin.iceberg;
 
 import com.google.inject.Inject;
+import com.starburstdata.trino.plugin.ai.ClientProvider;
 import io.airlift.json.JsonCodec;
+import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.trino.plugin.hive.SortingFileWriterConfig;
+import io.trino.plugin.iceberg.procedure.IcebergGenerateEmbeddingsHandle;
 import io.trino.plugin.iceberg.procedure.IcebergOptimizeHandle;
 import io.trino.plugin.iceberg.procedure.IcebergTableExecuteHandle;
 import io.trino.spi.PageIndexerFactory;
@@ -39,6 +42,7 @@ import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.io.LocationProvider;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static com.google.common.collect.Maps.transformValues;
 import static io.trino.plugin.iceberg.IcebergUtil.getLocationProvider;
@@ -56,6 +60,7 @@ public class IcebergPageSinkProvider
     private final int sortingFileWriterMaxOpenFiles;
     private final TypeManager typeManager;
     private final PageSorter pageSorter;
+    private final ClientProvider embeddingClientProvider;
 
     @Inject
     public IcebergPageSinkProvider(
@@ -66,7 +71,8 @@ public class IcebergPageSinkProvider
             IcebergConfig config,
             SortingFileWriterConfig sortingFileWriterConfig,
             TypeManager typeManager,
-            PageSorter pageSorter)
+            PageSorter pageSorter,
+            ClientProvider embeddingClientProvider)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.jsonCodec = requireNonNull(jsonCodec, "jsonCodec is null");
@@ -77,6 +83,7 @@ public class IcebergPageSinkProvider
         this.sortingFileWriterMaxOpenFiles = sortingFileWriterConfig.getMaxOpenSortFiles();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
+        this.embeddingClientProvider = requireNonNull(embeddingClientProvider, "embeddingClientProvider is null");
     }
 
     @Override
@@ -146,6 +153,8 @@ public class IcebergPageSinkProvider
                         sortingFileWriterMaxOpenFiles,
                         typeManager,
                         pageSorter);
+            case GENERATE_EMBEDDINGS:
+                return createGenerateEmbeddingsPageSink(session, executeHandle);
             case OPTIMIZE_MANIFESTS:
             case DROP_EXTENDED_STATS:
             case ROLLBACK_TO_SNAPSHOT:
@@ -180,5 +189,49 @@ public class IcebergPageSinkProvider
                 partitionsSpecs,
                 pageSink,
                 schema.columns().size());
+    }
+
+    private ConnectorPageSink createGenerateEmbeddingsPageSink(ConnectorSession session, IcebergTableExecuteHandle executeHandle)
+    {
+        IcebergGenerateEmbeddingsHandle generateEmbeddingsHandle = (IcebergGenerateEmbeddingsHandle) executeHandle.procedureHandle();
+        Schema schema = SchemaParser.fromJson(generateEmbeddingsHandle.schemaAsJson());
+        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, generateEmbeddingsHandle.partitionSpecAsJson());
+        LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(),
+                executeHandle.tableLocation(), generateEmbeddingsHandle.tableStorageProperties());
+        ConnectorPageSink delegatePageSink = new IcebergPageSink(
+                schema,
+                partitionSpec,
+                locationProvider,
+                fileWriterFactory,
+                pageIndexerFactory,
+                fileSystemFactory.create(session.getIdentity(), executeHandle.fileIoProperties()),
+                generateEmbeddingsHandle.tableColumns(),
+                jsonCodec,
+                session,
+                generateEmbeddingsHandle.fileFormat(),
+                generateEmbeddingsHandle.tableStorageProperties(),
+                maxOpenPartitions,
+                generateEmbeddingsHandle.sortOrder(),
+                sortingFileWriterBufferSize,
+                sortingFileWriterMaxOpenFiles,
+                typeManager,
+                pageSorter);
+
+        Optional<Integer> dataColumnChannel = Optional.empty();
+        Optional<Integer> embeddingColumnChannel = Optional.empty();
+        for (int columnIndex = 0; columnIndex < schema.columns().size(); columnIndex++) {
+            if (schema.columns().get(columnIndex).fieldId() == generateEmbeddingsHandle.dataColumnFieldId()) {
+                dataColumnChannel = Optional.of(columnIndex);
+            }
+            if (schema.columns().get(columnIndex).fieldId() == generateEmbeddingsHandle.embeddingColumnFieldId()) {
+                embeddingColumnChannel = Optional.of(columnIndex);
+            }
+        }
+
+        return new EmbeddingGeneratingPageSink(
+                delegatePageSink,
+                dataColumnChannel.orElseThrow(),
+                embeddingColumnChannel.orElseThrow(),
+                embeddingClientProvider.embeddingModelClient(Slices.utf8Slice(generateEmbeddingsHandle.modelId())));
     }
 }

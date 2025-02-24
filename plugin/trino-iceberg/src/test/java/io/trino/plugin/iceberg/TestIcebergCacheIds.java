@@ -372,6 +372,7 @@ public class TestIcebergCacheIds
                 Optional.empty(),
                 true,
                 Optional.empty(),
+                false,
                 ImmutableSet.of(),
                 Optional.empty());
     }
@@ -404,6 +405,7 @@ public class TestIcebergCacheIds
                 Optional.empty(),
                 true,
                 Optional.empty(),
+                false,
                 ImmutableSet.of(),
                 Optional.empty());
     }
@@ -438,6 +440,7 @@ public class TestIcebergCacheIds
                 Optional.empty(),
                 true,
                 Optional.empty(),
+                false,
                 ImmutableSet.of(),
                 Optional.empty());
     }
@@ -466,6 +469,7 @@ public class TestIcebergCacheIds
                 Optional.empty(),
                 true,
                 Optional.empty(),
+                false,
                 ImmutableSet.of(),
                 Optional.empty());
     }

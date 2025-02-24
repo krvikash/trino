@@ -174,6 +174,7 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                             Optional.empty(),
                             false,
                             Optional.empty(),
+                            false,
                             ImmutableSet.of(),
                             Optional.of(false)),
                     transaction);
@@ -235,6 +236,7 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                             Optional.empty(),
                             false,
                             Optional.empty(),
+                            false,
                             ImmutableSet.of(),
                             Optional.of(false)),
                     transaction);
@@ -346,6 +348,7 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                             Optional.empty(),
                             false,
                             Optional.empty(),
+                            false,
                             ImmutableSet.of(),
                             Optional.of(false)),
                     transaction);
@@ -509,6 +512,7 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                             Optional.empty(),
                             false,
                             Optional.empty(),
+                            false,
                             ImmutableSet.of(),
                             Optional.of(false)),
                     transaction);

@@ -20,4 +20,6 @@ import java.util.List;
 public interface EmbeddingModelClient
 {
     List<Double> generateEmbedding(Slice sourceString);
+
+    List<List<Double>> generateEmbeddings(List<Slice> sourceStrings);
 }

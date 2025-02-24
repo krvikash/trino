@@ -17,6 +17,7 @@ import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -116,6 +117,105 @@ public class TestGenerateEmbeddings
                     "SELECT data FROM (SELECT data, cosine_similarity(embedding, ai.ai.generate_embedding('animal', '%2$s')) AS similarity FROM %1$s ORDER BY similarity DESC LIMIT 2)".formatted(table.getName(), modelId),
                     "VALUES 'cat', 'dog'");
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("modelIds")
+    public void testGenerateEmbeddingsTableFunction(String modelId)
+    {
+        try (TestTable table = newTrinoTable(
+                "test_generate_embeddings_table_function_",
+                "(data VARCHAR, embedding ARRAY(DOUBLE))")) {
+            assertUpdate("""
+                    INSERT INTO %s (data, embedding)
+                    SELECT data, embedding
+                    FROM TABLE(ai.ai.generate_embeddings(
+                      embedding_column => DESCRIPTOR(embedding),
+                      data_column => DESCRIPTOR(data),
+                      source => TABLE(SELECT * FROM (VALUES 'apple', 'orange', null, '', 'cat', 'dog', 'shirt', 'pants') AS t (data)),
+                      model_id => '%s'))
+                    """.formatted(table.getName(), modelId), 8);
+
+            assertQuery(
+                    "SELECT data FROM (SELECT data, cosine_similarity(embedding, ai.ai.generate_embedding('animal', '%2$s')) AS similarity FROM %1$s ORDER BY similarity DESC LIMIT 2)".formatted(table.getName(), modelId),
+                    "VALUES 'cat', 'dog'");
+        }
+    }
+
+    @Test
+    public void testValidations()
+    {
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              embedding_column => DESCRIPTOR(embeddings VARCHAR),
+              data_column => DESCRIPTOR(data),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => 'openai_embed_3_small'))
+            """, "EMBEDDING_COLUMN descriptor contains types");
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              embedding_column => DESCRIPTOR(embeddings, data),
+              data_column => DESCRIPTOR(data),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => 'openai_embed_3_small'))
+            """, "EMBEDDING_COLUMN descriptor contains more than one column");
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              data_column => DESCRIPTOR(data),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => 'openai_embed_3_small'))
+            """, ".*Missing argument: EMBEDDING_COLUMN");
+
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              embedding_column => DESCRIPTOR(embeddings),
+              data_column => DESCRIPTOR(data INT),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => 'openai_embed_3_small'))
+            """, "DATA_COLUMN descriptor contains types");
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              embedding_column => DESCRIPTOR(embeddings),
+              data_column => DESCRIPTOR(data, embeddings),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => 'openai_embed_3_small'))
+            """, "DATA_COLUMN descriptor contains more than one column");
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              embedding_column => DESCRIPTOR(embeddings),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => 'openai_embed_3_small'))
+            """, ".*Missing argument: DATA_COLUMN");
+
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              embedding_column => DESCRIPTOR(embeddings),
+              data_column => DESCRIPTOR(data),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => null))
+            """, "MODEL_ID value cannot be null");
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              embedding_column => DESCRIPTOR(embeddings),
+              data_column => DESCRIPTOR(data),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => ''))
+            """, "MODEL_ID value cannot be empty");
+
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              embedding_column => DESCRIPTOR(data),
+              data_column => DESCRIPTOR(data),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => 'openai_embed_3_small'))
+            """, "Embedding column must not be present in SOURCE input");
+        assertQueryFails("""
+            SELECT * FROM  TABLE(ai.ai.generate_embeddings(
+              embedding_column => DESCRIPTOR(embedding),
+              data_column => DESCRIPTOR(not_here),
+              source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
+              model_id => 'openai_embed_3_small'))
+            """, "Column not_here not present in the table");
     }
 
     @ParameterizedTest

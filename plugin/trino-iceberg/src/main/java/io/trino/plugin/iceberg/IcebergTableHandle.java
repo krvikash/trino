@@ -71,6 +71,7 @@ public class IcebergTableHandle
     // OPTIMIZE only. Coordinator-only
     private final boolean recordScannedFiles;
     private final Optional<DataSize> maxScannedFileSize;
+    private final boolean forceReadingAllFiles;
 
     // ANALYZE only. Coordinator-only
     private final Optional<Boolean> forAnalyze;
@@ -113,6 +114,7 @@ public class IcebergTableHandle
                 Optional.empty(),
                 false,
                 Optional.empty(),
+                false,
                 ImmutableSet.of(),
                 Optional.empty());
     }
@@ -136,6 +138,7 @@ public class IcebergTableHandle
             Optional<IcebergTablePartitioning> tablePartitioning,
             boolean recordScannedFiles,
             Optional<DataSize> maxScannedFileSize,
+            boolean forceReadingAllFiles,
             Set<IcebergColumnHandle> constraintColumns,
             Optional<Boolean> forAnalyze)
     {
@@ -157,6 +160,7 @@ public class IcebergTableHandle
         this.tablePartitioning = requireNonNull(tablePartitioning, "tablePartitioning is null");
         this.recordScannedFiles = recordScannedFiles;
         this.maxScannedFileSize = requireNonNull(maxScannedFileSize, "maxScannedFileSize is null");
+        this.forceReadingAllFiles = forceReadingAllFiles;
         this.constraintColumns = ImmutableSet.copyOf(requireNonNull(constraintColumns, "constraintColumns is null"));
         this.forAnalyze = requireNonNull(forAnalyze, "forAnalyze is null");
     }
@@ -274,6 +278,12 @@ public class IcebergTableHandle
     }
 
     @JsonIgnore
+    public boolean isForceReadingAllFiles()
+    {
+        return forceReadingAllFiles;
+    }
+
+    @JsonIgnore
     public Set<IcebergColumnHandle> getConstraintColumns()
     {
         return constraintColumns;
@@ -316,6 +326,7 @@ public class IcebergTableHandle
                 tablePartitioning,
                 recordScannedFiles,
                 maxScannedFileSize,
+                forceReadingAllFiles,
                 constraintColumns,
                 forAnalyze);
     }
@@ -341,8 +352,35 @@ public class IcebergTableHandle
                 tablePartitioning,
                 recordScannedFiles,
                 maxScannedFileSize,
+                forceReadingAllFiles,
                 constraintColumns,
                 Optional.of(true));
+    }
+
+    public IcebergTableHandle forGenerateEmbeddings()
+    {
+        return new IcebergTableHandle(
+                catalog,
+                schemaName,
+                tableName,
+                tableType,
+                snapshotId,
+                tableSchemaJson,
+                partitionSpecJson,
+                formatVersion,
+                unenforcedPredicate,
+                enforcedPredicate,
+                limit,
+                projectedColumns,
+                nameMappingJson,
+                tableLocation,
+                storageProperties,
+                tablePartitioning,
+                true,
+                Optional.empty(),
+                true,
+                constraintColumns,
+                forAnalyze);
     }
 
     public IcebergTableHandle forOptimize(boolean recordScannedFiles, DataSize maxScannedFileSize)
@@ -366,6 +404,7 @@ public class IcebergTableHandle
                 tablePartitioning,
                 recordScannedFiles,
                 Optional.of(maxScannedFileSize),
+                forceReadingAllFiles,
                 constraintColumns,
                 forAnalyze);
     }
@@ -391,6 +430,7 @@ public class IcebergTableHandle
                 requiredTablePartitioning,
                 recordScannedFiles,
                 maxScannedFileSize,
+                forceReadingAllFiles,
                 constraintColumns,
                 forAnalyze);
     }
@@ -421,6 +461,7 @@ public class IcebergTableHandle
                 tablePartitioning,
                 recordScannedFiles,
                 maxScannedFileSize,
+                forceReadingAllFiles,
                 constraintColumns,
                 forAnalyze);
     }
@@ -453,6 +494,7 @@ public class IcebergTableHandle
                 Objects.equals(tableLocation, that.tableLocation) &&
                 Objects.equals(storageProperties, that.storageProperties) &&
                 Objects.equals(maxScannedFileSize, that.maxScannedFileSize) &&
+                forceReadingAllFiles == that.forceReadingAllFiles &&
                 Objects.equals(constraintColumns, that.constraintColumns) &&
                 Objects.equals(forAnalyze, that.forAnalyze);
     }
@@ -478,6 +520,7 @@ public class IcebergTableHandle
                 storageProperties,
                 recordScannedFiles,
                 maxScannedFileSize,
+                forceReadingAllFiles,
                 constraintColumns,
                 forAnalyze);
     }

@@ -13,8 +13,11 @@
  */
 package com.starburstdata.trino.plugin.ai.openai;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.openai.client.OpenAIClient;
 import com.openai.models.CreateEmbeddingResponse;
+import com.openai.models.Embedding;
 import com.openai.models.EmbeddingCreateParams;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelClient;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelConnectionSpec;
@@ -31,6 +34,8 @@ import static java.util.Objects.requireNonNull;
 public class OpenAiEmbeddingModelClient
         implements EmbeddingModelClient
 {
+    private static final int BATCH_SIZE = 2048;
+
     private final String modelName;
     private final Optional<Integer> dimensions;
     private final OpenAIClient client;
@@ -56,5 +61,22 @@ public class OpenAiEmbeddingModelClient
         dimensions.ifPresent(params::dimensions);
         CreateEmbeddingResponse response = client.embeddings().create(params.build());
         return getOnlyElement(response.data()).embedding();
+    }
+
+    @Override
+    public List<List<Double>> generateEmbeddings(List<Slice> sourceStrings)
+    {
+        ImmutableList.Builder<List<Double>> results = ImmutableList.builder();
+        for (List<Slice> sourceStringsBatch : Lists.partition(sourceStrings, BATCH_SIZE)) {
+            List<String> values = sourceStringsBatch.stream().map(Slice::toStringUtf8).toList();
+            EmbeddingCreateParams.Builder params = EmbeddingCreateParams.builder()
+                    .inputOfArrayOfStrings(values)
+                    .model(modelName);
+            dimensions.ifPresent(params::dimensions);
+            CreateEmbeddingResponse response = client.embeddings().create(params.build());
+            results.addAll(response.data().stream().map(Embedding::embedding).toList());
+        }
+
+        return results.build();
     }
 }
