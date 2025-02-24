@@ -22,7 +22,8 @@ public interface Matcher
 {
     MatcherArgs open(QueryArgs queryArgs, CustomStatsContext customStatsContext);
 
-    MatcherPageArgs openPage(ThreadArena pageArena,
+    MatcherPageArgs openPage(RecordIndexes recordIndexes,
+            ThreadArena pageArena,
             QueryArgs queryArgs,
             MatcherArgs matcherArgs,
             AggregatorPageArgs aggregatorPageArgs);

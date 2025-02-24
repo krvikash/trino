@@ -45,6 +45,8 @@ public class WarpReader
     private final MatcherArgs matcherArgs;
     private MatcherPageArgs matcherPageArgs;
 
+    private RecordIndexes recordIndexes;
+
     WarpReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
             BlocksAggregator blocksAggregator,
@@ -61,7 +63,7 @@ public class WarpReader
         this.aggregatorArgs = blocksAggregator.open(queryArgs);
         this.matcherArgs = matcher.open(queryArgs, customStatsContext);
 
-        queryState = new WarpQueryState();
+        this.queryState = new WarpQueryState();
 
         this.shapingLogger = shapingLoggerFactory.getInstance(WarpReader.class);
     }
@@ -82,15 +84,18 @@ public class WarpReader
     @NativeInterrupt
     private void openPage()
     {
+        this.recordIndexes = new RecordIndexes(queryArgs.chunkSize());
         pageArena = workerMemoryManager.getThreadArena();
 
         // each API call will throw exception if failed
-        aggregatorPageArgs = blocksAggregator.openPage(queryArgs,
+        aggregatorPageArgs = blocksAggregator.openPage(recordIndexes,
+                queryArgs,
                 pageArena,
                 aggregatorArgs,
                 queryState);
 
-        matcherPageArgs = matcher.openPage(pageArena,
+        matcherPageArgs = matcher.openPage(recordIndexes,
+                pageArena,
                 queryArgs,
                 matcherArgs,
                 aggregatorPageArgs);
@@ -114,6 +119,7 @@ public class WarpReader
                 break;
             }
             blocksAggregator.prepareBlocks(chunk.get(),
+                    recordIndexes,
                     queryArgs,
                     aggregatorPageArgs,
                     queryState);
@@ -139,7 +145,8 @@ public class WarpReader
                             rowsLimit - queryState.getTotalNumReadRecords());
                 }
 
-                blocks = blocksAggregator.aggregateBlocks(queryArgs,
+                blocks = blocksAggregator.aggregateBlocks(recordIndexes,
+                        queryArgs,
                         aggregatorArgs,
                         aggregatorPageArgs,
                         queryState);

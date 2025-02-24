@@ -130,13 +130,15 @@ public class StorageCollectorService
         return getStorageCollectorArgs(queryArgs);
     }
 
-    public AggregatorPageArgs openPage(QueryArgs queryArgs,
+    public AggregatorPageArgs openPage(RecordIndexes recordIndexes,
+            QueryArgs queryArgs,
             ThreadArena pageArena,
             AggregatorArgs aggregatorArgs,
             WarpQueryState queryState)
     {
         queryState.resetNumRecordsInCurPage();
-        return collectTxService.collectOpenAndRestore(queryArgs,
+        return collectTxService.collectOpenAndRestore(recordIndexes,
+                queryArgs,
                 pageArena,
                 aggregatorArgs);
     }
@@ -161,12 +163,11 @@ public class StorageCollectorService
 
     @NativeInterrupt
     public void prepareBlocks(ChunkProperties chunk,
+            RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState)
     {
-        RecordIndexes recordIndexes = aggregatorPageArgs.recordIndexes();
-
         recordIndexes.setCurChunkProperties(chunk);
         if (queryArgs.queryParams().getNumCollectElements() > 0) {
             openChunk(chunk.chunkIndex(), queryArgs, aggregatorPageArgs);
@@ -184,7 +185,8 @@ public class StorageCollectorService
         logger.debug("collectFromStorage after native collect current chunk %s", chunk);
     }
 
-    public Block[] aggregateBlocks(QueryArgs queryArgs,
+    public Block[] aggregateBlocks(RecordIndexes recordIndexes,
+            QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState)

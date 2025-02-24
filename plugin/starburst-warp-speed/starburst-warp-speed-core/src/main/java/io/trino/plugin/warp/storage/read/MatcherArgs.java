@@ -20,7 +20,7 @@ import java.util.List;
 
 public record MatcherArgs(List<ReadJuffersWarmUpElement> matchJuffersWe,
                           LuceneMatcher[] luceneMatchers,
-                          byte[] storeRowListBuff,
+                          short[] storeRowListBuff,
                           ChunksQueue chunksQueue)
 {
 }

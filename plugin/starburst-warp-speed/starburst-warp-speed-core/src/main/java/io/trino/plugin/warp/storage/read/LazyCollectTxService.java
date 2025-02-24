@@ -67,8 +67,7 @@ public class LazyCollectTxService
         try {
             final int pageSize = storageEngineConstants.getPageSize();
             collectMemory = pageArena.allocate(recordBufferSize + nullBufferSize + pageSize, pageSize);
-            metadataMemory = pageArena.allocate(RecordIndexes.RECORD_INDEXES_LAYOUT.byteSize() +
-                    JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize() +
+            metadataMemory = pageArena.allocate(JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize() +
                     WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize() +
                     ValueLayout.JAVA_LONG.byteSize(), ValueLayout.JAVA_LONG.byteSize());
         }
@@ -79,7 +78,7 @@ public class LazyCollectTxService
         SegmentAllocator metadataAllocator = SegmentAllocator.slicingAllocator(metadataMemory);
 
         // allocate metadata
-        RecordIndexes recordIndexes = new RecordIndexes(metadataAllocator);
+        lazyCollectorLoaderArgs.recordIndexes().allocateRecordIndexesSegment(pageArena);
         MemorySegment collectBuffers = metadataAllocator.allocate(JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal() * ValueLayout.JAVA_LONG.byteSize(), ValueLayout.JAVA_LONG.byteSize());
         MemorySegment recordBufferStates = metadataAllocator.allocate(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
 
@@ -98,13 +97,12 @@ public class LazyCollectTxService
                 lazyCollectorLoaderArgs.fileCookie(),
                 lazyCollectorLoaderArgs.numChunksInRange(),
                 recordBufferStates,
-                recordIndexes,
+                lazyCollectorLoaderArgs.recordIndexes(),
                 collectBuffers,
                 collectParams.getMemory());
         collectOpen(collectState, dispatcherPageSourceStats);
         return new LazyCollectOpenResult(collectState,
                 pageArena,
-                recordIndexes,
                 collectBuffers,
                 recordBufferStates,
                 new ReadStats(pageArena));

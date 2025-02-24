@@ -41,8 +41,9 @@ public class RangeDataServiceTest
     public void before()
     {
         numAllocatedBytes = new AtomicLong();
-        recordIndexes = new RecordIndexes(new ThreadArena(this::onClose, numAllocatedBytes, null), (int) Math.pow(2, 16));
-        MemorySegment recordIndexesMem = recordIndexes.getMemory();
+        recordIndexes = new RecordIndexes((int) Math.pow(2, 16));
+        recordIndexes.allocateRecordIndexesSegment(new ThreadArena(this::onClose, numAllocatedBytes, null));
+        MemorySegment recordIndexesMem = recordIndexes.getRecordIndexesSegment();
         recordIndexesList = recordIndexesMem.asSlice(RecordIndexes.RECORD_INDEXES_OFFSET_LIST, RecordIndexes.RECORD_INDEXES_LIST_LAYOUT);
 
         queryArgs = mock(QueryArgs.class);

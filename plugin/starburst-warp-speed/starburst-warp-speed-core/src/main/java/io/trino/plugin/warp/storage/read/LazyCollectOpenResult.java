@@ -19,7 +19,6 @@ import java.lang.foreign.MemorySegment;
 
 public record LazyCollectOpenResult(CollectState collectState,
         ThreadArena pageArena,
-        RecordIndexes recordIndexes,
         MemorySegment collectBuffers,
         MemorySegment recordBufferStates,
         ReadStats readStats)

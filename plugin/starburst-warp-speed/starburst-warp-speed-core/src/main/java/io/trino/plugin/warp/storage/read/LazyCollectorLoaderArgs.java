@@ -22,6 +22,7 @@ public record LazyCollectorLoaderArgs(QueryParams queryParams,
         ReadJuffersWarmUpElement collectJufferWE,
         BlockFiller<?> blockFiller,
         int lazyCollectStartRowIndex,
+        RecordIndexes recordIndexes,
         int numToCollect,
         int numChunksInRange,
         int chunkSize)

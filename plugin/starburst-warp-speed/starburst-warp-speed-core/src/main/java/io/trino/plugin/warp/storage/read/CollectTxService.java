@@ -61,17 +61,18 @@ public class CollectTxService
     /**
      * prepare buffers for filling
      */
-    AggregatorPageArgs collectOpenAndRestore(QueryArgs queryArgs,
+    AggregatorPageArgs collectOpenAndRestore(RecordIndexes recordIndexes,
+            QueryArgs queryArgs,
             ThreadArena pageArena,
-              AggregatorArgs aggregatorArgs)
+            AggregatorArgs aggregatorArgs)
     {
         QueryParams queryParams = queryArgs.queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
         int numCollectElements = collectParamsList.size();
 
         Optional<MemorySegment> collectMemory = Optional.empty();
-        CollectMetadataMemory collectMetadataMemory = new CollectMetadataMemory(new RecordIndexes(pageArena, queryArgs.chunkSize()),
-                Optional.empty(),
+        recordIndexes.allocateRecordIndexesSegment(pageArena);
+        CollectMetadataMemory collectMetadataMemory = new CollectMetadataMemory(Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
@@ -98,14 +99,14 @@ public class CollectTxService
                 nativeConfig.getLimitNumIosInParallel() * nativeConfig.getMaxIOMetadataSize());
         AggregatorPageArgs aggregatorPageArgs = new AggregatorPageArgs(collectState,
                 collectMemory,
-                collectMetadataMemory.recordIndexes(),
                 collectMetadataMemory.collectBuffersOpt(),
                 collectMetadataMemory.warmupElementRecordBufferStates(),
                 collectMetadataMemory.recordBufferStatesOpt(),
                 collectMetadataMemory.queryResultTypesOpt(),
                 collectMetadataMemory.matchCollectMetadataOpt(),
                 new ReadStats(pageArena));
-        collectState.setState(queryArgs, aggregatorPageArgs);
+
+        collectState.setState(queryArgs, aggregatorPageArgs, recordIndexes);
         collectOpen(collectState, queryArgs.dispatcherPageSourceStats());
 
         return aggregatorPageArgs;
@@ -267,16 +268,14 @@ public class CollectTxService
                 .map(recordBufferState -> new WarmupElementRecordBufferState(recordBufferState))
                 .toList();
 
-        return new CollectMetadataMemory(collectMetadataMemory.recordIndexes(),
-                Optional.of(collectBuffers),
+        return new CollectMetadataMemory(Optional.of(collectBuffers),
                 Optional.of(recordBufferStates),
                 Optional.of(allocator.allocate(queryResultTypesSize, ValueLayout.JAVA_INT.byteSize())),
                 (matchCollectMetadataSize > 0) ? Optional.of(allocator.allocate(matchCollectMetadataSize, ValueLayout.JAVA_INT.byteSize())) : Optional.empty(),
                 warmupElementRecordBufferStates);
     }
 
-    private record CollectMetadataMemory(RecordIndexes recordIndexes,
-            Optional<MemorySegment> collectBuffersOpt,
+    private record CollectMetadataMemory(Optional<MemorySegment> collectBuffersOpt,
             Optional<MemorySegment> recordBufferStatesOpt,
             Optional<MemorySegment> queryResultTypesOpt,
             Optional<MemorySegment> matchCollectMetadataOpt,

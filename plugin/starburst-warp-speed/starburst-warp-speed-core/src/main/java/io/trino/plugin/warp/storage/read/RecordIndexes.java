@@ -19,7 +19,6 @@ import io.trino.plugin.warp.storage.memory.ThreadArena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
@@ -41,7 +40,9 @@ public class RecordIndexes
     static final long RECORD_INDEXES_OFFSET_LIST; // not private for test
     private final int bytesInChunk;
 
-    private final MemorySegment recordIndexes;
+    private MemorySegment recordIndexes;
+    private short[] recordIndexesList;
+
     // The recordIndexes are shared between several chunk and is being populated chunk by chunk.
     // curOffset is the offset to start the next chunk from
     private int curOffset;
@@ -85,22 +86,23 @@ public class RecordIndexes
     }
 
     // CTOR for supporting a full indexes list
-    public RecordIndexes(ThreadArena arena, int chunkSize)
+    public RecordIndexes(int chunkSize)
     {
         this.bytesInChunk = chunkSize / Byte.SIZE;
-        this.recordIndexes = arena.allocate(RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
+        this.recordIndexesList = new short[2 * chunkSize];
     }
 
-    // CTOR for full scan case where only the header is required
-    public RecordIndexes(SegmentAllocator allocator)
-    {
-        this.bytesInChunk = 0;
-        this.recordIndexes = allocator.allocate(RECORD_INDEXES_OFFSET_LIST, ValueLayout.JAVA_SHORT.byteSize());
-    }
-
-    public MemorySegment getMemory()
+    public MemorySegment getRecordIndexesSegment()
     {
         return recordIndexes;
+    }
+
+    void allocateRecordIndexesSegment(ThreadArena arena)
+    {
+        this.recordIndexes = arena.allocate(RECORD_INDEXES_LAYOUT.byteSize(), ValueLayout.JAVA_SHORT.byteSize());
+        if (curOffset > 0) {
+            MemorySegment.copy(MemorySegment.ofArray(recordIndexesList), 0, getList(), 0, curOffset * ValueLayout.JAVA_SHORT.byteSize());
+        }
     }
 
     public long getAddress()
@@ -161,6 +163,7 @@ public class RecordIndexes
                 long recIxOffset = RECORD_INDEXES_OFFSET_LIST + (curOffset + numRecords) * RECORD_INDEX_SIZE;
                 recordIndexes.set(ValueLayout.JAVA_SHORT, recIxOffset,
                         (short) (byteIndex * Byte.SIZE + bitOffset));
+                recordIndexesList[curOffset + numRecords] = (short) (byteIndex * Byte.SIZE + bitOffset);
                 numRecords++;
             }
         }
@@ -181,26 +184,23 @@ public class RecordIndexes
     }
 
     public void storeRowList(ChunkProperties chunkToStore,
-            byte[] storeRowListBuff)
+            short[] storeRowListBuff)
     {
         RecordIndexListType storeRowListType = chunkToStore.type();
         if (storeRowListType == RECORD_INDEX_LIST_TYPE_VALUES) {
-            MemorySegment.copy(getList(),
-                    (getCurOffset() - chunkToStore.numRecordsInChunk()) * ValueLayout.JAVA_SHORT.byteSize(),
-                    MemorySegment.ofArray(storeRowListBuff),
-                    0,
-                    chunkToStore.numRecordsInChunk() * ValueLayout.JAVA_SHORT.byteSize());
+            System.arraycopy(recordIndexesList, chunkToStore.startIx(), storeRowListBuff, 0, chunkToStore.numRecordsInChunk());
+            curOffset -= chunkToStore.numRecordsInChunk();
         }
     }
 
     public void restoreRowList(ChunkProperties chunkToRestore,
-            byte[] storeRowListBuff)
+            short[] storeRowListBuff)
     {
         RecordIndexListType storeRowListType = chunkToRestore.type();
 
         if (storeRowListType == RECORD_INDEX_LIST_TYPE_VALUES) {
-            MemorySegment dstSegment = getList();
-            MemorySegment.copy(MemorySegment.ofArray(storeRowListBuff), 0, dstSegment, 0, chunkToRestore.numRecordsInChunk() * ValueLayout.JAVA_SHORT.byteSize());
+            System.arraycopy(storeRowListBuff, 0, recordIndexesList, 0, chunkToRestore.numRecordsInChunk());
+            MemorySegment.copy(MemorySegment.ofArray(recordIndexesList), 0, getList(), 0, chunkToRestore.numRecordsInChunk() * ValueLayout.JAVA_SHORT.byteSize());
             curOffset = chunkToRestore.numRecordsInChunk();
         }
     }

@@ -87,7 +87,7 @@ public class MatchService
 
         // The Record Indexes buffer should fit to a full page indexes plus the last chunk that might not fit the in the
         // page, while the storeRowListBuff should only fit to the last chunk indexes therefor a chunk size is enough here.
-        byte[] storeRowListBuff = new byte[queryArgs.chunkSize() * Short.BYTES];
+        short[] storeRowListBuff = new short[queryArgs.chunkSize()];
         ChunksQueue chunksQueue = new ChunksQueue(queryArgs.maxMatchedChunks(), queryArgs.chunkSize(), storageEngineConstants.getPageSize());
 
         MatcherArgs matcherArgs = new MatcherArgs(matchJuffersWe, new LuceneMatcher[queryParams.getNumLucene()], storeRowListBuff, chunksQueue);
@@ -122,7 +122,8 @@ public class MatchService
         }
     }
 
-    public MatcherPageArgs openPage(ThreadArena pageArena,
+    public MatcherPageArgs openPage(RecordIndexes recordIndexes,
+            ThreadArena pageArena,
             QueryArgs queryArgs,
             MatcherArgs matcherArgs,
             AggregatorPageArgs aggregatorPageArgs)
@@ -164,8 +165,6 @@ public class MatchService
             }
         }
         matchStateOpt.ifPresent(m -> matcherArgs.chunksQueue().setRootBitmaps(m.getMatchBitmaps(), m.getRootBitmapsDescriptors()));
-
-        RecordIndexes recordIndexes = aggregatorPageArgs.recordIndexes();
 
         // restore processed chunk
         matcherArgs.chunksQueue().getOptLoadedChunkProperties().ifPresent(chunk ->

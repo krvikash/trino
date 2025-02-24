@@ -19,7 +19,6 @@ import java.util.Optional;
 
 public record AggregatorPageArgs(CollectState collectState,
         Optional<MemorySegment> collectMemory,
-        RecordIndexes recordIndexes,
         Optional<MemorySegment> collectBuffers,
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates,
         Optional<MemorySegment> recordBufferStates,

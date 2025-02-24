@@ -23,17 +23,20 @@ public interface BlocksAggregator
 
     AggregatorArgs open(QueryArgs queryArgs);
 
-    AggregatorPageArgs openPage(QueryArgs queryArgs,
+    AggregatorPageArgs openPage(RecordIndexes recordIndexes,
+            QueryArgs queryArgs,
             ThreadArena pageArena,
             AggregatorArgs aggregatorArgs,
             WarpQueryState queryState);
 
     void prepareBlocks(ChunkProperties chunk,
+            RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState);
 
-    Block[] aggregateBlocks(QueryArgs queryArgs,
+    Block[] aggregateBlocks(RecordIndexes recordIndexes,
+            QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState);

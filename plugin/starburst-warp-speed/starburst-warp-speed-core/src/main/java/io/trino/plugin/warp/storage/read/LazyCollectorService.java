@@ -67,7 +67,8 @@ public class LazyCollectorService
         return queryParams.getNumMatchElements() == 0;
     }
 
-    private LazyCollectorLoaderArgs getLazyLoaderArgs(QueryArgs queryArgs,
+    private LazyCollectorLoaderArgs getLazyLoaderArgs(RecordIndexes recordIndexes,
+            QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             int weIx,
             int lazyCollectStartRowIndex,
@@ -80,6 +81,7 @@ public class LazyCollectorService
                 new ReadJuffersWarmUpElement(bufferAllocator, true),
                 aggregatorArgs.blockFillers().get(weIx),
                 lazyCollectStartRowIndex,
+                recordIndexes,
                 numRows,
                 queryArgs.numChunksInRange(),
                 queryArgs.chunkSize());
@@ -94,7 +96,8 @@ public class LazyCollectorService
     }
 
     @Override
-    public Block[] aggregateBlocks(QueryArgs queryArgs,
+    public Block[] aggregateBlocks(RecordIndexes recordIndexes,
+            QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState)
@@ -105,7 +108,8 @@ public class LazyCollectorService
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(queryArgs,
+            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(recordIndexes,
+                    queryArgs,
                     aggregatorArgs,
                     weIx,
                     queryState.getTotalNumReadRecords(),
