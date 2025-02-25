@@ -23,15 +23,17 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.tpch.TpchTable;
 
 import java.util.List;
 
+import static io.trino.plugin.tpch.TpchRecordSet.getRecordSet;
 import static java.util.Objects.requireNonNull;
 
 public class TpchPageSourceProvider
         implements ConnectorPageSourceProvider
 {
-    private final TpchRecordSetProvider tpchRecordSetProvider;
+    private final DecimalTypeMapping decimalTypeMapping;
     private final int maxRowsPerPage;
 
     @Inject
@@ -40,9 +42,9 @@ public class TpchPageSourceProvider
         this(requireNonNull(config, "config is null").getMaxRowsPerPage(), config.getDecimalTypeMapping());
     }
 
-    TpchPageSourceProvider(int maxRowsPerPage, DecimalTypeMapping decimalTypeMapping)
+    public TpchPageSourceProvider(int maxRowsPerPage, DecimalTypeMapping decimalTypeMapping)
     {
-        this.tpchRecordSetProvider = new TpchRecordSetProvider(decimalTypeMapping);
+        this.decimalTypeMapping = requireNonNull(decimalTypeMapping, "decimalTypeMapping is null");
         this.maxRowsPerPage = maxRowsPerPage;
     }
 
@@ -55,7 +57,19 @@ public class TpchPageSourceProvider
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter)
     {
-        return new LazyRecordPageSource(maxRowsPerPage, tpchRecordSetProvider.getRecordSet(transaction, session, split, table, columns));
+        TpchSplit tpchSplit = (TpchSplit) split;
+        TpchTableHandle tpchTable = (TpchTableHandle) table;
+
+        return new LazyRecordPageSource(
+                maxRowsPerPage,
+                getRecordSet(
+                        TpchTable.getTable(tpchTable.tableName()),
+                        columns,
+                        tpchTable.scaleFactor(),
+                        tpchSplit.getPartNumber(),
+                        tpchSplit.getTotalParts(),
+                        tpchTable.constraint(),
+                        decimalTypeMapping));
     }
 
     @Override
