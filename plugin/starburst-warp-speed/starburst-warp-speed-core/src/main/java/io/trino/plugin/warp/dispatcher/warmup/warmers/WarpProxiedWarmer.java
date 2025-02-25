@@ -116,7 +116,7 @@ public class WarpProxiedWarmer
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     RowGroupData warm(ConnectorPageSourceProvider connectorPageSourceProvider,

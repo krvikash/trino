@@ -135,7 +135,7 @@ public class DispatcherMetadata
         this.dispatcherStatisticsProvider = requireNonNull(dispatcherStatisticsProvider);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
         this.globalConfig = requireNonNull(globalConfig);
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(DispatcherMetadata.class);
     }
 
     @Override

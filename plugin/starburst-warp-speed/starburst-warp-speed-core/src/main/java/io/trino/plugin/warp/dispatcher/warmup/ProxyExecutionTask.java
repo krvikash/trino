@@ -111,7 +111,7 @@ public class ProxyExecutionTask
                 iterationCount);
 
         this.globalConfig = requireNonNull(globalConfig);
-        shapingLogger = requireNonNull(shapingLoggerFactory).getInstance(logger);
+        shapingLogger = requireNonNull(shapingLoggerFactory).getInstance(this.getClass());
 
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.eventBus = requireNonNull(eventBus);

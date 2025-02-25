@@ -51,7 +51,7 @@ public abstract class BaseCollectTxService
         this.storageEngineConstants = storageEngineConstants;
         this.bufferAllocator = bufferAllocator;
         this.nativeConfig = nativeConfig;
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()

@@ -106,10 +106,12 @@ public class WarmupRuleCloudFetcher
         this.timer = requireNonNull(timer);
 
         shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 logger,
                 10,
                 Duration.ZERO,
-                1);
+                1,
+                ShapingLogger.MODE.FORMAT);
 
         writeLock = new ReentrantReadWriteLock().writeLock();
         currentStorageObjectMetadata = null;

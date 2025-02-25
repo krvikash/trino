@@ -84,7 +84,7 @@ public class StorageCollectorService
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(StorageCollectorService.class);
     }
 
     private void loadDictionaries(QueryArgs queryArgs)

@@ -69,7 +69,7 @@ public class MemoryContextService
             localMemoryContexts.add(localMemoryContext);
         }
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     public LocalMemoryContext poll()

@@ -48,7 +48,7 @@ public class LuceneIndexWriter
         this.storageEngineConstants = storageEngineConstants;
         this.indexWriter = indexWriter;
         this.rowGroupFilePath = rowGroupFilePath;
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     public Optional<ChunkState> saveLuceneIndex(int startOffset)

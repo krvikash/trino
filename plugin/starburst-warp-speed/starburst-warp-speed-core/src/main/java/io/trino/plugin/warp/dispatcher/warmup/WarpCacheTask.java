@@ -95,7 +95,7 @@ public class WarpCacheTask
         this.id = UUID.randomUUID();
         this.blocksToProcess = new LinkedBlockingDeque<>();
         this.flowId = INVALID_FLOW_ID;
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     @Override

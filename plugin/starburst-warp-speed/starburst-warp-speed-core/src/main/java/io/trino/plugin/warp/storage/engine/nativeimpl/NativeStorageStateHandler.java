@@ -49,7 +49,7 @@ public class NativeStorageStateHandler
         this.nativeConfig = requireNonNull(nativeConfig);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
         exceptionThrower.addExceptionConsumer(this::handleErrorCode);
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     public boolean isStorageAvailable()

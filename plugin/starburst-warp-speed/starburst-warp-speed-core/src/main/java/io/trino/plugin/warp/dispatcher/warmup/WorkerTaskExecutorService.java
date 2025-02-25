@@ -105,7 +105,7 @@ public class WorkerTaskExecutorService
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         warpInitializedServiceRegistry.addService(this);
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     @Override

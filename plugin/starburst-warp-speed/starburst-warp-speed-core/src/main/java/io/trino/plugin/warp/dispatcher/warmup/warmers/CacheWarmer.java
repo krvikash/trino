@@ -94,7 +94,7 @@ public class CacheWarmer
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.tmpUniqueKeyMarker = new AtomicInteger(0);
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     public List<WarmupElementWriteMetadata> getWarmupElementWriteMetadatasToWarm(List<CacheColumnId> columns,

@@ -92,7 +92,7 @@ public class WeGroupWarmer
         this.objectMapper = requireNonNull(objectMapperProvider).get();
 
         warmupImportServiceStats = metricsManager.registerMetric(new WarmupImportServiceStats());
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     @VisibleForTesting

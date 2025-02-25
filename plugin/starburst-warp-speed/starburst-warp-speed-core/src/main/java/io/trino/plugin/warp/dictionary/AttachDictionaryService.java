@@ -62,7 +62,7 @@ public class AttachDictionaryService
         this.dictionaryConfig = requireNonNull(dictionaryConfig);
         this.dictionaryStats = metricsManager.registerMetric(DictionaryStats.create());
         this.dictionaryWriterFactory = requireNonNull(dictionaryWriterFactory);
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(AttachDictionaryService.class);
     }
 
     public int save(

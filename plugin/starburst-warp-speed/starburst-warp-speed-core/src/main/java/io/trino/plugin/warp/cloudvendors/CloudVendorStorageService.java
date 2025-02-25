@@ -57,7 +57,7 @@ public class CloudVendorStorageService
     public CloudVendorStorageService(CloudStorage cloudStorage, ShapingLoggerFactory shapingLoggerFactory)
     {
         this.cloudStorage = requireNonNull(cloudStorage);
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(CloudVendorStorageService.class);
     }
 
     @Override

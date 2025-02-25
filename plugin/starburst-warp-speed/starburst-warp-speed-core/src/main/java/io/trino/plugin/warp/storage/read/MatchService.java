@@ -73,7 +73,7 @@ public class MatchService
         this.rangeFillerService = rangeFillerService;
         this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
         this.nativeConfig = nativeConfig;
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     public MatcherArgs open(QueryArgs queryArgs, CustomStatsContext customStatsContext)

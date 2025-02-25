@@ -73,7 +73,7 @@ public class LuceneMatcher
         this.rowGroupFilePath = rowGroupFilePath;
         this.matchOffset = luceneQueryMatchData.getWarmUpElement().getMatchOffset();
         this.statsDispatcherPageSource = statsDispatcherPageSource;
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
         logger.debug("lucene matcher for luceneQueryMatchData %s", luceneQueryMatchData);
     }
 

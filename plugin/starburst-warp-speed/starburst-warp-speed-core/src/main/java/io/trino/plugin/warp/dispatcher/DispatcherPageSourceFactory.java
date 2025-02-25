@@ -103,7 +103,7 @@ public abstract class DispatcherPageSourceFactory
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
         this.matchService = requireNonNull(matchService);
 
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(DispatcherPageSourceFactory.class);
         metricsManager.registerMetric(DispatcherPageSourceStats.create());
         metricsManager.registerMetric(LucenePageCacheStats.create());
     }

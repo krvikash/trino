@@ -189,7 +189,7 @@ public class NativeStorageEngine
         final int panicHaltPolicy = nativeConfig.getDebugPanicHaltPolicy();
         this.catalogName = requireNonNull(catalogName);
         this.exceptionThrower = (panicHaltPolicy == 0) ? Optional.of(exceptionThrower) : Optional.empty();
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
 
         logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d logSize %d",
                 taskMaxWorkerThreads, panicHaltPolicy, LOGGER_LOG_LAYOUT.byteSize());

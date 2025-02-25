@@ -54,7 +54,7 @@ public class WeGroupCloudExporterTask
             WarmupExportServiceStats statsWarmupExportService,
             ShapingLoggerFactory shapingLoggerFactory)
     {
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
 
         this.rowGroupKey = requireNonNull(rowGroupKey);
         this.cloudImportExportPath = requireNonNull(cloudImportExportPath);

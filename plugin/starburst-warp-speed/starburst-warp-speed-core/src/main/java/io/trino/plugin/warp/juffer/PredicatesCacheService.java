@@ -109,7 +109,7 @@ public class PredicatesCacheService
         this.activePredicatesSmall = new AtomicInteger(0);
         this.activePredicatesMedium = new AtomicInteger(0);
         this.activePredicatesLarge = new AtomicInteger(0);
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     private void initPredicateCachePoll()

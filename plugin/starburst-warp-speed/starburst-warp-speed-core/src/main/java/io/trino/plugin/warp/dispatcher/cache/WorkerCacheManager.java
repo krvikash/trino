@@ -116,7 +116,7 @@ public class WorkerCacheManager
         this.warmupRuleService = requireNonNull(warmupRuleService);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
 
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
         this.chunkSize = 1 << requireNonNull(storageEngineConstants).getChunkSizeShift();
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create());
         this.statsPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create());

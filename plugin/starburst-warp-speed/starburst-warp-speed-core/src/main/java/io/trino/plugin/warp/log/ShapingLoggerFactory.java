@@ -30,7 +30,7 @@ public class ShapingLoggerFactory
 {
     private final CatalogName catalogName;
     private final SharedConfig sharedConfig;
-    private final Map<Logger, ShapingLogger> instances;
+    private final Map<Class<?>, ShapingLogger> instances;
 
     @Inject
     public ShapingLoggerFactory(CatalogName catalogName, SharedConfig sharedConfig)
@@ -42,40 +42,54 @@ public class ShapingLoggerFactory
 
     public ShapingLogger getInstance(Class<?> clazz)
     {
-        return getInstance(Logger.get(clazz));
-    }
-
-    public ShapingLogger getInstance(Logger logger)
-    {
         return getInstance(
-                logger,
+                clazz,
                 sharedConfig.getShapingLoggerThreshold(),
                 sharedConfig.getShapingLoggerDuration(),
                 sharedConfig.getShapingLoggerNumberOfSamples());
     }
 
     public ShapingLogger getInstance(
-            Logger logger,
+            Class<?> clazz,
             int threshold,
             Duration duration,
             int numberOfSamplings)
     {
-        return getInstance(logger, threshold, duration, numberOfSamplings, ShapingLogger.MODE.FORMAT);
+        return getInstance(clazz, threshold, duration, numberOfSamplings, ShapingLogger.MODE.FORMAT);
     }
 
     public ShapingLogger getInstance(
+            Class<?> clazz,
+            int threshold,
+            Duration duration,
+            int numberOfSamplings,
+            ShapingLogger.MODE mode)
+    {
+        return instances.computeIfAbsent(clazz, _ -> {
+            Logger logger = Logger.get(clazz);
+            return new ShapingLogger(
+                catalogName.toString(),
+                logger,
+                threshold,
+                duration,
+                numberOfSamplings,
+                mode);
+        });
+    }
+
+    public ShapingLogger getInstance(Class clazz,
             Logger logger,
             int threshold,
             Duration duration,
             int numberOfSamplings,
             ShapingLogger.MODE mode)
     {
-        return instances.computeIfAbsent(logger, _ -> new ShapingLogger(
-                catalogName.toString(),
-                logger,
-                threshold,
-                duration,
-                numberOfSamplings,
-                mode));
+        return instances.computeIfAbsent(clazz, _ -> new ShapingLogger(
+            catalogName.toString(),
+            logger,
+            threshold,
+            duration,
+            numberOfSamplings,
+            mode));
     }
 }

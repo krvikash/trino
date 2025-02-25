@@ -124,7 +124,7 @@ public class DispatcherPageSource
         this.proxiedPageRanges = new ArrayDeque<>();
         this.warpPageRanges = new ArrayDeque<>();
         this.startTime = System.nanoTime();
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(DispatcherPageSource.class);
         this.warpWithoutPrefilledAndProxiedCollectTypes = warpWithoutPrefilledAndProxiedCollectTypes;
         this.emptyPagesCounter = 0;
         this.forceFinish = false;

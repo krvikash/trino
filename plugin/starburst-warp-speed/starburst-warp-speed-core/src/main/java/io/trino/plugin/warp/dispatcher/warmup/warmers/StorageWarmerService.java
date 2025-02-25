@@ -91,7 +91,7 @@ public class StorageWarmerService
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
 
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     public void createFile(RowGroupKey rowGroupKey)

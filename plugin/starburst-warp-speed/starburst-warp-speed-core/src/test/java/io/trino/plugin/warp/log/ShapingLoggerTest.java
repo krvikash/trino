@@ -48,7 +48,7 @@ public class ShapingLoggerTest
     @Test
     public void testSimple()
     {
-        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 2, Duration.ZERO, 1);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(this.getClass(), logger, 2, Duration.ZERO, 1, ShapingLogger.MODE.FORMAT);
 
         shapingLogger.info("%s", "test");
         verify(logger, never()).info(eq("test"));
@@ -65,7 +65,7 @@ public class ShapingLoggerTest
     @Test
     public void testSimpleWithFirstOccurrences()
     {
-        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 5, Duration.ZERO, 3);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(this.getClass(), logger, 5, Duration.ZERO, 3, ShapingLogger.MODE.FORMAT);
 
         when(logger.isInfoEnabled()).thenReturn(true);
         IntStream.range(0, 12).forEach((_) -> shapingLogger.info("%s", "test"));
@@ -81,7 +81,7 @@ public class ShapingLoggerTest
     {
         when(logger.isInfoEnabled()).thenReturn(true);
 
-        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 5, Duration.ZERO, 1);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(this.getClass(), logger, 5, Duration.ZERO, 1, ShapingLogger.MODE.FORMAT);
 
         shapingLogger.info("%s", "test");
         shapingLogger.info("%s", "test");
@@ -95,7 +95,7 @@ public class ShapingLoggerTest
     @Disabled
     public void testAfterThresholdShouldPrint()
     {
-        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 2, Duration.ZERO, 1);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(this.getClass(), logger, 2, Duration.ZERO, 1, ShapingLogger.MODE.FORMAT);
         shapingLogger.warn("%s", "test");
         shapingLogger.warn("%s", "test");
         shapingLogger.warn("%s", "test");
@@ -106,7 +106,7 @@ public class ShapingLoggerTest
     @Test
     public void testPrintWithoutFormatIsShaped()
     {
-        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(logger, 2, Duration.ZERO, 1);
+        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(this.getClass(), logger, 2, Duration.ZERO, 1, ShapingLogger.MODE.FORMAT);
         shapingLogger.warn("test");
         shapingLogger.warn("test");
         shapingLogger.warn("test");
@@ -119,10 +119,12 @@ public class ShapingLoggerTest
             throws InterruptedException
     {
         ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 logger,
                 0,
                 Duration.ofMillis(10),
-                1);
+                1,
+                ShapingLogger.MODE.FORMAT);
 
         shapingLogger.error("%s", "test");
 
@@ -148,10 +150,12 @@ public class ShapingLoggerTest
             throws InterruptedException
     {
         ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 logger,
                 2,
                 Duration.ofMillis(10),
-                1);
+                1,
+                ShapingLogger.MODE.FORMAT);
         shapingLogger.error("%s", "test");
 
         Thread.sleep(13);
@@ -174,8 +178,8 @@ public class ShapingLoggerTest
     @Test
     public void testTwoCallsShouldReturnSameInstance()
     {
-        ShapingLogger shapingLogger1 = shapingLoggerFactory.getInstance(logger, 10, Duration.ofMillis(3), 1);
-        ShapingLogger shapingLogger2 = shapingLoggerFactory.getInstance(logger, 10, Duration.ofMillis(3), 1);
+        ShapingLogger shapingLogger1 = shapingLoggerFactory.getInstance(this.getClass(), logger, 10, Duration.ofMillis(3), 1, ShapingLogger.MODE.FORMAT);
+        ShapingLogger shapingLogger2 = shapingLoggerFactory.getInstance(this.getClass(), logger, 10, Duration.ofMillis(3), 1, ShapingLogger.MODE.FORMAT);
         assertThat(shapingLogger1).isSameAs(shapingLogger2);
     }
 
@@ -183,6 +187,7 @@ public class ShapingLoggerTest
     public void testByFormattedMessage()
     {
         ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 logger,
                 10,
                 Duration.ZERO,
@@ -202,6 +207,7 @@ public class ShapingLoggerTest
     public void testByFormattedMessageWithoutLogFirst()
     {
         ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 logger,
                 10,
                 Duration.ZERO,
@@ -222,6 +228,7 @@ public class ShapingLoggerTest
             throws InterruptedException
     {
         ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 logger,
                 10,
                 Duration.ZERO,
@@ -248,6 +255,7 @@ public class ShapingLoggerTest
             throws InterruptedException
     {
         ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 logger,
                 10,
                 Duration.ZERO,
@@ -278,6 +286,7 @@ public class ShapingLoggerTest
     {
         MDC.put(ShapingLogger.QUERY_ID_LOCAL_PROPERTY, "my-query-id");
         ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 logger,
                 10,
                 Duration.ZERO,
@@ -293,6 +302,7 @@ public class ShapingLoggerTest
     public void testWithEnrichmentOnlyCatalog()
     {
         ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 logger,
                 10,
                 Duration.ZERO,

@@ -66,7 +66,7 @@ public class RowGroupDataDao
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
 
         objectMapper = requireNonNull(objectMapperProvider).get();
-        shapingLogger = shapingLoggerFactory.getInstance(logger);
+        shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
 
         CacheLoader<RowGroupKey, Optional<RowGroupData>> loader = new CacheLoader<>()
         {

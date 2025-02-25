@@ -83,7 +83,7 @@ public class WarmupDemoterService
         this.eventBus = requireNonNull(eventBus);
         this.warpDeleteService = requireNonNull(warpDeleteService);
 
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
 
         demoteKey = demoterSync.registerCatalog(
                 this,

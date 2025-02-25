@@ -81,7 +81,7 @@ class PredicateBufferClassifier
         this.allWithoutNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_ALL, false);
         this.luceneWithNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_LUCENE, true);
         this.luceneWithoutNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_LUCENE, false);
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     @Override

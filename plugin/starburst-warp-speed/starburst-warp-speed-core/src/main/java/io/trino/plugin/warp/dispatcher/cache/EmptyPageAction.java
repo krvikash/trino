@@ -15,7 +15,6 @@ package io.trino.plugin.warp.dispatcher.cache;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -38,7 +37,6 @@ import static java.util.Objects.requireNonNull;
 public class EmptyPageAction
         implements CacheAction
 {
-    private static final Logger logger = Logger.get(EmptyPageAction.class);
     private final ShapingLogger shapingLogger;
 
     private final WarmingServiceStats statsWarmingService;
@@ -52,7 +50,7 @@ public class EmptyPageAction
             EmptyRowGroupWarmer emptyRowGroupWarmer,
             RowGroupDataService rowGroupDataService)
     {
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
         this.statsWarmingService = requireNonNull(metricsManager).registerMetric(WarmingServiceStats.create());
         this.emptyRowGroupWarmer = requireNonNull(emptyRowGroupWarmer);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);

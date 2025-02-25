@@ -58,10 +58,12 @@ public class PrintMetricsTimerTask
         this.metricsManager = requireNonNull(metricsManager);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
         this.shapingLogger = shapingLoggerFactory.getInstance(
+                this.getClass(),
                 dumpLogger,
                 Integer.MAX_VALUE,
                 Duration.ofMinutes(1), // at maximum, we want to print once a minute
-                1);
+                1,
+                ShapingLogger.MODE.FORMAT);
 
         logger.debug("PrintMetricsTimerTask constructor");
     }

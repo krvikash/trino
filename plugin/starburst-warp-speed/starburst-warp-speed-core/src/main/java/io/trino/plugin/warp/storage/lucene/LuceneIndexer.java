@@ -103,7 +103,7 @@ public class LuceneIndexer
         this.stats = stats;
         this.stopWatch = new StopWatch();
 
-        this.shapingLogger = shapingLoggerFactory.getInstance(logger);
+        this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     public void addDoc(Slice... values)
