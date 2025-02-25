@@ -149,6 +149,11 @@ public class WarmupElementsCreator
                     if (warmUpType != WarmUpType.WARM_UP_TYPE_DATA) {
                         recTypeLength = TypeUtils.getIndexTypeLength(recTypeCode, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
                     }
+                    if (recTypeLength < 0) {
+                        shapingLogger.error("recTypeLength is negative. recTypeLength=%d, warmUpType=%s, transformFunction=%s, recordData=%s, recTypeCode=%s, fixedLengthStringLimit=%d",
+                                recTypeLength, warmUpType, transformFunction, recordData, recTypeCode, storageEngineConstants.getFixedLengthStringLimit());
+                        continue;
+                    }
 
                     int warmUpContextSize = (warmUpType == WarmUpType.WARM_UP_TYPE_DATA) ?
                             bufferAllocator.getWarmupDataTxSize(recTypeCode, recTypeLength) :
@@ -215,6 +220,11 @@ public class WarmupElementsCreator
         if (recTypeCode == RecTypeCode.REC_TYPE_INVALID) {
             statsWarmingService.incwarm_warp_cache_invalid_type();
             shapingLogger.warn("unexpectedly failed to create warmup element, columnType=%s", columnType);
+            return Optional.empty();
+        }
+        if (recTypeLength < 0) {
+            shapingLogger.error("recTypeLength is negative. recTypeLength=%d, recTypeCode=%s, varcharMaxLen=%d, columnType=%s, cacheColumnId=%s",
+                    recTypeLength, recTypeCode, storageEngineConstants.getVarcharMaxLen(), columnType, cacheColumnId);
             return Optional.empty();
         }
 

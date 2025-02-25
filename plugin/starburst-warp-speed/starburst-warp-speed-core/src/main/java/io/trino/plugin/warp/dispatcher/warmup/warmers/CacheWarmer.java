@@ -152,6 +152,11 @@ public class CacheWarmer
                 int recTypeLength = warmUpElement.getRecTypeLength();
                 RecTypeCode recTypeCode = warmUpElement.getRecTypeCode();
                 recTypeLength = TypeUtils.getIndexTypeLength(recTypeCode, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
+                if (recTypeLength < 0) {
+                    shapingLogger.error("recTypeLength is negative. recTypeLength=%d, recTypeCode=%s, fixedLengthStringLimit=%d, writeMetadata=%s",
+                            recTypeLength, recTypeCode, storageEngineConstants.getFixedLengthStringLimit(), writeMetadata);
+                    continue;
+                }
                 int warmUpContextSize = bufferAllocator.getWarmupIndexTxSize();
                 WarmUpElement basicElement = WarmUpElement.builder()
                         .creationTime(System.currentTimeMillis())
