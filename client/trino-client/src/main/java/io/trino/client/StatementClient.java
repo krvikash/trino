@@ -65,6 +65,8 @@ public interface StatementClient
 
     boolean isResetAuthorizationUser();
 
+    Set<ClientSelectedRole> getSetOriginalRoles();
+
     Map<String, String> getSetSessionProperties();
 
     Set<String> getResetSessionProperties();

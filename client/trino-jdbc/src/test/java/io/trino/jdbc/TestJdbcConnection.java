@@ -1013,6 +1013,12 @@ public class TestJdbcConnection
         }
 
         @Override
+        public Set<ClientSelectedRole> getSetOriginalRoles()
+        {
+            return Set.of();
+        }
+
+        @Override
         public Map<String, String> getSetSessionProperties()
         {
             return Map.of();
