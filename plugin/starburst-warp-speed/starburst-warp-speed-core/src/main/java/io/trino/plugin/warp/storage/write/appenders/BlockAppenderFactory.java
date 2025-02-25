@@ -32,10 +32,10 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
+import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.type.cast.DateTimeUtils;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.VarcharType;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -118,7 +118,7 @@ public class BlockAppenderFactory
                 Function<Slice, Slice> transformedUpperFunction = (slice) -> Slices.utf8Slice(slice.toStringUtf8().toUpperCase(Locale.ROOT));
                 res = new TransformedCrcStringBlockAppender(juffersWE, storageEngineConstants, bufferAllocator, type, false, transformedUpperFunction);
             }
-            else if (Objects.equals(transformFunction, TransformFunction.DATE) && type == VarcharType.VARCHAR) {
+            else if (Objects.equals(transformFunction, TransformFunction.DATE) && TypeUtils.isVarcharType(type)) {
                 Function<BlockPosHolder, Integer> transformedDateFunction = (blockPosHolder) -> {
                     String val = blockPosHolder.getSlice().toStringUtf8();
                     return DateTimeUtils.parseDate(val);
