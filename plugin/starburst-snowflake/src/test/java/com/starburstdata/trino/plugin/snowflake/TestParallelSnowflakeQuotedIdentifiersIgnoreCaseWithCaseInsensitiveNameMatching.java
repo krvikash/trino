@@ -56,7 +56,7 @@ public class TestParallelSnowflakeQuotedIdentifiersIgnoreCaseWithCaseInsensitive
         Session ignoreCase = Session.builder(getSession())
                 .setCatalogSessionProperty(SNOWFLAKE_CATALOG, QUOTED_IDENTIFIERS_IGNORE_CASE, "true")
                 .build();
-        assertQueryFails(ignoreCase, "SELECT test FROM %s".formatted(tableName), "snowflake.quoted_identifiers_ignore_case is invalid: true");
+        assertQueryFails(ignoreCase, "SELECT test FROM %s".formatted(tableName), "\\QSession property 'snowflake.quoted_identifiers_ignore_case' is invalid: Enabling quoted_identifiers_ignore_case not supported for Snowflake when case-insensitive-name-matching is enabled");
         assertQueryFails("SET SESSION snowflake.quoted_identifiers_ignore_case = true", "line 1:56: Enabling quoted_identifiers_ignore_case not supported for Snowflake when case-insensitive-name-matching is enabled");
     }
 }
