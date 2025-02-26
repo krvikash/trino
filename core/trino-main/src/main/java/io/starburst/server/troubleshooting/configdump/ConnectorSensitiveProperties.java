@@ -829,6 +829,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "s3.aws-secret-key",
+                            "s3.http-proxy.password",
+                            "s3.sse.customer-key",
                             "web-ui.shared-secret"))
             .put("salesforce",
                     ImmutableSet.of(
