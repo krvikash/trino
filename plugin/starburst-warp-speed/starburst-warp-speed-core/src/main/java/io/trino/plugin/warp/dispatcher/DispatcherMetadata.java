@@ -366,16 +366,6 @@ public class DispatcherMetadata
     }
 
     @Override
-    @Deprecated
-    public void addColumn(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnMetadata column)
-    {
-        proxiedConnectorMetadata.addColumn(
-                session,
-                ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle(),
-                column);
-    }
-
-    @Override
     public void addColumn(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnMetadata column, ColumnPosition position)
     {
         proxiedConnectorMetadata.addColumn(session, ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle(), column, position);
