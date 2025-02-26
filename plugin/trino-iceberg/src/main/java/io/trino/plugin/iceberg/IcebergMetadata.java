@@ -396,6 +396,7 @@ import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.ROLLBACK
 import static io.trino.plugin.iceberg.procedure.MigrationUtils.addFiles;
 import static io.trino.plugin.iceberg.procedure.MigrationUtils.addFilesFromTable;
 import static io.trino.plugin.iceberg.util.IcebergDefaultValues.toIcebergLiteral;
+import static io.trino.spi.StandardErrorCode.BRANCH_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.COLUMN_ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.COLUMN_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
@@ -644,7 +645,7 @@ public class IcebergMetadata
             BaseTable storageTable = catalog.getMaterializedViewStorageTable(session, materializedViewName)
                     .orElseThrow(() -> new TrinoException(TABLE_NOT_FOUND, "Storage table metadata not found for materialized view " + tableName));
 
-            return tableHandleForCurrentSnapshot(session, tableName, storageTable);
+            return tableHandleForCurrentSnapshot(session, tableName, storageTable, Optional.empty());
         }
 
         if (!isDataTable(tableName.getTableName())) {
@@ -674,19 +675,33 @@ public class IcebergMetadata
         }
 
         if (endVersion.isPresent()) {
-            long snapshotId = getSnapshotIdFromVersion(session, table, endVersion.get());
+            ConnectorTableVersion version = endVersion.get();
+            long snapshotId = getSnapshotIdFromVersion(session, table, version);
+            Optional<PartitionSpec> partitionSpec = Optional.empty();
+
+            Optional<String> branch = Optional.empty();
+            if (version.getVersionType() instanceof VarcharType) {
+                String refName = ((Slice) version.getVersion()).toStringUtf8();
+                SnapshotRef ref = table.refs().get(refName);
+                if (ref.isBranch()) {
+                    branch = Optional.of(refName);
+                    partitionSpec = Optional.of(table.spec());
+                }
+            }
+
             return tableHandleForSnapshot(
                     session,
                     tableName,
                     table,
                     Optional.of(snapshotId),
                     schemaFor(table, snapshotId),
-                    Optional.empty());
+                    partitionSpec,
+                    branch);
         }
-        return tableHandleForCurrentSnapshot(session, tableName, table);
+        return tableHandleForCurrentSnapshot(session, tableName, table, Optional.empty());
     }
 
-    private IcebergTableHandle tableHandleForCurrentSnapshot(ConnectorSession session, SchemaTableName tableName, BaseTable table)
+    private IcebergTableHandle tableHandleForCurrentSnapshot(ConnectorSession session, SchemaTableName tableName, BaseTable table, Optional<String> branch)
     {
         return tableHandleForSnapshot(
                 session,
@@ -694,7 +709,8 @@ public class IcebergMetadata
                 table,
                 Optional.ofNullable(table.currentSnapshot()).map(Snapshot::snapshotId),
                 table.schema(),
-                Optional.of(table.spec()));
+                Optional.of(table.spec()),
+                branch);
     }
 
     private IcebergTableHandle tableHandleForSnapshot(
@@ -703,7 +719,8 @@ public class IcebergMetadata
             BaseTable table,
             Optional<Long> tableSnapshotId,
             Schema tableSchema,
-            Optional<PartitionSpec> partitionSpec)
+            Optional<PartitionSpec> partitionSpec,
+            Optional<String> branch)
     {
         Map<String, String> tableProperties = table.properties();
         return new IcebergTableHandle(
@@ -723,6 +740,7 @@ public class IcebergMetadata
                 table.location(),
                 table.properties(),
                 getTablePartitioning(session, table),
+                branch,
                 false,
                 Optional.empty(),
                 false,
@@ -1393,7 +1411,7 @@ public class IcebergMetadata
                             "to use unique table locations for every table.", location));
                 }
             }
-            return newWritableTableHandle(tableMetadata.getTable(), transaction.table(), ImmutableList.of(), retryMode);
+            return newWritableTableHandle(tableMetadata.getTable(), transaction.table(), SchemaParser.toJson(transaction.table().schema()), Optional.empty(), ImmutableList.of(), retryMode);
         }
         catch (IOException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed checking new table's location: " + location, e);
@@ -1495,12 +1513,15 @@ public class IcebergMetadata
     {
         IcebergTableHandle table = (IcebergTableHandle) tableHandle;
         Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        Optional<String> branch = table.getBranch();
 
-        validateNotModifyingOldSnapshot(table, icebergTable);
+        branch.ifPresentOrElse(
+                name -> checkBranch(icebergTable, name),
+                () -> validateNotModifyingOldSnapshot(table, icebergTable));
 
         beginTransaction(icebergTable);
 
-        return newWritableTableHandle(table.getSchemaTableName(), icebergTable, ImmutableList.of(), retryMode);
+        return newWritableTableHandle(table.getSchemaTableName(), icebergTable, table.getTableSchemaJson(), branch, ImmutableList.of(), retryMode);
     }
 
     private List<String> getChildNamespaces(ConnectorSession session, String parentNamespace)
@@ -1519,24 +1540,28 @@ public class IcebergMetadata
     private IcebergWritableTableHandle newWritableTableHandle(
             SchemaTableName name,
             Table table,
+            String schemaAsJson,
+            Optional<String> branch,
             List<PositionDeleteFiles> previousDeleteFiles,
             RetryMode retryMode)
     {
+        Schema schema = SchemaParser.fromJson(schemaAsJson);
         return new IcebergWritableTableHandle(
                 name,
                 formatVersion(table),
-                SchemaParser.toJson(table.schema()),
+                schemaAsJson,
                 transformValues(table.specs(), PartitionSpecParser::toJson),
                 table.spec().specId(),
-                getSupportedSortFields(table.schema(), table.sortOrder()),
-                getProjectedColumns(table.schema(), typeManager),
+                getSupportedSortFields(schema, table.sortOrder()),
+                getProjectedColumns(schema, typeManager),
                 previousDeleteFiles,
                 table.location(),
                 getFileFormat(table),
                 table.properties(),
                 retryMode,
                 table.io().properties(),
-                rowLevelOperationMode(table));
+                rowLevelOperationMode(table),
+                branch);
     }
 
     private static List<TrinoSortField> getSupportedSortFields(Schema schema, SortOrder sortOrder)
@@ -1607,6 +1632,7 @@ public class IcebergMetadata
             }
 
             appendFiles.appendFile(builder.build());
+            table.branch().ifPresent(appendFiles::toBranch);
             writtenFiles.add(task.path());
         }
 
@@ -1617,7 +1643,7 @@ public class IcebergMetadata
 
         commitUpdateAndTransaction(appendFiles, session, transaction, "insert");
         // TODO (https://github.com/trinodb/trino/issues/15439) this may not exactly be the snapshot we committed, if there is another writer
-        long newSnapshotId = transaction.table().currentSnapshot().snapshotId();
+        long newSnapshotId = table.branch().isEmpty() ? transaction.table().currentSnapshot().snapshotId() : transaction.table().refs().get(table.branch().get()).snapshotId();
         transaction = null;
 
         // TODO (https://github.com/trinodb/trino/issues/15439): it would be good to publish data and stats atomically
@@ -3618,16 +3644,20 @@ public class IcebergMetadata
         verifyTableVersionForUpdate(table);
 
         Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
-        validateNotModifyingOldSnapshot(table, icebergTable);
+        Optional<String> branch = table.getBranch();
+
+        branch.ifPresentOrElse(
+                name -> checkBranch(icebergTable, name),
+                () -> validateNotModifyingOldSnapshot(table, icebergTable));
 
         beginTransaction(icebergTable);
 
-        List<PositionDeleteFiles> previousDeleteFiles = loadPreviousDeleteFiles(icebergTable);
-        IcebergWritableTableHandle insertHandle = newWritableTableHandle(table.getSchemaTableName(), icebergTable, previousDeleteFiles, retryMode);
+        List<PositionDeleteFiles> previousDeleteFiles = loadPreviousDeleteFiles(icebergTable, branch);
+        IcebergWritableTableHandle insertHandle = newWritableTableHandle(table.getSchemaTableName(), icebergTable, table.getTableSchemaJson(), branch, previousDeleteFiles, retryMode);
         return new IcebergMergeTableHandle(table, insertHandle);
     }
 
-    private List<PositionDeleteFiles> loadPreviousDeleteFiles(Table icebergTable)
+    private List<PositionDeleteFiles> loadPreviousDeleteFiles(Table icebergTable, Optional<String> branch)
     {
         int formatVersion = formatVersion(icebergTable);
         validateFormatVersion(formatVersion, maxFormatVersion);
@@ -3636,8 +3666,13 @@ public class IcebergMetadata
             return ImmutableList.of();
         }
 
+        TableScan tableScan = icebergTable.newScan();
+        if (branch.isPresent()) {
+            tableScan = tableScan.useRef(branch.get());
+        }
+
         ImmutableList.Builder<PositionDeleteFiles> rewritableDeletes = ImmutableList.builder();
-        try (CloseableIterable<FileScanTask> iterator = icebergTable.newScan().planFiles()) {
+        try (CloseableIterable<FileScanTask> iterator = tableScan.planFiles()) {
             for (FileScanTask task : iterator) {
                 DataFile file = task.file();
                 rewritableDeletes.add(new PositionDeleteFiles(
@@ -3673,9 +3708,10 @@ public class IcebergMetadata
     {
         IcebergMergeTableHandle mergeHandle = (IcebergMergeTableHandle) mergeTableHandle;
         IcebergTableHandle handle = mergeHandle.getTableHandle();
+        Optional<String> branch = mergeHandle.getInsertTableHandle().branch();
         RetryMode retryMode = mergeHandle.getInsertTableHandle().retryMode();
         RowLevelOperationMode operationMode = mergeHandle.getInsertTableHandle().operationMode();
-        finishWrite(session, handle, fragments, retryMode, operationMode);
+        finishWrite(session, handle, branch, fragments, retryMode, operationMode);
     }
 
     private static void verifyTableVersionForUpdate(IcebergTableHandle table)
@@ -3692,7 +3728,7 @@ public class IcebergMetadata
         }
     }
 
-    private void finishWrite(ConnectorSession session, IcebergTableHandle table, Collection<Slice> fragments, RetryMode retryMode, RowLevelOperationMode operationMode)
+    private void finishWrite(ConnectorSession session, IcebergTableHandle table, Optional<String> branch, Collection<Slice> fragments, RetryMode retryMode, RowLevelOperationMode operationMode)
     {
         Table icebergTable = transaction.table();
 
@@ -3713,6 +3749,7 @@ public class IcebergMetadata
             case MERGE_ON_READ -> new MergeOnRead(transaction.newRowDelta());
             case COPY_ON_WRITE -> new CopyOnWrite(transaction.newOverwrite());
         };
+        branch.ifPresent(rowDelta::toBranch);
         table.getSnapshotId().map(icebergTable::snapshot).ifPresent(s -> rowDelta.validateFromSnapshot(s.snapshotId()));
         TupleDomain<IcebergColumnHandle> dataColumnPredicate = table.getEnforcedPredicate().filter((column, domain) -> !isMetadataColumnId(column.getId()));
         TupleDomain<IcebergColumnHandle> effectivePredicate = dataColumnPredicate.intersect(table.getUnenforcedPredicate());
@@ -3917,6 +3954,10 @@ public class IcebergMetadata
 
         DeleteFiles deleteFiles = icebergTable.newDelete()
                 .deleteFromRowFilter(toIcebergExpression(handle.getEnforcedPredicate()));
+        handle.getBranch().ifPresent(branch -> {
+            checkBranch(icebergTable, branch);
+            deleteFiles.toBranch(branch);
+        });
         commitUpdate(deleteFiles, session, "delete");
 
         Map<String, String> summary = icebergTable.currentSnapshot().summary();
@@ -3975,6 +4016,7 @@ public class IcebergMetadata
                 table.getTableLocation(),
                 table.getStorageProperties(),
                 table.getTablePartitioning(),
+                table.getBranch(),
                 table.isRecordScannedFiles(),
                 table.getMaxScannedFileSize(),
                 table.isForceReadingAllFiles(),
@@ -4078,6 +4120,7 @@ public class IcebergMetadata
                         table.getTableLocation(),
                         table.getStorageProperties(),
                         table.getTablePartitioning(),
+                        table.getBranch(),
                         table.isRecordScannedFiles(),
                         table.getMaxScannedFileSize(),
                         table.isForceReadingAllFiles(),
@@ -4235,6 +4278,7 @@ public class IcebergMetadata
                 firstTable.getTableLocation(),
                 firstTable.getStorageProperties(),
                 firstTable.getTablePartitioning(),
+                firstTable.getBranch(),
                 firstTable.isRecordScannedFiles(),
                 firstTable.getMaxScannedFileSize(),
                 firstTable.isForceReadingAllFiles(),
@@ -4360,6 +4404,7 @@ public class IcebergMetadata
                 originalHandle.getTableLocation(),
                 originalHandle.getStorageProperties(),
                 Optional.empty(), // requiredTablePartitioning does not affect stats
+                originalHandle.getBranch(),
                 false, // recordScannedFiles does not affect stats
                 originalHandle.getMaxScannedFileSize(),
                 originalHandle.isForceReadingAllFiles(),
@@ -4458,8 +4503,8 @@ public class IcebergMetadata
             fromSnapshotForRefresh = Optional.of(Long.parseLong(sourceTable.getValue()));
         }
 
-        List<PositionDeleteFiles> rewritableDeletes = loadPreviousDeleteFiles(icebergTable);
-        return newWritableTableHandle(table.getSchemaTableName(), icebergTable, rewritableDeletes, retryMode);
+        List<PositionDeleteFiles> rewritableDeletes = loadPreviousDeleteFiles(icebergTable, Optional.empty());
+        return newWritableTableHandle(table.getSchemaTableName(), icebergTable, table.getTableSchemaJson(), Optional.empty(), rewritableDeletes, retryMode);
     }
 
     @Override
@@ -4930,5 +4975,17 @@ public class IcebergMetadata
     {
         // Trino uses MoR by default unlike Spark
         return RowLevelOperationMode.fromName(table.properties().getOrDefault(MERGE_MODE, MERGE_ON_READ.modeName()));
+    }
+
+    private static SnapshotRef checkBranch(Table table, String branch)
+    {
+        SnapshotRef ref = table.refs().get(branch);
+        if (ref == null) {
+            throw new TrinoException(BRANCH_NOT_FOUND, "Branch '%s' does not exist".formatted(branch));
+        }
+        if (ref.isTag()) {
+            throw new TrinoException(NOT_SUPPORTED, "Branch '%s' does not exist, but a tag with that name exists".formatted(branch));
+        }
+        return ref;
     }
 }

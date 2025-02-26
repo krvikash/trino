@@ -90,6 +90,12 @@ public class MergeOnRead
     }
 
     @Override
+    public void toBranch(String branch)
+    {
+        rowDelta.toBranch(branch);
+    }
+
+    @Override
     public SnapshotUpdate<?> unwrap()
     {
         return rowDelta;

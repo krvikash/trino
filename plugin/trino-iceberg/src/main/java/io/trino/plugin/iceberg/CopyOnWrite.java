@@ -90,6 +90,12 @@ public class CopyOnWrite
     }
 
     @Override
+    public void toBranch(String branch)
+    {
+        overwriteFiles.toBranch(branch);
+    }
+
+    @Override
     public SnapshotUpdate<?> unwrap()
     {
         return overwriteFiles;

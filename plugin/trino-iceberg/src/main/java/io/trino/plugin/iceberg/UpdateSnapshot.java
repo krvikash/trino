@@ -49,5 +49,7 @@ public interface UpdateSnapshot
 
     void scanManifestsWith(ExecutorService executorService);
 
+    void toBranch(String branch);
+
     SnapshotUpdate<?> unwrap();
 }

@@ -276,6 +276,7 @@ class TestFileBasedConflictDetection
                 "dummy_table_location",
                 ImmutableMap.of(),
                 Optional.empty(),
+                Optional.empty(),
                 false,
                 Optional.empty(),
                 false,
