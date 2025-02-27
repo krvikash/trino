@@ -155,7 +155,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 numNodes,
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
-                        "hive.s3.aws-access-key", "this is a fake key",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),

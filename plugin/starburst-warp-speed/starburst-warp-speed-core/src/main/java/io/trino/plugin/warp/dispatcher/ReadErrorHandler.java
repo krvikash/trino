@@ -30,6 +30,7 @@ import io.trino.spi.TrinoException;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_FAILED_TO_ADD_COLUMN_TO_BUILDER;
@@ -38,6 +39,7 @@ import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
+import static io.trino.plugin.warp.util.TrinoExceptionMapper.WARP_ERROR_CODE_OFFSET;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -74,7 +76,15 @@ public class ReadErrorHandler
                 logger.warn("%s error: marking as failed rowGroupKey %s allAsPermanentlyFailed %s", errorCode, failedRowGroupData.getRowGroupKey(), allAsPermanentlyFailed);
                 rowGroupDataService.markAsFailed(failedRowGroupData.getRowGroupKey(), allAsPermanentlyFailed, failedRowGroupData.getPartitionKeys());
             }
-            printMetricsTimerTask.print(false, Optional.of(throwable.getMessage()));
+            if ((trinoException.getErrorCode().getCode() & WARP_ERROR_CODE_OFFSET) == WARP_ERROR_CODE_OFFSET) {
+                // Don't dump metrics when this is not warp error
+                StringJoiner joiner = new StringJoiner(", Caused by: ");
+                while (throwable != null) {
+                    joiner.add(throwable.getMessage());
+                    throwable = throwable.getCause();
+                }
+                printMetricsTimerTask.print(false, Optional.of(joiner.toString()));
+            }
         }
     }
 
