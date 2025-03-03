@@ -31,7 +31,9 @@ public class QueryDataDecoders
     private static final List<Factory> decoders = ImmutableList.of(
             new JsonQueryDataDecoder.ZstdFactory(),
             new JsonQueryDataDecoder.Lz4Factory(),
-            new JsonQueryDataDecoder.Factory());
+            new JsonQueryDataDecoder.Factory(),
+            new ArrowQueryDataDecoder.Factory(),
+            new ArrowQueryDataDecoder.ZstdFactory());
 
     private static final Map<String, Factory> encodingMap = factoriesMap();
 
@@ -61,6 +63,7 @@ public class QueryDataDecoders
     public static String getPreferredEncodings()
     {
         return decoders.stream()
+                .filter(Factory::isPreferred)
                 .map(Factory::encoding)
                 .collect(joining(","));
     }

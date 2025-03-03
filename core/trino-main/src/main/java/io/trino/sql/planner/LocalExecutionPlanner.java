@@ -382,6 +382,7 @@ import static io.trino.operator.window.pattern.PhysicalValuePointer.CLASSIFIER;
 import static io.trino.operator.window.pattern.PhysicalValuePointer.MATCH_NUMBER;
 import static io.trino.spi.StandardErrorCode.COMPILER_ERROR;
 import static io.trino.spi.StandardErrorCode.QUERY_EXCEEDED_COMPILER_LIMIT;
+import static io.trino.spi.StandardErrorCode.SERIALIZATION_ERROR;
 import static io.trino.spi.connector.CatalogHandle.createRootCatalogHandle;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
@@ -1145,6 +1146,10 @@ public class LocalExecutionPlanner
                 outputColumnBuilder.add(new OutputColumn(operation.layout.get(outputSymbols.get(i)), columnNames.get(i), outputSymbols.get(i).type()));
             }
             List<OutputColumn> encodingLayout = outputColumnBuilder.build();
+            List<OutputColumn> unsupported = encoderFactory.unsupported(session, encodingLayout);
+            if (!unsupported.isEmpty()) {
+                throw new TrinoException(SERIALIZATION_ERROR, "Output columns %s are not supported for spooling encoding '%s'".formatted(unsupported, encoderFactory.encoding()));
+            }
 
             OutputSpoolingOperatorFactory outputSpoolingOperatorFactory = new OutputSpoolingOperatorFactory(
                     context.getNextOperatorId(),

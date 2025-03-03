@@ -15,6 +15,7 @@ package io.trino.server.protocol.spooling;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.DataSize;
 import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDataSize;
@@ -26,6 +27,8 @@ public class QueryDataEncodingConfig
     private boolean jsonEnabled = true;
     private boolean jsonZstdEnabled = true;
     private boolean jsonLz4Enabled = true;
+    private boolean arrowEnabled;
+    private boolean arrowZstdEnabled;
     private DataSize compressionThreshold = DataSize.of(8, KILOBYTE);
 
     public boolean isJsonEnabled()
@@ -64,6 +67,34 @@ public class QueryDataEncodingConfig
     public QueryDataEncodingConfig setJsonLz4Enabled(boolean jsonLz4Enabled)
     {
         this.jsonLz4Enabled = jsonLz4Enabled;
+        return this;
+    }
+
+    public boolean isArrowEnabled()
+    {
+        return arrowEnabled;
+    }
+
+    @Config("protocol.spooling.encoding.arrow.enabled")
+    @ConfigDescription("Enable uncompressed Arrow spooled encoding")
+    @ConfigHidden
+    public QueryDataEncodingConfig setArrowEnabled(boolean arrowEnabled)
+    {
+        this.arrowEnabled = arrowEnabled;
+        return this;
+    }
+
+    public boolean isArrowZstdEnabled()
+    {
+        return arrowZstdEnabled;
+    }
+
+    @Config("protocol.spooling.encoding.arrow+zstd.enabled")
+    @ConfigDescription("Enable Zstd compressed Arrow spooled encoding")
+    @ConfigHidden
+    public QueryDataEncodingConfig setArrowZstdEnabled(boolean arrowZstdEnabled)
+    {
+        this.arrowZstdEnabled = arrowZstdEnabled;
         return this;
     }
 

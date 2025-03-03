@@ -46,9 +46,19 @@ public class JdkCompatibilityChecks
         INSTANCE.verifyAccessOpened(wrap(binder), format("Connector '%s'", connectorName), modules);
     }
 
+    public static void verifyServerAccessOpened(Binder binder, String feature, Multimap<String, String> modules)
+    {
+        INSTANCE.verifyAccessOpened(wrap(binder), format("Server feature '%s'", feature), modules);
+    }
+
     public static void verifyConnectorUnsafeAllowed(Binder binder, String connectorName)
     {
         INSTANCE.verifyUnsafeAllowed(wrap(binder), format("Connector '%s'", connectorName));
+    }
+
+    public static void verifyServerUnsafeAllowed(Binder binder, String feature)
+    {
+        INSTANCE.verifyUnsafeAllowed(wrap(binder), format("Server feature '%s'", feature));
     }
 
     @VisibleForTesting

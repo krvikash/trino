@@ -13,13 +13,21 @@
  */
 package io.trino.server.protocol.spooling;
 
+import com.google.common.collect.ImmutableMultimap;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.trino.server.protocol.spooling.encoding.ArrowCompressionFactory;
+import io.trino.server.protocol.spooling.encoding.ArrowQueryDataEncoder;
 import io.trino.server.protocol.spooling.encoding.JsonQueryDataEncoder;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.compression.CompressionCodec;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
+import static io.trino.plugin.base.JdkCompatibilityChecks.verifyServerAccessOpened;
+import static io.trino.plugin.base.JdkCompatibilityChecks.verifyServerUnsafeAllowed;
 
 public class QueryDataEncodingModule
         extends AbstractConfigurationAwareModule
@@ -39,6 +47,27 @@ public class QueryDataEncodingModule
         }
         if (config.isJsonLz4Enabled()) {
             encoderFactories.addBinding().to(JsonQueryDataEncoder.Lz4Factory.class).in(Scopes.SINGLETON);
+        }
+        if (config.isArrowEnabled() || config.isArrowZstdEnabled()) {
+            // Check reflective access allowed - required by Apache Arrow library
+            verifyServerAccessOpened(
+                    binder,
+                    "Arrow encoding support",
+                    ImmutableMultimap.of("java.base", "java.nio"));
+
+            verifyServerUnsafeAllowed(
+                    binder,
+                    "Arrow encoding support");
+
+            binder.bind(BufferAllocator.class).toInstance(new RootAllocator());
+            binder.bind(CompressionCodec.Factory.class).to(ArrowCompressionFactory.class).in(Scopes.SINGLETON);
+
+            if (config.isArrowEnabled()) {
+                encoderFactories.addBinding().to(ArrowQueryDataEncoder.Factory.class).in(Scopes.SINGLETON);
+            }
+            if (config.isArrowZstdEnabled()) {
+                encoderFactories.addBinding().to(ArrowQueryDataEncoder.ZstdFactory.class).in(Scopes.SINGLETON);
+            }
         }
         binder.bind(QueryDataEncoders.class).in(Scopes.SINGLETON);
     }

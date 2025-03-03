@@ -26,6 +26,11 @@ public interface QueryDataDecoder
         QueryDataDecoder create(List<Column> columns, DataAttributes attributes);
 
         String encoding();
+
+        default boolean isPreferred()
+        {
+            return true;
+        }
     }
 
     /**

@@ -102,7 +102,7 @@ class SpooledSegmentIterator
         try {
             verify(iterator.hasNext(), "Iterator should have more rows, current: %s, count: %s", currentRow, rowsCount);
             List<Object> rows = iterator.next();
-            if (currentRow == this.rowsCount) {
+            if (remaining() == 0) {
                 unload(); // Unload when the last row was fetched
             }
             return rows;
@@ -112,6 +112,11 @@ class SpooledSegmentIterator
             unload();
             throw e;
         }
+    }
+
+    public long remaining()
+    {
+        return rowsCount - currentRow;
     }
 
     @Override
