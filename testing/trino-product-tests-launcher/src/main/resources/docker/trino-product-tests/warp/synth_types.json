@@ -1747,9 +1747,9 @@
         ],
         "query_id": "padding_varchar_50",
         "expected_counters": {
-          "warp_match_columns": 1,
+          "warp_match_columns": 0,
           "warp_collect_columns": 1,
-          "external_match_columns": 0,
+          "external_match_columns": 1,
           "external_collect_columns": 0
         }
       },
@@ -1760,9 +1760,9 @@
         ],
         "query_id": "padding_varchar_51",
         "expected_counters": {
-          "warp_match_columns": 1,
+          "warp_match_columns": 0,
           "warp_collect_columns": 1,
-          "external_match_columns": 0,
+          "external_match_columns": 1,
           "external_collect_columns": 0
         }
       },
@@ -1773,9 +1773,9 @@
         ],
         "query_id": "padding_varchar_52",
         "expected_counters": {
-          "warp_match_columns": 1,
+          "warp_match_columns": 0,
           "warp_collect_columns": 1,
-          "external_match_columns": 0,
+          "external_match_columns": 1,
           "external_collect_columns": 0
         }
       },

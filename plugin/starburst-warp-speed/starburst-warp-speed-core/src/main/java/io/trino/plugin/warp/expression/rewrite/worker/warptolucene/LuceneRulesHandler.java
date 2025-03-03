@@ -29,7 +29,6 @@ import static io.trino.spi.expression.StandardFunctions.AND_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
-import static io.trino.spi.expression.StandardFunctions.IN_PREDICATE_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.IS_NULL_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
@@ -50,12 +49,14 @@ public class LuceneRulesHandler
         EqualityRewriter equalityRewriter = new EqualityRewriter(this);
         LogicalOperatorRewriter luceneLogicalOperatorRewriter = new LogicalOperatorRewriter(this);
         NotRewriter notRewriter = new NotRewriter(this);
-        InRewriter inRewriter = new InRewriter();
+        /*
+        InRewriter wraps each value with wildcards, which is inefficient. For now, we've decided to disable this functionality
+        luceneRules.put(IN_PREDICATE_FUNCTION_NAME.getName(), new FunctionRewriter(inRewriter.getPattern(), inRewriter::handleIn));
+         */
         LuceneVariableRewriter variableRewriter = new LuceneVariableRewriter();
         EqualityValueRewriter equalityValueRewriter = new EqualityValueRewriter();
         luceneRules = HashMultimap.create();
         luceneRules.put(IS_NULL_FUNCTION_NAME.getName(), new FunctionRewriter(variableRewriter.getPattern(), variableRewriter::handleIsNull));
-        luceneRules.put(IN_PREDICATE_FUNCTION_NAME.getName(), new FunctionRewriter(inRewriter.getPattern(), inRewriter::handleIn));
         luceneRules.put(NOT_FUNCTION_NAME.getName(), new FunctionRewriter(notRewriter.getPattern(), notRewriter::handleNotLike));
         luceneRules.put(LIKE_FUNCTION_NAME.getName(), new FunctionRewriter(luceneGeneralRewriter.getPattern(), luceneGeneralRewriter::handleLike));
         luceneRules.put(START_WITH.getName(), new FunctionRewriter(luceneGeneralRewriter.getPattern(), luceneGeneralRewriter::handleStartsWith));

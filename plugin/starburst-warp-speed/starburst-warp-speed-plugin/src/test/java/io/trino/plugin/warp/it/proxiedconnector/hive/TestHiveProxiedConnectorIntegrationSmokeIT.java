@@ -1540,15 +1540,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "select count(*) from t where v1 like 'str%' and v1 >  'str'",
                 "select count(*) from t where trim(v1) = 'trim'",
                 "select count(*) from t where ltrim(v1) = 'left trim'",
-                "select count(*) from t where ltrim(v1) in ('left trim', 'bla bla')",
                 "select count(*) from t where rtrim(v1) = 'right trim'",
                 "select count(*) from t where split_part(v1, '1', 1) = 'value to match'",
-                "select count(*) from t where split_part(v1, '1', 1) in ('tzachi', 'roman')",
-                "select count(*) from t where substr(v1, -3, 2) IN ('ZD','4R') or strpos(v1, 'shlomi') = 2",
-                "select count(*) from t where substr(v1, -3, 2) IN ('ZD','4R')",
-                "select count(*) from t where substring(v1, -3, 2) IN ('ZD','4R')",
-                "select count(*) from t where substr(v1, 2) IN ('ZD','4R')",
-                "select count(*) from t where substring(v1, 3) IN ('ZD','4R')",
                 "select count(*) from t where v1 not like '%bla%'",
                 "select count(*) from t where substring(v1, 1) = 'bla'",
                 "select count(*) from t where substring(v1, 1, 3) = 'bla'",
@@ -1562,6 +1555,22 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "warp_collect_columns", 1L,
                 "external_match_columns", 0L);
         for (@Language("SQL") String query : queries) {
+            validateQueryStats(query, getSession(), expectedJmxQueryStats);
+        }
+
+        expectedJmxQueryStats = Map.of(
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 1L,
+                "external_match_columns", 1L);
+        List<String> unsupportedQueries = List.of(
+                "select count(*) from t where ltrim(v1) in ('left trim', 'bla bla')",
+                "select count(*) from t where split_part(v1, '1', 1) in ('tzachi', 'roman')",
+                "select count(*) from t where substr(v1, -3, 2) IN ('ZD','4R') or strpos(v1, 'shlomi') = 2",
+                "select count(*) from t where substr(v1, -3, 2) IN ('ZD','4R')",
+                "select count(*) from t where substring(v1, -3, 2) IN ('ZD','4R')",
+                "select count(*) from t where substr(v1, 2) IN ('ZD','4R')",
+                "select count(*) from t where substring(v1, 3) IN ('ZD','4R')");
+        for (@Language("SQL") String query : unsupportedQueries) {
             validateQueryStats(query, getSession(), expectedJmxQueryStats);
         }
         expectedJmxQueryStats = Map.of(
