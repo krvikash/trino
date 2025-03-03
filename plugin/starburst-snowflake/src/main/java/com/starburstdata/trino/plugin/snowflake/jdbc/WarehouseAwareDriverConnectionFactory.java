@@ -9,10 +9,10 @@
  */
 package com.starburstdata.trino.plugin.snowflake.jdbc;
 
+import com.starburstdata.trino.plugin.snowflake.SnowflakeCredentialConfig;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
-import io.trino.plugin.jdbc.credential.DefaultCredentialPropertiesProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.ConnectorIdentity;
 
@@ -33,9 +33,9 @@ public class WarehouseAwareDriverConnectionFactory
     protected final Properties connectionProperties;
     protected final CredentialPropertiesProvider credentialPropertiesProvider;
 
-    public WarehouseAwareDriverConnectionFactory(Driver driver, String connectionUrl, Properties connectionProperties, CredentialProvider credentialProvider)
+    public WarehouseAwareDriverConnectionFactory(Driver driver, String connectionUrl, Properties connectionProperties, CredentialProvider credentialProvider, SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
-        this(driver, connectionUrl, connectionProperties, new DefaultCredentialPropertiesProvider(credentialProvider));
+        this(driver, connectionUrl, connectionProperties, new SnowflakeCredentialPropertiesProvider(credentialProvider, snowflakeCredentialConfig));
     }
 
     public WarehouseAwareDriverConnectionFactory(Driver driver, String connectionUrl, Properties connectionProperties, CredentialPropertiesProvider credentialPropertiesProvider)

@@ -93,6 +93,9 @@ public class SnowflakeQueryRunner
         private String connectorName;
         private Optional<String> warehouseName = Optional.of(TEST_WAREHOUSE);
         private Optional<String> databaseName = Optional.of(TEST_DATABASE);
+        private Optional<String> privateKey = Optional.empty();
+        private Optional<String> privateKeyPassphrase = Optional.empty();
+        private Optional<String> password = Optional.of(PASSWORD);
         private String catalogName = SNOWFLAKE_CATALOG;
         private Optional<String> schemaName = Optional.empty();
         private ImmutableMap.Builder<String, String> connectorProperties = ImmutableMap.builder();
@@ -129,6 +132,27 @@ public class SnowflakeQueryRunner
         public SELF withWarehouse(Optional<String> warehouseName)
         {
             this.warehouseName = warehouseName;
+            return self();
+        }
+
+        @CanIgnoreReturnValue
+        public SELF withPrivateKey(Optional<String> privateKey)
+        {
+            this.privateKey = privateKey;
+            return self();
+        }
+
+        @CanIgnoreReturnValue
+        public SELF withPrivateKeyPassphrase(Optional<String> privateKeyPassphrase)
+        {
+            this.privateKeyPassphrase = privateKeyPassphrase;
+            return self();
+        }
+
+        @CanIgnoreReturnValue
+        public SELF withPassword(Optional<String> password)
+        {
+            this.password = password;
             return self();
         }
 
@@ -206,8 +230,11 @@ public class SnowflakeQueryRunner
                 ImmutableMap.Builder<String, String> properties = ImmutableMap.<String, String>builder()
                         .put("connection-url", JDBC_URL)
                         .put("connection-user", USER)
-                        .put("connection-password", PASSWORD)
                         .putAll(connectorProperties.buildOrThrow());
+                password.ifPresent(password -> properties.put("connection-password", password));
+                privateKey.ifPresent(key -> properties.put("snowflake.connection-private-key", key));
+                privateKeyPassphrase.ifPresent(passphrase -> properties.put("snowflake.connection-private-key.passphrase", passphrase));
+
                 warehouseName.ifPresent(warehouse -> properties.put("snowflake.warehouse", warehouse));
                 databaseName.ifPresent(database -> properties.put("snowflake.database", database));
 

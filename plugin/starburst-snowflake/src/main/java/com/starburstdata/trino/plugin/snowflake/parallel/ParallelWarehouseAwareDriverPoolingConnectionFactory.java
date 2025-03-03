@@ -11,6 +11,7 @@ package com.starburstdata.trino.plugin.snowflake.parallel;
 
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.trino.plugin.jdbc.JdbcConnectionPoolConfig;
+import com.starburstdata.trino.plugin.snowflake.SnowflakeCredentialConfig;
 import com.starburstdata.trino.plugin.snowflake.jdbc.WarehouseAwareDriverPoolingConnectionFactory;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.IdentityCacheMapping;
@@ -35,7 +36,8 @@ public class ParallelWarehouseAwareDriverPoolingConnectionFactory
             BaseJdbcConfig config,
             JdbcConnectionPoolConfig poolConfig,
             CredentialProvider credentialProvider,
-            IdentityCacheMapping identityCacheMapping)
+            IdentityCacheMapping identityCacheMapping,
+            SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
         super(
                 catalogName,
@@ -43,7 +45,8 @@ public class ParallelWarehouseAwareDriverPoolingConnectionFactory
                 config,
                 poolConfig,
                 credentialProvider,
-                identityCacheMapping);
+                identityCacheMapping,
+                snowflakeCredentialConfig);
     }
 
     @Override

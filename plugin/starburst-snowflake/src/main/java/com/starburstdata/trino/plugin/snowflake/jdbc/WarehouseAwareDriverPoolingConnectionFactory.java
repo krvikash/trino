@@ -13,10 +13,10 @@ import com.google.common.collect.ImmutableMap;
 import com.snowflake.client.jdbc.SnowflakeDriver;
 import com.starburstdata.trino.plugin.jdbc.JdbcConnectionPoolConfig;
 import com.starburstdata.trino.plugin.jdbc.PoolingConnectionFactory;
+import com.starburstdata.trino.plugin.snowflake.SnowflakeCredentialConfig;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.IdentityCacheMapping;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
-import io.trino.plugin.jdbc.credential.DefaultCredentialPropertiesProvider;
 import io.trino.spi.connector.ConnectorSession;
 
 import java.util.Map;
@@ -33,7 +33,8 @@ public class WarehouseAwareDriverPoolingConnectionFactory
             Properties connectionProperties, BaseJdbcConfig config,
             JdbcConnectionPoolConfig poolConfig,
             CredentialProvider credentialProvider,
-            IdentityCacheMapping identityCacheMapping)
+            IdentityCacheMapping identityCacheMapping,
+            SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
         super(
                 catalogName,
@@ -41,7 +42,7 @@ public class WarehouseAwareDriverPoolingConnectionFactory
                 connectionProperties,
                 config,
                 poolConfig,
-                new DefaultCredentialPropertiesProvider(credentialProvider),
+                new SnowflakeCredentialPropertiesProvider(credentialProvider, snowflakeCredentialConfig),
                 identityCacheMapping);
     }
 

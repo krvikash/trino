@@ -20,6 +20,7 @@ import com.google.inject.multibindings.ProvidesIntoOptional;
 import com.starburstdata.trino.plugin.jdbc.JdbcConnectionPoolConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour;
+import com.starburstdata.trino.plugin.snowflake.SnowflakeCredentialConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeProxyConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeSessionProperties;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
@@ -35,6 +36,7 @@ import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.MaxDomainCompactionThreshold;
 import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.SingletonIdentityCacheMapping;
+import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.plugin.jdbc.credential.CredentialProviderModule;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
@@ -99,6 +101,8 @@ public class SnowflakeJdbcClientModule
         configBinder(binder).bindConfig(JdbcConnectionPoolConfig.class);
 
         install(new CredentialProviderModule());
+        configBinder(binder).bindConfig(SnowflakeCredentialConfig.class);
+        binder.bind(CredentialPropertiesProvider.class).to(SnowflakeCredentialPropertiesProvider.class).in(SINGLETON);
 
         install(new ConnectorObjectNameGeneratorModule("com.starburstdata.trino.plugin.snowflake", "starburst.plugin.snowflake"));
 
@@ -159,7 +163,8 @@ public class SnowflakeJdbcClientModule
             CatalogName catalogName,
             JdbcConnectionPoolConfig connectionPoolingConfig,
             IdentityCacheMapping identityCacheMapping,
-            @ForSnowflakeConnectionFactory Properties connectionProperties)
+            @ForSnowflakeConnectionFactory Properties connectionProperties,
+            SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
         return getDriverConnectionFactory(
                 config,
@@ -167,7 +172,8 @@ public class SnowflakeJdbcClientModule
                 catalogName,
                 connectionPoolingConfig,
                 identityCacheMapping,
-                connectionProperties);
+                connectionProperties,
+                snowflakeCredentialConfig);
     }
 
     protected ConnectionFactory getDriverConnectionFactory(
@@ -176,7 +182,8 @@ public class SnowflakeJdbcClientModule
             CatalogName catalogName,
             JdbcConnectionPoolConfig connectionPoolingConfig,
             IdentityCacheMapping identityCacheMapping,
-            Properties connectionProperties)
+            Properties connectionProperties,
+            SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
         if (connectionPoolingConfig.isConnectionPoolEnabled()) {
             return new WarehouseAwareDriverPoolingConnectionFactory(
@@ -185,13 +192,15 @@ public class SnowflakeJdbcClientModule
                     config,
                     connectionPoolingConfig,
                     credentialProvider,
-                    identityCacheMapping);
+                    identityCacheMapping,
+                    snowflakeCredentialConfig);
         }
         return new WarehouseAwareDriverConnectionFactory(
                 new SnowflakeDriver(),
                 config.getConnectionUrl(),
                 connectionProperties,
-                credentialProvider);
+                credentialProvider,
+                snowflakeCredentialConfig);
     }
 
     private static class SnowflakeProxyConnectionPropertiesProvider

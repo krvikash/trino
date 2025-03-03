@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
+import com.starburstdata.trino.plugin.snowflake.SnowflakeCredentialConfig;
 import com.starburstdata.trino.plugin.snowflake.jdbc.WarehouseAwareDriverConnectionFactory;
 import io.airlift.units.DataSize;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
@@ -32,9 +33,10 @@ public class ParallelWarehouseAwareDriverConnectionFactory
             Driver driver,
             String connectionUrl,
             Properties connectionProperties,
-            CredentialProvider credentialProvider)
+            CredentialProvider credentialProvider,
+            SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
-        super(driver, connectionUrl, connectionProperties, credentialProvider);
+        super(driver, connectionUrl, connectionProperties, credentialProvider, snowflakeCredentialConfig);
     }
 
     @Override

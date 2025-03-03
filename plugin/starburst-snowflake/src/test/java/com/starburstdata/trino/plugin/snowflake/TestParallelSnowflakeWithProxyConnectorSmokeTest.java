@@ -30,8 +30,8 @@ public class TestParallelSnowflakeWithProxyConnectorSmokeTest
         extends BaseSnowflakeConnectorSmokeTest
 {
     private static final Logger log = Logger.get(TestParallelSnowflakeWithProxyConnectorSmokeTest.class);
-    private static final String PROXY_USER = "proxyuser";
-    private static final String PROXY_PASSWORD = "proxypassword";
+    protected static final String PROXY_USER = "proxyuser";
+    protected static final String PROXY_PASSWORD = "proxypassword";
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -45,7 +45,7 @@ public class TestParallelSnowflakeWithProxyConnectorSmokeTest
                 .withConnectorProperties(Map.of(
                         "snowflake.proxy.enabled", "true",
                         "snowflake.proxy.host", "localhost",
-                        "snowflake.proxy.port", "8888",
+                        "snowflake.proxy.port", String.valueOf(getPort()),
                         "snowflake.proxy.protocol", "http",
                         "snowflake.proxy.username", PROXY_USER,
                         "snowflake.proxy.password", PROXY_PASSWORD))
@@ -53,10 +53,10 @@ public class TestParallelSnowflakeWithProxyConnectorSmokeTest
                 .build();
     }
 
-    private Closeable createProxyServer()
+    protected Closeable createProxyServer()
     {
         return new CloseableProxyServer(DefaultHttpProxyServer.bootstrap()
-                .withPort(8888)
+                .withPort(getPort())
                 .withTransparent(true)
                 .plusActivityTracker(new ActivityTrackerAdapter()
                 {
@@ -81,6 +81,11 @@ public class TestParallelSnowflakeWithProxyConnectorSmokeTest
                     }
                 })
                 .start());
+    }
+
+    protected int getPort()
+    {
+        return 8888;
     }
 
     @SuppressWarnings("UnusedVariable")

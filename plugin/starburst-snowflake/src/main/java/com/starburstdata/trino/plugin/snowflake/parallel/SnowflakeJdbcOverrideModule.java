@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
 import com.starburstdata.trino.plugin.jdbc.JdbcConnectionPoolConfig;
+import com.starburstdata.trino.plugin.snowflake.SnowflakeCredentialConfig;
 import com.starburstdata.trino.plugin.snowflake.jdbc.SnowflakeJdbcClientModule;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.ConnectionFactory;
@@ -37,7 +38,8 @@ public class SnowflakeJdbcOverrideModule
             CatalogName catalogName,
             JdbcConnectionPoolConfig connectionPoolingConfig,
             IdentityCacheMapping identityCacheMapping,
-            Properties connectionProperties)
+            Properties connectionProperties,
+            SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
         if (connectionPoolingConfig.isConnectionPoolEnabled()) {
             return new ParallelWarehouseAwareDriverPoolingConnectionFactory(
@@ -46,12 +48,14 @@ public class SnowflakeJdbcOverrideModule
                     config,
                     connectionPoolingConfig,
                     credentialProvider,
-                    identityCacheMapping);
+                    identityCacheMapping,
+                    snowflakeCredentialConfig);
         }
         return new ParallelWarehouseAwareDriverConnectionFactory(
                 new SnowflakeDriver(),
                 config.getConnectionUrl(),
                 connectionProperties,
-                credentialProvider);
+                credentialProvider,
+                snowflakeCredentialConfig);
     }
 }
