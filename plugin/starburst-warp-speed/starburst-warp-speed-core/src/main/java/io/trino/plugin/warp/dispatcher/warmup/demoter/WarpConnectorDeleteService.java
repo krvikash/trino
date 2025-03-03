@@ -50,6 +50,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -251,7 +252,10 @@ public class WarpConnectorDeleteService
     @VisibleForTesting
     long deleteRowGroupData(RowGroupData rowGroupData, List<TupleRank> tupleRanksToDelete, DemoteContext demoteContext)
     {
-        List<WarmUpElement> elementsToDelete = tupleRanksToDelete.stream().map(TupleRank::warmUpElement).collect(Collectors.toList());
+        List<WarmUpElement> elementsToDelete = tupleRanksToDelete.stream()
+                .map(TupleRank::warmUpElement)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
         AtomicBoolean delete = new AtomicBoolean(true);
         if (rowGroupData.isEmpty()) {
             logger.debug("empty rowGropData %s", rowGroupData.getRowGroupKey());
