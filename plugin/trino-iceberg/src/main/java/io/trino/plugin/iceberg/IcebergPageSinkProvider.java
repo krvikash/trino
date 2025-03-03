@@ -19,6 +19,7 @@ import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.starburst.ai.client.ModelClientProvider;
 import io.trino.plugin.hive.SortingFileWriterConfig;
+import io.trino.plugin.iceberg.delete.PositionDeleteFiles;
 import io.trino.plugin.iceberg.procedure.IcebergGenerateEmbeddingsHandle;
 import io.trino.plugin.iceberg.procedure.IcebergOptimizeHandle;
 import io.trino.plugin.iceberg.procedure.IcebergTableExecuteHandle;
@@ -35,15 +36,20 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.type.TypeManager;
+import org.apache.iceberg.ContentFileParsers;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.io.LocationProvider;
+import org.apache.iceberg.util.DeleteFileSet;
 
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Maps.transformValues;
 import static io.trino.plugin.iceberg.IcebergUtil.getLocationProvider;
 import static java.util.Objects.requireNonNull;
@@ -176,13 +182,19 @@ public class IcebergPageSinkProvider
         Schema schema = SchemaParser.fromJson(tableHandle.schemaAsJson());
         Map<Integer, PartitionSpec> partitionsSpecs = transformValues(tableHandle.partitionsSpecsAsJson(), json -> PartitionSpecParser.fromJson(schema, json));
         ConnectorPageSink pageSink = createPageSink(session, tableHandle);
+        Map<String, DeleteFileSet> previousDeleteFiles = tableHandle.previousDeleteFiles().stream()
+                .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, file -> DeleteFileSet.of(file.deletes().stream()
+                        .map(delete -> (DeleteFile) ContentFileParsers.fromJson(delete, partitionsSpecs.get(file.partitionSpecId())))
+                        .collect(toImmutableList()))));
 
         return new IcebergMergeSink(
                 locationProvider,
                 fileWriterFactory,
                 fileSystemFactory.create(session.getIdentity(), tableHandle.fileIoProperties()),
+                previousDeleteFiles,
                 jsonCodec,
                 session,
+                tableHandle.formatVersion(),
                 tableHandle.fileFormat(),
                 tableHandle.storageProperties(),
                 schema,
