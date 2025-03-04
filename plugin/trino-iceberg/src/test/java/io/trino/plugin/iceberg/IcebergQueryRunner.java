@@ -175,7 +175,8 @@ public final class IcebergQueryRunner
                     queryRunner.createCatalog("tpcds", "tpcds");
                 }
 
-                if (!icebergProperties.buildOrThrow().containsKey("fs.hadoop.enabled")) {
+                if (icebergProperties.buildOrThrow().keySet().stream().noneMatch(key ->
+                        key.equals("fs.hadoop.enabled") || key.startsWith("fs.native-"))) {
                     icebergProperties.put("fs.hadoop.enabled", "true");
                 }
 
@@ -338,7 +339,6 @@ public final class IcebergQueryRunner
                     .setIcebergProperties(Map.of(
                             "iceberg.catalog.type", "HIVE_METASTORE",
                             "hive.metastore.uri", hiveMinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString(),
-                            "fs.hadoop.enabled", "false",
                             "fs.native-s3.enabled", "true",
                             "s3.aws-access-key", MINIO_ACCESS_KEY,
                             "s3.aws-secret-key", MINIO_SECRET_KEY,
@@ -380,7 +380,6 @@ public final class IcebergQueryRunner
                     .setIcebergProperties(Map.of(
                             "iceberg.catalog.type", "TESTING_FILE_METASTORE",
                             "hive.metastore.catalog.dir", "s3://%s/".formatted(bucketName),
-                            "fs.hadoop.enabled", "false",
                             "fs.native-s3.enabled", "true",
                             "s3.aws-access-key", MINIO_ACCESS_KEY,
                             "s3.aws-secret-key", MINIO_SECRET_KEY,
@@ -433,7 +432,6 @@ public final class IcebergQueryRunner
                     .setIcebergProperties(Map.of(
                             "iceberg.catalog.type", "HIVE_METASTORE",
                             "hive.metastore.uri", hiveHadoop.getHiveMetastoreEndpoint().toString(),
-                            "fs.hadoop.enabled", "false",
                             "fs.native-azure.enabled", "true",
                             "azure.auth-type", "ACCESS_KEY",
                             "azure.access-key", azureAccessKey))
