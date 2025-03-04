@@ -78,6 +78,7 @@ import io.trino.plugin.warp.metrics.MetricsModule;
 import io.trino.plugin.warp.metrics.MetricsTimerTask;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectTxService;
@@ -156,7 +157,7 @@ public class DispatcherCacheManagerModule
         binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(warpCacheMgrConnectorContext, config)));
         binder.install(CloudVendorModule.getModule(warpCacheMgrConnectorContext, ForWarp.class, cacheManagerName, config));
 
-        binder.bind(ShapingLoggerFactory.class);
+        binder.bind(ShapingLoggerFactory.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().shapingLoggerFactory());
         binder.bind(AttachDictionaryService.class);
         binder.bind(BlockAppenderFactory.class);
         binder.bind(BlockFillersFactory.class);
@@ -175,6 +176,7 @@ public class DispatcherCacheManagerModule
         binder.bind(FlowsSequencer.class);
         binder.bind(LazyCollectTxService.class);
         binder.bind(LazyCollectorService.class);
+        binder.bind(NativeLogger.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().nativeLogger());
         binder.bind(MatchCollectIdService.class);
         binder.bind(MatchService.class);
         binder.bind(PredicateContextFactory.class);

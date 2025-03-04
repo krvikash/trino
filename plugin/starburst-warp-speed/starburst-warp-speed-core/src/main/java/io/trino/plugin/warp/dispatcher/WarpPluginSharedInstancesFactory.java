@@ -22,6 +22,8 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.di.WarpSharedInstancesModule;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 import io.trino.spi.NodeManager;
 
 import java.util.Collections;
@@ -56,7 +58,9 @@ public class WarpPluginSharedInstancesFactory
             sharedInstances = new WarpPluginSharedInstances(
                     injector.getInstance(SharedConfig.class),
                     injector.getInstance(NativeConfig.class),
-                    injector.getInstance(DemoterSync.class));
+                    injector.getInstance(DemoterSync.class),
+                    injector.getInstance(ShapingLoggerFactory.class),
+                    injector.getInstance(NativeLogger.class));
         }
         else {
             ConfigurationFactory configFactory = new ConfigurationFactory(warpConfig);

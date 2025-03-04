@@ -34,6 +34,7 @@ import static java.util.Objects.requireNonNull;
 public class ShapingLogger
 {
     public static final String QUERY_ID_LOCAL_PROPERTY = "QUERY_ID";
+    public static final String CATALOG_NAME_LOCAL_PROPERTY = "CATALOG_NAME";
     private static final String CATALOG_FORMAT = "catalog[%s]: ";
     private static final String QUERY_FORMAT = CATALOG_FORMAT + "queryId[%s]: ";
     private static final String FORMAT = "%s - skipped %d times";
@@ -192,9 +193,11 @@ public class ShapingLogger
     private Object[] appendProperties(Object... args)
     {
         String queryId = MDC.get(QUERY_ID_LOCAL_PROPERTY);
+        String threadCatalog = MDC.get(CATALOG_NAME_LOCAL_PROPERTY);
+
         int additionalArgs = queryId != null ? 2 : 1;
         Object[] newArgs = new Object[args.length + additionalArgs];
-        newArgs[0] = catalog;
+        newArgs[0] = threadCatalog != null ? threadCatalog : catalog;
         if (queryId != null) {
             newArgs[1] = queryId;
         }

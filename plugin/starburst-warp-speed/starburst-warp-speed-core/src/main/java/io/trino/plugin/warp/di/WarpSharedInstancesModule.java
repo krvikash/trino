@@ -17,6 +17,9 @@ import com.google.inject.Binder;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
+import io.trino.spi.catalog.CatalogName;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
@@ -30,5 +33,8 @@ public class WarpSharedInstancesModule
         configBinder(binder).bindConfig(NativeConfig.class);
 
         binder.bind(DemoterSync.class);
+        binder.bind(ShapingLoggerFactory.class);
+        binder.bind(NativeLogger.class);
+        binder.bind(CatalogName.class).toInstance(new CatalogName("SharedDummyCatalog"));
     }
 }

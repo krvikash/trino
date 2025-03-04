@@ -16,10 +16,14 @@ package io.trino.plugin.warp.dispatcher;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 
 public record WarpPluginSharedInstances(
         SharedConfig sharedConfig,
         NativeConfig nativeConfig,
-        DemoterSync demoterSync)
+        DemoterSync demoterSync,
+        ShapingLoggerFactory shapingLoggerFactory,
+        NativeLogger nativeLogger)
 {
 }

@@ -22,6 +22,7 @@ import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageEngine;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.catalog.CatalogName;
@@ -39,6 +40,7 @@ public class WorkerStorageEngineProvider
     private final ConnectorSync connectorSync;
     private final CatalogName catalogName;
     private final ExceptionThrower exceptionThrower;
+    private final NativeLogger nativeLogger;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
     private final ShapingLoggerFactory shapingLoggerFactory;
 
@@ -51,6 +53,7 @@ public class WorkerStorageEngineProvider
             ConnectorSync connectorSync,
             CatalogName catalogName,
             ExceptionThrower exceptionThrower,
+            NativeLogger nativeLogger,
             FailureGeneratorInvocationHandler failureGeneratorInvocationHandler,
             ShapingLoggerFactory shapingLoggerFactory)
     {
@@ -59,6 +62,7 @@ public class WorkerStorageEngineProvider
         this.connectorSync = requireNonNull(connectorSync);
         this.catalogName = requireNonNull(catalogName);
         this.exceptionThrower = requireNonNull(exceptionThrower);
+        this.nativeLogger = requireNonNull(nativeLogger);
         this.failureGeneratorInvocationHandler = requireNonNull(failureGeneratorInvocationHandler);
         this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
     }
@@ -71,6 +75,7 @@ public class WorkerStorageEngineProvider
                     sharedConfig,
                     nativeConfig,
                     exceptionThrower,
+                    nativeLogger,
                     connectorSync,
                     catalogName,
                     shapingLoggerFactory);
