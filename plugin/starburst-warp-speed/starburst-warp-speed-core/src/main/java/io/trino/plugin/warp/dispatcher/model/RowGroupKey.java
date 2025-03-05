@@ -14,31 +14,47 @@
 package io.trino.plugin.warp.dispatcher.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.tools.util.PathUtils;
 import io.trino.plugin.warp.tools.util.StringUtils;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.StringJoiner;
 
-public record RowGroupKey(
-        @JsonProperty("schema_name") String schema,
-        @JsonProperty("table_name") String table,
-        @JsonProperty("file_path") String filePath,
-        @JsonProperty("file_offset") long offset,
-        @JsonProperty("length") long length,
-        @JsonProperty("file_modified_time") long fileModifiedTime,
-        @JsonProperty("deleted_files_hash") String deletedFilesHash,
-        @JsonProperty("catalog_name") String catalogName)
+public final class RowGroupKey
         implements Serializable
 {
     // how many slashes to skip in file name to reach the file path and offset/length/file-modification-time part
     public static final int FILE_NAME_START_OF_FILE_NAME = 6;
+    @Serial private static final long serialVersionUID = 0L;
+    @JsonProperty("schema_name") private final String schema;
+    @JsonProperty("table_name") private final String table;
+    @JsonProperty("file_path") private final String filePath;
+    @JsonProperty("file_offset") private final long offset;
+    @JsonProperty("length") private final long length;
+    @JsonProperty("file_modified_time") private final long fileModifiedTime;
+    @JsonProperty("deleted_files_hash") private final String deletedFilesHash;
+    @JsonProperty("catalog_name") private final String catalogName;
+
+    @JsonIgnore
+    private int hashCode;
 
     @JsonCreator
-    public RowGroupKey {}
+    public RowGroupKey(@JsonProperty("schema_name") String schema, @JsonProperty("table_name") String table, @JsonProperty("file_path") String filePath, @JsonProperty("file_offset") long offset, @JsonProperty("length") long length, @JsonProperty("file_modified_time") long fileModifiedTime, @JsonProperty("deleted_files_hash") String deletedFilesHash, @JsonProperty("catalog_name") String catalogName)
+    {
+        this.schema = schema;
+        this.table = table;
+        this.filePath = filePath;
+        this.offset = offset;
+        this.length = length;
+        this.fileModifiedTime = fileModifiedTime;
+        this.deletedFilesHash = deletedFilesHash;
+        this.catalogName = catalogName;
+    }
 
     @Override
     public String toString()
@@ -88,7 +104,10 @@ public record RowGroupKey(
     @Override
     public int hashCode()
     {
-        return Objects.hash(schema, table, getFilePathWithoutPrefix(), offset, length, fileModifiedTime, deletedFilesHash, catalogName);
+        if (hashCode == 0) {
+            hashCode = Objects.hash(schema, table, getFilePathWithoutPrefix(), offset, length, fileModifiedTime, deletedFilesHash, catalogName);
+        }
+        return hashCode;
     }
 
     private String getFilePathWithoutPrefix()
@@ -98,5 +117,53 @@ public record RowGroupKey(
             filePathWithoutPrefix = filePathWithoutPrefix.substring(filePathWithoutPrefix.indexOf("//") + "//".length());
         }
         return filePathWithoutPrefix.replaceAll("\\s+", "_"); // in UNIX file system a file name can't contain spaces
+    }
+
+    @JsonProperty("schema_name")
+    public String schema()
+    {
+        return schema;
+    }
+
+    @JsonProperty("table_name")
+    public String table()
+    {
+        return table;
+    }
+
+    @JsonProperty("file_path")
+    public String filePath()
+    {
+        return filePath;
+    }
+
+    @JsonProperty("file_offset")
+    public long offset()
+    {
+        return offset;
+    }
+
+    @JsonProperty("length")
+    public long length()
+    {
+        return length;
+    }
+
+    @JsonProperty("file_modified_time")
+    public long fileModifiedTime()
+    {
+        return fileModifiedTime;
+    }
+
+    @JsonProperty("deleted_files_hash")
+    public String deletedFilesHash()
+    {
+        return deletedFilesHash;
+    }
+
+    @JsonProperty("catalog_name")
+    public String catalogName()
+    {
+        return catalogName;
     }
 }
