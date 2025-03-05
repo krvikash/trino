@@ -18,7 +18,9 @@ import dev.failsafe.RetryPolicy;
 import dev.failsafe.function.CheckedSupplier;
 import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
+import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
+import io.trino.filesystem.s3.S3SseCustomerKey;
 import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorageService;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -42,6 +44,9 @@ import static io.trino.plugin.warp.cloudstorage.s3.S3Utils.getAwsServiceExceptio
 import static io.trino.plugin.warp.cloudstorage.s3.S3Utils.handleAwsException;
 import static java.util.Objects.requireNonNull;
 import static software.amazon.awssdk.services.s3.model.ServerSideEncryption.AES256;
+import static software.amazon.awssdk.services.s3.model.ServerSideEncryption.AWS_KMS;
+import static software.amazon.awssdk.utils.BinaryUtils.fromBase64;
+import static software.amazon.awssdk.utils.Md5Utils.md5AsBase64;
 
 public class S3CloudStorage
         extends CloudStorageService
@@ -50,12 +55,14 @@ public class S3CloudStorage
 
     private final S3AsyncClient client;
     private final S3TransferManager transferManager;
+    private final S3FileSystemConfig config;
 
-    public S3CloudStorage(S3FileSystemFactory fileSystemFactory, S3AsyncClient client)
+    public S3CloudStorage(S3FileSystemFactory fileSystemFactory, S3AsyncClient client, S3FileSystemConfig config)
     {
         super(fileSystemFactory);
         this.client = requireNonNull(client, "client is null");
         this.transferManager = S3TransferManager.builder().s3Client(client).build();
+        this.config = config;
     }
 
     @Override
@@ -69,7 +76,19 @@ public class S3CloudStorage
         UploadFileRequest request = UploadFileRequest.builder()
                 .putObjectRequest(req -> req.bucket(s3Location.bucket())
                         .key(s3Location.key())
-                        .serverSideEncryption(AES256))
+                .applyMutation(builder -> {
+                    switch (config.getSseType()) {
+                        case NONE -> { /* ignored */ }
+                        case KMS -> builder.serverSideEncryption(AWS_KMS).ssekmsKeyId(config.getSseKmsKeyId());
+                        case CUSTOMER -> {
+                            S3SseCustomerKey aes256 = new S3SseCustomerKey(config.getSseCustomerKey(), md5AsBase64(fromBase64(config.getSseCustomerKey())), "AES256");
+                            builder.sseCustomerAlgorithm(aes256.algorithm())
+                                    .sseCustomerKey(aes256.key())
+                                    .sseCustomerKeyMD5(aes256.md5());
+                        }
+                        default -> builder.serverSideEncryption(AES256);
+                    }
+                }))
                 .source(new File(source.toString()))
                 .build();
 
@@ -125,7 +144,19 @@ public class S3CloudStorage
                         .sourceKey(sourceLocation.key())
                         .destinationBucket(targetLocation.bucket())
                         .destinationKey(targetLocation.key())
-                        .serverSideEncryption(AES256))
+                        .applyMutation(builder -> {
+                            switch (config.getSseType()) {
+                                case NONE -> { /* ignored */ }
+                                case KMS -> builder.serverSideEncryption(AWS_KMS).ssekmsKeyId(config.getSseKmsKeyId());
+                                case CUSTOMER -> {
+                                    S3SseCustomerKey aes256 = new S3SseCustomerKey(config.getSseCustomerKey(), md5AsBase64(fromBase64(config.getSseCustomerKey())), "AES256");
+                                    builder.sseCustomerAlgorithm(aes256.algorithm())
+                                            .sseCustomerKey(aes256.key())
+                                            .sseCustomerKeyMD5(aes256.md5());
+                                }
+                                default -> builder.serverSideEncryption(AES256);
+                            }
+                        }))
                 .build();
 
         try {
@@ -148,7 +179,7 @@ public class S3CloudStorage
         validateS3Location(source);
         validateS3Location(destination);
 
-        try (S3AsyncOutput output = new S3AsyncOutput(client, source, destination, metadata)) {
+        try (S3AsyncOutput output = new S3AsyncOutput(client, source, destination, metadata, config)) {
             output.writeTail(position, tailBuffer);
             return true;
         }

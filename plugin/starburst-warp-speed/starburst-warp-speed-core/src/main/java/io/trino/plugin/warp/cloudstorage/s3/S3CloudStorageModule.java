@@ -83,7 +83,7 @@ public class S3CloudStorageModule
     {
         S3FileSystemFactory s3FileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         S3AsyncClient client = createS3AsyncClient(config);
-        return new S3CloudStorage(s3FileSystemFactory, client);
+        return new S3CloudStorage(s3FileSystemFactory, client, config);
     }
 
     private S3AsyncClient createS3AsyncClient(S3FileSystemConfig config)

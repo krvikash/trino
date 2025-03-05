@@ -14,6 +14,8 @@
 package io.trino.plugin.warp.cloudstorage.s3;
 
 import io.trino.filesystem.Location;
+import io.trino.filesystem.s3.S3FileSystemConfig;
+import io.trino.filesystem.s3.S3SseCustomerKey;
 import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -38,6 +40,9 @@ import static java.lang.Math.min;
 import static java.util.Objects.checkFromIndexSize;
 import static java.util.Objects.requireNonNull;
 import static software.amazon.awssdk.services.s3.model.ServerSideEncryption.AES256;
+import static software.amazon.awssdk.services.s3.model.ServerSideEncryption.AWS_KMS;
+import static software.amazon.awssdk.utils.BinaryUtils.fromBase64;
+import static software.amazon.awssdk.utils.Md5Utils.md5AsBase64;
 
 final class S3AsyncOutput
         implements Closeable
@@ -49,6 +54,7 @@ final class S3AsyncOutput
     private final S3Location source;
     private final S3Location destination;
     private final CloudObjectMetadata metadata;
+    private final S3FileSystemConfig config;
 
     private boolean closed;
     private boolean failed;
@@ -56,7 +62,7 @@ final class S3AsyncOutput
     private int partNumber;
     private final List<CompletedPart> parts = new ArrayList<>();
 
-    public S3AsyncOutput(S3AsyncClient client, Location source, Location destination, CloudObjectMetadata metadata)
+    public S3AsyncOutput(S3AsyncClient client, Location source, Location destination, CloudObjectMetadata metadata, S3FileSystemConfig config)
     {
         this.client = requireNonNull(client, "client is null");
         source.verifyValidFileLocation();
@@ -64,6 +70,7 @@ final class S3AsyncOutput
         destination.verifyValidFileLocation();
         this.destination = new S3Location(destination);
         this.metadata = metadata;
+        this.config = config;
     }
 
     public void writeTail(long position, byte[] buffer)
@@ -109,7 +116,19 @@ final class S3AsyncOutput
         CreateMultipartUploadRequest request = CreateMultipartUploadRequest.builder()
                 .bucket(destination.bucket())
                 .key(destination.key())
-                .serverSideEncryption(AES256)
+                .applyMutation(builder -> {
+                    switch (config.getSseType()) {
+                        case NONE -> { /* ignored */ }
+                        case KMS -> builder.serverSideEncryption(AWS_KMS).ssekmsKeyId(config.getSseKmsKeyId());
+                        case CUSTOMER -> {
+                            S3SseCustomerKey aes256 = new S3SseCustomerKey(config.getSseCustomerKey(), md5AsBase64(fromBase64(config.getSseCustomerKey())), "AES256");
+                            builder.sseCustomerAlgorithm(aes256.algorithm())
+                                    .sseCustomerKey(aes256.key())
+                                    .sseCustomerKeyMD5(aes256.md5());
+                        }
+                        default -> builder.serverSideEncryption(AES256);
+                    }
+                })
                 .build();
 
         try {
