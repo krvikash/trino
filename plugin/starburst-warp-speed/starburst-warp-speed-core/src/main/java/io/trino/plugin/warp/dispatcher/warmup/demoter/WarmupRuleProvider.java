@@ -16,6 +16,7 @@ package io.trino.plugin.warp.dispatcher.warmup.demoter;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,7 +33,7 @@ public class WarmupRuleProvider
         this.optionalWarmupRuleService = requireNonNull(optionalWarmupRuleService);
     }
 
-    public List<WarmupRule> getAll()
+    public Collection<WarmupRule> getAll()
     {
         return optionalWarmupRuleService.map(WarmupRuleService::getAll).orElse(List.of());
     }

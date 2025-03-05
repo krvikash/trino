@@ -49,6 +49,7 @@ import io.trino.type.JsonType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -110,7 +111,7 @@ public class WarmupRuleServiceTest
                 .appliedRules()
                 .getFirst();
 
-        List<WarmupRule> allRules = warmupRuleService.getAll();
+        Collection<WarmupRule> allRules = warmupRuleService.getAll();
         assertThat(allRules).containsExactly(warmupRule);
 
         warmupRuleService.delete(allRules.stream().map(WarmupRule::getId).collect(Collectors.toList()));

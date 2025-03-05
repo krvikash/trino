@@ -67,6 +67,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -952,7 +953,7 @@ public class WorkerWarmingServiceTest
             RowGroupData rowGroupData,
             WarmupDemoterService warmupDemoterService,
             DefaultWarmingTestState defaultWarmingTestState,
-            List<WarmupRule> warmupRules,
+            Collection<WarmupRule> warmupRules,
             QueryContext queryContext,
             int batchSize)
     {

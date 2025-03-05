@@ -39,6 +39,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +85,7 @@ public class WorkerWarmupTask
     //@ApiOperation(value = "get", nickname = "workerWarmupGet", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public WarmupRulesUsageData get()
     {
-        List<WarmupRule> warmupRules = warmupRuleProvider.getAll();
+        Collection<WarmupRule> warmupRules = warmupRuleProvider.getAll();
         Map<Integer, AtomicLong> warmupIdUsageMap = new HashMap<>();
         Map<WarmUpType, AtomicLong> defaultRulesMap = new HashMap<>();
 
@@ -123,7 +124,7 @@ public class WorkerWarmupTask
                 .toList();
     }
 
-    private void getRowGroupDataUsage(List<WarmupRule> warmupRules, Map<Integer, AtomicLong> warmupIdUsageMap, Map<WarmUpType, AtomicLong> defaultRulesMap)
+    private void getRowGroupDataUsage(Collection<WarmupRule> warmupRules, Map<Integer, AtomicLong> warmupIdUsageMap, Map<WarmUpType, AtomicLong> defaultRulesMap)
     {
         List<RowGroupData> rowGroupDataList = rowGroupDataService.getAll();
         Map<SchemaTableColumn, List<WarmupRule>> schemaTableColumnToRulesMap = warmupRules.stream()
@@ -134,7 +135,7 @@ public class WorkerWarmupTask
                         new SchemaTableName(rowGroupData.getRowGroupKey().schema(), rowGroupData.getRowGroupKey().table()), warmUpElement.getWarpColumn());
 
                 Optional<WarmupRule> optionalWarmupRule = WarmUtils.findMostRelevantRuleForWarmupElement(rowGroupData,
-                                                                                                         warmUpElement, schemaTableColumnToRulesMap.get(schemaTableColumn));
+                        warmUpElement, schemaTableColumnToRulesMap.get(schemaTableColumn));
                 long sizeInBytes = 0;
                 optionalWarmupRule.ifPresentOrElse(warmupRule -> {
                     AtomicLong currentUsage = warmupIdUsageMap.computeIfAbsent(warmupRule.getId(), key -> new AtomicLong(0));

@@ -46,6 +46,7 @@ import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -123,7 +124,7 @@ public class WarpConnectorDeleteService
     {
         Instant now = Instant.now();
         List<RowGroupData> rowGroupDataList = rowGroupDataService.getAll();
-        List<WarmupRule> warmupRules = warmupRuleProvider.getAll();
+        Collection<WarmupRule> warmupRules = warmupRuleProvider.getAll();
         Map<SchemaTableColumn, List<WarmupRule>> schemaTableColumnToRulesMap = warmupRules.stream()
                 .collect(groupingBy(warmupRule -> new SchemaTableColumn(
                         new SchemaTableName(warmupRule.getSchema(), warmupRule.getTable()),

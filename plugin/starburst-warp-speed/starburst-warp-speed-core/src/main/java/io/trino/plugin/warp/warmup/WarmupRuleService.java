@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp.warmup;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -83,7 +83,7 @@ public class WarmupRuleService
     private final FakeConnectorSessionProvider fakeConnectorSessionProvider;
     private final GlobalConfig globalConfig;
 
-    private final Map<Integer, WarmupRule> cache;
+    private ImmutableMap<Integer, WarmupRule> cache;
     protected final ReadWriteLock readWriteLock;
 
     @Inject
@@ -101,15 +101,17 @@ public class WarmupRuleService
         this.fakeConnectorSessionProvider = requireNonNull(fakeConnectorSessionProvider);
         this.globalConfig = requireNonNull(globalConfig);
 
-        cache = new HashMap<>();
+        ImmutableMap.Builder<Integer, WarmupRule> builder = ImmutableMap.builder();
+        cache = builder.buildOrThrow();
+
         readWriteLock = new ReentrantReadWriteLock();
     }
 
-    public List<WarmupRule> getAll()
+    public Collection<WarmupRule> getAll()
     {
         readWriteLock.readLock().lock();
         try {
-            return ImmutableList.copyOf(cache.values());
+            return cache.values();
         }
         finally {
             readWriteLock.readLock().unlock();
@@ -119,8 +121,15 @@ public class WarmupRuleService
     public void delete(List<Integer> ids)
     {
         readWriteLock.writeLock().lock();
+
         try {
-            ids.forEach(cache::remove);
+            ImmutableMap.Builder<Integer, WarmupRule> builder = ImmutableMap.builder();
+
+            //add the rest
+            Map<Integer, WarmupRule> tmpMap = new HashMap<>(cache);
+            ids.forEach(tmpMap::remove);
+            builder.putAll(tmpMap);
+            cache = builder.buildOrThrow();
         }
         catch (Exception e) {
             logger.error("failed to delete new rules ids=%s.", ids);
@@ -141,7 +150,7 @@ public class WarmupRuleService
             WarmupRuleResult warmupRuleResult = validate(getAll(), newWarmupRules);
             List<WarmupRule> appliedRules = List.of();
             if (!warmupRuleResult.appliedRules().isEmpty()) {
-                appliedRules = internalSave(warmupRuleResult.appliedRules());
+                appliedRules = internalSave(warmupRuleResult.appliedRules(), false);
             }
             return new WarmupRuleResult(appliedRules, warmupRuleResult.rejectedRules());
         }
@@ -165,8 +174,7 @@ public class WarmupRuleService
         try {
             List<WarmupRule> appliedRules = List.of();
             if (!warmupRuleResult.appliedRules().isEmpty() || newWarmupRules.isEmpty()) {
-                cache.clear();
-                appliedRules = internalSave(warmupRuleResult.appliedRules());
+                appliedRules = internalSave(warmupRuleResult.appliedRules(), true);
             }
             return new WarmupRuleResult(appliedRules, warmupRuleResult.rejectedRules());
         }
@@ -405,16 +413,28 @@ public class WarmupRuleService
         return warmupRule.getId() == 0;
     }
 
-    private List<WarmupRule> internalSave(List<WarmupRule> appliedRules)
+    private List<WarmupRule> internalSave(Collection<WarmupRule> appliedRules, boolean replace)
     {
         List<WarmupRule> actualAppliedRules = new ArrayList<>();
+        ImmutableMap.Builder<Integer, WarmupRule> builder = ImmutableMap.builder();
+
         appliedRules.forEach(warmupRule -> {
             if (isNew(warmupRule)) {
                 warmupRule = WarmupRule.builder(warmupRule).id(idGen.getAndIncrement()).build();
             }
-            cache.put(warmupRule.getId(), warmupRule);
+            builder.put(warmupRule.getId(), warmupRule);
             actualAppliedRules.add(warmupRule);
         });
+        //add the rest
+        if (!replace) {
+            Map<Integer, WarmupRule> tmpMap = new HashMap<>(cache);
+            appliedRules
+                    .forEach(warmupRule -> tmpMap.remove(warmupRule.getId()));
+            builder.putAll(tmpMap);
+        }
+
+        cache = builder.buildOrThrow();
+
         return actualAppliedRules;
     }
 }

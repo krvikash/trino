@@ -735,7 +735,7 @@ public class WorkerWarmingService
     @VisibleForTesting
     List<WarmupRule> getWarmupRules(SchemaTableName schemaTableName)
     {
-        List<WarmupRule> warmupRuleList = warmupRuleService.getAll();
+        Collection<WarmupRule> warmupRuleList = warmupRuleService.getAll();
         if (!initialized.get()) {
             if (warmupRuleList.isEmpty()) {
                 eventBus.post(new WarmRulesChangedEvent());
