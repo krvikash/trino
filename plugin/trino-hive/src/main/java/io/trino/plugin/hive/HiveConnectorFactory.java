@@ -102,7 +102,7 @@ public class HiveConnectorFactory
                     new JsonModule(),
                     new TypeDeserializerModule(context.getTypeManager()),
                     new HiveModule(),
-                    new HiveMetastoreModule(metastore),
+                    new HiveMetastoreModule(metastore, true),
                     new HiveSecurityModule(),
                     fileSystemFactory
                             .map(factory -> (Module) binder -> binder.bind(TrinoFileSystemFactory.class).toInstance(factory))

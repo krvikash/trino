@@ -54,6 +54,7 @@ import static io.trino.plugin.tpch.DecimalTypeMapping.DOUBLE;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.spi.security.SelectedRole.Type.ROLE;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
+import static io.trino.testing.TestingProperties.requiredNonEmptySystemProperty;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.lang.String.format;
 import static java.nio.file.Files.createDirectories;
@@ -440,6 +441,47 @@ public final class HiveQueryRunner
                     .build();
 
             Logger log = Logger.get(HiveGlueQueryRunnerMain.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static final class HiveS3UnityQueryRunnerMain
+    {
+        private HiveS3UnityQueryRunnerMain() {}
+
+        public static void main(String[] args)
+                throws Exception
+        {
+            String unityHost = requiredNonEmptySystemProperty("testing.hive.metastore.unity.host");
+            String unityToken = requiredNonEmptySystemProperty("testing.hive.metastore.unity.token");
+            String unityCatalog = requiredNonEmptySystemProperty("testing.hive.metastore.unity.catalog");
+            String unityCatalogSchema = requiredNonEmptySystemProperty("testing.unity.schema");
+
+            String s3Region = requiredNonEmptySystemProperty("testing.s3.region");
+            String accessKeyId = requiredNonEmptySystemProperty("testing.s3.aws-access-key");
+            String secretAccessKey = requiredNonEmptySystemProperty("testing.s3.aws-secret-key");
+
+            DistributedQueryRunner queryRunner = HiveQueryRunner.builder(testSessionBuilder()
+                            .setCatalog(HIVE_CATALOG)
+                            .setSchema(unityCatalogSchema)
+                            .build())
+                    .addCoordinatorProperty("http-server.http.port", "8080")
+                    .addHiveProperty("hive.metastore", "unity")
+                    .addHiveProperty("hive.metastore.unity.host", unityHost)
+                    .addHiveProperty("hive.metastore.unity.token", unityToken)
+                    .addHiveProperty("hive.metastore.unity.catalog-name", unityCatalog)
+                    .addHiveProperty("hive.security", "read-only")
+                    .addHiveProperty("fs.hadoop.enabled", "false")
+                    .addHiveProperty("fs.native-s3.enabled", "true")
+                    .addHiveProperty("s3.region", s3Region)
+                    .addHiveProperty("s3.aws-access-key", accessKeyId)
+                    .addHiveProperty("s3.aws-secret-key", secretAccessKey)
+                    .setCreateTpchSchemas(false)
+                    .setSkipTimezoneSetup(true)
+                    .build();
+
+            Logger log = Logger.get(HiveS3UnityQueryRunnerMain.class);
             log.info("======== SERVER STARTED ========");
             log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
         }

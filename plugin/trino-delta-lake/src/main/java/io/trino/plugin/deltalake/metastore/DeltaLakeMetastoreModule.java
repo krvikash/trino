@@ -33,6 +33,7 @@ public class DeltaLakeMetastoreModule
             case FILE -> new DeltaLakeFileMetastoreModule();
             case GLUE -> new DeltaLakeGlueMetastoreModule();
             case GLUE_V1 -> new DeltaLakeGlueV1MetastoreModule();
+            case UNITY -> throw new UnsupportedOperationException("Unity metastore is not supported");
         });
 
         install(new CachingHiveMetastoreModule());

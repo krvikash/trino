@@ -23,6 +23,7 @@ import io.trino.plugin.hive.AllowHiveTableRename;
 import io.trino.plugin.hive.metastore.file.FileMetastoreModule;
 import io.trino.plugin.hive.metastore.glue.GlueMetastoreModule;
 import io.trino.plugin.hive.metastore.thrift.ThriftMetastoreModule;
+import io.trino.plugin.hive.metastore.unity.UnityMetastoreModule;
 
 import java.util.Optional;
 
@@ -30,10 +31,12 @@ public class HiveMetastoreModule
         extends AbstractConfigurationAwareModule
 {
     private final Optional<HiveMetastore> metastore;
+    private final boolean isConfiguredWithHive;
 
-    public HiveMetastoreModule(Optional<HiveMetastore> metastore)
+    public HiveMetastoreModule(Optional<HiveMetastore> metastore, boolean isConfiguredWithHive)
     {
         this.metastore = metastore;
+        this.isConfiguredWithHive = isConfiguredWithHive;
     }
 
     @Override
@@ -49,6 +52,7 @@ public class HiveMetastoreModule
                 case FILE -> new FileMetastoreModule();
                 case GLUE -> new GlueMetastoreModule();
                 case GLUE_V1 -> new io.trino.plugin.hive.metastore.glue.v1.GlueMetastoreModule();
+                case UNITY -> new UnityMetastoreModule(isConfiguredWithHive);
             });
         }
 
