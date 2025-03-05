@@ -27,7 +27,7 @@ import static io.trino.tempto.assertions.QueryAssert.Row.row;
 import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static io.trino.tests.product.TestGroups.DATABRICKS_UNITY_HTTP_HMS;
+import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY_HTTP_HMS;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_ISSUE;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_MATCH;
@@ -58,7 +58,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         onDelta().executeQuery(format("DROP SCHEMA IF EXISTS %s.%s CASCADE", unityCatalogName, schemaName));
     }
 
-    @Test(groups = {DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testBasicTableReadWrite()
     {
@@ -125,7 +125,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
      * verifies that if a managed table is created using Databricks delta lake, Trino which connects
      * to Unity Catalog's HMS endpoint doesn't see it.
      */
-    @Test(groups = {DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testManagedTable()
     {
@@ -138,7 +138,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName)).hasNoRows();
     }
 
-    @Test(groups = {DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testColumnTypes()
     {
@@ -189,7 +189,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                     row("struct_col", "row(a bigint, b varchar)", "", ""));
     }
 
-    @Test(groups = {DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testUnsupportedStatements()
     {
