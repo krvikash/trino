@@ -36,7 +36,10 @@ public class TestVarcharPrecision
     {
         server = closeAfterClass(new TestingDynamoDbServer());
 
-        return DynamoDbQueryRunner.builder(server.getEndpointUrl(), server.getSchemaDirectory())
+        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                .setEndpointUrl(server.getEndpointUrl())
+                .setAwsSecretKey("secretkey")
+                .setAwsAccessKey("accesskey")
                 .setTables(List.of()) // None of the tpch tables are required in the tests of this class.
                 .addConnectorProperties(
                         Map.of("dynamodb.generate-schema-files", "ON_START", // Set it to the same value as that of set in Galaxy config.

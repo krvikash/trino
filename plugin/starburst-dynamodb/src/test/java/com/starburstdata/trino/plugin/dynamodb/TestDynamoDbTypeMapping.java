@@ -66,6 +66,8 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 public class TestDynamoDbTypeMapping
         extends AbstractTestQueryFramework
 {
+    public static final String AWS_ACCESS_KEY = "accesskey";
+    public static final String AWS_SECRET_KEY = "secretkey";
     private DynamoDbConfig dynamoDbConfig;
 
     @Override
@@ -75,13 +77,16 @@ public class TestDynamoDbTypeMapping
         TestingDynamoDbServer server = closeAfterClass(new TestingDynamoDbServer());
 
         dynamoDbConfig = new DynamoDbConfig()
-                .setAwsAccessKey("accesskey")
-                .setAwsSecretKey("secretkey")
+                .setAwsAccessKey(AWS_ACCESS_KEY)
+                .setAwsSecretKey(AWS_SECRET_KEY)
                 .setAwsRegion("us-east-2")
                 .setEndpointUrl(server.getEndpointUrl())
                 .setSchemaDirectory(server.getSchemaDirectory().getAbsolutePath());
 
-        return DynamoDbQueryRunner.builder(server.getEndpointUrl(), server.getSchemaDirectory())
+        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                .setEndpointUrl(server.getEndpointUrl())
+                .setAwsAccessKey(AWS_ACCESS_KEY)
+                .setAwsSecretKey(AWS_SECRET_KEY)
                 .setTables(ImmutableList.of())
                 .setFirstColumnAsPrimaryKeyEnabled(true)
                 .enableWrites()

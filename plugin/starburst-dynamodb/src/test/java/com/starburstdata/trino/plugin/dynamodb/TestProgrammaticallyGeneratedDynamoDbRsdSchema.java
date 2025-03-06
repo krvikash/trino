@@ -41,7 +41,10 @@ public class TestProgrammaticallyGeneratedDynamoDbRsdSchema
     {
         TestingDynamoDbServer server = closeAfterClass(new TestingDynamoDbServer());
         this.actualSchemasDirectory = server.getSchemaDirectory().getAbsolutePath();
-        return DynamoDbQueryRunner.builder(server.getEndpointUrl(), server.getSchemaDirectory())
+        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                .setEndpointUrl(server.getEndpointUrl())
+                .setAwsAccessKey("accessKey")
+                .setAwsSecretKey("secretKey")
                 .setFirstColumnAsPrimaryKeyEnabled(true)
                 .setTables(TPCH_TABLES) // Explicitly defined the tables to make it reusable in the `testVerifyProgrammaticallyGeneratedSchemas` test.
                 .addConnectorProperties(

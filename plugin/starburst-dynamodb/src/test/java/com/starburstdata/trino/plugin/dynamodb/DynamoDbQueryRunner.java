@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.dynamodb;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.log.Logger;
@@ -23,6 +24,7 @@ import io.trino.tpch.TpchTable;
 import org.intellij.lang.annotations.Language;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -62,9 +64,9 @@ public final class DynamoDbQueryRunner
     {
     }
 
-    public static Builder builder(String dynamoDbUrl, File schemaDirectory)
+    public static Builder builder(File schemaDirectory)
     {
-        return new Builder(dynamoDbUrl, schemaDirectory);
+        return new Builder(schemaDirectory);
     }
 
     public static Session createSession(String catalogName)
@@ -178,16 +180,12 @@ public final class DynamoDbQueryRunner
         private Map<String, String> extraProperties;
         private boolean enableWrites;
 
-        public Builder(String dynamoDbUrl, File schemaDirectory)
+        public Builder(File schemaDirectory)
         {
-            requireNonNull(dynamoDbUrl, "dynamoDbUrl is null");
             requireNonNull(schemaDirectory, "schemaDirectory is null");
             connectorProperties = ImmutableMap.<String, String>builder()
-                    .put("dynamodb.aws-access-key", "accesskey")
-                    .put("dynamodb.aws-secret-key", "secretkey")
                     .put("dynamodb.aws-region", "us-east-2")
                     .put("dynamodb.schema-directory", schemaDirectory.getAbsolutePath())
-                    .put("dynamodb.endpoint-url", dynamoDbUrl)
                     .buildOrThrow();
             extraProperties = ImmutableMap.of();
         }
@@ -219,6 +217,24 @@ public final class DynamoDbQueryRunner
         public Builder setFirstColumnAsPrimaryKeyEnabled(boolean value)
         {
             addConnectorProperties(ImmutableMap.of("dynamodb.first-column-as-primary-key-enabled", Boolean.toString(value)));
+            return this;
+        }
+
+        public Builder setAwsAccessKey(String awsAccessKey)
+        {
+            addConnectorProperties(ImmutableMap.of("dynamodb.aws-access-key", awsAccessKey));
+            return this;
+        }
+
+        public Builder setAwsSecretKey(String awsSecretKey)
+        {
+            addConnectorProperties(ImmutableMap.of("dynamodb.aws-secret-key", awsSecretKey));
+            return this;
+        }
+
+        public Builder setEndpointUrl(String endpointUrl)
+        {
+            addConnectorProperties(ImmutableMap.of("dynamodb.endpoint-url", endpointUrl));
             return this;
         }
 
@@ -255,19 +271,48 @@ public final class DynamoDbQueryRunner
         }
     }
 
-    public static void main(String[] args)
-            throws Exception
+    public static final class DefaultDynamoDbQueryRunnerMain
     {
-        Logging.initialize();
+        public static void main(String[] args)
+                throws Exception
+        {
+            Logging.initialize();
 
-        TestingDynamoDbServer server = new TestingDynamoDbServer();
-        DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getEndpointUrl(), server.getSchemaDirectory())
-                .addExtraProperties(ImmutableMap.of("http-server.http.port", "8080"))
-                .build();
+            TestingDynamoDbServer server = new TestingDynamoDbServer();
+            DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                    .setEndpointUrl(server.getEndpointUrl())
+                    .setAwsAccessKey("awsAccessKey")
+                    .setAwsSecretKey("awsSecretKey")
+                    .addExtraProperties(ImmutableMap.of("http-server.http.port", "8080"))
+                    .build();
 
-        Logger log = Logger.get(DynamoDbQueryRunner.class);
-        log.info("======== SERVER STARTED ========");
-        log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+            Logger log = Logger.get(DynamoDbQueryRunner.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static final class RemoteDynamoDbQueryRunnerMain
+    {
+        public static void main(String[] args)
+                throws Exception
+        {
+            Logging.initialize();
+
+            String accessKey = Optional.ofNullable(System.getProperty("dynamodb.aws-access-key")).orElseThrow();
+            String secretKey = Optional.ofNullable(System.getProperty("dynamodb.aws-secret-key")).orElseThrow();
+
+            File schemaDir = Files.createTempDirectory("dynamodb-schemas").toFile();
+            Builder queryRunnerBuilder = DynamoDbQueryRunner.builder(schemaDir)
+                    .addExtraProperties(ImmutableMap.of("http-server.http.port", "8080"))
+                    .setAwsAccessKey(accessKey)
+                    .setAwsSecretKey(secretKey)
+                    .setTables(ImmutableList.of());
+
+            Logger log = Logger.get(DynamoDbQueryRunner.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunnerBuilder.build().getCoordinator().getBaseUrl());
+        }
     }
 
     private static class KeyDefinition

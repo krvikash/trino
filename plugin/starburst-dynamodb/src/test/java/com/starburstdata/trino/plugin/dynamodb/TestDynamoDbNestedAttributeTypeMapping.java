@@ -43,6 +43,8 @@ import static com.starburstdata.trino.plugin.dynamodb.DynamoDbSessionProperties.
 public class TestDynamoDbNestedAttributeTypeMapping
         extends AbstractTestQueryFramework
 {
+    public static final String AWS_ACCESS_KEY = "accesskey";
+    public static final String AWS_SECRET_KEY = "secretkey";
     private DynamoDbClient dynamoDbClient;
 
     @Override
@@ -55,14 +57,17 @@ public class TestDynamoDbNestedAttributeTypeMapping
         TestingDynamoDbServer server = closeAfterClass(new TestingDynamoDbServer());
 
         DynamoDbClientBuilder builder = DynamoDbClient.builder()
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("accesskey", "secretkey")))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(AWS_ACCESS_KEY, AWS_SECRET_KEY)))
                 .region(Region.of("us-east-2"))
                 .endpointOverride(URI.create(server.getEndpointUrl()));
 
         dynamoDbClient = closeAfterClass(builder.build());
 
-        return DynamoDbQueryRunner.builder(server.getEndpointUrl(), schemaDirectory)
+        return DynamoDbQueryRunner.builder(schemaDirectory)
+                .setEndpointUrl(server.getEndpointUrl())
                 .setTables(ImmutableList.of())
+                .setAwsAccessKey(AWS_ACCESS_KEY)
+                .setAwsSecretKey(AWS_SECRET_KEY)
                 .enableWrites()
                 .build();
     }
