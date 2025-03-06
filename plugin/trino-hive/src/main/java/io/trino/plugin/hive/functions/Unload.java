@@ -79,7 +79,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.base.util.Functions.checkFunctionArgument;
-import static io.trino.plugin.hive.HiveCompressionCodecs.selectCompressionCodec;
+import static io.trino.plugin.hive.HiveCompressionCodecs.toCompressionCodec;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_FILESYSTEM_ERROR;
 import static io.trino.plugin.hive.HiveMetadata.CSV_SEPARATOR_KEY;
 import static io.trino.plugin.hive.HiveMetadata.SKIP_HEADER_COUNT_KEY;
@@ -245,7 +245,7 @@ public class Unload
             String compressionValue = ((Slice) compressionArgument.getValue()).toStringUtf8();
             HiveCompressionOption compressionOption = Enums.getIfPresent(HiveCompressionOption.class, compressionValue.toUpperCase(ENGLISH)).toJavaUtil()
                     .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, compressionValue + " compression isn't supported"));
-            HiveCompressionCodec compression = selectCompressionCodec(compressionOption, format);
+            HiveCompressionCodec compression = toCompressionCodec(compressionOption);
 
             ScalarArgument separatorArgument = (ScalarArgument) arguments.get(SEPARATOR_ARGUMENT_NAME);
             Slice separator = (Slice) separatorArgument.getValue();

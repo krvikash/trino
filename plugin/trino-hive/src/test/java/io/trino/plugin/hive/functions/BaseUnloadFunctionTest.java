@@ -118,9 +118,9 @@ abstract class BaseUnloadFunctionTest
                 "format => '" + format.name() + "'," +
                 "compression => '" + compression.name() + "'))";
 
-        if ((format == PARQUET || format == AVRO) && compression == HiveCompressionOption.LZ4) {
+        if ((format == PARQUET) && compression == HiveCompressionOption.LZ4) {
             assertThat(query(unload))
-                    .failure().hasMessageMatching("Compression codec LZ4 not supported for (Parquet|Avro)");
+                    .nonTrinoExceptionFailure().hasMessageMatching("Unsupported compression codec for Parquet: LZ4");
             abort();
         }
 
