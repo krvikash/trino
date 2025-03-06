@@ -28,13 +28,18 @@ import static io.airlift.slice.SizeOf.SIZE_OF_INT;
 import static io.airlift.slice.SizeOf.SIZE_OF_LONG;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
-import static io.trino.operator.FlatHash.sumExact;
 import static java.lang.Math.addExact;
 import static java.lang.Math.clamp;
 import static java.lang.Math.max;
 import static java.lang.Math.subtractExact;
 import static java.util.Objects.checkIndex;
 
+/**
+ * A related implementation of {@link VariableWidthData} exists in {@link AppendOnlyVariableWidthData} which reduces
+ * the size of each variable width pointer at the cost of not supporting {@link VariableWidthData#free}. If your data
+ * structure does not need to support moving variable width data after insertion, that implementation will consume
+ * less memory and should be used instead.
+ */
 public final class VariableWidthData
 {
     private static final int INSTANCE_SIZE = instanceSize(VariableWidthData.class);
@@ -82,10 +87,9 @@ public final class VariableWidthData
 
     public long getRetainedSizeBytes()
     {
-        return sumExact(
+        return addExact(
                 INSTANCE_SIZE,
-                chunksRetainedSizeInBytes,
-                sizeOf(chunks.elements()));
+                addExact(chunksRetainedSizeInBytes, sizeOf(chunks.elements())));
     }
 
     public List<byte[]> getAllChunks()
