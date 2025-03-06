@@ -976,7 +976,6 @@ jobs:
             !:trino-ignite,
             !:trino-jdbc,
             !:trino-kafka,
-            !:trino-kudu,
             !:trino-main,
             !:trino-mariadb,
             !:trino-memory,
@@ -1119,7 +1118,6 @@ jobs:
             - { modules: plugin/trino-iceberg, profile: minio-and-avro }
             - { modules: plugin/trino-ignite }
             - { modules: plugin/trino-kafka }
-            - { modules: plugin/trino-kudu }
             - { modules: plugin/trino-mariadb }
             - { modules: plugin/trino-mongodb }
             - { modules: plugin/trino-mongodb, profile: cloud-tests }

@@ -16,7 +16,6 @@ package io.trino.tests.product.launcher.suite.suites;
 import com.google.common.collect.ImmutableList;
 import io.trino.tests.product.launcher.env.EnvironmentConfig;
 import io.trino.tests.product.launcher.env.EnvironmentDefaults;
-import io.trino.tests.product.launcher.env.environment.EnvMultinodeKerberosKudu;
 import io.trino.tests.product.launcher.env.environment.EnvMultinodeMinioDataLakeTaskRetriesFilesystem;
 import io.trino.tests.product.launcher.env.environment.EnvMultinodePostgresql;
 import io.trino.tests.product.launcher.env.environment.EnvMultinodePostgresqlSpooling;
@@ -43,7 +42,6 @@ import static io.trino.tests.product.TestGroups.HIVE_KERBEROS;
 import static io.trino.tests.product.TestGroups.HIVE_SPARK;
 import static io.trino.tests.product.TestGroups.HIVE_SPARK_NO_STATS_FALLBACK;
 import static io.trino.tests.product.TestGroups.JOIN;
-import static io.trino.tests.product.TestGroups.KUDU;
 import static io.trino.tests.product.TestGroups.POSTGRESQL;
 import static io.trino.tests.product.TestGroups.SMOKE;
 import static io.trino.tests.product.TestGroups.SQLSERVER;
@@ -82,9 +80,6 @@ public class Suite7NonGeneric
                         .build(),
                 testOnEnvironment(EnvSinglenodeKerberosHdfsImpersonationCrossRealm.class)
                         .withGroups(CONFIGURED_FEATURES, STORAGE_FORMATS, CLI, HDFS_IMPERSONATION, HIVE_KERBEROS)
-                        .build(),
-                testOnEnvironment(EnvMultinodeKerberosKudu.class)
-                        .withGroups(CONFIGURED_FEATURES, KUDU)
                         .build(),
                 testOnEnvironment(EnvTwoMixedHives.class)
                         .withGroups(CONFIGURED_FEATURES, TWO_HIVES)
