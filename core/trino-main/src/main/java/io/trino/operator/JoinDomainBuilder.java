@@ -543,14 +543,17 @@ public class JoinDomainBuilder
 
         try {
             byte[] variableWidthChunk = EMPTY_CHUNK;
+            int variableChunkOffset = 0;
             if (distinctVariableWidthData != null) {
                 variableWidthChunk = distinctVariableWidthData.getChunk(distinctRecords, recordOffset);
+                variableChunkOffset = VariableWidthData.getChunkOffset(distinctRecords, recordOffset);
             }
 
             return (Object) readFlat.invokeExact(
                     distinctRecords,
                     recordOffset + distinctRecordValueOffset,
-                    variableWidthChunk);
+                    variableWidthChunk,
+                    variableChunkOffset);
         }
         catch (Throwable throwable) {
             Throwables.throwIfUnchecked(throwable);
@@ -569,14 +572,17 @@ public class JoinDomainBuilder
 
         try {
             byte[] variableWidthChunk = EMPTY_CHUNK;
+            int variableWidthOffset = 0;
             if (distinctVariableWidthData != null) {
                 variableWidthChunk = distinctVariableWidthData.getChunk(values, recordOffset);
+                variableWidthOffset = VariableWidthData.getChunkOffset(values, recordOffset);
             }
 
             return (long) hashFlat.invokeExact(
                     values,
                     recordOffset + distinctRecordValueOffset,
-                    variableWidthChunk);
+                    variableWidthChunk,
+                    variableWidthOffset);
         }
         catch (Throwable throwable) {
             Throwables.throwIfUnchecked(throwable);
@@ -600,8 +606,10 @@ public class JoinDomainBuilder
         byte[] leftFixedRecordChunk = distinctRecords;
         int leftRecordOffset = getRecordOffset(leftPosition);
         byte[] leftVariableWidthChunk = EMPTY_CHUNK;
+        int leftVariableWidthOffset = 0;
         if (distinctVariableWidthData != null) {
             leftVariableWidthChunk = distinctVariableWidthData.getChunk(leftFixedRecordChunk, leftRecordOffset);
+            leftVariableWidthOffset = VariableWidthData.getChunkOffset(leftFixedRecordChunk, leftRecordOffset);
         }
 
         try {
@@ -609,6 +617,7 @@ public class JoinDomainBuilder
                     leftFixedRecordChunk,
                     leftRecordOffset + distinctRecordValueOffset,
                     leftVariableWidthChunk,
+                    leftVariableWidthOffset,
                     right,
                     rightPosition);
         }
@@ -623,15 +632,19 @@ public class JoinDomainBuilder
         byte[] leftFixedRecordChunk = distinctRecords;
         int leftRecordOffset = getRecordOffset(leftPosition);
         byte[] leftVariableWidthChunk = EMPTY_CHUNK;
+        int leftVariableWidthOffset = 0;
         if (distinctVariableWidthData != null) {
             leftVariableWidthChunk = distinctVariableWidthData.getChunk(leftFixedRecordChunk, leftRecordOffset);
+            leftVariableWidthOffset = VariableWidthData.getChunkOffset(leftFixedRecordChunk, leftRecordOffset);
         }
 
         byte[] rightFixedRecordChunk = rightValues;
         int rightRecordOffset = getRecordOffset(rightPosition);
         byte[] rightVariableWidthChunk = EMPTY_CHUNK;
+        int rightVariableWidthOffset = 0;
         if (rightVariableWidthData != null) {
             rightVariableWidthChunk = rightVariableWidthData.getChunk(rightFixedRecordChunk, rightRecordOffset);
+            rightVariableWidthOffset = VariableWidthData.getChunkOffset(rightFixedRecordChunk, rightRecordOffset);
         }
 
         try {
@@ -639,9 +652,11 @@ public class JoinDomainBuilder
                     leftFixedRecordChunk,
                     leftRecordOffset + distinctRecordValueOffset,
                     leftVariableWidthChunk,
+                    leftVariableWidthOffset,
                     rightFixedRecordChunk,
                     rightRecordOffset + distinctRecordValueOffset,
-                    rightVariableWidthChunk);
+                    rightVariableWidthChunk,
+                    rightVariableWidthOffset);
         }
         catch (Throwable throwable) {
             Throwables.throwIfUnchecked(throwable);
@@ -671,9 +686,13 @@ public class JoinDomainBuilder
 
         byte[] leftVariableWidthChunk = EMPTY_CHUNK;
         byte[] rightVariableWidthChunk = EMPTY_CHUNK;
+        int leftVariableWidthOffset = 0;
+        int rightVariableWidthOffset = 0;
         if (distinctVariableWidthData != null) {
             leftVariableWidthChunk = distinctVariableWidthData.getChunk(distinctRecords, leftRecordOffset);
             rightVariableWidthChunk = distinctVariableWidthData.getChunk(distinctRecords, rightRecordOffset);
+            leftVariableWidthOffset = VariableWidthData.getChunkOffset(distinctRecords, leftRecordOffset);
+            rightVariableWidthOffset = VariableWidthData.getChunkOffset(distinctRecords, rightRecordOffset);
         }
 
         try {
@@ -681,9 +700,11 @@ public class JoinDomainBuilder
                     distinctRecords,
                     leftRecordOffset + distinctRecordValueOffset,
                     leftVariableWidthChunk,
+                    leftVariableWidthOffset,
                     distinctRecords,
                     rightRecordOffset + distinctRecordValueOffset,
-                    rightVariableWidthChunk);
+                    rightVariableWidthChunk,
+                    rightVariableWidthOffset);
         }
         catch (Throwable throwable) {
             Throwables.throwIfUnchecked(throwable);
