@@ -1,0 +1,68 @@
+/*
+ * Copyright Starburst Data, Inc. All rights reserved.
+ *
+ * THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF STARBURST DATA.
+ * The copyright notice above does not evidence any
+ * actual or intended publication of such source code.
+ *
+ * Redistribution of this material is strictly prohibited.
+ */
+package com.starburstdata.trino.plugin.dynamodb;
+
+import com.google.common.collect.ImmutableList;
+import io.trino.testing.AbstractTestQueryFramework;
+import io.trino.testing.DistributedQueryRunner;
+import io.trino.testing.QueryRunner;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
+
+import static io.trino.tpch.TpchTable.NATION;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
+
+@TestInstance(PER_CLASS)
+@Execution(SAME_THREAD) // DynamoDB may miss new tables when running in multi threads
+final class TestDynamoDbAuthentication
+        extends AbstractTestQueryFramework
+{
+    private TestingDynamoDbServer server;
+
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
+    {
+        server = closeAfterClass(new TestingDynamoDbServer());
+
+        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                .setEndpointUrl(server.getEndpointUrl())
+                .setAwsSecretKey("correctKey")
+                .setAwsAccessKey("correctKey")
+                .setTables(ImmutableList.of(NATION))
+                .setFirstColumnAsPrimaryKeyEnabled(true)
+                .enableWrites()
+                .build();
+    }
+
+    @Test
+    void testQueryWithCorrectCredentials()
+    {
+        assertQuerySucceeds("SHOW TABLES");
+    }
+
+    @Test
+    void testQueryWithIncorrectCredentials()
+            throws Exception
+    {
+        try (DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                .setEndpointUrl(server.getEndpointUrl())
+                .setTables(ImmutableList.of())
+                .setAwsSecretKey("incorrect-key")
+                .setAwsAccessKey("incorrect-key")
+                .build()) {
+            assertThatThrownBy(() -> queryRunner.execute("SHOW TABLES"))
+                    .hasMessageContaining("The Access Key ID or security token is invalid");
+        }
+    }
+}
