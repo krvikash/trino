@@ -109,10 +109,11 @@ fi
 echo "🧱 Preparing the image build context directory"
 WORK_DIR="$(mktemp -d)"
 cp "$trino_server" "${WORK_DIR}/"
-cp "$trino_client" "${WORK_DIR}/"
+cp "$trino_client" "${WORK_DIR}/trino-cli.jar"
 tar -C "${WORK_DIR}" -xzf "${WORK_DIR}/trino-server-${TRINO_VERSION}.tar.gz"
 rm "${WORK_DIR}/trino-server-${TRINO_VERSION}.tar.gz"
-cp -R bin "${WORK_DIR}/trino-server-${TRINO_VERSION}"
+mv "${WORK_DIR}/trino-server-${TRINO_VERSION}" "${WORK_DIR}/trino-server"
+cp -R bin "${WORK_DIR}/trino-server"
 cp -R default "${WORK_DIR}/"
 
 TAG_PREFIX="trino:${TRINO_VERSION}"
@@ -128,8 +129,7 @@ for arch in "${ARCHITECTURES[@]}"; do
         --build-arg JDK_DOWNLOAD_LINK="$(jdk_download_link "${JDKS_PATH}/${JDK_RELEASE}" "${arch}")" \
         --platform "linux/$arch" \
         -f Dockerfile \
-        -t "${TAG_PREFIX}-$arch" \
-        --build-arg "TRINO_VERSION=${TRINO_VERSION}"
+        -t "${TAG_PREFIX}-$arch"
 done
 
 echo "🧹 Cleaning up the build context directory"
