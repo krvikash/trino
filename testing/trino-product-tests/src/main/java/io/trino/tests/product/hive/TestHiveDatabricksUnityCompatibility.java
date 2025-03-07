@@ -24,7 +24,6 @@ import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tests.product.TestGroups.HIVE_DATABRICKS_UNITY;
-import static io.trino.tests.product.TestGroups.HIVE_DATABRICKS_UNITY_HTTP_HMS;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_ISSUE;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_MATCH;
@@ -53,28 +52,6 @@ public class TestHiveDatabricksUnityCompatibility
     public void cleanUp()
     {
         onDelta().executeQuery("DROP SCHEMA IF EXISTS " + unityCatalogName + "." + schemaName + " CASCADE");
-    }
-
-    @Test(groups = {HIVE_DATABRICKS_UNITY_HTTP_HMS, PROFILE_SPECIFIC_TESTS})
-    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
-    public void testBasicHiveOperations()
-    {
-        String tableName = "test_table_" + randomNameSuffix();
-        String hiveTableName = "hive.%s.%s".formatted(schemaName, tableName);
-        String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
-        String tableLocation = format("%s/%s/%s", externalLocationPath, schemaName, tableName);
-
-        onDelta().executeQuery("CREATE TABLE " + unityTableName + "(c1 int, c2 string) USING PARQUET LOCATION '" + tableLocation + "'");
-        onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES (1, 'one')");
-
-        assertThat(onTrino().executeQuery("SHOW SCHEMAS FROM hive"))
-                .contains(row(schemaName));
-
-        assertThat(onTrino().executeQuery("SHOW TABLES IN hive." + schemaName))
-                .containsOnly(row(tableName));
-
-        assertThat(onTrino().executeQuery("SELECT * FROM " + hiveTableName))
-                .containsOnly(row(1, "one"));
     }
 
     @Test(groups = {HIVE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
