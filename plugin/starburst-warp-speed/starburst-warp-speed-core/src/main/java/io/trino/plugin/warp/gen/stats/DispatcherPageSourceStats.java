@@ -63,16 +63,12 @@ public final class DispatcherPageSourceStats
     private final LongAdder lazy_collect_total_blocks = new LongAdder();
     private final LongAdder lazy_collect_loaded_blocks = new LongAdder();
     private final LongAdder lazy_collect_failed_load = new LongAdder();
-    private final LongAdder wrapped_collect_total_lazy_blocks = new LongAdder();
-    private final LongAdder wrapped_collect_loaded_lazy_blocks = new LongAdder();
     private final LongAdder native_read_time = new LongAdder();
     private final LongAdder block_fillers_time = new LongAdder();
     private final LongAdder lucene_execution_time_Count = new LongAdder();
     private final LongAdder lucene_execution_time = new LongAdder();
     private final LongAdder execution_time_Count = new LongAdder();
     private final LongAdder execution_time = new LongAdder();
-    private final LongAdder records_in_chunk_Count = new LongAdder();
-    private final LongAdder records_in_chunk = new LongAdder();
 
     @JsonCreator
     public DispatcherPageSourceStats()
@@ -818,52 +814,6 @@ public final class DispatcherPageSourceStats
 
     @JsonIgnore
     @Managed
-    public long getwrapped_collect_total_lazy_blocks()
-    {
-        return wrapped_collect_total_lazy_blocks.longValue();
-    }
-
-    public void incwrapped_collect_total_lazy_blocks()
-    {
-        wrapped_collect_total_lazy_blocks.increment();
-    }
-
-    public void addwrapped_collect_total_lazy_blocks(long val)
-    {
-        wrapped_collect_total_lazy_blocks.add(val);
-    }
-
-    public void setwrapped_collect_total_lazy_blocks(long val)
-    {
-        wrapped_collect_total_lazy_blocks.reset();
-        addwrapped_collect_total_lazy_blocks(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getwrapped_collect_loaded_lazy_blocks()
-    {
-        return wrapped_collect_loaded_lazy_blocks.longValue();
-    }
-
-    public void incwrapped_collect_loaded_lazy_blocks()
-    {
-        wrapped_collect_loaded_lazy_blocks.increment();
-    }
-
-    public void addwrapped_collect_loaded_lazy_blocks(long val)
-    {
-        wrapped_collect_loaded_lazy_blocks.add(val);
-    }
-
-    public void setwrapped_collect_loaded_lazy_blocks(long val)
-    {
-        wrapped_collect_loaded_lazy_blocks.reset();
-        addwrapped_collect_loaded_lazy_blocks(val);
-    }
-
-    @JsonIgnore
-    @Managed
     public long getnative_read_time()
     {
         return native_read_time.longValue();
@@ -966,35 +916,6 @@ public final class DispatcherPageSourceStats
         execution_time_Count.add(1);
     }
 
-    @JsonIgnore
-    @Managed
-    public long getrecords_in_chunk_Count()
-    {
-        return records_in_chunk_Count.longValue();
-    }
-
-    @Managed
-    public long getrecords_in_chunk_Average()
-    {
-        if (records_in_chunk_Count.longValue() == 0) {
-            return 0;
-        }
-        return records_in_chunk.longValue() / records_in_chunk_Count.longValue();
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getrecords_in_chunk()
-    {
-        return records_in_chunk.longValue();
-    }
-
-    public void addrecords_in_chunk(long val)
-    {
-        records_in_chunk.add(val);
-        records_in_chunk_Count.add(1);
-    }
-
     public static DispatcherPageSourceStats create()
     {
         return new DispatcherPageSourceStats();
@@ -1041,8 +962,6 @@ public final class DispatcherPageSourceStats
         ret.put("lazy_collect_total_blocks", lazy_collect_total_blocks);
         ret.put("lazy_collect_loaded_blocks", lazy_collect_loaded_blocks);
         ret.put("lazy_collect_failed_load", lazy_collect_failed_load);
-        ret.put("wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks);
-        ret.put("wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks);
         ret.put("native_read_time", native_read_time);
         ret.put("block_fillers_time", block_fillers_time);
 
@@ -1088,16 +1007,12 @@ public final class DispatcherPageSourceStats
         this.lazy_collect_total_blocks.add(other.lazy_collect_total_blocks.longValue());
         this.lazy_collect_loaded_blocks.add(other.lazy_collect_loaded_blocks.longValue());
         this.lazy_collect_failed_load.add(other.lazy_collect_failed_load.longValue());
-        this.wrapped_collect_total_lazy_blocks.add(other.wrapped_collect_total_lazy_blocks.longValue());
-        this.wrapped_collect_loaded_lazy_blocks.add(other.wrapped_collect_loaded_lazy_blocks.longValue());
         this.native_read_time.add(other.native_read_time.longValue());
         this.block_fillers_time.add(other.block_fillers_time.longValue());
         this.lucene_execution_time.add(other.lucene_execution_time.longValue());
         this.lucene_execution_time_Count.add(other.lucene_execution_time_Count.longValue());
         this.execution_time.add(other.execution_time.longValue());
         this.execution_time_Count.add(other.execution_time_Count.longValue());
-        this.records_in_chunk.add(other.records_in_chunk.longValue());
-        this.records_in_chunk_Count.add(other.records_in_chunk_Count.longValue());
     }
 
     @Override
@@ -1135,16 +1050,12 @@ public final class DispatcherPageSourceStats
         lazy_collect_total_blocks.reset();
         lazy_collect_loaded_blocks.reset();
         lazy_collect_failed_load.reset();
-        wrapped_collect_total_lazy_blocks.reset();
-        wrapped_collect_loaded_lazy_blocks.reset();
         native_read_time.reset();
         block_fillers_time.reset();
         lucene_execution_time.reset();
         lucene_execution_time_Count.reset();
         execution_time.reset();
         execution_time_Count.reset();
-        records_in_chunk.reset();
-        records_in_chunk_Count.reset();
     }
 
     @Override
@@ -1210,12 +1121,6 @@ public final class DispatcherPageSourceStats
         }
         res.put("dispatcherPageSource:lazy_collect_total_blocks", lazy_collect_total_blocks.longValue());
         res.put("dispatcherPageSource:lazy_collect_loaded_blocks", lazy_collect_loaded_blocks.longValue());
-        if (wrapped_collect_total_lazy_blocks.longValue() > 0) {
-            res.put("dispatcherPageSource:wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks.longValue());
-        }
-        if (wrapped_collect_loaded_lazy_blocks.longValue() > 0) {
-            res.put("dispatcherPageSource:wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks.longValue());
-        }
         if (native_read_time.longValue() > 0) {
             res.put("dispatcherPageSource:native_read_time", native_read_time.longValue());
         }
@@ -1233,12 +1138,6 @@ public final class DispatcherPageSourceStats
         }
         if (execution_time.longValue() > 0) {
             res.put("dispatcherPageSource:execution_time_Count", execution_time_Count.longValue());
-        }
-        if (records_in_chunk.longValue() > 0) {
-            res.put("dispatcherPageSource:records_in_chunk", records_in_chunk.longValue());
-        }
-        if (records_in_chunk.longValue() > 0) {
-            res.put("dispatcherPageSource:records_in_chunk_Count", records_in_chunk_Count.longValue());
         }
         return res;
     }
@@ -1274,8 +1173,6 @@ public final class DispatcherPageSourceStats
         res.put("lazy_collect_total_blocks", getlazy_collect_total_blocks());
         res.put("lazy_collect_loaded_blocks", getlazy_collect_loaded_blocks());
         res.put("lazy_collect_failed_load", getlazy_collect_failed_load());
-        res.put("wrapped_collect_total_lazy_blocks", getwrapped_collect_total_lazy_blocks());
-        res.put("wrapped_collect_loaded_lazy_blocks", getwrapped_collect_loaded_lazy_blocks());
         return res;
     }
 
