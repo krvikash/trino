@@ -221,16 +221,17 @@ public final class ColumnReaderFactory
             if (!(annotation instanceof TimestampLogicalTypeAnnotation timestampAnnotation)) {
                 throw unsupportedException(type, field);
             }
+            DateTimeZone readTimeZone = timestampAnnotation.isAdjustedToUTC() ? timeZone : DateTimeZone.UTC;
             if (timestampWithTimeZoneType.isShort()) {
                 return switch (timestampAnnotation.getUnit()) {
-                    case MILLIS -> createColumnReader(field, valueDecoders::getInt64TimestampMillsToShortTimestampWithTimeZoneDecoder, LONG_ADAPTER, memoryContext);
-                    case MICROS -> createColumnReader(field, valueDecoders::getInt64TimestampMicrosToShortTimestampWithTimeZoneDecoder, LONG_ADAPTER, memoryContext);
+                    case MILLIS -> createColumnReader(field, encoding -> valueDecoders.getInt64TimestampMillsToShortTimestampWithTimeZoneDecoder(encoding, readTimeZone), LONG_ADAPTER, memoryContext);
+                    case MICROS -> createColumnReader(field, encoding -> valueDecoders.getInt64TimestampMicrosToShortTimestampWithTimeZoneDecoder(encoding, readTimeZone), LONG_ADAPTER, memoryContext);
                     case NANOS -> throw unsupportedException(type, field);
                 };
             }
             return switch (timestampAnnotation.getUnit()) {
                 case MILLIS, NANOS -> throw unsupportedException(type, field);
-                case MICROS -> createColumnReader(field, valueDecoders::getInt64TimestampMicrosToLongTimestampWithTimeZoneDecoder, FIXED12_ADAPTER, memoryContext);
+                case MICROS -> createColumnReader(field, encoding -> valueDecoders.getInt64TimestampMicrosToLongTimestampWithTimeZoneDecoder(encoding, readTimeZone), FIXED12_ADAPTER, memoryContext);
             };
         }
         if (type instanceof DecimalType decimalType && decimalType.isShort()

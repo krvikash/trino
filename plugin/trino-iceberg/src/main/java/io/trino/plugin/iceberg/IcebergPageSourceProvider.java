@@ -101,6 +101,7 @@ import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
+import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -205,6 +206,7 @@ public class IcebergPageSourceProvider
     private final FileFormatDataSourceStats fileFormatDataSourceStats;
     private final OrcReaderOptions orcReaderOptions;
     private final ParquetReaderOptions parquetReaderOptions;
+    private final DateTimeZone parquetDateTimeZone;
     private final TypeManager typeManager;
     private final DeleteManager unpartitionedTableDeleteManager;
     private final Map<Integer, Function<PartitionData, PartitionKey>> partitionKeyFactories = new ConcurrentHashMap<>();
@@ -215,12 +217,14 @@ public class IcebergPageSourceProvider
             FileFormatDataSourceStats fileFormatDataSourceStats,
             OrcReaderOptions orcReaderOptions,
             ParquetReaderOptions parquetReaderOptions,
+            DateTimeZone parquetDateTimeZone,
             TypeManager typeManager)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileFormatDataSourceStats = requireNonNull(fileFormatDataSourceStats, "fileFormatDataSourceStats is null");
         this.orcReaderOptions = requireNonNull(orcReaderOptions, "orcReaderOptions is null");
         this.parquetReaderOptions = requireNonNull(parquetReaderOptions, "parquetReaderOptions is null");
+        this.parquetDateTimeZone = requireNonNull(parquetDateTimeZone, "parquetDateTimeZone is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.unpartitionedTableDeleteManager = new DeleteManager(typeManager);
     }
@@ -541,6 +545,7 @@ public class IcebergPageSourceProvider
                             // TODO https://github.com/trinodb/trino/issues/11000
                             .withUseColumnIndex(false)
                             .withVectorizedDecodingEnabled(isParquetVectorizedDecodingEnabled(session)),
+                    parquetDateTimeZone,
                     predicate,
                     fileFormatDataSourceStats,
                     nameMapping,
@@ -886,6 +891,7 @@ public class IcebergPageSourceProvider
             String partitionData,
             List<IcebergColumnHandle> columns,
             ParquetReaderOptions options,
+            DateTimeZone parquetDateTimeZone,
             TupleDomain<IcebergColumnHandle> effectivePredicate,
             FileFormatDataSourceStats fileFormatDataSourceStats,
             Optional<NameMapping> nameMapping,
@@ -992,7 +998,7 @@ public class IcebergPageSourceProvider
                     ImmutableList.of(parquetTupleDomain),
                     ImmutableList.of(parquetPredicate),
                     descriptorsByPath,
-                    UTC,
+                    parquetDateTimeZone,
                     ICEBERG_DOMAIN_COMPACTION_THRESHOLD,
                     options);
 
@@ -1003,7 +1009,7 @@ public class IcebergPageSourceProvider
                     appendRowNumberColumn,
                     rowGroups,
                     dataSource,
-                    UTC,
+                    parquetDateTimeZone,
                     memoryContext,
                     options,
                     exception -> handleException(dataSourceId, exception),

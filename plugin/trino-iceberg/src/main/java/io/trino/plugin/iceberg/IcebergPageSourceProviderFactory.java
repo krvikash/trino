@@ -22,6 +22,7 @@ import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.type.TypeManager;
+import org.joda.time.DateTimeZone;
 
 import static java.util.Objects.requireNonNull;
 
@@ -32,6 +33,7 @@ public class IcebergPageSourceProviderFactory
     private final FileFormatDataSourceStats fileFormatDataSourceStats;
     private final OrcReaderOptions orcReaderOptions;
     private final ParquetReaderOptions parquetReaderOptions;
+    private final DateTimeZone parquetDateTimeZone;
     private final TypeManager typeManager;
 
     @Inject
@@ -40,18 +42,20 @@ public class IcebergPageSourceProviderFactory
             FileFormatDataSourceStats fileFormatDataSourceStats,
             OrcReaderConfig orcReaderConfig,
             ParquetReaderConfig parquetReaderConfig,
+            IcebergConfig icebergConfig,
             TypeManager typeManager)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileFormatDataSourceStats = requireNonNull(fileFormatDataSourceStats, "fileFormatDataSourceStats is null");
         this.orcReaderOptions = orcReaderConfig.toOrcReaderOptions();
         this.parquetReaderOptions = parquetReaderConfig.toParquetReaderOptions();
+        this.parquetDateTimeZone = icebergConfig.getParquetDateTimeZone();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
     }
 
     @Override
     public ConnectorPageSourceProvider createPageSourceProvider()
     {
-        return new IcebergPageSourceProvider(fileSystemFactory, fileFormatDataSourceStats, orcReaderOptions, parquetReaderOptions, typeManager);
+        return new IcebergPageSourceProvider(fileSystemFactory, fileFormatDataSourceStats, orcReaderOptions, parquetReaderOptions, parquetDateTimeZone, typeManager);
     }
 }

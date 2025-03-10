@@ -547,6 +547,7 @@ public final class IcebergQueryRunner
             @SuppressWarnings("resource")
             QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
                     .addIcebergProperty("hive.metastore.catalog.dir", metastoreDir.toURI().toString())
+                    .addIcebergProperty("iceberg.parquet.time-zone", "Asia/Tokyo")
                     .setInitialTables(TpchTable.getTables())
                     .build();
             log.info("======== SERVER STARTED ========");

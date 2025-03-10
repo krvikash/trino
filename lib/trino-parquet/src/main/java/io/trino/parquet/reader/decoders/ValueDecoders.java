@@ -80,6 +80,7 @@ import static io.trino.spi.type.Decimals.longTenToNth;
 import static io.trino.spi.type.Decimals.overflows;
 import static io.trino.spi.type.Decimals.rescale;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_SECOND;
@@ -533,7 +534,7 @@ public final class ValueDecoders
                 });
     }
 
-    public ValueDecoder<long[]> getInt64TimestampMillsToShortTimestampWithTimeZoneDecoder(ParquetEncoding encoding)
+    public ValueDecoder<long[]> getInt64TimestampMillsToShortTimestampWithTimeZoneDecoder(ParquetEncoding encoding, DateTimeZone timeZone)
     {
         checkArgument(
                 field.getType() instanceof TimestampWithTimeZoneType timestampWithTimeZoneType && timestampWithTimeZoneType.isShort(),
@@ -547,7 +548,7 @@ public final class ValueDecoders
                     (values, offset, length) -> {
                         // decoded values are epochMillis, round to lower precision and convert to packed millis utc value
                         for (int i = offset; i < offset + length; i++) {
-                            values[i] = packDateTimeWithZone(round(values[i], 3 - precision), UTC_KEY);
+                            values[i] = packDateTimeWithZone(round(values[i], 3 - precision), getTimeZoneKey(timeZone.getID()));
                         }
                     });
         }
@@ -556,7 +557,7 @@ public final class ValueDecoders
                 (values, offset, length) -> {
                     // decoded values are epochMillis, convert to packed millis utc value
                     for (int i = offset; i < offset + length; i++) {
-                        values[i] = packDateTimeWithZone(values[i], UTC_KEY);
+                        values[i] = packDateTimeWithZone(values[i], getTimeZoneKey(timeZone.getID()));
                     }
                 });
     }
@@ -600,7 +601,7 @@ public final class ValueDecoders
                 });
     }
 
-    public ValueDecoder<long[]> getInt64TimestampMicrosToShortTimestampWithTimeZoneDecoder(ParquetEncoding encoding)
+    public ValueDecoder<long[]> getInt64TimestampMicrosToShortTimestampWithTimeZoneDecoder(ParquetEncoding encoding, DateTimeZone timeZone)
     {
         checkArgument(
                 field.getType() instanceof TimestampWithTimeZoneType timestampWithTimeZoneType && timestampWithTimeZoneType.isShort(),
@@ -612,7 +613,7 @@ public final class ValueDecoders
                 (values, offset, length) -> {
                     // decoded values are epochMicros, round to lower precision and convert to packed millis utc value
                     for (int i = offset; i < offset + length; i++) {
-                        values[i] = packDateTimeWithZone(round(values[i], 6 - precision) / MICROSECONDS_PER_MILLISECOND, UTC_KEY);
+                        values[i] = packDateTimeWithZone(round(values[i], 6 - precision) / MICROSECONDS_PER_MILLISECOND, getTimeZoneKey(timeZone.getID()));
                     }
                 });
     }
@@ -716,7 +717,7 @@ public final class ValueDecoders
         };
     }
 
-    public ValueDecoder<int[]> getInt64TimestampMicrosToLongTimestampWithTimeZoneDecoder(ParquetEncoding encoding)
+    public ValueDecoder<int[]> getInt64TimestampMicrosToLongTimestampWithTimeZoneDecoder(ParquetEncoding encoding, DateTimeZone timeZone)
     {
         ValueDecoder<long[]> delegate = getLongDecoder(encoding);
         return new ValueDecoder<>()
@@ -736,7 +737,7 @@ public final class ValueDecoders
                 for (int i = 0; i < length; i++) {
                     long epochMicros = buffer[i];
                     encodeFixed12(
-                            packDateTimeWithZone(floorDiv(epochMicros, MICROSECONDS_PER_MILLISECOND), UTC_KEY),
+                            packDateTimeWithZone(floorDiv(epochMicros, MICROSECONDS_PER_MILLISECOND), getTimeZoneKey(timeZone.getID())),
                             floorMod(epochMicros, MICROSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_MICROSECOND,
                             values,
                             i + offset);
