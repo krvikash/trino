@@ -276,7 +276,7 @@ public final class StargateQueryRunner
 
         DistributedQueryRunner queryRunner = builder(stargateQueryRunner, "memory")
                 .enableWrites()
-                .withExtraProperties(Map.of("http-server.http.port", "8080"))
+                .withCoordinatorProperties(Map.of("http-server.http.port", "8080"))
                 .build();
         queryRunner.createCatalog(
                 "p2p_remote_postgresql",
