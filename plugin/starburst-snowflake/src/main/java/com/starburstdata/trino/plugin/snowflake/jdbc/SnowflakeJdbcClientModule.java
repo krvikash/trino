@@ -32,6 +32,7 @@ import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.ForBaseJdbc;
 import io.trino.plugin.jdbc.IdentityCacheMapping;
 import io.trino.plugin.jdbc.JdbcClient;
+import io.trino.plugin.jdbc.JdbcMetadataConfig;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.MaxDomainCompactionThreshold;
 import io.trino.plugin.jdbc.QueryBuilder;
@@ -99,6 +100,7 @@ public class SnowflakeJdbcClientModule
         bindSessionPropertiesProvider(binder, SnowflakeJdbcSessionProperties.class);
 
         configBinder(binder).bindConfig(JdbcConnectionPoolConfig.class);
+        configBinder(binder).bindConfigDefaults(JdbcMetadataConfig.class, config -> config.setBulkListColumns(true));
 
         install(new CredentialProviderModule());
         configBinder(binder).bindConfig(SnowflakeCredentialConfig.class);
