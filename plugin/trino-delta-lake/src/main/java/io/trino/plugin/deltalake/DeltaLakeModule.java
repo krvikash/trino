@@ -51,7 +51,6 @@ import io.trino.plugin.hive.HideDeltaLakeTables;
 import io.trino.plugin.hive.LocationAccessControlModule;
 import io.trino.plugin.hive.PropertiesSystemTableProvider;
 import io.trino.plugin.hive.SystemTableProvider;
-import io.trino.plugin.hive.metastore.thrift.TranslateHiveViews;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.hive.util.BlockJsonSerde;
@@ -95,7 +94,6 @@ public class DeltaLakeModule
         configBinder(binder).bindConfig(ParquetReaderConfig.class);
         configBinder(binder).bindConfig(ParquetWriterConfig.class);
 
-        binder.bind(boolean.class).annotatedWith(TranslateHiveViews.class).toInstance(false);
         binder.bind(boolean.class).annotatedWith(HideDeltaLakeTables.class).toInstance(false);
 
         install(new ConnectorAccessControlModule());
