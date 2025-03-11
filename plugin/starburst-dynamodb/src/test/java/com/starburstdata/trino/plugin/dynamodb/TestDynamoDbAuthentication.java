@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.dynamodb;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
 import static io.trino.tpch.TpchTable.NATION;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
@@ -63,6 +65,63 @@ final class TestDynamoDbAuthentication
                 .build()) {
             assertThatThrownBy(() -> queryRunner.execute("SHOW TABLES"))
                     .hasMessageContaining("The Access Key ID or security token is invalid");
+        }
+    }
+
+    @Test
+    void testQueryWithIncorrectSystemPropertyCredentials()
+    {
+        executeExclusively(() -> {
+            try (AutoCloseable _ = new TemporalSystemProperty("aws.accessKeyId", "incorrect-key");
+                    AutoCloseable _ = new TemporalSystemProperty("aws.secretAccessKey", "incorrect-key");
+                    DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                            .setEndpointUrl(server.getEndpointUrl())
+                            .setTables(ImmutableList.of())
+                            .addConnectorProperties(ImmutableMap.of("dynamodb.use-default-aws-chain-provider", "true"))
+                            .build()) {
+                assertThatThrownBy(() -> queryRunner.execute("SHOW TABLES"))
+                        .hasMessageContaining("The Access Key ID or security token is invalid");
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @Test
+    void testQueryWithCorrectSystemPropertyCredentials()
+    {
+        executeExclusively(() -> {
+            try (AutoCloseable _ = new TemporalSystemProperty("aws.accessKeyId", "correctKeyId");
+                    AutoCloseable _ = new TemporalSystemProperty("aws.secretAccessKey", "correctAccessKey");
+                    DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                            .setEndpointUrl(server.getEndpointUrl())
+                            .setTables(ImmutableList.of())
+                            .addConnectorProperties(ImmutableMap.of("dynamodb.use-default-aws-chain-provider", "true"))
+                            .build()) {
+                assertThat(queryRunner.execute("SHOW TABLES").getOnlyValue()).isEqualTo("nation");
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private static class TemporalSystemProperty
+            implements AutoCloseable
+    {
+        private final String key;
+
+        private TemporalSystemProperty(String key, String value)
+        {
+            this.key = key;
+            System.setProperty(key, value);
+        }
+
+        @Override
+        public void close()
+        {
+            System.clearProperty(key);
         }
     }
 }

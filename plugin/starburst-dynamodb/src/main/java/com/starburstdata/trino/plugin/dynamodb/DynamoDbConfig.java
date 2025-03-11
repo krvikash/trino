@@ -49,6 +49,7 @@ public class DynamoDbConfig
 
     private String awsAccessKey;
     private String awsSecretKey;
+    private boolean useDefaultAwsChainProvider;
     private String awsRoleArn;
     private String awsRoleCredentialsLocation = JAVA_IO_TMPDIR.value() + "/dynamodb-credentials-file";
     private String awsExternalId;
@@ -90,6 +91,19 @@ public class DynamoDbConfig
     public DynamoDbConfig setAwsSecretKey(String awsSecretKey)
     {
         this.awsSecretKey = awsSecretKey;
+        return this;
+    }
+
+    public boolean isUseDefaultAwsChainProvider()
+    {
+        return useDefaultAwsChainProvider;
+    }
+
+    @Config("dynamodb.use-default-aws-chain-provider")
+    @ConfigDescription("Use default AWS chain provider to fetch credentials")
+    public DynamoDbConfig setUseDefaultAwsChainProvider(boolean useDefaultAwsChainProvider)
+    {
+        this.useDefaultAwsChainProvider = useDefaultAwsChainProvider;
         return this;
     }
 
@@ -300,5 +314,10 @@ public class DynamoDbConfig
     {
         checkState(AWS_REGION_TO_CDATA_REGION.containsKey(getAwsRegion()), "dynamodb.aws-region must be one of the following: " + AWS_REGION_TO_CDATA_REGION.keySet().stream().sorted().collect(joining(", ")));
         checkState(getAwsAccessKey().isPresent() == getAwsSecretKey().isPresent(), "dynamodb.aws-access-key and dynamodb.aws-secret-key must both be either set or not set");
+        checkState(
+                !isUseDefaultAwsChainProvider() ||
+                getAwsAccessKey().isEmpty() ||
+                getAwsSecretKey().isEmpty(),
+                "dynamodb.use-default-aws-chain-provider cannot be set when dynamodb.aws-access-key or dynamodb.aws-secret-key are set");
     }
 }

@@ -13,6 +13,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
 import io.trino.spi.security.ConnectorIdentity;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
 import java.util.Map;
 import java.util.Optional;
@@ -26,6 +29,7 @@ public class DynamoDbCredentialPropertiesProvider
     private final Optional<String> awsSecretKey;
     private final Optional<String> awsRoleArn;
     private final String awsRoleCredentialsLocation;
+    private final Optional<DefaultCredentialsProvider> defaultAwsChainCredentialsProvider;
 
     @Inject
     public DynamoDbCredentialPropertiesProvider(DynamoDbConfig dynamoDbConfig)
@@ -34,6 +38,8 @@ public class DynamoDbCredentialPropertiesProvider
         awsSecretKey = requireNonNull(dynamoDbConfig.getAwsSecretKey(), "secretKey is null");
         awsRoleArn = requireNonNull(dynamoDbConfig.getAwsRoleArn(), "roleArn is null");
         awsRoleCredentialsLocation = requireNonNull(dynamoDbConfig.getAwsRoleCredentialsLocation(), "roleCredentialsLocation is null");
+
+        defaultAwsChainCredentialsProvider = dynamoDbConfig.isUseDefaultAwsChainProvider() ? Optional.of(DefaultCredentialsProvider.create()) : Optional.empty();
     }
 
     @Override
@@ -44,6 +50,15 @@ public class DynamoDbCredentialPropertiesProvider
         if (awsAccessKey.isPresent() && awsSecretKey.isPresent()) {
             properties.put("AWS Access Key", awsAccessKey.get());
             properties.put("AWS Secret Key", awsSecretKey.get());
+        }
+        else if (defaultAwsChainCredentialsProvider.isPresent()) {
+            AwsCredentials credentials = defaultAwsChainCredentialsProvider.get().resolveCredentials();
+            properties.put("AWS Access Key", credentials.accessKeyId());
+            properties.put("AWS Secret Key", credentials.secretAccessKey());
+            if (credentials instanceof AwsSessionCredentials awsSessionCredentials) {
+                properties.put("AuthScheme", "TemporaryCredentials");
+                properties.put("AWSSessionToken", awsSessionCredentials.sessionToken());
+            }
         }
         else {
             // If they are not set, set auth scheme to EC2 roles so driver does not throw an error

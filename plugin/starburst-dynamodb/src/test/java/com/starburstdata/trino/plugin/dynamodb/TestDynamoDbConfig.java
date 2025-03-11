@@ -47,6 +47,7 @@ public class TestDynamoDbConfig
         assertRecordedDefaults(recordDefaults(DynamoDbConfig.class)
                 .setAwsAccessKey(null)
                 .setAwsSecretKey(null)
+                .setUseDefaultAwsChainProvider(false)
                 .setAwsRoleArn(null)
                 .setAwsRoleCredentialsLocation(JAVA_IO_TMPDIR.value() + "/dynamodb-credentials-file")
                 .setAwsExternalId(null)
@@ -75,6 +76,7 @@ public class TestDynamoDbConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("dynamodb.aws-access-key", "accesskey")
                 .put("dynamodb.aws-secret-key", "secretkey")
+                .put("dynamodb.use-default-aws-chain-provider", "true")
                 .put("dynamodb.aws-role-arn", "role-arn")
                 .put("dynamodb.aws-role-credentials-location", "/dir1/inner/file.txt")
                 .put("dynamodb.aws-external-id", "external-id")
@@ -95,6 +97,7 @@ public class TestDynamoDbConfig
         DynamoDbConfig expected = new DynamoDbConfig()
                 .setAwsAccessKey("accesskey")
                 .setAwsSecretKey("secretkey")
+                .setUseDefaultAwsChainProvider(true)
                 .setAwsRoleArn("role-arn")
                 .setAwsRoleCredentialsLocation("/dir1/inner/file.txt")
                 .setAwsExternalId("external-id")
@@ -142,6 +145,40 @@ public class TestDynamoDbConfig
                 .setAwsAccessKey("foo")
                 .setAwsSecretKey("bar")
                 .validate();
+    }
+
+    @Test
+    public void testAwsKeysNotSetWhenDefaultProviderSet()
+    {
+        // Test defaults neither default provider nor keys are set
+        new DynamoDbConfig()
+                .setAwsRegion("us-east-2")
+                .validate();
+
+        // Test only keys are set
+        new DynamoDbConfig()
+                .setAwsRegion("us-east-2")
+                .setUseDefaultAwsChainProvider(false)
+                .setAwsAccessKey("foo")
+                .setAwsSecretKey("foo")
+                .validate();
+
+        // Test only default provider set
+        new DynamoDbConfig()
+                .setAwsRegion("us-east-2")
+                .setUseDefaultAwsChainProvider(true)
+                .validate();
+
+        // Test both set
+        assertThatThrownBy(() ->
+                new DynamoDbConfig()
+                        .setAwsRegion("us-east-2")
+                        .setUseDefaultAwsChainProvider(true)
+                        .setAwsAccessKey("foo")
+                        .setAwsSecretKey("foo")
+                        .validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("dynamodb.use-default-aws-chain-provider cannot be set when dynamodb.aws-access-key or dynamodb.aws-secret-key are set");
     }
 
     @Test
