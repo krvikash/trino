@@ -12,8 +12,6 @@ package com.starburstdata.trino.plugin.dynamodb;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
-import io.trino.plugin.jdbc.credential.CredentialProvider;
-import io.trino.plugin.jdbc.credential.DefaultCredentialPropertiesProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.ConnectorIdentity;
 
@@ -30,6 +28,7 @@ import static com.starburstdata.trino.plugin.dynamodb.DynamoDbSessionProperties.
 import static com.starburstdata.trino.plugin.dynamodb.DynamoDbSessionProperties.getGenerateSchemaFiles;
 import static com.starburstdata.trino.plugin.dynamodb.DynamoDbSessionProperties.isFlattenObjectsEnabled;
 import static io.trino.spi.type.VarcharType.UNBOUNDED_LENGTH;
+import static java.util.Objects.requireNonNull;
 
 /**
  * We implement our own ConnectionFactory in order to add our OEM key to the connection URL but prevent it from being logged
@@ -90,21 +89,6 @@ public class DynamoDbConnectionFactory
                 .append("ReportMetadataExceptions=\"True\";") // Throw exceptions on failing metadata operations
                 .append("OEMKey=\"").append(CDATA_OEM_KEY).append("\";");
 
-        // Both of these settings are validated in DynamoDbConfig
-        if (dynamoDbConfig.getAwsAccessKey().isPresent() && dynamoDbConfig.getAwsSecretKey().isPresent()) {
-            builder.append("AWS Access Key=\"").append(dynamoDbConfig.getAwsAccessKey().get()).append("\";");
-            builder.append("AWS Secret Key=\"").append(dynamoDbConfig.getAwsSecretKey().get()).append("\";");
-        }
-        else {
-            // If they are not set, set auth scheme to EC2 roles so driver does not throw an error
-            builder.append("Auth Scheme=\"AwsEC2Roles\";");
-        }
-
-        dynamoDbConfig.getAwsRoleArn().ifPresent(url ->
-                builder
-                        .append("AuthScheme=\"").append("AwsIAMRoles").append("\";")
-                        .append("AWS Role ARN=\"").append(url).append("\";")
-                        .append("CredentialsLocation=\"").append(dynamoDbConfig.getAwsRoleCredentialsLocation()).append("\";"));
         dynamoDbConfig.getAwsExternalId().ifPresent(url -> builder.append("AWS External Id=\"").append(url).append("\";"));
         dynamoDbConfig.getEndpointUrl().ifPresent(url -> builder.append("URL=\"").append(url).append("\";"));
 
@@ -131,8 +115,10 @@ public class DynamoDbConnectionFactory
     private final String connectionUrl;
     private final CredentialPropertiesProvider credentialPropertiesProvider;
 
-    public DynamoDbConnectionFactory(DynamoDbConfig dynamoDbConfig, CredentialProvider credentialProvider)
+    public DynamoDbConnectionFactory(DynamoDbConfig dynamoDbConfig, CredentialPropertiesProvider credentialPropertiesProvider)
     {
+        this.credentialPropertiesProvider = requireNonNull(credentialPropertiesProvider, "credentialPropertiesProvider is null");
+
         Class<? extends Driver> driverClass;
         try {
             driverClass = Class.forName(DRIVER_CLASS_NAME).asSubclass(Driver.class);
@@ -149,7 +135,6 @@ public class DynamoDbConnectionFactory
         }
 
         connectionUrl = getConnectionUrl(dynamoDbConfig);
-        credentialPropertiesProvider = new DefaultCredentialPropertiesProvider(credentialProvider);
     }
 
     @Override

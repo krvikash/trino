@@ -20,12 +20,10 @@ import dev.failsafe.RetryPolicy;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.ConnectionFactory;
-import io.trino.plugin.jdbc.ExtraCredentialsBasedIdentityCacheMappingModule;
 import io.trino.plugin.jdbc.ForBaseJdbc;
 import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.RetryingConnectionFactory;
-import io.trino.plugin.jdbc.credential.CredentialProvider;
-import io.trino.plugin.jdbc.credential.CredentialProviderModule;
+import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
 import io.trino.plugin.jdbc.jmx.StatisticsAwareConnectionFactory;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 
@@ -34,6 +32,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.jdbc.JdbcModule.bindSessionPropertiesProvider;
@@ -63,8 +62,7 @@ public class DynamoDbModule
         bindTablePropertiesProvider(binder, DynamoDbTableProperties.class);
         bindSessionPropertiesProvider(binder, DynamoDbSessionProperties.class);
 
-        install(new CredentialProviderModule());
-        install(new ExtraCredentialsBasedIdentityCacheMappingModule());
+        binder.bind(CredentialPropertiesProvider.class).to(DynamoDbCredentialPropertiesProvider.class).in(SINGLETON);
 
         // Set the connection URL to some value as it is a required property in the JdbcModule
         // The actual connection URL is set via the DynamoDbConnectionFactory
@@ -80,13 +78,13 @@ public class DynamoDbModule
     @Provides
     @Singleton
     @DefaultDynamoDbBinding
-    public ConnectionFactory getConnectionFactory(DynamoDbConfig dynamoDbConfig, CredentialProvider credentialProvider)
+    public ConnectionFactory getConnectionFactory(DynamoDbConfig dynamoDbConfig, CredentialPropertiesProvider credentialPropertiesProvider)
     {
         // The CData JDBC driver will intermittently throw an exception with no error message
         // Typically, retrying the query will cause it to proceed
         return new RetryingConnectionFactory(
                 new StatisticsAwareConnectionFactory(
-                        new DynamoDbConnectionFactory(dynamoDbConfig, credentialProvider)),
+                        new DynamoDbConnectionFactory(dynamoDbConfig, credentialPropertiesProvider)),
                 RetryPolicy.ofDefaults());
     }
 

@@ -12,6 +12,7 @@ package com.starburstdata.trino.plugin.dynamodb;
 import com.google.common.collect.ImmutableList;
 import com.starburstdata.trino.plugin.dynamodb.testing.DynamoDbDataSetup;
 import io.trino.Session;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.Type;
@@ -34,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Properties;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
@@ -397,7 +399,10 @@ public class TestDynamoDbTypeMapping
 
     protected DataSetup dynamoDbCreateAndInsert(String tableNamePrefix)
     {
-        return new DynamoDbDataSetup(dynamoDbConfig, new JdbcSqlExecutor(DynamoDbConnectionFactory.getConnectionUrl(dynamoDbConfig)), tableNamePrefix);
+        DynamoDbCredentialPropertiesProvider propertiesProvider = new DynamoDbCredentialPropertiesProvider(dynamoDbConfig);
+        Properties properties = new Properties();
+        properties.putAll(propertiesProvider.getCredentialProperties(ConnectorIdentity.ofUser("user")));
+        return new DynamoDbDataSetup(dynamoDbConfig, new JdbcSqlExecutor(DynamoDbConnectionFactory.getConnectionUrl(dynamoDbConfig), properties), tableNamePrefix);
     }
 
     private DataSetup trinoCreateAsSelect(String tableNamePrefix)
