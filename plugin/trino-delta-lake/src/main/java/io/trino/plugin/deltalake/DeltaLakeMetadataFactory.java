@@ -85,7 +85,7 @@ public class DeltaLakeMetadataFactory
             @UsingSystemSecurity boolean useSystemSecurity,
             NodeVersion nodeVersion,
             DeltaLakeTableMetadataScheduler metadataScheduler,
-            ExecutorService executorService)
+            @ForDeltaLakeMetadata ExecutorService executorService)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.hiveMetastoreFactory = requireNonNull(hiveMetastoreFactory, "hiveMetastore is null");

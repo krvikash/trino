@@ -137,7 +137,7 @@ public class HiveSplitManager
             HiveTransactionManager transactionManager,
             HivePartitionManager partitionManager,
             TrinoFileSystemFactory fileSystemFactory,
-            ExecutorService executorService,
+            @ForHiveSplitManager ExecutorService executorService,
             VersionEmbedder versionEmbedder,
             TypeManager typeManager,
             JsonCodec<HiveCacheSplitId> splitIdCodec,
