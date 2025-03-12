@@ -70,11 +70,11 @@ public class TestDataframeTableFunctionSmokeTest
                                                      FROM
                                                        (
                                  VALUES\s
-                                                          ROW (CAST(1 AS BIGINT), CAST(2 AS BIGINT))
-                                                        , ROW (CAST(3 AS BIGINT), CAST(4 AS BIGINT))
-                                                        , ROW (CAST(5 AS BIGINT), CAST(6 AS BIGINT))
-                                                        , ROW (CAST(7 AS BIGINT), CAST(8 AS BIGINT))
-                                                        , ROW (CAST(9 AS BIGINT), CAST(10 AS BIGINT))
+                                                          ROW(CAST(1 AS BIGINT), CAST(2 AS BIGINT))
+                                                        , ROW(CAST(3 AS BIGINT), CAST(4 AS BIGINT))
+                                                        , ROW(CAST(5 AS BIGINT), CAST(6 AS BIGINT))
+                                                        , ROW(CAST(7 AS BIGINT), CAST(8 AS BIGINT))
+                                                        , ROW(CAST(9 AS BIGINT), CAST(10 AS BIGINT))
                                                      )  t ("_1", "_2")
                                                   )\s
                                                )\s
