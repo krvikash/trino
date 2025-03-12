@@ -53,7 +53,6 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer;
 import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
-import io.trino.plugin.warp.storage.read.LazyCollectTxService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
@@ -99,7 +98,6 @@ public class DispatcherMainModule
             binder.bind(DispatcherPageSinkProvider.class);
             binder.bind(DomainToMapBlockConvertor.class);
             binder.bind(EmptyRowGroupWarmer.class);
-            binder.bind(LazyCollectTxService.class);
             binder.bind(MatchCollectIdService.class).toInstance(context.getWarpPluginSharedInstances().matchCollectIdService());
             binder.bind(MatchService.class);
             binder.bind(PredicateContextFactory.class);

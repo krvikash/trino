@@ -29,21 +29,25 @@ public interface BlocksAggregator
             QueryArgs queryArgs,
             ThreadArena pageArena,
             AggregatorArgs aggregatorArgs,
-            WarpQueryState queryState);
+            WarpQueryState queryState,
+            List<Integer> blocksToLoad);
 
     void prepareBlocks(ChunkProperties chunk,
             RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
-            WarpQueryState queryState);
+            WarpQueryState queryState,
+            List<Integer> blocksToLoad);
 
     Block[] aggregateBlocks(RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState,
-            List<ChunkProperties> pageChunksList);
+            List<ChunkProperties> pageChunksList,
+            List<Integer> loadedBlocks,
+            Block[] blocks);
 
     long closePage(QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs);
@@ -51,4 +55,6 @@ public interface BlocksAggregator
     void abortPage(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Exception e);
 
     void close(QueryArgs queryArgs);
+
+    List<Integer> getPreLoadedBlocks(QueryArgs queryArgs);
 }

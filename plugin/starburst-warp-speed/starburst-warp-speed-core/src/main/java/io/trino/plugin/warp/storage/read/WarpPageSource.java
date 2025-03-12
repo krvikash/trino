@@ -20,7 +20,6 @@ import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.Page;
-import io.trino.spi.block.Block;
 
 import java.util.Optional;
 
@@ -110,8 +109,7 @@ public class WarpPageSource
     @Override
     public Page getNextPage()
     {
-        Optional<Block[]> blocks = Optional.empty();
-        int currentPositionsCount = 0;
+        Optional<Page> page = Optional.empty();
         if (!isFinished()) {
             try {
                 ReadResult readResult = reader.getPage();
@@ -119,11 +117,10 @@ public class WarpPageSource
                     finished = true;
                 }
                 updateRowsLimit();
-                blocks = Optional.of(readResult.blocks());
+                page = Optional.of(readResult.page());
                 sortedRowRanges = readResult.ranges();
                 completedBytes += (readResult.numReadPages() << storageEngineConstants.getPageSizeShift());
                 completedPositions += readResult.numCollectedRows();
-                currentPositionsCount = readResult.numCollectedRows();
             }
             catch (Exception e) {
                 close();
@@ -135,7 +132,7 @@ public class WarpPageSource
         }
 
         // blocks.length can be 0 in case we just match in Warp when collect is done in external/prefilled
-        return (blocks.isPresent() && blocks.get().length > 0) ? new Page(currentPositionsCount, blocks.get()) : new Page(currentPositionsCount);
+        return page.orElseGet(() -> new Page(0));
     }
 
     private void updateRowsLimit()

@@ -19,12 +19,17 @@ import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
+import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
+import io.trino.spi.connector.SourcePage;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.ObjLongConsumer;
+import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static java.util.Objects.requireNonNull;
@@ -46,9 +51,6 @@ public class WarpReader
     private final Matcher matcher;
     private final MatcherArgs matcherArgs;
     private MatcherPageArgs matcherPageArgs;
-
-    private RecordIndexes recordIndexes;
-    private List<ChunkProperties> pageChunksList;
 
     WarpReader(QueryParams queryParams,
             CustomStatsContext customStatsContext,
@@ -85,9 +87,9 @@ public class WarpReader
      * prepare buffers for filling
      */
     @NativeInterrupt
-    private void openPage()
+    private void openPage(List<Integer> blocksToLoad, RecordIndexes recordIndexes)
     {
-        this.recordIndexes = new RecordIndexes(queryArgs.chunkSize());
+        queryState.resetNumRecordsInCurPage();
         pageArena = workerMemoryManager.getThreadArena();
 
         // each API call will throw exception if failed
@@ -95,21 +97,20 @@ public class WarpReader
                 queryArgs,
                 pageArena,
                 aggregatorArgs,
-                queryState);
+                queryState,
+                blocksToLoad);
 
         matcherPageArgs = matcher.openPage(recordIndexes,
                 pageArena,
                 queryArgs,
                 matcherArgs,
                 aggregatorPageArgs);
-
-        pageChunksList = new ArrayList<>();
     }
 
     /**
      * collect rows from native, return true if something was collected, false otherwise
      */
-    private boolean prepareBlocks()
+    private boolean prepareBlocks(List<Integer> blocksToLoad, RecordIndexes recordIndexes, List<ChunkProperties> pageChunksList)
     {
         if (aggregatorPageArgs == null) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
@@ -128,7 +129,8 @@ public class WarpReader
                     queryArgs,
                     aggregatorArgs,
                     aggregatorPageArgs,
-                    queryState);
+                    queryState,
+                    blocksToLoad);
             pageChunksList.add(chunk.get());
         }
 
@@ -139,11 +141,13 @@ public class WarpReader
     {
         ReadResult readResult;
         try {
-            Block[] blocks = new Block[0];
+            Block[] blocks = new Block[queryArgs.queryParams().getNumCollectElements()];
             WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
-
-            openPage();
-            if (prepareBlocks()) {
+            RecordIndexes recordIndexes = new RecordIndexes(queryArgs.chunkSize());
+            List<ChunkProperties> pageChunksList = new ArrayList<>();
+            List<Integer> preLoadedBlocks = blocksAggregator.getPreLoadedBlocks(queryArgs);
+            openPage(preLoadedBlocks, recordIndexes);
+            if (prepareBlocks(preLoadedBlocks, recordIndexes, pageChunksList)) {
                 if (queryState.getNumRecordsInCurPage() > rowsLimit - queryState.getTotalNumReadRecords()) {
                     shapingLogger.warn("numRecordsInCurPage is exceeding the limit. numRecordsInCurPage %d totalNumReadRecords %d rowsLimit %d page limit %d",
                             queryState.getNumRecordsInCurPage(),
@@ -152,19 +156,23 @@ public class WarpReader
                             rowsLimit - queryState.getTotalNumReadRecords());
                 }
 
-                blocks = blocksAggregator.aggregateBlocks(recordIndexes,
+                blocksAggregator.aggregateBlocks(recordIndexes,
                         queryArgs,
                         aggregatorArgs,
                         aggregatorPageArgs,
                         queryState,
-                        pageChunksList);
+                        pageChunksList,
+                        preLoadedBlocks,
+                        blocks);
                 if (queryArgs.queryParams().isRangesRequired()) {
                     ranges = matcher.getRanges(matcherPageArgs);
                 }
+                queryArgs.dispatcherPageSourceStats().addlazy_collect_total_blocks(blocks.length - preLoadedBlocks.size());
             }
             long numReadPages = closePage();
 
-            readResult = new ReadResult(blocks, queryState.getNumRecordsInCurPage(), ranges, numReadPages);
+            WarpSourcePage warpSourcePage = new WarpSourcePage(recordIndexes, pageChunksList, queryState.getNumRecordsInCurPage(), blocks);
+            readResult = new ReadResult(warpSourcePage.getPage(), queryState.getNumRecordsInCurPage(), ranges, numReadPages);
         }
         catch (Exception e) {
             abortPage(e);
@@ -224,6 +232,162 @@ public class WarpReader
             pageArena = null;
             matcherPageArgs = null;
             aggregatorPageArgs = null;
+        }
+    }
+
+    public class WarpSourcePage
+            implements SourcePage
+    {
+        private final RecordIndexes recordIndexes;
+        private final List<ChunkProperties> chunkPropertiesList;
+        private final int positionCount;
+        private final Block[] blocks;
+
+        public WarpSourcePage(RecordIndexes recordIndexes,
+                List<ChunkProperties> chunkPropertiesList,
+                int positionCount,
+                Block[] blocks)
+        {
+            this.recordIndexes = recordIndexes;
+            this.chunkPropertiesList = chunkPropertiesList;
+            this.positionCount = positionCount;
+            this.blocks = blocks;
+        }
+
+        @Override
+        public int getPositionCount()
+        {
+            return positionCount;
+        }
+
+        @Override
+        public long getSizeInBytes()
+        {
+            long sizeInBytes = 0;
+            for (Block block : blocks) {
+                if (block != null) {
+                    sizeInBytes += block.getSizeInBytes();
+                }
+            }
+            return sizeInBytes;
+        }
+
+        @Override
+        public long getRetainedSizeInBytes()
+        {
+            long retainedSizeInBytes = 0;
+            for (Block block : blocks) {
+                if (block != null) {
+                    retainedSizeInBytes += block.getRetainedSizeInBytes();
+                }
+            }
+            return retainedSizeInBytes;
+        }
+
+        @Override
+        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
+        {
+            for (Block block : blocks) {
+                if (block != null) {
+                    block.retainedBytesForEachPart(consumer);
+                }
+            }
+        }
+
+        @Override
+        public int getChannelCount()
+        {
+            return blocks.length;
+        }
+
+        void loadBlocks(List<Integer> blocksToLoad)
+        {
+            blocksToLoad = blocksToLoad.stream()
+                    .filter(i -> blocks[i] == null)
+                    .toList();
+            if (blocksToLoad.isEmpty()) {
+                return;
+            }
+
+            try {
+                pageArena = workerMemoryManager.getThreadArena();
+                aggregatorPageArgs = blocksAggregator.openPage(recordIndexes,
+                        queryArgs,
+                        pageArena,
+                        aggregatorArgs,
+                        queryState,
+                        blocksToLoad);
+
+                for (ChunkProperties chunk : chunkPropertiesList) {
+                    blocksAggregator.prepareBlocks(chunk,
+                            recordIndexes,
+                            queryArgs,
+                            aggregatorArgs,
+                            aggregatorPageArgs,
+                            queryState,
+                            blocksToLoad);
+                }
+
+                blocksAggregator.aggregateBlocks(recordIndexes,
+                        queryArgs,
+                        aggregatorArgs,
+                        aggregatorPageArgs,
+                        queryState,
+                        chunkPropertiesList,
+                        blocksToLoad,
+                        blocks);
+            }
+            catch (Exception e) {
+                abortPage(e);
+                throw e;
+            }
+            closePage();
+            queryArgs.dispatcherPageSourceStats().addlazy_collect_loaded_blocks(blocksToLoad.size());
+        }
+
+        @Override
+        public Block getBlock(int channel)
+        {
+            loadBlocks(List.of(channel));
+            return blocks[channel];
+        }
+
+        @Override
+        public Page getPage()
+        {
+            if (positionCount > 0) {
+                List<Integer> blocksToLoad = IntStream.range(0, blocks.length)
+                        .boxed()
+                        .toList();
+                loadBlocks(blocksToLoad);
+            }
+            return blocks.length > 0 ? new Page(blocks) : new Page(positionCount);
+        }
+
+        @Override
+        public Page getColumns(int[] channels)
+        {
+            List<Integer> blocksToLoad = Arrays.stream(channels)
+                    .boxed()
+                    .toList();
+            loadBlocks(blocksToLoad);
+            Block[] blocks = new Block[channels.length];
+            for (int i = 0; i < channels.length; i++) {
+                blocks[i] = getBlock(channels[i]);
+            }
+            return new Page(getPositionCount(), blocks);
+        }
+
+        @Override
+        public void selectPositions(int[] positions, int offset, int size)
+        {
+            // TODO: implement lazy selectPositions
+            for (int i = 0; i < blocks.length; i++) {
+                if (blocks[i] == null) {
+                    blocks[i] = getBlock(i);
+                }
+                blocks[i] = blocks[i].getPositions(positions, offset, size);
+            }
         }
     }
 }

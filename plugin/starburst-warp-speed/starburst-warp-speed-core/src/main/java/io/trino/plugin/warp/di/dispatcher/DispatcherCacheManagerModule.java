@@ -80,7 +80,6 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.read.CollectTxService;
-import io.trino.plugin.warp.storage.read.LazyCollectTxService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.RangeFillerService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
@@ -176,7 +175,6 @@ public class DispatcherCacheManagerModule
         binder.bind(EmptyRowGroupWarmer.class);
         binder.bind(FailureGeneratorInvocationHandler.class);
         binder.bind(FlowsSequencer.class);
-        binder.bind(LazyCollectTxService.class);
         binder.bind(MatchCollectIdService.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().matchCollectIdService());
         binder.bind(MatchService.class);
         binder.bind(PredicateContextFactory.class);

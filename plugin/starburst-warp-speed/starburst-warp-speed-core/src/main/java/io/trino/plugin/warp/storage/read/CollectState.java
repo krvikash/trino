@@ -82,9 +82,9 @@ public class CollectState
     }
 
     public void setState(QueryArgs queryArgs,
-            AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
-            RecordIndexes recordIndexes)
+            RecordIndexes recordIndexes,
+            int numWesToCollect)
     {
         QueryParams queryParams = queryArgs.queryParams();
         long[] fileCookie = queryArgs.fileCookie();
@@ -100,7 +100,7 @@ public class CollectState
                 fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinCollectOffset());
         collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
-        collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) aggregatorArgs.preLoadedCollectParamsList().size());
+        collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) numWesToCollect);
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) queryParams.getNumMatchCollect());
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) queryArgs.numChunksInRange());
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_IS_FULL_SCAN, (queryParams.getNumMatchElements() == 0) ? (byte) 1 : (byte) 0);

@@ -36,7 +36,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.query.classifier.NativeCollectClassifier.COLLECT_BUFFER_MAX_MEMORY;
 import static java.lang.Math.min;
@@ -65,9 +64,10 @@ public class CollectTxService
     AggregatorPageArgs collectOpenAndRestore(RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             ThreadArena pageArena,
-            AggregatorArgs aggregatorArgs)
+            AggregatorArgs aggregatorArgs,
+            List<Integer> blocksToLoad)
     {
-        int numCollectElements = aggregatorArgs.preLoadedCollectParamsList().size();
+        int numCollectElements = blocksToLoad.size();
 
         Optional<MemorySegment> collectMemory = Optional.empty();
         recordIndexes.allocateRecordIndexesSegment(pageArena);
@@ -80,12 +80,15 @@ public class CollectTxService
             collectMemory = allocCollectBuffers(aggregatorArgs.collectBuffersParams(),
                     pageArena,
                     collectMetadataMemory.collectBuffersOpt().get(),
-                    aggregatorArgs.preLoadedBlocks());
+                    blocksToLoad);
+
             MemorySegment collectParamsListMemory = collectMetadataMemory.collectParamsOpt().get();
             MemorySegment elementCollectParamsMemory;
-            for (int preCollectIx = 0; preCollectIx < numCollectElements; preCollectIx++) {
-                elementCollectParamsMemory = aggregatorArgs.preLoadedCollectParamsList().get(preCollectIx).getMemory();
-                collectParamsListMemory.setAtIndex(ValueLayout.ADDRESS, preCollectIx, elementCollectParamsMemory);
+            int collectIx = 0;
+            for (Integer blockIx : blocksToLoad) {
+                elementCollectParamsMemory = queryArgs.queryParams().getCollectElementsParamsList().get(blockIx).getMemory();
+                collectParamsListMemory.setAtIndex(ValueLayout.ADDRESS, collectIx, elementCollectParamsMemory);
+                collectIx++;
             }
         }
         else {
@@ -114,7 +117,7 @@ public class CollectTxService
                 collectMetadataMemory.matchCollectMetadataOpt(),
                 new ReadStats(pageArena));
 
-        collectState.setState(queryArgs, aggregatorArgs, aggregatorPageArgs, recordIndexes);
+        collectState.setState(queryArgs, aggregatorPageArgs, recordIndexes, numCollectElements);
         collectOpen(collectState, queryArgs.dispatcherPageSourceStats());
 
         return aggregatorPageArgs;
@@ -187,12 +190,11 @@ public class CollectTxService
     private Optional<MemorySegment> allocCollectBuffers(CollectBuffersParams collectBuffersParams,
             ThreadArena pageArena,
             MemorySegment collectBuffers,
-            List<Boolean> preCollectIndexes)
+            List<Integer> blocksToLoad)
     {
         List<CollectBuffersParams.CollectBufAllocParams> allocParamsList = collectBuffersParams.collectAllocParams();
-        List<CollectBuffersParams.CollectBufAllocParams> preLoadedAllocParamsList = IntStream.range(0, preCollectIndexes.size())
-                .filter(preCollectIndexes::get)
-                .mapToObj(allocParamsList::get)
+        List<CollectBuffersParams.CollectBufAllocParams> preLoadedAllocParamsList = blocksToLoad.stream()
+                .map(allocParamsList::get)
                 .toList();
         final int pageSize = storageEngineConstants.getPageSize();
 

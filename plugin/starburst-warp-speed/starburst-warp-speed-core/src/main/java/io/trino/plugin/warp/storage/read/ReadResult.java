@@ -13,9 +13,9 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.spi.block.Block;
+import io.trino.spi.Page;
 
-public record ReadResult(Block[] blocks,
+public record ReadResult(Page page,
                          int numCollectedRows,
                          WarpStoragePageSource.RowRanges ranges,
                          long numReadPages)
