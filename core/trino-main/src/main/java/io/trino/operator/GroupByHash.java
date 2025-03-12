@@ -92,15 +92,15 @@ public interface GroupByHash
         catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
         }
-        FlatGroupByHash.HashMode hashMode;
+        GroupByHashMode hashMode;
         if (hasPrecomputedHash) {
-            hashMode = FlatGroupByHash.HashMode.PRECOMPUTED;
+            hashMode = GroupByHashMode.PRECOMPUTED;
         }
         else if (cacheHashValues) {
-            hashMode = FlatGroupByHash.HashMode.CACHED;
+            hashMode = GroupByHashMode.CACHED;
         }
         else {
-            hashMode = FlatGroupByHash.HashMode.ON_DEMAND;
+            hashMode = GroupByHashMode.ON_DEMAND;
         }
         return new FlatGroupByHash(
                 types,

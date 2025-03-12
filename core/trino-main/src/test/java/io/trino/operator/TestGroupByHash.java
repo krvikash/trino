@@ -41,6 +41,7 @@ import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.block.BlockAssertions.createStringSequenceBlock;
 import static io.trino.block.BlockAssertions.createTypedLongsBlock;
 import static io.trino.operator.GroupByHash.createGroupByHash;
+import static io.trino.operator.GroupByHashMode.ON_DEMAND;
 import static io.trino.operator.UpdateMemory.NOOP;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DateType.DATE;
@@ -76,7 +77,7 @@ public class TestGroupByHash
                 case BIGINT -> new BigintGroupByHash(true, expectedSize, updateMemory, hashType);
                 case FLAT -> new FlatGroupByHash(
                         ImmutableList.of(BigintType.BIGINT),
-                        FlatGroupByHash.HashMode.PRECOMPUTED,
+                        GroupByHashMode.PRECOMPUTED,
                         expectedSize,
                         true,
                         new FlatHashStrategyCompiler(new TypeOperators()),
@@ -547,7 +548,7 @@ public class TestGroupByHash
     @Test
     public void testLowCardinalityDictionariesAddPage()
     {
-        GroupByHash groupByHash = new FlatGroupByHash(ImmutableList.of(BIGINT, BIGINT), FlatGroupByHash.HashMode.ON_DEMAND, 100, false, new FlatHashStrategyCompiler(new TypeOperators()), NOOP);
+        GroupByHash groupByHash = new FlatGroupByHash(ImmutableList.of(BIGINT, BIGINT), ON_DEMAND, 100, false, new FlatHashStrategyCompiler(new TypeOperators()), NOOP);
         Block firstBlock = BlockAssertions.createLongDictionaryBlock(0, 1000, 10);
         Block secondBlock = BlockAssertions.createLongDictionaryBlock(0, 1000, 10);
         Page page = new Page(firstBlock, secondBlock);
@@ -571,7 +572,7 @@ public class TestGroupByHash
         // Compare group ids results from page with dictionaries only (processed via low cardinality work) and the same page processed normally
         GroupByHash groupByHash = new FlatGroupByHash(
                 ImmutableList.of(BIGINT, BIGINT, BIGINT, BIGINT, BIGINT),
-                FlatGroupByHash.HashMode.ON_DEMAND,
+                ON_DEMAND,
                 100,
                 false,
                 new FlatHashStrategyCompiler(new TypeOperators()),
@@ -579,7 +580,7 @@ public class TestGroupByHash
 
         GroupByHash lowCardinalityGroupByHash = new FlatGroupByHash(
                 ImmutableList.of(BIGINT, BIGINT, BIGINT, BIGINT),
-                FlatGroupByHash.HashMode.ON_DEMAND,
+                ON_DEMAND,
                 100,
                 false,
                 new FlatHashStrategyCompiler(new TypeOperators()),
@@ -612,7 +613,7 @@ public class TestGroupByHash
     {
         GroupByHash groupByHash = new FlatGroupByHash(
                 ImmutableList.of(BIGINT, BIGINT),
-                FlatGroupByHash.HashMode.ON_DEMAND,
+                ON_DEMAND,
                 100,
                 false,
                 new FlatHashStrategyCompiler(new TypeOperators()),
