@@ -70,6 +70,7 @@ public class GlobalConfig
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
     private boolean enableInverseWithNulls;
+    private boolean enableLazyForSelective = true;
 
     public boolean getIsSingle()
     {
@@ -157,6 +158,11 @@ public class GlobalConfig
         return enableInverseWithNulls;
     }
 
+    public boolean getEnableLazyForSelective()
+    {
+        return enableLazyForSelective;
+    }
+
     @Config("warp-speed.enable.match-collect")
     public void setEnableMatchCollect(boolean enableMatchCollect)
     {
@@ -179,6 +185,12 @@ public class GlobalConfig
     public void setEnableInverseWithNulls(boolean enableInverseWithNulls)
     {
         this.enableInverseWithNulls = enableInverseWithNulls;
+    }
+
+    @Config("warp-speed.enable.lazy-for-selective")
+    public void setEnableLazyForSelective(boolean enableLazyForSelective)
+    {
+        this.enableLazyForSelective = enableLazyForSelective;
     }
 
     public boolean getEnableOrPushdown()

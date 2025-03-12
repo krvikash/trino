@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
@@ -40,6 +41,7 @@ import io.trino.spi.block.LazyBlock;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
@@ -68,6 +70,7 @@ public class StorageCollectorService
     private final ShapingLogger shapingLogger;
     private final ShapingLoggerFactory shapingLoggerFactory;
     private final LazyCollectTxService lazyCollectTxService;
+    private final GlobalConfig globalConfig;
 
     @Inject
     StorageCollectorService(
@@ -79,7 +82,8 @@ public class StorageCollectorService
             BlockFillersFactory blockFillersFactory,
             DictionaryCacheService dictionaryCacheService,
             ShapingLoggerFactory shapingLoggerFactory,
-            LazyCollectTxService lazyCollectTxService)
+            LazyCollectTxService lazyCollectTxService,
+            GlobalConfig globalConfig)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.collectTxService = requireNonNull(collectTxService);
@@ -91,6 +95,7 @@ public class StorageCollectorService
         this.shapingLogger = shapingLoggerFactory.getInstance(StorageCollectorService.class);
         this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
         this.lazyCollectTxService = lazyCollectTxService;
+        this.globalConfig = globalConfig;
     }
 
     private void loadDictionaries(QueryArgs queryArgs)
@@ -272,6 +277,13 @@ public class StorageCollectorService
 
     public List<Boolean> getPreLoadedBlocks(QueryArgs queryArgs)
     {
+        if (!globalConfig.getEnableLazyForSelective()) {
+            // in full-scan we always load lazily
+            if (queryArgs.queryParams().getNumMatchElements() == 0) {
+                return Collections.nCopies(queryArgs.queryParams().getNumCollectElements(), false);
+            }
+            return Collections.nCopies(queryArgs.queryParams().getNumCollectElements(), true);
+        }
         return queryArgs.queryParams().getCollectElementsParamsList().stream()
                 .map(WarmupElementCollectParams::hasMatchCollect)
                 .toList();
