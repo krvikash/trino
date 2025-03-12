@@ -41,6 +41,7 @@ import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.block.BlockAssertions.createStringSequenceBlock;
 import static io.trino.block.BlockAssertions.createTypedLongsBlock;
 import static io.trino.operator.GroupByHash.createGroupByHash;
+import static io.trino.operator.GroupByHash.selectGroupByHashMode;
 import static io.trino.operator.GroupByHashMode.ON_DEMAND;
 import static io.trino.operator.UpdateMemory.NOOP;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -358,7 +359,7 @@ public class TestGroupByHash
 
             // Create GroupByHash with tiny size
             AtomicInteger rehashCount = new AtomicInteger();
-            GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), true, false, 1, false, new FlatHashStrategyCompiler(new TypeOperators()), () -> {
+            GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(true, false, ImmutableList.of(type)), 1, false, new FlatHashStrategyCompiler(new TypeOperators()), () -> {
                 rehashCount.incrementAndGet();
                 return true;
             });
@@ -399,7 +400,7 @@ public class TestGroupByHash
             int yields = 0;
 
             // test addPage
-            GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), true, false, 1, false, new FlatHashStrategyCompiler(new TypeOperators()), updateMemory);
+            GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(true, false, ImmutableList.of(type)), 1, false, new FlatHashStrategyCompiler(new TypeOperators()), updateMemory);
             boolean finish = false;
             Work<?> addPageWork = groupByHash.addPage(page);
             while (!finish) {
@@ -425,7 +426,7 @@ public class TestGroupByHash
             currentQuota.set(0);
             allowedQuota.set(6);
             yields = 0;
-            groupByHash = createGroupByHash(ImmutableList.of(type), true, false, 1, false, new FlatHashStrategyCompiler(new TypeOperators()), updateMemory);
+            groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(true, false, ImmutableList.of(type)), 1, false, new FlatHashStrategyCompiler(new TypeOperators()), updateMemory);
 
             finish = false;
             Work<int[]> getGroupIdsWork = groupByHash.getGroupIds(page);
@@ -728,7 +729,7 @@ public class TestGroupByHash
 
     private static void assertGroupByHashWork(Page page, List<Type> types, Class<?> clazz)
     {
-        GroupByHash groupByHash = createGroupByHash(types, false, false, 100, true, new FlatHashStrategyCompiler(new TypeOperators()), NOOP);
+        GroupByHash groupByHash = createGroupByHash(types, selectGroupByHashMode(false, false, types), 100, true, new FlatHashStrategyCompiler(new TypeOperators()), NOOP);
         Work<int[]> work = groupByHash.getGroupIds(page);
         // Compare by name since classes are private
         assertThat(work.getClass().getName()).isEqualTo(clazz.getName());
