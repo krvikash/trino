@@ -17,8 +17,8 @@ import com.google.common.base.VerifyException;
 import com.google.inject.Binder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
-import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.multibindings.ProvidesIntoOptional;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.units.Duration;
 import io.trino.filesystem.TrinoFileSystemFactory;
@@ -29,6 +29,8 @@ import java.lang.annotation.Target;
 import java.util.function.Supplier;
 
 import static com.google.inject.Scopes.SINGLETON;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static com.google.inject.multibindings.ProvidesIntoOptional.Type.DEFAULT;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static java.lang.annotation.ElementType.FIELD;
@@ -50,8 +52,8 @@ public class S3FileSystemModule
             install(new S3SecurityMappingModule());
         }
         else {
-            binder.bind(TrinoFileSystemFactory.class).annotatedWith(FileSystemS3.class)
-                    .to(S3FileSystemFactory.class).in(SINGLETON);
+            newOptionalBinder(binder, Key.get(TrinoFileSystemFactory.class, FileSystemS3.class))
+                    .setDefault().to(S3FileSystemFactory.class).in(SINGLETON);
         }
 
         binder.bind(S3FileSystemStats.class).in(SINGLETON);
@@ -87,7 +89,7 @@ public class S3FileSystemModule
             }
         }
 
-        @Provides
+        @ProvidesIntoOptional(DEFAULT)
         @Singleton
         @FileSystemS3
         static TrinoFileSystemFactory createFileSystemFactory(S3FileSystemLoader loader)
