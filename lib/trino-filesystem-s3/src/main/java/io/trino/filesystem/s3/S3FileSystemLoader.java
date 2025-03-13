@@ -60,7 +60,7 @@ import static java.util.concurrent.Executors.newCachedThreadPool;
 import static software.amazon.awssdk.core.checksums.ResponseChecksumValidation.WHEN_REQUIRED;
 import static software.amazon.awssdk.core.client.config.SdkAdvancedClientOption.SIGNER;
 
-final class S3FileSystemLoader
+public final class S3FileSystemLoader
         implements Function<Location, TrinoFileSystemFactory>
 {
     private final Optional<S3SecurityMappingProvider> mappingProvider;
