@@ -24,7 +24,7 @@ import java.util.Optional;
 import static io.trino.filesystem.s3.S3FileSystemLoader.getCustomAwsCredentialsProvider;
 import static java.util.Objects.requireNonNull;
 
-record S3SecurityMappingResult(
+public record S3SecurityMappingResult(
         Optional<AwsCredentials> credentials,
         Optional<CustomCredentialsProviderContext> customCredentialsProviderContext,
         Optional<String> iamRole,
