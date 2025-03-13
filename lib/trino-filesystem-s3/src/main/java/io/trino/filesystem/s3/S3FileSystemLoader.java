@@ -69,20 +69,20 @@ final class S3FileSystemLoader
     private final S3Presigner preSigner;
     private final S3Context context;
     private final ExecutorService uploadExecutor = newCachedThreadPool(daemonThreadsNamed("s3-upload-%s"));
-    private final Map<Optional<S3SecurityMappingResult>, S3Client> clients = new ConcurrentHashMap<>();
+    private final Function<Optional<S3SecurityMappingResult>, S3Client> s3ClientProvider;
 
     @Inject
-    public S3FileSystemLoader(S3SecurityMappingProvider mappingProvider, OpenTelemetry openTelemetry, S3FileSystemConfig config, S3FileSystemStats stats)
+    public S3FileSystemLoader(S3SecurityMappingProvider mappingProvider, OpenTelemetry openTelemetry, S3FileSystemConfig config, @ForS3ClientCaching boolean s3ClientCaching, S3FileSystemStats stats)
     {
-        this(Optional.of(mappingProvider), openTelemetry, config, stats);
+        this(Optional.of(mappingProvider), openTelemetry, config, s3ClientCaching, stats);
     }
 
     S3FileSystemLoader(OpenTelemetry openTelemetry, S3FileSystemConfig config, S3FileSystemStats stats)
     {
-        this(Optional.empty(), openTelemetry, config, stats);
+        this(Optional.empty(), openTelemetry, config, true, stats);
     }
 
-    private S3FileSystemLoader(Optional<S3SecurityMappingProvider> mappingProvider, OpenTelemetry openTelemetry, S3FileSystemConfig config, S3FileSystemStats stats)
+    private S3FileSystemLoader(Optional<S3SecurityMappingProvider> mappingProvider, OpenTelemetry openTelemetry, S3FileSystemConfig config, boolean s3ClientCaching, S3FileSystemStats stats)
     {
         this.mappingProvider = requireNonNull(mappingProvider, "mappingProvider is null");
         this.httpClient = createHttpClient(config);
@@ -105,6 +105,13 @@ final class S3FileSystemLoader
                 config.getStorageClass(),
                 config.getCannedAcl(),
                 config.isSupportsExclusiveCreate());
+        if (s3ClientCaching) {
+            Map<Optional<S3SecurityMappingResult>, S3Client> clients = new ConcurrentHashMap<>();
+            this.s3ClientProvider = mapping -> clients.computeIfAbsent(mapping, clientFactory::create);
+        }
+        else {
+            this.s3ClientProvider = clientFactory::create;
+        }
     }
 
     @Override
@@ -113,7 +120,7 @@ final class S3FileSystemLoader
         return identity -> {
             Optional<S3SecurityMappingResult> mapping = mappingProvider.orElseThrow().getMapping(identity, location);
 
-            S3Client client = clients.computeIfAbsent(mapping, _ -> clientFactory.create(mapping));
+            S3Client client = s3ClientProvider.apply(mapping);
             S3Context context = this.context.withCredentials(identity);
 
             if (mapping.isPresent() && mapping.get().kmsKeyId().isPresent()) {
