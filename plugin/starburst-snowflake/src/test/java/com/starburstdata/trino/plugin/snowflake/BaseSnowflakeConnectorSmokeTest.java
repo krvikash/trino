@@ -1,0 +1,48 @@
+/*
+ * Copyright Starburst Data, Inc. All rights reserved.
+ *
+ * THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF STARBURST DATA.
+ * The copyright notice above does not evidence any
+ * actual or intended publication of such source code.
+ *
+ * Redistribution of this material is strictly prohibited.
+ */
+package com.starburstdata.trino.plugin.snowflake;
+
+import io.trino.plugin.jdbc.BaseJdbcConnectorSmokeTest;
+import io.trino.testing.TestingConnectorBehavior;
+
+public abstract class BaseSnowflakeConnectorSmokeTest
+        extends BaseJdbcConnectorSmokeTest
+{
+    protected TestDatabase getTestDatabase()
+    {
+        return closeAfterClass(SnowflakeServer.createTestDatabase());
+    }
+
+    @Override
+    protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
+    {
+        switch (connectorBehavior) {
+            case SUPPORTS_ARRAY:
+            case SUPPORTS_COMMENT_ON_TABLE:
+            case SUPPORTS_COMMENT_ON_COLUMN:
+            case SUPPORTS_SET_COLUMN_TYPE:
+            case SUPPORTS_ROW_TYPE:
+            case SUPPORTS_ADD_COLUMN_WITH_COMMENT:
+            case SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT:
+            case SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT:
+                return false;
+            case SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV:
+            case SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE:
+            case SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE:
+            case SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION:
+            case SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION:
+            case SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT:
+            case SUPPORTS_JOIN_PUSHDOWN:
+                return true;
+            default:
+                return super.hasBehavior(connectorBehavior);
+        }
+    }
+}

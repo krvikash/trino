@@ -11,9 +11,7 @@ package com.starburstdata.trino.plugin.snowflake;
 
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpRequest;
-import io.trino.plugin.jdbc.BaseJdbcConnectorSmokeTest;
 import io.trino.testing.QueryRunner;
-import io.trino.testing.TestingConnectorBehavior;
 import org.littleshoot.proxy.ActivityTrackerAdapter;
 import org.littleshoot.proxy.FlowContext;
 import org.littleshoot.proxy.HttpProxyServer;
@@ -29,7 +27,7 @@ import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impe
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 
 public class TestParallelSnowflakeWithProxyConnectorSmokeTest
-        extends BaseJdbcConnectorSmokeTest
+        extends BaseSnowflakeConnectorSmokeTest
 {
     private static final Logger log = Logger.get(TestParallelSnowflakeWithProxyConnectorSmokeTest.class);
     private static final String PROXY_USER = "proxyuser";
@@ -39,10 +37,9 @@ public class TestParallelSnowflakeWithProxyConnectorSmokeTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        TestDatabase testDatabase = closeAfterClass(SnowflakeServer.createTestDatabase());
         closeAfterClass(createProxyServer());
         return parallelBuilder()
-                .withDatabase(Optional.of(testDatabase.getName()))
+                .withDatabase(Optional.of(getTestDatabase().getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
                 .withConnectorProperties(Map.of(
@@ -54,32 +51,6 @@ public class TestParallelSnowflakeWithProxyConnectorSmokeTest
                         "snowflake.proxy.password", PROXY_PASSWORD))
                 .withTpchTables(REQUIRED_TPCH_TABLES)
                 .build();
-    }
-
-    @Override
-    protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
-    {
-        switch (connectorBehavior) {
-            case SUPPORTS_ARRAY:
-            case SUPPORTS_COMMENT_ON_TABLE:
-            case SUPPORTS_COMMENT_ON_COLUMN:
-            case SUPPORTS_SET_COLUMN_TYPE:
-            case SUPPORTS_ROW_TYPE:
-            case SUPPORTS_ADD_COLUMN_WITH_COMMENT:
-            case SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT:
-            case SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT:
-                return false;
-            case SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV:
-            case SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE:
-            case SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE:
-            case SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION:
-            case SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION:
-            case SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT:
-            case SUPPORTS_JOIN_PUSHDOWN:
-                return true;
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
     }
 
     private Closeable createProxyServer()
