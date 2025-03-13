@@ -66,7 +66,7 @@ public class S3FileSystemModule
         {
             S3SecurityMappingConfig config = buildConfigObject(S3SecurityMappingConfig.class);
 
-            binder.bind(S3SecurityMappingProvider.class).in(SINGLETON);
+            binder.bind(S3SecurityMappingProvider.class).to(DefaultS3SecurityMappingProvider.class).in(SINGLETON);
             binder.bind(S3FileSystemLoader.class).in(SINGLETON);
 
             var mappingsBinder = binder.bind(new Key<Supplier<S3SecurityMappings>>() {});
