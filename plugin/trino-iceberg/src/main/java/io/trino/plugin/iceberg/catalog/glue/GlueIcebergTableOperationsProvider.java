@@ -22,7 +22,6 @@ import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.type.TypeManager;
-import software.amazon.awssdk.services.glue.GlueClient;
 
 import java.util.Optional;
 
@@ -36,7 +35,7 @@ public class GlueIcebergTableOperationsProvider
     private final ForwardingFileIoFactory fileIoFactory;
     private final TypeManager typeManager;
     private final boolean cacheTableMetadata;
-    private final GlueClient glueClient;
+    private final GlueClientProvider glueClientProvider;
     private final GlueMetastoreStats stats;
 
     @Inject
@@ -46,14 +45,14 @@ public class GlueIcebergTableOperationsProvider
             TypeManager typeManager,
             IcebergGlueCatalogConfig catalogConfig,
             GlueMetastoreStats stats,
-            GlueClient glueClient)
+            GlueClientProvider glueClientProvider)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileIoFactory = requireNonNull(fileIoFactory, "fileIoFactory is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.cacheTableMetadata = catalogConfig.isCacheTableMetadata();
         this.stats = requireNonNull(stats, "stats is null");
-        this.glueClient = requireNonNull(glueClient, "glueClient is null");
+        this.glueClientProvider = requireNonNull(glueClientProvider, "glueClientProvider is null");
     }
 
     @Override
@@ -68,7 +67,7 @@ public class GlueIcebergTableOperationsProvider
         return new GlueIcebergTableOperations(
                 typeManager,
                 cacheTableMetadata,
-                glueClient,
+                glueClientProvider.get(session.getIdentity()),
                 stats,
                 // Share Glue Table cache between Catalog and TableOperations so that, when doing metadata queries (e.g. information_schema.columns)
                 // the GetTableRequest is issued once per table.

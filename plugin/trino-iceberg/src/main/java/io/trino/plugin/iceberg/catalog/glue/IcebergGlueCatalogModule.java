@@ -22,6 +22,7 @@ import io.trino.plugin.iceberg.catalog.IcebergHiveMetastoreModule;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
@@ -39,5 +40,6 @@ public class IcebergGlueCatalogModule
 
         install(new IcebergHiveMetastoreModule());
         install(new GlueMetastoreModule());
+        newOptionalBinder(binder, GlueClientProvider.class).setDefault().to(DefaultGlueClientProvider.class).in(Scopes.SINGLETON);
     }
 }

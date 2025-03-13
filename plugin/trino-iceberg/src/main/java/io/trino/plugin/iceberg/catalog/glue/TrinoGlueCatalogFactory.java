@@ -33,7 +33,6 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
 import org.weakref.jmx.Flatten;
 import org.weakref.jmx.Managed;
-import software.amazon.awssdk.services.glue.GlueClient;
 
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -54,7 +53,7 @@ public class TrinoGlueCatalogFactory
     private final IcebergTableOperationsProvider tableOperationsProvider;
     private final String trinoVersion;
     private final Optional<String> defaultSchemaLocation;
-    private final GlueClient glueClient;
+    private final GlueClientProvider glueClientProvider;
     private final boolean isUniqueTableLocation;
     private final boolean hideMaterializedViewStorageTable;
     private final boolean scheduledMaterializedViewRefreshEnabled;
@@ -77,7 +76,7 @@ public class TrinoGlueCatalogFactory
             IcebergGlueCatalogConfig catalogConfig,
             @UsingSystemSecurity boolean usingSystemSecurity,
             GlueMetastoreStats stats,
-            GlueClient glueClient,
+            GlueClientProvider glueClientProvider,
             @ForIcebergMetadata ExecutorService metadataExecutorService)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
@@ -89,7 +88,7 @@ public class TrinoGlueCatalogFactory
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
         this.trinoVersion = nodeVersion.toString();
         this.defaultSchemaLocation = glueConfig.getDefaultWarehouseDir();
-        this.glueClient = requireNonNull(glueClient, "glueClient is null");
+        this.glueClientProvider = requireNonNull(glueClientProvider, "glueClientProvider is null");
         this.isUniqueTableLocation = icebergConfig.isUniqueTableLocation();
         this.hideMaterializedViewStorageTable = icebergConfig.isHideMaterializedViewStorageTable();
         this.scheduledMaterializedViewRefreshEnabled = icebergScheduledMvRefreshConfig.isScheduledMaterializedViewRefreshEnabled();
@@ -122,7 +121,7 @@ public class TrinoGlueCatalogFactory
                 cacheTableMetadata,
                 tableOperationsProvider,
                 trinoVersion,
-                glueClient,
+                glueClientProvider.get(identity),
                 stats,
                 isUsingSystemSecurity,
                 defaultSchemaLocation,
