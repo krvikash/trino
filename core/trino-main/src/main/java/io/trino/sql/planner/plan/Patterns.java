@@ -277,6 +277,8 @@ public final class Patterns
 
     public static final class Aggregation
     {
+        private Aggregation() {}
+
         public static Property<AggregationNode, Lookup, List<Symbol>> groupingColumns()
         {
             return property("groupingKeys", AggregationNode::getGroupingKeys);
@@ -290,6 +292,8 @@ public final class Patterns
 
     public static final class Apply
     {
+        private Apply() {}
+
         public static Property<ApplyNode, Lookup, List<Symbol>> correlation()
         {
             return property("correlation", ApplyNode::getCorrelation);
@@ -298,6 +302,8 @@ public final class Patterns
 
     public static final class DistinctLimit
     {
+        private DistinctLimit() {}
+
         public static Property<DistinctLimitNode, Lookup, Boolean> isPartial()
         {
             return property("isPartial", DistinctLimitNode::isPartial);
@@ -306,6 +312,8 @@ public final class Patterns
 
     public static final class Exchange
     {
+        private Exchange() {}
+
         public static Property<ExchangeNode, Lookup, ExchangeNode.Scope> scope()
         {
             return property("scope", ExchangeNode::getScope);
@@ -314,6 +322,8 @@ public final class Patterns
 
     public static final class Join
     {
+        private Join() {}
+
         public static Property<JoinNode, Lookup, JoinType> type()
         {
             return property("type", JoinNode::getType);
@@ -332,6 +342,8 @@ public final class Patterns
 
     public static final class CorrelatedJoin
     {
+        private CorrelatedJoin() {}
+
         public static Property<CorrelatedJoinNode, Lookup, List<Symbol>> correlation()
         {
             return property("correlation", CorrelatedJoinNode::getCorrelation);
@@ -355,6 +367,8 @@ public final class Patterns
 
     public static final class Limit
     {
+        private Limit() {}
+
         public static Property<LimitNode, Lookup, Long> count()
         {
             return property("count", LimitNode::getCount);
@@ -368,6 +382,8 @@ public final class Patterns
 
     public static final class Sample
     {
+        private Sample() {}
+
         public static Property<SampleNode, Lookup, Double> sampleRatio()
         {
             return property("sampleRatio", SampleNode::getSampleRatio);
@@ -381,6 +397,8 @@ public final class Patterns
 
     public static final class TopN
     {
+        private TopN() {}
+
         public static Property<TopNNode, Lookup, TopNNode.Step> step()
         {
             return property("step", TopNNode::getStep);
@@ -394,6 +412,8 @@ public final class Patterns
 
     public static final class Values
     {
+        private Values() {}
+
         public static Property<ValuesNode, Lookup, Optional<List<Expression>>> rows()
         {
             return property("rows", ValuesNode::getRows);
@@ -407,6 +427,8 @@ public final class Patterns
 
     public static final class SemiJoin
     {
+        private SemiJoin() {}
+
         public static Property<SemiJoinNode, Lookup, PlanNode> getSource()
         {
             return property(
@@ -424,6 +446,8 @@ public final class Patterns
 
     public static final class Intersect
     {
+        private Intersect() {}
+
         public static Property<IntersectNode, Lookup, Boolean> distinct()
         {
             return property("distinct", IntersectNode::isDistinct);
@@ -432,6 +456,8 @@ public final class Patterns
 
     public static final class Except
     {
+        private Except() {}
+
         public static Property<ExceptNode, Lookup, Boolean> distinct()
         {
             return property("distinct", ExceptNode::isDistinct);
@@ -440,6 +466,8 @@ public final class Patterns
 
     public static final class PatternRecognition
     {
+        private PatternRecognition() {}
+
         public static Property<PatternRecognitionNode, Lookup, RowsPerMatch> rowsPerMatch()
         {
             return property("rowsPerMatch", PatternRecognitionNode::getRowsPerMatch);
