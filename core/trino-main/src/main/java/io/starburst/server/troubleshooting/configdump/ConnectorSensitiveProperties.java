@@ -189,6 +189,17 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password"))
+            .put("duckdb",
+                    ImmutableSet.of(
+                            "auth-to-local.ldap.bind-password",
+                            "connection-password",
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "keystore-password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password"))
             .put("dynamodb",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -529,16 +540,6 @@ public final class ConnectorSensitiveProperties
                             "kafka.ssl.truststore.password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password"))
-            .put("kinesis",
-                    ImmutableSet.of(
-                            "auth-to-local.ldap.bind-password",
-                            "http-client.http-proxy.password",
-                            "http-client.https.automatic-shared-secret",
-                            "http-client.key-store-password",
-                            "http-client.trust-store-password",
-                            "kinesis.secret-key",
-                            "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
             .put("kudu",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -559,6 +560,15 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
+            .put("loki",
+                    ImmutableSet.of(
+                            "auth-to-local.ldap.bind-password",
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password"))
             .put("mariadb",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
