@@ -228,7 +228,10 @@ public final class ParquetUtil
             currentType = currentType.asStructType().fieldType(fieldName);
         }
 
-        return currentType != null && currentType.isPrimitiveType();
+        return currentType != null
+                && currentType.isPrimitiveType()
+                // TODO https://github.com/trinodb/trino/issues/30077 Store bounds for geometry and geography types
+                && !(currentType instanceof Types.GeometryType || currentType instanceof Types.GeographyType);
     }
 
     private static void increment(Map<Integer, Long> columns, int fieldId, long amount)
@@ -335,7 +338,7 @@ public final class ParquetUtil
                 }
                 yield (Literal<T>) Literal.of((Long) value);
             }
-            case LONG, TIMESTAMP -> (Literal<T>) Literal.of((Long) value);
+            case LONG, TIMESTAMP, TIMESTAMP_NANO -> (Literal<T>) Literal.of((Long) value);
             case FLOAT -> (Literal<T>) Literal.of((Float) value);
             case DOUBLE -> (Literal<T>) Literal.of((Double) value);
             case STRING -> {

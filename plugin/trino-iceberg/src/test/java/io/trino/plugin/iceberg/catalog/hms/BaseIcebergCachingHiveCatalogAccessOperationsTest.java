@@ -53,7 +53,9 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
             assertUpdate("INSERT INTO test_select_from VALUES ('Alice', 30)", 1);
             assertMetastoreInvocations(
                     "SELECT * FROM test_select_from",
-                    ImmutableMultiset.of());
+                    ImmutableMultiset.<MetastoreMethod>builder()
+                            .add(GET_TABLE)
+                            .build());
 
             // Alter table invalidates cache without repopulating it
             assertUpdate("ALTER TABLE test_select_from ADD COLUMN address VARCHAR");
@@ -120,7 +122,9 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
             assertUpdate("INSERT INTO test_select_view_table VALUES ('Alice', 30)", 1);
             assertMetastoreInvocations(
                     "SELECT * FROM test_select_view_view",
-                    ImmutableMultiset.of());
+                    ImmutableMultiset.<MetastoreMethod>builder()
+                            .add(GET_TABLE)
+                            .build());
 
             // Comment on view invalidates its cache entry
             assertUpdate("COMMENT ON VIEW test_select_view_view IS 'test comment'");
@@ -165,7 +169,7 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
             // Refresh repopulates the cache
             assertMetastoreInvocations("REFRESH MATERIALIZED VIEW test_select_mview_view",
                     ImmutableMultiset.<MetastoreMethod>builder()
-                            .add(GET_TABLE)
+                            .addCopies(GET_TABLE, 2)
                             .add(REPLACE_TABLE)
                             .build());
 
@@ -215,7 +219,9 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
             assertUpdate("INSERT INTO test_select_snapshots VALUES (3)", 1);
             assertMetastoreInvocations(
                     "SELECT * FROM \"test_select_snapshots$history\"",
-                    ImmutableMultiset.of());
+                    ImmutableMultiset.<MetastoreMethod>builder()
+                            .add(GET_TABLE)
+                            .build());
             assertMetastoreInvocations(
                     "SELECT * FROM \"test_select_snapshots$snapshots\"",
                     ImmutableMultiset.of());

@@ -13,12 +13,14 @@
  */
 package org.apache.iceberg;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.plugin.iceberg.IcebergConfig;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.Test;
 import org.openjdk.jol.info.GraphLayout;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,6 +31,7 @@ import java.util.Set;
 import static io.trino.plugin.iceberg.IcebergDeleteFilesMemoryEstimator.EQUALITY_DELETE_FILE_BASE_MEMORY;
 import static io.trino.plugin.iceberg.IcebergDeleteFilesMemoryEstimator.EQUALITY_DELETE_FILE_MEMORY_PER_COLUMN;
 import static io.trino.plugin.iceberg.IcebergDeleteFilesMemoryEstimator.equalityDeleteFileMemory;
+import static java.lang.reflect.Modifier.isStatic;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class TestDeleteFileIndexMemory
@@ -201,17 +204,39 @@ public final class TestDeleteFileIndexMemory
     private static void measure(String scenario, DeleteFileIndex index, long configuredBytesPerFile)
     {
         System.setProperty("jol.magicFieldOffset", "true");
-        GraphLayout layout = GraphLayout.parseInstance(index);
+        GraphLayout layout = GraphLayout.parseInstance(fieldsExceptCache(index));
         long totalBytes = layout.totalSize();
         long bytesPerFile = (totalBytes + DELETE_FILE_COUNT - 1) / DELETE_FILE_COUNT;
 
         String result = "DeleteFileIndex (%s): %,d bytes total, %,d bytes/delete file"
                 .formatted(scenario, totalBytes, bytesPerFile);
-        System.out.println("%s%n%s".formatted(result, layout.toFootprint()));
 
         assertThat(bytesPerFile)
                 .as(result)
                 .isLessThanOrEqualTo(configuredBytesPerFile);
+    }
+
+    // Iceberg 1.12 added a Caffeine cache to DeleteFileIndex whose executor, ForkJoinPool.commonPool(),
+    // reaches every live thread, so measure the index through its other fields
+    private static Object[] fieldsExceptCache(DeleteFileIndex index)
+    {
+        ImmutableList.Builder<Object> values = ImmutableList.builder();
+        for (Field field : DeleteFileIndex.class.getDeclaredFields()) {
+            if (isStatic(field.getModifiers()) || field.getName().equals("partitionComparatorsBySpecId")) {
+                continue;
+            }
+            field.setAccessible(true);
+            try {
+                Object value = field.get(index);
+                if (value != null) {
+                    values.add(value);
+                }
+            }
+            catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return values.build().toArray();
     }
 
     private static DataFile representativeDataFile(

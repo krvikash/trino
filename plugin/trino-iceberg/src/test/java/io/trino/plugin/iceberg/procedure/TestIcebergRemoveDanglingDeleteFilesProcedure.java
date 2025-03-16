@@ -43,15 +43,16 @@ import org.apache.iceberg.RewriteManifests;
 import org.apache.iceberg.RowDelta;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.data.GenericRecord;
-import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.deletes.BaseDVFileWriter;
 import org.apache.iceberg.deletes.DVFileWriter;
 import org.apache.iceberg.deletes.PositionDelete;
 import org.apache.iceberg.deletes.PositionDeleteIndex;
 import org.apache.iceberg.deletes.PositionDeleteWriter;
+import org.apache.iceberg.encryption.EncryptedOutputFile;
+import org.apache.iceberg.encryption.EncryptionKeyMetadata;
 import org.apache.iceberg.exceptions.ValidationException;
+import org.apache.iceberg.formats.FileWriterBuilder;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.io.OutputFileFactory;
@@ -81,6 +82,8 @@ import static io.trino.plugin.iceberg.util.EqualityDeleteUtils.writeEqualityDele
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static org.apache.iceberg.FileContent.EQUALITY_DELETES;
 import static org.apache.iceberg.FileContent.POSITION_DELETES;
+import static org.apache.iceberg.encryption.EncryptedFiles.encryptedOutput;
+import static org.apache.iceberg.formats.FormatModelRegistry.positionDeleteWriteBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -938,7 +941,7 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             }
             if (includeDeleteMetrics) {
                 // Collect metrics on _file/_pos so the manifest entry exposes the lower/upper bounds
-                builder.metricsConfig(MetricsConfig.forPositionDelete(icebergTable));
+                builder.metricsConfig(MetricsConfig.forPositionDelete());
             }
             PositionDeleteWriter<Void> writer = builder.buildPositionWriter();
 
@@ -959,16 +962,14 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     {
         String deletePath = "local:///delete_file_" + UUID.randomUUID();
         try (FileIO fileIo = FILE_IO_FACTORY.create(fileSystemFactory.create(SESSION))) {
-            PositionDeleteWriter<Record> writer = Parquet.writeDeletes(fileIo.newOutputFile(deletePath))
-                    .createWriterFunc(GenericParquetWriter::create)
-                    .forTable(icebergTable)
+            EncryptedOutputFile encryptedFile = encryptedOutput(fileIo.newOutputFile(deletePath), EncryptionKeyMetadata.EMPTY);
+            FileWriterBuilder<PositionDeleteWriter<Void>, ?> writerBuilder = positionDeleteWriteBuilder(FileFormat.PARQUET, encryptedFile);
+            PositionDeleteWriter<Void> writer = writerBuilder
                     .overwrite()
-                    .rowSchema(icebergTable.schema())
-                    .withSpec(PartitionSpec.unpartitioned())
-                    .buildPositionWriter();
+                    .spec(PartitionSpec.unpartitioned())
+                    .build();
 
-            PositionDelete<Record> positionDelete = PositionDelete.create();
-            positionDelete.set(referencedDataFile, 0, GenericRecord.create(icebergTable.schema()));
+            PositionDelete<Void> positionDelete = PositionDelete.<Void>create().set(referencedDataFile, 0);
             try (Closeable _ = writer) {
                 writer.write(positionDelete);
             }

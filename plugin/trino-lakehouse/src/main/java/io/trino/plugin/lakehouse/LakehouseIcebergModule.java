@@ -43,7 +43,6 @@ import io.trino.plugin.iceberg.IcebergSplitManager;
 import io.trino.plugin.iceberg.IcebergTableProperties;
 import io.trino.plugin.iceberg.IcebergTransactionManager;
 import io.trino.plugin.iceberg.NoopWorkScheduler;
-import io.trino.plugin.iceberg.PartitionStatisticsReader;
 import io.trino.plugin.iceberg.TableStatisticsReader;
 import io.trino.plugin.iceberg.TableStatisticsWriter;
 import io.trino.plugin.iceberg.WorkScheduler;
@@ -69,6 +68,7 @@ import io.trino.plugin.iceberg.procedure.RollbackToSnapshotTableProcedure;
 import io.trino.plugin.iceberg.procedure.UnregisterTableProcedure;
 import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.procedure.Procedure;
+import org.apache.iceberg.PartitionStatisticsReader;
 import org.apache.iceberg.PartitionStatisticsWriter;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;

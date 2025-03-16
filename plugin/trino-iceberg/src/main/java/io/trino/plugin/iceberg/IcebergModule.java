@@ -86,6 +86,7 @@ import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import io.trino.spi.type.TypeManager;
+import org.apache.iceberg.PartitionStatisticsReader;
 import org.apache.iceberg.PartitionStatisticsWriter;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;

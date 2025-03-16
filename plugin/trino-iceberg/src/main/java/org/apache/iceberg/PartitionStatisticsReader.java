@@ -11,13 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.iceberg;
+package org.apache.iceberg;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.errorprone.annotations.MustBeClosed;
 import com.google.inject.Inject;
 import io.trino.memory.context.AggregatedMemoryContext;
+import io.trino.plugin.iceberg.IcebergColumnHandle;
+import io.trino.plugin.iceberg.IcebergPageSourceProvider;
+import io.trino.plugin.iceberg.IcebergPageSourceProviderFactory;
+import io.trino.plugin.iceberg.IcebergTableCredentials;
+import io.trino.plugin.iceberg.PartitionData;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
@@ -26,11 +31,6 @@ import io.trino.spi.connector.SourcePage;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.PartitionStats;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.StructLike;
-import org.apache.iceberg.Table;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.types.Types;
@@ -111,7 +111,7 @@ public final class PartitionStatisticsReader
     }
 
     public final class PartitionStatsIterator
-            extends AbstractIterator<PartitionStats>
+            extends AbstractIterator<PartitionStatistics>
             implements AutoCloseable
     {
         private final ConnectorPageSource pageSource;
@@ -126,7 +126,7 @@ public final class PartitionStatisticsReader
         }
 
         @Override
-        protected PartitionStats computeNext()
+        protected PartitionStatistics computeNext()
         {
             while (currentPage == null || currentPosition >= currentPage.getPositionCount()) {
                 if (pageSource.isFinished()) {
@@ -166,11 +166,11 @@ public final class PartitionStatisticsReader
         }
     }
 
-    private static PartitionStats toPartitionStats(StructLike record)
+    private static PartitionStatistics toPartitionStats(StructLike record)
     {
         StructLike partition = record.get(0, StructLike.class);
         Integer specId = record.get(1, Integer.class);
-        PartitionStats stats = new PartitionStats(partition, specId);
+        PartitionStatistics stats = new BasePartitionStatistics(partition, specId);
         for (int i = 2; i < record.size(); i++) {
             stats.set(i, record.get(i, Object.class));
         }

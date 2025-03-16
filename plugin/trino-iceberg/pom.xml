@@ -575,6 +575,12 @@
 
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apache5-client</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
             <artifactId>kms</artifactId>
             <scope>runtime</scope>
         </dependency>
@@ -907,6 +913,12 @@
 
         <dependency>
             <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-data</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-orc</artifactId>
             <scope>test</scope>
         </dependency>
@@ -1090,6 +1102,7 @@
                         <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                     </ignoredResourcePatterns>
                     <ignoredClassPatterns>
+                        <ignoredClassPattern>org.apache.orc.*</ignoredClassPattern>
                         <ignoredClassPattern>org.conscrypt.*</ignoredClassPattern>
                     </ignoredClassPatterns>
                 </configuration>

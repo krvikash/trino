@@ -27,8 +27,6 @@ import io.trino.plugin.iceberg.IcebergFileSystemFactory;
 import io.trino.plugin.iceberg.IcebergFileWriter;
 import io.trino.plugin.iceberg.IcebergFileWriterFactory;
 import io.trino.plugin.iceberg.IcebergTypes;
-import io.trino.plugin.iceberg.PartitionStatisticsReader;
-import io.trino.plugin.iceberg.PartitionStatisticsReader.PartitionStatsIterator;
 import io.trino.plugin.iceberg.TableStatisticsWriter.StatsUpdateMode;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.BlockBuilder;
@@ -41,6 +39,7 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import jakarta.annotation.Nullable;
+import org.apache.iceberg.PartitionStatisticsReader.PartitionStatsIterator;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.types.Comparators;
@@ -82,6 +81,10 @@ import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static java.util.Objects.requireNonNull;
+import static org.apache.iceberg.PartitionStatsHandler.appendStats;
+import static org.apache.iceberg.PartitionStatsHandler.deletedEntry;
+import static org.apache.iceberg.PartitionStatsHandler.deletedEntryForIncrementalCompute;
+import static org.apache.iceberg.PartitionStatsHandler.liveEntry;
 import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.apache.iceberg.util.PartitionUtil.coercePartition;
 import static org.apache.iceberg.util.SnapshotUtil.ancestorsBetween;
@@ -125,21 +128,21 @@ public class PartitionStatisticsWriter
         TrinoFileSystem fileSystem = fileSystemFactory.create(session.getIdentity(), table.io().properties());
         Snapshot snapshot = table.snapshot(snapshotId);
         StructType partitionType = Partitioning.partitionType(table);
-        Schema schema = PartitionStatsHandler.schema(partitionType, formatVersion(table));
+        Schema schema = PartitionStatistics.schema(partitionType, formatVersion(table));
 
         Comparator<StructLike> partitionComparator = Comparators.forType(partitionType);
-        Comparator<PartitionStats> statsComparator = Comparator.comparing(PartitionStats::partition, partitionComparator)
-                .thenComparing(PartitionStats::specId);
+        Comparator<PartitionStatistics> statsComparator = Comparator.comparing(PartitionStatistics::partition, partitionComparator)
+                .thenComparing(PartitionStatistics::specId);
 
         PartitionStatisticsFile previousStatsFile = findLatestStatsFile(table, snapshot.snapshotId());
         if (previousStatsFile == null) {
             // No previous stats: full recompute from all manifests
-            Collection<PartitionStats> stats = computeStats(table, snapshot.allManifests(table.io()), REPLACE).values();
+            Collection<PartitionStatistics> stats = computeStats(table, snapshot.allManifests(table.io()), REPLACE).values();
             if (stats.isEmpty()) {
                 return Optional.empty();
             }
-            List<PartitionStats> sortedStats = sortStatsByPartition(stats, statsComparator);
-            return Optional.of(writePartitionStatsFile(session, fileSystem, table, snapshotId, schema, table.io().properties(), sortedStats));
+            List<PartitionStatistics> sortedStats = sortStatsByPartition(stats, statsComparator);
+            return Optional.of(writePartitionStatisticsFile(session, fileSystem, table, snapshotId, schema, table.io().properties(), sortedStats));
         }
 
         if (previousStatsFile.snapshotId() == snapshotId) {
@@ -148,30 +151,30 @@ public class PartitionStatisticsWriter
         }
 
         // by reusing PartitionStatsIterator we only hold the incremental stats in the memory
-        PartitionMap<PartitionStats> incrementalStatsMap = computeStatsDiff(table, table.snapshot(previousStatsFile.snapshotId()), snapshot);
+        PartitionMap<PartitionStatistics> incrementalStatsMap = computeStatsDiff(table, table.snapshot(previousStatsFile.snapshotId()), snapshot);
         if (incrementalStatsMap.isEmpty()) {
             return Optional.empty();
         }
-        List<PartitionStats> sortedIncremental = sortStatsByPartition(incrementalStatsMap.values(), statsComparator);
+        List<PartitionStatistics> sortedIncremental = sortStatsByPartition(incrementalStatsMap.values(), statsComparator);
         InputFile inputFile = table.io().newInputFile(previousStatsFile.path(), previousStatsFile.fileSizeInBytes());
         try (PartitionStatsIterator baseIterator = partitionStatisticsReader.readPartitionStats(session, table, schema, inputFile)) {
-            PartitionStatsMergeIterator mergedIterator = new PartitionStatsMergeIterator(baseIterator, sortedIncremental, partitionComparator, statsComparator);
-            return Optional.of(writePartitionStatsFile(session, fileSystem, table, snapshotId, schema, table.io().properties(), () -> mergedIterator));
+            PartitionStatisticsMergeIterator mergedIterator = new PartitionStatisticsMergeIterator(baseIterator, sortedIncremental, partitionComparator, statsComparator);
+            return Optional.of(writePartitionStatisticsFile(session, fileSystem, table, snapshotId, schema, table.io().properties(), () -> mergedIterator));
         }
     }
 
-    private PartitionStatisticsFile writePartitionStatsFile(
+    private PartitionStatisticsFile writePartitionStatisticsFile(
             ConnectorSession session,
             TrinoFileSystem fileSystem,
             Table table,
             long snapshotId,
             Schema dataSchema,
             Map<String, String> storageProperties,
-            Iterable<PartitionStats> records)
+            Iterable<PartitionStatistics> records)
     {
         IcebergFileFormat fileFormat = getFileFormat(table);
         fileFormat = Set.of(PARQUET, ORC).contains(fileFormat) ? fileFormat : PARQUET;
-        OutputFile outputFile = newPartitionStatsFile(table, fileFormat.toIceberg(), snapshotId);
+        OutputFile outputFile = newPartitionStatisticsFile(table, fileFormat.toIceberg(), snapshotId);
 
         Location outputPath = Location.of(outputFile.location());
         IcebergFileWriter fileWriter = fileWriterFactory.createDataFileWriter(
@@ -245,14 +248,14 @@ public class PartitionStatisticsWriter
                 .build();
     }
 
-    private static OutputFile newPartitionStatsFile(Table table, FileFormat fileFormat, long snapshotId)
+    private static OutputFile newPartitionStatisticsFile(Table table, FileFormat fileFormat, long snapshotId)
     {
         TableOperations operations = ((HasTableOperations) table).operations();
         String partitionStatsLocation = operations.metadataFileLocation(fileFormat.addExtension("partition-stats-%d-%s".formatted(snapshotId, UUID.randomUUID())));
         return table.io().newOutputFile(partitionStatsLocation);
     }
 
-    private PartitionMap<PartitionStats> computeStatsDiff(Table table, Snapshot fromSnapshot, Snapshot toSnapshot)
+    private PartitionMap<PartitionStatistics> computeStatsDiff(Table table, Snapshot fromSnapshot, Snapshot toSnapshot)
     {
         Iterable<Snapshot> snapshots = ancestorsBetween(toSnapshot.snapshotId(), fromSnapshot.snapshotId(), table::snapshot);
         // DELETED manifest entries are not carried over to subsequent snapshots.
@@ -308,10 +311,10 @@ public class PartitionStatisticsWriter
         return null;
     }
 
-    private PartitionMap<PartitionStats> computeStats(Table table, List<ManifestFile> manifests, StatsUpdateMode updateMode)
+    private PartitionMap<PartitionStatistics> computeStats(Table table, List<ManifestFile> manifests, StatsUpdateMode updateMode)
     {
         StructType partitionType = Partitioning.partitionType(table);
-        Queue<PartitionMap<PartitionStats>> statsByManifest = new ConcurrentLinkedQueue<>();
+        Queue<PartitionMap<PartitionStatistics>> statsByManifest = new ConcurrentLinkedQueue<>();
         Tasks.foreach(manifests)
                 .stopOnFailure()
                 .throwFailureWhenFinished()
@@ -320,8 +323,8 @@ public class PartitionStatisticsWriter
 
         // Poll each per-manifest map out of the queue before merging so it can be garbage collected
         // immediately after use, rather than being held by the queue for the full merge duration.
-        PartitionMap<PartitionStats> statsMap = PartitionMap.create(table.specs());
-        PartitionMap<PartitionStats> manifestStats;
+        PartitionMap<PartitionStatistics> statsMap = PartitionMap.create(table.specs());
+        PartitionMap<PartitionStatistics> manifestStats;
         while ((manifestStats = statsByManifest.poll()) != null) {
             mergePartitionMap(manifestStats, statsMap);
         }
@@ -329,11 +332,11 @@ public class PartitionStatisticsWriter
         return statsMap;
     }
 
-    private static PartitionMap<PartitionStats> collectStatsForManifest(Table table, ManifestFile manifest, StructType partitionType, StatsUpdateMode updateMode)
+    private static PartitionMap<PartitionStatistics> collectStatsForManifest(Table table, ManifestFile manifest, StructType partitionType, StatsUpdateMode updateMode)
     {
         List<String> projection = BaseScan.scanColumns(manifest.content());
-        try (ManifestReader<?> reader = ManifestFiles.open(manifest, table.io()).select(projection)) {
-            PartitionMap<PartitionStats> statsMap = PartitionMap.create(table.specs());
+        try (ManifestReader<?> reader = ManifestFiles.open(manifest, table.io(), table.specs()).select(projection)) {
+            PartitionMap<PartitionStatistics> statsMap = PartitionMap.create(table.specs());
             int specId = manifest.partitionSpecId();
             PartitionSpec spec = table.specs().get(specId);
             PartitionData keyTemplate = new PartitionData(partitionType);
@@ -343,25 +346,23 @@ public class PartitionStatisticsWriter
                 StructLike coercedPartition = coercePartition(partitionType, spec, file.partition());
                 StructLike key = keyTemplate.copyFor(coercedPartition);
                 Snapshot snapshot = table.snapshot(entry.snapshotId());
-                PartitionStats stats = statsMap.computeIfAbsent(
+                PartitionStatistics stats = statsMap.computeIfAbsent(
                         specId,
                         ((PartitionData) file.partition()).copy(),
-                        () -> new PartitionStats(key, specId));
+                        () -> new BasePartitionStatistics(key, specId));
                 if (entry.isLive()) {
                     // Live can have both added and existing entries. Consider only added entries for
                     // incremental compute as existing entries was already included in previous compute.
                     if (updateMode == REPLACE || entry.status() == ManifestEntry.Status.ADDED) {
-                        //noinspection deprecation
-                        stats.liveEntry(file, snapshot);
+                        liveEntry(stats, file, snapshot);
                     }
                 }
                 else {
                     if (updateMode == INCREMENTAL_UPDATE) {
-                        stats.deletedEntryForIncrementalCompute(file, snapshot);
+                        deletedEntryForIncrementalCompute(stats, file, snapshot);
                     }
                     else {
-                        //noinspection deprecation
-                        stats.deletedEntry(snapshot);
+                        deletedEntry(stats, snapshot);
                     }
                 }
             }
@@ -373,7 +374,7 @@ public class PartitionStatisticsWriter
         }
     }
 
-    private static void mergePartitionMap(PartitionMap<PartitionStats> fromMap, PartitionMap<PartitionStats> toMap)
+    private static void mergePartitionMap(PartitionMap<PartitionStatistics> fromMap, PartitionMap<PartitionStatistics> toMap)
     {
         fromMap.forEach(
                 (key, value) ->
@@ -381,21 +382,20 @@ public class PartitionStatisticsWriter
                                 key,
                                 value,
                                 (existingEntry, newEntry) -> {
-                                    //noinspection deprecation
-                                    existingEntry.appendStats(newEntry);
+                                    appendStats(existingEntry, newEntry);
                                     return existingEntry;
                                 }));
     }
 
-    private static List<PartitionStats> sortStatsByPartition(Collection<PartitionStats> stats, Comparator<PartitionStats> statsComparator)
+    private static List<PartitionStatistics> sortStatsByPartition(Collection<PartitionStatistics> stats, Comparator<PartitionStatistics> statsComparator)
     {
-        List<PartitionStats> entries = Lists.newArrayList(stats);
+        List<PartitionStatistics> entries = Lists.newArrayList(stats);
         entries.sort(statsComparator);
         return entries;
     }
 
     /**
-     * Produces a sorted merge of two sorted sequences of {@link PartitionStats}:
+     * Produces a sorted merge of two sorted sequences of {@link PartitionStatistics}:
      * <ol>
      *   <li>A base sequence streamed from the previous partition statistics file, wrapped in
      *       {@link PartitionSortedIterator} to ensure full (partition + spec id) ordering.</li>
@@ -411,18 +411,18 @@ public class PartitionStatisticsWriter
      * <p>Only the incremental list is held in memory; the base sequence is consumed lazily one
      * entry at a time.
      */
-    private static final class PartitionStatsMergeIterator
-            extends AbstractIterator<PartitionStats>
+    private static final class PartitionStatisticsMergeIterator
+            extends AbstractIterator<PartitionStatistics>
     {
-        private final PeekingIterator<PartitionStats> baseIterator;
-        private final PeekingIterator<PartitionStats> incrementalIterator;
-        private final Comparator<PartitionStats> comparator;
+        private final PeekingIterator<PartitionStatistics> baseIterator;
+        private final PeekingIterator<PartitionStatistics> incrementalIterator;
+        private final Comparator<PartitionStatistics> comparator;
 
-        PartitionStatsMergeIterator(
-                Iterator<PartitionStats> baseIterator,
-                List<PartitionStats> sortedIncremental,
+        PartitionStatisticsMergeIterator(
+                PartitionStatsIterator baseIterator,
+                List<PartitionStatistics> sortedIncremental,
                 Comparator<StructLike> partitionComparator,
-                Comparator<PartitionStats> comparator)
+                Comparator<PartitionStatistics> comparator)
         {
             this.baseIterator = new PartitionSortedIterator(baseIterator, partitionComparator, comparator);
             this.incrementalIterator = Iterators.peekingIterator(requireNonNull(sortedIncremental, "sortedIncremental is null").iterator());
@@ -430,7 +430,7 @@ public class PartitionStatisticsWriter
         }
 
         @Override
-        protected PartitionStats computeNext()
+        protected PartitionStatistics computeNext()
         {
             if (!baseIterator.hasNext() && !incrementalIterator.hasNext()) {
                 return endOfData();
@@ -452,15 +452,14 @@ public class PartitionStatisticsWriter
             }
 
             // Merge stats for the same (partition, specId)
-            PartitionStats merged = baseIterator.next();
-            //noinspection deprecation
-            merged.appendStats(incrementalIterator.next());
+            PartitionStatistics merged = baseIterator.next();
+            appendStats(merged, incrementalIterator.next());
             return merged;
         }
     }
 
     /**
-     * Wraps an {@link Iterator} of {@link PartitionStats} whose records are only sorted by partition
+     * Wraps an {@link Iterator} of {@link PartitionStatistics} whose records are only sorted by partition
      * value (per the Iceberg spec) and re-sorts each partition group by the full comparator
      * (partition + spec id). Records with the same partition value but different spec id
      * are sorted, and buffered so that callers see a fully sorted stream.
@@ -468,25 +467,25 @@ public class PartitionStatisticsWriter
      * equals the table specs size.
      */
     private static final class PartitionSortedIterator
-            implements PeekingIterator<PartitionStats>
+            implements PeekingIterator<PartitionStatistics>
     {
-        private final PeekingIterator<PartitionStats> delegate;
+        private final PartitionStatsIterator delegate;
         private final Comparator<StructLike> partitionComparator;
-        private final Comparator<PartitionStats> comparator;
-        private final Queue<PartitionStats> buffer = new ArrayDeque<>();
+        private final Comparator<PartitionStatistics> comparator;
+        private final Queue<PartitionStatistics> buffer = new ArrayDeque<>();
 
         PartitionSortedIterator(
-                Iterator<PartitionStats> delegate,
+                PartitionStatsIterator delegate,
                 Comparator<StructLike> partitionComparator,
-                Comparator<PartitionStats> comparator)
+                Comparator<PartitionStatistics> comparator)
         {
-            this.delegate = Iterators.peekingIterator(requireNonNull(delegate, "delegate is null"));
+            this.delegate = requireNonNull(delegate, "delegate is null");
             this.partitionComparator = requireNonNull(partitionComparator, "partitionComparator is null");
             this.comparator = requireNonNull(comparator, "comparator is null");
         }
 
         @Override
-        public PartitionStats peek()
+        public PartitionStatistics peek()
         {
             fillBuffer();
             if (buffer.isEmpty()) {
@@ -502,7 +501,7 @@ public class PartitionStatisticsWriter
         }
 
         @Override
-        public PartitionStats next()
+        public PartitionStatistics next()
         {
             fillBuffer();
             if (buffer.isEmpty()) {
@@ -522,7 +521,7 @@ public class PartitionStatisticsWriter
             if (!buffer.isEmpty() || !delegate.hasNext()) {
                 return;
             }
-            List<PartitionStats> group = new ArrayList<>();
+            List<PartitionStatistics> group = new ArrayList<>();
             StructLike partition = delegate.peek().partition();
             while (delegate.hasNext() && partitionComparator.compare(delegate.peek().partition(), partition) == 0) {
                 group.add(delegate.next());

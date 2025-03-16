@@ -43,6 +43,7 @@ public class EnvSinglenodeSparkIceberg
 {
     private static final File HIVE_JDBC_PROVIDER = new File("testing/trino-product-tests-launcher/target/hive-jdbc.jar");
     private static final File ICEBERG_SPARK_RUNTIME_JAR = new File("testing/trino-product-tests-launcher/target/iceberg-spark-runtime.jar");
+    private static final File ICEBERG_AWS_BUNDLE_JAR = new File("testing/trino-product-tests-launcher/target/iceberg-aws-bundle.jar");
 
     private static final int SPARK_THRIFT_PORT = 10213;
     private static final int LOCALSTACK_PORT = 4566;
@@ -132,6 +133,9 @@ public class EnvSinglenodeSparkIceberg
                 .withCopyFileToContainer(
                         forHostPath(ICEBERG_SPARK_RUNTIME_JAR.getAbsolutePath()),
                         "/spark/jars/iceberg-spark-" + ICEBERG_VERSION + ".jar")
+                .withCopyFileToContainer(
+                        forHostPath(ICEBERG_AWS_BUNDLE_JAR.getAbsolutePath()),
+                        "/spark/jars/iceberg-aws-bundle-" + ICEBERG_VERSION + ".jar")
                 .withEnv("HADOOP_USER_NAME", "hive")
                 .withEnv("AWS_ACCESS_KEY_ID", AWS_ACCESS_KEY_ID)
                 .withEnv("AWS_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY)

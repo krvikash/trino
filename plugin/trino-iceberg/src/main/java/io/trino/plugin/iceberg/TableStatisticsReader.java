@@ -42,9 +42,9 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionStatistics;
 import org.apache.iceberg.PartitionStatisticsFile;
-import org.apache.iceberg.PartitionStats;
-import org.apache.iceberg.PartitionStatsHandler;
+import org.apache.iceberg.PartitionStatisticsReader;
 import org.apache.iceberg.Partitioning;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
@@ -179,13 +179,13 @@ public final class TableStatisticsReader
                 double deletedRecordCount = 0;
                 ImmutableMap.Builder<ColumnHandle, ColumnStatistics> columnHandleBuilder = ImmutableMap.builder();
                 Types.StructType partitionType = Partitioning.partitionType(icebergTable);
-                Schema schema = PartitionStatsHandler.schema(partitionType, formatVersion(icebergTable));
+                Schema schema = PartitionStatistics.schema(partitionType, formatVersion(icebergTable));
                 InputFile inputFile = icebergTable.io().newInputFile(statsFile.path(), statsFile.fileSizeInBytes());
                 // Per-spec evaluators restricted to identity columns — non-identity transforms use derived field names that don't match data-column names.
                 Map<Integer, Evaluator> evaluatorBySpecId = specIdToEvaluator(icebergTable, partitionType, enforcedConstraint);
                 try (PartitionStatisticsReader.PartitionStatsIterator statsIterator = partitionStatisticsReader.readPartitionStats(session, icebergTable, schema, inputFile)) {
                     while (statsIterator.hasNext()) {
-                        PartitionStats stat = statsIterator.next();
+                        PartitionStatistics stat = statsIterator.next();
                         Evaluator evaluator = evaluatorBySpecId.get(stat.specId());
                         if (evaluator != null && !evaluator.eval(stat.partition())) {
                             continue;

@@ -39,7 +39,6 @@ import io.trino.plugin.iceberg.IcebergPageSourceProviderFactory;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.IcebergTestUtils;
 import io.trino.plugin.iceberg.PartitionData;
-import io.trino.plugin.iceberg.PartitionStatisticsReader;
 import io.trino.plugin.iceberg.encryption.PlaintextEncryptionManagerFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
@@ -386,7 +385,7 @@ public final class TestIcebergPartitionStatistics
             assertThat(partitionStatisticsFile).isNotNull();
 
             Parquet.ReadBuilder file = Parquet.read(new ForwardingInputFile(fileSystem.newInputFile(Location.of(partitionStatisticsFile.path()))));
-            file.project(PartitionStatsHandler.schema(Partitioning.partitionType(icebergTable), version));
+            file.project(PartitionStatistics.schema(Partitioning.partitionType(icebergTable), version));
             List<GenericData.Record> records = ImmutableList.copyOf(file.build());
             assertThat(records).hasSize(2);
 
@@ -726,7 +725,7 @@ public final class TestIcebergPartitionStatistics
     {
         Types.StructType partitionType = Partitioning.partitionType(icebergTable);
         Parquet.ReadBuilder file = Parquet.read(new ForwardingInputFile(fileSystem.newInputFile(Location.of(path))));
-        file.project(PartitionStatsHandler.schema(partitionType, formatVersion(icebergTable)));
+        file.project(PartitionStatistics.schema(partitionType, formatVersion(icebergTable)));
         return ImmutableList.copyOf(file.build());
     }
 
