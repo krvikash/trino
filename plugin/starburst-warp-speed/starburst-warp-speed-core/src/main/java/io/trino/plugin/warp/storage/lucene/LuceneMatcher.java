@@ -28,6 +28,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.util.ThreadInterruptedException;
 
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
@@ -78,6 +79,7 @@ public class LuceneMatcher
     }
 
     public boolean match(MatchState matchState, int startChunkIndex, int numChunks, DispatcherPageSourceStats dispatcherPageSourceStats)
+            throws InterruptedException
     {
         ChunkStateHandler chunkStateHandler = new ChunkStateHandler(storageEngineConstants, rowGroupFilePath, matchOffset);
         List<ChunkState> chunkStates = null;
@@ -120,6 +122,7 @@ public class LuceneMatcher
      * do the actual match and return number of matched records
      */
     int luceneMatch(ChunkState chunkState, int indexUniqueIdInRowGroup, int docsToFind)
+            throws InterruptedException
     {
         long startTime = System.currentTimeMillis();
         int resultBufferOffset = (int) (currChunkInRange * storageEngineConstants.getPageSize());
@@ -143,6 +146,9 @@ public class LuceneMatcher
             WarpCollector warpCollector = new WarpCollector(luceneBMResultBuffer, resultBufferOffset, docsToFind);
             indexSearcher.search(query, warpCollector);
             return warpCollector.getCount();
+        }
+        catch (ThreadInterruptedException threadInterruptedException) {
+            throw (InterruptedException) threadInterruptedException.getCause();
         }
         catch (Exception e) {
             shapingLogger.error(e, "error in lucene search indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
