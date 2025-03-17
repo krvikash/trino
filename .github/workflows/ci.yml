@@ -227,6 +227,13 @@ jobs:
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base
           ref: ${{ matrix.commit }}
+      - name: Set up AWS code-artifacts login
+        if: matrix.commit != ''
+        uses: ./.github/actions/starburst-setup
+        with:
+          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
+          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       # This composite job must be entirely standalone, and checked out from the correct commit before being executed.
       # It can't accept any parameters defined in this workflow, because the values of those parameters would always be taken from
       # PR HEAD since that is the commit the workflow is started for. This could lead to problems if those parameters were changed
@@ -580,7 +587,7 @@ jobs:
             !:trino-redis,
             !:trino-redshift,
             !:trino-resource-group-managers,
-            !:trino-server-core,            
+            !:trino-server-core,
             !:trino-server,
             !:trino-singlestore,
             !:trino-snowflake,
