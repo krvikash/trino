@@ -340,9 +340,9 @@ public final class StargateQueryRunner
             return this;
         }
 
-        public Builder withExtraProperties(Map<String, String> coordinatorProperties)
+        public Builder withExtraProperties(Map<String, String> extraProperties)
         {
-            this.extraProperties = updateProperties(this.extraProperties, coordinatorProperties);
+            this.extraProperties = updateProperties(this.extraProperties, extraProperties);
             return this;
         }
 
