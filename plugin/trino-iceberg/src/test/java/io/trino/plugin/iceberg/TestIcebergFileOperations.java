@@ -960,7 +960,7 @@ public class TestIcebergFileOperations
         assertFileSystemAccesses(session, "REFRESH MATERIALIZED VIEW mv",
                 ImmutableMultiset.<FileOperation>builder()
                         .add(new FileOperationUtils.FileOperation(METADATA_JSON, "OutputFile.create"))
-                        .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "InputFile.newStream"), 2)
+                        .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "InputFile.newStream"), 3)
                         .add(new FileOperationUtils.FileOperation(MANIFEST, "OutputFile.create"))
                         .add(new FileOperationUtils.FileOperation(MANIFEST, "InputFile.newStream"))
                         .add(new FileOperationUtils.FileOperation(STATS, "OutputFile.create"))
@@ -973,7 +973,7 @@ public class TestIcebergFileOperations
         assertFileSystemAccesses(session, "REFRESH MATERIALIZED VIEW mv",
                 ImmutableMultiset.<FileOperation>builder()
                         .add(new FileOperationUtils.FileOperation(METADATA_JSON, "OutputFile.create"))
-                        .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "InputFile.newStream"), 2)
+                        .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "InputFile.newStream"), 3)
                         .addCopies(new FileOperationUtils.FileOperation(MANIFEST, "OutputFile.create"), 2)
                         .addCopies(new FileOperationUtils.FileOperation(MANIFEST, "InputFile.newStream"), 4)
                         .add(new FileOperationUtils.FileOperation(STATS, "OutputFile.create"))

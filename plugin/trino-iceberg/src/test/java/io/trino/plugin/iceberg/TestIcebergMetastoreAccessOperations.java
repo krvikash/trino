@@ -258,7 +258,7 @@ public class TestIcebergMetastoreAccessOperations
 
         assertMetastoreInvocations("REFRESH MATERIALIZED VIEW test_refresh_mview_view",
                 ImmutableMultiset.<MetastoreMethod>builder()
-                        .addCopies(GET_TABLE, 2)
+                        .addCopies(GET_TABLE, 3)
                         .addCopies(REPLACE_TABLE, 1)
                         .build());
     }
@@ -286,7 +286,7 @@ public class TestIcebergMetastoreAccessOperations
 
         assertMetastoreInvocations("REFRESH MATERIALIZED VIEW test_refresh_gp_mview_view",
                 ImmutableMultiset.<MetastoreMethod>builder()
-                        .addCopies(GET_TABLE, 2)
+                        .addCopies(GET_TABLE, 3)
                         .addCopies(REPLACE_TABLE, 1)
                         .build());
     }

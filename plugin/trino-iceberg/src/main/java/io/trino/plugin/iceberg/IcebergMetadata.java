@@ -291,8 +291,10 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getLast;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static com.google.common.collect.Iterables.size;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.difference;
+import static io.airlift.units.Duration.ZERO;
 import static io.trino.filesystem.Locations.isS3Tables;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
@@ -459,6 +461,7 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.Math.floorDiv;
+import static java.lang.Math.max;
 import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
 import static java.util.Locale.ENGLISH;
@@ -564,6 +567,8 @@ public class IcebergMetadata
     private final Executor metadataFetchingExecutor;
     private final ExecutorService icebergPlanningExecutor;
     private final ExecutorService icebergFileDeleteExecutor;
+    private final int materializedViewRefreshMaxSnapshotsToExpire;
+    private final Duration materializedViewRefreshSnapshotRetentionPeriod;
     private final Map<IcebergTableHandle, AtomicReference<TableStatistics>> tableStatisticsCache = new ConcurrentHashMap<>();
     private final Map<String, Metrics> fileMetrics = new HashMap<>();
 
@@ -588,7 +593,9 @@ public class IcebergMetadata
             ExecutorService icebergScanExecutor,
             Executor metadataFetchingExecutor,
             ExecutorService icebergPlanningExecutor,
-            ExecutorService icebergFileDeleteExecutor)
+            ExecutorService icebergFileDeleteExecutor,
+            int materializedViewRefreshMaxSnapshotsToExpire,
+            Duration materializedViewRefreshSnapshotRetentionPeriod)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
@@ -608,6 +615,8 @@ public class IcebergMetadata
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
         this.icebergPlanningExecutor = requireNonNull(icebergPlanningExecutor, "icebergPlanningExecutor is null");
         this.icebergFileDeleteExecutor = requireNonNull(icebergFileDeleteExecutor, "icebergFileDeleteExecutor is null");
+        this.materializedViewRefreshMaxSnapshotsToExpire = materializedViewRefreshMaxSnapshotsToExpire;
+        this.materializedViewRefreshSnapshotRetentionPeriod = materializedViewRefreshSnapshotRetentionPeriod;
     }
 
     @Override
@@ -2394,7 +2403,14 @@ public class IcebergMetadata
                 executeRollbackToSnapshot(session, executeHandle);
                 return ImmutableMap.of();
             case EXPIRE_SNAPSHOTS:
-                executeExpireSnapshots(session, executeHandle);
+                IcebergExpireSnapshotsHandle icebergExpireSnapshotsHandle = (IcebergExpireSnapshotsHandle) executeHandle.procedureHandle();
+                executeExpireSnapshots(
+                        session,
+                        executeHandle.schemaTableName(),
+                        icebergExpireSnapshotsHandle.retentionThreshold(),
+                        getExpireSnapshotMinRetention(session),
+                        icebergExpireSnapshotsHandle.retainLast(),
+                        icebergExpireSnapshotsHandle.cleanExpiredMetadata());
                 return ImmutableMap.of();
             case REMOVE_ORPHAN_FILES:
                 return executeRemoveOrphanFiles(session, executeHandle);
@@ -2601,18 +2617,22 @@ public class IcebergMetadata
         }
     }
 
-    private void executeExpireSnapshots(ConnectorSession session, IcebergTableExecuteHandle executeHandle)
+    private void executeExpireSnapshots(
+            ConnectorSession session,
+            SchemaTableName schemaTableName,
+            Duration retentionThreshold,
+            Duration minimumAllowedRetention,
+            int retainLast,
+            boolean cleanExpiredMetadata)
     {
-        IcebergExpireSnapshotsHandle expireSnapshotsHandle = (IcebergExpireSnapshotsHandle) executeHandle.procedureHandle();
-
-        BaseTable table = catalog.loadTable(session, executeHandle.schemaTableName());
-        Duration retention = requireNonNull(expireSnapshotsHandle.retentionThreshold(), "retention is null");
+        BaseTable table = catalog.loadTable(session, schemaTableName);
+        Duration retention = requireNonNull(retentionThreshold, "retention is null");
         validateTableExecuteParameters(
                 table,
-                executeHandle.schemaTableName(),
+                schemaTableName,
                 EXPIRE_SNAPSHOTS.name(),
                 retention,
-                getExpireSnapshotMinRetention(session),
+                minimumAllowedRetention,
                 IcebergConfig.EXPIRE_SNAPSHOTS_MIN_RETENTION,
                 IcebergSessionProperties.EXPIRE_SNAPSHOTS_MIN_RETENTION);
 
@@ -2620,8 +2640,8 @@ public class IcebergMetadata
         try {
             table.expireSnapshots()
                     .expireOlderThan(session.getStart().toEpochMilli() - retention.toMillis())
-                    .retainLast(expireSnapshotsHandle.retainLast())
-                    .cleanExpiredMetadata(expireSnapshotsHandle.cleanExpiredMetadata())
+                    .retainLast(retainLast)
+                    .cleanExpiredMetadata(cleanExpiredMetadata)
                     .planWith(icebergScanExecutor)
                     .commit();
         }
@@ -4814,9 +4834,30 @@ public class IcebergMetadata
 
         transaction = null;
         fromSnapshotForRefresh = Optional.empty();
-        return Optional.of(new HiveWrittenPartitions(commitTasks.stream()
+        Optional<ConnectorOutputMetadata> hiveWrittenPartitions = Optional.of(new HiveWrittenPartitions(commitTasks.stream()
                 .map(CommitTaskData::path)
                 .collect(toImmutableList())));
+
+        if (materializedViewRefreshMaxSnapshotsToExpire == 0) {
+            return hiveWrittenPartitions;
+        }
+
+        int snapshots = size(icebergTable.snapshots());
+        int snapshotsToRetain = max(1, snapshots - materializedViewRefreshMaxSnapshotsToExpire);
+        try {
+            executeExpireSnapshots(
+                    session,
+                    ((IcebergTableHandle) tableHandle).getSchemaTableName(),
+                    materializedViewRefreshSnapshotRetentionPeriod,
+                    ZERO,
+                    snapshotsToRetain,
+                    false);
+        }
+        catch (Exception e) {
+            log.error(e, "Failed to delete old snapshot files during materialized view refresh");
+        }
+
+        return hiveWrittenPartitions;
     }
 
     @Override
