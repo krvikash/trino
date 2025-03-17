@@ -133,13 +133,13 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     private String getCreateCatalogSqlTemplate(String s3SecretKey, String snowflakePrivateKey, String compressionCodec)
     {
         return """
-               CREATE CATALOG %s USING iceberg
+               CREATE CATALOG %%s USING iceberg
                WITH (
                   "fs.hadoop.enabled" = 'true',
                   "fs.s3.enabled" = 'true',
                   "iceberg.catalog.type" = 'snowflake',
                   "iceberg.compression-codec" = '%s',
-                  "iceberg.file-format" = '%s',
+                  "iceberg.file-format" = '%%s',
                   "iceberg.snowflake-catalog.account-uri" = '%s',
                   "iceberg.snowflake-catalog.database" = '%s',
                   "iceberg.snowflake-catalog.private-key" = '%s',
@@ -149,9 +149,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
                   "s3.aws-secret-key" = '%s',
                   "s3.region" = '%s'
                )""".formatted(
-                "%1$s", // Catalog name
                 compressionCodec,
-                "%2$s", // File format
                 SNOWFLAKE_JDBC_URI,
                 SNOWFLAKE_TEST_DATABASE,
                 snowflakePrivateKey,

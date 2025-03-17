@@ -130,11 +130,11 @@ final class TestIcebergPolarisCatalogConnectorSmokeTest
     private String getCreateCatalogSqlTemplate(String credential)
     {
         return """
-               CREATE CATALOG %s USING iceberg
+               CREATE CATALOG %%s USING iceberg
                WITH (
                   "fs.s3.enabled" = 'true',
                   "iceberg.catalog.type" = 'rest',
-                  "iceberg.file-format" = '%s',
+                  "iceberg.file-format" = '%%s',
                   "iceberg.rest-catalog.http-headers" = '%s:%s',
                   "iceberg.rest-catalog.oauth2.credential" = '%s',
                   "iceberg.rest-catalog.oauth2.scope" = 'PRINCIPAL_ROLE:ALL',
@@ -146,8 +146,6 @@ final class TestIcebergPolarisCatalogConnectorSmokeTest
                   "s3.path-style-access" = 'true',
                   "s3.region" = '%s'
                )""".formatted(
-                "%1$s", // Catalog name
-                "%2$s", // File format
                 TestingPolarisCatalog.POLARIS_REALM_HEADER,
                 TestingPolarisCatalog.POLARIS_REALM_NAME,
                 credential,

@@ -149,22 +149,20 @@ public abstract class BaseIcebergFlociConnectorSmokeTest
     private String getCreateCatalogSqlTemplate(String secretKey)
     {
         return """
-               CREATE CATALOG %s USING iceberg
+               CREATE CATALOG %%s USING iceberg
                WITH (
                   "fs.hadoop.enabled" = 'false',
                   "fs.s3.enabled" = 'true',
                   "hive.metastore.uri" = '%s',
                   "iceberg.catalog.type" = 'HIVE_METASTORE',
-                  "iceberg.file-format" = '%s',
+                  "iceberg.file-format" = '%%s',
                   "s3.aws-access-key" = '%s',
                   "s3.aws-secret-key" = '%s',
                   "s3.endpoint" = '%s',
                   "s3.path-style-access" = 'true',
                   "s3.region" = '%s'
                )""".formatted(
-                "%1$s", // Catalog name
                 hiveFlociDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString(),
-                "%2$s", // File format
                 FLOCI_ACCESS_KEY,
                 secretKey,
                 hiveFlociDataLake.floci().endpoint(),

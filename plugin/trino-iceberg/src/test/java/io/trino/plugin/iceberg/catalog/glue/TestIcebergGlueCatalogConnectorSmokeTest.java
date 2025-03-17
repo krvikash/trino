@@ -100,18 +100,16 @@ public class TestIcebergGlueCatalogConnectorSmokeTest
                                 Map.entry("fs.native-s3.enabled", "true"),
                                 Map.entry("hive.metastore.glue.default-warehouse-dir", schemaPath()),
                                 Map.entry("iceberg.catalog.type", "glue"),
-                                Map.entry("iceberg.file-format", "%2$s")), // File format
+                                Map.entry("iceberg.file-format", "%s")),
                         floci.s3AndGlueProperties().entrySet().stream())
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> format("\"%s\" = '%s'", entry.getKey(), entry.getValue()))
                 .collect(joining(",\n   "));
         return """
-               CREATE CATALOG %s USING iceberg
+               CREATE CATALOG %%s USING iceberg
                WITH (
                   %s
-               )""".formatted(
-                "%1$s", // Catalog name
-                catalogProperties);
+               )""".formatted(catalogProperties);
     }
 
     @AfterAll
