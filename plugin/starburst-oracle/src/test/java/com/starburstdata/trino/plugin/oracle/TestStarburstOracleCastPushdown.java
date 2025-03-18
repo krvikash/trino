@@ -17,6 +17,8 @@ import io.trino.testing.sql.SqlExecutor;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
+import static com.starburstdata.trino.plugin.oracle.OracleTestUsers.PASSWORD;
+import static com.starburstdata.trino.plugin.oracle.OracleTestUsers.USER;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -32,7 +34,7 @@ public class TestStarburstOracleCastPushdown
             throws Exception
     {
         oracleServer = closeAfterClass(TestingStarburstOracleServer.getInstance());
-        return com.starburstdata.trino.plugin.oracle.OracleQueryRunner.builder(oracleServer)
+        QueryRunner queryRunner = OracleQueryRunner.builder(oracleServer)
                 .withUnlockEnterpriseFeatures(true)
                 .withConnectorProperties(ImmutableMap.<String, String>builder()
                         .put("oracle.connection-pool.enabled", "false")
@@ -40,8 +42,22 @@ public class TestStarburstOracleCastPushdown
                         .put("jdbc-types-mapped-to-varchar", "interval year(2) to month, timestamp(6) with local time zone")
                         .put("join-pushdown.enabled", "true")
                         .put("join-pushdown.strategy", "EAGER")
+                        // Set oracle.number.default-scale=s to map Oracle NUMBER (without precision/scale) to DECIMAL(38, s)
+                        .put("oracle.number.default-scale", "2")
                         .buildOrThrow())
                 .build();
+
+        queryRunner.createCatalog(
+                "oracle_number_mapped_to_varchar",
+                "oracle",
+                ImmutableMap.<String, String>builder()
+                        .put("connection-url", oracleServer.get().getJdbcUrl())
+                        .put("connection-user", USER)
+                        .put("connection-password", PASSWORD)
+                        .put("unsupported-type-handling", "CONVERT_TO_VARCHAR")
+                        .put("join-pushdown.enabled", "true")
+                        .buildOrThrow());
+        return queryRunner;
     }
 
     @Override
