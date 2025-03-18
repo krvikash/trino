@@ -18,6 +18,15 @@ import java.util.Set;
 public final class ConnectorSensitiveProperties
 {
     public static final Map<String, Set<String>> SENSITIVE_PROPERTIES_PER_CONNECTOR = ImmutableMap.<String, Set<String>>builder()
+            .put("ai",
+                    ImmutableSet.of(
+                            "auth-to-local.ldap.bind-password",
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password"))
             .put("azure_data_explorer",
                     ImmutableSet.of(
                             "adx.azure.active-directory-application.secret-key",
