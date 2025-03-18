@@ -45,9 +45,9 @@ public class RewriteCast
     }
 
     @Override
-    protected Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceType, Type targetType)
+    protected Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType)
     {
-        if (!pushdownSupported(sourceType, targetType)) {
+        if (!pushdownSupported(sourceTypeHandle, targetType)) {
             return Optional.empty();
         }
 

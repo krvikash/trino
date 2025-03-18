@@ -49,9 +49,9 @@ public class RewriteCast
     }
 
     @Override
-    protected Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceType, Type targetType)
+    protected Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType)
     {
-        if (!pushdownSupported(sourceType, targetType)) {
+        if (!pushdownSupported(sourceTypeHandle, targetType)) {
             return Optional.empty();
         }
 
@@ -85,7 +85,7 @@ public class RewriteCast
     }
 
     @Override
-    protected String buildCast(Type sourceType, Type targetType, String expression, String castType)
+    protected String buildCast(@SuppressWarnings("unused") ConnectorSession session, @SuppressWarnings("unused") JdbcTypeHandle sourceTypeJdbcHandle, Type sourceType, Type targetType, String expression, String castType)
     {
         if (sourceType instanceof DecimalType && isIntegralType(targetType)) {
             // Trino rounds up to nearest integral value, whereas Redshift does not.

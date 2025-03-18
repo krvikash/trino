@@ -17,6 +17,8 @@ import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.expression.AbstractRewriteCast;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.type.CharType;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import oracle.jdbc.OracleTypes;
@@ -26,17 +28,20 @@ import java.util.function.BiFunction;
 
 import static io.trino.plugin.oracle.OracleClient.ORACLE_CHAR_MAX_CHARS;
 import static io.trino.plugin.oracle.OracleClient.ORACLE_VARCHAR2_MAX_CHARS;
+import static io.trino.plugin.oracle.OracleSessionProperties.getNumberDefaultScale;
 
 public class RewriteCast
         extends AbstractRewriteCast
 {
+    private static final int SCALE_OF_UNSPECIFIED_NUMBER = -127;
+
     public RewriteCast(BiFunction<ConnectorSession, Type, String> jdbcTypeProvider)
     {
         super(jdbcTypeProvider);
     }
 
     @Override
-    protected String buildCast(Type sourceType, Type targetType, String expression, String castType)
+    protected String buildCast(ConnectorSession session, JdbcTypeHandle sourceTypeJdbcHandle, Type sourceType, Type targetType, String expression, String castType)
     {
         if (sourceType instanceof CharType sourceCharType) {
             if (targetType instanceof CharType targetCharType && sourceCharType.getLength() < targetCharType.getLength()) {
@@ -44,13 +49,20 @@ public class RewriteCast
                 return expression;
             }
         }
+        if (sourceTypeJdbcHandle.jdbcType() == OracleTypes.NUMBER) {
+            Optional<Integer> numberDefaultScale = getNumberDefaultScale(session);
+            // For Oracle NUMBER with unspecified scale, cast using max precision and default scale before target type
+            if (numberDefaultScale.isPresent() && sourceTypeJdbcHandle.requiredDecimalDigits() == SCALE_OF_UNSPECIFIED_NUMBER) {
+                return "CAST(CAST(%s AS NUMBER(%s, %s)) AS %s)".formatted(expression, Decimals.MAX_PRECISION, numberDefaultScale.get(), castType);
+            }
+        }
         return "CAST(%s AS %s)".formatted(expression, castType);
     }
 
     @Override
-    protected Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceType, Type targetType)
+    protected Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType)
     {
-        if (!pushdownSupported(sourceType, targetType)) {
+        if (!pushdownSupported(sourceTypeHandle, sourceType, targetType)) {
             return Optional.empty();
         }
 
@@ -60,21 +72,34 @@ public class RewriteCast
         if (targetType instanceof VarcharType varcharType) {
             return Optional.of(new JdbcTypeHandle(OracleTypes.VARCHAR, Optional.of(varcharType.getBaseName()), varcharType.getLength(), Optional.empty(), Optional.empty(), Optional.empty()));
         }
+        if (targetType instanceof DecimalType decimalType) {
+            return Optional.of(new JdbcTypeHandle(
+                    OracleTypes.NUMBER,
+                    Optional.of(decimalType.getBaseName()),
+                    Optional.of(decimalType.getPrecision()),
+                    Optional.of(decimalType.getScale()),
+                    Optional.empty(),
+                    Optional.empty()));
+        }
         return Optional.empty();
     }
 
-    private boolean pushdownSupported(JdbcTypeHandle sourceType, Type targetType)
+    private boolean pushdownSupported(JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType)
     {
         if (targetType instanceof CharType charType) {
             // Oracle will throw an error on casts to char(n>ORACLE_CHAR_MAX_CHARS) "ORA-00932: inconsistent datatypes: expected - got NCLOB"
             return charType.getLength() <= ORACLE_CHAR_MAX_CHARS
-                    && supportedSourceTypeToCastToChar(sourceType);
+                    && supportedSourceTypeToCastToChar(sourceTypeHandle);
         }
         if (targetType instanceof VarcharType varcharType && !varcharType.isUnbounded()) {
             // unbounded varchar and char(n>ORACLE_VARCHAR2_MAX_CHARS) gets written as nclob.
             // pushdown does not happen when comparing nclob type variable, so skipping to pushdown the cast for nclob type variable.
             return varcharType.getLength().orElseThrow() <= ORACLE_VARCHAR2_MAX_CHARS
-                    && supportedSourceTypeToCastToVarchar(sourceType);
+                    && supportedSourceTypeToCastToVarchar(sourceTypeHandle);
+        }
+        // Number without precision and scale mapped to varchar is not supported for pushdown
+        if (!(sourceType instanceof VarcharType) && targetType instanceof DecimalType) {
+            return sourceTypeHandle.jdbcType() == OracleTypes.NUMBER;
         }
         return false;
     }

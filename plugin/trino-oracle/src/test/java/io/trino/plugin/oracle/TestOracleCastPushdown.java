@@ -29,6 +29,8 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.List;
 
+import static io.trino.plugin.oracle.TestingOracleServer.TEST_PASS;
+import static io.trino.plugin.oracle.TestingOracleServer.TEST_USER;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -48,12 +50,26 @@ public class TestOracleCastPushdown
             throws Exception
     {
         oracleServer = closeAfterClass(new TestingOracleServer());
-        return OracleQueryRunner.builder(oracleServer)
+        QueryRunner queryRunner = OracleQueryRunner.builder(oracleServer)
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
                         .put("jdbc-types-mapped-to-varchar", "interval year(2) to month, timestamp(6) with local time zone")
                         .put("join-pushdown.enabled", "true")
+                        // Set oracle.number.default-scale=s to map Oracle NUMBER (without precision/scale) to DECIMAL(38, s)
+                        .put("oracle.number.default-scale", "2")
                         .buildOrThrow())
                 .build();
+
+        queryRunner.createCatalog(
+                "oracle_number_mapped_to_varchar",
+                "oracle",
+                ImmutableMap.<String, String>builder()
+                        .put("connection-url", oracleServer.getJdbcUrl())
+                        .put("connection-user", TEST_USER)
+                        .put("connection-password", TEST_PASS)
+                        .put("unsupported-type-handling", "CONVERT_TO_VARCHAR")
+                        .put("join-pushdown.enabled", "true")
+                        .buildOrThrow());
+        return queryRunner;
     }
 
     @Override
@@ -93,6 +109,7 @@ public class TestOracleCastPushdown
                 .addColumn("c_number_15", "decimal(15)", asList(1, 2, null))
                 .addColumn("c_number_10_2", "decimal(10, 2)", asList(1.23, 2.67, null))
                 .addColumn("c_number_30_2", "decimal(30, 2)", asList(1.23, 2.67, null))
+                .addColumn("c_number_38_0", "decimal(38, 0)", asList(1.23, 2.67, null))
                 .addColumn("c_char_10", "char(10)", asList("'India'", "'Poland'", null))
                 .addColumn("c_char_50", "char(50)", asList("'India'", "'Poland'", null))
                 .addColumn("c_char_501", "char(501)", asList("'India'", "'Poland'", null)) // greater than ORACLE_CHAR_MAX_CHARS
@@ -150,6 +167,7 @@ public class TestOracleCastPushdown
                 .addColumn("c_number_15", "decimal(15)", asList(1, 22, null))
                 .addColumn("c_number_10_2", "decimal(10, 2)", asList(1.23, 22.67, null))
                 .addColumn("c_number_30_2", "decimal(30, 2)", asList(1.23, 22.67, null))
+                .addColumn("c_number_38_0", "decimal(38, 0)", asList(1.23, 22.67, null))
                 .addColumn("c_char_10", "char(10)", asList("'India'", "'France'", null))
                 .addColumn("c_char_50", "char(50)", asList("'India'", "'France'", null))
                 .addColumn("c_char_501", "char(501)", asList("'India'", "'France'", null)) // greater than ORACLE_CHAR_MAX_CHARS
@@ -324,6 +342,476 @@ public class TestOracleCastPushdown
                 .isNotFullyPushedDown(ProjectNode.class);
     }
 
+    @Test
+    void testCastPushdownUsingTableCreatedInTrino()
+    {
+        try (TestTable testTable = new TestTable(
+                getQueryRunner()::execute,
+                "test_table_",
+                "(id int, c_tinyint tinyint, c_smallint smallint, c_integer integer, c_bigint bigint, c_decimal_10 decimal(10), c_decimal_10_2 decimal(10, 2))",
+                ImmutableList.<String>builder()
+                        .add("1, 1, 1, 1, 1, 1, 1.1")
+                        .add("2, 2, 2, 2, 2, 2, 2.2")
+                        .add("3, null, null, null, null, null, null")
+                        .build())) {
+            assertThat(query("SELECT CAST(c_tinyint AS decimal(15, 3)) FROM %s".formatted(testTable.getName())))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_smallint AS decimal(15, 3)) FROM %s".formatted(testTable.getName())))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_integer AS decimal(15, 3)) FROM %s".formatted(testTable.getName())))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_bigint AS decimal(15, 3)) FROM %s".formatted(testTable.getName())))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_decimal_10 AS decimal(15, 3)) FROM %s".formatted(testTable.getName())))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_decimal_10_2 AS decimal(15, 3)) FROM %s".formatted(testTable.getName())))
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT l.id FROM %s l JOIN %s r ON CAST(l.c_tinyint AS decimal(15, 3)) = r.c_decimal_10_2".formatted(testTable.getName(), testTable.getName())))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT l.id FROM %s l JOIN %s r ON CAST(l.c_smallint AS decimal(15, 3)) = r.c_decimal_10_2".formatted(testTable.getName(), testTable.getName())))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT l.id FROM %s l JOIN %s r ON CAST(l.c_integer AS decimal(15, 3)) = r.c_decimal_10_2".formatted(testTable.getName(), testTable.getName())))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT l.id FROM %s l JOIN %s r ON CAST(l.c_bigint AS decimal(15, 3)) = r.c_decimal_10_2".formatted(testTable.getName(), testTable.getName())))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT l.id FROM %s l JOIN %s r ON CAST(l.c_decimal_10 AS decimal(15, 3)) = r.c_decimal_10_2".formatted(testTable.getName(), testTable.getName())))
+                    .isFullyPushedDown();
+        }
+    }
+
+    @Test
+    void testCastPushdownWithNumberColumn()
+    {
+        Session withoutPushdown = Session.builder(getSession())
+                .setSystemProperty("allow_pushdown_into_connectors", "false")
+                .build();
+        try (CastDataTypeTestTable table = CastDataTypeTestTable.create(3)
+                // No precision, no scale
+                .addColumn("c_number_1", "number", asList(123456789, 987654321, null))
+                .addColumn("c_number_2", "number", asList("99999999999999999999999999999999999999", "-99999999999999999999999999999999999999", null))
+                .addColumn("c_number_3", "number(*)", asList("99999999999999999999999999999999999999", "-99999999999999999999999999999999999999", null))
+                // Defined precision and scale
+                .addColumn("c_number_4", "number(*, 1)", asList(1.25, 2.55, null))
+                // Precision only
+                .addColumn("c_number_5", "number(9)", asList(999999999, -999999999, null))
+                // Precision and scale
+                .addColumn("c_number_6", "number(9, 1)", asList(123.45, 987.65, null))
+                .addColumn("c_number_7", "number(9, 2)", asList(0.01, 99.99, null))
+                // Small precision
+                .addColumn("c_number_8", "number(6)", asList(999999, -999999, null))
+                // Negative scale
+                .addColumn("c_number_9", "number(7, -2)", asList(150, 250, null))
+                // Large value
+                .addColumn("c_number_10", "number(38, 0)", asList("99999999999999999999999999999999999999", "-99999999999999999999999999999999999999", null))
+                // Negative value
+                .addColumn("c_number_11", "number(9, 2)", asList(-123.45, -987.65, null))
+                // Very small decimal value
+                .addColumn("c_number_12", "number(9, 5)", asList(0.00001, 0.99999, null))
+                // Zero value
+                .addColumn("c_number_13", "number(9, 2)", asList(0, 0, null))
+                // with 38 precision
+                .addColumn("c_number_14", "number(38, 38)", asList("0.00000000000000000000000000000000000001", "0.00000000000000000000000000000000000009", null))
+                .addColumn("c_number_15", "number(38, 38)", asList("0.99999999999999999999999999999999999999", "-0.99999999999999999999999999999999999999", null))
+                .execute(onRemoteDatabase(), "test_number_")) {
+            assertThat(query("SELECT CAST(c_number_1 AS decimal(12, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '123456789.00', DECIMAL '987654321.00', null")
+                    .isFullyPushedDown();
+
+            assertThat(query(withoutPushdown, "SELECT CAST(c_number_2 AS decimal(38, 0)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Decimal overflow");
+            assertThat(query("SELECT CAST(c_number_2 AS decimal(38, 0)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("value larger than specified precision allowed for this column");
+
+            assertThat(query(withoutPushdown, "SELECT CAST(c_number_2 AS decimal(38, 1)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Decimal overflow");
+            assertThat(query("SELECT CAST(c_number_2 AS decimal(38, 1)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("value larger than specified precision allowed for this column");
+
+            assertThat(query(withoutPushdown, "SELECT CAST(c_number_2 AS decimal(38, 2)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Decimal overflow");
+            // Pushdown will not happen because c_number_2 is mapped to decimal(38,2) type
+            assertThat(query("SELECT CAST(c_number_2 AS decimal(38, 2)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Decimal overflow");
+
+            assertThat(query(withoutPushdown, "SELECT CAST(c_number_3 AS decimal(38, 0)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Decimal overflow");
+            assertThat(query("SELECT CAST(c_number_3 AS decimal(38, 0)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("value larger than specified precision allowed for this column");
+
+            assertThat(query(withoutPushdown, "SELECT CAST(c_number_3 AS decimal(38, 1)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Decimal overflow");
+            assertThat(query("SELECT CAST(c_number_3 AS decimal(38, 1)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("value larger than specified precision allowed for this column");
+
+            assertThat(query("SELECT CAST(c_number_4 AS decimal(10, 1)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1.3', DECIMAL '2.6', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_5 AS decimal(10, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '999999999', DECIMAL '-999999999', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_6 AS decimal(10, 1)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '123.5', DECIMAL '987.7', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_7 AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '0.01', DECIMAL '99.99', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_8 AS decimal(10, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '999999', DECIMAL '-999999', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_9 AS decimal(10, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '200', DECIMAL '300', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_10 AS decimal(38, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '99999999999999999999999999999999999999', DECIMAL '-99999999999999999999999999999999999999', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_11 AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '-123.45', DECIMAL'-987.65', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_12 AS decimal(10, 5)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '0.00001', DECIMAL '0.99999', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_13 AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '0.00', DECIMAL '0.00', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_14 AS decimal(38, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '0', DECIMAL '0', null")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_number_14 AS decimal(38, 36)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '0.00000000000000000000000000000000000', DECIMAL '0.000000000000000000000000000000000000', null")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_number_14 AS decimal(38, 37)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '0.000000000000000000000000000000000000', DECIMAL '0.0000000000000000000000000000000000001', null")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_number_14 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '0.00000000000000000000000000000000000001', DECIMAL '0.00000000000000000000000000000000000009', null")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_15 AS decimal(38, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1', DECIMAL '-1', null")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_number_15 AS decimal(38, 36)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1.00000000000000000000000000000000000', DECIMAL '-1.000000000000000000000000000000000000', null")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_number_15 AS decimal(38, 37)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1.000000000000000000000000000000000000', DECIMAL '-1.0000000000000000000000000000000000000', null")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT CAST(c_number_15 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '0.99999999999999999999999999999999999999', DECIMAL '-0.99999999999999999999999999999999999999', null")
+                    .isFullyPushedDown();
+        }
+    }
+
+    @Test
+    void testCastPushdownWithTruncationAndRounding()
+    {
+        try (CastDataTypeTestTable table = CastDataTypeTestTable.create(2)
+                .addColumn("c_number_1", "number(9, 4)", asList(1.234, 1.235))
+                .addColumn("c_number_2", "number(9, 4)", asList(-1.234, -1.235))
+                .addColumn("c_number_3", "number(9, 4)", asList(1.9899, 2.9899))
+                .addColumn("c_number_4", "number(9, 4)", asList(1.9999, 2.9999))
+                .addColumn("c_number_5", "number(9, 4)", asList(-1.9999, -2.9999))
+                .addColumn("c_number_6", "number(9, 4)", asList(-1.9899, -2.9899))
+                .addColumn("c_number_7", "number(9, 4)", asList(1.5, -1.5))
+                .addColumn("c_number_8", "number(9, 4)", asList(0.9999, -0.9999))
+                .execute(onRemoteDatabase(), "test_number_")) {
+            assertThat(query("SELECT CAST(c_number_1 AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1.23', DECIMAL '1.24'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_2 AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '-1.23', DECIMAL '-1.24'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_3 AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1.99', DECIMAL '2.99'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_4 AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '2.00', DECIMAL '3.00'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_5 AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '-2.00', DECIMAL '-3.00'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_6 AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '-1.99', DECIMAL '-2.99'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_7 AS decimal(10, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '2', DECIMAL '-2'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_8 AS decimal(10, 1)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1.0', DECIMAL '-1.0'")
+                    .isFullyPushedDown();
+        }
+    }
+
+    @Test
+    void testCastPushdownWithLowerScale()
+    {
+        try (CastDataTypeTestTable table = CastDataTypeTestTable.create(3)
+                .addColumn("c_number_high_scale", "number(9, 4)", asList(1.2345, 2.5789, 3.9999))
+                .execute(onRemoteDatabase(), "test_number_");) {
+            // Lowering scale from 4 to 2 – Expect rounding or truncation
+            assertThat(query("SELECT CAST(c_number_high_scale AS decimal(10, 2)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1.23', DECIMAL '2.58', DECIMAL '4.00'")
+                    .isFullyPushedDown();
+
+            // Lowering scale from 4 to 1 – More aggressive truncation or rounding
+            assertThat(query("SELECT CAST(c_number_high_scale AS decimal(10, 1)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1.2', DECIMAL '2.6', DECIMAL '4.0'")
+                    .isFullyPushedDown();
+
+            // Lowering scale from 4 to 0 – Expect integer truncation
+            assertThat(query("SELECT CAST(c_number_high_scale AS decimal(10, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '1', DECIMAL '3', DECIMAL '4'")
+                    .isFullyPushedDown();
+        }
+    }
+
+    @Test
+    void testCastPushdownWithLowerPrecisionAndScale()
+    {
+        Session withoutPushdown = Session.builder(getSession())
+                .setSystemProperty("allow_pushdown_into_connectors", "false")
+                .build();
+        try (CastDataTypeTestTable table = CastDataTypeTestTable.create(1)
+                .addColumn("c_number_1", "number(9, 4)", List.of(12345.6789))
+                .addColumn("c_number_2", "number(9, 4)", List.of(99999.9999))
+                .addColumn("c_number_3", "number(9, 4)", List.of(1.2345))
+                .execute(onRemoteDatabase(), "test_number_")) {
+            assertThat(query("SELECT CAST(c_number_1 AS decimal(5, 4)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("value larger than specified precision allowed for this column");
+            assertThat(query(withoutPushdown, "SELECT CAST(c_number_1 AS decimal(5, 4)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Cannot cast DECIMAL(9, 4) '12345.6789' to DECIMAL(5, 4)");
+
+            assertThat(query("SELECT CAST(c_number_2 AS decimal(6, 1)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("value larger than specified precision allowed for this column");
+            assertThat(query(withoutPushdown, "SELECT CAST(c_number_2 AS decimal(6, 1)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Cannot cast DECIMAL(9, 4) '99999.9999' to DECIMAL(6, 1)");
+
+            assertThat(query("SELECT CAST(c_number_2 AS decimal(7, 1)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '100000.0'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_3 AS decimal(5, 4)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '1.2345'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_3 AS decimal(4, 3)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '1.235'")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT CAST(c_number_3 AS decimal(1, 0)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '1'")
+                    .isFullyPushedDown();
+        }
+    }
+
+    @Test
+    void testCastNumberMappedToVarchar()
+    {
+        Session session = Session.builder(getSession())
+                .setCatalog("oracle_number_mapped_to_varchar")
+                .setCatalogSessionProperty("oracle_number_mapped_to_varchar", "number_rounding_mode", "HALF_UP")
+                .build();
+
+        try (CastDataTypeTestTable table = CastDataTypeTestTable.create(1)
+                .addColumn("c_number_1", "number", List.of(12345.6789))
+                .addColumn("c_number_2", "number(*)", List.of(12345.6789))
+                .execute(onRemoteDatabase(), "test_number_")) {
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(4, 0)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Cannot cast VARCHAR '12345.6789' to DECIMAL(4, 0). Value too large");
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(10, 4)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '12345.6789'")
+                    .isNotFullyPushedDown(ProjectNode.class);
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(10, 1)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '12345.7'")
+                    .isNotFullyPushedDown(ProjectNode.class);
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(10, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '12346'")
+                    .isNotFullyPushedDown(ProjectNode.class);
+
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(4, 0)) FROM %s".formatted(table.getName())))
+                    .failure()
+                    .hasMessageContaining("Cannot cast VARCHAR '12345.6789' to DECIMAL(4, 0). Value too large");
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(10, 4)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '12345.6789'")
+                    .isNotFullyPushedDown(ProjectNode.class);
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(10, 1)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '12345.7'")
+                    .isNotFullyPushedDown(ProjectNode.class);
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(10, 0)) FROM %s".formatted(table.getName())))
+                    .skippingTypesCheck()
+                    .matches("VALUES DECIMAL '12346'")
+                    .isNotFullyPushedDown(ProjectNode.class);
+        }
+    }
+
+    @Test
+    void testCastHighNumberScaleWithRoundingMode()
+    {
+        try (CastDataTypeTestTable table = CastDataTypeTestTable.create(1)
+                .addColumn("c_number_1", "number(38, 40)", List.of(0.0012345678901234567890123456789012345678))
+                .addColumn("c_number_2", "number(18, 40)", List.of(0.0000000000000000000000123456789012345678))
+                .addColumn("c_number_3", "number(38, 80)", List.of(0.00000000000000000000000000000000000000000000012345678901234567890123456789012345678))
+                .execute(onRemoteDatabase(), "test_number_")) {
+            Session session = Session.builder(getSession())
+                    .setCatalogSessionProperty("oracle", "number_rounding_mode", "CEILING")
+                    .build();
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00123456789012345670000000000000000000'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000001234567890123457'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_3 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000000000000000000001'")
+                    .isFullyPushedDown();
+
+            session = Session.builder(getSession())
+                    .setCatalogSessionProperty("oracle", "number_rounding_mode", "FLOOR")
+                    .build();
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00123456789012345670000000000000000000'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000001234567890123456'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_3 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000000000000000000000'")
+                    .isFullyPushedDown();
+
+            session = Session.builder(getSession())
+                    .setCatalogSessionProperty("oracle", "number_rounding_mode", "HALF_DOWN")
+                    .build();
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00123456789012345670000000000000000000'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000001234567890123457'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_3 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000000000000000000000'")
+                    .isFullyPushedDown();
+
+            session = Session.builder(getSession())
+                    .setCatalogSessionProperty("oracle", "number_rounding_mode", "HALF_EVEN")
+                    .build();
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00123456789012345670000000000000000000'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000001234567890123457'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_3 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000000000000000000000'")
+                    .isFullyPushedDown();
+
+            session = Session.builder(getSession())
+                    .setCatalogSessionProperty("oracle", "number_rounding_mode", "HALF_UP")
+                    .build();
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00123456789012345670000000000000000000'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000001234567890123457'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_3 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000000000000000000000'")
+                    .isFullyPushedDown();
+
+            session = Session.builder(getSession())
+                    .setCatalogSessionProperty("oracle", "number_rounding_mode", "UP")
+                    .build();
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00123456789012345670000000000000000000'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000001234567890123457'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_3 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000000000000000000001'")
+                    .isFullyPushedDown();
+
+            session = Session.builder(getSession())
+                    .setCatalogSessionProperty("oracle", "number_rounding_mode", "DOWN")
+                    .build();
+            assertThat(query(session, "SELECT CAST(c_number_1 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00123456789012345670000000000000000000'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_2 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000001234567890123456'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT CAST(c_number_3 AS decimal(38, 38)) FROM %s".formatted(table.getName())))
+                    .matches("VALUES DECIMAL '0.00000000000000000000000000000000000000'")
+                    .isFullyPushedDown();
+        }
+    }
+
     @Override
     protected List<CastTestCase> supportedCastTypePushdown()
     {
@@ -365,6 +853,38 @@ public class TestOracleCastPushdown
                 .add(new CastTestCase("c_nvarchar_unicode", "varchar(50)", "c_varchar_50"))
                 .add(new CastTestCase("c_clob_unicode", "varchar(50)", "c_varchar_50"))
                 .add(new CastTestCase("c_nclob_unicode", "varchar(50)", "c_varchar_50"))
+
+                .add(new CastTestCase("c_number_3", "decimal(15)", "c_number_15"))
+                .add(new CastTestCase("c_number_3", "decimal(10, 2)", "c_number_10_2"))
+                .add(new CastTestCase("c_number_3", "decimal(30, 2)", "c_number_30_2"))
+                .add(new CastTestCase("c_number_3", "decimal(38, 0)", "c_number_38_0"))
+
+                .add(new CastTestCase("c_number_5", "decimal(15)", "c_number_15"))
+                .add(new CastTestCase("c_number_5", "decimal(10, 2)", "c_number_10_2"))
+                .add(new CastTestCase("c_number_5", "decimal(30, 2)", "c_number_30_2"))
+                .add(new CastTestCase("c_number_5", "decimal(38, 0)", "c_number_38_0"))
+
+                .add(new CastTestCase("c_number_10", "decimal(15)", "c_number_15"))
+                .add(new CastTestCase("c_number_10", "decimal(10, 2)", "c_number_10_2"))
+                .add(new CastTestCase("c_number_10", "decimal(30, 2)", "c_number_30_2"))
+                .add(new CastTestCase("c_number_10", "decimal(38, 0)", "c_number_38_0"))
+
+                .add(new CastTestCase("c_number_19", "decimal(15)", "c_number_15"))
+                .add(new CastTestCase("c_number_19", "decimal(10, 2)", "c_number_10_2"))
+                .add(new CastTestCase("c_number_19", "decimal(30, 2)", "c_number_30_2"))
+                .add(new CastTestCase("c_number_19", "decimal(38, 0)", "c_number_38_0"))
+
+                .add(new CastTestCase("c_number_10_2", "decimal(15)", "c_number_15"))
+                .add(new CastTestCase("c_number_10_2", "decimal(30, 2)", "c_number_30_2"))
+                .add(new CastTestCase("c_number_10_2", "decimal(38, 0)", "c_number_38_0"))
+
+                .add(new CastTestCase("c_number_30_2", "decimal(15)", "c_number_15"))
+                .add(new CastTestCase("c_number_30_2", "decimal(10, 2)", "c_number_10_2"))
+                .add(new CastTestCase("c_number_30_2", "decimal(38, 0)", "c_number_38_0"))
+
+                .add(new CastTestCase("c_number_38_0", "decimal(15)", "c_number_15"))
+                .add(new CastTestCase("c_number_38_0", "decimal(10, 2)", "c_number_10_2"))
+                .add(new CastTestCase("c_number_38_0", "decimal(30, 2)", "c_number_30_2"))
                 .build();
     }
 
@@ -451,9 +971,6 @@ public class TestOracleCastPushdown
                 .add(new CastTestCase("c_number_3", "real", "c_float_5"))
                 .add(new CastTestCase("c_number_3", "double", "c_binary_float"))
                 .add(new CastTestCase("c_number_3", "double", "c_binary_double"))
-                .add(new CastTestCase("c_number_3", "decimal(15)", "c_number_15"))
-                .add(new CastTestCase("c_number_3", "decimal(10, 2)", "c_number_10_2"))
-                .add(new CastTestCase("c_number_3", "decimal(30, 2)", "c_number_30_2"))
                 .add(new CastTestCase("c_varchar_10", "varbinary", "c_blob"))
                 .add(new CastTestCase("c_varchar_10", "varbinary", "c_raw_200"))
                 .add(new CastTestCase("c_timestamp", "date", "c_date"))

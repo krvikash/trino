@@ -46,14 +46,14 @@ public abstract class AbstractRewriteCast
 
     private final BiFunction<ConnectorSession, Type, String> jdbcTypeProvider;
 
-    protected abstract Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceType, Type targetType);
+    protected abstract Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType);
 
     public AbstractRewriteCast(BiFunction<ConnectorSession, Type, String> jdbcTypeProvider)
     {
         this.jdbcTypeProvider = requireNonNull(jdbcTypeProvider, "jdbcTypeProvider is null");
     }
 
-    protected String buildCast(@SuppressWarnings("unused") Type sourceType, @SuppressWarnings("unused") Type targetType, String expression, String castType)
+    protected String buildCast(@SuppressWarnings("unused") ConnectorSession session, @SuppressWarnings("unused") JdbcTypeHandle sourceTypeJdbcHandle, @SuppressWarnings("unused") Type sourceType, @SuppressWarnings("unused") Type targetType, String expression, String castType)
     {
         return "CAST(%s AS %s)".formatted(expression, castType);
     }
@@ -73,7 +73,7 @@ public abstract class AbstractRewriteCast
         Variable variable = captures.get(VALUE);
         JdbcTypeHandle sourceTypeJdbcHandle = ((JdbcColumnHandle) context.getAssignment(variable.getName())).getJdbcTypeHandle();
         Type targetType = castExpression.getType();
-        Optional<JdbcTypeHandle> targetJdbcTypeHandle = toJdbcTypeHandle(sourceTypeJdbcHandle, targetType);
+        Optional<JdbcTypeHandle> targetJdbcTypeHandle = toJdbcTypeHandle(sourceTypeJdbcHandle, variable.getType(), targetType);
 
         if (targetJdbcTypeHandle.isEmpty()) {
             return Optional.empty();
@@ -88,7 +88,7 @@ public abstract class AbstractRewriteCast
         String castType = jdbcTypeProvider.apply(context.getSession(), targetType);
 
         return Optional.of(new JdbcExpression(
-                buildCast(sourceType, targetType, value.get().expression(), castType),
+                buildCast(context.getSession(), sourceTypeJdbcHandle, sourceType, targetType, value.get().expression(), castType),
                 value.get().parameters(),
                 targetJdbcTypeHandle.get()));
     }
