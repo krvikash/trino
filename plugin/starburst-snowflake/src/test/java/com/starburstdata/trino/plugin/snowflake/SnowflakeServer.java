@@ -21,15 +21,6 @@ import java.util.function.Consumer;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
-/**
- * Provide information on an external Snowflake Database server based on
- * configurable system properties.
- * <p>
- * The configurable properties are {@code test.server.url}, {@code
- * test.server.user}, {@code test.server.role} and {@code test.server.password}. All three must be
- * provided, and they must connect to a database server, for this class to be
- * used.
- */
 public final class SnowflakeServer
 {
     private static final Logger LOG = Logger.get(SnowflakeServer.class);
