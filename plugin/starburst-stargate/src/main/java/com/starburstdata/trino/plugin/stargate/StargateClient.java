@@ -507,13 +507,13 @@ public class StargateClient
             return Optional.of(new JdbcTypeHandle(Types.DECIMAL, Optional.empty(), Optional.of(decimalType.getPrecision()), Optional.of(decimalType.getScale()), Optional.empty(), Optional.empty()));
         }
 
-        if (type instanceof CharType) {
-            return Optional.of(jdbcTypeHandleWithColumnSize(Types.CHAR, ((CharType) type).getLength()));
+        if (type instanceof CharType charType) {
+            return Optional.of(jdbcTypeHandleWithColumnSize(Types.CHAR, charType.getLength()));
         }
 
-        if (type instanceof VarcharType) {
+        if (type instanceof VarcharType varcharType) {
             // See io.trino.connector.system.jdbc.ColumnJdbcTable#columnSize
-            int columnSize = ((VarcharType) type).getLength().orElse(VarcharType.UNBOUNDED_LENGTH);
+            int columnSize = varcharType.getLength().orElse(VarcharType.UNBOUNDED_LENGTH);
             return Optional.of(jdbcTypeHandleWithColumnSize(Types.VARCHAR, columnSize));
         }
 
@@ -529,20 +529,20 @@ public class StargateClient
             return Optional.of(jdbcTypeHandle(Types.DATE));
         }
 
-        if (type instanceof TimeType) {
-            return Optional.of(jdbcTypeHandleWithDecimalDigits(Types.TIME, ((TimeType) type).getPrecision()));
+        if (type instanceof TimeType timeType) {
+            return Optional.of(jdbcTypeHandleWithDecimalDigits(Types.TIME, timeType.getPrecision()));
         }
 
-        if (type instanceof TimeWithTimeZoneType) {
-            return Optional.of(jdbcTypeHandleWithDecimalDigits(Types.TIME_WITH_TIMEZONE, ((TimeWithTimeZoneType) type).getPrecision()));
+        if (type instanceof TimeWithTimeZoneType timeWithTimeZoneType) {
+            return Optional.of(jdbcTypeHandleWithDecimalDigits(Types.TIME_WITH_TIMEZONE, timeWithTimeZoneType.getPrecision()));
         }
 
-        if (type instanceof TimestampType) {
-            return Optional.of(jdbcTypeHandleWithDecimalDigits(Types.TIMESTAMP, ((TimestampType) type).getPrecision()));
+        if (type instanceof TimestampType timestampType) {
+            return Optional.of(jdbcTypeHandleWithDecimalDigits(Types.TIMESTAMP, timestampType.getPrecision()));
         }
 
-        if (type instanceof TimestampWithTimeZoneType) {
-            return Optional.of(jdbcTypeHandleWithDecimalDigits(Types.TIMESTAMP_WITH_TIMEZONE, ((TimestampWithTimeZoneType) type).getPrecision()));
+        if (type instanceof TimestampWithTimeZoneType timestampWithTimeZoneType) {
+            return Optional.of(jdbcTypeHandleWithDecimalDigits(Types.TIMESTAMP_WITH_TIMEZONE, timestampWithTimeZoneType.getPrecision()));
         }
 
         log.debug("Type cannot be converted to JdbcTypeHandle: %s", type);
@@ -608,20 +608,20 @@ public class StargateClient
             return WriteMapping.longMapping("date", dateWriteFunctionUsingSqlDate());
         }
 
-        if (type instanceof TimeType) {
-            return stargateTimeWriteMapping((TimeType) type);
+        if (type instanceof TimeType timeType) {
+            return stargateTimeWriteMapping(timeType);
         }
 
-        if (type instanceof TimeWithTimeZoneType) {
-            return stargateTimeWithTimeZoneWriteMapping((TimeWithTimeZoneType) type);
+        if (type instanceof TimeWithTimeZoneType timeWithTimeZoneType) {
+            return stargateTimeWithTimeZoneWriteMapping(timeWithTimeZoneType);
         }
 
-        if (type instanceof TimestampType) {
-            return stargateTimestampWriteMapping((TimestampType) type);
+        if (type instanceof TimestampType timestampType) {
+            return stargateTimestampWriteMapping(timestampType);
         }
 
-        if (type instanceof TimestampWithTimeZoneType) {
-            return stargateTimestampWithTimeZoneWriteMapping((TimestampWithTimeZoneType) type);
+        if (type instanceof TimestampWithTimeZoneType timestampWithTimeZoneType) {
+            return stargateTimestampWithTimeZoneWriteMapping(timestampWithTimeZoneType);
         }
 
         throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());

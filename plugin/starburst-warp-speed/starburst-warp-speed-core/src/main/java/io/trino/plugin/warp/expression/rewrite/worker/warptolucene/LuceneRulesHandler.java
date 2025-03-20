@@ -77,19 +77,19 @@ public class LuceneRulesHandler
     public boolean rewrite(WarpExpression warpExpression,
             LuceneRewriteContext context)
     {
-        if (!(warpExpression instanceof WarpCall)) {
-            return false;
-        }
-        String functionName = ((WarpCall) warpExpression).getFunctionName();
-        Set<FunctionRewriter> warpExpressionRules = luceneRules.get(functionName);
-        boolean isValid = false;
-        for (FunctionRewriter rule : warpExpressionRules) {
-            if (rule.pattern().matches(warpExpression, null)) {
-                isValid = rule.rewriteCallback().apply(warpExpression, context);
-                break;
+        if (warpExpression instanceof WarpCall warpCall) {
+            String functionName = warpCall.getFunctionName();
+            Set<FunctionRewriter> warpExpressionRules = luceneRules.get(functionName);
+            boolean isValid = false;
+            for (FunctionRewriter rule : warpExpressionRules) {
+                if (rule.pattern().matches(warpExpression, null)) {
+                    isValid = rule.rewriteCallback().apply(warpExpression, context);
+                    break;
+                }
             }
+            return isValid;
         }
-        return isValid;
+        return false;
     }
 
     private record FunctionRewriter(

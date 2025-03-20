@@ -158,8 +158,8 @@ public class SqlServerSplitManager
                 {
                     final int deadlockErrorCode = 1205;
                     Throwable rootCause = Throwables.getRootCause(throwable);
-                    return rootCause instanceof SQLServerException &&
-                            ((SQLServerException) rootCause).getSQLServerError().getErrorNumber() == deadlockErrorCode;
+                    return rootCause instanceof SQLServerException sqlServerException &&
+                            sqlServerException.getSQLServerError().getErrorNumber() == deadlockErrorCode;
                 })
                 .onFailedAttempt(event -> log.warn(event.getLastException(), "Attempt %d of %d: error when listing partitions and creating splits for '%s'", event.getAttemptCount(), maxAttemptCount, tableHandle))
                 .build();

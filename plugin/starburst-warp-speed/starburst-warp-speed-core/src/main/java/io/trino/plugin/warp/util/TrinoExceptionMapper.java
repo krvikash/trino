@@ -57,8 +57,8 @@ public class TrinoExceptionMapper
         int depth = 0;
         Throwable t = throwable;
         while (t != null && depth < MAX_DEPTH) {
-            if (t instanceof TrinoException) {
-                return Optional.of((TrinoException) t);
+            if (t instanceof TrinoException trinoException) {
+                return Optional.of(trinoException);
             }
             t = t.getCause();
             depth++;

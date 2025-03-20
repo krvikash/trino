@@ -51,40 +51,40 @@ public class RangeBoundValueSerializer
         if (obj == null) {
             throw new IllegalStateException("Unexpected null value");
         }
-        if (obj instanceof String) {
-            gen.writeString((String) obj);
+        if (obj instanceof String string) {
+            gen.writeString(string);
         }
         else if (Number.class.isAssignableFrom(obj.getClass())) {
-            if (obj instanceof Long) {
-                gen.writeNumber((Long) obj);
+            if (obj instanceof Long l) {
+                gen.writeNumber(l);
             }
-            else if (obj instanceof Integer) {
-                gen.writeNumber((Integer) obj);
+            else if (obj instanceof Integer i) {
+                gen.writeNumber(i);
             }
-            else if (obj instanceof Short) {
-                gen.writeNumber((Short) obj);
+            else if (obj instanceof Short s) {
+                gen.writeNumber(s);
             }
-            else if (obj instanceof Double) {
-                gen.writeNumber((Double) obj);
+            else if (obj instanceof Double d) {
+                gen.writeNumber(d);
             }
-            else if (obj instanceof Float) {
-                gen.writeNumber((Float) obj);
+            else if (obj instanceof Float f) {
+                gen.writeNumber(f);
             }
-            else if (obj instanceof BigInteger) {
-                gen.writeNumber((BigInteger) obj);
+            else if (obj instanceof BigInteger bigInteger) {
+                gen.writeNumber(bigInteger);
             }
-            else if (obj instanceof BigDecimal) {
-                gen.writeNumber((BigDecimal) obj);
+            else if (obj instanceof BigDecimal bigDecimal) {
+                gen.writeNumber(bigDecimal);
             }
             else {
                 throw new IllegalStateException("Unknown number value: " + obj);
             }
         }
-        else if (obj instanceof Boolean) {
-            gen.writeBoolean((Boolean) obj);
+        else if (obj instanceof Boolean b) {
+            gen.writeBoolean(b);
         }
-        else if (obj instanceof byte[]) {
-            gen.writeBinary((byte[]) obj);
+        else if (obj instanceof byte[] byteArray) {
+            gen.writeBinary(byteArray);
         }
     }
 }

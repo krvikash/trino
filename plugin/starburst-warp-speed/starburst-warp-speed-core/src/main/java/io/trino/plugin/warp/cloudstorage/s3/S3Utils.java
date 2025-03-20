@@ -29,8 +29,8 @@ final class S3Utils
         AwsServiceException exception = null;
 
         while (throwable != null) {
-            if (throwable instanceof AwsServiceException) {
-                exception = (AwsServiceException) throwable;
+            if (throwable instanceof AwsServiceException awsServiceException) {
+                exception = awsServiceException;
             }
             throwable = throwable.getCause();
         }

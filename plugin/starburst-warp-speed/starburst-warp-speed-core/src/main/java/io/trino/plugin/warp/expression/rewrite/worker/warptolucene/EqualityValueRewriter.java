@@ -74,15 +74,17 @@ public class EqualityValueRewriter
         WarpConstant warpConstant;
         if (warpCall.getFunctionName().equals(STRPOS.getName())) {
             WarpExpression positionValue = expression.getChildren().get(1);
-            if (!(positionValue instanceof WarpPrimitiveConstant)) {
+            if (positionValue instanceof WarpPrimitiveConstant warpPrimitiveConstant) {
+                if (warpPrimitiveConstant.getValue() == Integer.valueOf(0)) {
+                    // See https://stackoverflow.com/a/16091066, =false->false, =true->true, !=true->false, !=false->true
+                    context.queryBuilder().add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
+                    context = createContext(context, BooleanClause.Occur.MUST_NOT);
+                }
+                warpConstant = (WarpConstant) warpCall.getChildren().get(1);
+            }
+            else {
                 return false;
             }
-            if (((WarpPrimitiveConstant) positionValue).getValue() == Integer.valueOf(0)) {
-                // See https://stackoverflow.com/a/16091066, =false->false, =true->true, !=true->false, !=false->true
-                context.queryBuilder().add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
-                context = createContext(context, BooleanClause.Occur.MUST_NOT);
-            }
-            warpConstant = (WarpConstant) warpCall.getChildren().get(1);
         }
         else {
             warpConstant = (WarpConstant) expression.getChildren().get(1);

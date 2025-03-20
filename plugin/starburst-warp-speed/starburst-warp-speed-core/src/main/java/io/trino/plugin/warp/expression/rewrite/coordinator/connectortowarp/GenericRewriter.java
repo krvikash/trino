@@ -92,8 +92,8 @@ class GenericRewriter
             Optional<Object> capture = matchContext.getIfPresent(identifier);
             if (capture.isPresent()) {
                 Object value = capture.get();
-                if (value instanceof ConnectorExpression) {
-                    Optional<WarpExpression> rewrittenExpression = context.defaultRewrite((ConnectorExpression) value);
+                if (value instanceof ConnectorExpression connectorExpression) {
+                    Optional<WarpExpression> rewrittenExpression = context.defaultRewrite(connectorExpression);
                     if (rewrittenExpression.isEmpty()) {
                         return Optional.empty();
                     }

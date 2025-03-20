@@ -1193,8 +1193,8 @@ public class PlanPrinter
             List<Expression> nodeRows = node.getRows().get();
             List<String> rows = nodeRows.stream()
                     .map(row -> {
-                        if (row instanceof Row) {
-                            return ((Row) row).items().stream()
+                        if (row instanceof Row value) {
+                            return value.items().stream()
                                     .map(anonymizer::anonymize)
                                     .collect(joining(", ", "(", ")"));
                         }
@@ -1244,8 +1244,8 @@ public class PlanPrinter
             }
 
             Optional<TableScanNode> scanNode;
-            if (sourceNode instanceof TableScanNode) {
-                scanNode = Optional.of((TableScanNode) sourceNode);
+            if (sourceNode instanceof TableScanNode tableScanNode) {
+                scanNode = Optional.of(tableScanNode);
             }
             else {
                 scanNode = Optional.empty();

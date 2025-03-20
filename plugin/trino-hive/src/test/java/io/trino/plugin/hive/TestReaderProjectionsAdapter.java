@@ -155,8 +155,8 @@ public class TestReaderProjectionsAdapter
     {
         int positionCount = data.size();
 
-        if (type instanceof RowType) {
-            return new LazyBlock(data.size(), () -> createRowBlockWithLazyNestedBlocks(data, (RowType) type));
+        if (type instanceof RowType rowType) {
+            return new LazyBlock(data.size(), () -> createRowBlockWithLazyNestedBlocks(data, rowType));
         }
         if (BIGINT.equals(type)) {
             return new LazyBlock(positionCount, () -> createLongArrayBlock(data));

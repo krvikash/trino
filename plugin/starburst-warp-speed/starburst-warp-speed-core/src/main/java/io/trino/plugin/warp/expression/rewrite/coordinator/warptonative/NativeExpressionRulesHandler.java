@@ -147,31 +147,33 @@ public class NativeExpressionRulesHandler
     boolean rewrite(WarpExpression warpExpression,
             RewriteContext context)
     {
-        if (!(warpExpression instanceof WarpCall)) {
-            context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
-            pushdownPredicatesStats.incunsupported_functions_native();
-            return false;
-        }
-        boolean isValid = false;
-        String functionName = ((WarpCall) warpExpression).getFunctionName();
-        if (context.unsupportedNativeFunctions().contains(functionName)) {
-            context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
-            pushdownPredicatesStats.incunsupported_functions_native();
-            return false;
-        }
-        Set<RewriteRule> rewriteRules = functionToRewriteRules.get(functionName);
-        if (rewriteRules.isEmpty()) {
-            context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
-            pushdownPredicatesStats.incunsupported_functions_native();
-        }
-        for (RewriteRule rule : rewriteRules) {
-            if (rule.pattern.matches(warpExpression, null)) {
-                isValid = rule.rewriteCallback.apply(warpExpression, context);
-                break;
+        if (warpExpression instanceof WarpCall warpCall) {
+            boolean isValid = false;
+            String functionName = warpCall.getFunctionName();
+            if (context.unsupportedNativeFunctions().contains(functionName)) {
+                context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
+                pushdownPredicatesStats.incunsupported_functions_native();
+                return false;
             }
-        }
+            Set<RewriteRule> rewriteRules = functionToRewriteRules.get(functionName);
+            if (rewriteRules.isEmpty()) {
+                context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
+                pushdownPredicatesStats.incunsupported_functions_native();
+            }
+            for (RewriteRule rule : rewriteRules) {
+                if (rule.pattern.matches(warpExpression, null)) {
+                    isValid = rule.rewriteCallback.apply(warpExpression, context);
+                    break;
+                }
+            }
 
-        return isValid;
+            return isValid;
+        }
+        else {
+            context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
+            pushdownPredicatesStats.incunsupported_functions_native();
+            return false;
+        }
     }
 
     private record RewriteRule(

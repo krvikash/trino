@@ -162,8 +162,8 @@ public class RangeMatcher
                         maxValue instanceof Integer ||
                         maxValue instanceof Long)) {
             //values may be converted to int during import
-            Object minVal = minValue instanceof Integer ? ((Integer) minValue).longValue() : minValue;
-            Object maxVal = maxValue instanceof Integer ? ((Integer) maxValue).longValue() : maxValue;
+            Object minVal = minValue instanceof Integer minInteger ? minInteger.longValue() : minValue;
+            Object maxVal = maxValue instanceof Integer maxInteger ? maxInteger.longValue() : maxValue;
             res = Optional.of(Range.range(type, minVal, true, maxVal, true));
         }
         else if (isRealType(type) && minValue instanceof Float intMinValue && maxValue instanceof Float intMaxValue) {

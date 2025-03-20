@@ -210,8 +210,8 @@ public class WarmupDemoterService
             demoteCycleEnd();
         }
         catch (Exception e) {
-            if (e instanceof TrinoException) {
-                shapingLogger.error("catalog[%s]: startDemoteCycle failed with error: %s", catalogName, ((TrinoException) e).getErrorCode().getName());
+            if (e instanceof TrinoException trinoException) {
+                shapingLogger.error("catalog[%s]: startDemoteCycle failed with error: %s", catalogName, trinoException.getErrorCode().getName());
             }
             else {
                 shapingLogger.error(e, "catalog[%s]: startDemoteCycle failed", catalogName);
@@ -332,8 +332,8 @@ public class WarmupDemoterService
                     demoteStatus);
         }
         catch (Exception e) {
-            if (e instanceof TrinoException) {
-                shapingLogger.error(e, "catalog[%s]: startDemoteCycle failed with error: %s", catalogName, ((TrinoException) e).getErrorCode().getName());
+            if (e instanceof TrinoException trinoException) {
+                shapingLogger.error(e, "catalog[%s]: startDemoteCycle failed with error: %s", catalogName, trinoException.getErrorCode().getName());
             }
             else {
                 shapingLogger.error(e, "catalog[%s]: startDemoteCycle failed with error", catalogName);

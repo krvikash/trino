@@ -224,8 +224,8 @@ public class QueryJsonExtractUtils
             if (key.contains("operatorType") && value.asText().contains("Exchange")) {
                 return null;
             }
-            if (value instanceof ObjectNode) {
-                value = convertNode((ObjectNode) value);
+            if (value instanceof ObjectNode objectNode) {
+                value = convertNode(objectNode);
             }
             nodeValues.put(key, value);
         }

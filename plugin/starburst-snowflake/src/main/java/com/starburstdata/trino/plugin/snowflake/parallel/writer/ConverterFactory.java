@@ -90,16 +90,16 @@ public final class ConverterFactory
                     return new VarCharConverter(vector, index, conversionContext);
                 }
                 case ARRAY -> {
-                    if (vector instanceof ListVector) {
-                        return new ArrayConverter((ListVector) vector, index, conversionContext);
+                    if (vector instanceof ListVector listVector) {
+                        return new ArrayConverter(listVector, index, conversionContext);
                     }
                     else {
                         return new VarCharConverter(vector, index, conversionContext);
                     }
                 }
                 case OBJECT -> {
-                    if (vector instanceof StructVector) {
-                        return new StructConverter((StructVector) vector, index, conversionContext);
+                    if (vector instanceof StructVector structVector) {
+                        return new StructConverter(structVector, index, conversionContext);
                     }
                     else {
                         return new VarCharConverter(vector, index, conversionContext);

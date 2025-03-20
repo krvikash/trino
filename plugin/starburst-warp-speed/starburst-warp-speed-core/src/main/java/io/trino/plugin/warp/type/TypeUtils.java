@@ -221,12 +221,12 @@ public class TypeUtils
 
     public static boolean isLongDecimalType(Type type)
     {
-        return (type instanceof DecimalType) && !((DecimalType) type).isShort();
+        return (type instanceof DecimalType decimalType) && !decimalType.isShort();
     }
 
     public static boolean isShortDecimalType(Type type)
     {
-        return (type instanceof DecimalType) && ((DecimalType) type).isShort();
+        return (type instanceof DecimalType decimalType) && decimalType.isShort();
     }
 
     public static boolean isDecimalType(Type type)

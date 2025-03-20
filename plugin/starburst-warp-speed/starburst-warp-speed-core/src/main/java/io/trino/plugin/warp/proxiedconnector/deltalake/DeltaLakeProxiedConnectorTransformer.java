@@ -169,8 +169,8 @@ public class DeltaLakeProxiedConnectorTransformer
     @Override
     public SchemaTableName getSchemaTableName(ConnectorTableHandle connectorTableHandle)
     {
-        if (connectorTableHandle instanceof CorruptedDeltaLakeTableHandle) {
-            return ((CorruptedDeltaLakeTableHandle) connectorTableHandle).schemaTableName();
+        if (connectorTableHandle instanceof CorruptedDeltaLakeTableHandle corruptedDeltaLakeTableHandle) {
+            return corruptedDeltaLakeTableHandle.schemaTableName();
         }
         return ((DeltaLakeTableHandle) connectorTableHandle).getSchemaTableName();
     }

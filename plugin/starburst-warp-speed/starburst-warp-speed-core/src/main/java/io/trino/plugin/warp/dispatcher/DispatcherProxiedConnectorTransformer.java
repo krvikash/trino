@@ -169,8 +169,8 @@ public interface DispatcherProxiedConnectorTransformer
     {
         SimplifyResult<ColumnHandle> simplifyResult = DomainUtils.simplify(fullPredicate, predicateThreshold);
 
-        Set<RegularColumn> currentSimplifiedColumns = connectorTableHandle instanceof DispatcherTableHandle ?
-                ((DispatcherTableHandle) connectorTableHandle).getSimplifiedColumns().simplifiedColumns() : Collections.emptySet();
+        Set<RegularColumn> currentSimplifiedColumns = connectorTableHandle instanceof DispatcherTableHandle dispatcherTableHandle ?
+                dispatcherTableHandle.getSimplifiedColumns().simplifiedColumns() : Collections.emptySet();
 
         return new SimplifiedColumns(Stream.concat(simplifyResult.getSimplifiedColumns()
                                 .stream()

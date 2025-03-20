@@ -265,8 +265,8 @@ public class ScanFilterAndProjectOperator
                 source = pageSourceProvider.createPageSource(session, split, columns, dynamicFilter);
             }
 
-            if (source instanceof RecordPageSource) {
-                cursor = ((RecordPageSource) source).getCursor();
+            if (source instanceof RecordPageSource recordPageSource) {
+                cursor = recordPageSource.getCursor();
                 return ofResult(processColumnSource());
             }
             pageSource = source;

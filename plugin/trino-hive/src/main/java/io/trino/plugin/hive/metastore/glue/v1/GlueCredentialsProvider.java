@@ -81,10 +81,10 @@ public class GlueCredentialsProvider
     {
         try {
             Object instance = Class.forName(providerClass).getConstructor().newInstance();
-            if (!(instance instanceof AWSCredentialsProvider)) {
-                throw new RuntimeException("Invalid credentials provider class: " + instance.getClass().getName());
+            if (instance instanceof AWSCredentialsProvider awsCredentialsProvider) {
+                return awsCredentialsProvider;
             }
-            return (AWSCredentialsProvider) instance;
+            throw new RuntimeException("Invalid credentials provider class: " + instance.getClass().getName());
         }
         catch (ReflectiveOperationException e) {
             throw new RuntimeException(format("Error creating an instance of %s", providerClass), e);

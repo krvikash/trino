@@ -66,13 +66,15 @@ public class InRewriter
         boolean res = false;
         List<Slice> likeValues = new ArrayList<>();
         for (WarpExpression valueExpression : expression.getChildren().get(1).getChildren()) {
-            if (!(valueExpression instanceof WarpSliceConstant)) {
+            if (valueExpression instanceof WarpSliceConstant warpSliceConstant) {
+                Slice sliceValue = warpSliceConstant.getValue();
+                String val = SliceUtils.serializeSlice(sliceValue);
+                likeValues.add(Slices.utf8Slice("%" + val + "%"));
+            }
+            else {
                 likeValues.clear();
                 break;
             }
-            Slice sliceValue = ((WarpSliceConstant) valueExpression).getValue();
-            String val = SliceUtils.serializeSlice(sliceValue);
-            likeValues.add(Slices.utf8Slice("%" + val + "%"));
         }
         if (!likeValues.isEmpty()) {
             Query listOfLikeQuery = createOrOfLikesQuery(likeValues);

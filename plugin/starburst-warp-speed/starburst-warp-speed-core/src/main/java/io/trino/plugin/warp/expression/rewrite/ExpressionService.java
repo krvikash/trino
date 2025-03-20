@@ -252,9 +252,9 @@ public class ExpressionService
                 }
             }
             case Constant constant -> {
-                if (constant.getValue() instanceof Slice) {
+                if (constant.getValue() instanceof Slice slice) {
                     // value of the constant must be typed so a valid serializer/deserializer will be used
-                    res = Optional.of(new WarpSliceConstant((Slice) constant.getValue(), constant.getType()));
+                    res = Optional.of(new WarpSliceConstant(slice, constant.getType()));
                 }
                 else {
                     // workaround: cannot use instanceof since JsonPathType is not part of the trino-spi module (different classloader)

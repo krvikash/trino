@@ -160,8 +160,8 @@ public class TextRenderer
         printMetrics(output, "metrics:", BasicOperatorStats::getMetrics, nodeStats);
         printDistributions(output, nodeStats);
 
-        if (nodeStats instanceof WindowPlanNodeStats) {
-            printWindowOperatorStats(output, ((WindowPlanNodeStats) nodeStats).getWindowOperatorStats());
+        if (nodeStats instanceof WindowPlanNodeStats windowPlanNodeStats) {
+            printWindowOperatorStats(output, windowPlanNodeStats.getWindowOperatorStats());
         }
 
         return output.toString();

@@ -150,12 +150,12 @@ public class ConstantPopulatingPageSource
 
             for (int columnChannel = 0; columnChannel < columns.size(); columnChannel++) {
                 ColumnType column = columns.get(columnChannel);
-                if (column instanceof ConstantColumn) {
-                    constantValues[columnChannel] = ((ConstantColumn) column).value();
+                if (column instanceof ConstantColumn constantColumn) {
+                    constantValues[columnChannel] = constantColumn.value();
                     isRequired = true;
                 }
-                else if (column instanceof DelegateColumn) {
-                    int delegateChannel = ((DelegateColumn) column).sourceChannel();
+                else if (column instanceof DelegateColumn delegateColumn) {
+                    int delegateChannel = delegateColumn.sourceChannel();
                     delegateIndexes[columnChannel] = delegateChannel;
                     if (columnChannel != delegateChannel) {
                         isRequired = true;

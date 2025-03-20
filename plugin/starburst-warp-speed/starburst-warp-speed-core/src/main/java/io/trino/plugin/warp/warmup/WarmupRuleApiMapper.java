@@ -140,46 +140,46 @@ public class WarmupRuleApiMapper
                 if (value instanceof Integer) {
                     return new WarpPrimitiveConstant(value, IntegerType.INTEGER);
                 }
-                if (value instanceof String) {
-                    return new WarpPrimitiveConstant(Integer.valueOf((String) value), IntegerType.INTEGER);
+                if (value instanceof String string) {
+                    return new WarpPrimitiveConstant(Integer.valueOf(string), IntegerType.INTEGER);
                 }
             }
             case BIGINT -> {
-                if (value instanceof Integer) {
-                    return new WarpPrimitiveConstant(((Integer) value).longValue(), BigintType.BIGINT);
+                if (value instanceof Integer integer) {
+                    return new WarpPrimitiveConstant(integer.longValue(), BigintType.BIGINT);
                 }
-                if (value instanceof String) {
-                    return new WarpPrimitiveConstant(Long.valueOf((String) value), BigintType.BIGINT);
+                if (value instanceof String string) {
+                    return new WarpPrimitiveConstant(Long.valueOf(string), BigintType.BIGINT);
                 }
             }
             case SMALLINT -> {
-                if (value instanceof Integer) {
-                    return new WarpPrimitiveConstant(((Integer) value).shortValue(), SmallintType.SMALLINT);
+                if (value instanceof Integer integer) {
+                    return new WarpPrimitiveConstant(integer.shortValue(), SmallintType.SMALLINT);
                 }
-                if (value instanceof String) {
-                    return new WarpPrimitiveConstant(Short.valueOf((String) value), SmallintType.SMALLINT);
+                if (value instanceof String string) {
+                    return new WarpPrimitiveConstant(Short.valueOf(string), SmallintType.SMALLINT);
                 }
             }
             case DOUBLE -> {
                 if (value instanceof Double) {
                     return new WarpPrimitiveConstant(value, DoubleType.DOUBLE);
                 }
-                if (value instanceof Integer) {
-                    return new WarpPrimitiveConstant(((Integer) value).doubleValue(), DoubleType.DOUBLE);
+                if (value instanceof Integer integer) {
+                    return new WarpPrimitiveConstant(integer.doubleValue(), DoubleType.DOUBLE);
                 }
-                if (value instanceof String) {
-                    return new WarpPrimitiveConstant(Double.valueOf((String) value), DoubleType.DOUBLE);
+                if (value instanceof String string) {
+                    return new WarpPrimitiveConstant(Double.valueOf(string), DoubleType.DOUBLE);
                 }
             }
             case REAL -> {
-                if (value instanceof Double) {
-                    return new WarpPrimitiveConstant(((Double) value).floatValue(), RealType.REAL);
+                if (value instanceof Double dbl) {
+                    return new WarpPrimitiveConstant(dbl.floatValue(), RealType.REAL);
                 }
-                if (value instanceof Integer) {
-                    return new WarpPrimitiveConstant(((Integer) value).floatValue(), RealType.REAL);
+                if (value instanceof Integer integer) {
+                    return new WarpPrimitiveConstant(integer.floatValue(), RealType.REAL);
                 }
-                if (value instanceof String) {
-                    return new WarpPrimitiveConstant(Float.valueOf((String) value), RealType.REAL);
+                if (value instanceof String string) {
+                    return new WarpPrimitiveConstant(Float.valueOf(string), RealType.REAL);
                 }
             }
         }

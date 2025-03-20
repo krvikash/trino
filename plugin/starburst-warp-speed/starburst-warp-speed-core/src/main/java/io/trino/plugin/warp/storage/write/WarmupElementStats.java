@@ -50,14 +50,14 @@ public class WarmupElementStats
         this.initialized = initialized;
         this.nullsCount = nullsCount;
         // ObjectMapper map String values of min/max to Object type, we need them as Slice objects
-        if (maxValue instanceof String) {
-            this.maxValue = SliceUtils.deserializeSlice((String) maxValue);
+        if (maxValue instanceof String string) {
+            this.maxValue = SliceUtils.deserializeSlice(string);
         }
         else {
             this.maxValue = maxValue;
         }
-        if (minValue instanceof String) {
-            this.minValue = SliceUtils.deserializeSlice((String) minValue);
+        if (minValue instanceof String string) {
+            this.minValue = SliceUtils.deserializeSlice(string);
         }
         else {
             this.minValue = minValue;

@@ -211,8 +211,8 @@ public class QueryParamsConverter
                 }
 
                 Optional<WarmupElementLuceneParams> luceneParams;
-                if (queryMatchData instanceof LuceneQueryMatchData) {
-                    luceneParams = Optional.of(new WarmupElementLuceneParams((LuceneQueryMatchData) queryMatchData, currentNumLucene));
+                if (queryMatchData instanceof LuceneQueryMatchData luceneQueryMatchData) {
+                    luceneParams = Optional.of(new WarmupElementLuceneParams(luceneQueryMatchData, currentNumLucene));
                     currentNumLucene++;
                 }
                 else {

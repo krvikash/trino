@@ -60,8 +60,8 @@ public class CachingHiveMetastoreModule
     @Singleton
     public static Optional<CachingHiveMetastore> createHiveMetastore(HiveMetastoreFactory metastoreFactory)
     {
-        if (metastoreFactory instanceof CachingHiveMetastoreFactory) {
-            return Optional.of(((CachingHiveMetastoreFactory) metastoreFactory).getMetastore());
+        if (metastoreFactory instanceof CachingHiveMetastoreFactory cachingHiveMetastoreFactory) {
+            return Optional.of(cachingHiveMetastoreFactory.getMetastore());
         }
         return Optional.empty();
     }

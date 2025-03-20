@@ -265,8 +265,8 @@ public class IcebergProxiedConnectorTransformer
     @Override
     public SchemaTableName getSchemaTableName(ConnectorTableHandle connectorTableHandle)
     {
-        if (connectorTableHandle instanceof CorruptedIcebergTableHandle) {
-            return ((CorruptedIcebergTableHandle) connectorTableHandle).schemaTableName();
+        if (connectorTableHandle instanceof CorruptedIcebergTableHandle corruptedIcebergTableHandle) {
+            return corruptedIcebergTableHandle.schemaTableName();
         }
         return ((IcebergTableHandle) connectorTableHandle).getSchemaTableName();
     }

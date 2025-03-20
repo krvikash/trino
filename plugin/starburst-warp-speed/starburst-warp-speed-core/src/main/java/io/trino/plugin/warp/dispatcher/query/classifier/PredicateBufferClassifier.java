@@ -123,7 +123,7 @@ class PredicateBufferClassifier
         Optional<Domain> optionalDomain;
         PredicateCacheData predicateCacheData;
         Domain domain = queryMatchData.getDomain().orElse(Domain.all(queryMatchData.getType()));
-        Optional<NativeExpression> nativeExpressionOptional = queryMatchData instanceof BasicQueryMatchData ? Optional.of(((BasicQueryMatchData) queryMatchData).getNativeExpression()) : Optional.empty();
+        Optional<NativeExpression> nativeExpressionOptional = queryMatchData instanceof BasicQueryMatchData basicQueryMatchData ? Optional.of(basicQueryMatchData.getNativeExpression()) : Optional.empty();
         if (queryMatchData instanceof LuceneQueryMatchData) {
             PredefinedPredicate predefinedPredicate = queryMatchData.isCollectNulls() ? luceneWithNulls : luceneWithoutNulls;
             predicateCacheData = predefinedPredicate.predicateCacheData;

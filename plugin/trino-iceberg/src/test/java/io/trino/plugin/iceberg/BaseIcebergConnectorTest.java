@@ -9181,7 +9181,7 @@ public abstract class BaseIcebergConnectorTest
     {
         return plan -> {
             int actualRemoteExchangesCount = searchFrom(plan.getRoot())
-                    .where(node -> node instanceof ExchangeNode && ((ExchangeNode) node).getScope() == ExchangeNode.Scope.REMOTE)
+                    .where(node -> node instanceof ExchangeNode exchangeNode && exchangeNode.getScope() == ExchangeNode.Scope.REMOTE)
                     .count();
             assertThat(actualRemoteExchangesCount).isEqualTo(expectedRemoteExchangesCount);
         };

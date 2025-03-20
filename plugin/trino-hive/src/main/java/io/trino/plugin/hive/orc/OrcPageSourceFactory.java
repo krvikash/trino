@@ -444,8 +444,8 @@ public class OrcPageSourceFactory
             }
             catch (IOException _) {
             }
-            if (e instanceof TrinoException) {
-                throw (TrinoException) e;
+            if (e instanceof TrinoException trinoException) {
+                throw trinoException;
             }
             if (e instanceof OrcCorruptionException) {
                 throw new TrinoException(HIVE_BAD_DATA, e);

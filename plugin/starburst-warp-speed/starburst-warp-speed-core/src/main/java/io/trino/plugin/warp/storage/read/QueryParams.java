@@ -98,13 +98,13 @@ public class QueryParams
 
     private List<WarmupElementMatchParams> getLeaves(MatchNode node)
     {
-        if (node instanceof WarmupElementMatchParams) {
-            return List.of((WarmupElementMatchParams) node);
+        if (node instanceof WarmupElementMatchParams warmupElementMatchParams) {
+            return List.of(warmupElementMatchParams);
         }
         List<WarmupElementMatchParams> res = new ArrayList<>();
         for (MatchNode child : node.getChildren()) {
-            if (child instanceof WarmupElementMatchParams) {
-                res.add((WarmupElementMatchParams) child);
+            if (child instanceof WarmupElementMatchParams warmupElementMatchParams) {
+                res.add(warmupElementMatchParams);
             }
             else {
                 res.addAll(getLeaves(child));

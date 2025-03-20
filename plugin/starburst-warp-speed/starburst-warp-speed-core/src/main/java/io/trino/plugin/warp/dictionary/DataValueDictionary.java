@@ -123,8 +123,8 @@ public class DataValueDictionary
 
     private Object getKeyValue(Object key)
     {
-        if (key instanceof Slice && !((Slice) key).isCompact()) {
-            return ((Slice) key).copy();
+        if (key instanceof Slice slice && !slice.isCompact()) {
+            return slice.copy();
         }
         return key;
     }

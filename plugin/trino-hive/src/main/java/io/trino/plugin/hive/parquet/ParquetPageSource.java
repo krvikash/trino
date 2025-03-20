@@ -206,8 +206,8 @@ public class ParquetPageSource
 
     static TrinoException handleException(ParquetDataSourceId dataSourceId, Exception exception)
     {
-        if (exception instanceof TrinoException) {
-            return (TrinoException) exception;
+        if (exception instanceof TrinoException trinoException) {
+            return trinoException;
         }
         if (exception instanceof ParquetCorruptionException) {
             return new TrinoException(HIVE_BAD_DATA, exception);
@@ -220,8 +220,8 @@ public class ParquetPageSource
         // If no synthetic columns are added and the source columns are in order, no adaptations are required
         for (int columnChannel = 0; columnChannel < columnAdaptations.size(); columnChannel++) {
             ColumnAdaptation column = columnAdaptations.get(columnChannel);
-            if (column instanceof SourceColumn) {
-                int delegateChannel = ((SourceColumn) column).getSourceChannel();
+            if (column instanceof SourceColumn sourceColumn) {
+                int delegateChannel = sourceColumn.getSourceChannel();
                 if (columnChannel != delegateChannel) {
                     return true;
                 }

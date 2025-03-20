@@ -600,9 +600,9 @@ public class SnowflakeClient
             return WriteMapping.objectMapping(dataType, longDecimalWriteFunction(decimalType));
         }
 
-        if (type instanceof CharType) {
+        if (type instanceof CharType charType) {
             // Snowflake CHAR is an alias for VARCHAR so we need to pad value with spaces
-            return WriteMapping.sliceMapping("char(" + ((CharType) type).getLength() + ")", charWriteFunction((CharType) type));
+            return WriteMapping.sliceMapping("char(" + charType.getLength() + ")", charWriteFunction(charType));
         }
 
         if (type instanceof VarcharType varcharType) {
@@ -987,7 +987,7 @@ public class SnowflakeClient
     public static void throwIfInvalidWarehouse(Throwable throwable)
     {
         Throwable rootCause = getRootCause(throwable);
-        if (rootCause instanceof SQLException && ((SQLException) rootCause).getErrorCode() == 606) {
+        if ((rootCause instanceof SQLException sqlException) && (sqlException.getErrorCode() == 606)) {
             throw new TrinoException(JDBC_NON_TRANSIENT_ERROR, "Could not query Snowflake due to invalid warehouse configuration. " +
                     "Fix configuration or select an active Snowflake warehouse with 'warehouse' catalog session property.", throwable);
         }

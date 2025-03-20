@@ -89,8 +89,8 @@ public abstract class BaseCollectTxService
     void collectAbort(Exception e, CollectState collectState, DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         boolean nativeThrowed = false;
-        if (e instanceof TrinoException) {
-            nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e);
+        if (e instanceof TrinoException te) {
+            nativeThrowed = ExceptionThrower.isNativeException(te);
         }
         if (!nativeThrowed) {
             long startTime = System.nanoTime();

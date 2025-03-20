@@ -101,15 +101,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         String table = "partitionontimestampcolumn";
         createTable(DEFAULT_SCHEMA,
                 table,
-                "(\n" +
-                        "    id INTEGER,\n" +
-                        "    a VARCHAR,\n" +
-                        "    timestamp_col TIMESTAMP\n" +
-                        ")\n" +
-                        "WITH (\n" +
-                        "    format = 'PARQUET',\n" +
-                        "    partitioning = ARRAY['timestamp_col']\n" +
-                        ")");
+                "(id INTEGER, a VARCHAR, timestamp_col TIMESTAMP) WITH (format = 'PARQUET', partitioning = ARRAY['timestamp_col'])");
         assertUpdate(("INSERT INTO %s(id, a, timestamp_col) VALUES " +
                         "(1, 'bla', CAST('2024-02-13 10:15:30' AS TIMESTAMP)), " +
                         "(2, 'bla2', CAST('2024-02-13 10:15:30' AS TIMESTAMP))")
@@ -134,10 +126,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         String table = "twoprefillswithnopredicatebuffer";
         createTable(DEFAULT_SCHEMA,
                 table,
-                "(\n" +
-                        "    id INTEGER,\n" +
-                        "    a VARCHAR\n" +
-                        ")");
+                "(id INTEGER, a VARCHAR)");
         int rowCount = 2;
         @Language("SQL") String insertSql = "INSERT INTO %s VALUES ".formatted(table) +
                 String.join(", ", IntStream.range(0, rowCount)

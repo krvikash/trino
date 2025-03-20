@@ -115,8 +115,8 @@ public class TaskExecutor
                                 throw new RuntimeException(e);
                             }
                         }
-                        else if (type instanceof Class) {
-                            parameterTypeClass = (Class) type;
+                        else if (type instanceof Class cls) {
+                            parameterTypeClass = cls;
                         }
                     }
 
@@ -195,8 +195,8 @@ public class TaskExecutor
         String parameterName = null;
         if (method.getParameterAnnotations().length > 0 && method.getParameterAnnotations()[i].length > 0) {
             Annotation parameterAnnotation = method.getParameterAnnotations()[i][0];
-            if (parameterAnnotation instanceof JsonProperty) {
-                parameterName = ((JsonProperty) parameterAnnotation).value();
+            if (parameterAnnotation instanceof JsonProperty jsonProperty) {
+                parameterName = jsonProperty.value();
             }
         }
         if (StringUtils.isEmpty(parameterName)) {

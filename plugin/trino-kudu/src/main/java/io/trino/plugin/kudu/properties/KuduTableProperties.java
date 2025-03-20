@@ -380,8 +380,8 @@ public final class KuduTableProperties
 
         switch (type) {
             case STRING:
-                if (obj instanceof String) {
-                    partialRow.addString(idx, (String) obj);
+                if (obj instanceof String string) {
+                    partialRow.addString(idx, string);
                 }
                 else {
                     handleInvalidValue(name, type, obj);
@@ -431,11 +431,11 @@ public final class KuduTableProperties
 
     private static byte[] toByteArray(Object obj, Type type, String name)
     {
-        if (obj instanceof byte[]) {
-            return (byte[]) obj;
+        if (obj instanceof byte[] byteArray) {
+            return byteArray;
         }
-        if (obj instanceof String) {
-            return Base64.getDecoder().decode((String) obj);
+        if (obj instanceof String string) {
+            return Base64.getDecoder().decode(string);
         }
         handleInvalidValue(name, type, obj);
         return null;
@@ -443,11 +443,11 @@ public final class KuduTableProperties
 
     private static boolean toBoolean(Object obj, Type type, String name)
     {
-        if (obj instanceof Boolean) {
-            return (Boolean) obj;
+        if (obj instanceof Boolean b) {
+            return b;
         }
-        if (obj instanceof String) {
-            return Boolean.valueOf((String) obj);
+        if (obj instanceof String string) {
+            return Boolean.valueOf(string);
         }
         handleInvalidValue(name, type, obj);
         return false;
@@ -472,8 +472,8 @@ public final class KuduTableProperties
         if (Number.class.isAssignableFrom(obj.getClass())) {
             return (Number) obj;
         }
-        if (obj instanceof String) {
-            return new BigDecimal((String) obj);
+        if (obj instanceof String string) {
+            return new BigDecimal(string);
         }
         handleInvalidValue(name, type, obj);
         return 0;

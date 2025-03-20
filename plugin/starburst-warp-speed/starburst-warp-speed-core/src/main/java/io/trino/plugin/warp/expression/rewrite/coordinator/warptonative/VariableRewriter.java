@@ -234,14 +234,14 @@ class VariableRewriter
             return true;
         }
         boolean isValid = true;
-        if (columnType instanceof CharType) {
-            length = ((CharType) columnType).getLength();
+        if (columnType instanceof CharType charType) {
+            length = charType.getLength();
             if (castToType.getLength().get() < length) {
                 isValid = false;
             }
         }
-        else if (columnType instanceof VarcharType) {
-            Optional<Integer> optionalLength = ((VarcharType) columnType).getLength();
+        else if (columnType instanceof VarcharType varcharType) {
+            Optional<Integer> optionalLength = varcharType.getLength();
             if (optionalLength.isEmpty()) {
                 isValid = false;
             }

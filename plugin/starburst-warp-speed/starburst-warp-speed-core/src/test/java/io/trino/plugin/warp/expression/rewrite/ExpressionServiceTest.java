@@ -1234,8 +1234,8 @@ public class ExpressionServiceTest
     private WarpConstant convertConstantToWarpConstant(Constant operatorValue)
     {
         WarpConstant warpConstant;
-        if (operatorValue.getValue() instanceof Slice) {
-            warpConstant = new WarpSliceConstant((Slice) operatorValue.getValue(), operatorValue.getType());
+        if (operatorValue.getValue() instanceof Slice slice) {
+            warpConstant = new WarpSliceConstant(slice, operatorValue.getType());
         }
         else {
             warpConstant = new WarpPrimitiveConstant(operatorValue.getValue(), operatorValue.getType());

@@ -105,7 +105,7 @@ public class RewriteCast
             };
             case CharType _, VarcharType _ -> switch (sourceType.jdbcType()) {
                 case CHAR, VARCHAR -> {
-                    if (targetType instanceof VarcharType && ((VarcharType) targetType).isUnbounded()) {
+                    if ((targetType instanceof VarcharType varcharType) && varcharType.isUnbounded()) {
                         yield false;
                     }
                     yield sourceType.jdbcTypeName().map(name -> name.equals("CHAR") || name.equals("VARCHAR")).orElse(false);

@@ -59,8 +59,8 @@ public class SingleValue
 
     public static SingleValue create(Type type, Object value)
     {
-        if (value instanceof NullableValue) {
-            value = ((NullableValue) value).getValue();
+        if (value instanceof NullableValue nullableValue) {
+            value = nullableValue.getValue();
         }
         return new SingleValue(type, value, nativeValueToBlock(type, value), true);
     }
