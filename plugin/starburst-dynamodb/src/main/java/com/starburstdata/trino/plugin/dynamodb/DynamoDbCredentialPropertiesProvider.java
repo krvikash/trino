@@ -35,6 +35,7 @@ public class DynamoDbCredentialPropertiesProvider
     private static final String TEMPORARY_CREDENTIALS = "TemporaryCredentials";
     private static final String AWS_EC2_ROLES = "AwsEC2Roles";
     private static final String AWS_IAM_ROLES = "AwsIAMRoles";
+    private static final String AWS_ROOT_KEYS = "AwsRootKeys";
 
     private final Optional<String> awsAccessKey;
     private final Optional<String> awsSecretKey;
@@ -61,6 +62,7 @@ public class DynamoDbCredentialPropertiesProvider
         if (awsAccessKey.isPresent() && awsSecretKey.isPresent()) {
             properties.put(AWS_ACCESS_KEY, awsAccessKey.get());
             properties.put(AWS_SECRET_KEY, awsSecretKey.get());
+            properties.put(AUTH_SCHEME, getAuthScheme(awsRoleArn.isPresent()));
         }
         else if (defaultAwsChainCredentialsProvider.isPresent()) {
             AwsCredentials credentials = defaultAwsChainCredentialsProvider.get().resolveCredentials();
@@ -70,6 +72,9 @@ public class DynamoDbCredentialPropertiesProvider
                 properties.put(AUTH_SCHEME, TEMPORARY_CREDENTIALS);
                 properties.put(AWS_SESSION_TOKEN, awsSessionCredentials.sessionToken());
             }
+            else {
+                properties.put(AUTH_SCHEME, getAuthScheme(awsRoleArn.isPresent()));
+            }
         }
         else {
             // If they are not set, set auth scheme to EC2 roles so driver does not throw an error
@@ -78,10 +83,15 @@ public class DynamoDbCredentialPropertiesProvider
 
         awsRoleArn.ifPresent(role ->
         {
-            properties.put(AUTH_SCHEME, AWS_IAM_ROLES);
             properties.put(AWS_ROLE_ARN, role);
             properties.put(CREDENTIALS_LOCATION, awsRoleCredentialsLocation);
         });
         return properties.buildOrThrow();
+    }
+
+    private String getAuthScheme(boolean isAwsRoleArnDefined)
+    {
+        // AwsRootKeys should be overridden to AwsIAMRoles, if aws-role-arn is defined
+        return isAwsRoleArnDefined ? AWS_IAM_ROLES : AWS_ROOT_KEYS;
     }
 }
