@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.metastore.unity;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
@@ -20,10 +21,19 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.hive.AllowHiveTableRename;
+import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.security.SecurityConfig;
 
+import static com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.CSV;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.JSON;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.ORC;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.PARQUET;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.hive.security.HiveSecurityModule.HiveSecurity.READ_ONLY;
 
@@ -51,6 +61,15 @@ public class UnityMetastoreModule
                 .setDefault()
                 .to(UnityHiveMetastoreFactory.class)
                 .in(Scopes.SINGLETON);
+        install(conditionalModule(
+                HiveConfig.class,
+                config -> config.getDeltaLakeCatalogName().isPresent(),
+                hiveAndDeltaFormatsBinder -> hiveAndDeltaFormatsBinder
+                        .bind(SupportedUnityTableFormatsProvider.class)
+                        .toInstance(() -> ImmutableSet.of(PARQUET, AVRO, ORC, CSV, JSON, TEXT, DELTA)),
+                hiveFormatsBinder -> hiveFormatsBinder
+                        .bind(SupportedUnityTableFormatsProvider.class)
+                        .toInstance(() -> ImmutableSet.of(PARQUET, AVRO, ORC, CSV, JSON, TEXT))));
         binder.bind(Key.get(boolean.class, AllowHiveTableRename.class)).toInstance(false);
     }
 }

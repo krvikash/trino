@@ -90,23 +90,16 @@ public class UnityHiveMetastore
     private static final String DELTA_PATH_PROPERTY = "path";
     private static final String DELTA_TABLE_PROVIDER_PROPERTY = "spark.sql.sources.provider";
     private static final String DELTA_TABLE_PROVIDER_VALUE = "DELTA";
-    private static final Set<DataSourceFormat> SUPPORTED_UNITY_TABLE_FORMATS = ImmutableSet.of(
-            DataSourceFormat.PARQUET,
-            DataSourceFormat.ORC,
-            DataSourceFormat.AVRO,
-            DataSourceFormat.CSV,
-            DataSourceFormat.JSON,
-            DataSourceFormat.TEXT,
-            DELTA);
     private static final Map<com.databricks.sdk.service.catalog.TableType, TableType> SUPPORTED_TABLE_TYPES_MAPPING = ImmutableMap.of(
             MANAGED, MANAGED_TABLE,
             EXTERNAL, EXTERNAL_TABLE);
 
+    private final Set<DataSourceFormat> supportedUnityTableFormats;
     private final SchemasAPI schemasApi;
     private final TablesAPI tablesApi;
     private final String catalogName;
 
-    public UnityHiveMetastore(String host, String catalogName, Optional<String> token)
+    public UnityHiveMetastore(String host, String catalogName, Optional<String> token, Set<DataSourceFormat> supportedUnityTableFormats)
     {
         DatabricksConfig databricksConfig = new DatabricksConfig()
                 .setHost(host)
@@ -116,6 +109,7 @@ public class UnityHiveMetastore
         schemasApi = new SchemasAPI(apiClient);
         tablesApi = new TablesAPI(apiClient);
         this.catalogName = catalogName;
+        this.supportedUnityTableFormats = ImmutableSet.copyOf(supportedUnityTableFormats);
     }
 
     @Override
@@ -210,7 +204,7 @@ public class UnityHiveMetastore
                         if (dataSourceFormat != DELTA && tableType == MANAGED) {
                             return false;
                         }
-                        return SUPPORTED_UNITY_TABLE_FORMATS.contains(dataSourceFormat)
+                        return supportedUnityTableFormats.contains(dataSourceFormat)
                                 && SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableType);
                     })
                     .map(table -> new TableInfo(schemaTableName(table.getSchemaName(), table.getName()), TABLE))
@@ -520,14 +514,14 @@ public class UnityHiveMetastore
         throw new TrinoException(NOT_SUPPORTED, "dropFunction is not supported for Unity metastore");
     }
 
-    private static Optional<Table> fromUnityTable(com.databricks.sdk.service.catalog.TableInfo tableInfo)
+    private Optional<Table> fromUnityTable(com.databricks.sdk.service.catalog.TableInfo tableInfo)
     {
         com.databricks.sdk.service.catalog.TableType tableType = firstNonNull(tableInfo.getTableType(), MANAGED);
         if (!SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableType)) {
             throw new TrinoException(NOT_SUPPORTED, "Unsupported table type: " + tableType);
         }
         DataSourceFormat dataSourceFormat = firstNonNull(tableInfo.getDataSourceFormat(), DELTA);
-        if (!SUPPORTED_UNITY_TABLE_FORMATS.contains(dataSourceFormat)) {
+        if (!supportedUnityTableFormats.contains(dataSourceFormat)) {
             throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + dataSourceFormat);
         }
         if (dataSourceFormat != DELTA && tableType == MANAGED) {
