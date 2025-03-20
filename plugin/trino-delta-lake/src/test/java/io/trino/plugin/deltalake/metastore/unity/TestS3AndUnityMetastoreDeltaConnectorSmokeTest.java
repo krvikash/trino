@@ -49,6 +49,7 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
 {
     private static final Logger LOG = Logger.get(TestS3AndUnityMetastoreDeltaConnectorSmokeTest.class);
     private static final String SCHEMA_NAME = TPCH_SCHEMA + "_delta_ci_external";
+    private static final String HIVE_TABLE_NAME = "hive_table";
 
     private static final String DATABRICKS_UNITY_JDBC_URL = requireEnv("DATABRICKS_UNITY_JDBC_URL");
     private static final String DATABRICKS_HOST = requireEnv("DATABRICKS_HOST");
@@ -112,6 +113,16 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                     createTable(tableName, properties, queryRunner);
                 }
             }
+        }
+        String schemaLocation = getTpchSchemaLocation(queryRunner);
+        try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, properties);
+                Statement statement = connection.createStatement()) {
+            statement.execute("""
+                CREATE TABLE IF NOT EXISTS %s.%s.%s
+                USING PARQUET
+                LOCATION '%s'
+                AS SELECT n_nationkey as nationkey, n_name as name, n_regionkey as regionkey, n_comment as comment from SAMPLES.TPCH.nation
+                """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, HIVE_TABLE_NAME, "%s/%s".formatted(schemaLocation, HIVE_TABLE_NAME)));
         }
     }
 
@@ -201,6 +212,14 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                  SUPPORTS_UPDATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Test
+    void testShowTablesWithoutTableScanRedirection()
+    {
+        assertThat(computeActual("SHOW TABLES").getOnlyColumnAsSet())
+                .contains(NATION.getTableName(), REGION.getTableName())
+                .doesNotContain(HIVE_TABLE_NAME);
     }
 
     @Test

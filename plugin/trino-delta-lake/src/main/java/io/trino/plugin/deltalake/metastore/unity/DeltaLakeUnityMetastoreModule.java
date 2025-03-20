@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.deltalake.metastore.unity;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
@@ -20,15 +21,25 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.deltalake.AllowDeltaLakeManagedTableRename;
+import io.trino.plugin.deltalake.DeltaLakeConfig;
 import io.trino.plugin.deltalake.DeltaLakeSecurityConfig;
 import io.trino.plugin.deltalake.MaxTableParameterLength;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
 import io.trino.plugin.hive.AllowHiveTableRename;
+import io.trino.plugin.hive.metastore.unity.SupportedUnityTableFormatsProvider;
 import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
 
+import static com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.CSV;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.JSON;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.ORC;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.PARQUET;
+import static com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.deltalake.DeltaLakeSecurityModule.DeltaLakeSecurity.READ_ONLY;
 import static io.trino.plugin.deltalake.DeltaLakeSecurityModule.DeltaLakeSecurity.UNITY;
@@ -50,6 +61,16 @@ public class DeltaLakeUnityMetastoreModule
                 .to(UnityHiveMetastoreFactory.class)
                 .in(Scopes.SINGLETON);
         binder.bind(Key.get(boolean.class, AllowHiveTableRename.class)).toInstance(false);
+
+        install(conditionalModule(
+                DeltaLakeConfig.class,
+                config -> config.getHiveCatalogName().isPresent(),
+                hiveAndDeltaFormatsBinder -> hiveAndDeltaFormatsBinder
+                        .bind(SupportedUnityTableFormatsProvider.class)
+                        .toInstance(() -> ImmutableSet.of(DELTA, PARQUET, AVRO, ORC, CSV, JSON, TEXT)),
+                hiveFormatsBinder -> hiveFormatsBinder
+                        .bind(SupportedUnityTableFormatsProvider.class)
+                        .toInstance(() -> ImmutableSet.of(DELTA))));
 
         binder.bind(DeltaLakeTableOperationsProvider.class).to(DeltaLakeUnityMetastoreTableOperationsProvider.class).in(Scopes.SINGLETON);
         binder.bind(Key.get(boolean.class, AllowDeltaLakeManagedTableRename.class)).toInstance(false);
