@@ -43,6 +43,7 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.spi.type.TypeSignature.arrayType;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.invoke.MethodHandles.lookup;
 import static java.lang.invoke.MethodType.methodType;
@@ -58,6 +59,10 @@ public class AiFunctions
             .add(function("generate_embedding")
                     .description("Generate a vector embedding for the provided VARCHAR, using the specified model")
                     .signature(signature(TypeSignature.arrayType(DOUBLE), TEXT, TEXT))
+                    .build())
+            .add(function("generate_binary_embedding", "generate_binary_embedding")
+                    .description("Generate a vector embedding for the provided VARCHAR with a VARBINARY encoding")
+                    .signature(signature(VARBINARY.getTypeSignature(), TEXT, TEXT))
                     .build())
             .add(function("analyze_sentiment")
                     .description("Perform sentiment analysis on text, using the specified model")
@@ -97,6 +102,7 @@ public class AiFunctions
             .build();
 
     private static final MethodHandle GENERATE_EMBEDDING;
+    private static final MethodHandle GENERATE_BINARY_EMBEDDING;
     private static final MethodHandle ANALYZE_SENTIMENT;
     private static final MethodHandle CLASSIFY;
     private static final MethodHandle FIX_GRAMMAR;
@@ -108,6 +114,7 @@ public class AiFunctions
     static {
         try {
             GENERATE_EMBEDDING = lookup().findVirtual(AiFunctions.class, "generateEmbedding", methodType(Block.class, Slice.class, Slice.class));
+            GENERATE_BINARY_EMBEDDING = lookup().findVirtual(AiFunctions.class, "generateBinaryEmbedding", methodType(Slice.class, Slice.class, Slice.class));
             ANALYZE_SENTIMENT = lookup().findVirtual(AiFunctions.class, "analyzeSentiment", methodType(Slice.class, Slice.class, Slice.class));
             CLASSIFY = lookup().findVirtual(AiFunctions.class, "classify", methodType(Slice.class, Slice.class, Block.class, Slice.class));
             FIX_GRAMMAR = lookup().findVirtual(AiFunctions.class, "fixGrammar", methodType(Slice.class, Slice.class, Slice.class));
@@ -144,6 +151,7 @@ public class AiFunctions
         String name = functionId.toString();
         MethodHandle handle = switch (name) {
             case "generate_embedding" -> GENERATE_EMBEDDING;
+            case "generate_binary_embedding" -> GENERATE_BINARY_EMBEDDING;
             case "analyze_sentiment" -> ANALYZE_SENTIMENT;
             case "classify" -> CLASSIFY;
             case "fix_grammar" -> FIX_GRAMMAR;
@@ -186,8 +194,8 @@ public class AiFunctions
     @Override
     public TableFunctionProcessorProvider getTableFunctionProcessorProvider(ConnectorTableFunctionHandle functionHandle)
     {
-        if (functionHandle instanceof GenerateEmbeddingsFunctionHandle(Slice modelId)) {
-            return GenerateEmbeddingsTableFunction.getGenerateEmbeddingsFunctionProcessorProvider(clientProvider.embeddingModelClient(modelId));
+        if (functionHandle instanceof GenerateEmbeddingsFunctionHandle) {
+            return GenerateEmbeddingsTableFunction.getGenerateEmbeddingsFunctionProcessorProvider(clientProvider);
         }
         throw new UnsupportedOperationException("Unsupported function: " + functionHandle);
     }
@@ -214,6 +222,23 @@ public class AiFunctions
             DoubleType.DOUBLE.writeDouble(blockBuilder, datum);
         }
         return blockBuilder.build();
+    }
+
+    private Slice generateBinaryEmbedding(Slice sourceString, Slice modelId)
+    {
+        if (sourceString.length() == 0) {
+            return null;
+        }
+
+        try {
+            return clientProvider.embeddingModelClient(modelId).generateBinaryEmbedding(sourceString);
+        }
+        catch (TrinoException e) {
+            throw e;
+        }
+        catch (RuntimeException e) {
+            throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to generate embedding with remote model", e);
+        }
     }
 
     public Slice analyzeSentiment(Slice text, Slice modelId)

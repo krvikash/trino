@@ -14,8 +14,10 @@
 package com.starburstdata.trino.plugin.ai.embedding;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.starburstdata.trino.plugin.ai.AiMetadata;
-import com.starburstdata.trino.plugin.ai.EmbeddingModelClient;
+import com.starburstdata.trino.plugin.ai.ClientProvider;
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.slice.Slice;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorAccessControl;
@@ -35,8 +37,12 @@ import io.trino.spi.function.table.TableFunctionAnalysis;
 import io.trino.spi.function.table.TableFunctionDataProcessor;
 import io.trino.spi.function.table.TableFunctionProcessorProvider;
 import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 
 import java.util.List;
@@ -60,6 +66,11 @@ public class GenerateEmbeddingsTableFunction
     private static final String DATA_COLUMN_ARGUMENT_NAME = "DATA_COLUMN";
     private static final String EMBEDDING_COLUMN_ARGUMENT_NAME = "EMBEDDING_COLUMN";
     private static final String MODEL_ID_ARGUMENT_NAME = "MODEL_ID";
+    private static final Map<TypeSignature, EmbeddingType> SUPPORTED_TYPES = ImmutableMap.<TypeSignature, EmbeddingType>builder()
+            .put(new ArrayType(RealType.REAL).getTypeSignature(), EmbeddingType.FLOAT)
+            .put(new ArrayType(DoubleType.DOUBLE).getTypeSignature(), EmbeddingType.FLOAT)
+            .put(VarbinaryType.VARBINARY.getTypeSignature(), EmbeddingType.BINARY)
+            .buildOrThrow();
 
     public GenerateEmbeddingsTableFunction()
     {
@@ -106,12 +117,18 @@ public class GenerateEmbeddingsTableFunction
             throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "EMBEDDING_COLUMN descriptor is null");
         }
         Descriptor embeddingColumnDescriptor = embeddingColumn.getDescriptor().orElseThrow();
-        if (embeddingColumnDescriptor.getFields().stream().anyMatch(field -> field.getType().isPresent())) {
-            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "EMBEDDING_COLUMN descriptor contains types");
-        }
-
         if (embeddingColumnDescriptor.getFields().size() != 1) {
             throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "EMBEDDING_COLUMN descriptor contains more than one column");
+        }
+        Descriptor.Field embeddingColumnField = getOnlyElement(embeddingColumnDescriptor.getFields());
+        Type embeddingType = new ArrayType(RealType.REAL);
+        if (embeddingColumnField.getType().isPresent()) {
+            TypeSignature specifiedTypeSignature = embeddingColumnField.getType().get().getTypeSignature();
+            if (!SUPPORTED_TYPES.containsKey(specifiedTypeSignature)) {
+                throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "EMBEDDING_COLUMN descriptor references an unsupported type: " + specifiedTypeSignature);
+            }
+
+            embeddingType = embeddingColumnField.getType().get();
         }
 
         ScalarArgument modelIdArgument = (ScalarArgument) arguments.get(MODEL_ID_ARGUMENT_NAME);
@@ -145,23 +162,24 @@ public class GenerateEmbeddingsTableFunction
         }
 
         ImmutableList.Builder<Descriptor.Field> returnedColumns = ImmutableList.builder();
-        returnedColumns.add(new Descriptor.Field(getOnlyElement(embeddingColumnDescriptor.getFields()).getName().orElseThrow(), Optional.of(new ArrayType(RealType.REAL))));
+        returnedColumns.add(new Descriptor.Field(getOnlyElement(embeddingColumnDescriptor.getFields()).getName().orElseThrow(), Optional.of(embeddingType)));
 
         return TableFunctionAnalysis.builder()
                 .requiredColumns(SOURCE_ARGUMENT_NAME, requiredColumns.build())
                 .returnedType(new Descriptor(returnedColumns.build()))
-                .handle(new GenerateEmbeddingsFunctionHandle(modelId))
+                .handle(new GenerateEmbeddingsFunctionHandle(modelId, SUPPORTED_TYPES.get(embeddingType.getTypeSignature())))
                 .build();
     }
 
-    public static TableFunctionProcessorProvider getGenerateEmbeddingsFunctionProcessorProvider(EmbeddingModelClient embeddingModelClient)
+    public static TableFunctionProcessorProvider getGenerateEmbeddingsFunctionProcessorProvider(ClientProvider clientProvider)
     {
         return new TableFunctionProcessorProvider()
         {
             @Override
             public TableFunctionDataProcessor getDataProcessor(ConnectorSession session, ConnectorTableFunctionHandle handle)
             {
-                return new GenerateEmbeddingsFunctionDataProcessor(embeddingModelClient);
+                GenerateEmbeddingsFunctionHandle functionHandle = (GenerateEmbeddingsFunctionHandle) handle;
+                return new GenerateEmbeddingsFunctionDataProcessor(clientProvider.embeddingModelClient(functionHandle.modelId()), functionHandle.embeddingType());
             }
         };
     }

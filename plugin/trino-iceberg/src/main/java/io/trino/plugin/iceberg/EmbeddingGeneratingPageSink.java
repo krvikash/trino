@@ -15,6 +15,7 @@ package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableList;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelClient;
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.slice.Slice;
 import io.trino.spi.Page;
 import io.trino.spi.block.ArrayBlockBuilder;
@@ -22,18 +23,16 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.type.ArrayType;
-import io.trino.spi.type.DoubleType;
-import io.trino.spi.type.RealType;
-import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeSignature;
-import io.trino.spi.type.VarcharType;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
 
 public class EmbeddingGeneratingPageSink
@@ -42,15 +41,20 @@ public class EmbeddingGeneratingPageSink
     private final ConnectorPageSink delegate;
     private final int dataColumnChannel;
     private final int embeddingColumnChannel;
-    private final ArrayType embeddingColumnType;
+    private final EmbeddingType embeddingType;
     private final EmbeddingModelClient embeddingModelClient;
 
-    public EmbeddingGeneratingPageSink(ConnectorPageSink delegate, int dataColumnChannel, int embeddingColumnChannel, ArrayType embeddingColumnType, EmbeddingModelClient embeddingModelClient)
+    public EmbeddingGeneratingPageSink(
+            ConnectorPageSink delegate,
+            int dataColumnChannel,
+            int embeddingColumnChannel,
+            EmbeddingType embeddingType,
+            EmbeddingModelClient embeddingModelClient)
     {
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.dataColumnChannel = dataColumnChannel;
         this.embeddingColumnChannel = embeddingColumnChannel;
-        this.embeddingColumnType = requireNonNull(embeddingColumnType, "embeddingColumnType is null");
+        this.embeddingType = requireNonNull(embeddingType, "embeddingColumnType is null");
         this.embeddingModelClient = requireNonNull(embeddingModelClient, "embeddingModelClient is null");
     }
 
@@ -76,44 +80,12 @@ public class EmbeddingGeneratingPageSink
     public CompletableFuture<?> appendPage(Page page)
     {
         Block dataBlock = page.getBlock(dataColumnChannel);
-        ImmutableList.Builder<Slice> data = ImmutableList.builder();
-        boolean[] isNullOrEmpty = new boolean[page.getPositionCount()];
-        for (int position = 0; position < page.getPositionCount(); position++) {
-            if (dataBlock.isNull(position)) {
-                isNullOrEmpty[position] = true;
-                continue;
-            }
-
-            Slice row = VarcharType.VARCHAR.getSlice(dataBlock, position);
-            if (row.length() == 0) {
-                isNullOrEmpty[position] = true;
-                continue;
-            }
-
-            data.add(row);
-        }
-        Iterator<List<Float>> embeddings = embeddingModelClient.generateEmbeddings(data.build()).iterator();
-
-        BiConsumer<BlockBuilder, Float> blockWriter = blockWriterForType(embeddingColumnType.getElementType());
-        ArrayBlockBuilder embeddingsBlock = embeddingColumnType.createBlockBuilder(null, page.getPositionCount());
-        for (int position = 0; position < page.getPositionCount(); position++) {
-            if (isNullOrEmpty[position]) {
-                embeddingsBlock.appendNull();
-            }
-            else {
-                embeddingsBlock.buildEntry(elementBuilder -> {
-                    List<Float> embedding = embeddings.next();
-                    for (Float datum : embedding) {
-                        blockWriter.accept(elementBuilder, datum);
-                    }
-                });
-            }
-        }
+        Block embeddingsBlock = generateEmbeddings(dataBlock);
 
         Block[] blocks = new Block[page.getChannelCount()];
         for (int channel = 0; channel < page.getChannelCount(); channel++) {
             if (channel == embeddingColumnChannel) {
-                blocks[channel] = embeddingsBlock.build();
+                blocks[channel] = embeddingsBlock;
             }
             else {
                 blocks[channel] = page.getBlock(channel);
@@ -123,20 +95,93 @@ public class EmbeddingGeneratingPageSink
         return delegate.appendPage(new Page(blocks));
     }
 
-    private static BiConsumer<BlockBuilder, Float> blockWriterForType(Type embeddingColumnType)
+    private Block generateEmbeddings(Block dataBlock)
     {
-        TypeSignature embeddingTypeSignature = embeddingColumnType.getTypeSignature();
-        BiConsumer<BlockBuilder, Float> blockWriter;
-        if (embeddingTypeSignature == DoubleType.DOUBLE.getTypeSignature()) {
-            blockWriter = DoubleType.DOUBLE::writeDouble;
+        ImmutableList.Builder<Slice> data = ImmutableList.builder();
+        boolean[] isNullOrEmpty = new boolean[dataBlock.getPositionCount()];
+        for (int position = 0; position < dataBlock.getPositionCount(); position++) {
+            if (dataBlock.isNull(position)) {
+                isNullOrEmpty[position] = true;
+                continue;
+            }
+
+            Slice row = VARCHAR.getSlice(dataBlock, position);
+            if (row.length() == 0) {
+                isNullOrEmpty[position] = true;
+                continue;
+            }
+
+            data.add(row);
         }
-        else if (embeddingTypeSignature == RealType.REAL.getTypeSignature()) {
-            blockWriter = RealType.REAL::writeFloat;
+
+        return switch (embeddingType) {
+            case DOUBLE -> generateDoubleEmbeddings(data.build(), isNullOrEmpty, dataBlock.getPositionCount());
+            case FLOAT -> generateFloatEmbeddings(data.build(), isNullOrEmpty, dataBlock.getPositionCount());
+            case BINARY -> generateBinaryEmbeddings(data.build(), isNullOrEmpty, dataBlock.getPositionCount());
+        };
+    }
+
+    private Block generateDoubleEmbeddings(List<Slice> data, boolean[] isNullOrEmpty, int positionCount)
+    {
+        Iterator<List<Float>> embeddings = embeddingModelClient.generateEmbeddings(data).iterator();
+        ArrayType embeddingType = new ArrayType(DOUBLE);
+        ArrayBlockBuilder embeddingsBlock = embeddingType.createBlockBuilder(null, positionCount);
+
+        for (int position = 0; position < positionCount; position++) {
+            if (isNullOrEmpty[position]) {
+                embeddingsBlock.appendNull();
+            }
+            else {
+                embeddingsBlock.buildEntry(elementBuilder -> {
+                    List<Float> embedding = embeddings.next();
+                    for (Float datum : embedding) {
+                        DOUBLE.writeDouble(elementBuilder, datum);
+                    }
+                });
+            }
         }
-        else {
-            throw new IllegalStateException("generate_embeddings only supports embedding columns with type ARRAY(REAL) or ARRAY(DOUBLE)");
+
+        return embeddingsBlock.build();
+    }
+
+    private Block generateFloatEmbeddings(List<Slice> data, boolean[] isNullOrEmpty, int positionCount)
+    {
+        Iterator<List<Float>> embeddings = embeddingModelClient.generateEmbeddings(data).iterator();
+
+        ArrayType embeddingType = new ArrayType(REAL);
+        ArrayBlockBuilder embeddingsBlock = embeddingType.createBlockBuilder(null, positionCount);
+
+        for (int position = 0; position < positionCount; position++) {
+            if (isNullOrEmpty[position]) {
+                embeddingsBlock.appendNull();
+            }
+            else {
+                embeddingsBlock.buildEntry(elementBuilder -> {
+                    List<Float> embedding = embeddings.next();
+                    for (Float datum : embedding) {
+                        REAL.writeFloat(elementBuilder, datum);
+                    }
+                });
+            }
         }
-        return blockWriter;
+
+        return embeddingsBlock.build();
+    }
+
+    private Block generateBinaryEmbeddings(List<Slice> data, boolean[] isNullOrEmpty, int positionCount)
+    {
+        Iterator<Slice> embeddings = embeddingModelClient.generateBinaryEmbeddings(data).iterator();
+        BlockBuilder embeddingsBlock = VARBINARY.createBlockBuilder(null, positionCount);
+        for (int position = 0; position < positionCount; position++) {
+            if (isNullOrEmpty[position]) {
+                embeddingsBlock.appendNull();
+            }
+            else {
+                VARBINARY.writeSlice(embeddingsBlock, embeddings.next());
+            }
+        }
+
+        return embeddingsBlock.build();
     }
 
     @Override

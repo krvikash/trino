@@ -22,4 +22,14 @@ public interface EmbeddingModelClient
     List<Double> generateEmbedding(Slice sourceString);
 
     List<List<Float>> generateEmbeddings(List<Slice> sourceStrings);
+
+    default Slice generateBinaryEmbedding(Slice sourceString)
+    {
+        throw new UnsupportedOperationException("Binary embeddings are not supported");
+    }
+
+    default List<Slice> generateBinaryEmbeddings(List<Slice> sourceString)
+    {
+        throw new UnsupportedOperationException("Binary embeddings are not supported");
+    }
 }

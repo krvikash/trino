@@ -15,19 +15,25 @@ package com.starburstdata.trino.plugin.ai.bedrock;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelConnectionSpec;
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
+import io.airlift.slice.Slice;
 
 import java.util.Iterator;
 import java.util.List;
 
 public interface AwsEmbeddingCodec
 {
-    String generateRequestBody(String sourceString);
+    String generateRequestBody(String sourceString, EmbeddingType embeddingType);
 
-    Iterator<String> generateBatchRequestBodies(Iterator<String> sourceStrings);
+    Iterator<String> generateBatchRequestBodies(Iterator<String> sourceStrings, EmbeddingType embeddingType);
 
     List<Double> parseResponse(JsonNode responseBody);
 
+    Slice parseBinaryResponse(JsonNode responseBody);
+
     List<List<Float>> parseBatchResponse(JsonNode responseBody);
+
+    List<Slice> parseBinaryBatchResponse(JsonNode responseBody);
 
     interface Factory
     {

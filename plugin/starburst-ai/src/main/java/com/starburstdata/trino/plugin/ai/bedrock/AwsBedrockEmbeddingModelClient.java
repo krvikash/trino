@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.starburstdata.trino.plugin.ai.AiErrorCode;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelClient;
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
 import io.trino.spi.TrinoException;
@@ -55,7 +56,7 @@ public class AwsBedrockEmbeddingModelClient
     public List<Double> generateEmbedding(Slice sourceString)
     {
         InvokeModelResponse response = bedrockRuntimeClient.invokeModel(builder -> {
-            builder.body(SdkBytes.fromUtf8String(embeddingCodec.generateRequestBody(stripWhitespace(sourceString.toStringUtf8()))));
+            builder.body(SdkBytes.fromUtf8String(embeddingCodec.generateRequestBody(stripWhitespace(sourceString.toStringUtf8()), EmbeddingType.FLOAT)));
             builder.modelId(modelName);
         });
 
@@ -71,7 +72,9 @@ public class AwsBedrockEmbeddingModelClient
     @Override
     public List<List<Float>> generateEmbeddings(List<Slice> sourceStrings)
     {
-        Iterator<String> requests = embeddingCodec.generateBatchRequestBodies(Iterators.transform(sourceStrings.iterator(), slice -> stripWhitespace(slice.toStringUtf8())));
+        Iterator<String> requests = embeddingCodec.generateBatchRequestBodies(
+                Iterators.transform(sourceStrings.iterator(), slice -> stripWhitespace(slice.toStringUtf8())),
+                EmbeddingType.FLOAT);
         ImmutableList.Builder<List<Float>> embeddings = ImmutableList.builder();
         while (requests.hasNext()) {
             String requestBody = requests.next();
@@ -83,6 +86,49 @@ public class AwsBedrockEmbeddingModelClient
             try {
                 JsonNode responseBody = OBJECT_MAPPER.readTree(response.body().asInputStream());
                 embeddings.addAll(embeddingCodec.parseBatchResponse(responseBody));
+            }
+            catch (IOException e) {
+                throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to read response from embedding model", e);
+            }
+        }
+
+        return embeddings.build();
+    }
+
+    @Override
+    public Slice generateBinaryEmbedding(Slice sourceString)
+    {
+        InvokeModelResponse response = bedrockRuntimeClient.invokeModel(builder -> {
+            builder.body(SdkBytes.fromUtf8String(embeddingCodec.generateRequestBody(stripWhitespace(sourceString.toStringUtf8()), EmbeddingType.BINARY)));
+            builder.modelId(modelName);
+        });
+
+        try {
+            JsonNode responseBody = OBJECT_MAPPER.readTree(response.body().asInputStream());
+            return embeddingCodec.parseBinaryResponse(responseBody);
+        }
+        catch (IOException e) {
+            throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to read response from embedding model", e);
+        }
+    }
+
+    @Override
+    public List<Slice> generateBinaryEmbeddings(List<Slice> sourceStrings)
+    {
+        Iterator<String> requests = embeddingCodec.generateBatchRequestBodies(
+                Iterators.transform(sourceStrings.iterator(), slice -> stripWhitespace(slice.toStringUtf8())),
+                EmbeddingType.BINARY);
+        ImmutableList.Builder<Slice> embeddings = ImmutableList.builder();
+        while (requests.hasNext()) {
+            String requestBody = requests.next();
+            InvokeModelResponse response = bedrockRuntimeClient.invokeModel(builder -> {
+                builder.body(SdkBytes.fromUtf8String(requestBody));
+                builder.modelId(modelName);
+            });
+
+            try {
+                JsonNode responseBody = OBJECT_MAPPER.readTree(response.body().asInputStream());
+                embeddings.addAll(embeddingCodec.parseBinaryBatchResponse(responseBody));
             }
             catch (IOException e) {
                 throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to read response from embedding model", e);

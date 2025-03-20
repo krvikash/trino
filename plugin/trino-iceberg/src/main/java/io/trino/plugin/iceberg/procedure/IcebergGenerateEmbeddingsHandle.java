@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.iceberg.procedure;
 
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.TrinoSortField;
@@ -25,6 +26,7 @@ import static java.util.Objects.requireNonNull;
 
 public record IcebergGenerateEmbeddingsHandle(
         String modelId,
+        EmbeddingType embeddingType,
         int embeddingColumnFieldId,
         int dataColumnFieldId,
         Optional<Long> snapshotId,
@@ -40,6 +42,7 @@ public record IcebergGenerateEmbeddingsHandle(
     public IcebergGenerateEmbeddingsHandle
     {
         requireNonNull(modelId, "modelId is null");
+        requireNonNull(embeddingType, "embeddingType is null");
         requireNonNull(snapshotId, "snapshotId is null");
         requireNonNull(schemaAsJson, "schemaAsJson is null");
         requireNonNull(partitionSpecAsJson, "partitionSpecAsJson is null");

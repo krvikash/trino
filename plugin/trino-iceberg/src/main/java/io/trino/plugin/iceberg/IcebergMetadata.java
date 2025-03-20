@@ -25,6 +25,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
@@ -138,6 +139,7 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import org.apache.datasketches.theta.CompactSketch;
 import org.apache.iceberg.AppendFiles;
@@ -361,6 +363,7 @@ import static io.trino.spi.StandardErrorCode.COLUMN_ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.COLUMN_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.INVALID_ANALYZE_PROPERTY;
 import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
+import static io.trino.spi.StandardErrorCode.INVALID_PROCEDURE_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.INVALID_TABLE_PROPERTY;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
@@ -1883,21 +1886,32 @@ public class IcebergMetadata
 
         checkProcedureArgument(embeddingColumn.isPresent(), "embedding_column does not exist: %s", embeddingColumnName);
         checkProcedureArgument(dataColumn.isPresent(), "data_column does not exist: %s", dataColumnName);
-        TypeSignature embeddingType = toTrinoType(embeddingColumn.get().type(), typeManager).getTypeSignature();
-        checkProcedureArgument(
-                embeddingType.equals(TypeSignature.arrayType(DoubleType.DOUBLE.getTypeSignature())) || embeddingType.equals(TypeSignature.arrayType(RealType.REAL.getTypeSignature())),
-                "embedding_column must reference a column with type ARRAY(DOUBLE) or ARRAY(REAL)");
+        TypeSignature embeddingTypeSignature = toTrinoType(embeddingColumn.get().type(), typeManager).getTypeSignature();
         checkProcedureArgument(
                 toTrinoType(dataColumn.get().type(), typeManager).equals(VARCHAR),
                 "data_column must reference a column with type VARCHAR");
 
-        Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
+        EmbeddingType embeddingType;
+        if (embeddingTypeSignature.equals(TypeSignature.arrayType(RealType.REAL.getTypeSignature()))) {
+            embeddingType = EmbeddingType.FLOAT;
+        }
+        else if (embeddingTypeSignature.equals(TypeSignature.arrayType(DoubleType.DOUBLE.getTypeSignature()))) {
+            embeddingType = EmbeddingType.DOUBLE;
+        }
+        else if (embeddingTypeSignature.equals(VarbinaryType.VARBINARY.getTypeSignature())) {
+            embeddingType = EmbeddingType.BINARY;
+        }
+        else {
+            throw new TrinoException(INVALID_PROCEDURE_ARGUMENT, "embedding_column must reference a column with type ARRAY(DOUBLE), ARRAY(REAL), or VARBINARY");
+        }
 
+        Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
         return Optional.of(new IcebergTableExecuteHandle(
                 tableHandle.getSchemaTableName(),
                 GENERATE_EMBEDDINGS,
                 new IcebergGenerateEmbeddingsHandle(
                         modelId,
+                        embeddingType,
                         embeddingColumn.get().fieldId(),
                         dataColumn.get().fieldId(),
                         tableHandle.getSnapshotId(),
@@ -2010,8 +2024,7 @@ public class IcebergMetadata
         int tableFormatVersion = ((BaseTable) icebergTable).operations().current().formatVersion();
         if (tableFormatVersion > OPTIMIZE_MAX_SUPPORTED_TABLE_VERSION) {
             throw new TrinoException(NOT_SUPPORTED, format(
-                    "%s is not supported for Iceberg table format version > %d. Table %s format version is %s.",
-                    OPTIMIZE.name(),
+                    "generate_embeddings is not supported for Iceberg table format version > %d. Table %s format version is %s.",
                     OPTIMIZE_MAX_SUPPORTED_TABLE_VERSION,
                     table.getSchemaTableName(),
                     tableFormatVersion));

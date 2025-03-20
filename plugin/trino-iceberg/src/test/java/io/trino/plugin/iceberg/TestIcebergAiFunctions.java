@@ -30,19 +30,30 @@ public class TestIcebergAiFunctions
         extends AbstractTestQueryFramework
 {
     private static final String MODEL_PROVIDERS = """
+        {
+            "models": [
                 {
-                  "models": [
-                    {
-                      "id": "openai",
-                      "modelName": "text-embedding-3-small",
-                      "kind": "EMBED",
-                      "connectionInfo": {
+                  "id": "cohere",
+                  "modelName": "cohere.embed-multilingual-v3",
+                  "kind": "EMBED",
+                  "connectionInfo": {
+                    "provider": "AWS_BEDROCK",
+                    "region": "us-east-1"
+                  }
+                },
+                {
+                    "id": "openai",
+                    "modelName": "text-embedding-3-small",
+                    "kind": "EMBED",
+                    "connectionInfo": {
                         "provider": "OPENAI",
+                        "endpoint": "https://api.openai.com/v1",
                         "apiKey": "${ENV:OPEN_AI_API_KEY}"
-                      }
                     }
-                  ]
-                }""";
+                }
+            ]
+        }
+        """;
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -102,6 +113,21 @@ public class TestIcebergAiFunctions
                     + " EXECUTE generate_embeddings(embedding_column => 'data_orange_embedding', data_column => 'data', model_id => 'openai') WHERE c1 = 2");
             assertThat(query("SELECT c1 FROM " + table.getName() + " WHERE data_orange_embedding IS NOT NULL"))
                     .matches("VALUES 2");
+        }
+    }
+
+    @Test
+    public void testBinaryEmbeddings()
+    {
+        try (TestTable table = newTrinoTable("test_binary_embeddings_", "(data VARCHAR)")) {
+            assertUpdate("INSERT INTO %s VALUES 'apple', 'orange', 'cat', 'dog', null, '', 'shirt', 'pants'".formatted(table.getName()), 8);
+            assertUpdate("ALTER TABLE %s ADD COLUMN embedding VARBINARY".formatted(table.getName()));
+            assertUpdate("ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'cohere')".formatted(table.getName()));
+
+            assertQuery(
+                    ("SELECT data FROM (SELECT data, hamming_distance(embedding, ai.ai.generate_binary_embedding('clothing', 'cohere')) AS distance " +
+                            "FROM %s ORDER BY distance ASC LIMIT 2)").formatted(table.getName()),
+                    "VALUES 'shirt', 'pants'");
         }
     }
 }

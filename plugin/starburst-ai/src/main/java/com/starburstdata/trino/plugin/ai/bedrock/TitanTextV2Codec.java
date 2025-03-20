@@ -18,10 +18,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelConnectionSpec;
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.spi.TrinoException;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -37,13 +41,15 @@ public final class TitanTextV2Codec
             {
                 "inputText": "%s",
                 "dimensions": %d,
-                "normalize": true
+                "normalize": true,
+                "embeddingTypes": ["%s"]
             }
             """;
     private static final String TITAN_DEFAULT_DIMENSIONALITY_REQUEST_TEMPLATE = """
             {
                 "inputText": "%s",
-                "normalize": true
+                "normalize": true,
+                "embeddingTypes": ["%s"]
             }
             """;
 
@@ -72,17 +78,17 @@ public final class TitanTextV2Codec
     }
 
     @Override
-    public String generateRequestBody(String sourceString)
+    public String generateRequestBody(String sourceString, EmbeddingType embeddingType)
     {
         return dimensions
-                .map(d -> TITAN_REQUEST_TEMPLATE.formatted(sourceString, d))
-                .orElse(TITAN_DEFAULT_DIMENSIONALITY_REQUEST_TEMPLATE.formatted(sourceString));
+                .map(d -> TITAN_REQUEST_TEMPLATE.formatted(sourceString, d, embeddingType.toString().toLowerCase(Locale.ENGLISH)))
+                .orElse(TITAN_DEFAULT_DIMENSIONALITY_REQUEST_TEMPLATE.formatted(sourceString, embeddingType.toString().toLowerCase(Locale.ENGLISH)));
     }
 
     @Override
-    public Iterator<String> generateBatchRequestBodies(Iterator<String> sourceStrings)
+    public Iterator<String> generateBatchRequestBodies(Iterator<String> sourceStrings, EmbeddingType embeddingType)
     {
-        return Iterators.transform(sourceStrings, this::generateRequestBody);
+        return Iterators.transform(sourceStrings, source -> generateRequestBody(source, embeddingType));
     }
 
     @Override
@@ -96,8 +102,34 @@ public final class TitanTextV2Codec
     }
 
     @Override
+    public Slice parseBinaryResponse(JsonNode jsonNode)
+    {
+        // Titan responds with a list of boolean values, as 1s or 0s.
+        // Dimension count is always one of [1024, 512, 256]
+        JsonNode elements = jsonNode.get("embeddingsByType").get("binary");
+        int byteEncodingLength = elements.size() / 8;
+        byte[] embedding = new byte[byteEncodingLength];
+        int position = 0;
+        for (int i = 0; i < byteEncodingLength; i++) {
+            int element = 0;
+            for (int bit = 0; bit < 8; bit++) {
+                element = (element << 1) | elements.get(position).asInt();
+                position++;
+            }
+            embedding[i] = (byte) element;
+        }
+        return Slices.wrappedBuffer(embedding, 0, byteEncodingLength);
+    }
+
+    @Override
     public List<List<Float>> parseBatchResponse(JsonNode responseBody)
     {
         return List.of(parseResponse(responseBody).stream().map(Double::floatValue).toList());
+    }
+
+    @Override
+    public List<Slice> parseBinaryBatchResponse(JsonNode responseBody)
+    {
+        return List.of(parseBinaryResponse(responseBody));
     }
 }

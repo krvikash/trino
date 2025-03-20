@@ -17,13 +17,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
+import com.starburstdata.trino.plugin.ai.AiErrorCode;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelConnectionSpec;
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.json.ObjectMapperProvider;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.spi.TrinoException;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import static com.starburstdata.trino.plugin.ai.AiErrorCode.INVALID_MODEL_SPEC_PROPERTY;
 import static java.util.Objects.requireNonNull;
@@ -31,16 +37,21 @@ import static java.util.Objects.requireNonNull;
 public final class CohereEmbedMultilingualV3Codec
         implements AwsEmbeddingCodec
 {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
-    private static final int BATCH_SIZE = 96;
     public static final String MODEL_NAME = "cohere.embed-multilingual-v3";
+
+    private static final int BATCH_SIZE = 96;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+    private static final Map<EmbeddingType, String> EMBEDDING_TYPE_API_VALUES = ImmutableMap.<EmbeddingType, String>builder()
+            .put(EmbeddingType.FLOAT, "float")
+            .put(EmbeddingType.BINARY, "binary")
+            .buildOrThrow();
 
     private static final String COHERE_REQUEST_TEMPLATE = """
             {
                 "texts":["%s"],
                 "input_type": "search_query",
                 "truncate": "NONE",
-                "embedding_types": ["float"]
+                "embedding_types": ["%s"]
             }
             """;
     private static final String COHERE_BATCH_REQUEST_TEMPLATE = """
@@ -48,7 +59,7 @@ public final class CohereEmbedMultilingualV3Codec
                     "texts":%s,
                     "input_type": "search_document",
                     "truncate": "NONE",
-                    "embedding_types": ["float"]
+                    "embedding_types": ["%s"]
                 }
                 """;
 
@@ -71,18 +82,18 @@ public final class CohereEmbedMultilingualV3Codec
     }
 
     @Override
-    public String generateRequestBody(String sourceString)
+    public String generateRequestBody(String sourceString, EmbeddingType embeddingType)
     {
-        return COHERE_REQUEST_TEMPLATE.formatted(sourceString);
+        return COHERE_REQUEST_TEMPLATE.formatted(sourceString, EMBEDDING_TYPE_API_VALUES.get(embeddingType));
     }
 
     @Override
-    public Iterator<String> generateBatchRequestBodies(Iterator<String> sourceStrings)
+    public Iterator<String> generateBatchRequestBodies(Iterator<String> sourceStrings, EmbeddingType embeddingType)
     {
         Iterator<List<String>> batches = Iterators.partition(sourceStrings, BATCH_SIZE);
         return Iterators.transform(batches, batch -> {
             try {
-                return COHERE_BATCH_REQUEST_TEMPLATE.formatted(OBJECT_MAPPER.writeValueAsString(batch));
+                return COHERE_BATCH_REQUEST_TEMPLATE.formatted(OBJECT_MAPPER.writeValueAsString(batch), EMBEDDING_TYPE_API_VALUES.get(embeddingType));
             }
             catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
@@ -101,6 +112,22 @@ public final class CohereEmbedMultilingualV3Codec
     }
 
     @Override
+    public Slice parseBinaryResponse(JsonNode jsonNode)
+    {
+        // Cohere responds with a list of int8
+        byte[] embedding = new byte[128];
+        JsonNode elements = jsonNode.get("embeddings").get("binary").get(0);
+        if (elements.size() != 128) {
+            throw new TrinoException(AiErrorCode.AI_ERROR, "Cohere response had an unexpected dimension count: " + elements.size());
+        }
+
+        for (int i = 0; i < 128; i++) {
+            embedding[i] = (byte) elements.get(i).asInt();
+        }
+        return Slices.wrappedBuffer(embedding, 0, 128);
+    }
+
+    @Override
     public List<List<Float>> parseBatchResponse(JsonNode responseBody)
     {
         ImmutableList.Builder<List<Float>> embeddings = ImmutableList.builder();
@@ -112,5 +139,25 @@ public final class CohereEmbedMultilingualV3Codec
             embeddings.add(elements.build());
         }
         return embeddings.build();
+    }
+
+    @Override
+    public List<Slice> parseBinaryBatchResponse(JsonNode responseBody)
+    {
+        // Cohere responds with a list of int8
+        JsonNode embeddings = responseBody.get("embeddings").get("binary");
+        ImmutableList.Builder<Slice> results = ImmutableList.builder();
+        for (JsonNode entry : embeddings) {
+            byte[] embedding = new byte[128];
+            if (entry.size() != 128) {
+                throw new TrinoException(AiErrorCode.AI_ERROR, "Cohere response had an unexpected dimension count: " + entry.size());
+            }
+
+            for (int i = 0; i < 128; i++) {
+                embedding[i] = (byte) entry.get(i).asInt();
+            }
+            results.add(Slices.wrappedBuffer(embedding, 0, 128));
+        }
+        return results.build();
     }
 }

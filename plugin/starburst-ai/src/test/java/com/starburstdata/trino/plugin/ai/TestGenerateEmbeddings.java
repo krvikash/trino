@@ -169,7 +169,7 @@ public class TestGenerateEmbeddings
               data_column => DESCRIPTOR(data),
               source => TABLE(SELECT * FROM (VALUES 'apple', 'orange') AS t (data)),
               model_id => 'openai_embed_3_small'))
-            """, "EMBEDDING_COLUMN descriptor contains types");
+            """, "EMBEDDING_COLUMN descriptor references an unsupported type: varchar");
         assertQueryFails("""
             SELECT * FROM  TABLE(ai.ai.generate_embeddings(
               embedding_column => DESCRIPTOR(embeddings, data),
@@ -237,6 +237,30 @@ public class TestGenerateEmbeddings
     }
 
     @ParameterizedTest
+    @MethodSource("supportsBinaryEmbeddings")
+    public void testGenerateEmbeddingsTableFunctionWithVarbinaryEncoding(String modelId)
+    {
+        try (TestTable table = newTrinoTable(
+                "test_generate_embeddings_table_function_",
+                "(data VARCHAR, embedding VARBINARY)")) {
+            assertUpdate("""
+                    INSERT INTO %s (data, embedding)
+                    SELECT data, embedding
+                    FROM TABLE(ai.ai.generate_embeddings(
+                      embedding_column => DESCRIPTOR(embedding VARBINARY),
+                      data_column => DESCRIPTOR(data),
+                      source => TABLE(SELECT * FROM (VALUES 'apple', 'orange', null, '', 'cat', 'dog', 'shirt', 'pants') AS t (data)),
+                      model_id => '%s'))
+                    """.formatted(table.getName(), modelId), 8);
+
+            assertQuery(
+                    ("SELECT data FROM (SELECT data, hamming_distance(embedding, ai.ai.generate_binary_embedding('clothing', '%2$s')) AS distance FROM %1$s " +
+                            "ORDER BY distance ASC LIMIT 2)").formatted(table.getName(), modelId),
+                    "VALUES 'shirt', 'pants'");
+        }
+    }
+
+    @ParameterizedTest
     @MethodSource("modelIds")
     public void testGenerateEmbeddingsWithEmptyString(String modelId)
     {
@@ -248,6 +272,14 @@ public class TestGenerateEmbeddings
         return new Object[][] {
                 {"openai_embed_3_small"},
                 {"openai_embed_3_large"},
+                {"titan_v2"},
+                {"cohere_3_multi"},
+        };
+    }
+
+    public static Object[][] supportsBinaryEmbeddings()
+    {
+        return new Object[][] {
                 {"titan_v2"},
                 {"cohere_3_multi"},
         };

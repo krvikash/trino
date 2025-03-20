@@ -13,16 +13,18 @@
  */
 package com.starburstdata.trino.plugin.ai.embedding;
 
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.slice.Slice;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 
 import static java.util.Objects.requireNonNull;
 
-public record GenerateEmbeddingsFunctionHandle(Slice modelId)
+public record GenerateEmbeddingsFunctionHandle(Slice modelId, EmbeddingType embeddingType)
         implements ConnectorTableFunctionHandle
 {
     public GenerateEmbeddingsFunctionHandle
     {
         requireNonNull(modelId, "modelId is null");
+        requireNonNull(embeddingType, "embeddingType is null");
     }
 }

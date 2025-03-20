@@ -15,6 +15,7 @@ package com.starburstdata.trino.plugin.ai.embedding;
 
 import com.starburstdata.trino.plugin.ai.AiErrorCode;
 import com.starburstdata.trino.plugin.ai.EmbeddingModelClient;
+import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.slice.Slice;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
@@ -27,6 +28,7 @@ import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 
@@ -44,10 +46,12 @@ public class GenerateEmbeddingsFunctionDataProcessor
         implements TableFunctionDataProcessor
 {
     private final EmbeddingModelClient embeddingModelClient;
+    private final EmbeddingType embeddingType;
 
-    public GenerateEmbeddingsFunctionDataProcessor(EmbeddingModelClient embeddingModelClient)
+    public GenerateEmbeddingsFunctionDataProcessor(EmbeddingModelClient embeddingModelClient, EmbeddingType embeddingType)
     {
         this.embeddingModelClient = requireNonNull(embeddingModelClient, "embeddingModelClient is null");
+        this.embeddingType = requireNonNull(embeddingType, "embeddingType is null");
     }
 
     @Override
@@ -79,6 +83,26 @@ public class GenerateEmbeddingsFunctionDataProcessor
             content.add(rowValue);
         }
 
+        Block embeddingData = switch (embeddingType) {
+            case FLOAT -> generateDoubleEncodedEmbeddings(content, isNullOrEmpty, sourceStrings.getPositionCount());
+            case DOUBLE -> generateDoubleEncodedEmbeddings(content, isNullOrEmpty, sourceStrings.getPositionCount());
+            case BINARY -> generateBinaryEncodedEmbeddings(content, isNullOrEmpty, sourceStrings.getPositionCount());
+        };
+
+        BlockBuilder passThroughBlock = BigintType.BIGINT.createBlockBuilder(null, sourceStrings.getPositionCount());
+        for (int position = 0; position < sourceStrings.getPositionCount(); position++) {
+            BigintType.BIGINT.writeLong(passThroughBlock, position);
+        }
+
+        Block[] page = new Block[2];
+        page[0] = embeddingData;
+        page[1] = passThroughBlock.build();
+
+        return usedInputAndProduced(new Page(sourceStrings.getPositionCount(), page));
+    }
+
+    private Block generateDoubleEncodedEmbeddings(List<Slice> content, boolean[] isNullOrEmpty, int positionCount)
+    {
         List<List<Float>> data;
         try {
             data = embeddingModelClient.generateEmbeddings(content);
@@ -90,14 +114,12 @@ public class GenerateEmbeddingsFunctionDataProcessor
             throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to generate embedding with remote model", e);
         }
 
-        BlockBuilder passThroughBlock = BigintType.BIGINT.createBlockBuilder(null, sourceStrings.getPositionCount());
-
         Type arrayType = new ArrayType(RealType.REAL);
         ArrayBlockBuilder pageEncodingBlockBuilder = (ArrayBlockBuilder) arrayType.createBlockBuilder(null, data.size());
 
         Iterator<List<Float>> nextEmbedding = data.iterator();
 
-        for (int position = 0; position < sourceStrings.getPositionCount(); position++) {
+        for (int position = 0; position < positionCount; position++) {
             if (isNullOrEmpty[position]) {
                 pageEncodingBlockBuilder.appendNull();
             }
@@ -109,14 +131,35 @@ public class GenerateEmbeddingsFunctionDataProcessor
                     }
                 });
             }
-
-            BigintType.BIGINT.writeLong(passThroughBlock, position);
         }
 
-        Block[] page = new Block[2];
-        page[0] = pageEncodingBlockBuilder.build();
-        page[1] = passThroughBlock.build();
+        return pageEncodingBlockBuilder.build();
+    }
 
-        return usedInputAndProduced(new Page(sourceStrings.getPositionCount(), page));
+    private Block generateBinaryEncodedEmbeddings(List<Slice> content, boolean[] isNullOrEmpty, int positionCount)
+    {
+        List<Slice> data;
+        try {
+            data = embeddingModelClient.generateBinaryEmbeddings(content);
+        }
+        catch (TrinoException e) {
+            throw e;
+        }
+        catch (RuntimeException e) {
+            throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to generate embedding with remote model", e);
+        }
+
+        BlockBuilder blockBuilder = VarbinaryType.VARBINARY.createBlockBuilder(null, positionCount);
+        Iterator<Slice> nextEmbedding = data.iterator();
+        for (int position = 0; position < positionCount; position++) {
+            if (isNullOrEmpty[position]) {
+                blockBuilder.appendNull();
+            }
+            else {
+                VarbinaryType.VARBINARY.writeSlice(blockBuilder, nextEmbedding.next());
+            }
+        }
+
+        return blockBuilder.build();
     }
 }
