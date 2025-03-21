@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.dynamodb;
 
+import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
 import io.trino.spi.security.ConnectorIdentity;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -20,7 +21,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.Properties;
 
 import static org.apache.commons.io.FileUtils.deleteDirectory;
@@ -68,7 +68,7 @@ public class TestingDynamoDbServer
 
     public void execute(String sql)
     {
-        DynamoDbCredentialPropertiesProvider propertiesProvider = new DynamoDbCredentialPropertiesProvider(config, Optional.empty());
+        CredentialPropertiesProvider propertiesProvider = new ConfigCredentialPropertiesProvider(config, new AwsRolePropertiesProvider(config));
         Properties properties = new Properties();
         properties.putAll(propertiesProvider.getCredentialProperties(ConnectorIdentity.ofUser("user")));
         try (Connection connection = DriverManager.getConnection(DynamoDbConnectionFactory.getConnectionUrl(config), properties);
