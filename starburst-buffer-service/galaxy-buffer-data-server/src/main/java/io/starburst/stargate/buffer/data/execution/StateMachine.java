@@ -21,6 +21,7 @@ import io.airlift.log.Logger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -28,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static java.util.Objects.requireNonNull;
@@ -54,13 +56,13 @@ public class StateMachine<T>
     {
         // Use a separate future for each listener so canceled listeners can be removed
         @GuardedBy("listeners")
-        private final Set<SettableFuture<T>> listeners = new HashSet<>();
+        private final Set<FutureRef<T>> listeners = new HashSet<>();
 
         public ListenableFuture<T> createNewListener()
         {
             SettableFuture<T> listener = SettableFuture.create();
             synchronized (listeners) {
-                listeners.add(listener);
+                listeners.add(new FutureRef<>(listener));
             }
 
             // remove the listener when the future completes
@@ -70,7 +72,7 @@ public class StateMachine<T>
                         // since all futures are cleared from the listeners set before being notified
                         if (listener.isCancelled()) {
                             synchronized (listeners) {
-                                listeners.remove(listener);
+                                listeners.remove(new FutureRef<>(listener));
                             }
                         }
                     },
@@ -89,7 +91,9 @@ public class StateMachine<T>
             requireNonNull(executor, "executor is null");
             List<SettableFuture<T>> futures;
             synchronized (listeners) {
-                futures = ImmutableList.copyOf(listeners);
+                futures = ImmutableList.copyOf(listeners).stream()
+                        .map(FutureRef::future)
+                        .collect(toImmutableList());
                 listeners.clear();
             }
 
@@ -354,6 +358,30 @@ public class StateMachine<T>
         }
         catch (RejectedExecutionException e) {
             log.debug(e, "Asynchronous StateChangeListener notifications did not complete due to Server shutdown.");
+        }
+    }
+
+    private record FutureRef<V>(SettableFuture<V> future)
+    {
+        private FutureRef(SettableFuture<V> future)
+        {
+            this.future = requireNonNull(future, "future is null");
+        }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            FutureRef<?> futureRef = (FutureRef<?>) o;
+            return future == futureRef.future;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hashCode(future);
         }
     }
 }
