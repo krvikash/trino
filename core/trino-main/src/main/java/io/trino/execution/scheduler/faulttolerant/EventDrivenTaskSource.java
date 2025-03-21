@@ -483,7 +483,6 @@ class EventDrivenTaskSource
             throw new UnsupportedOperationException();
         }
 
-        @SuppressWarnings("CollectionUndefinedEquality")
         public ListenableFuture<T> addListener()
         {
             SettableFuture<T> listener = SettableFuture.create();
