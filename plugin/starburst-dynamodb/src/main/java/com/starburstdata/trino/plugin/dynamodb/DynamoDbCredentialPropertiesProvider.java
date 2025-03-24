@@ -25,6 +25,17 @@ import static java.util.Objects.requireNonNull;
 public class DynamoDbCredentialPropertiesProvider
         implements CredentialPropertiesProvider
 {
+    private static final String AUTH_SCHEME = "AuthScheme";
+    private static final String AWS_ACCESS_KEY = "AWS Access Key";
+    private static final String AWS_SECRET_KEY = "AWS Secret Key";
+    private static final String AWS_SESSION_TOKEN = "AWSSessionToken";
+    private static final String AWS_ROLE_ARN = "AWS Role Arn";
+    private static final String CREDENTIALS_LOCATION = "CredentialsLocation";
+
+    private static final String TEMPORARY_CREDENTIALS = "TemporaryCredentials";
+    private static final String AWS_EC2_ROLES = "AwsEC2Roles";
+    private static final String AWS_IAM_ROLES = "AwsIAMRoles";
+
     private final Optional<String> awsAccessKey;
     private final Optional<String> awsSecretKey;
     private final Optional<String> awsRoleArn;
@@ -48,28 +59,28 @@ public class DynamoDbCredentialPropertiesProvider
         ImmutableMap.Builder<String, Object> properties = ImmutableMap.builder();
         // Both of these settings are validated in DynamoDbConfig
         if (awsAccessKey.isPresent() && awsSecretKey.isPresent()) {
-            properties.put("AWS Access Key", awsAccessKey.get());
-            properties.put("AWS Secret Key", awsSecretKey.get());
+            properties.put(AWS_ACCESS_KEY, awsAccessKey.get());
+            properties.put(AWS_SECRET_KEY, awsSecretKey.get());
         }
         else if (defaultAwsChainCredentialsProvider.isPresent()) {
             AwsCredentials credentials = defaultAwsChainCredentialsProvider.get().resolveCredentials();
-            properties.put("AWS Access Key", credentials.accessKeyId());
-            properties.put("AWS Secret Key", credentials.secretAccessKey());
+            properties.put(AWS_ACCESS_KEY, credentials.accessKeyId());
+            properties.put(AWS_SECRET_KEY, credentials.secretAccessKey());
             if (credentials instanceof AwsSessionCredentials awsSessionCredentials) {
-                properties.put("AuthScheme", "TemporaryCredentials");
-                properties.put("AWSSessionToken", awsSessionCredentials.sessionToken());
+                properties.put(AUTH_SCHEME, TEMPORARY_CREDENTIALS);
+                properties.put(AWS_SESSION_TOKEN, awsSessionCredentials.sessionToken());
             }
         }
         else {
             // If they are not set, set auth scheme to EC2 roles so driver does not throw an error
-            properties.put("Auth Scheme", "AwsEC2Roles");
+            properties.put(AUTH_SCHEME, AWS_EC2_ROLES);
         }
 
         awsRoleArn.ifPresent(role ->
         {
-            properties.put("AuthScheme", "AwsIAMRoles");
-            properties.put("AWS Role Arn", role);
-            properties.put("CredentialsLocation", awsRoleCredentialsLocation);
+            properties.put(AUTH_SCHEME, AWS_IAM_ROLES);
+            properties.put(AWS_ROLE_ARN, role);
+            properties.put(CREDENTIALS_LOCATION, awsRoleCredentialsLocation);
         });
         return properties.buildOrThrow();
     }
