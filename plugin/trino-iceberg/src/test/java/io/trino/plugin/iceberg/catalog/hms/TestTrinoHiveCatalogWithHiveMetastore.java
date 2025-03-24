@@ -82,6 +82,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.apache.iceberg.BaseMetastoreTableOperations.ICEBERG_TABLE_TYPE_VALUE;
 import static org.apache.iceberg.BaseMetastoreTableOperations.TABLE_TYPE_PROP;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -238,6 +239,15 @@ public class TestTrinoHiveCatalogWithHiveMetastore
                 LOG.warn("Failed to clean up namespace: %s", namespace);
             }
         }
+    }
+
+    @Test
+    @Override
+    public void testTableWithVariantColumn()
+            throws Exception
+    {
+        // TODO: Hive does not support variant yet
+        assertThatThrownBy(super::testTableWithVariantColumn).hasMessageContaining("Invalid column type: variant");
     }
 
     @Override

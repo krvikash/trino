@@ -167,11 +167,10 @@ public class PartitionData
                 return rescale(
                         partitionValue.decimalValue(),
                         createDecimalType(decimalType.precision(), decimalType.scale()));
-            // TODO https://github.com/trinodb/trino/issues/24538 Support variant type
-            case VARIANT:
             case GEOMETRY:
             case GEOGRAPHY:
             case UNKNOWN:
+            case VARIANT:
             case LIST:
             case MAP:
             case STRUCT:

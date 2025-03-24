@@ -487,7 +487,7 @@ public final class IcebergUtil
     private static Stream<Types.NestedField> primitiveFields(NestedField nestedField)
     {
         org.apache.iceberg.types.Type type = nestedField.type();
-        if (type.isPrimitiveType()) {
+        if (type.isPrimitiveType() || type.isVariantType()) {
             return Stream.of(nestedField);
         }
 
@@ -520,6 +520,10 @@ public final class IcebergUtil
 
         if (fieldType.isNestedType()) {
             return primitiveFieldTypes(fieldType.asNestedType().fields());
+        }
+
+        if (fieldType.isVariantType()) {
+            return Stream.of(Map.entry(nestedField.fieldId(), fieldType.asVariantType()));
         }
 
         throw new IllegalStateException("Unsupported field type: " + nestedField);

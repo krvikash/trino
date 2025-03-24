@@ -266,6 +266,14 @@ public class TestTrinoSnowflakeCatalog
                 .hasMessageContaining("Snowflake managed Iceberg tables do not support modifications");
     }
 
+    @Test
+    @Override
+    public void testTableWithVariantColumn()
+    {
+        assertThatThrownBy(super::testTableWithVariantColumn)
+                .hasMessageContaining("Iceberg Snowflake catalog schemas do not support modifications");
+    }
+
     // Overridden to assert correct method calls as the tested feature is not supported
     @Test
     @Override
