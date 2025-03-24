@@ -16,7 +16,6 @@ package io.trino.plugin.hive.functions;
 import com.google.common.base.Enums;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import io.airlift.json.JsonCodec;
@@ -403,7 +402,6 @@ public class Unload
             Set<HiveFileWriterFactory> fileWriterFactories,
             HiveWriterStats hiveWriterStats,
             PageIndexerFactory pageIndexerFactory,
-            ListeningExecutorService writeVerificationExecutor,
             JsonCodec<PartitionUpdate> partitionUpdateCodec)
     {
         return new TableFunctionProcessorProvider()
@@ -438,7 +436,6 @@ public class Unload
                         Optional.empty(),
                         pageIndexerFactory,
                         1,
-                        writeVerificationExecutor,
                         partitionUpdateCodec,
                         session);
 
