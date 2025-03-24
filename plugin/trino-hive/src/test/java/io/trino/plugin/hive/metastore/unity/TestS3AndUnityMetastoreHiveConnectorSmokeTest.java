@@ -35,12 +35,14 @@ import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.hive.HiveQueryRunner.HIVE_CATALOG;
 import static io.trino.plugin.hive.HiveQueryRunner.TPCH_SCHEMA;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.tpch.TpchTable.REGION;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -76,7 +78,8 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
                 .addHiveProperty("hive.metastore.unity.host", DATABRICKS_HOST)
                 .addHiveProperty("hive.metastore.unity.token", DATABRICKS_TOKEN)
                 .addHiveProperty("hive.metastore.unity.catalog-name", DATABRICKS_UNITY_CATALOG_NAME)
-                .addHiveProperty("hive.security", "read-only")
+                .addHiveProperty("hive.security", "allow-all")
+                .addHiveProperty("hive.non-managed-table-writes-enabled", "true")
                 .addHiveProperty("fs.hadoop.enabled", "false")
                 .addHiveProperty("fs.native-s3.enabled", "true")
                 .addHiveProperty("s3.region", DATABRICKS_AWS_REGION)
@@ -228,13 +231,17 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     @Test
     void testDropSchema()
     {
-        assertQueryFails("DROP SCHEMA " + SCHEMA_NAME + " CASCADE", "Access Denied: Cannot drop schema %s".formatted(SCHEMA_NAME));
+        assertThat(query("DROP SCHEMA " + SCHEMA_NAME + " CASCADE"))
+                .failure()
+                .hasStackTraceContaining("dropTable is not supported for Unity metastore");
     }
 
     @Test
     void testDropTable()
     {
-        assertQueryFails("DROP TABLE " + "nation", "Access Denied: Cannot drop table %s.nation".formatted(SCHEMA_NAME));
+        assertThat(query("DROP TABLE " + "nation"))
+                .failure()
+                .hasStackTraceContaining("dropTable is not supported for Unity metastore");
     }
 
     @Override
@@ -242,7 +249,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     public void testCreateTable()
     {
         assertThatThrownBy(super::testCreateTable)
-                .hasMessageContaining("Access Denied: Cannot create table");
+                .hasMessageContaining("createTable is not supported for Unity metastore");
     }
 
     @Override
@@ -250,23 +257,14 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     public void testCreateTableAsSelect()
     {
         assertThatThrownBy(super::testCreateTableAsSelect)
-                .hasMessageContaining("Access Denied: Cannot create table");
-    }
-
-    @Override
-    @Test
-    public void testMaterializedView()
-    {
-        assertThatThrownBy(super::testMaterializedView)
-                .hasMessageContaining("Access Denied: Cannot create materialized view");
+                .hasMessageContaining("createTable is not supported for Unity metastore");
     }
 
     @Override
     @Test
     public void testTruncateTable()
     {
-        assertThatThrownBy(super::testTruncateTable)
-                .hasMessageContaining("Access Denied: Cannot truncate table");
+        abort("io.trino.testing.BaseConnectorSmokeTest.testTruncateTable truncates the static table used in the test");
     }
 
     @Override
@@ -274,7 +272,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     public void testCreateSchema()
     {
         assertThatThrownBy(super::testCreateSchema)
-                .hasMessageContaining("Access Denied: Cannot create schema");
+                .hasMessageContaining("createDatabase is not supported for Unity metastore");
     }
 
     @Override
@@ -282,7 +280,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     public void testView()
     {
         assertThatThrownBy(super::testView)
-                .hasMessageContaining("Access Denied: Cannot create view");
+                .hasMessageContaining("createTable is not supported for Unity metastore");
     }
 
     @Override
@@ -290,15 +288,45 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     public void testRenameTable()
     {
         assertThatThrownBy(super::testRenameTable)
-                .hasMessageContaining("Access Denied: Cannot rename table");
+                .hasMessageContaining("Table rename is not supported with current metastore configuration");
     }
 
-    @Override
+    @Override // to showcase insert path through a separate table without impacting static region table created for this test 
     @Test
     public void testInsert()
     {
-        assertThatThrownBy(super::testInsert)
-                .hasMessageContaining("Access Denied: Cannot insert into table");
+        Properties properties = new Properties();
+        properties.put("user", DATABRICKS_LOGIN);
+        properties.put("password", DATABRICKS_TOKEN);
+        String tableName = "hive_table_" + randomNameSuffix();
+        Connection connection = null;
+        Statement statement = null;
+        String schemaLocation = getTpchSchemaLocation(getQueryRunner());
+        try {
+            connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, properties);
+            statement = connection.createStatement();
+            statement.execute("""
+                CREATE TABLE IF NOT EXISTS %s.%s.%s (c int)
+                USING PARQUET
+                LOCATION '%s'
+                """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName, "%s/%s".formatted(schemaLocation, tableName)));
+            assertUpdate("INSERT INTO " + tableName + " VALUES (1)", 1);
+            assertThat(query("SELECT * FROM " + tableName))
+                    .matches("VALUES 1");
+        }
+        catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        finally {
+            if (statement != null) {
+                try {
+                    statement.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
+                    statement.close();
+                    connection.close();
+                }
+                catch (SQLException ignore) {}
+            }
+        }
     }
 
     @Override
@@ -323,7 +351,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     public void testRenameSchema()
     {
         assertThatThrownBy(super::testRenameSchema)
-                .hasMessageContaining("Access Denied: Cannot rename schema");
+                .hasMessageContaining("renameDatabase is not supported for Unity metastore");
     }
 
     @Override

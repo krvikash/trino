@@ -22,7 +22,6 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.hive.AllowHiveTableRename;
 import io.trino.plugin.hive.HiveConfig;
-import io.trino.plugin.hive.security.SecurityConfig;
 
 import static com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.CSV;
@@ -35,7 +34,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.trino.plugin.hive.security.HiveSecurityModule.HiveSecurity.READ_ONLY;
 
 public class UnityMetastoreModule
         extends AbstractConfigurationAwareModule
@@ -51,8 +49,6 @@ public class UnityMetastoreModule
     protected void setup(Binder binder)
     {
         checkArgument(isConfiguredWithHive, "Unity metastore is only supported with Hive");
-        SecurityConfig securityConfig = buildConfigObject(SecurityConfig.class);
-        checkArgument(securityConfig.getSecuritySystem() == READ_ONLY, "hive.security must be set to READ_ONLY");
         configBinder(binder).bindConfig(UnityMetastoreConfig.class);
 
         binder.bind(UnityHiveMetastoreFactory.class).in(Scopes.SINGLETON);

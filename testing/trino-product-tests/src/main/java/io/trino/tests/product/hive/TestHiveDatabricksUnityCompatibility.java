@@ -13,12 +13,16 @@
  */
 package io.trino.tests.product.hive;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.tempto.AfterMethodWithContext;
 import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tempto.ProductTest;
 import io.trino.testng.services.Flaky;
 import org.testng.annotations.Test;
 
+import java.util.List;
+
+import static io.trino.tempto.assertions.QueryAssert.Row;
 import static io.trino.tempto.assertions.QueryAssert.Row.row;
 import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
@@ -56,9 +60,9 @@ public class TestHiveDatabricksUnityCompatibility
 
     @Test(groups = {HIVE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
-    public void testBasicHiveReadOperations()
+    public void testTableReadWriteExternalTable()
     {
-        String tableName = "test_table_" + randomNameSuffix();
+        String tableName = "test_read_write_" + randomNameSuffix();
         String hiveTableName = "hive.%s.%s".formatted(schemaName, tableName);
         String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
         String tableLocation = format("%s/%s/%s", externalLocationPath, schemaName, tableName);
@@ -82,6 +86,22 @@ public class TestHiveDatabricksUnityCompatibility
 
         assertThat(onTrino().executeQuery("SELECT * FROM " + hiveTableName))
                 .containsOnly(row(1, "one"));
+
+        // insert through Trino and query through Trino
+        List<Row> expectedRowsForInsert = ImmutableList.of(row(1, "one"), row(2, "two"));
+        onTrino().executeQuery("INSERT INTO " + hiveTableName + " VALUES (2, 'two')");
+        assertThat(onTrino().executeQuery("SELECT * FROM " + hiveTableName))
+                .containsOnly(expectedRowsForInsert);
+        onDelta().executeQuery("REFRESH TABLE " + unityTableName); // Required to get latest data from Databricks
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                .containsOnly(expectedRowsForInsert);
+
+        // Update is not supported for non-transactional table
+        assertQueryFailure(() -> onTrino().executeQuery("UPDATE " + hiveTableName + " SET c2 = 'oneone' WHERE c1 = 1"))
+                .hasRootCauseMessage("Modifying Hive table rows is only supported for transactional tables");
+        // Delete is not supported  for non-transactional table
+        assertQueryFailure(() -> onTrino().executeQuery("DELETE FROM " + hiveTableName + " WHERE c1 = 1"))
+                .hasRootCauseMessage("Modifying Hive table rows is only supported for transactional tables");
     }
 
     @Test(groups = {HIVE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})

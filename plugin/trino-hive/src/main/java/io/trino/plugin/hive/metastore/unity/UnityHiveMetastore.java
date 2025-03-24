@@ -184,7 +184,8 @@ public class UnityHiveMetastore
     @Override
     public void updateTableStatistics(String databaseName, String tableName, OptionalLong acidWriteId, StatisticsUpdateMode mode, PartitionStatistics statisticsUpdate)
     {
-        throw new TrinoException(NOT_SUPPORTED, "updateTableStatistics is not supported for Unity metastore");
+        // Do not throw an exception as Hive table format requires this method to be implemented for insert path.
+        // Moreover, implementation remains empty as Unity catalog doesn't support table statistics.
     }
 
     @Override
