@@ -22,7 +22,6 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.deltalake.AllowDeltaLakeManagedTableRename;
 import io.trino.plugin.deltalake.DeltaLakeConfig;
-import io.trino.plugin.deltalake.DeltaLakeSecurityConfig;
 import io.trino.plugin.deltalake.MaxTableParameterLength;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
 import io.trino.plugin.hive.AllowHiveTableRename;
@@ -37,11 +36,9 @@ import static com.databricks.sdk.service.catalog.DataSourceFormat.JSON;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.ORC;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.PARQUET;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.trino.plugin.deltalake.DeltaLakeSecurityModule.DeltaLakeSecurity.READ_ONLY;
 
 public class DeltaLakeUnityMetastoreModule
         extends AbstractConfigurationAwareModule
@@ -49,8 +46,6 @@ public class DeltaLakeUnityMetastoreModule
     @Override
     protected void setup(Binder binder)
     {
-        DeltaLakeSecurityConfig securityConfig = buildConfigObject(DeltaLakeSecurityConfig.class);
-        checkArgument(securityConfig.getSecuritySystem() == READ_ONLY, "delta.security must be set to READ_ONLY");
         configBinder(binder).bindConfig(UnityMetastoreConfig.class);
 
         binder.bind(UnityHiveMetastoreFactory.class).in(Scopes.SINGLETON);

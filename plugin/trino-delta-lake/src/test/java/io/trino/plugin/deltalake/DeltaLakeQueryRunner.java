@@ -309,7 +309,7 @@ public final class DeltaLakeQueryRunner
                     .addDeltaProperty("hive.metastore.unity.host", unityHost)
                     .addDeltaProperty("hive.metastore.unity.token", unityToken)
                     .addDeltaProperty("hive.metastore.unity.catalog-name", unityCatalog)
-                    .addDeltaProperty("delta.security", "read-only")
+                    .addDeltaProperty("delta.security", "allow-all")
                     .addDeltaProperty("fs.hadoop.enabled", "false")
                     .addDeltaProperty("fs.native-s3.enabled", "true")
                     .addDeltaProperty("s3.region", s3Region)

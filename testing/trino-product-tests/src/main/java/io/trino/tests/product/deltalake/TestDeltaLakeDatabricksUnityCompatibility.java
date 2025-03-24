@@ -13,12 +13,16 @@
  */
 package io.trino.tests.product.deltalake;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.tempto.AfterMethodWithContext;
 import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tempto.ProductTest;
 import io.trino.testng.services.Flaky;
 import org.testng.annotations.Test;
 
+import java.util.List;
+
+import static io.trino.tempto.assertions.QueryAssert.Row;
 import static io.trino.tempto.assertions.QueryAssert.Row.row;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -55,40 +59,80 @@ public class TestDeltaLakeDatabricksUnityCompatibility
 
     @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
-    public void testReadExternalTable()
+    public void testTableReadWriteExternalTable()
     {
-        String tableName = "test_read_" + randomNameSuffix();
-        String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
+        String tableName = "test_read_write_external_" + randomNameSuffix();
         String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
         String tableLocation = format("%s/%s/%s", externalLocationPath, schemaName, tableName);
 
         onDelta().executeQuery("CREATE TABLE " + unityTableName + " (c1 int, c2 string) USING delta LOCATION '" + tableLocation + "'");
-        onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES (1, 'one')");
-
-        assertThat(onTrino().executeQuery("SHOW SCHEMAS FROM delta"))
-                .contains(row(schemaName.toLowerCase(ENGLISH)));
-        assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
-                .containsOnly(row(tableName.toLowerCase(ENGLISH)));
-        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
-                .containsOnly(row(1, "one"));
+        testReadWriteOperations(tableName, unityTableName);
     }
 
     @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
-    public void testReadManagedTable()
+    public void testTableReadWriteManagedTable()
     {
-        String tableName = "test_managed_table_" + randomNameSuffix();
+        assertThat(onTrino().executeQuery("SHOW SCHEMAS FROM delta"))
+                .contains(row(schemaName.toLowerCase(ENGLISH)));
+
+        String tableName = "test_managed_table_managed_" + randomNameSuffix();
         String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
-        String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
 
         onDelta().executeQuery("CREATE TABLE " + unityTableName + " (c1 int, c2 string)");
+        testReadWriteOperations(tableName, unityTableName);
+    }
+
+    private void testReadWriteOperations(String tableName, String unityTableName)
+    {
+        String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
         onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES (1, 'one')");
-        assertThat(onTrino().executeQuery("SHOW CREATE SCHEMA delta." + schemaName))
-                .containsOnly(row("CREATE SCHEMA delta." + schemaName));
+
         assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
-                .contains(row(tableName));
+                .containsOnly(row(tableName.toLowerCase(ENGLISH)));
+
+        // select
         assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
                 .containsOnly(row(1, "one"));
+
+        // insert
+        List<Row> expectedRowsForInsert = ImmutableList.of(row(1, "one"), row(2, "two"));
+        onTrino().executeQuery("INSERT INTO " + deltaTableName + " VALUES (2, 'two')");
+        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                .containsOnly(expectedRowsForInsert);
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                .containsOnly(expectedRowsForInsert);
+
+        // update
+        List<Row> expectedRowsForUpdate = ImmutableList.of(row(1, "one"), row(2, "two hundred"));
+        onTrino().executeQuery("UPDATE " + deltaTableName + " SET c2 = 'two hundred' WHERE c1 = 2");
+        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                .containsOnly(expectedRowsForUpdate);
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                .containsOnly(expectedRowsForUpdate);
+
+        // delete
+        List<Row> expectedRowsForDelete = ImmutableList.of(row(2, "two hundred"));
+        onTrino().executeQuery("DELETE FROM " + deltaTableName + " WHERE c2 = 'one'");
+        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                .containsOnly(expectedRowsForDelete);
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                .containsOnly(expectedRowsForDelete);
+
+        // merge
+        List<Row> expectedRowsForMerge = ImmutableList.of(row(1, "one"), row(2, "two"), row(3, "three"));
+        String sourceTableName = "test_source_" + randomNameSuffix();
+        String tableLocation2 = format("%s/%s/%s", externalLocationPath, schemaName, sourceTableName);
+        onDelta().executeQuery(format("CREATE TABLE %s.%s.%s (c1 int, c2 string) using delta location '%s'", unityCatalogName, schemaName, sourceTableName, tableLocation2));
+        onDelta().executeQuery(format("INSERT INTO %s.%s.%s values (1, 'one'), (2, 'two'), (3, 'three')", unityCatalogName, schemaName, sourceTableName));
+
+        onTrino().executeQuery(format("MERGE INTO delta.%s.%s t USING delta.%s.%s s on t.c1 = s.c1 " +
+                "WHEN MATCHED THEN UPDATE SET c2 = s.c2 " +
+                "WHEN NOT MATCHED THEN INSERT (c1, c2) VALUES (s.c1, s.c2)", schemaName, tableName, schemaName, sourceTableName));
+        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                .containsOnly(expectedRowsForMerge);
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                .containsOnly(expectedRowsForMerge);
     }
 
     @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
@@ -156,7 +200,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         String deltaManagedTableName = "delta.%s.%s".formatted(schemaName, managedTableName);
 
         onDelta().executeQuery("CREATE TABLE " + unityManagedTableName + " (c1 int, c2 string) PARTITIONED BY (c1)");
-        onDelta().executeQuery("INSERT INTO " + unityManagedTableName + "(c1, c2) VALUES (1, 'one')");
+        onTrino().executeQuery("INSERT INTO " + deltaManagedTableName + "(c1, c2) VALUES (1, 'one')");
         assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
                 .contains(row(managedTableName));
         assertThat(onTrino().executeQuery("SELECT * FROM " + deltaManagedTableName))
@@ -168,7 +212,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         String unityExternalTableLocation = format("%s/%s/%s", externalLocationPath, schemaName, externalTableName);
 
         onDelta().executeQuery("CREATE TABLE " + unityExternalTableName + " (c1 int, c2 string) PARTITIONED BY (c1) location '" + unityExternalTableLocation + "'");
-        onDelta().executeQuery("INSERT INTO " + unityExternalTableName + "(c1, c2) VALUES (2, 'two')");
+        onTrino().executeQuery("INSERT INTO " + deltaExternalTableName + "(c1, c2) VALUES (2, 'two')");
         assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
                 .contains(row(externalTableName));
         assertThat(onTrino().executeQuery("SELECT * FROM " + deltaExternalTableName))
