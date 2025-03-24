@@ -2119,7 +2119,8 @@ public class TestIcebergSparkCompatibility
     public void testOptimizeIcebergTable()
     {
         testOptimizeIcebergTable(2);
-        testOptimizeIcebergTable(3);
+        // TODO https://starburstdata.atlassian.net/browse/CONNECT-536 Support default values in Iceberg
+        // testOptimizeIcebergTable(3);
     }
 
     private static void testOptimizeIcebergTable(int formatVersion)
