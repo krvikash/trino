@@ -22,6 +22,7 @@ import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.DispatcherNodePartitioningProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.node.CoordinatorNodeManager;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
@@ -41,6 +42,7 @@ public class SingleDispatcherConnector
     private final WorkerDispatcherConnector workerDispatcherConnector;
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
+    private final WorkerCapacityManager workerCapacityManager;
 
     @Inject
     public SingleDispatcherConnector(@ForWarp Connector proxiedConnector,
@@ -51,13 +53,15 @@ public class SingleDispatcherConnector
             CoordinatorDispatcherConnector coordinatorDispatcherConnector,
             WorkerDispatcherConnector workerDispatcherConnector,
             CoordinatorNodeManager coordinatorNodeManager,
-            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
+            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
+            WorkerCapacityManager workerCapacityManager)
     {
         super(proxiedConnector, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
         this.coordinatorDispatcherConnector = coordinatorDispatcherConnector;
         this.workerDispatcherConnector = workerDispatcherConnector;
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
+        this.workerCapacityManager = workerCapacityManager;
     }
 
     /**
@@ -104,5 +108,12 @@ public class SingleDispatcherConnector
     public ConnectorNodePartitioningProvider getNodePartitioningProvider()
     {
         return new DispatcherNodePartitioningProvider(proxiedConnector.getNodePartitioningProvider(), coordinatorNodeManager, dispatcherProxiedConnectorTransformer);
+    }
+
+    @Override
+    public void shutdown()
+    {
+        super.shutdown();
+        workerCapacityManager.shutdown();
     }
 }
