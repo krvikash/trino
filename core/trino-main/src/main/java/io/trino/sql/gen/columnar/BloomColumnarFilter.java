@@ -16,13 +16,14 @@ package io.trino.sql.gen.columnar;
 import com.google.common.base.Supplier;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.bytecode.DynamicClassLoader;
 import io.trino.cache.NonEvictableCache;
 import io.trino.operator.project.InputChannels;
-import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
 import io.trino.sql.planner.BloomFilterWithRange;
 
@@ -61,7 +62,7 @@ public final class BloomColumnarFilter
     }
 
     @Override
-    public int filterPositionsRange(ConnectorSession session, int[] outputPositions, int offset, int size, Page loadedPage)
+    public int filterPositionsRange(ConnectorSession session, int[] outputPositions, int offset, int size, SourcePage loadedPage)
     {
         int outputPositionsCount = 0;
         Block block = loadedPage.getBlock(0);
@@ -74,7 +75,7 @@ public final class BloomColumnarFilter
     }
 
     @Override
-    public int filterPositionsList(ConnectorSession session, int[] outputPositions, int[] activePositions, int offset, int size, Page loadedPage)
+    public int filterPositionsList(ConnectorSession session, int[] outputPositions, int[] activePositions, int offset, int size, SourcePage loadedPage)
     {
         int outputPositionsCount = 0;
         Block block = loadedPage.getBlock(0);
@@ -102,7 +103,7 @@ public final class BloomColumnarFilter
 
         return () -> {
             try {
-                InputChannels inputChannels = new InputChannels(ImmutableList.of(inputChannel), ImmutableList.of(inputChannel));
+                InputChannels inputChannels = new InputChannels(ImmutableList.of(inputChannel), ImmutableSet.of(inputChannel));
                 return filterConstructor.newInstance(bloomFilterWithRange, inputChannels);
             }
             catch (ReflectiveOperationException e) {

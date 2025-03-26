@@ -23,6 +23,7 @@ import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.connector.SourcePage;
 import io.trino.sql.ir.Case;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
@@ -94,7 +95,7 @@ public class TestPageFunctionCompiler
         String classSuffix = stageId + "_" + planNodeId;
         Supplier<PageProjection> projectionSupplier = functionCompiler.compileProjection(ADD_10_EXPRESSION, Optional.of(classSuffix));
         PageProjection projection = projectionSupplier.get();
-        Work<Block> work = projection.project(SESSION, new DriverYieldSignal(), createLongBlockPage(0), SelectedPositions.positionsRange(0, 1));
+        Work<Block> work = projection.project(SESSION, new DriverYieldSignal(), SourcePage.create(createLongBlockPage(0)), SelectedPositions.positionsRange(0, 1));
         // class name should look like PageProjectionOutput_20170707_223500_67496_zguwn_2_7_XX
         assertThat(work.getClass().getSimpleName().startsWith("PageProjectionWork_" + stageId.replace('.', '_') + "_" + planNodeId)).isTrue();
     }
@@ -162,13 +163,13 @@ public class TestPageFunctionCompiler
 
         RowExpression filterExpression = rowExpression(new Comparison(EQUAL, caseWhen, new Constant(BIGINT, -1L)), sourceLayout);
         Supplier<PageFilter> filterSupplier = functionCompiler.compileFilter(filterExpression, Optional.empty());
-        SelectedPositions filterResult = filterSupplier.get().filter(SESSION, inputPage);
+        SelectedPositions filterResult = filterSupplier.get().filter(SESSION, SourcePage.create(inputPage));
         assertThat(filterResult.getPositions()).containsExactly(100);
     }
 
     private Block project(PageProjection projection, Page page, SelectedPositions selectedPositions)
     {
-        Work<Block> work = projection.project(SESSION, new DriverYieldSignal(), page, selectedPositions);
+        Work<Block> work = projection.project(SESSION, new DriverYieldSignal(), SourcePage.create(page), selectedPositions);
         assertThat(work.process()).isTrue();
         return work.getResult();
     }
