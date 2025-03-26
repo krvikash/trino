@@ -12,8 +12,8 @@ on:
     types: [test-with-secrets-command]
   workflow_dispatch:
   schedule:
-    # Used to schedule Salesforce tests
-    - cron: "0 0 * * *"
+    - cron: "0 0 * * *" # nightly
+    - cron: "0 0 * * 6" # every Saturday
 
 defaults:
   run:
@@ -75,6 +75,8 @@ jobs:
       - maven-checks
       - pt
       - salesforce-tests
+      - synapse-nightly-tests
+      - synapse-weekly-tests
       - test
       - test-jdbc-compatibility
       - test-other-modules
@@ -92,6 +94,8 @@ jobs:
           echo '${{ needs.maven-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "maven-checks" failed' >&2; exit 1; }
           echo '${{ needs.pt.result }}' | grep -xE 'success|skipped' || { echo 'Job "pt" failed' >&2; exit 1; }
           echo '${{ needs.salesforce-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "salesforce-tests" failed' >&2; exit 1; }
+          echo '${{ needs.synapse-nightly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-nightly-tests" failed' >&2; exit 1; }
+          echo '${{ needs.synapse-weekly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-weekly-tests" failed' >&2; exit 1; }
           echo '${{ needs.test.result }}' | grep -xE 'success|skipped' || { echo 'Job "test" failed' >&2; exit 1; }
           echo '${{ needs.test-jdbc-compatibility.result }}' | grep -xE 'success|skipped' || { echo 'Job "test-jdbc-compatibility" failed' >&2; exit 1; }
           echo '${{ needs.test-other-modules.result }}' | grep -xE 'success|skipped' || { echo 'Job "test-other-modules" failed' >&2; exit 1; }
@@ -413,7 +417,7 @@ jobs:
         modules:
           - plugin/starburst-salesforce
     timeout-minutes: 30
-    if: "(github.event_name == 'schedule') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'salesforce')) || (github.event_name == 'workflow_dispatch')"
+    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'salesforce')) || (github.event_name == 'workflow_dispatch')"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -495,6 +499,197 @@ jobs:
           slack-channel: C04QTKJFWKT # galaxy-data-management channel ID
           slack-text: |
             :boom: Salesforce connector tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
+
+  # ----------------------------------------------------------------------------------
+  # Weekly run all synapse tests, labeled PRs, or workflow_dispatch to limit CI costs
+  # ----------------------------------------------------------------------------------
+  synapse-weekly-tests:
+    name: synapse-weekly-tests
+    runs-on: [ self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest ]
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [ fte-tests, long-running-tests, type-mapping-tests ]
+        modules: [ plugin/starburst-synapse ]
+    timeout-minutes: 90
+    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse')) || (github.event_name == 'workflow_dispatch')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
+      - name: Set up AWS code-artifacts login
+        uses: ./.github/actions/starburst-setup
+        with:
+          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
+          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
+      - uses: ./.github/actions/setup
+      - name: Maven install
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
+      - name: Run Synapse weekly tests
+        id: tests
+        if: matrix.modules == 'plugin/starburst-synapse'  && (env.SYNAPSE_ENDPOINT != '' || env.SYNAPSE_USER != '' || env.SYNAPSE_PASSWORD != '')
+        env:
+          SYNAPSE_ENDPOINT: ${{ vars.SYNAPSE_ENDPOINT }}
+          SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
+          SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
+            -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
+            -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
+            -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}"
+      - name: Sanitize artifact name
+        if: always()
+        run: |
+          # Generate a valid artifact name and make it available to next steps as
+          # an environment variable ARTIFACT_NAME
+          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
+          name=$(echo -n "${{ matrix.modules }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
+          echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: results ${{ env.ARTIFACT_NAME }}
+          path: |
+            **/target/surefire-reports
+            **/target/checkstyle-*
+            **/*.hprof
+          retention-days: 30
+      - name: Annotate with test report
+        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
+        if: failure()
+        with:
+          # this workflow should never fail, as it is not a quality gateway
+          fail_if_no_tests: false
+          skip_publishing: true
+      - name: Should notify on failure
+        if: always() && steps.tests.outcome == 'failure'
+        run: |
+          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
+          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
+          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
+            echo "result=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "result=false" >> "${GITHUB_OUTPUT}"
+          fi
+        id: should_notify
+      - name: Slack notify failed tests to SEP team
+        if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
+        uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
+        with:
+          slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
+          slack-channel: C06RV3N6N1E # team-connectors channel ID
+          slack-text: |
+            :boom: Synapse weekly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
+      - name: Slack notify failed tests to Connectors team
+        if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
+        uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
+        with:
+          slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
+          slack-channel: C04QTKJFWKT # galaxy-data-management channel ID
+          slack-text: |
+            :boom: Synapse weekly connector tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
+
+  # --------------------------------------------------------------------------------------
+  # Only run default profile synapse tests nightly, labeled PRs, or workflow_dispatch to
+  # limit CI costs. The release-* branches are excluded
+  # --------------------------------------------------------------------------------------
+  synapse-nightly-tests:
+    name: synapse-nightly-tests
+    runs-on: [ self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest ]
+    strategy:
+      fail-fast: false
+      matrix:
+        modules:
+          - plugin/starburst-synapse
+    timeout-minutes: 30
+    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *' && !startsWith(github.ref, 'refs/heads/release-')) || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse')) || (github.event_name == 'workflow_dispatch')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
+      - name: Set up AWS code-artifacts login
+        uses: ./.github/actions/starburst-setup
+        with:
+          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
+          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
+      - uses: ./.github/actions/setup
+      - name: Maven install
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
+      - name: Run Synapse nightly tests
+        id: tests
+        if: contains(matrix.modules, 'starburst-synapse')  && (env.SYNAPSE_ENDPOINT != '' || env.SYNAPSE_USER != '' || env.SYNAPSE_PASSWORD != '')
+        env:
+          SYNAPSE_ENDPOINT: ${{ vars.SYNAPSE_ENDPOINT }}
+          SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
+          SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} \
+            -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
+            -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
+            -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}"
+      - name: Sanitize artifact name
+        if: always()
+        run: |
+          # Generate a valid artifact name and make it available to next steps as
+          # an environment variable ARTIFACT_NAME
+          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
+          name=$(echo -n "${{ matrix.modules }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
+          echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: results ${{ env.ARTIFACT_NAME }}
+          path: |
+            **/target/surefire-reports
+            **/target/checkstyle-*
+            **/*.hprof
+          retention-days: 30
+      - name: Annotate with test report
+        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
+        if: failure()
+        with:
+          # this workflow should never fail, as it is not a quality gateway
+          fail_if_no_tests: false
+          skip_publishing: true
+      - name: Should notify on failure
+        if: always() && steps.tests.outcome == 'failure'
+        run: |
+          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
+          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
+          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
+            echo "result=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "result=false" >> "${GITHUB_OUTPUT}"
+          fi
+        id: should_notify
+      - name: Slack notify failed tests to SEP team
+        if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
+        uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
+        with:
+          slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
+          slack-channel: C06RV3N6N1E # team-connectors channel ID
+          slack-text: |
+            :boom: Synapse nightly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
+      - name: Slack notify failed tests to Connectors team
+        if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
+        uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
+        with:
+          slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
+          slack-channel: C04QTKJFWKT # galaxy-data-management channel ID
+          slack-text: |
+            :boom: Synapse nightly connector tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
 
   test-other-modules:
     runs-on: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
@@ -850,21 +1045,6 @@ jobs:
           -Dsnowflake.test.server.role=test_role \
           -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
           -Dsnowflake.test.account-url=https://"${SNOWFLAKE_AZURE_ACCOUNT_NAME}"."${SNOWFLAKE_AZURE_REGION}".azure.snowflakecomputing.com
-      - name: Run Synapse tests
-        id: tests-synapse
-        env:
-          SYNAPSE_ENDPOINT: ${{ vars.SYNAPSE_ENDPOINT }}
-          SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
-          SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}
-        if: >-
-          contains(matrix.modules, 'starburst-synapse') &&
-          (env.SYNAPSE_ENDPOINT != '' || env.SYNAPSE_USER != '' || env.SYNAPSE_PASSWORD != '')
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
-            -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
-            -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
-            -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}"
       - name: HDFS file system cache isolated JVM tests
         id: tests-hdfs-isolated
         if: contains(matrix.modules, 'trino-hdfs')
@@ -1144,7 +1324,6 @@ jobs:
             ${{ steps.tests.outcome == 'failure'
               || steps.tests-snowflake-aws.outcome == 'failure'
               || steps.tests-snowflake-azure.outcome == 'failure'
-              || steps.tests-synapse.outcome == 'failure'
               || steps.tests-hdfs-isolated.outcome == 'failure'
               || steps.tests-hdfs.outcome == 'failure'
               || steps.tests-s3.outcome == 'failure'
