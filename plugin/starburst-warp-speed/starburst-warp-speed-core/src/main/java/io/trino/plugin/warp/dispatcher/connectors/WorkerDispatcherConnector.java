@@ -20,6 +20,7 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.WorkerNodePartitioningProvider;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
@@ -31,6 +32,7 @@ public class WorkerDispatcherConnector
         extends DispatcherConnectorBase
 {
     private final DispatcherAlternativeChooser dispatcherAlternativeChooser;
+    private final WorkerCapacityManager workerCapacityManager;
 
     @Inject
     public WorkerDispatcherConnector(
@@ -39,10 +41,12 @@ public class WorkerDispatcherConnector
             DispatcherAlternativeChooser dispatcherAlternativeChooser,
             LifeCycleManager lifeCycleManager,
             ConnectorTaskExecutor connectorTaskExecutor,
-            NativeStorageStateHandler nativeStorageStateHandler)
+            NativeStorageStateHandler nativeStorageStateHandler,
+            WorkerCapacityManager workerCapacityManager)
     {
         super(proxiedConnector, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
         this.dispatcherAlternativeChooser = requireNonNull(dispatcherAlternativeChooser);
+        this.workerCapacityManager = workerCapacityManager;
     }
 
     @Override
@@ -55,5 +59,12 @@ public class WorkerDispatcherConnector
     public ConnectorNodePartitioningProvider getNodePartitioningProvider()
     {
         return new WorkerNodePartitioningProvider(proxiedConnector.getNodePartitioningProvider());
+    }
+
+    @Override
+    public void shutdown()
+    {
+        super.shutdown();
+        workerCapacityManager.shutdown();
     }
 }

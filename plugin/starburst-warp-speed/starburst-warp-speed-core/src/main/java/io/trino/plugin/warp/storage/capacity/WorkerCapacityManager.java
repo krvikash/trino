@@ -29,7 +29,6 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.PathUtils;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
-import jakarta.annotation.PreDestroy;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -79,7 +78,6 @@ public class WorkerCapacityManager
         statsWarmupDemoter = metricsManager.registerMetric(WarmupDemoterStats.create());
     }
 
-    @PreDestroy
     public void shutdown()
     {
         FileUtils.deleteQuietly(new File(getLocalStoragePath()));
