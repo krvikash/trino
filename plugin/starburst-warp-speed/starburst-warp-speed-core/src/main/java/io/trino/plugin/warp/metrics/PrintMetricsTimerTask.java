@@ -16,6 +16,7 @@ package io.trino.plugin.warp.metrics;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.MetricsConfig;
@@ -32,6 +33,7 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
+@Singleton
 public class PrintMetricsTimerTask
         extends MetricsTimerTask
 {
@@ -67,7 +69,7 @@ public class PrintMetricsTimerTask
                 1,
                 ShapingLogger.MODE.FORMAT);
 
-        logger.debug("PrintMetricsTimerTask constructor");
+        logger.debug("PrintMetricsTimerTask constructor %s", catalogNameProvider.get());
     }
 
     @Override

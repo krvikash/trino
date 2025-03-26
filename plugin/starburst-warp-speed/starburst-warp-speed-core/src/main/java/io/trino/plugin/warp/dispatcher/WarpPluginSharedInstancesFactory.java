@@ -25,7 +25,6 @@ import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.di.WarpSharedInstancesModule;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
-import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -78,8 +77,6 @@ public class WarpPluginSharedInstancesFactory
                     injector.getInstance(StorageEngineConstants.class),
                     injector.getInstance(MatchCollectIdService.class),
                     injector.getInstance(DemoterSync.class));
-
-            injector.getInstance(PrintMetricsTimerTask.class);
         }
         else {
             ConfigurationFactory configFactory = new ConfigurationFactory(warpConfig);

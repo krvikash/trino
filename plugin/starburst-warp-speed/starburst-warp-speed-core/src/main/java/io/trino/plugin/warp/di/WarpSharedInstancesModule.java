@@ -23,7 +23,6 @@ import io.trino.plugin.warp.dispatcher.warmup.demoter.DemoterSync;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.MetricsRegistry;
-import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
 import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
@@ -68,7 +67,6 @@ public class WarpSharedInstancesModule
 
         binder.bind(MetricsManager.class);
         binder.bind(MetricsRegistry.class);
-        binder.bind(PrintMetricsTimerTask.class);
         binder.bind(ScheduledMetricsHandler.class).asEagerSingleton();
 
         binder.bind(NativeLogger.class);
