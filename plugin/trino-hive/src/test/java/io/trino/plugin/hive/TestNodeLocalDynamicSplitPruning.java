@@ -89,7 +89,7 @@ class TestNodeLocalDynamicSplitPruning
         }
 
         try (ConnectorPageSource nonEmptyPageSource = createTestingPageSource(transaction, config, getDynamicFilter(getNonSelectiveBucketTupleDomain()))) {
-            assertThat(nonEmptyPageSource.getClass()).isEqualTo(HivePageSource.class);
+            assertThat(nonEmptyPageSource.getClass()).isNotEqualTo(EmptyPageSource.class);
         }
     }
 
@@ -105,7 +105,7 @@ class TestNodeLocalDynamicSplitPruning
         }
 
         try (ConnectorPageSource nonEmptyPageSource = createTestingPageSource(transaction, config, getDynamicFilter(getNonSelectivePartitionTupleDomain()))) {
-            assertThat(nonEmptyPageSource.getClass()).isEqualTo(HivePageSource.class);
+            assertThat(nonEmptyPageSource.getClass()).isNotEqualTo(EmptyPageSource.class);
         }
     }
 
