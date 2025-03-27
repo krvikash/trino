@@ -63,7 +63,8 @@ public class QueryParamsConverterTest
                 queryContext,
                 "filePath",
                 0x40302010,
-                false);
+                false,
+                "test-query-id");
         List<MatchNode> es = List.of(new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND,
                 List.of(convertLuceneMatchDataToMatchParams(luceneQueryMatchData0, 0),
                         new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_OR,

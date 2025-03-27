@@ -14,6 +14,7 @@
 
 package io.trino.plugin.warp.storage.read;
 
+import io.trino.plugin.warp.dispatcher.WarpMDCContext;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
@@ -27,6 +28,7 @@ import io.trino.spi.block.LazyBlockLoader;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -60,65 +62,67 @@ public class LazyCollectorLoader
     @Override
     public Block load()
     {
-        checkState(!loaded, "Already loaded");
-        loaded = true;
+        try (WarpMDCContext _ = new WarpMDCContext(lazyCollectorLoaderArgs.catalogName().toString(), Optional.of(lazyCollectorLoaderArgs.queryParams().getQueryId()))) {
+            checkState(!loaded, "Already loaded");
+            loaded = true;
 
-        Block retBlock;
-        LazyCollectOpenResult collectOpenResult = null;
+            Block retBlock;
+            LazyCollectOpenResult collectOpenResult = null;
 
-        // open
-        try {
-            collectOpenResult = collectTxService.collectOpen(lazyCollectorLoaderArgs, dispatcherPageSourceStats);
-        }
-        catch (Exception e) {
-            shapingLogger.error(e, "lazy collectOpen failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
-                    lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
-            dispatcherPageSourceStats.inclazy_collect_failed_load();
-            throw e;
-        }
-
-        // collect
-        List<ChunkProperties> chunkPropertiesList = lazyCollectorLoaderArgs.chunkPropertiesList();
-        MemorySegment queryResultTypeMem = collectOpenResult.pageArena().allocate(ValueLayout.JAVA_INT.byteSize(), ValueLayout.JAVA_INT.byteSize());
-
-        for (ChunkProperties chunkProperties : chunkPropertiesList) {
+            // open
             try {
-                lazyCollectorLoaderArgs.recordIndexes().setCurChunkProperties(chunkProperties);
-                collectTxService.openChunk(collectOpenResult.collectState(),
-                        chunkProperties.chunkIndex(),
-                        dispatcherPageSourceStats);
-                collectTxService.collectChunk(collectOpenResult.collectState(),
-                        queryResultTypeMem,
-                        dispatcherPageSourceStats);
+                collectOpenResult = collectTxService.collectOpen(lazyCollectorLoaderArgs, dispatcherPageSourceStats);
             }
             catch (Exception e) {
-                shapingLogger.error(e, "lazy collect failed chunk %s LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
-                        chunkProperties, lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
+                shapingLogger.error(e, "lazy collectOpen failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
+                        lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
                 dispatcherPageSourceStats.inclazy_collect_failed_load();
-                collectTxService.collectAbort(e, collectOpenResult.collectState(), dispatcherPageSourceStats);
                 throw e;
             }
-        }
 
-        // fill block
-        WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
-        ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorLoaderArgs.collectJufferWE();
-        QueryResultType queryResultType = QueryResultType.values()[queryResultTypeMem.get(ValueLayout.JAVA_INT, 0)];
-        retBlock = lazyCollectorLoaderArgs.blockFiller().fillBlockWithRecords(collectParams,
-                readJuffersWarmUpElement,
-                lazyCollectorLoaderArgs.numToCollect(),
-                queryResultType,
-                dictionaryStats,
-                dispatcherPageSourceStats);
+            // collect
+            List<ChunkProperties> chunkPropertiesList = lazyCollectorLoaderArgs.chunkPropertiesList();
+            MemorySegment queryResultTypeMem = collectOpenResult.pageArena().allocate(ValueLayout.JAVA_INT.byteSize(), ValueLayout.JAVA_INT.byteSize());
 
-        // close
-        try {
-            collectTxService.collectClose(collectOpenResult, nativeStats, dispatcherPageSourceStats);
-            dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
+            for (ChunkProperties chunkProperties : chunkPropertiesList) {
+                try {
+                    lazyCollectorLoaderArgs.recordIndexes().setCurChunkProperties(chunkProperties);
+                    collectTxService.openChunk(collectOpenResult.collectState(),
+                            chunkProperties.chunkIndex(),
+                            dispatcherPageSourceStats);
+                    collectTxService.collectChunk(collectOpenResult.collectState(),
+                            queryResultTypeMem,
+                            dispatcherPageSourceStats);
+                }
+                catch (Exception e) {
+                    shapingLogger.error(e, "lazy collect failed chunk %s LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
+                            chunkProperties, lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
+                    dispatcherPageSourceStats.inclazy_collect_failed_load();
+                    collectTxService.collectAbort(e, collectOpenResult.collectState(), dispatcherPageSourceStats);
+                    throw e;
+                }
+            }
+
+            // fill block
+            WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
+            ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorLoaderArgs.collectJufferWE();
+            QueryResultType queryResultType = QueryResultType.values()[queryResultTypeMem.get(ValueLayout.JAVA_INT, 0)];
+            retBlock = lazyCollectorLoaderArgs.blockFiller().fillBlockWithRecords(collectParams,
+                    readJuffersWarmUpElement,
+                    lazyCollectorLoaderArgs.numToCollect(),
+                    queryResultType,
+                    dictionaryStats,
+                    dispatcherPageSourceStats);
+
+            // close
+            try {
+                collectTxService.collectClose(collectOpenResult, nativeStats, dispatcherPageSourceStats);
+                dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
+            }
+            catch (Exception e) {
+                shapingLogger.error(e, "lazy collect failed in close");
+            }
+            return retBlock;
         }
-        catch (Exception e) {
-            shapingLogger.error(e, "lazy collect failed in close");
-        }
-        return retBlock;
     }
 }

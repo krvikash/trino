@@ -133,6 +133,7 @@ public class DispatcherAlternativePageSourceProviderTest
         StorageEngine storageEngine = new StubsStorageEngine();
         storageEngineConstants = spy(new StubsStorageEngineConstants());
         connectorSession = mock(ConnectorSession.class);
+        when(connectorSession.getQueryId()).thenReturn("test-query-id");
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         when(dispatcherProxiedConnectorTransformer.isValidForAcceleration(any())).thenReturn(true);
 

@@ -25,7 +25,6 @@ import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.spi.TrinoException;
-import io.trino.spi.catalog.CatalogName;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
@@ -73,7 +72,6 @@ public class NativeStorageEngine
     private final NativeLogger nativeLogger;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final Optional<ExceptionThrower> exceptionThrower; // we keep a reference to hold this object for native layer ref
-    private final CatalogName catalogName;
     private final boolean isLoaded;
     private final boolean isFirstLoaded;
 
@@ -162,12 +160,10 @@ public class NativeStorageEngine
             NativeConfig nativeConfig,
             ExceptionThrower exceptionThrower,
             NativeLogger nativeLogger,
-            CatalogName catalogName,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         final int taskMaxWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
         final int panicHaltPolicy = nativeConfig.getDebugPanicHaltPolicy();
-        this.catalogName = requireNonNull(catalogName);
         this.nativeLogger = requireNonNull(nativeLogger);
         this.exceptionThrower = (panicHaltPolicy == 0) ? Optional.of(exceptionThrower) : Optional.empty();
         shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
@@ -270,7 +266,7 @@ public class NativeStorageEngine
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION, nativeConfig.getEnableCompression() ? (byte) 1 : (byte) 0);
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID, sharedConfig.getDebugWarming() ? (byte) 1 : (byte) 0);
 
-            try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, this.exceptionThrower)) {
+            try (NativeLogger.LogId logId = nativeLogger.getLogId(this.exceptionThrower)) {
                 long logMemAddress = (long) mInitEnv.invokeExact(envProperties, envEnableConfig, logId.id());
                 this.isFirstLoaded = logMemAddress == 0;
             }
@@ -434,7 +430,7 @@ public class NativeStorageEngine
     {
         int fileDescriptor;
         try (Arena arena = Arena.ofConfined();
-             NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+             NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             fileDescriptor = (int) mFileOpen.invokeExact(arena.allocateFrom(fileName), logId.id());
             if (fileDescriptor >= 0) {
                 return fileDescriptor;
@@ -455,7 +451,7 @@ public class NativeStorageEngine
     @Override
     public void fileClose(int fileDescriptor)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mFileClose.invokeExact(fileDescriptor, logId.id());
         }
         catch (Throwable t) {
@@ -471,7 +467,7 @@ public class NativeStorageEngine
     public void fileTruncate(int fileDescriptor, int offset)
     {
         boolean success;
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             success = (boolean) mFileTruncate.invokeExact(fileDescriptor, offset, logId.id());
             if (success) {
                 return;
@@ -490,7 +486,7 @@ public class NativeStorageEngine
     public void filePunchHole(String fileName, int startOffset, int endOffset)
     {
         try (Arena arena = Arena.ofConfined();
-             NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+             NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mFilePunchHole.invokeExact(arena.allocateFrom(fileName), startOffset, endOffset, logId.id());
         }
         catch (Throwable t) {
@@ -505,7 +501,7 @@ public class NativeStorageEngine
     @Override
     public void fileIsAboutToBeDeleted(long fileHash, long fileModTime, int fileSizeInPages)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mFileAboutToBeDeleted.invokeExact(fileHash, fileModTime, fileSizeInPages, logId.id());
         }
         catch (Throwable t) {
@@ -520,7 +516,7 @@ public class NativeStorageEngine
     @Override
     public void warmupElementOpen(MemorySegment warmUpState, MemorySegment context)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mWarmupElementOpen.invokeExact(warmUpState, context, logId.id());
         }
         catch (Throwable t) {
@@ -535,7 +531,7 @@ public class NativeStorageEngine
     @Override
     public int warmupElementClose(MemorySegment warmUpState)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             return (int) mWarmupElementClose.invokeExact(warmUpState, logId.id());
         }
         catch (Throwable t) {
@@ -550,7 +546,7 @@ public class NativeStorageEngine
     @Override
     public void warmupVerifyQueryOffset(MemorySegment warmUpState)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mWarmupVerifyQueryOffset.invokeExact(warmUpState, logId.id());
         }
         catch (Throwable t) {
@@ -565,7 +561,7 @@ public class NativeStorageEngine
     @Override
     public void warmupChunk(MemorySegment warmUpState, MemorySegment recordBufferParams, MemorySegment compressionState)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mWarmupChunk.invokeExact(warmUpState, recordBufferParams, compressionState, logId.id());
         }
         catch (Throwable t) {
@@ -580,7 +576,7 @@ public class NativeStorageEngine
     @Override
     public void warmupChunkExtRec(MemorySegment warmUpState, MemorySegment recordBufferParams)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mWarmupChunkExtRec.invokeExact(warmUpState, recordBufferParams, logId.id());
         }
         catch (Throwable t) {
@@ -595,7 +591,7 @@ public class NativeStorageEngine
     @Override
     public void matchOpen(MemorySegment matchState)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mMatchOpen.invokeExact(matchState, logId.id());
         }
         catch (Throwable t) {
@@ -610,7 +606,7 @@ public class NativeStorageEngine
     @Override
     public int matchAgg(MemorySegment matchState, int startChunkIndex)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             return (int) mMatchAgg.invokeExact(matchState, (short) startChunkIndex, logId.id());
         }
         catch (Throwable t) {
@@ -625,7 +621,7 @@ public class NativeStorageEngine
     @Override
     public boolean matchLucenePrepare(MemorySegment matchState, int weIx, int chunkIndex)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             return (boolean) mMatchLucenePrepare.invokeExact(matchState, (short) weIx, (short) chunkIndex, logId.id());
         }
         catch (Throwable t) {
@@ -640,7 +636,7 @@ public class NativeStorageEngine
     @Override
     public void matchLuceneCompleted(MemorySegment matchState, int weIx, int chunkIndex, int numMatchedRecords)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mMatchLuceneCompleted.invokeExact(matchState, (short) weIx, (short) chunkIndex, numMatchedRecords, logId.id());
         }
         catch (Throwable t) {
@@ -655,7 +651,7 @@ public class NativeStorageEngine
     @Override
     public boolean match(MemorySegment matchState, int startChunkIndex, int numChunks)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             return (boolean) mMatch.invokeExact(matchState, (short) startChunkIndex, (short) numChunks, logId.id());
         }
         catch (Throwable t) {
@@ -670,7 +666,7 @@ public class NativeStorageEngine
     @Override
     public void matchClose(MemorySegment matchState)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mMatchClose.invokeExact(matchState, logId.id());
         }
         catch (Throwable t) {
@@ -685,7 +681,7 @@ public class NativeStorageEngine
     @Override
     public void collectOpen(MemorySegment collectState)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mCollectOpen.invokeExact(collectState, logId.id());
         }
         catch (Throwable t) {
@@ -700,7 +696,7 @@ public class NativeStorageEngine
     @Override
     public boolean openChunk(MemorySegment collectState, int chunkIndex)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             return (boolean) mCollectOpenChunk.invokeExact(collectState, (short) chunkIndex, logId.id());
         }
         catch (Throwable t) {
@@ -715,7 +711,7 @@ public class NativeStorageEngine
     @Override
     public void collectChunk(MemorySegment collectState, MemorySegment outQueryResultTypes)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mCollectCollectChunk.invokeExact(collectState, outQueryResultTypes, logId.id());
         }
         catch (Throwable t) {
@@ -730,7 +726,7 @@ public class NativeStorageEngine
     @Override
     public void collectClose(MemorySegment collectState, MemorySegment readStats)
     {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, exceptionThrower)) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mCollectClose.invokeExact(collectState, readStats, logId.id());
         }
         catch (Throwable t) {

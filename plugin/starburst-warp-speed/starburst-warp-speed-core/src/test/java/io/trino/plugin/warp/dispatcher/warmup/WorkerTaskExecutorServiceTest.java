@@ -56,6 +56,7 @@ public class WorkerTaskExecutorServiceTest
         cloudVendorConfig.setStoreType("s3");
         NativeStorageStateHandler nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
+        CatalogName catalogName = new CatalogName("c");
         this.taskExecutorService = new WorkerTaskExecutorService(
                 new WarmupDemoterConfig(),
                 new NativeConfig(),
@@ -64,7 +65,8 @@ public class WorkerTaskExecutorServiceTest
                 cloudVendorConfig,
                 nativeStorageStateHandler,
                 mock(WarpInitializedServiceRegistry.class),
-                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
+                new ShapingLoggerFactory(catalogName, new SharedConfig()),
+                catalogName);
         this.taskExecutorService.init();
     }
 

@@ -56,6 +56,11 @@ class LazyCollectorLoaderTest
     {
         LazyCollectorLoaderArgs lazyCollectorLoaderArgs = mock(LazyCollectorLoaderArgs.class);
         when(lazyCollectorLoaderArgs.chunkSize()).thenReturn(65536);
+        when(lazyCollectorLoaderArgs.catalogName()).thenReturn(new CatalogName("c"));
+        QueryParams queryParams = mock(QueryParams.class);
+        when(queryParams.getQueryId()).thenReturn("testQueryId");
+        when(lazyCollectorLoaderArgs.queryParams()).thenReturn(queryParams);
+
         LazyCollectorLoader lazyCollectorLoader = new LazyCollectorLoader(
                 lazyCollectTxService,
                 lazyCollectorLoaderArgs,

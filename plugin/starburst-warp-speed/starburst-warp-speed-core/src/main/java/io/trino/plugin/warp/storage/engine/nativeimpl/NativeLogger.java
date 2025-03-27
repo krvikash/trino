@@ -19,8 +19,6 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
-import io.trino.spi.catalog.CatalogName;
-import org.slf4j.MDC;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
@@ -31,8 +29,6 @@ import java.lang.foreign.ValueLayout;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import static io.trino.plugin.warp.log.ShapingLogger.CATALOG_NAME_LOCAL_PROPERTY;
 
 @Singleton
 public class NativeLogger
@@ -92,7 +88,7 @@ public class NativeLogger
         return stateListMem;
     }
 
-    public LogId getLogId(CatalogName catalogName, Optional<ExceptionThrower> exceptionThrower)
+    public LogId getLogId(Optional<ExceptionThrower> exceptionThrower)
     {
         Integer id = idPool.poll();
         if (id == null) {
@@ -107,7 +103,7 @@ public class NativeLogger
                 }
             }
         }
-        return new LogId(id, catalogName, exceptionThrower);
+        return new LogId(id, exceptionThrower);
     }
 
     public void releaseLogId(Integer id)
@@ -180,11 +176,10 @@ public class NativeLogger
         private final Integer id;
         private final Optional<ExceptionThrower> exceptionThrower;
 
-        public LogId(Integer id, CatalogName catalogName, Optional<ExceptionThrower> exceptionThrower)
+        public LogId(Integer id, Optional<ExceptionThrower> exceptionThrower)
         {
             this.id = id;
             this.exceptionThrower = exceptionThrower;
-            MDC.put(CATALOG_NAME_LOCAL_PROPERTY, catalogName.toString());
         }
 
         @Override
@@ -196,7 +191,6 @@ public class NativeLogger
             }
             finally {
                 releaseLogId(id);
-                MDC.remove(CATALOG_NAME_LOCAL_PROPERTY);
             }
         }
 

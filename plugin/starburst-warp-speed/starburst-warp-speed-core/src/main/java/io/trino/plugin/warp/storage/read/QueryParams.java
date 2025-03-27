@@ -45,6 +45,7 @@ public class QueryParams
     private final int minCollectOffset;
     private final ImmutableList<PredicateCacheData> predicateCacheData;
     private final boolean rangesRequired;
+    private final String queryId;
     private final GcArena arena;
 
     private final String filePath;
@@ -65,7 +66,8 @@ public class QueryParams
             long fileModTime,
             ImmutableList<PredicateCacheData> predicateCacheData,
             boolean rangesRequired,
-            GcArena arena)
+            GcArena arena,
+            String queryId)
     {
         this.rootMatchNode = requireNonNull(rootMatchNode, "rootMatchNode is null");
         this.warmUpElementMatchParams = requireNonNull(warmUpElementMatchParams);
@@ -86,6 +88,7 @@ public class QueryParams
         this.minCollectOffset = minCollectOffset;
         this.predicateCacheData = predicateCacheData;
         this.rangesRequired = rangesRequired;
+        this.queryId = queryId;
         //TODO hash of file path
         this.rowGroupUniqueId = Calendar.getInstance().getTimeInMillis();
         this.filePath = filePath;
@@ -241,5 +244,10 @@ public class QueryParams
     public boolean isRangesRequired()
     {
         return rangesRequired;
+    }
+
+    public String getQueryId()
+    {
+        return queryId;
     }
 }

@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.plugin.warp.dispatcher.WarpMDCContext.CATALOG_NAME_LOCAL_PROPERTY;
+import static io.trino.plugin.warp.dispatcher.WarpMDCContext.QUERY_ID_LOCAL_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -33,8 +35,6 @@ import static java.util.Objects.requireNonNull;
  */
 public class ShapingLogger
 {
-    public static final String QUERY_ID_LOCAL_PROPERTY = "QUERY_ID";
-    public static final String CATALOG_NAME_LOCAL_PROPERTY = "CATALOG_NAME";
     private static final String CATALOG_FORMAT = "catalog[%s]: ";
     private static final String QUERY_FORMAT = CATALOG_FORMAT + "queryId[%s]: ";
     private static final String FORMAT = "%s - skipped %d times";

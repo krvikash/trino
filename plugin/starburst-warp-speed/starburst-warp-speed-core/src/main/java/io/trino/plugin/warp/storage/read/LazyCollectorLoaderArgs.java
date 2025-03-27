@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
+import io.trino.spi.catalog.CatalogName;
 
 import java.util.List;
 
@@ -27,6 +28,7 @@ public record LazyCollectorLoaderArgs(QueryParams queryParams,
         RecordIndexes recordIndexes,
         int numToCollect,
         int numChunksInRange,
-        int chunkSize)
+        int chunkSize,
+        CatalogName catalogName)
 {
 }

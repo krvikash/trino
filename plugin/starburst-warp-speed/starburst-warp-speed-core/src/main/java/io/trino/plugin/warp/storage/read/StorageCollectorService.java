@@ -37,6 +37,7 @@ import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.util.StorageUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlock;
+import io.trino.spi.catalog.CatalogName;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
@@ -71,6 +72,7 @@ public class StorageCollectorService
     private final ShapingLoggerFactory shapingLoggerFactory;
     private final LazyCollectTxService lazyCollectTxService;
     private final GlobalConfig globalConfig;
+    private final CatalogName catalogName;
 
     @Inject
     StorageCollectorService(
@@ -83,7 +85,8 @@ public class StorageCollectorService
             DictionaryCacheService dictionaryCacheService,
             ShapingLoggerFactory shapingLoggerFactory,
             LazyCollectTxService lazyCollectTxService,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            CatalogName catalogName)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.collectTxService = requireNonNull(collectTxService);
@@ -96,6 +99,7 @@ public class StorageCollectorService
         this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
         this.lazyCollectTxService = lazyCollectTxService;
         this.globalConfig = globalConfig;
+        this.catalogName = catalogName;
     }
 
     private void loadDictionaries(QueryArgs queryArgs)
@@ -232,7 +236,8 @@ public class StorageCollectorService
                         recordIndexes,
                         queryState.getNumRecordsInCurPage(),
                         queryArgs.numChunksInRange(),
-                        queryArgs.chunkSize());
+                        queryArgs.chunkSize(),
+                        catalogName);
                 blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, new LazyCollectorLoader(
                         lazyCollectTxService,
                         lazyCollectorLoaderArgs,

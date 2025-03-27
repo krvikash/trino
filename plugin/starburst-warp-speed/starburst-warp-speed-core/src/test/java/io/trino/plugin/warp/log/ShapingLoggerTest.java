@@ -15,13 +15,14 @@ package io.trino.plugin.warp.log;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.SharedConfig;
+import io.trino.plugin.warp.dispatcher.WarpMDCContext;
 import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.slf4j.MDC;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -284,18 +285,18 @@ public class ShapingLoggerTest
     @Test
     public void testWithEnrichment()
     {
-        MDC.put(ShapingLogger.QUERY_ID_LOCAL_PROPERTY, "my-query-id");
-        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
-                this.getClass(),
-                logger,
-                10,
-                Duration.ZERO,
-                2,
-                ShapingLogger.MODE.FULL);
-        shapingLogger.warn("%s", "test test test");
-        verify(logger, times(1))
-                .warn(eq("catalog[%s]: queryId[%s]: %s".formatted(catalogName, "my-query-id", "test test test")));
-        MDC.remove(ShapingLogger.QUERY_ID_LOCAL_PROPERTY);
+        try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of("my-query-id"))) {
+            ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
+                    this.getClass(),
+                    logger,
+                    10,
+                    Duration.ZERO,
+                    2,
+                    ShapingLogger.MODE.FULL);
+            shapingLogger.warn("%s", "test test test");
+            verify(logger, times(1))
+                    .warn(eq("catalog[%s]: queryId[%s]: %s".formatted(catalogName, "my-query-id", "test test test")));
+        }
     }
 
     @Test

@@ -15,7 +15,6 @@ package io.trino.plugin.warp.dispatcher;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
-import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
@@ -27,9 +26,9 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import org.slf4j.MDC;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -74,31 +73,32 @@ public class DispatcherAlternativePageSourceProvider
             DynamicFilter dynamicFilter,
             boolean splitAddressEnforced)
     {
-        MDC.put(ShapingLogger.QUERY_ID_LOCAL_PROPERTY, session.getQueryId());
-        if (logger.isDebugEnabled()) {
-            logger.debug("createPageSource: handle=%s, split=%s, table=%s, columns=%s, dynamicFilter=%s",
-                    transactionHandle, split, table, columns, dynamicFilter.getCurrentPredicate().toString(session));
+        try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of(session.getQueryId()))) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("createPageSource: handle=%s, split=%s, table=%s, columns=%s, dynamicFilter=%s",
+                        transactionHandle, split, table, columns, dynamicFilter.getCurrentPredicate().toString(session));
+            }
+            DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
+            DispatcherSplit dispatcherSplit = (DispatcherSplit) split;
+
+            DispatcherWrapperPageSource dispatcherWrapperPageSource = new DispatcherWrapperPageSource(connectorPageSourceProvider,
+                    pageSourceFactory,
+                    txService,
+                    customStatsContext,
+                    transactionHandle,
+                    session,
+                    dispatcherSplit,
+                    dispatcherTableHandle,
+                    columns,
+                    dynamicFilter,
+                    catalogName);
+
+            // so the resources will continue to be locked even if the page source provider will be closed
+            // immediately after creating the page source (for instance, rowGroupData.getLock().getCount() will be 2 after this call)
+            dispatcherWrapperPageSource.getConnectorPageSource();
+
+            return dispatcherWrapperPageSource;
         }
-        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
-        DispatcherSplit dispatcherSplit = (DispatcherSplit) split;
-
-        DispatcherWrapperPageSource dispatcherWrapperPageSource = new DispatcherWrapperPageSource(connectorPageSourceProvider,
-                pageSourceFactory,
-                txService,
-                customStatsContext,
-                transactionHandle,
-                session,
-                dispatcherSplit,
-                dispatcherTableHandle,
-                columns,
-                dynamicFilter,
-                catalogName);
-
-        // so the resources will continue to be locked even if the page source provider will be closed
-        // immediately after creating the page source (for instance, rowGroupData.getLock().getCount() will be 2 after this call)
-        dispatcherWrapperPageSource.getConnectorPageSource();
-
-        return dispatcherWrapperPageSource;
     }
 
     @Override

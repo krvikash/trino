@@ -28,6 +28,7 @@ import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
+import io.trino.plugin.warp.dispatcher.WarpMDCContext;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -61,7 +62,6 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
-import org.slf4j.MDC;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -134,9 +134,7 @@ public class WarpProxiedWarmer
             boolean extraDebug,
             List<DictionaryWarmInfo> outDictionariesWarmInfos)
     {
-        try {
-            MDC.put(ShapingLogger.QUERY_ID_LOCAL_PROPERTY, "WARMING");
-
+        try (WarpMDCContext _ = new WarpMDCContext(catalogNameProvider.get(), Optional.of("WARMING"))) {
             SetMultimap<WarpColumn, WarmUpElement> proxiedWarmupElementsMultimap = proxiedWarmupElements.stream()
                     .collect(Multimaps.toMultimap(WarmUpElement::getWarpColumn, Function.identity(), HashMultimap::create));
             SchemaTableName schemaTableName = new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table());
@@ -253,9 +251,6 @@ public class WarpProxiedWarmer
                 storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements(), warmUpState);
             }
             return rowGroupData;
-        }
-        finally {
-            MDC.remove(ShapingLogger.QUERY_ID_LOCAL_PROPERTY);
         }
     }
 

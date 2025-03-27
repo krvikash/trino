@@ -62,7 +62,8 @@ public class QueryParamsConverter
             QueryContext queryContext,
             String filePath,
             long fileModTime,
-            boolean rangesRequired)
+            boolean rangesRequired,
+            String queryId)
     {
         checkArgument(queryContext.getTotalRecords() != INVALID_TOTAL_RECORDS, "Invalid total records");
 
@@ -134,7 +135,8 @@ public class QueryParamsConverter
                 fileModTime,
                 predicateCacheDataBuilder.build(),
                 rangesRequired,
-                arena);
+                arena,
+                queryId);
     }
 
     private static MemorySegment allocateWarmUpElementCollectParamsMemory(GcArena arena, int numElements)

@@ -24,7 +24,6 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageEngine;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
-import io.trino.spi.catalog.CatalogName;
 
 import java.lang.reflect.Proxy;
 
@@ -36,7 +35,6 @@ public class WorkerStorageEngineProvider
 {
     private final SharedConfig sharedConfig;
     private final NativeConfig nativeConfig;
-    private final CatalogName catalogName;
     private final ExceptionThrower exceptionThrower;
     private final NativeLogger nativeLogger;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
@@ -48,7 +46,6 @@ public class WorkerStorageEngineProvider
     public WorkerStorageEngineProvider(
             SharedConfig sharedConfig,
             NativeConfig nativeConfig,
-            CatalogName catalogName,
             ExceptionThrower exceptionThrower,
             NativeLogger nativeLogger,
             FailureGeneratorInvocationHandler failureGeneratorInvocationHandler,
@@ -56,7 +53,6 @@ public class WorkerStorageEngineProvider
     {
         this.sharedConfig = requireNonNull(sharedConfig);
         this.nativeConfig = requireNonNull(nativeConfig);
-        this.catalogName = requireNonNull(catalogName);
         this.exceptionThrower = requireNonNull(exceptionThrower);
         this.nativeLogger = requireNonNull(nativeLogger);
         this.failureGeneratorInvocationHandler = requireNonNull(failureGeneratorInvocationHandler);
@@ -72,7 +68,6 @@ public class WorkerStorageEngineProvider
                     nativeConfig,
                     exceptionThrower,
                     nativeLogger,
-                    catalogName,
                     shapingLoggerFactory);
 
             if (sharedConfig.isFailureGeneratorEnabled()) {

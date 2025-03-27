@@ -94,7 +94,7 @@ public class NativeLoggerTest
             throws Exception
     {
         String errorMsg = "test1";
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, Optional.of(exceptionThrower))) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(Optional.of(exceptionThrower))) {
             setLog(logId.id(), 0, errorMsg);
         }
         assertThat(logHandler.isEmpty()).isTrue();
@@ -105,7 +105,7 @@ public class NativeLoggerTest
             throws Exception
     {
         String errMsg = "test error";
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, Optional.of(exceptionThrower))) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(Optional.of(exceptionThrower))) {
             setLog(logId.id(), 1, errMsg);
         }
         LogRecord log = logHandler.popLast();
@@ -119,7 +119,7 @@ public class NativeLoggerTest
             throws Exception
     {
         String infoMsg = "test info";
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, Optional.of(exceptionThrower))) {
+        try (NativeLogger.LogId logId = nativeLogger.getLogId(Optional.of(exceptionThrower))) {
             setLog(logId.id(), 2, infoMsg);
         }
         LogRecord log = logHandler.popLast();
@@ -132,7 +132,7 @@ public class NativeLoggerTest
     void testCheckLogLevelPanic()
     {
         String panicMsg = "test panic";
-        NativeLogger.LogId logId = nativeLogger.getLogId(catalogName, Optional.of(exceptionThrower));
+        NativeLogger.LogId logId = nativeLogger.getLogId(Optional.of(exceptionThrower));
         setLog(logId.id(), -1, panicMsg);
         TrinoException exception = Assertions.assertThrows(TrinoException.class, logId::close);
         assertThat(exception.getErrorCode().equals(WARP_NATIVE_ERROR.toErrorCode())).isTrue();
@@ -147,8 +147,8 @@ public class NativeLoggerTest
             throws Exception
     {
         String panicMsg = "test panic";
-        NativeLogger.LogId logId1 = nativeLogger.getLogId(catalogName, Optional.of(exceptionThrower));
-        NativeLogger.LogId logId2 = nativeLogger.getLogId(catalogName, Optional.of(exceptionThrower));
+        NativeLogger.LogId logId1 = nativeLogger.getLogId(Optional.of(exceptionThrower));
+        NativeLogger.LogId logId2 = nativeLogger.getLogId(Optional.of(exceptionThrower));
         setLog(logId1.id(), -1, panicMsg);
         logId2.close();
         TrinoException exception = Assertions.assertThrows(TrinoException.class, logId1::close);
@@ -164,8 +164,8 @@ public class NativeLoggerTest
     {
         String panicMsg1 = "test panic 1";
         String panicMsg2 = "test panic 2";
-        NativeLogger.LogId logId1 = nativeLogger.getLogId(catalogName, Optional.of(exceptionThrower));
-        NativeLogger.LogId logId2 = nativeLogger.getLogId(catalogName, Optional.of(exceptionThrower));
+        NativeLogger.LogId logId1 = nativeLogger.getLogId(Optional.of(exceptionThrower));
+        NativeLogger.LogId logId2 = nativeLogger.getLogId(Optional.of(exceptionThrower));
         setLog(logId1.id(), -1, panicMsg1);
         setLog(logId2.id(), -2, panicMsg2);
 

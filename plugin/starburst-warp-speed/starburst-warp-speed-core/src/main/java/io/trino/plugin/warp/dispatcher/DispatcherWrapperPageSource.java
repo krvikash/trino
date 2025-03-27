@@ -31,6 +31,7 @@ import io.trino.spi.metrics.Metrics;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.TreeMap;
 
@@ -127,7 +128,9 @@ public class DispatcherWrapperPageSource
     @Override
     public Page getNextPage()
     {
-        return getConnectorPageSource().getNextPage();
+        try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of(session.getQueryId()))) {
+            return getConnectorPageSource().getNextPage();
+        }
     }
 
     @Override
@@ -143,7 +146,7 @@ public class DispatcherWrapperPageSource
     public void close()
             throws IOException
     {
-        try {
+        try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of(session.getQueryId()))) {
             if (connectorPageSource != null) {
                 txService.updateRunningPageSourcesCount(false);
                 connectorPageSource.close();
@@ -183,14 +186,16 @@ public class DispatcherWrapperPageSource
         }
     }
 
-    public ConnectorPageSource getConnectorPageSource()
+    ConnectorPageSource getConnectorPageSource()
     {
-        if (connectorPageSource == null) {
-            connectorPageSource = buildDelegatePageSource();
-            if (connectorPageSource != null) {
-                txService.updateRunningPageSourcesCount(true);
+        try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of(session.getQueryId()))) {
+            if (connectorPageSource == null) {
+                connectorPageSource = buildDelegatePageSource();
+                if (connectorPageSource != null) {
+                    txService.updateRunningPageSourcesCount(true);
+                }
             }
+            return connectorPageSource;
         }
-        return connectorPageSource;
     }
 }

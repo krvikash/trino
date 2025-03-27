@@ -25,6 +25,7 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
+import io.trino.plugin.warp.dispatcher.WarpMDCContext;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.warmup.export.WeGroupCloudExporterTask;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
@@ -33,13 +34,14 @@ import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorSession;
 import jakarta.annotation.PreDestroy;
-import org.slf4j.MDC;
 
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -83,6 +85,7 @@ public class WorkerTaskExecutorService
     private final NativeStorageStateHandler nativeStorageStateHandler;
     private final int queueSize;
     private final GlobalConfig globalConfig;
+    private final CatalogName catalogName;
     private final CloudVendorConfig cloudVendorConfig;
     private boolean isImportExportInitialized;
 
@@ -95,11 +98,13 @@ public class WorkerTaskExecutorService
             @ForWarp CloudVendorConfig cloudVendorConfig,
             NativeStorageStateHandler nativeStorageStateHandler,
             WarpInitializedServiceRegistry warpInitializedServiceRegistry,
-            ShapingLoggerFactory shapingLoggerFactory)
+            ShapingLoggerFactory shapingLoggerFactory,
+            CatalogName catalogName)
     {
         this.nativeConfig = requireNonNull(nativeConfig);
         this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new WorkerTaskExecutorServiceStats());
         this.globalConfig = requireNonNull(globalConfig);
+        this.catalogName = catalogName;
         requireNonNull(warmupDemoterConfig);
         this.queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
@@ -241,8 +246,7 @@ public class WorkerTaskExecutorService
 
     private void executeTask(WorkerSubmittableTask task)
     {
-        try {
-            MDC.put(ShapingLogger.QUERY_ID_LOCAL_PROPERTY, task.getClass().getSimpleName());
+        try (WarpMDCContext _ = new WarpMDCContext(catalogName.toString(), Optional.of(task.getClass().getSimpleName()))) {
             if (task instanceof PrioritizeTask) {
                 prioritizeExecutorService.execute(task);
             }
@@ -255,9 +259,6 @@ public class WorkerTaskExecutorService
             else if (task instanceof WarpCacheTask) {
                 proxyExecutorService.execute(task);
             }
-        }
-        finally {
-            MDC.remove(ShapingLogger.QUERY_ID_LOCAL_PROPERTY);
         }
     }
 
