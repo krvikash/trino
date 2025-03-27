@@ -88,9 +88,8 @@ public final class DynamicPageFilter
         this.selectivityThreshold = selectivityThreshold;
     }
 
-    // Compiled dynamic filter is fixed per-split and generated duration page source creation.
-    // Page source implementations may subsequently implement blocking on completion of dynamic filters, but since
-    // that occurs after page source creation, we cannot be guaranteed a completed dynamic filter here for initial splits
+    // Compiled dynamic filter is generated once per split at PageProcessor#createWorkProcessor.
+    // The supplied FilterEvaluator should not be shared across splits.
     public synchronized Supplier<FilterEvaluator> createDynamicPageFilterEvaluator(ColumnarFilterCompiler compiler, InternalDynamicFilter dynamicFilter)
     {
         requireNonNull(dynamicFilter, "dynamicFilter is null");

@@ -28,6 +28,7 @@ import io.trino.spi.block.DictionaryId;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.sql.gen.ExpressionProfiler;
 import io.trino.sql.gen.columnar.FilterEvaluator;
+import io.trino.sql.gen.columnar.SelectAllEvaluator;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
@@ -58,21 +60,22 @@ public class PageProcessor
     private final ExpressionProfiler expressionProfiler;
     private final DictionarySourceIdFunction dictionarySourceIdFunction = new DictionarySourceIdFunction();
     private final Optional<FilterEvaluator> filterEvaluator;
-    private final Optional<FilterEvaluator> dynamicFilterEvaluator;
+    private final Optional<Supplier<FilterEvaluator>> dynamicFilterSupplier;
     private final List<PageProjection> projections;
 
+    private FilterEvaluator dynamicFilterEvaluator;
     private int projectBatchSize;
 
-    public PageProcessor(Optional<FilterEvaluator> filterEvaluator, Optional<FilterEvaluator> dynamicFilterEvaluator, List<? extends PageProjection> projections, OptionalInt initialBatchSize)
+    public PageProcessor(Optional<FilterEvaluator> filterEvaluator, Optional<Supplier<FilterEvaluator>> dynamicFilterSupplier, List<? extends PageProjection> projections, OptionalInt initialBatchSize)
     {
-        this(filterEvaluator, dynamicFilterEvaluator, projections, initialBatchSize, new ExpressionProfiler());
+        this(filterEvaluator, dynamicFilterSupplier, projections, initialBatchSize, new ExpressionProfiler());
     }
 
     @VisibleForTesting
-    public PageProcessor(Optional<FilterEvaluator> filterEvaluator, Optional<FilterEvaluator> dynamicFilterEvaluator, List<? extends PageProjection> projections, OptionalInt initialBatchSize, ExpressionProfiler expressionProfiler)
+    public PageProcessor(Optional<FilterEvaluator> filterEvaluator, Optional<Supplier<FilterEvaluator>> dynamicFilterSupplier, List<? extends PageProjection> projections, OptionalInt initialBatchSize, ExpressionProfiler expressionProfiler)
     {
         this.filterEvaluator = requireNonNull(filterEvaluator, "filterEvaluator is null");
-        this.dynamicFilterEvaluator = requireNonNull(dynamicFilterEvaluator, "dynamicFilterEvaluator is null");
+        this.dynamicFilterSupplier = requireNonNull(dynamicFilterSupplier, "dynamicFilterEvaluator is null");
         this.projections = projections.stream()
                 .map(projection -> {
                     if (projection.getInputChannels().size() == 1 && projection.isDeterministic()) {
@@ -112,10 +115,13 @@ public class PageProcessor
             return WorkProcessor.of();
         }
 
+        if (dynamicFilterEvaluator == null) {
+            dynamicFilterEvaluator = dynamicFilterSupplier.map(Supplier::get).orElse(new SelectAllEvaluator());
+        }
         SelectedPositions activePositions = positionsRange(0, page.getPositionCount());
         FilterEvaluator.SelectionResult dynamicFilterResult = new FilterEvaluator.SelectionResult(activePositions, 0);
-        if (dynamicFilterEvaluator.isPresent()) {
-            dynamicFilterResult = dynamicFilterEvaluator.get().evaluate(session, activePositions, page);
+        if (dynamicFilterSupplier.isPresent()) {
+            dynamicFilterResult = dynamicFilterEvaluator.evaluate(session, activePositions, page);
             metrics.recordDynamicFilterMetrics(dynamicFilterResult.filterTimeNanos(), dynamicFilterResult.selectedPositions().size());
         }
 

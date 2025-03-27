@@ -37,9 +37,7 @@ public final class TestHiveDynamicRowFiltering
                         "enable-large-dynamic-filters", "false",
                         "dynamic-filtering.small-partitioned.max-distinct-values-per-driver", "100",
                         "dynamic-filtering.small.max-distinct-values-per-driver", "100"))
-                .setHiveProperties(ImmutableMap.of(
-                        "hive.dynamic-filtering.wait-timeout", "1h",
-                        "hive.target-max-file-size", "10kB"))  // Needed to generate multiple splits to allow dynamic filter to be ready
+                .setHiveProperties(ImmutableMap.of("hive.dynamic-filtering.wait-timeout", "1h"))
                 .build();
     }
 
