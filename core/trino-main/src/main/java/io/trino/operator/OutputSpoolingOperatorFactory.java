@@ -23,10 +23,9 @@ import io.trino.operator.OperationTimer.OperationTiming;
 import io.trino.operator.OperatorSpoolingController.MetricSnapshot;
 import io.trino.server.protocol.OutputColumn;
 import io.trino.server.protocol.spooling.QueryDataEncoder;
-import io.trino.server.protocol.spooling.SpooledBlock;
+import io.trino.server.protocol.spooling.SpooledMetadataBlock;
 import io.trino.spi.Mergeable;
 import io.trino.spi.Page;
-import io.trino.spi.block.Block;
 import io.trino.spi.spool.SpooledSegmentHandle;
 import io.trino.spi.spool.SpoolingContext;
 import io.trino.spi.spool.SpoolingManager;
@@ -34,6 +33,7 @@ import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -59,8 +59,6 @@ import static io.trino.operator.OutputSpoolingOperatorFactory.OutputSpoolingOper
 import static io.trino.operator.OutputSpoolingOperatorFactory.OutputSpoolingOperator.State.HAS_OUTPUT;
 import static io.trino.operator.OutputSpoolingOperatorFactory.OutputSpoolingOperator.State.NEEDS_INPUT;
 import static io.trino.operator.SpoolingController.Mode.SPOOL;
-import static io.trino.server.protocol.spooling.SpooledBlock.SPOOLING_METADATA_TYPE;
-import static io.trino.server.protocol.spooling.SpooledBlock.createNonSpooledPage;
 import static io.trino.server.protocol.spooling.SpoolingSessionProperties.getInitialSegmentSize;
 import static io.trino.server.protocol.spooling.SpoolingSessionProperties.getInliningMaxRows;
 import static io.trino.server.protocol.spooling.SpoolingSessionProperties.getInliningMaxSize;
@@ -180,7 +178,6 @@ public class OutputSpoolingOperatorFactory
         private final QueryDataEncoder queryDataEncoder;
         private final SpoolingManager spoolingManager;
         private final PageBuffer buffer;
-        private final Block[] emptyBlocks;
         private final OperationTiming spoolingTiming = new OperationTiming();
         private final AtomicLong encodedBytes = new AtomicLong();
 
@@ -199,7 +196,6 @@ public class OutputSpoolingOperatorFactory
             this.userMemoryContext = operatorContext.newLocalUserMemoryContext(OutputSpoolingOperator.class.getSimpleName());
             this.queryDataEncoder = requireNonNull(queryDataEncoder, "queryDataEncoder is null");
             this.spoolingManager = requireNonNull(spoolingManager, "spoolingManager is null");
-            this.emptyBlocks = emptyBlocks(layout);
             this.buffer = PageBuffer.create(userMemoryContext);
 
             operatorContext.setInfoSupplier(new OutputSpoolingInfoSupplier(spoolingTiming, controller, encodedBytes));
@@ -232,7 +228,7 @@ public class OutputSpoolingOperatorFactory
                     buffer.add(page);
                     yield null;
                 }
-                case INLINE -> createNonSpooledPage(page);
+                case INLINE -> inline(page);
             };
 
             if (outputPage != null) {
@@ -310,7 +306,7 @@ public class OutputSpoolingOperatorFactory
                 }
 
                 // This page is small (hundreds of bytes) so there is no point in tracking its memory usage
-                return emptySingleRowPage(SpooledBlock.forLocation(spoolingManager.location(segmentHandle), attributes).serialize());
+                return SpooledMetadataBlock.forSpooledLocation(spoolingManager.location(segmentHandle), attributes).serialize();
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -320,11 +316,23 @@ public class OutputSpoolingOperatorFactory
             }
         }
 
-        private Page emptySingleRowPage(Block block)
+        private Page inline(Page page)
         {
-            Block[] blocks = emptyBlocks;
-            blocks[blocks.length - 1] = block;
-            return new Page(blocks);
+            OperationTimer overallTimer = new OperationTimer(false);
+            try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                DataAttributes attributes = queryDataEncoder.encodeTo(output, List.of(page))
+                        .toBuilder()
+                        .set(ROWS_COUNT, (long) page.getPositionCount())
+                        .build();
+                encodedBytes.addAndGet(attributes.get(SEGMENT_SIZE, Integer.class));
+                return SpooledMetadataBlock.forInlineData(attributes, output.toByteArray()).serialize();
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            finally {
+                overallTimer.end(spoolingTiming);
+            }
         }
 
         static long reduce(List<Page> page, ToLongFunction<Page> reduce)
@@ -332,16 +340,6 @@ public class OutputSpoolingOperatorFactory
             return page.stream()
                     .mapToLong(reduce)
                     .sum();
-        }
-
-        private static Block[] emptyBlocks(Map<Symbol, Integer> layout)
-        {
-            Block[] blocks = new Block[layout.size() + 1]; // last block contains spooled metadata
-            for (Map.Entry<Symbol, Integer> entry : layout.entrySet()) {
-                blocks[entry.getValue()] = entry.getKey().type().createNullBlock();
-            }
-            blocks[blocks.length - 1] = SPOOLING_METADATA_TYPE.createNullBlock();
-            return blocks;
         }
 
         @Override
