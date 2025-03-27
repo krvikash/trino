@@ -973,7 +973,6 @@ public class PlanTester
                 new PlanSanityChecker(true),
                 idAllocator,
                 getPlannerContext(),
-                new SpoolingManagerRegistry(new ServerConfig(), new SpoolingEnabledConfig(), noop(), noopTracer()),
                 statsCalculator,
                 costCalculator,
                 warningCollector,
