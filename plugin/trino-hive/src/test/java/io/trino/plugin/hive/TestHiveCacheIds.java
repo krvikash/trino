@@ -94,7 +94,7 @@ public class TestHiveCacheIds
                 config,
                 false,
                 HiveMetastoreFactory.ofInstance(new UnimplementedHiveMetastore()),
-                getDefaultHiveFileWriterFactories(config, hdfsEnvironment),
+                getDefaultHiveFileWriterFactories(config, new HdfsFileSystemFactory(hdfsEnvironment, HDFS_FILE_SYSTEM_STATS)),
                 new HdfsFileSystemFactory(hdfsEnvironment, HDFS_FILE_SYSTEM_STATS),
                 hivePartitionManager,
                 newDirectExecutorService(),
