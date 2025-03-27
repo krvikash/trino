@@ -39,6 +39,7 @@ import static io.trino.spi.StandardErrorCode.EXCEEDED_CPU_LIMIT;
 import static io.trino.spi.StandardErrorCode.EXCEEDED_SCAN_LIMIT;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Fail.fail;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
@@ -130,6 +131,35 @@ public class TestQueryManager
             BasicQueryInfo queryInfo = queryManager.getQueryInfo(queryId);
             assertThat(queryInfo.getState()).isEqualTo(FAILED);
             assertThat(queryInfo.getErrorCode()).isEqualTo(EXCEEDED_SCAN_LIMIT.toErrorCode());
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    public void testQueryMaxOutputDataSizeLimit()
+            throws Exception
+    {
+        try (QueryRunner queryRunner = TpchQueryRunner.builder().addExtraProperty("query.max-output-data-size", "200MB").build()) {
+            assertThatThrownBy(() -> queryRunner.execute("SELECT * FROM tpch.sf100.customer"))
+                    .hasMessage("Exceeded output data size limit of 200MB");
+            //Query with predicate produces ~170MB
+            queryRunner.execute("SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    public void testQueryMaxOutputDataSizeLimitSession()
+            throws Exception
+    {
+        try (QueryRunner queryRunner = TpchQueryRunner.builder().build()) {
+            Session session = Session.builder(queryRunner.getDefaultSession())
+                    .setSystemProperty("query_max_output_data_size", "200MB")
+                    .build();
+            assertThatThrownBy(() -> queryRunner.execute(session, "SELECT * FROM tpch.sf100.customer"))
+                    .hasMessage("Exceeded output data size limit of 200MB");
+            //Query with predicate produces ~170MB
+            queryRunner.execute(session, "SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
         }
     }
 }
