@@ -940,6 +940,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "snowflake.connection-private-key",
+                            "snowflake.connection-private-key.passphrase",
                             "snowflake.client-secret",
                             "snowflake.proxy.password",
                             "web-ui.shared-secret"))
@@ -965,6 +967,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "snowflake.connection-private-key",
+                            "snowflake.connection-private-key.passphrase",
                             "snowflake.client-secret",
                             "snowflake.proxy.password",
                             "web-ui.shared-secret"))
