@@ -263,7 +263,7 @@ public class UnityHiveMetastore
     }
 
     @Override
-    public void replaceTable(String databaseName, String tableName, Table newTable, PrincipalPrivileges principalPrivileges)
+    public void replaceTable(String databaseName, String tableName, Table newTable, PrincipalPrivileges principalPrivileges, Map<String, String> environmentContext)
     {
         throw new TrinoException(NOT_SUPPORTED, "replaceTable is not supported for Unity metastore");
     }
