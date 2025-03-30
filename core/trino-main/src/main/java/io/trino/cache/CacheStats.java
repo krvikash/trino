@@ -35,6 +35,8 @@ public class CacheStats
     private final DistributionStat cachedData = new DistributionStat();
     private final TimeStat revokeMemoryTime = new TimeStat();
     private final TimeStat cacheLookupTime = new TimeStat();
+    private final CounterStat sparedCpuTime = new CounterStat();
+    private final CounterStat missingStatForSparedCpuTime = new CounterStat();
 
     @Managed
     @Nested
@@ -113,6 +115,20 @@ public class CacheStats
         return cacheLookupTime;
     }
 
+    @Managed
+    @Nested
+    public CounterStat getSparedCpuTime()
+    {
+        return sparedCpuTime;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getMissingStatForSparedCpuTime()
+    {
+        return missingStatForSparedCpuTime;
+    }
+
     public void recordCacheMiss()
     {
         cacheMiss.update(1);
@@ -167,5 +183,18 @@ public class CacheStats
     public BlockTimer recordRevokeMemoryTime()
     {
         return revokeMemoryTime.time();
+    }
+
+    public void safeUpdateSparedCpuTime(long cpuNanos)
+    {
+        if (cpuNanos < 0) {
+            synchronized (sparedCpuTime) { // protect 2 parallel reduces
+                long update = Math.max(-1 * sparedCpuTime.getTotalCount(), cpuNanos);
+                sparedCpuTime.update(update);
+            }
+        }
+        else {
+            sparedCpuTime.update(cpuNanos);
+        }
     }
 }

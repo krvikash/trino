@@ -54,8 +54,7 @@ public class CacheDataOperator
             checkArgument(driverContext.getCacheDriverContext().isPresent(), "cacheDriverContext is empty");
             checkState(!closed, "Factory is already closed");
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, CacheDataOperator.class.getSimpleName());
-            CacheDriverContext cacheDriverContext = driverContext.getCacheDriverContext().get();
-            return new CacheDataOperator(operatorContext, maxSplitSizeInBytes, cacheDriverContext.cacheMetrics(), cacheDriverContext.cacheStats());
+            return new CacheDataOperator(operatorContext, maxSplitSizeInBytes);
         }
 
         @Override
@@ -75,6 +74,7 @@ public class CacheDataOperator
     private final CacheMetrics cacheMetrics;
     private final CacheStats cacheStats;
     private final LocalMemoryContext memoryContext;
+    private final CacheDriverContext cacheContext;
     private final long maxCacheSizeInBytes;
 
     @Nullable
@@ -84,19 +84,19 @@ public class CacheDataOperator
     private long cachedDataSize;
     private boolean finishing;
 
-    private CacheDataOperator(OperatorContext operatorContext, long maxCacheSizeInBytes, CacheMetrics cacheMetrics, CacheStats cacheStats)
+    private CacheDataOperator(OperatorContext operatorContext, long maxCacheSizeInBytes)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.memoryContext = operatorContext.newLocalUserMemoryContext(CacheDataOperator.class.getSimpleName());
-        CacheDriverContext cacheContext = operatorContext.getDriverContext().getCacheDriverContext()
+        this.cacheContext = operatorContext.getDriverContext().getCacheDriverContext()
                 .orElseThrow(() -> new IllegalArgumentException("Cache context is not present"));
+        this.cacheMetrics = cacheContext.cacheMetrics();
+        this.cacheStats = cacheContext.cacheStats();
         this.pageSink = cacheContext
                 .pageSink()
                 .orElseThrow(() -> new IllegalArgumentException("Cache page sink is not present"));
         memoryContext.setBytes(pageSink.getMemoryUsage());
         this.maxCacheSizeInBytes = maxCacheSizeInBytes;
-        this.cacheMetrics = requireNonNull(cacheMetrics, "cacheMetrics is null");
-        this.cacheStats = requireNonNull(cacheStats, "cacheStats is null");
         operatorContext.setLatestMetrics(cacheContext.metrics());
     }
 
@@ -151,6 +151,8 @@ public class CacheDataOperator
             pageSink = null;
             memoryContext.close();
 
+            recordCost();
+            recordPotentialGain();
             cacheMetrics.incrementSplitsCached();
             cacheStats.recordCacheData(cachedDataSize);
         }
@@ -177,5 +179,25 @@ public class CacheDataOperator
         pageSink.abort();
         pageSink = null;
         memoryContext.close();
+        recordCost();
+    }
+
+    private void recordCost()
+    {
+        // the cost of adaptation is neglected
+        cacheStats.safeUpdateSparedCpuTime(-1 * operatorContext.getCpuNanos());
+    }
+
+    private void recordPotentialGain()
+    {
+        long cpuNanos = 0;
+        for (OperatorContext currentContext : operatorContext.getDriverContext().getOperatorContexts()) {
+            if ((currentContext.getOperatorId() == operatorContext.getOperatorId())) {
+                cacheContext.recordPotentialGain(cpuNanos);
+                break;
+            }
+
+            cpuNanos += currentContext.getCpuNanos();
+        }
     }
 }

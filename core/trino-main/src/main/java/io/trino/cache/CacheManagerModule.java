@@ -33,5 +33,6 @@ public class CacheManagerModule
         binder.bind(ConnectorAwareAddressProvider.class).in(Scopes.SINGLETON);
         binder.bind(CacheController.class).in(Scopes.SINGLETON);
         newExporter(binder).export(CacheManagerRegistry.class).withGeneratedName();
+        binder.bind(CachePerformanceTracker.class).in(Scopes.SINGLETON);
     }
 }

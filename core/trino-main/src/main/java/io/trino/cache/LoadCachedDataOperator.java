@@ -13,6 +13,7 @@
  */
 package io.trino.cache;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.Split;
 import io.trino.operator.DriverContext;
@@ -20,13 +21,16 @@ import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
 import io.trino.operator.SourceOperator;
 import io.trino.operator.SourceOperatorFactory;
+import io.trino.plugin.base.metrics.LongCount;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.metrics.Metrics;
 import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
@@ -79,6 +83,8 @@ public class LoadCachedDataOperator
     private final OperatorContext operatorContext;
     private final PlanNodeId planNodeId;
     private final CacheStats cacheStats;
+    private final Optional<Long> sparedCpuNanos;
+    private final Metrics metrics;
     private final LocalMemoryContext memoryContext;
 
     @Nullable
@@ -92,11 +98,13 @@ public class LoadCachedDataOperator
         CacheDriverContext cacheContext = operatorContext.getDriverContext().getCacheDriverContext()
                 .orElseThrow(() -> new IllegalArgumentException("Cache context is not present"));
         this.cacheStats = cacheContext.cacheStats();
+        this.sparedCpuNanos = cacheContext.getSparedCpu();
         this.pageSource = cacheContext
                 .pageSource()
                 .orElseThrow(() -> new IllegalArgumentException("Cache page sink is not present"));
         memoryContext.setBytes(pageSource.getMemoryUsage());
-        operatorContext.setLatestMetrics(cacheContext.metrics());
+        this.metrics = cacheContext.metrics();
+        operatorContext.setLatestMetrics(metrics);
     }
 
     @Override
@@ -175,6 +183,18 @@ public class LoadCachedDataOperator
                 operatorContext.setLatestConnectorMetrics(pageSource.getMetrics());
                 pageSource = null;
                 memoryContext.close();
+
+                if (sparedCpuNanos.isEmpty()) {
+                    cacheStats.getMissingStatForSparedCpuTime().update(1);
+                    operatorContext.setLatestMetrics(metrics.mergeWith(new Metrics(ImmutableMap.of(
+                            "Missing stat for spared CPU time", new LongCount(1)))));
+                }
+                else {
+                    long cpuNanos = sparedCpuNanos.get() - operatorContext.getCpuNanos(); // reduce the cost of loading (the cost of adaptation is neglected)
+                    cacheStats.safeUpdateSparedCpuTime(cpuNanos);
+                    operatorContext.setLatestMetrics(metrics.mergeWith(new Metrics(ImmutableMap.of(
+                            "Spared CPU time (ns)", new LongCount(cpuNanos)))));
+                }
             }
         }
         catch (IOException exception) {

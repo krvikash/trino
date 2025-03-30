@@ -35,6 +35,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheManager.SplitCache;
 import io.trino.spi.cache.CacheSplitId;
+import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -76,6 +77,7 @@ public class CacheDriverFactory
 
     private final Session session;
     private final PageSourceProvider pageSourceProvider;
+    private final PlanSignature planSignature;
     private final SplitCache splitCache;
     private final JsonCodec<TupleDomain> tupleDomainCodec;
     private final TableHandle originalTableHandle;
@@ -87,6 +89,7 @@ public class CacheDriverFactory
     private final List<DriverFactory> alternatives;
     private final CacheMetrics cacheMetrics = new CacheMetrics();
     private final CacheStats cacheStats;
+    private final CachePerformanceTracker cachePerformanceTracker;
     private final Ticker ticker = Ticker.systemTicker();
 
     public CacheDriverFactory(
@@ -100,10 +103,12 @@ public class CacheDriverFactory
             Supplier<StaticDynamicFilter> commonDynamicFilterSupplier,
             Supplier<StaticDynamicFilter> originalDynamicFilterSupplier,
             List<DriverFactory> alternatives,
-            CacheStats cacheStats)
+            CacheStats cacheStats,
+            CachePerformanceTracker cachePerformanceTracker)
     {
         requireNonNull(planSignature, "planSignature is null");
         this.session = requireNonNull(session, "session is null");
+        this.planSignature = planSignature.signature();
         this.splitCache = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null").getCacheManager().getSplitCache(planSignature.signature());
         this.tupleDomainCodec = requireNonNull(tupleDomainCodec, "tupleDomainCodec is null");
         this.originalTableHandle = requireNonNull(originalTableHandle, "originalTableHandle is null");
@@ -116,6 +121,7 @@ public class CacheDriverFactory
         this.originalDynamicFilterSupplier = requireNonNull(originalDynamicFilterSupplier, "originalDynamicFilterSupplier is null");
         this.alternatives = requireNonNull(alternatives, "alternatives is null");
         this.cacheStats = requireNonNull(cacheStats, "cacheStats is null");
+        this.cachePerformanceTracker = requireNonNull(cachePerformanceTracker, "cachePerformanceTracker is null");
         this.pageSourceProvider = pageSourceProvider.createPageSourceProvider(originalTableHandle.catalogHandle());
     }
 
@@ -194,7 +200,7 @@ public class CacheDriverFactory
             cacheStats.recordCacheHit();
             return new DriverFactoryWithCacheContext(
                     alternatives.get(LOAD_PAGES_ALTERNATIVE),
-                    Optional.of(new CacheDriverContext(pageSource, Optional.empty(), dynamicFilter, cacheMetrics, cacheStats, Metrics.EMPTY)));
+                    Optional.of(new CacheDriverContext(pageSource, Optional.empty(), dynamicFilter, splitId, planSignature, cacheMetrics, cacheStats, cachePerformanceTracker, Metrics.EMPTY)));
         }
         else {
             cacheStats.recordCacheMiss();
@@ -209,7 +215,7 @@ public class CacheDriverFactory
             if (pageSink.isPresent()) {
                 return new DriverFactoryWithCacheContext(
                         alternatives.get(STORE_PAGES_ALTERNATIVE),
-                        Optional.of(new CacheDriverContext(Optional.empty(), pageSink, dynamicFilter, cacheMetrics, cacheStats, Metrics.EMPTY)));
+                        Optional.of(new CacheDriverContext(Optional.empty(), pageSink, dynamicFilter, splitId, planSignature, cacheMetrics, cacheStats, cachePerformanceTracker, Metrics.EMPTY)));
             }
             else {
                 cacheStats.recordSplitRejected();

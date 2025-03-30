@@ -22,6 +22,7 @@ import io.airlift.json.ObjectMapperProvider;
 import io.opentelemetry.api.trace.Span;
 import io.trino.cache.CacheConfig;
 import io.trino.cache.CacheManagerRegistry;
+import io.trino.cache.CachePerformanceTracker;
 import io.trino.cache.CacheStats;
 import io.trino.client.NodeVersion;
 import io.trino.connector.CatalogServiceProvider;
@@ -211,6 +212,7 @@ public final class TaskTestUtils
                 new TableExecuteContextManager(),
                 new ExchangeManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of())),
                 new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats, new InMemoryNodeManager()),
+                new CachePerformanceTracker(),
                 new JsonCodecFactory(new ObjectMapperProvider()).jsonCodec(TupleDomain.class),
                 new NodeVersion("test"),
                 new CompilerConfig());

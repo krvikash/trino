@@ -38,6 +38,7 @@ import io.trino.SystemSessionProperties;
 import io.trino.cache.CacheDataOperator.CacheDataOperatorFactory;
 import io.trino.cache.CacheDriverFactory;
 import io.trino.cache.CacheManagerRegistry;
+import io.trino.cache.CachePerformanceTracker;
 import io.trino.cache.CacheStats;
 import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.cache.LoadCachedDataOperator.LoadCachedDataOperatorFactory;
@@ -441,6 +442,7 @@ public class LocalExecutionPlanner
     private final Optional<ExplainAnalyzeContext> explainAnalyzeContext;
     private final PageSourceManager pageSourceManager;
     private final CacheManagerRegistry cacheManagerRegistry;
+    private final CachePerformanceTracker cachePerformanceTracker;
     private final JsonCodec<TupleDomain> tupleDomainCodec;
     private final AlternativeChooser alternativeChooser;
     private final IndexManager indexManager;
@@ -525,6 +527,7 @@ public class LocalExecutionPlanner
             TableExecuteContextManager tableExecuteContextManager,
             ExchangeManagerRegistry exchangeManagerRegistry,
             CacheManagerRegistry cacheManagerRegistry,
+            CachePerformanceTracker cachePerformanceTracker,
             JsonCodec<TupleDomain> tupleDomainCodec,
             NodeVersion version,
             CompilerConfig compilerConfig)
@@ -575,6 +578,7 @@ public class LocalExecutionPlanner
         this.tableExecuteContextManager = requireNonNull(tableExecuteContextManager, "tableExecuteContextManager is null");
         this.exchangeManagerRegistry = requireNonNull(exchangeManagerRegistry, "exchangeManagerRegistry is null");
         this.cacheManagerRegistry = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null");
+        this.cachePerformanceTracker = requireNonNull(cachePerformanceTracker, "cachePerformanceTracker is null");
         this.tupleDomainCodec = requireNonNull(tupleDomainCodec, "tupleDomainCodec is null");
         this.positionsAppenderFactory = new PositionsAppenderFactory(blockTypeOperators);
         this.version = requireNonNull(version, "version is null");
@@ -801,7 +805,9 @@ public class LocalExecutionPlanner
                                 cacheContext.getCommonColumnHandles(),
                                 cacheContext.getCommonDynamicFilterSupplier(),
                                 cacheContext.getOriginalDynamicFilterSupplier(),
-                                ImmutableList.copyOf(alternatives.values()), cacheStats));
+                                ImmutableList.copyOf(alternatives.values()),
+                                cacheStats,
+                                cachePerformanceTracker));
                 driverFactories.add(new AlternativesAwareDriverFactory(
                         alternativeChooser,
                         taskContext.getSession(),
