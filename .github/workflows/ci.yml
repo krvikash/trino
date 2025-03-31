@@ -863,10 +863,6 @@ jobs:
             - { modules: plugin/starburst-sqlserver }
             - { modules: plugin/starburst-stargate, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
             - { modules: plugin/starburst-stargate-parallel, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/starburst-synapse }
-            - { modules: plugin/starburst-synapse, profile: fte-tests }
-            - { modules: plugin/starburst-synapse, profile: long-running-tests }
-            - { modules: plugin/starburst-synapse, profile: type-mapping-tests }
             - { modules: plugin/trino-bigquery }
             - { modules: plugin/trino-bigquery, profile: cloud-tests-2 }
             - { modules: plugin/trino-cassandra }
@@ -958,7 +954,6 @@ jobs:
         if: >-
           matrix.modules != 'plugin/trino-singlestore'
           && matrix.modules != 'plugin/starburst-snowflake'
-          && matrix.modules != 'plugin/starburst-synapse'
           && ! (contains(matrix.modules, 'trino-mongodb') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-bigquery') && contains(matrix.profile, 'cloud-tests-2'))
           && ! (contains(matrix.modules, 'trino-delta-lake') && contains(matrix.profile, 'cloud-tests'))
