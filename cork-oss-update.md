@@ -97,7 +97,7 @@ Action items:
 - [ ] No pinned items left on \`#tmp-cork-trino-update-${NEW}\` channel if it exists
       (check it only before final merge, as new pinned items can be added)
 EOF
-)&labels=salesforce"
+)&labels=salesforce,synapse"
 ```
 
 ### rebase OSS commits onto Cork codebase
