@@ -425,7 +425,7 @@ public class ChunkManager
         }
         catch (SpooledChunksByExchange.AlreadyFrozenException e) {
             // this is valid to get exchange remove request while node is draining
-            log.info("Exchange %s removed after spooled chunks map is already frozen", exchangeId);
+            log.debug("Exchange %s removed after spooled chunks map is already frozen", exchangeId);
         }
         recentlyRemovedExchanges.put(exchangeId, EXPLICIT);
         Exchange exchange = exchanges.remove(exchangeId);
