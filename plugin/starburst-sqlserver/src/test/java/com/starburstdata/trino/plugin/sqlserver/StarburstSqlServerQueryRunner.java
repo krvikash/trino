@@ -289,7 +289,7 @@ public final class StarburstSqlServerQueryRunner
         TestingSqlServer testingSqlServer = new TestingSqlServer();
 
         DistributedQueryRunner queryRunner = builder(testingSqlServer)
-                .withExtraProperties(ImmutableMap.of("http-server.http.port", "8080"))
+                .withCoordinatorProperties(ImmutableMap.of("http-server.http.port", "8080"))
                 .withTables(TpchTable.getTables())
                 .build();
 
