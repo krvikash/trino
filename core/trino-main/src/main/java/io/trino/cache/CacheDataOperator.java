@@ -130,7 +130,7 @@ public class CacheDataOperator
         // If there is no space for a page in a cache, stop caching this split and abort pageSink
         if (pageSink.getMemoryUsage() > maxCacheSizeInBytes) {
             abort();
-            cacheMetrics.incrementSplitsNotCached();
+            cacheMetrics.incrementTooBigSplitCount();
         }
     }
 

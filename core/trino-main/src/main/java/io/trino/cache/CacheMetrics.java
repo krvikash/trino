@@ -20,12 +20,12 @@ public class CacheMetrics
     /**
      * Counts number of splits not cached due to excessive split data size.
      */
-    private final AtomicInteger splitNotCachedCount = new AtomicInteger();
+    private final AtomicInteger tooBigSplitCount = new AtomicInteger();
     private final AtomicInteger splitCachedCount = new AtomicInteger();
 
-    public int getSplitNotCachedCount()
+    public int getTooBigSplitCount()
     {
-        return splitNotCachedCount.get();
+        return tooBigSplitCount.get();
     }
 
     public int getSplitCachedCount()
@@ -33,9 +33,9 @@ public class CacheMetrics
         return splitCachedCount.get();
     }
 
-    public void incrementSplitsNotCached()
+    public void incrementTooBigSplitCount()
     {
-        splitNotCachedCount.incrementAndGet();
+        tooBigSplitCount.incrementAndGet();
     }
 
     public void incrementSplitsCached()

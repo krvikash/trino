@@ -72,7 +72,7 @@ public class CacheDriverFactory
     static final int MAX_UNENFORCED_PREDICATE_VALUE_COUNT = 1_000_000;
     static final double DYNAMIC_FILTER_VALUES_HEURISTIC = 0.05;
 
-    public static final float THRASHING_CACHE_THRESHOLD = 0.7f;
+    public static final float TOO_BIG_SPLITS_THRESHOLD = 0.3f;
     public static final int MIN_PROCESSED_SPLITS = 16;
 
     private final Session session;
@@ -206,11 +206,11 @@ public class CacheDriverFactory
             cacheStats.recordCacheMiss();
         }
 
-        int processedSplitCount = cacheMetrics.getSplitNotCachedCount() + cacheMetrics.getSplitCachedCount();
-        float cachingRatio = processedSplitCount > MIN_PROCESSED_SPLITS ? cacheMetrics.getSplitCachedCount() / (float) processedSplitCount : 1.0f;
+        int processedSplitCount = cacheMetrics.getTooBigSplitCount() + cacheMetrics.getSplitCachedCount();
+        float tooBigSplitsRatio = processedSplitCount > MIN_PROCESSED_SPLITS ? cacheMetrics.getTooBigSplitCount() / (float) processedSplitCount : 0.0f;
         // try storing results instead
         // if splits are too large to be cached then do not try caching data as it adds extra computational cost
-        if (cachingRatio > THRASHING_CACHE_THRESHOLD) {
+        if (tooBigSplitsRatio <= TOO_BIG_SPLITS_THRESHOLD) {
             Optional<ConnectorPageSink> pageSink = splitCache.storePages(splitIdWithPredicates, projectedEnforcedPredicate.predicate(), projectedUnenforcedPredicate.predicate());
             if (pageSink.isPresent()) {
                 return new DriverFactoryWithCacheContext(
@@ -222,7 +222,7 @@ public class CacheDriverFactory
             }
         }
         else {
-            cacheStats.recordSplitsTooBig();
+            cacheStats.recordTooBigSplit();
         }
 
         // fallback to original subplan

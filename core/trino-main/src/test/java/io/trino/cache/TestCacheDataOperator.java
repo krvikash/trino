@@ -73,7 +73,7 @@ import java.util.stream.IntStream;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.block.BlockAssertions.createLongSequenceBlock;
 import static io.trino.cache.CacheDriverFactory.MIN_PROCESSED_SPLITS;
-import static io.trino.cache.CacheDriverFactory.THRASHING_CACHE_THRESHOLD;
+import static io.trino.cache.CacheDriverFactory.TOO_BIG_SPLITS_THRESHOLD;
 import static io.trino.cache.StaticDynamicFilter.createStaticDynamicFilterSupplier;
 import static io.trino.operator.PageTestUtils.createPage;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -143,7 +143,7 @@ public class TestCacheDataOperator
         cacheDataOperator.addInput(smallPage);
         assertThat(cacheDataOperator.getOutput()).isEqualTo(smallPage);
         cacheDataOperator.finish();
-        assertThat(cacheMetrics.getSplitNotCachedCount()).isEqualTo(0);
+        assertThat(cacheMetrics.getTooBigSplitCount()).isEqualTo(0);
         assertThat(cacheMetrics.getSplitCachedCount()).isEqualTo(1);
 
         // sink was aborted - there is no sufficient space in a cache. The page was passed through but split is not going to be cached
@@ -158,7 +158,7 @@ public class TestCacheDataOperator
         cacheDataOperator.finish();
 
         assertThat(cacheDataOperator.getOutput()).isEqualTo(bigPage);
-        assertThat(cacheMetrics.getSplitNotCachedCount()).isEqualTo(1);
+        assertThat(cacheMetrics.getTooBigSplitCount()).isEqualTo(1);
         assertThat(cacheMetrics.getSplitCachedCount()).isEqualTo(1);
     }
 
@@ -205,16 +205,16 @@ public class TestCacheDataOperator
         // process splits where split's page is small. All splits will be successfully cached
         createAndRunDriver(0, MIN_PROCESSED_SPLITS, cacheDriverFactory);
         assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
-        assertThat(cacheDriverFactory.getCacheMetrics().getSplitNotCachedCount()).isEqualTo(0);
+        assertThat(cacheDriverFactory.getCacheMetrics().getTooBigSplitCount()).isEqualTo(0);
 
-        int splitToBeRejectedCount = (int) Math.ceil((MIN_PROCESSED_SPLITS * (1.0f - THRASHING_CACHE_THRESHOLD)) / THRASHING_CACHE_THRESHOLD);
+        int splitToBeRejectedCount = (int) Math.ceil((MIN_PROCESSED_SPLITS * TOO_BIG_SPLITS_THRESHOLD) / (1.0f - TOO_BIG_SPLITS_THRESHOLD));
 
         // try to process splits that cannot be cached because its page sizes exceeds threshold size
         // caching is not going to be "disabled" because threshold was not exceeded.
         passThroughOperatorFactory.setPageSupplier(() -> bigPage);
         createAndRunDriver(MIN_PROCESSED_SPLITS, MIN_PROCESSED_SPLITS + splitToBeRejectedCount, cacheDriverFactory);
         assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
-        assertThat(cacheDriverFactory.getCacheMetrics().getSplitNotCachedCount()).isEqualTo(splitToBeRejectedCount);
+        assertThat(cacheDriverFactory.getCacheMetrics().getTooBigSplitCount()).isEqualTo(splitToBeRejectedCount);
 
         // exceed threshold
         CacheSplitId splitId = new CacheSplitId(String.format("split_%d", MIN_PROCESSED_SPLITS + splitToBeRejectedCount));
@@ -226,7 +226,7 @@ public class TestCacheDataOperator
             assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
         }
         assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
-        assertThat(cacheDriverFactory.getCacheMetrics().getSplitNotCachedCount()).isEqualTo(splitToBeRejectedCount);
+        assertThat(cacheDriverFactory.getCacheMetrics().getTooBigSplitCount()).isEqualTo(splitToBeRejectedCount);
     }
 
     private static PlanSignature createPlanSignature(String signature)
