@@ -69,10 +69,10 @@ public class AwsBedrockEmbeddingModelClient
     }
 
     @Override
-    public List<List<Double>> generateEmbeddings(List<Slice> sourceStrings)
+    public List<List<Float>> generateEmbeddings(List<Slice> sourceStrings)
     {
         Iterator<String> requests = embeddingCodec.generateBatchRequestBodies(Iterators.transform(sourceStrings.iterator(), slice -> stripWhitespace(slice.toStringUtf8())));
-        ImmutableList.Builder<List<Double>> embeddings = ImmutableList.builder();
+        ImmutableList.Builder<List<Float>> embeddings = ImmutableList.builder();
         while (requests.hasNext()) {
             String requestBody = requests.next();
             InvokeModelResponse response = bedrockRuntimeClient.invokeModel(builder -> {

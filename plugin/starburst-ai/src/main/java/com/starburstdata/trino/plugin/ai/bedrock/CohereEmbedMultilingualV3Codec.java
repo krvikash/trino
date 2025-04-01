@@ -101,13 +101,13 @@ public final class CohereEmbedMultilingualV3Codec
     }
 
     @Override
-    public List<List<Double>> parseBatchResponse(JsonNode responseBody)
+    public List<List<Float>> parseBatchResponse(JsonNode responseBody)
     {
-        ImmutableList.Builder<List<Double>> embeddings = ImmutableList.builder();
+        ImmutableList.Builder<List<Float>> embeddings = ImmutableList.builder();
         for (JsonNode embedding : responseBody.get("embeddings").get("float")) {
-            ImmutableList.Builder<Double> elements = ImmutableList.builder();
-            for (JsonNode doubleValue : embedding) {
-                elements.add(doubleValue.asDouble());
+            ImmutableList.Builder<Float> elements = ImmutableList.builder();
+            for (JsonNode floatValue : embedding) {
+                elements.add(floatValue.floatValue());
             }
             embeddings.add(elements.build());
         }

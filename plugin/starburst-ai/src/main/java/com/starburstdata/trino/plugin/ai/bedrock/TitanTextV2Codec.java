@@ -96,8 +96,8 @@ public final class TitanTextV2Codec
     }
 
     @Override
-    public List<List<Double>> parseBatchResponse(JsonNode responseBody)
+    public List<List<Float>> parseBatchResponse(JsonNode responseBody)
     {
-        return List.of(parseResponse(responseBody));
+        return List.of(parseResponse(responseBody).stream().map(Double::floatValue).toList());
     }
 }

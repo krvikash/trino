@@ -21,5 +21,5 @@ public interface EmbeddingModelClient
 {
     List<Double> generateEmbedding(Slice sourceString);
 
-    List<List<Double>> generateEmbeddings(List<Slice> sourceStrings);
+    List<List<Float>> generateEmbeddings(List<Slice> sourceStrings);
 }

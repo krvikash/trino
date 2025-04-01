@@ -27,7 +27,7 @@ public interface AwsEmbeddingCodec
 
     List<Double> parseResponse(JsonNode responseBody);
 
-    List<List<Double>> parseBatchResponse(JsonNode responseBody);
+    List<List<Float>> parseBatchResponse(JsonNode responseBody);
 
     interface Factory
     {

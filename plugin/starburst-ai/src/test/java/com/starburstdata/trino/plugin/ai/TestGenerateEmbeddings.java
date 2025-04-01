@@ -125,6 +125,24 @@ public class TestGenerateEmbeddings
     {
         try (TestTable table = newTrinoTable(
                 "test_generate_embeddings_table_function_",
+                "(id INT, data VARCHAR, embedding ARRAY(REAL))")) {
+            assertUpdate("""
+                    INSERT INTO %s (id, data, embedding)
+                    SELECT id, data, embedding
+                    FROM TABLE(ai.ai.generate_embeddings(
+                      embedding_column => DESCRIPTOR(embedding),
+                      data_column => DESCRIPTOR(data),
+                      source => TABLE(SELECT * FROM (VALUES (0, 'apple'), (1, 'orange'), (2, null), (3, ''), (4, 'cat'), (5, 'dog'), (6, 'shirt'), (7, 'pants')) AS t (id, data)),
+                      model_id => '%s'))
+                    """.formatted(table.getName(), modelId), 8);
+
+            assertQuery(
+                    "SELECT id, data FROM (SELECT id, data, cosine_similarity(embedding, ai.ai.generate_embedding('animal', '%2$s')) AS similarity FROM %1$s ORDER BY similarity DESC LIMIT 2)".formatted(table.getName(), modelId),
+                    "VALUES (4, 'cat'), (5, 'dog')");
+        }
+
+        try (TestTable table = newTrinoTable(
+                "test_generate_embeddings_table_function_",
                 "(data VARCHAR, embedding ARRAY(DOUBLE))")) {
             assertUpdate("""
                     INSERT INTO %s (data, embedding)

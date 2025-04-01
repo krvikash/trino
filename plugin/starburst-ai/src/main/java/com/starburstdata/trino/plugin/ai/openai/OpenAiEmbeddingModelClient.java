@@ -64,9 +64,9 @@ public class OpenAiEmbeddingModelClient
     }
 
     @Override
-    public List<List<Double>> generateEmbeddings(List<Slice> sourceStrings)
+    public List<List<Float>> generateEmbeddings(List<Slice> sourceStrings)
     {
-        ImmutableList.Builder<List<Double>> results = ImmutableList.builder();
+        ImmutableList.Builder<List<Float>> results = ImmutableList.builder();
         for (List<Slice> sourceStringsBatch : Lists.partition(sourceStrings, BATCH_SIZE)) {
             List<String> values = sourceStringsBatch.stream().map(Slice::toStringUtf8).toList();
             EmbeddingCreateParams.Builder params = EmbeddingCreateParams.builder()
@@ -74,7 +74,10 @@ public class OpenAiEmbeddingModelClient
                     .model(modelName);
             dimensions.ifPresent(params::dimensions);
             CreateEmbeddingResponse response = client.embeddings().create(params.build());
-            results.addAll(response.data().stream().map(Embedding::embedding).toList());
+            response.data().stream()
+                    .map(Embedding::embedding)
+                    .map(embedding -> embedding.stream().map(Double::floatValue).toList())
+                    .forEach(results::add);
         }
 
         return results.build();

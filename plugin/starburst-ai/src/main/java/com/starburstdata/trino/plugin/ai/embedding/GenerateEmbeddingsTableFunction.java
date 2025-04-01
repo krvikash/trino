@@ -35,7 +35,7 @@ import io.trino.spi.function.table.TableFunctionAnalysis;
 import io.trino.spi.function.table.TableFunctionDataProcessor;
 import io.trino.spi.function.table.TableFunctionProcessorProvider;
 import io.trino.spi.type.ArrayType;
-import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.RealType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.VarcharType;
 
@@ -145,7 +145,7 @@ public class GenerateEmbeddingsTableFunction
         }
 
         ImmutableList.Builder<Descriptor.Field> returnedColumns = ImmutableList.builder();
-        returnedColumns.add(new Descriptor.Field(getOnlyElement(embeddingColumnDescriptor.getFields()).getName().orElseThrow(), Optional.of(new ArrayType(DoubleType.DOUBLE))));
+        returnedColumns.add(new Descriptor.Field(getOnlyElement(embeddingColumnDescriptor.getFields()).getName().orElseThrow(), Optional.of(new ArrayType(RealType.REAL))));
 
         return TableFunctionAnalysis.builder()
                 .requiredColumns(SOURCE_ARGUMENT_NAME, requiredColumns.build())

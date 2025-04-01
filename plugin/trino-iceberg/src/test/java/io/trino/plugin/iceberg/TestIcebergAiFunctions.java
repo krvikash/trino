@@ -72,6 +72,16 @@ public class TestIcebergAiFunctions
                     "VALUES 'cat', 'dog'");
         }
 
+        try (TestTable table = newTrinoTable("test_generate_embeddings_procedure", "(data VARCHAR)")) {
+            assertUpdate("INSERT INTO %s VALUES 'apple', 'orange', 'cat', 'dog', null, '', 'shirt', 'pants'".formatted(table.getName()), 8);
+            assertUpdate("ALTER TABLE %s ADD COLUMN embedding ARRAY(REAL)".formatted(table.getName()));
+            assertUpdate("ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'openai')".formatted(table.getName()));
+
+            assertQuery(
+                    "SELECT data FROM (SELECT data, cosine_similarity(embedding, ai.ai.generate_embedding('animal', 'openai')) AS similarity FROM %s ORDER BY similarity DESC LIMIT 2)".formatted(table.getName()),
+                    "VALUES 'cat', 'dog'");
+        }
+
         try (TestTable table = newTrinoTable(
                 "test_generate_embeddings_procedure_partitioned_table_",
                 "(c1 INT, data VARCHAR) WITH (partitioning = ARRAY['c1', 'data'])")) {

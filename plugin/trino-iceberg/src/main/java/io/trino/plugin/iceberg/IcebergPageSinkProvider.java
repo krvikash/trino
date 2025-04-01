@@ -34,6 +34,7 @@ import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
@@ -46,6 +47,7 @@ import java.util.Optional;
 
 import static com.google.common.collect.Maps.transformValues;
 import static io.trino.plugin.iceberg.IcebergUtil.getLocationProvider;
+import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
 import static java.util.Objects.requireNonNull;
 
 public class IcebergPageSinkProvider
@@ -219,12 +221,14 @@ public class IcebergPageSinkProvider
 
         Optional<Integer> dataColumnChannel = Optional.empty();
         Optional<Integer> embeddingColumnChannel = Optional.empty();
+        Optional<ArrayType> embeddingColumnType = Optional.empty();
         for (int columnIndex = 0; columnIndex < schema.columns().size(); columnIndex++) {
             if (schema.columns().get(columnIndex).fieldId() == generateEmbeddingsHandle.dataColumnFieldId()) {
                 dataColumnChannel = Optional.of(columnIndex);
             }
             if (schema.columns().get(columnIndex).fieldId() == generateEmbeddingsHandle.embeddingColumnFieldId()) {
                 embeddingColumnChannel = Optional.of(columnIndex);
+                embeddingColumnType = Optional.of((ArrayType) toTrinoType(schema.columns().get(columnIndex).type(), typeManager));
             }
         }
 
@@ -232,6 +236,7 @@ public class IcebergPageSinkProvider
                 delegatePageSink,
                 dataColumnChannel.orElseThrow(),
                 embeddingColumnChannel.orElseThrow(),
+                embeddingColumnType.orElseThrow(),
                 embeddingClientProvider.embeddingModelClient(Slices.utf8Slice(generateEmbeddingsHandle.modelId())));
     }
 }

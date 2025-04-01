@@ -131,6 +131,7 @@ import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.MapType;
+import io.trino.spi.type.RealType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimestampType;
@@ -1882,9 +1883,10 @@ public class IcebergMetadata
 
         checkProcedureArgument(embeddingColumn.isPresent(), "embedding_column does not exist: %s", embeddingColumnName);
         checkProcedureArgument(dataColumn.isPresent(), "data_column does not exist: %s", dataColumnName);
+        TypeSignature embeddingType = toTrinoType(embeddingColumn.get().type(), typeManager).getTypeSignature();
         checkProcedureArgument(
-                toTrinoType(embeddingColumn.get().type(), typeManager).getTypeSignature().equals(TypeSignature.arrayType(DoubleType.DOUBLE.getTypeSignature())),
-                "embedding_column must reference a column with type ARRAY(DOUBLE)");
+                embeddingType.equals(TypeSignature.arrayType(DoubleType.DOUBLE.getTypeSignature())) || embeddingType.equals(TypeSignature.arrayType(RealType.REAL.getTypeSignature())),
+                "embedding_column must reference a column with type ARRAY(DOUBLE) or ARRAY(REAL)");
         checkProcedureArgument(
                 toTrinoType(dataColumn.get().type(), typeManager).equals(VARCHAR),
                 "data_column must reference a column with type VARCHAR");

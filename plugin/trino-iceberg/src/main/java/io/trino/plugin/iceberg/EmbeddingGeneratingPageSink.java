@@ -19,15 +19,20 @@ import io.airlift.slice.Slice;
 import io.trino.spi.Page;
 import io.trino.spi.block.ArrayBlockBuilder;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeSignature;
 import io.trino.spi.type.VarcharType;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 
 import static java.util.Objects.requireNonNull;
 
@@ -37,13 +42,15 @@ public class EmbeddingGeneratingPageSink
     private final ConnectorPageSink delegate;
     private final int dataColumnChannel;
     private final int embeddingColumnChannel;
+    private final ArrayType embeddingColumnType;
     private final EmbeddingModelClient embeddingModelClient;
 
-    public EmbeddingGeneratingPageSink(ConnectorPageSink delegate, int dataColumnChannel, int embeddingColumnChannel, EmbeddingModelClient embeddingModelClient)
+    public EmbeddingGeneratingPageSink(ConnectorPageSink delegate, int dataColumnChannel, int embeddingColumnChannel, ArrayType embeddingColumnType, EmbeddingModelClient embeddingModelClient)
     {
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.dataColumnChannel = dataColumnChannel;
         this.embeddingColumnChannel = embeddingColumnChannel;
+        this.embeddingColumnType = requireNonNull(embeddingColumnType, "embeddingColumnType is null");
         this.embeddingModelClient = requireNonNull(embeddingModelClient, "embeddingModelClient is null");
     }
 
@@ -85,19 +92,19 @@ public class EmbeddingGeneratingPageSink
 
             data.add(row);
         }
-        Iterator<List<Double>> embeddings = embeddingModelClient.generateEmbeddings(data.build()).iterator();
+        Iterator<List<Float>> embeddings = embeddingModelClient.generateEmbeddings(data.build()).iterator();
 
-        ArrayType arrayType = new ArrayType(DoubleType.DOUBLE);
-        ArrayBlockBuilder embeddingsBlock = arrayType.createBlockBuilder(null, page.getPositionCount());
+        BiConsumer<BlockBuilder, Float> blockWriter = blockWriterForType(embeddingColumnType.getElementType());
+        ArrayBlockBuilder embeddingsBlock = embeddingColumnType.createBlockBuilder(null, page.getPositionCount());
         for (int position = 0; position < page.getPositionCount(); position++) {
             if (isNullOrEmpty[position]) {
                 embeddingsBlock.appendNull();
             }
             else {
                 embeddingsBlock.buildEntry(elementBuilder -> {
-                    List<Double> embedding = embeddings.next();
-                    for (Double datum : embedding) {
-                        DoubleType.DOUBLE.writeDouble(elementBuilder, datum);
+                    List<Float> embedding = embeddings.next();
+                    for (Float datum : embedding) {
+                        blockWriter.accept(elementBuilder, datum);
                     }
                 });
             }
@@ -114,6 +121,22 @@ public class EmbeddingGeneratingPageSink
         }
 
         return delegate.appendPage(new Page(blocks));
+    }
+
+    private static BiConsumer<BlockBuilder, Float> blockWriterForType(Type embeddingColumnType)
+    {
+        TypeSignature embeddingTypeSignature = embeddingColumnType.getTypeSignature();
+        BiConsumer<BlockBuilder, Float> blockWriter;
+        if (embeddingTypeSignature == DoubleType.DOUBLE.getTypeSignature()) {
+            blockWriter = DoubleType.DOUBLE::writeDouble;
+        }
+        else if (embeddingTypeSignature == RealType.REAL.getTypeSignature()) {
+            blockWriter = RealType.REAL::writeFloat;
+        }
+        else {
+            throw new IllegalStateException("generate_embeddings only supports embedding columns with type ARRAY(REAL) or ARRAY(DOUBLE)");
+        }
+        return blockWriter;
     }
 
     @Override

@@ -25,7 +25,7 @@ import io.trino.spi.function.table.TableFunctionDataProcessor;
 import io.trino.spi.function.table.TableFunctionProcessorState;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
-import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.RealType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
@@ -79,7 +79,7 @@ public class GenerateEmbeddingsFunctionDataProcessor
             content.add(rowValue);
         }
 
-        List<List<Double>> data;
+        List<List<Float>> data;
         try {
             data = embeddingModelClient.generateEmbeddings(content);
         }
@@ -92,20 +92,20 @@ public class GenerateEmbeddingsFunctionDataProcessor
 
         BlockBuilder passThroughBlock = BigintType.BIGINT.createBlockBuilder(null, sourceStrings.getPositionCount());
 
-        Type arrayType = new ArrayType(DoubleType.DOUBLE);
+        Type arrayType = new ArrayType(RealType.REAL);
         ArrayBlockBuilder pageEncodingBlockBuilder = (ArrayBlockBuilder) arrayType.createBlockBuilder(null, data.size());
 
-        Iterator<List<Double>> nextEmbedding = data.iterator();
+        Iterator<List<Float>> nextEmbedding = data.iterator();
 
         for (int position = 0; position < sourceStrings.getPositionCount(); position++) {
             if (isNullOrEmpty[position]) {
                 pageEncodingBlockBuilder.appendNull();
             }
             else {
-                List<Double> encoding = nextEmbedding.next();
+                List<Float> encoding = nextEmbedding.next();
                 pageEncodingBlockBuilder.buildEntry(longArrayBlockBuilder -> {
-                    for (Double datum : encoding) {
-                        DoubleType.DOUBLE.writeDouble(longArrayBlockBuilder, datum);
+                    for (Float datum : encoding) {
+                        RealType.REAL.writeFloat(longArrayBlockBuilder, datum);
                     }
                 });
             }
