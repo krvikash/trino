@@ -71,14 +71,14 @@ public final class SynapseQueryRunner
     }
 
     public static DistributedQueryRunner createSynapseQueryRunner(
-            Map<String, String> extraProperties,
+            Map<String, String> coordinatorProperties,
             SynapseServer synapseServer,
             String catalogName,
             Map<String, String> connectorProperties,
             Iterable<TpchTable<?>> tables)
             throws Exception
     {
-        return createSynapseQueryRunner(extraProperties, synapseServer, catalogName, connectorProperties, Map.of(), tables, Optional.empty(), runner -> {});
+        return createSynapseQueryRunner(Map.of(), synapseServer, catalogName, connectorProperties, coordinatorProperties, tables, Optional.empty(), runner -> {});
     }
 
     public static DistributedQueryRunner createSynapseQueryRunner(
