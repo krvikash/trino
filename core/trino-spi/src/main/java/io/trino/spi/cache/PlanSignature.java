@@ -86,6 +86,11 @@ public class PlanSignature
         return groupByColumns;
     }
 
+    public boolean isAggregation()
+    {
+        return groupByColumns.isPresent();
+    }
+
     @JsonProperty
     public List<CacheColumnId> getColumns()
     {

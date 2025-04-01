@@ -49,6 +49,7 @@ import static io.trino.plugin.memory.TestUtils.assertBlockEquals;
 import static io.trino.spi.cache.PlanSignature.canonicalizePlanSignature;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.nCopies;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -324,6 +325,22 @@ public class TestMemoryCacheManager
         cacheManager.revokeMemory(500_000);
         assertThat(cacheA.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all())).isPresent();
         assertThat(cacheB.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all())).isEmpty();
+
+        // add an aggregation split
+        SplitCache cacheAgg = cacheManager.getSplitCache(createAggregationPlanSignature("AggregationSig", COLUMN1));
+        sinkOptional = cacheAgg.storePages(SPLIT1, TupleDomain.all(), TupleDomain.all());
+        assertThat(sinkOptional).isPresent();
+        sinkOptional.get().appendPage(oneMegabytePage);
+        sinkOptional.get().finish();
+
+        assertThat(cacheAgg.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all())).isPresent();
+        assertThat(cacheA.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all())).isPresent();
+
+        // Aggregations should be revoked last
+        cacheManager.revokeMemory(500_000);
+        assertThat(cacheAgg.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all())).isPresent();
+        assertThat(cacheA.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all())).isEmpty();
+        assertThat(cacheB.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all())).isEmpty();
     }
 
     @Test
@@ -485,6 +502,15 @@ public class TestMemoryCacheManager
         return new PlanSignature(
                 new SignatureKey(signature),
                 Optional.empty(),
+                ImmutableList.copyOf(ids),
+                Stream.of(ids).map(ignore -> (Type) INTEGER).collect(toImmutableList()));
+    }
+
+    private static PlanSignature createAggregationPlanSignature(String signature, CacheColumnId... ids)
+    {
+        return new PlanSignature(
+                new SignatureKey(signature),
+                Optional.of(emptyList()),
                 ImmutableList.copyOf(ids),
                 Stream.of(ids).map(ignore -> (Type) INTEGER).collect(toImmutableList()));
     }

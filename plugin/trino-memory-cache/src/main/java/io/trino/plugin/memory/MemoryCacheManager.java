@@ -17,6 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.slice.Slice;
@@ -92,7 +93,7 @@ public class MemoryCacheManager
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock revokeLock = new ReentrantReadWriteLock();
     @GuardedBy("lock")
-    private final LinkedListMultimap<SplitKey, Channel> splitCache = LinkedListMultimap.create();
+    private final SplitCacheMap splitCache = new SplitCacheMap();
     @GuardedBy("lock")
     private final ObjectToIdMap<PlanSignature> signatureToId = new ObjectToIdMap<>(PlanSignature::getRetainedSizeInBytes);
     @GuardedBy("lock")
@@ -168,7 +169,7 @@ public class MemoryCacheManager
     {
         checkPredicates(ids, predicate, unenforcedPredicate);
         return getLoadedChannelsWithSameStoreId(ids, splitId, predicate, unenforcedPredicate)
-                .map(channels -> new MemoryCachePageSource(updateChannels(channels.toArray(new Channel[0]))));
+                .map(channels -> new MemoryCachePageSource(updateChannels(channels.toArray(new Channel[0]), ids.isHighPriority())));
     }
 
     private Optional<ConnectorPageSink> storePages(SignatureIds ids, CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
@@ -194,14 +195,14 @@ public class MemoryCacheManager
         checkArgument(ids.columnSet().containsAll(unenforcedPredicate.getDomains().orElse(ImmutableMap.of()).keySet()), "Unenforced predicate references missing column");
     }
 
-    private Channel[] updateChannels(Channel[] channels)
+    private Channel[] updateChannels(Channel[] channels, boolean isHighPriority)
     {
         // make channels the freshest in cache
         runWithLock(lock.writeLock(), () -> {
             for (Channel channel : channels) {
-                if (removeChannel(channel)) {
+                if (splitCache.removeChannel(channel, isHighPriority)) {
                     // channel might have been purged in the meantime
-                    splitCache.put(channel.getKey(), channel);
+                    splitCache.put(channel.getKey(), channel, isHighPriority);
                 }
             }
         });
@@ -228,7 +229,7 @@ public class MemoryCacheManager
             signatureToId.acquireId(ids.signatureId(), keys.length);
             for (int i = 0; i < keys.length; i++) {
                 columnToId.acquireId(keys[i].columnId());
-                splitCache.put(keys[i], channels[i]);
+                splitCache.put(keys[i], channels[i], ids.isHighPriority());
             }
 
             return Optional.of(new MemoryCachePageSink(ids, predicateIds, channels));
@@ -375,28 +376,10 @@ public class MemoryCacheManager
             predicateToId.releaseId(predicateIds.predicateId(), channels.length);
             predicateToId.releaseId(predicateIds.unenforcedPredicateId(), channels.length);
             for (Channel channel : channels) {
-                checkState(removeChannel(channel), "Expected channel to be removed");
+                checkState(splitCache.removeChannel(channel, signatureIds.isHighPriority), "Expected channel to be removed");
                 columnToId.releaseId(channel.getKey().columnId());
             }
         });
-    }
-
-    private boolean removeChannel(Channel channel)
-    {
-        boolean removed = false;
-        // Multimap remove(key, elem) can take significant about of time if list of elements
-        // for a given key is large. However, aborted channels are usually the latest elements,
-        // therefore we can search for a given channel by reversing the elements list.
-        // Ideally, we could keep pointer to a Channel entry in a LinkedListMultimap, but the API
-        // doesn't expose that.
-        for (Iterator<Channel> iterator = reverse(splitCache.get(channel.getKey())).iterator(); iterator.hasNext(); ) {
-            if (iterator.next() == channel) {
-                iterator.remove();
-                removed = true;
-                break;
-            }
-        }
-        return removed;
     }
 
     /**
@@ -408,9 +391,8 @@ public class MemoryCacheManager
             long initialRevocableBytes = getRevocableBytes();
             for (Channel splitChannel : splitChannels) {
                 SplitKey key = splitChannel.getKey();
-                List<Channel> channels = splitCache.get(key);
-                int counter = channels.size() - MAX_CACHED_CHANNELS_PER_COLUMN;
-                for (Iterator<Channel> iterator = channels.iterator(); iterator.hasNext() && counter > 0; counter--) {
+                int counter = splitCache.getChannelsCount(key) - MAX_CACHED_CHANNELS_PER_COLUMN;
+                for (Iterator<Channel> iterator = splitCache.getIterable(key).iterator(); iterator.hasNext() && counter > 0; counter--) {
                     Channel channel = iterator.next();
 
                     if (!channel.isLoaded()) {
@@ -444,7 +426,7 @@ public class MemoryCacheManager
 
             long initialRevocableBytes = getRevocableBytes();
             int elementsToRevoke = maxElementsToRevoke;
-            for (Iterator<Map.Entry<SplitKey, Channel>> iterator = splitCache.entries().iterator(); iterator.hasNext(); ) {
+            for (Iterator<Map.Entry<SplitKey, Channel>> iterator = splitCache.iterator(); iterator.hasNext(); ) {
                 if (stopCondition.getAsBoolean() || elementsToRevoke <= 0) {
                     break;
                 }
@@ -489,11 +471,11 @@ public class MemoryCacheManager
             for (int i = 0; i < columnIds.length; i++) {
                 columnIds[i] = columnToId.allocateId(signature.getColumns().get(i));
             }
-            return new SignatureIds(signatureId, columnSet, columnIds, signature.getColumns());
+            return new SignatureIds(signatureId, columnSet, columnIds, signature.getColumns(), signature.isAggregation());
         });
     }
 
-    private record SignatureIds(long signatureId, Set<CacheColumnId> columnSet, long[] columnIds, List<CacheColumnId> columns) {}
+    private record SignatureIds(long signatureId, Set<CacheColumnId> columnSet, long[] columnIds, List<CacheColumnId> columns, boolean isHighPriority) {}
 
     private void releaseSignatureIds(SignatureIds ids)
     {
@@ -817,6 +799,78 @@ public class MemoryCacheManager
         public long getStoreId()
         {
             return storeId;
+        }
+    }
+
+    public static class SplitCacheMap
+            implements Iterable<Map.Entry<SplitKey, Channel>>
+    {
+        // Entries in the lowPriority map will be removed first, regardless of the order in which they were added.
+        private final LinkedListMultimap<SplitKey, Channel> lowPriority = LinkedListMultimap.create();
+        private final LinkedListMultimap<SplitKey, Channel> highPriority = LinkedListMultimap.create();
+
+        public void put(SplitKey key, Channel value, boolean isHighPriority)
+        {
+            if (isHighPriority) {
+                highPriority.put(key, value);
+            }
+            else {
+                lowPriority.put(key, value);
+            }
+        }
+
+        public List<Channel> get(SplitKey key)
+        {
+            List<Channel> result = new ArrayList<>();
+            result.addAll(lowPriority.get(key));
+            result.addAll(highPriority.get(key));
+            return result;
+        }
+
+        public int getChannelsCount(SplitKey key)
+        {
+            return lowPriority.get(key).size() + highPriority.get(key).size();
+        }
+
+        public Iterable<Channel> getIterable(SplitKey key)
+        {
+            return Iterables.concat(lowPriority.get(key), highPriority.get(key));
+        }
+
+        public int size()
+        {
+            return lowPriority.size() + highPriority.size();
+        }
+
+        public boolean isEmpty()
+        {
+            return lowPriority.isEmpty() && highPriority.isEmpty();
+        }
+
+        private boolean removeChannel(Channel channel, boolean isHighPriority)
+        {
+            boolean removed = false;
+            LinkedListMultimap<SplitKey, Channel> map = isHighPriority ? highPriority : lowPriority;
+
+            // Multimap remove(key, elem) can take significant amount of time if list of elements
+            // for a given key is large. However, aborted channels are usually the latest elements,
+            // therefore we can search for a given channel by reversing the elements list.
+            // Ideally, we could keep pointer to a Channel entry in a LinkedListMultimap, but the API
+            // doesn't expose that.
+            for (Iterator<Channel> iterator = reverse(map.get(channel.getKey())).iterator(); iterator.hasNext(); ) {
+                if (iterator.next() == channel) {
+                    iterator.remove();
+                    removed = true;
+                    break;
+                }
+            }
+            return removed;
+        }
+
+        @Override
+        public Iterator<Map.Entry<SplitKey, Channel>> iterator()
+        {
+            return Iterables.concat(lowPriority.entries(), highPriority.entries()).iterator();
         }
     }
 }
