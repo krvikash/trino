@@ -71,6 +71,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static io.trino.plugin.deltalake.DeltaLakeAnalyzeProperties.AnalyzeMode.FULL_REFRESH;
 import static io.trino.plugin.deltalake.DeltaLakeTableHandle.WriteType.UPDATE;
@@ -112,7 +113,8 @@ public class TestDeltaLakeCacheIds
                 config,
                 fileFormatDataSourceStats,
                 HDFS_FILE_SYSTEM_FACTORY,
-                new ParquetReaderConfig());
+                new ParquetReaderConfig(),
+                newDirectExecutorService());
         CheckpointWriterManager checkpointWriterManager = new CheckpointWriterManager(
                 typeManager,
                 new CheckpointSchemaManager(typeManager),
@@ -120,7 +122,9 @@ public class TestDeltaLakeCacheIds
                 new NodeVersion("test_version"),
                 transactionLogAccess,
                 new FileFormatDataSourceStats(),
-                JsonCodec.jsonCodec(LastCheckpoint.class));
+                JsonCodec.jsonCodec(LastCheckpoint.class),
+                new DeltaLakeConfig(),
+                listeningDecorator(newDirectExecutorService()));
 
         HiveMetastoreFactory hiveMetastoreFactory = HiveMetastoreFactory.ofInstance(new UnimplementedHiveMetastore());
         TestingNodeManager nodeManager = new TestingNodeManager();
