@@ -175,6 +175,7 @@ final class TestMysqlEventListener
     private static final QueryIOMetadata FULL_QUERY_IO_METADATA = new QueryIOMetadata(
             List.of(
                     new QueryInputMetadata(
+                            Optional.of("connectorName1"),
                             "catalog1",
                             new CatalogVersion("default"),
                             "schema1",
@@ -185,6 +186,7 @@ final class TestMysqlEventListener
                             OptionalLong.of(201),
                             OptionalLong.of(202)),
                     new QueryInputMetadata(
+                            Optional.of("connectorName2"),
                             "catalog2",
                             new CatalogVersion("default"),
                             "schema2",
