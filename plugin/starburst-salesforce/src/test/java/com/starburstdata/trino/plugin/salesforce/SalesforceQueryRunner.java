@@ -65,7 +65,7 @@ public final class SalesforceQueryRunner
     }
 
     private static DistributedQueryRunner createQueryRunner(
-            Map<String, String> extraProperties,
+            Map<String, String> coordinatorProperties,
             String catalogName,
             Map<String, String> connectorProperties,
             Map<String, TpchTable<?>> tableNameMapper,
@@ -79,12 +79,12 @@ public final class SalesforceQueryRunner
         // As the CI builds times, the sandbox would quickly fill up and then the builds will fail
         // We also don't want to hit our API limit, so instead we just create the tables once but will assert
         // all the data is in the tables each CI run
-        copyTpchTablesIfNotExists(extraProperties, catalogName, connectorProperties, tableNameMapper);
+        copyTpchTablesIfNotExists(coordinatorProperties, catalogName, connectorProperties, tableNameMapper);
 
         DistributedQueryRunner queryRunner = null;
         try {
             DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(createSession(catalogName));
-            extraProperties.forEach(builder::addExtraProperty);
+            coordinatorProperties.forEach(builder::addCoordinatorProperty);
             queryRunner = builder.build();
 
             connectorProperties = new HashMap<>(ImmutableMap.copyOf(connectorProperties));
@@ -149,11 +149,11 @@ public final class SalesforceQueryRunner
         }
     }
 
-    private static void copyTpchTablesIfNotExists(Map<String, String> extraProperties, String catalogName, Map<String, String> connectorProperties, Map<String, TpchTable<?>> tableNameMapper)
+    private static void copyTpchTablesIfNotExists(Map<String, String> coordinatorProperties, String catalogName, Map<String, String> connectorProperties, Map<String, TpchTable<?>> tableNameMapper)
             throws Exception
     {
         DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(createSession(catalogName));
-        extraProperties.forEach(builder::addExtraProperty);
+        coordinatorProperties.forEach(builder::addCoordinatorProperty);
         try (DistributedQueryRunner queryRunner = builder.build()) {
             connectorProperties = new HashMap<>(ImmutableMap.copyOf(connectorProperties));
 
@@ -234,7 +234,7 @@ public final class SalesforceQueryRunner
         private Map<String, TpchTable<?>> tableNameMapper = Map.of();
         private String catalogName = "salesforce";
         private Map<String, String> connectorProperties;
-        private Map<String, String> extraProperties;
+        private Map<String, String> coordinatorProperties;
         private boolean enableWrites;
 
         public Builder()
@@ -245,7 +245,7 @@ public final class SalesforceQueryRunner
                     .put("salesforce.security-token", requireNonNull(System.getProperty("salesforce.test.basic.auth.security-token"), "salesforce.test.basic.auth.security-token is not set"))
                     .put("salesforce.enable-sandbox", "true")
                     .buildOrThrow();
-            extraProperties = ImmutableMap.of();
+            coordinatorProperties = ImmutableMap.of();
         }
 
         public Builder setCatalogName(String catalogName)
@@ -260,9 +260,9 @@ public final class SalesforceQueryRunner
             return this;
         }
 
-        public Builder addExtraProperties(Map<String, String> properties)
+        public Builder addCoordinatorProperties(Map<String, String> properties)
         {
-            extraProperties = updateProperties(extraProperties, properties);
+            coordinatorProperties = updateProperties(coordinatorProperties, properties);
             return this;
         }
 
@@ -288,7 +288,7 @@ public final class SalesforceQueryRunner
                 throws Exception
         {
             return createQueryRunner(
-                    extraProperties,
+                    coordinatorProperties,
                     catalogName,
                     connectorProperties,
                     tableNameMapper,
@@ -311,7 +311,7 @@ public final class SalesforceQueryRunner
 
         DistributedQueryRunner queryRunner = SalesforceQueryRunner.builder()
                 .enableWrites()
-                .addExtraProperties(ImmutableMap.of("http-server.http.port", "8080"))
+                .addCoordinatorProperties(ImmutableMap.of("http-server.http.port", "8080"))
                 .build();
 
         Logger log = Logger.get(SalesforceQueryRunner.class);
