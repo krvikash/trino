@@ -250,7 +250,7 @@ public final class StargateQueryRunner
                         .setCatalog("unspecified_catalog")
                         .setSchema("unspecified_schema")
                         .build())
-                .setExtraProperties(Map.of("http-server.http.port", "8081"))
+                .setCoordinatorProperties(Map.of("http-server.http.port", "8081"))
                 .setWorkerCount(0)// Coordinator only is perfectly enough until we do parallel Stargate connector
                 .build();
 
