@@ -216,9 +216,9 @@ public class DispatcherMetadata
     }
 
     @Override
-    public Optional<Object> getInfo(ConnectorTableHandle table)
+    public Optional<Object> getInfo(ConnectorSession session, ConnectorTableHandle table)
     {
-        return proxiedConnectorMetadata.getInfo(((DispatcherTableHandle) table).getProxyConnectorTableHandle());
+        return proxiedConnectorMetadata.getInfo(session, ((DispatcherTableHandle) table).getProxyConnectorTableHandle());
     }
 
     @Override
