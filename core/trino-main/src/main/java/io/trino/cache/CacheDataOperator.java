@@ -13,13 +13,16 @@
  */
 package io.trino.cache;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.DriverContext;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
+import io.trino.plugin.base.metrics.LongCount;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSink;
+import io.trino.spi.metrics.Metrics;
 import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.Nullable;
 
@@ -73,6 +76,7 @@ public class CacheDataOperator
     private final OperatorContext operatorContext;
     private final CacheMetrics cacheMetrics;
     private final CacheStats cacheStats;
+    private final Metrics metrics;
     private final LocalMemoryContext memoryContext;
     private final CacheDriverContext cacheContext;
     private final long maxCacheSizeInBytes;
@@ -97,7 +101,8 @@ public class CacheDataOperator
                 .orElseThrow(() -> new IllegalArgumentException("Cache page sink is not present"));
         memoryContext.setBytes(pageSink.getMemoryUsage());
         this.maxCacheSizeInBytes = maxCacheSizeInBytes;
-        operatorContext.setLatestMetrics(cacheContext.metrics());
+        this.metrics = cacheContext.metrics();
+        operatorContext.setLatestMetrics(metrics);
     }
 
     @Override
@@ -130,7 +135,10 @@ public class CacheDataOperator
         // If there is no space for a page in a cache, stop caching this split and abort pageSink
         if (pageSink.getMemoryUsage() > maxCacheSizeInBytes) {
             abort();
+            operatorContext.setLatestMetrics(metrics.mergeWith(new Metrics(ImmutableMap.of(
+                    "Too big split", new LongCount(1)))));
             cacheMetrics.incrementTooBigSplitCount();
+            cacheStats.recordTooBigSplit();
         }
     }
 

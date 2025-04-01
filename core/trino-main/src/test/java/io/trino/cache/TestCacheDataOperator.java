@@ -188,6 +188,7 @@ public class TestCacheDataOperator
                         OptionalInt.empty()),
                 prepareDriverFactory(operatorIdAllocator, 2, preparePassThroughOperator(() -> smallPage)));
 
+        CacheStats cacheStats = new CacheStats();
         CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
                 TEST_SESSION,
                 new TestPageSourceProviderFactory(),
@@ -199,13 +200,14 @@ public class TestCacheDataOperator
                 createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
                 createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
                 driverFactories,
-                new CacheStats(),
+                cacheStats,
                 new CachePerformanceTracker());
 
         // process splits where split's page is small. All splits will be successfully cached
         createAndRunDriver(0, MIN_PROCESSED_SPLITS, cacheDriverFactory);
         assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
         assertThat(cacheDriverFactory.getCacheMetrics().getTooBigSplitCount()).isEqualTo(0);
+        assertThat(cacheStats.getTooBigSplit().getTotalCount()).isEqualTo(0);
 
         int splitToBeRejectedCount = (int) Math.ceil((MIN_PROCESSED_SPLITS * TOO_BIG_SPLITS_THRESHOLD) / (1.0f - TOO_BIG_SPLITS_THRESHOLD));
 
@@ -215,6 +217,7 @@ public class TestCacheDataOperator
         createAndRunDriver(MIN_PROCESSED_SPLITS, MIN_PROCESSED_SPLITS + splitToBeRejectedCount, cacheDriverFactory);
         assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
         assertThat(cacheDriverFactory.getCacheMetrics().getTooBigSplitCount()).isEqualTo(splitToBeRejectedCount);
+        assertThat(cacheStats.getTooBigSplit().getTotalCount()).isEqualTo(splitToBeRejectedCount);
 
         // exceed threshold
         CacheSplitId splitId = new CacheSplitId(String.format("split_%d", MIN_PROCESSED_SPLITS + splitToBeRejectedCount));
@@ -227,6 +230,7 @@ public class TestCacheDataOperator
         }
         assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
         assertThat(cacheDriverFactory.getCacheMetrics().getTooBigSplitCount()).isEqualTo(splitToBeRejectedCount);
+        assertThat(cacheStats.getTooBigSplit().getTotalCount()).isEqualTo(splitToBeRejectedCount + 1);
     }
 
     private static PlanSignature createPlanSignature(String signature)
