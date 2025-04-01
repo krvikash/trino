@@ -42,7 +42,6 @@ import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.deltalake.DeltaLakeSecurityModule.DeltaLakeSecurity.READ_ONLY;
-import static io.trino.plugin.deltalake.DeltaLakeSecurityModule.DeltaLakeSecurity.UNITY;
 
 public class DeltaLakeUnityMetastoreModule
         extends AbstractConfigurationAwareModule
@@ -51,7 +50,7 @@ public class DeltaLakeUnityMetastoreModule
     protected void setup(Binder binder)
     {
         DeltaLakeSecurityConfig securityConfig = buildConfigObject(DeltaLakeSecurityConfig.class);
-        checkArgument(securityConfig.getSecuritySystem() == READ_ONLY || securityConfig.getSecuritySystem() == UNITY, "delta.security must be set to READ_ONLY or UNITY");
+        checkArgument(securityConfig.getSecuritySystem() == READ_ONLY, "delta.security must be set to READ_ONLY");
         configBinder(binder).bindConfig(UnityMetastoreConfig.class);
 
         binder.bind(UnityHiveMetastoreFactory.class).in(Scopes.SINGLETON);
