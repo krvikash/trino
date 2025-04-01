@@ -267,7 +267,7 @@ public class SnowflakeQueryRunner
                 .withConnectorProperties(ImmutableMap.<String, String>builder()
                         .putAll(impersonationDisabled())
                         .buildOrThrow())
-                .addExtraProperties(ImmutableMap.of("http-server.http.port", "8080"))
+                .addCoordinatorProperties(ImmutableMap.of("http-server.http.port", "8080"))
                 .build();
 
         Logger log = Logger.get(SnowflakeQueryRunner.class);
