@@ -29,10 +29,13 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import org.joda.time.DateTimeZone;
 
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TimeZone;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -98,6 +101,7 @@ public class IcebergConfig
     private int metadataParallelism = 8;
     private boolean bucketExecutionEnabled = true;
     private boolean fileBasedConflictDetectionEnabled = true;
+    private String outputTimeZone = "UTC";
 
     public CatalogType getCatalogType()
     {
@@ -593,6 +597,26 @@ public class IcebergConfig
     public IcebergConfig setFileBasedConflictDetectionEnabled(boolean fileBasedConflictDetectionEnabled)
     {
         this.fileBasedConflictDetectionEnabled = fileBasedConflictDetectionEnabled;
+        return this;
+    }
+
+    public DateTimeZone getOutputDateTimeZone()
+    {
+        TimeZone timeZone = TimeZone.getTimeZone(ZoneId.of(outputTimeZone));
+        return DateTimeZone.forTimeZone(timeZone);
+    }
+
+    @NotNull
+    public String getOutputTimeZone()
+    {
+        return outputTimeZone;
+    }
+
+    @Config("iceberg.output.time-zone")
+    @ConfigDescription("Time zone used for displaying timestamp with timezone values")
+    public IcebergConfig setOutputTimeZone(String outputTimeZone)
+    {
+        this.outputTimeZone = outputTimeZone;
         return this;
     }
 }

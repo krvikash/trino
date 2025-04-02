@@ -58,6 +58,7 @@ import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.Fixed12Block;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.RowBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
@@ -77,8 +78,10 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import org.apache.avro.file.DataFileStream;
@@ -101,6 +104,7 @@ import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
+import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -169,11 +173,19 @@ import static io.trino.plugin.iceberg.IcebergUtil.getPartitionValues;
 import static io.trino.plugin.iceberg.IcebergUtil.schemaFromHandles;
 import static io.trino.plugin.iceberg.util.OrcIcebergIds.fileColumnsByIcebergId;
 import static io.trino.plugin.iceberg.util.OrcTypeConverter.ORC_ICEBERG_ID_KEY;
+import static io.trino.spi.block.Fixed12Block.encodeFixed12;
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
 import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
+import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MICROSECOND;
+import static io.trino.spi.type.Timestamps.roundDiv;
+import static java.lang.Math.floorDiv;
+import static java.lang.Math.floorMod;
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
@@ -205,6 +217,7 @@ public class IcebergPageSourceProvider
     private final FileFormatDataSourceStats fileFormatDataSourceStats;
     private final OrcReaderOptions orcReaderOptions;
     private final ParquetReaderOptions parquetReaderOptions;
+    private final DateTimeZone outputDateTimeZone;
     private final TypeManager typeManager;
     private final DeleteManager unpartitionedTableDeleteManager;
     private final Map<Integer, Function<PartitionData, PartitionKey>> partitionKeyFactories = new ConcurrentHashMap<>();
@@ -215,12 +228,14 @@ public class IcebergPageSourceProvider
             FileFormatDataSourceStats fileFormatDataSourceStats,
             OrcReaderOptions orcReaderOptions,
             ParquetReaderOptions parquetReaderOptions,
+            DateTimeZone outputDateTimeZone,
             TypeManager typeManager)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileFormatDataSourceStats = requireNonNull(fileFormatDataSourceStats, "fileFormatDataSourceStats is null");
         this.orcReaderOptions = requireNonNull(orcReaderOptions, "orcReaderOptions is null");
         this.parquetReaderOptions = requireNonNull(parquetReaderOptions, "parquetReaderOptions is null");
+        this.outputDateTimeZone = requireNonNull(outputDateTimeZone, "outputDateTimeZone is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.unpartitionedTableDeleteManager = new DeleteManager(typeManager);
     }
@@ -371,6 +386,16 @@ public class IcebergPageSourceProvider
                 }
             });
         }
+
+        pageSource = TransformConnectorPageSource.create(pageSource, page -> {
+            try {
+                return new ModifiedTimestampWithTimezoneSourcePage(page, icebergColumns, outputDateTimeZone);
+            }
+            catch (RuntimeException e) {
+                throwIfInstanceOf(e, TrinoException.class);
+                throw new TrinoException(ICEBERG_BAD_DATA, e);
+            }
+        });
         return pageSource;
     }
 
@@ -1577,6 +1602,101 @@ public class IcebergPageSourceProvider
                 checkIndex(channel, channelCount);
             }
             return sourcePage.getColumns(channels);
+        }
+
+        @Override
+        public void selectPositions(int[] positions, int offset, int size)
+        {
+            sourcePage.selectPositions(positions, offset, size);
+        }
+    }
+
+    private record ModifiedTimestampWithTimezoneSourcePage(SourcePage sourcePage, List<IcebergColumnHandle> columns, int channelCount, int[] channels, DateTimeZone outputDateTimeZone)
+            implements SourcePage
+    {
+        private ModifiedTimestampWithTimezoneSourcePage
+        {
+            requireNonNull(sourcePage, "sourcePage is null");
+            requireNonNull(sourcePage, "columns is null");
+            checkArgument(channelCount >= 0, "channelCount is negative");
+            checkArgument(channelCount == channels.length, "channelCount and channels length is not equal");
+            requireNonNull(sourcePage, "outputDateTimeZone is null");
+        }
+
+        private ModifiedTimestampWithTimezoneSourcePage(SourcePage sourcePage, List<IcebergColumnHandle> columns, DateTimeZone outputDateTimeZone)
+        {
+            this(sourcePage, columns, columns.size(), IntStream.range(0, columns.size()).toArray(), outputDateTimeZone);
+        }
+
+        @Override
+        public int getPositionCount()
+        {
+            return sourcePage.getPositionCount();
+        }
+
+        @Override
+        public long getSizeInBytes()
+        {
+            return sourcePage.getSizeInBytes();
+        }
+
+        @Override
+        public long getRetainedSizeInBytes()
+        {
+            return sourcePage.getRetainedSizeInBytes();
+        }
+
+        @Override
+        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
+        {
+            sourcePage.retainedBytesForEachPart(consumer);
+        }
+
+        @Override
+        public int getChannelCount()
+        {
+            return channelCount;
+        }
+
+        @Override
+        public Block getBlock(int channel)
+        {
+            checkIndex(channel, channelCount);
+            Block block = sourcePage.getBlock(channel);
+            int[] values = new int[3];
+            if (columns.get(channel).getBaseType() instanceof TimestampWithTimeZoneType timestampWithTimeZoneType && (!block.mayHaveNull() || !block.isNull(0))) {
+                long epochMicros = toMicros((LongTimestampWithTimeZone) TIMESTAMP_TZ_MICROS.getObject(block, 0));
+                encodeFixed12(
+                        packDateTimeWithZone(floorDiv(epochMicros, MICROSECONDS_PER_MILLISECOND), getTimeZoneKey(outputDateTimeZone.getID())),
+                        floorMod(epochMicros, MICROSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_MICROSECOND,
+                        values,
+                        0);
+                return new Fixed12Block(block.getPositionCount(), Optional.empty(), values);
+            }
+            return block;
+        }
+
+        private static long toMicros(LongTimestampWithTimeZone timestamp)
+        {
+            return (timestamp.getEpochMillis() * MICROSECONDS_PER_MILLISECOND) +
+                    roundDiv(timestamp.getPicosOfMilli(), PICOSECONDS_PER_MICROSECOND);
+        }
+
+        @Override
+        public Page getPage()
+        {
+            return getColumns(channels);
+        }
+
+        @Override
+        public Page getColumns(int[] channels)
+        {
+            Block[] blocks = new Block[channels.length];
+            for (int i = 0; i < channels.length; i++) {
+                checkIndex(i, channelCount);
+                blocks[i] = getBlock(channels[i]);
+            }
+            return new Page(getPositionCount(), blocks);
         }
 
         @Override
