@@ -795,7 +795,7 @@ jobs:
             echo "result=false" >> "${GITHUB_OUTPUT}"
           fi
         id: should_notify
-      - name: Slack notify failed tests to SEP team
+      - name: Slack notify failed tests to Connectors team
         if: always() && (steps.tests-weekly-snowflake-aws.outcome == 'failure' || steps.tests-weekly-snowflake-azure.outcome == 'failure') && steps.should_notify.outputs.result == 'true'
         uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
         with:
@@ -803,14 +803,6 @@ jobs:
           slack-channel: C06RV3N6N1E # team-connectors channel ID
           slack-text: |
             :boom: Snowflake weekly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-      - name: Slack notify failed tests to Connectors team
-        if: always() && (steps.tests-weekly-snowflake-aws.outcome == 'failure' || steps.tests-weekly-snowflake-azure.outcome == 'failure') && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
-          slack-channel: C04QTKJFWKT # galaxy-data-management channel ID
-          slack-text: |
-            :boom: Snowflake weekly connector tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
 
   # --------------------------------------------------------------------------------------
   # Only run smoke-test profile snowflake tests nightly, labeled PRs, or workflow_dispatch to
@@ -903,7 +895,7 @@ jobs:
             echo "result=false" >> "${GITHUB_OUTPUT}"
           fi
         id: should_notify
-      - name: Slack notify failed tests to SEP team
+      - name: Slack notify failed tests to Connectors team
         if: always() && steps.tests-nightly-snowflake-aws.outcome && steps.should_notify.outputs.result == 'true'
         uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
         with:
@@ -911,14 +903,6 @@ jobs:
           slack-channel: C06RV3N6N1E # team-connectors channel ID
           slack-text: |
             :boom: Snowflake nightly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-      - name: Slack notify failed tests to Connectors team
-        if: always() && (steps.tests-nightly-snowflake-aws.outcome == 'failure' || steps.tests-nightly-snowflake-azure.outcome == 'failure') && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
-          slack-channel: C04QTKJFWKT # galaxy-data-management channel ID
-          slack-text: |
-            :boom: Snowflake nightly connector tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
 
   test-other-modules:
     runs-on: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
