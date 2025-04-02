@@ -67,11 +67,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.trino.SystemSessionProperties.getCacheDataReductionThreshold;
 import static io.trino.block.BlockAssertions.createLongSequenceBlock;
+import static io.trino.cache.CacheDataOperator.MIN_PROCESSED_POSITIONS;
 import static io.trino.cache.CacheDriverFactory.MIN_PROCESSED_SPLITS;
 import static io.trino.cache.CacheDriverFactory.TOO_BIG_SPLITS_THRESHOLD;
 import static io.trino.cache.StaticDynamicFilter.createStaticDynamicFilterSupplier;
@@ -176,17 +177,17 @@ public class TestCacheDataOperator
                 DataSize.of(1024, DataSize.Unit.BYTE).toBytes());
 
         PassThroughOperator.PassThroughOperatorFactory passThroughOperatorFactory =
-                new PassThroughOperator.PassThroughOperatorFactory(operatorIdAllocator.incrementAndGet(), planNodeIdAllocator.getNextId(), () -> smallPage);
+                new PassThroughOperator.PassThroughOperatorFactory(operatorIdAllocator.incrementAndGet(), planNodeIdAllocator.getNextId(), smallPage);
 
         List<DriverFactory> driverFactories = ImmutableList.of(
-                prepareDriverFactory(operatorIdAllocator, 2, preparePassThroughOperator(() -> smallPage)),
+                prepareDriverFactory(operatorIdAllocator, 2, preparePassThroughOperator(smallPage)),
                 new DriverFactory(
                         operatorIdAllocator.incrementAndGet(),
                         true,
                         false,
                         ImmutableList.of(passThroughOperatorFactory, cacheDataOperatorFactory),
                         OptionalInt.empty()),
-                prepareDriverFactory(operatorIdAllocator, 2, preparePassThroughOperator(() -> smallPage)));
+                prepareDriverFactory(operatorIdAllocator, 2, preparePassThroughOperator(smallPage)));
 
         CacheStats cacheStats = new CacheStats();
         CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
@@ -207,16 +208,18 @@ public class TestCacheDataOperator
         createAndRunDriver(0, MIN_PROCESSED_SPLITS, cacheDriverFactory);
         assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
         assertThat(cacheDriverFactory.getCacheMetrics().getTooBigSplitCount()).isEqualTo(0);
+        assertThat(cacheDriverFactory.getCacheMetrics().getSplitNotCachedCount()).isEqualTo(0);
         assertThat(cacheStats.getTooBigSplit().getTotalCount()).isEqualTo(0);
 
         int splitToBeRejectedCount = (int) Math.ceil((MIN_PROCESSED_SPLITS * TOO_BIG_SPLITS_THRESHOLD) / (1.0f - TOO_BIG_SPLITS_THRESHOLD));
 
         // try to process splits that cannot be cached because its page sizes exceeds threshold size
         // caching is not going to be "disabled" because threshold was not exceeded.
-        passThroughOperatorFactory.setPageSupplier(() -> bigPage);
+        passThroughOperatorFactory.setPage(bigPage);
         createAndRunDriver(MIN_PROCESSED_SPLITS, MIN_PROCESSED_SPLITS + splitToBeRejectedCount, cacheDriverFactory);
         assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
         assertThat(cacheDriverFactory.getCacheMetrics().getTooBigSplitCount()).isEqualTo(splitToBeRejectedCount);
+        assertThat(cacheDriverFactory.getCacheMetrics().getSplitNotCachedCount()).isEqualTo(splitToBeRejectedCount);
         assertThat(cacheStats.getTooBigSplit().getTotalCount()).isEqualTo(splitToBeRejectedCount);
 
         // exceed threshold
@@ -230,7 +233,89 @@ public class TestCacheDataOperator
         }
         assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
         assertThat(cacheDriverFactory.getCacheMetrics().getTooBigSplitCount()).isEqualTo(splitToBeRejectedCount);
+        assertThat(cacheDriverFactory.getCacheMetrics().getSplitNotCachedCount()).isEqualTo(splitToBeRejectedCount);
         assertThat(cacheStats.getTooBigSplit().getTotalCount()).isEqualTo(splitToBeRejectedCount + 1);
+    }
+
+    @Test
+    public void testDataReductionThreshold()
+    {
+        PlanSignature signature = createPlanSignature("sig");
+        Page bigPage = createPage(ImmutableList.of(BIGINT), MIN_PROCESSED_POSITIONS + 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 128)));
+        Page smallPage = createPage(ImmutableList.of(BIGINT), 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 16)));
+        Split split = new Split(TEST_CATALOG_HANDLE, createRemoteSplit(), Optional.empty(), true);
+        AtomicInteger operatorIdAllocator = new AtomicInteger();
+        CacheDataOperator.CacheDataOperatorFactory cacheDataOperatorFactory = new CacheDataOperator.CacheDataOperatorFactory(
+                operatorIdAllocator.incrementAndGet(),
+                planNodeIdAllocator.getNextId(),
+                DataSize.of(256, MEGABYTE).toBytes());
+        double dataReductionThreshold = getCacheDataReductionThreshold(TEST_SESSION);
+
+        long inputDataSize = (long) Math.floor((0.7 * bigPage.getSizeInBytes()) / dataReductionThreshold);
+        PassThroughOperator.PassThroughOperatorFactory passThroughOperatorFactory =
+                new PassThroughOperator.PassThroughOperatorFactory(operatorIdAllocator.incrementAndGet(), planNodeIdAllocator.getNextId(), smallPage, Optional.of(inputDataSize));
+
+        List<DriverFactory> driverFactories = ImmutableList.of(
+                prepareDriverFactory(operatorIdAllocator, 2, preparePassThroughOperator(smallPage)),
+                new DriverFactory(
+                        operatorIdAllocator.incrementAndGet(),
+                        true,
+                        false,
+                        ImmutableList.of(passThroughOperatorFactory, cacheDataOperatorFactory),
+                        OptionalInt.empty()),
+                prepareDriverFactory(operatorIdAllocator, 2, preparePassThroughOperator(smallPage)));
+
+        CacheStats cacheStats = new CacheStats();
+        CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
+                TEST_SESSION,
+                new TestPageSourceProviderFactory(),
+                registry,
+                tupleDomainCodec,
+                TEST_TABLE_HANDLE,
+                new PlanSignatureWithPredicate(signature, TupleDomain.all()),
+                ImmutableMap.of(),
+                createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
+                createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
+                driverFactories,
+                cacheStats,
+                new CachePerformanceTracker());
+
+        // process splits where split's page is small. All splits will be successfully cached
+        createAndRunDriver(0, MIN_PROCESSED_SPLITS, cacheDriverFactory);
+        assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
+        assertThat(cacheDriverFactory.getCacheMetrics().getSourceBytes()).isEqualTo(MIN_PROCESSED_SPLITS * inputDataSize);
+        assertThat(cacheDriverFactory.getCacheMetrics().getInputCacheBytes()).isEqualTo(MIN_PROCESSED_SPLITS * smallPage.getSizeInBytes());
+        assertThat(cacheDriverFactory.getCacheMetrics().getSplitNotCachedCount()).isEqualTo(0);
+        assertThat(cacheStats.getInsufficientDataReduction().getTotalCount()).isEqualTo(0);
+
+        int splitToBeRejectedCount = (int) Math.ceil(
+                (dataReductionThreshold * inputDataSize - smallPage.getSizeInBytes()) * MIN_PROCESSED_SPLITS /
+                        (bigPage.getSizeInBytes() - dataReductionThreshold * inputDataSize));
+
+        // try to process splits that cannot be cached because of insufficient data reduction
+        // caching is not going to be "disabled" because threshold was not exceeded.
+        passThroughOperatorFactory.setPage(bigPage);
+        createAndRunDriver(MIN_PROCESSED_SPLITS, MIN_PROCESSED_SPLITS + splitToBeRejectedCount, cacheDriverFactory);
+        assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
+        assertThat(cacheDriverFactory.getCacheMetrics().getSourceBytes()).isEqualTo((MIN_PROCESSED_SPLITS + splitToBeRejectedCount) * inputDataSize);
+        assertThat(cacheDriverFactory.getCacheMetrics().getInputCacheBytes()).isEqualTo(MIN_PROCESSED_SPLITS * smallPage.getSizeInBytes() + splitToBeRejectedCount * bigPage.getSizeInBytes());
+        assertThat(cacheDriverFactory.getCacheMetrics().getSplitNotCachedCount()).isEqualTo(splitToBeRejectedCount);
+        assertThat(cacheStats.getInsufficientDataReduction().getTotalCount()).isEqualTo(splitToBeRejectedCount);
+
+        // exceed threshold
+        CacheSplitId splitId = new CacheSplitId(String.format("split_%d", MIN_PROCESSED_SPLITS + splitToBeRejectedCount));
+        DriverContext driverContext = createTaskContext(Executors.newSingleThreadExecutor(), Executors.newScheduledThreadPool(1), TEST_SESSION)
+                .addPipelineContext(0, true, true, false)
+                .addDriverContext();
+
+        try (Driver driver = cacheDriverFactory.createDriver(driverContext, new ScheduledSplit(0, planNodeIdAllocator.getNextId(), split), Optional.of(splitId))) {
+            assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
+        }
+        assertThat(cacheDriverFactory.getCacheMetrics().getSplitCachedCount()).isEqualTo(MIN_PROCESSED_SPLITS);
+        assertThat(cacheDriverFactory.getCacheMetrics().getSourceBytes()).isEqualTo((MIN_PROCESSED_SPLITS + splitToBeRejectedCount) * inputDataSize);
+        assertThat(cacheDriverFactory.getCacheMetrics().getInputCacheBytes()).isEqualTo(MIN_PROCESSED_SPLITS * smallPage.getSizeInBytes() + splitToBeRejectedCount * bigPage.getSizeInBytes());
+        assertThat(cacheDriverFactory.getCacheMetrics().getSplitNotCachedCount()).isEqualTo(splitToBeRejectedCount);
+        assertThat(cacheStats.getInsufficientDataReduction().getTotalCount()).isEqualTo(splitToBeRejectedCount + 1);
     }
 
     private static PlanSignature createPlanSignature(String signature)
@@ -267,9 +352,9 @@ public class TestCacheDataOperator
                 OptionalInt.empty());
     }
 
-    private Function<Integer, OperatorFactory> preparePassThroughOperator(Supplier<Page> pageSupplier)
+    private Function<Integer, OperatorFactory> preparePassThroughOperator(Page page)
     {
-        return (operatorId) -> new PassThroughOperator.PassThroughOperatorFactory(operatorId, planNodeIdAllocator.getNextId(), pageSupplier);
+        return (operatorId) -> new PassThroughOperator.PassThroughOperatorFactory(operatorId, planNodeIdAllocator.getNextId(), page);
     }
 
     private static class TestPageSourceProviderFactory
@@ -325,19 +410,27 @@ public class TestCacheDataOperator
         {
             private final int operatorId;
             private final PlanNodeId planNodeId;
-            private Supplier<Page> pageSupplier;
+            private Page page;
+            private final Optional<Long> inputSizeInBytes;
 
-            public PassThroughOperatorFactory(int operatorId, PlanNodeId planNodeId, Supplier<Page> pageSupplier)
+            public PassThroughOperatorFactory(int operatorId, PlanNodeId planNodeId, Page page)
+            {
+                this(operatorId, planNodeId, page, Optional.empty());
+            }
+
+            public PassThroughOperatorFactory(int operatorId, PlanNodeId planNodeId, Page page, Optional<Long> inputSizeInBytes)
             {
                 this.operatorId = operatorId;
                 this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
-                this.pageSupplier = requireNonNull(pageSupplier, "pageSupplier is null");
+                this.page = requireNonNull(page, "page is null");
+                this.inputSizeInBytes = inputSizeInBytes;
             }
 
             @Override
             public Operator createOperator(DriverContext driverContext)
             {
-                return new PassThroughOperator(driverContext.addOperatorContext(operatorId, planNodeId, PassThroughOperator.class.getSimpleName()), pageSupplier.get());
+                long size = inputSizeInBytes.orElse((long) Math.ceil(1 + page.getSizeInBytes() / getCacheDataReductionThreshold(TEST_SESSION)));
+                return new PassThroughOperator(driverContext.addOperatorContext(operatorId, planNodeId, PassThroughOperator.class.getSimpleName()), page, size);
             }
 
             @Override
@@ -348,23 +441,25 @@ public class TestCacheDataOperator
             @Override
             public OperatorFactory duplicate()
             {
-                return new PassThroughOperatorFactory(operatorId, planNodeId, pageSupplier);
+                return new PassThroughOperatorFactory(operatorId, planNodeId, page);
             }
 
-            void setPageSupplier(Supplier<Page> pageSupplier)
+            void setPage(Page page)
             {
-                this.pageSupplier = pageSupplier;
+                this.page = page;
             }
         }
 
         private final OperatorContext context;
         private final Page page;
         private boolean finished;
+        private final long inputSizeInBytes;
 
-        public PassThroughOperator(OperatorContext context, Page page)
+        public PassThroughOperator(OperatorContext context, Page page, long inputSizeInBytes)
         {
             this.context = requireNonNull(context, "context is null");
             this.page = requireNonNull(page, "page is null");
+            this.inputSizeInBytes = inputSizeInBytes;
         }
 
         @Override
@@ -389,6 +484,7 @@ public class TestCacheDataOperator
         public Page getOutput()
         {
             finished = true;
+            context.recordProcessedInput(inputSizeInBytes, page.getPositionCount());
             return page;
         }
 

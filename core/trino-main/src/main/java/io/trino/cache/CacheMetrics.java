@@ -14,6 +14,7 @@
 package io.trino.cache;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class CacheMetrics
 {
@@ -21,11 +22,19 @@ public class CacheMetrics
      * Counts number of splits not cached due to excessive split data size.
      */
     private final AtomicInteger tooBigSplitCount = new AtomicInteger();
+    private final AtomicInteger splitNotCachedCount = new AtomicInteger();
     private final AtomicInteger splitCachedCount = new AtomicInteger();
+    private final AtomicLong sourceBytes = new AtomicLong();
+    private final AtomicLong inputCacheBytes = new AtomicLong();
 
     public int getTooBigSplitCount()
     {
         return tooBigSplitCount.get();
+    }
+
+    public int getSplitNotCachedCount()
+    {
+        return splitNotCachedCount.get();
     }
 
     public int getSplitCachedCount()
@@ -33,13 +42,38 @@ public class CacheMetrics
         return splitCachedCount.get();
     }
 
+    public long getSourceBytes()
+    {
+        return sourceBytes.get();
+    }
+
+    public long getInputCacheBytes()
+    {
+        return inputCacheBytes.get();
+    }
+
     public void incrementTooBigSplitCount()
     {
         tooBigSplitCount.incrementAndGet();
     }
 
+    public void incrementSplitsNotCached()
+    {
+        splitNotCachedCount.incrementAndGet();
+    }
+
     public void incrementSplitsCached()
     {
         splitCachedCount.incrementAndGet();
+    }
+
+    public void addSourceBytes(long bytes)
+    {
+        sourceBytes.addAndGet(bytes);
+    }
+
+    public void addInputCacheBytes(long bytes)
+    {
+        inputCacheBytes.addAndGet(bytes);
     }
 }

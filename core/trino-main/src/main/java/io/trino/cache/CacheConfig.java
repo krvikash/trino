@@ -30,6 +30,7 @@ public class CacheConfig
     private boolean cacheAggregationsEnabled = true;
     private boolean cacheProjectionsEnabled = true;
     private DataSize maxSplitSize = DataSize.of(256, DataSize.Unit.MEGABYTE);
+    private double dataReductionThreshold = 100f;
     // The minimum number of splits with distinct CacheSplitID that should be processed by a worker
     // before scheduling the next batch of splits which can contain splits with the same CacheSplitID.
     // We have to set this such that there is a sufficient gap between the splits with the same CacheSplitID
@@ -132,6 +133,20 @@ public class CacheConfig
     public CacheConfig setMaxSplitSize(DataSize cacheSubqueriesSize)
     {
         this.maxSplitSize = cacheSubqueriesSize;
+        return this;
+    }
+
+    @DecimalMin("0.0")
+    public double getDataReductionThreshold()
+    {
+        return dataReductionThreshold;
+    }
+
+    @Config("cache.data-reduction-threshold")
+    @ConfigDescription("Minimum factor of data reduction of cached split (values >1 represent data expansion)")
+    public CacheConfig setDataReductionThreshold(double dataReductionThreshold)
+    {
+        this.dataReductionThreshold = dataReductionThreshold;
         return this;
     }
 

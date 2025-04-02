@@ -57,6 +57,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.SystemSessionProperties.getCacheDataReductionThreshold;
 import static io.trino.SystemSessionProperties.isEnableDynamicRowFiltering;
 import static io.trino.cache.CacheCommonSubqueries.LOAD_PAGES_ALTERNATIVE;
 import static io.trino.cache.CacheCommonSubqueries.ORIGINAL_PLAN_ALTERNATIVE;
@@ -206,19 +207,27 @@ public class CacheDriverFactory
             cacheStats.recordCacheMiss();
         }
 
-        int processedSplitCount = cacheMetrics.getTooBigSplitCount() + cacheMetrics.getSplitCachedCount();
+        int processedSplitCount = cacheMetrics.getSplitNotCachedCount() + cacheMetrics.getSplitCachedCount();
         float tooBigSplitsRatio = processedSplitCount > MIN_PROCESSED_SPLITS ? cacheMetrics.getTooBigSplitCount() / (float) processedSplitCount : 0.0f;
         // try storing results instead
         // if splits are too large to be cached then do not try caching data as it adds extra computational cost
         if (tooBigSplitsRatio <= TOO_BIG_SPLITS_THRESHOLD) {
-            Optional<ConnectorPageSink> pageSink = splitCache.storePages(splitIdWithPredicates, projectedEnforcedPredicate.predicate(), projectedUnenforcedPredicate.predicate());
-            if (pageSink.isPresent()) {
-                return new DriverFactoryWithCacheContext(
-                        alternatives.get(STORE_PAGES_ALTERNATIVE),
-                        Optional.of(new CacheDriverContext(Optional.empty(), pageSink, dynamicFilter, splitId, planSignature, cacheMetrics, cacheStats, cachePerformanceTracker, Metrics.EMPTY)));
+            double dataReductionRatio = processedSplitCount > MIN_PROCESSED_SPLITS && cacheMetrics.getSourceBytes() > 0
+                    ? cacheMetrics.getInputCacheBytes() / (double) cacheMetrics.getSourceBytes()
+                    : 0d;
+            if (dataReductionRatio <= getCacheDataReductionThreshold(session)) {
+                Optional<ConnectorPageSink> pageSink = splitCache.storePages(splitIdWithPredicates, projectedEnforcedPredicate.predicate(), projectedUnenforcedPredicate.predicate());
+                if (pageSink.isPresent()) {
+                    return new DriverFactoryWithCacheContext(
+                            alternatives.get(STORE_PAGES_ALTERNATIVE),
+                            Optional.of(new CacheDriverContext(Optional.empty(), pageSink, dynamicFilter, splitId, planSignature, cacheMetrics, cacheStats, cachePerformanceTracker, Metrics.EMPTY)));
+                }
+                else {
+                    cacheStats.recordSplitRejected();
+                }
             }
             else {
-                cacheStats.recordSplitRejected();
+                cacheStats.recordInsufficientDataReduction();
             }
         }
         else {

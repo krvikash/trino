@@ -28,11 +28,14 @@ import jakarta.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.SystemSessionProperties.getCacheDataReductionThreshold;
 import static java.util.Objects.requireNonNull;
 
 public class CacheDataOperator
         implements Operator
 {
+    public static final int MIN_PROCESSED_POSITIONS = 16_384;
+
     public static class CacheDataOperatorFactory
             implements OperatorFactory
     {
@@ -140,6 +143,25 @@ public class CacheDataOperator
             cacheMetrics.incrementTooBigSplitCount();
             cacheStats.recordTooBigSplit();
         }
+        if (thresholdExceeded(page.getPositionCount())) {
+            abort();
+            operatorContext.setLatestMetrics(metrics.mergeWith(new Metrics(ImmutableMap.of(
+                    "Insufficient data reduction", new LongCount(1)))));
+            cacheStats.recordInsufficientDataReduction();
+        }
+    }
+
+    private boolean thresholdExceeded(long currentPagePositions)
+    {
+        if (operatorContext.getOperatorStats().getInputPositions() + currentPagePositions < MIN_PROCESSED_POSITIONS) {
+            return false;
+        }
+        long sourceBytes = getSourceBytes();
+        if (sourceBytes == 0) {
+            return false;
+        }
+        double dataReductionRatio = cachedDataSize / (double) sourceBytes;
+        return dataReductionRatio > getCacheDataReductionThreshold(operatorContext.getSession());
     }
 
     @Override
@@ -162,8 +184,15 @@ public class CacheDataOperator
             recordCost();
             recordPotentialGain();
             cacheMetrics.incrementSplitsCached();
+            cacheMetrics.addSourceBytes(getSourceBytes());
+            cacheMetrics.addInputCacheBytes(cachedDataSize);
             cacheStats.recordCacheData(cachedDataSize);
         }
+    }
+
+    private long getSourceBytes()
+    {
+        return operatorContext.getDriverContext().getOperatorContexts().getFirst().getOperatorStats().getInputDataSize().toBytes();
     }
 
     @Override
@@ -187,6 +216,9 @@ public class CacheDataOperator
         pageSink.abort();
         pageSink = null;
         memoryContext.close();
+        cacheMetrics.incrementSplitsNotCached();
+        cacheMetrics.addSourceBytes(getSourceBytes());
+        cacheMetrics.addInputCacheBytes(cachedDataSize);
         recordCost();
     }
 

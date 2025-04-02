@@ -30,6 +30,7 @@ public class CacheStats
     private final CounterStat missingSplitId = new CounterStat();
     private final CounterStat predicateTooBig = new CounterStat();
     private final CounterStat tooBigSplit = new CounterStat();
+    private final CounterStat insufficientDataReduction = new CounterStat();
     private final CounterStat dynamicFilterWithBloomFilter = new CounterStat();
     private final DistributionStat readFromCacheData = new DistributionStat();
     private final DistributionStat cachedData = new DistributionStat();
@@ -85,6 +86,13 @@ public class CacheStats
     public CounterStat getTooBigSplit()
     {
         return tooBigSplit;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getInsufficientDataReduction()
+    {
+        return insufficientDataReduction;
     }
 
     @Managed
@@ -167,6 +175,11 @@ public class CacheStats
     public void recordTooBigSplit()
     {
         tooBigSplit.update(1);
+    }
+
+    public void recordInsufficientDataReduction()
+    {
+        insufficientDataReduction.update(1);
     }
 
     public void recordReadFromCacheData(long bytes)

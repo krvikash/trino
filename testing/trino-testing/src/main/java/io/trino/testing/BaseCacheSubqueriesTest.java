@@ -84,6 +84,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.trino.SystemSessionProperties.CACHE_AGGREGATIONS_ENABLED;
 import static io.trino.SystemSessionProperties.CACHE_COMMON_SUBQUERIES_ENABLED;
+import static io.trino.SystemSessionProperties.CACHE_DATA_REDUCTION_THRESHOLD;
 import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
 import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_ROW_FILTERING;
 import static io.trino.SystemSessionProperties.ENABLE_LARGE_DYNAMIC_FILTERS;
@@ -915,6 +916,7 @@ public abstract class BaseCacheSubqueriesTest
                 .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "true")
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "true")
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "true")
+                .setSystemProperty(CACHE_DATA_REDUCTION_THRESHOLD, "100")
                 .build();
     }
 
@@ -925,6 +927,7 @@ public abstract class BaseCacheSubqueriesTest
                 .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "true")
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "false")
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "false")
+                .setSystemProperty(CACHE_DATA_REDUCTION_THRESHOLD, "100")
                 .build();
     }
 
