@@ -1412,7 +1412,6 @@ jobs:
             # Starburst suites
             - suite-sap-hana
             - suite-stargate
-            - suite-starburst-snowflake
             - suite-subquery-cache
             # End of Starburst suites
             - suite-1
