@@ -22,7 +22,6 @@ import io.trino.plugin.hive.HivePartitioningHandle;
 import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.hudi.HudiSplit;
 import io.trino.plugin.hudi.HudiTableHandle;
-import io.trino.plugin.hudi.model.HudiTableType;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
@@ -43,6 +42,7 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.VarcharType;
+import org.apache.hudi.common.model.HoodieTableType;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -143,7 +143,7 @@ public class HudiProxiedConnectorTransformerTest
                 "schema",
                 "table",
                 "path",
-                HudiTableType.COPY_ON_WRITE,
+                HoodieTableType.COPY_ON_WRITE,
                 List.of(hiveColumnHandle),
                 partitionPredicates,
                 partitionPredicates);
@@ -188,7 +188,7 @@ public class HudiProxiedConnectorTransformerTest
                 "schema",
                 "table",
                 "path",
-                HudiTableType.COPY_ON_WRITE,
+                HoodieTableType.COPY_ON_WRITE,
                 List.of(hiveColumnHandle),
                 partitionPredicates,
                 regularPredicates);
