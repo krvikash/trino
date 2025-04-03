@@ -35,7 +35,7 @@ import static org.testcontainers.utility.MountableFile.forHostPath;
 public class EnvMultinodeSynapse
         extends EnvironmentProvider
 {
-    private static final String SYNAPSE_DATABASE = "SQLPOOL1";
+    private static final String SYNAPSE_DATABASE = "SQLPOOL2";
     private static final int SYNAPSE_PORT = 1433;
 
     private final DockerFiles.ResourceProvider configDir;
