@@ -171,6 +171,7 @@ import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.RowBlock;
 import io.trino.spi.block.SqlRow;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.catalog.CatalogName;
@@ -691,8 +692,7 @@ public class LocalExecutionPlanner
         LocalExecutionPlanContext context = new LocalExecutionPlanContext(taskContext, metadata, alternativeChooser);
 
         PhysicalOperation physicalOperation = plan.accept(new Visitor(session), context);
-
-        Function<Page, Page> pagePreprocessor = session.getQueryDataEncoding().isPresent() ? PageChannelSelector.identitySelection() : enforceLoadedLayoutProcessor(outputLayout, physicalOperation.getLayout());
+        Function<Page, Page> pagePreprocessor = isSpooledOutput(session, physicalOperation) ? LocalExecutionPlanner::validateSpooledLayoutProcessor : enforceLoadedLayoutProcessor(outputLayout, physicalOperation.getLayout());
 
         List<Type> outputTypes = outputLayout.stream()
                 .map(Symbol::type)
@@ -714,6 +714,14 @@ public class LocalExecutionPlanner
         context.getDriverFactories().forEach(SplitDriverFactory::localPlannerComplete);
 
         return new LocalExecutionPlan(context.getDriverFactories(), partitionedSourceOrder);
+    }
+
+    private static boolean isSpooledOutput(Session session, PhysicalOperation operation)
+    {
+        if (session.getQueryDataEncoding().isEmpty()) {
+            return false;
+        }
+        return operation.getOperatorFactories().getLast() instanceof OutputSpoolingOperatorFactory;
     }
 
     private class LocalExecutionPlanContext
@@ -4488,6 +4496,14 @@ public class LocalExecutionPlanner
         }
 
         return new PageChannelSelector(channels);
+    }
+
+    private static Page validateSpooledLayoutProcessor(Page page)
+    {
+        verify(page.getChannelCount() == 1, "Expected a single output channel when spooling");
+        verify(page.getPositionCount() == 1, "Expected a single output position when spooling");
+        verify(page.getBlock(0) instanceof RowBlock, "Expected a RowBlock for spooling metadata");
+        return page;
     }
 
     private static List<Integer> getChannelsForSymbols(List<Symbol> symbols, Map<Symbol, Integer> layout)
