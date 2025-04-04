@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -399,7 +400,7 @@ public class TestDynamoDbTypeMapping
 
     protected DataSetup dynamoDbCreateAndInsert(String tableNamePrefix)
     {
-        DynamoDbCredentialPropertiesProvider propertiesProvider = new DynamoDbCredentialPropertiesProvider(dynamoDbConfig);
+        DynamoDbCredentialPropertiesProvider propertiesProvider = new DynamoDbCredentialPropertiesProvider(dynamoDbConfig, Optional.empty());
         Properties properties = new Properties();
         properties.putAll(propertiesProvider.getCredentialProperties(ConnectorIdentity.ofUser("user")));
         return new DynamoDbDataSetup(dynamoDbConfig, new JdbcSqlExecutor(DynamoDbConnectionFactory.getConnectionUrl(dynamoDbConfig), properties), tableNamePrefix);

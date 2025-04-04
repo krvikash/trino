@@ -44,6 +44,7 @@ public class DynamoDbPlugin
                 () -> combine(
                         binder -> binder.bind(LicenseVerifier.class).toInstance(licenseVerifier),
                         binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(enableWrites),
+                        new AwsCredentialModule(),
                         new DynamoDbModule(licenseVerifier)));
     }
 }

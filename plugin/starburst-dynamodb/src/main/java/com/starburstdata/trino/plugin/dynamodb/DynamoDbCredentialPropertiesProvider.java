@@ -14,8 +14,8 @@ import com.google.inject.Inject;
 import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
 import io.trino.spi.security.ConnectorIdentity;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
 import java.util.Map;
 import java.util.Optional;
@@ -41,17 +41,17 @@ public class DynamoDbCredentialPropertiesProvider
     private final Optional<String> awsSecretKey;
     private final Optional<String> awsRoleArn;
     private final String awsRoleCredentialsLocation;
-    private final Optional<DefaultCredentialsProvider> defaultAwsChainCredentialsProvider;
+    private final Optional<AwsCredentialsProvider> awsChainCredentialsProvider;
 
     @Inject
-    public DynamoDbCredentialPropertiesProvider(DynamoDbConfig dynamoDbConfig)
+    public DynamoDbCredentialPropertiesProvider(DynamoDbConfig dynamoDbConfig, Optional<AwsCredentialsProvider> awsChainCredentialsProvider)
     {
         awsAccessKey = requireNonNull(dynamoDbConfig.getAwsAccessKey(), "accessKey is null");
         awsSecretKey = requireNonNull(dynamoDbConfig.getAwsSecretKey(), "secretKey is null");
         awsRoleArn = requireNonNull(dynamoDbConfig.getAwsRoleArn(), "roleArn is null");
         awsRoleCredentialsLocation = requireNonNull(dynamoDbConfig.getAwsRoleCredentialsLocation(), "roleCredentialsLocation is null");
 
-        defaultAwsChainCredentialsProvider = dynamoDbConfig.isUseDefaultAwsChainProvider() ? Optional.of(DefaultCredentialsProvider.create()) : Optional.empty();
+        this.awsChainCredentialsProvider = requireNonNull(awsChainCredentialsProvider, "awsChainCredentialsProvider is null");
     }
 
     @Override
@@ -64,8 +64,8 @@ public class DynamoDbCredentialPropertiesProvider
             properties.put(AWS_SECRET_KEY, awsSecretKey.get());
             properties.put(AUTH_SCHEME, getAuthScheme(awsRoleArn.isPresent()));
         }
-        else if (defaultAwsChainCredentialsProvider.isPresent()) {
-            AwsCredentials credentials = defaultAwsChainCredentialsProvider.get().resolveCredentials();
+        else if (awsChainCredentialsProvider.isPresent()) {
+            AwsCredentials credentials = awsChainCredentialsProvider.get().resolveCredentials();
             properties.put(AWS_ACCESS_KEY, credentials.accessKeyId());
             properties.put(AWS_SECRET_KEY, credentials.secretAccessKey());
             if (credentials instanceof AwsSessionCredentials awsSessionCredentials) {

@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.apache.commons.io.FileUtils.deleteDirectory;
@@ -67,7 +68,7 @@ public class TestingDynamoDbServer
 
     public void execute(String sql)
     {
-        DynamoDbCredentialPropertiesProvider propertiesProvider = new DynamoDbCredentialPropertiesProvider(config);
+        DynamoDbCredentialPropertiesProvider propertiesProvider = new DynamoDbCredentialPropertiesProvider(config, Optional.empty());
         Properties properties = new Properties();
         properties.putAll(propertiesProvider.getCredentialProperties(ConnectorIdentity.ofUser("user")));
         try (Connection connection = DriverManager.getConnection(DynamoDbConnectionFactory.getConnectionUrl(config), properties);
