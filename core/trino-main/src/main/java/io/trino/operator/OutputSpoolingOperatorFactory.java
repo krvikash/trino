@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.Duration;
 import io.trino.client.spooling.DataAttributes;
+import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.OperationTimer.OperationTiming;
 import io.trino.operator.SpoolingController.MetricSnapshot;
@@ -172,7 +173,8 @@ public class OutputSpoolingOperatorFactory
 
         private OutputSpoolingOperator.State state = NEEDS_INPUT;
         private final OperatorContext operatorContext;
-        private final LocalMemoryContext userMemoryContext;
+        private final AggregatedMemoryContext aggregatedMemoryContext;
+        private final LocalMemoryContext localMemoryContext;
         private final QueryDataEncoder queryDataEncoder;
         private final SpoolingManager spoolingManager;
         private final PageBuffer buffer;
@@ -191,10 +193,11 @@ public class OutputSpoolingOperatorFactory
                     new OperatorSpoolingController(
                         getInitialSegmentSize(operatorContext.getSession()).toBytes(),
                         getMaxSegmentSize(operatorContext.getSession()).toBytes()));
-            this.userMemoryContext = operatorContext.newLocalUserMemoryContext(OutputSpoolingOperator.class.getSimpleName());
+            this.aggregatedMemoryContext = operatorContext.newAggregateUserMemoryContext();
             this.queryDataEncoder = requireNonNull(queryDataEncoder, "queryDataEncoder is null");
             this.spoolingManager = requireNonNull(spoolingManager, "spoolingManager is null");
-            this.buffer = PageBuffer.create(userMemoryContext);
+            this.buffer = PageBuffer.create(aggregatedMemoryContext.newLocalMemoryContext(OutputSpoolingOperator.class.getSimpleName() + ".buffer"));
+            this.localMemoryContext = aggregatedMemoryContext.newLocalMemoryContext(OutputSpoolingOperator.class.getSimpleName());
 
             operatorContext.setInfoSupplier(new OutputSpoolingInfoSupplier(spoolingTiming, controller, inlinedEncodedBytes, spooledEncodedBytes));
         }
@@ -232,6 +235,8 @@ public class OutputSpoolingOperatorFactory
             if (outputPage != null) {
                 state = HAS_OUTPUT;
             }
+
+            updateMemoryReservation();
         }
 
         @Override
@@ -244,6 +249,7 @@ public class OutputSpoolingOperatorFactory
             Page toReturn = outputPage;
             outputPage = null;
             state = state == HAS_LAST_OUTPUT ? FINISHED : NEEDS_INPUT;
+            updateMemoryReservation();
             return toReturn;
         }
 
@@ -333,6 +339,16 @@ public class OutputSpoolingOperatorFactory
             }
         }
 
+        private void updateMemoryReservation()
+        {
+            if (outputPage == null) {
+                localMemoryContext.setBytes(0);
+            }
+            else {
+                localMemoryContext.setBytes(outputPage.getSizeInBytes());
+            }
+        }
+
         static long reduce(List<Page> page, ToLongFunction<Page> reduce)
         {
             return page.stream()
@@ -344,7 +360,7 @@ public class OutputSpoolingOperatorFactory
         public void close()
                 throws Exception
         {
-            userMemoryContext.close();
+            aggregatedMemoryContext.close();
             queryDataEncoder.close();
         }
     }
