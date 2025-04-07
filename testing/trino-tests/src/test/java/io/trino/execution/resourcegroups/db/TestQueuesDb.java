@@ -131,8 +131,8 @@ public class TestQueuesDb
         waitForQueryState(queryRunner, secondDashboardQuery, QUEUED);
         waitForRunningQueryCount(queryRunner, 1);
         // Update db to allow for 1 more running query in dashboard resource group
-        dao.updateResourceGroup(3, "user-${USER}", "1MB", 3, 4, 4, null, null, null, null, null, 1L, TEST_ENVIRONMENT);
-        dao.updateResourceGroup(5, "dashboard-${USER}", "1MB", 1, 2, 2, null, null, null, null, null, 3L, TEST_ENVIRONMENT);
+        dao.updateResourceGroup(3, "user-${USER}", "5MB", 3, 4, 4, null, null, null, null, null, 1L, TEST_ENVIRONMENT);
+        dao.updateResourceGroup(5, "dashboard-${USER}", "5MB", 1, 2, 2, null, null, null, null, null, 3L, TEST_ENVIRONMENT);
         waitForQueryState(queryRunner, secondDashboardQuery, RUNNING);
         QueryId thirdDashboardQuery = createQuery(queryRunner, dashboardSession(), LONG_LASTING_QUERY);
         waitForQueryState(queryRunner, thirdDashboardQuery, QUEUED);
