@@ -53,6 +53,7 @@ public final class WarmingServiceStats
     private final LongAdder warm_warp_cache_skip_zero_columns = new LongAdder();
     private final LongAdder warm_warp_cache_revoke_started = new LongAdder();
     private final LongAdder warm_warp_cache_revoke_accomplished = new LongAdder();
+    private final LongAdder warm_warp_cache_revoked_bytes = new LongAdder();
     private final LongAdder warm_warp_cache_revoke_failed = new LongAdder();
     private final LongAdder warm_warp_cache_accomplished = new LongAdder();
     private final LongAdder warm_warp_cache_failed = new LongAdder();
@@ -581,6 +582,29 @@ public final class WarmingServiceStats
 
     @JsonIgnore
     @Managed
+    public long getwarm_warp_cache_revoked_bytes()
+    {
+        return warm_warp_cache_revoked_bytes.longValue();
+    }
+
+    public void incwarm_warp_cache_revoked_bytes()
+    {
+        warm_warp_cache_revoked_bytes.increment();
+    }
+
+    public void addwarm_warp_cache_revoked_bytes(long val)
+    {
+        warm_warp_cache_revoked_bytes.add(val);
+    }
+
+    public void setwarm_warp_cache_revoked_bytes(long val)
+    {
+        warm_warp_cache_revoked_bytes.reset();
+        addwarm_warp_cache_revoked_bytes(val);
+    }
+
+    @JsonIgnore
+    @Managed
     public long getwarm_warp_cache_revoke_failed()
     {
         return warm_warp_cache_revoke_failed.longValue();
@@ -880,6 +904,7 @@ public final class WarmingServiceStats
         ret.put("warm_warp_cache_skip_zero_columns", warm_warp_cache_skip_zero_columns);
         ret.put("warm_warp_cache_revoke_started", warm_warp_cache_revoke_started);
         ret.put("warm_warp_cache_revoke_accomplished", warm_warp_cache_revoke_accomplished);
+        ret.put("warm_warp_cache_revoked_bytes", warm_warp_cache_revoked_bytes);
         ret.put("warm_warp_cache_revoke_failed", warm_warp_cache_revoke_failed);
         ret.put("warm_warp_cache_accomplished", warm_warp_cache_accomplished);
         ret.put("warm_warp_cache_failed", warm_warp_cache_failed);
@@ -922,6 +947,7 @@ public final class WarmingServiceStats
         this.warm_warp_cache_skip_zero_columns.add(other.warm_warp_cache_skip_zero_columns.longValue());
         this.warm_warp_cache_revoke_started.add(other.warm_warp_cache_revoke_started.longValue());
         this.warm_warp_cache_revoke_accomplished.add(other.warm_warp_cache_revoke_accomplished.longValue());
+        this.warm_warp_cache_revoked_bytes.add(other.warm_warp_cache_revoked_bytes.longValue());
         this.warm_warp_cache_revoke_failed.add(other.warm_warp_cache_revoke_failed.longValue());
         this.warm_warp_cache_accomplished.add(other.warm_warp_cache_accomplished.longValue());
         this.warm_warp_cache_failed.add(other.warm_warp_cache_failed.longValue());
@@ -962,6 +988,7 @@ public final class WarmingServiceStats
         warm_warp_cache_skip_zero_columns.reset();
         warm_warp_cache_revoke_started.reset();
         warm_warp_cache_revoke_accomplished.reset();
+        warm_warp_cache_revoked_bytes.reset();
         warm_warp_cache_revoke_failed.reset();
         warm_warp_cache_accomplished.reset();
         warm_warp_cache_failed.reset();
@@ -1003,6 +1030,7 @@ public final class WarmingServiceStats
         res.put("warming_service:warm_warp_cache_skip_zero_columns", warm_warp_cache_skip_zero_columns.longValue());
         res.put("warming_service:warm_warp_cache_revoke_started", warm_warp_cache_revoke_started.longValue());
         res.put("warming_service:warm_warp_cache_revoke_accomplished", warm_warp_cache_revoke_accomplished.longValue());
+        res.put("warming_service:warm_warp_cache_revoked_bytes", warm_warp_cache_revoked_bytes.longValue());
         res.put("warming_service:warm_warp_cache_revoke_failed", warm_warp_cache_revoke_failed.longValue());
         res.put("warming_service:warm_warp_cache_accomplished", warm_warp_cache_accomplished.longValue());
         res.put("warming_service:warm_warp_cache_failed", warm_warp_cache_failed.longValue());
@@ -1041,6 +1069,7 @@ public final class WarmingServiceStats
         res.put("warm_warp_cache_skip_zero_columns", getwarm_warp_cache_skip_zero_columns());
         res.put("warm_warp_cache_revoke_started", getwarm_warp_cache_revoke_started());
         res.put("warm_warp_cache_revoke_accomplished", getwarm_warp_cache_revoke_accomplished());
+        res.put("warm_warp_cache_revoked_bytes", getwarm_warp_cache_revoked_bytes());
         res.put("warm_warp_cache_revoke_failed", getwarm_warp_cache_revoke_failed());
         res.put("warm_warp_cache_accomplished", getwarm_warp_cache_accomplished());
         res.put("warm_warp_cache_failed", getwarm_warp_cache_failed());

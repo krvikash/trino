@@ -141,6 +141,7 @@ public class MemoryContextService
             }
             shapingLogger.info("revoked memory=%s of bytesToRevoke=%s, ,allocatedMemory=%s, runningTasksSize=%s, totalRevokedTasks=%s, localMemoryContexts.size()=%s", revokedMemory, bytesToRevoke, getAllocatedMemory(), runningTasks.size(), iteration, localMemoryContexts.size());
             statsWarmingService.incwarm_warp_cache_revoke_accomplished();
+            statsWarmingService.addwarm_warp_cache_revoked_bytes(revokedMemory);
         }
         catch (Exception e) {
             shapingLogger.error(e, "failed to revoke");

@@ -31,6 +31,7 @@ import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmupDemoterConfigChangedEvent;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 import org.apache.commons.collections4.CollectionUtils;
 
@@ -54,6 +55,7 @@ public class WarpCacheManagerDeleteService
     private static final Logger logger = Logger.get(WarpCacheManagerDeleteService.class);
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterConfig warmupDemoterConfig;
+    private final int pageSizeShift;
     private final CacheMgrWarmupRuleService cacheMgrWarmupRuleService;
     private final ExecutorService rowGroupExecutorService;
 
@@ -64,12 +66,14 @@ public class WarpCacheManagerDeleteService
             RowGroupDataService rowGroupDataService,
             CacheMgrWarmupRuleService cacheMgrWarmupRuleService,
             WarmupDemoterConfig warmupDemoterConfig,
+            StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig,
             EventBus eventBus)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cacheMgrWarmupRuleService = requireNonNull(cacheMgrWarmupRuleService);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
+        this.pageSizeShift = storageEngineConstants.getPageSizeShift();
 
         eventBus.register(this);
 
@@ -146,26 +150,25 @@ public class WarpCacheManagerDeleteService
     }
 
     @Override
-    public long delete(List<TupleRank> tupleRankList, DemoteContext demoteContext)
+    public DeletionStats delete(List<TupleRank> tupleRankList, DemoteContext demoteContext)
             throws ExecutionException, InterruptedException
     {
-        List<ListenableFuture<Integer>> rowGroupDeleteFutures =
+        List<ListenableFuture<Long>> rowGroupDeleteFutures =
                 tupleRankList.stream()
                         .map(tupleRank -> Futures.submit(
                                 () -> {
                                     RowGroupData rowGroupData = rowGroupDataService.get(tupleRank.rowGroupKey());
+                                    long sizeInBytes = ((long) rowGroupData.getNextOffset()) << pageSizeShift;
                                     rowGroupDataService.deleteData(rowGroupData, true);
                                     //there's some issue with this calculation since it returns the correct number X 2
 //                                    return rowGroupData.getWarmUpElements().size();
-                                    return 1;
+                                    return sizeInBytes;
                                 },
                                 rowGroupExecutorService))
                         .toList();
 
-        return Futures.allAsList(rowGroupDeleteFutures).get()
-                .stream()
-                .mapToLong(Integer::longValue)
-                .sum();
+        List<Long> results = Futures.allAsList(rowGroupDeleteFutures).get();
+        return new DeletionStats(results.size(), results.stream().mapToLong(Long::longValue).sum());
     }
 
     @Subscribe

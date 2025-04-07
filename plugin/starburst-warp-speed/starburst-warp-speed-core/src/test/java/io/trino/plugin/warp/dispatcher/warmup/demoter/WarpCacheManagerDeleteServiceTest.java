@@ -24,6 +24,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterServiceTest.buildWarmupElement;
+import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService.DeletionStats;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -66,6 +68,7 @@ public class WarpCacheManagerDeleteServiceTest
                 rowGroupDataService,
                 cacheMgrWarmupRuleService,
                 new WarmupDemoterConfig(),
+                new StubsStorageEngineConstants(),
                 new NativeConfig(),
                 new EventBus());
         int defaultBatchSize = 2;
@@ -202,12 +205,12 @@ public class WarpCacheManagerDeleteServiceTest
         TupleRank tupleRank = new TupleRank(warmupProperties, null, rowGroupKey);
         List<TupleRank> tupleRanks = List.of(tupleRank);
 
-        long deletedCount = warpCacheManagerDeleteService.delete(tupleRanks, demoteContext);
+        DeletionStats deletionStats = warpCacheManagerDeleteService.delete(tupleRanks, demoteContext);
 
         verify(rowGroupDataService).get(rowGroupKey);
         verify(rowGroupDataService).deleteData(rowGroupData, true);
 //        assertThat(deletedCount).isEqualTo(2); // see comment on `WarpCacheManagerDeleteService.delete` line 134
-        assertThat(deletedCount).isEqualTo(1);
+        assertThat(deletionStats.objectCount()).isEqualTo(1);
     }
 
     private RowGroupData createRowGroupData(List<WarmUpElement> warmUpElements)

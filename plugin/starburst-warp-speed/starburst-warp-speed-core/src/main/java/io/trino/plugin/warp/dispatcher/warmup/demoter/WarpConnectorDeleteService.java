@@ -39,6 +39,7 @@ import io.trino.plugin.warp.dispatcher.warmup.events.WarmupDemoterConfigChangedE
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
@@ -80,6 +81,7 @@ public class WarpConnectorDeleteService
     private final WarmupRuleProvider warmupRuleProvider;
     private final ExecutorService rowGroupExecutorService;
     private final WorkerCapacityManager workerCapacityManager;
+    private final int pageSizeShift;
 
     private WarmupProperties defaultWarmupProperties;
 
@@ -90,12 +92,14 @@ public class WarpConnectorDeleteService
             NativeConfig nativeConfig,
             WarmupRuleProvider warmupRuleProvider,
             WorkerCapacityManager workerCapacityManager,
+            StorageEngineConstants storageEngineConstants,
             EventBus eventBus)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.warmupRuleProvider = requireNonNull(warmupRuleProvider);
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
+        this.pageSizeShift = requireNonNull(storageEngineConstants).getPageSizeShift();
 
         eventBus.register(this);
 
@@ -208,7 +212,7 @@ public class WarpConnectorDeleteService
     }
 
     @Override
-    public long delete(List<TupleRank> tupleRankList, DemoteContext demoteContext)
+    public DeletionStats delete(List<TupleRank> tupleRankList, DemoteContext demoteContext)
             throws ExecutionException, InterruptedException
     {
         Map<RowGroupKey, List<TupleRank>> rowGroupDataWarmUpElementMap = tupleRankList.stream()
@@ -216,11 +220,12 @@ public class WarpConnectorDeleteService
                 .collect(groupingBy(TupleRank::rowGroupKey, mapping(Function.identity(), Collectors.toList())));
         List<RowGroupKey> rowGroupDataList = List.copyOf(rowGroupDataWarmUpElementMap.keySet());
         logger.debug("going to demote %d rowGroupData", rowGroupDataWarmUpElementMap.size());
-        List<ListenableFuture<Long>> rowGroupDeleteFutures = new ArrayList<>();
-        long deletedObject = 0;
+        List<ListenableFuture<DeletionStats>> rowGroupDeleteFutures = new ArrayList<>();
+        long deletedObjects = 0;
+        long deletedBytes = 0;
         try {
             for (RowGroupKey rowGroupKey : rowGroupDataList) {
-                Callable<Long> callable = () -> {
+                Callable<DeletionStats> callable = () -> {
                     RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
                     return deleteRowGroupData(rowGroupData, rowGroupDataWarmUpElementMap.get(rowGroupKey), demoteContext);
                 };
@@ -230,7 +235,9 @@ public class WarpConnectorDeleteService
                 catch (RejectedExecutionException ree) {
                     logger.warn("retry to submit row group data %s", rowGroupKey);
                     try {
-                        deletedObject += Futures.allAsList(rowGroupDeleteFutures).get().stream().mapToLong(Long::longValue).sum();
+                        List<DeletionStats> deletionStats = Futures.allAsList(rowGroupDeleteFutures).get();
+                        deletedObjects += deletionStats.stream().mapToLong(DeletionStats::objectCount).sum();
+                        deletedBytes += deletionStats.stream().mapToLong(DeletionStats::sizeInBytes).sum();
                         rowGroupDeleteFutures = new ArrayList<>();
                         rowGroupDeleteFutures.add(Futures.submit(callable, rowGroupExecutorService));
                     }
@@ -245,12 +252,14 @@ public class WarpConnectorDeleteService
             Futures.allAsList(rowGroupDeleteFutures).get();
             throw e;
         }
-        deletedObject += Futures.allAsList(rowGroupDeleteFutures).get().stream().mapToLong(Long::longValue).sum();
-        return deletedObject;
+        List<DeletionStats> deletionStats = Futures.allAsList(rowGroupDeleteFutures).get();
+        deletedObjects += deletionStats.stream().mapToLong(DeletionStats::objectCount).sum();
+        deletedBytes += deletionStats.stream().mapToLong(DeletionStats::sizeInBytes).sum();
+        return new DeletionStats(deletedObjects, deletedBytes);
     }
 
     @VisibleForTesting
-    long deleteRowGroupData(RowGroupData rowGroupData, List<TupleRank> tupleRanksToDelete, DemoteContext demoteContext)
+    DeletionStats deleteRowGroupData(RowGroupData rowGroupData, List<TupleRank> tupleRanksToDelete, DemoteContext demoteContext)
     {
         List<WarmUpElement> elementsToDelete = tupleRanksToDelete.stream()
                 .map(TupleRank::warmUpElement)
@@ -297,7 +306,12 @@ public class WarpConnectorDeleteService
                 demoteContext.statsWarmupDemoter().addnumber_fail_acquire(retryFailure.get());
             }
         }
-        return delete.get() ? elementsToDelete.size() : 0;
+        if (delete.get()) {
+            return new DeletionStats(
+                    elementsToDelete.size(),
+                    elementsToDelete.stream().mapToLong(element -> element.getEndOffset() - element.getStartOffset()).sum() << pageSizeShift);
+        }
+        return DeletionStats.EMPTY;
     }
 
     private boolean coolRowGroupData(RowGroupData rowGroupData, List<WarmUpElement> elementsToDelete, DemoteContext demoteContext)

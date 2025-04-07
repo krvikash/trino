@@ -30,6 +30,7 @@ import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
@@ -93,6 +94,7 @@ class WarpConnectorDeleteServiceTest
                 new NativeConfig(),
                 warmupRuleProvider,
                 mock(WorkerCapacityManager.class),
+                new StubsStorageEngineConstants(),
                 new EventBus()));
         int defaultBatchSize = 2;
         int defaultEpsilon = 1;

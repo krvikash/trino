@@ -25,8 +25,13 @@ public interface WarpDeleteService
     TupleRankResult buildTupleRank(List<TupleFilter> tupleFilters,
             boolean forceDeleteFailedObjects);
 
-    long delete(List<TupleRank> tupleRankList, DemoteContext demoteContext)
+    DeletionStats delete(List<TupleRank> tupleRankList, DemoteContext demoteContext)
             throws ExecutionException, InterruptedException;
+
+    record DeletionStats(long objectCount, long sizeInBytes)
+    {
+        public static final DeletionStats EMPTY = new DeletionStats(0, 0);
+    }
 
     default boolean isDeleteImmediatelyObject(TupleRank tupleRank, Instant currentTime, List<TupleFilter> tupleFilters)
     {

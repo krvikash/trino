@@ -106,7 +106,7 @@ public class WarmupDemoterServiceTest
         deleteService = mock(WarpDeleteService.class);
         when(deleteService.delete(anyList(), any())).thenAnswer(invocation -> {
             List<TupleRank> arg = invocation.getArgument(0); // Get the argument passed
-            return (long) arg.size();
+            return new WarpDeleteService.DeletionStats(arg.size(), 0);
         });
         metricsManager = TestingTxService.createMetricsManager();
 

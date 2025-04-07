@@ -39,6 +39,7 @@ public final class WarmupDemoterStats
     private final LongAdder not_executed_due_sync_demote_start_rejected = new LongAdder();
     private final LongAdder dead_objects_deleted = new LongAdder();
     private final LongAdder failed_objects_deleted = new LongAdder();
+    private final LongAdder deleted_bytes = new LongAdder();
     private final LongAdder deleted_by_low_priority = new LongAdder();
     private final LongAdder number_of_cycles = new LongAdder();
     private final LongAdder number_fail_acquire = new LongAdder();
@@ -239,6 +240,29 @@ public final class WarmupDemoterStats
     {
         failed_objects_deleted.reset();
         addfailed_objects_deleted(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getdeleted_bytes()
+    {
+        return deleted_bytes.longValue();
+    }
+
+    public void incdeleted_bytes()
+    {
+        deleted_bytes.increment();
+    }
+
+    public void adddeleted_bytes(long val)
+    {
+        deleted_bytes.add(val);
+    }
+
+    public void setdeleted_bytes(long val)
+    {
+        deleted_bytes.reset();
+        adddeleted_bytes(val);
     }
 
     @JsonIgnore
@@ -482,6 +506,7 @@ public final class WarmupDemoterStats
         ret.put("not_executed_due_sync_demote_start_rejected", not_executed_due_sync_demote_start_rejected);
         ret.put("dead_objects_deleted", dead_objects_deleted);
         ret.put("failed_objects_deleted", failed_objects_deleted);
+        ret.put("deleted_bytes", deleted_bytes);
         ret.put("deleted_by_low_priority", deleted_by_low_priority);
         ret.put("number_of_cycles", number_of_cycles);
         ret.put("number_fail_acquire", number_fail_acquire);
@@ -508,6 +533,7 @@ public final class WarmupDemoterStats
         this.not_executed_due_sync_demote_start_rejected.add(other.not_executed_due_sync_demote_start_rejected.longValue());
         this.dead_objects_deleted.add(other.dead_objects_deleted.longValue());
         this.failed_objects_deleted.add(other.failed_objects_deleted.longValue());
+        this.deleted_bytes.add(other.deleted_bytes.longValue());
         this.deleted_by_low_priority.add(other.deleted_by_low_priority.longValue());
         this.number_of_cycles.add(other.number_of_cycles.longValue());
         this.number_fail_acquire.add(other.number_fail_acquire.longValue());
@@ -532,6 +558,7 @@ public final class WarmupDemoterStats
         not_executed_due_sync_demote_start_rejected.reset();
         dead_objects_deleted.reset();
         failed_objects_deleted.reset();
+        deleted_bytes.reset();
         deleted_by_low_priority.reset();
         number_of_cycles.reset();
         number_fail_acquire.reset();
@@ -557,6 +584,7 @@ public final class WarmupDemoterStats
         res.put("warmupDemoter:not_executed_due_sync_demote_start_rejected", not_executed_due_sync_demote_start_rejected.longValue());
         res.put("warmupDemoter:dead_objects_deleted", dead_objects_deleted.longValue());
         res.put("warmupDemoter:failed_objects_deleted", failed_objects_deleted.longValue());
+        res.put("warmupDemoter:deleted_bytes", deleted_bytes.longValue());
         res.put("warmupDemoter:deleted_by_low_priority", deleted_by_low_priority.longValue());
         res.put("warmupDemoter:number_of_cycles", number_of_cycles.longValue());
         res.put("warmupDemoter:number_fail_acquire", number_fail_acquire.longValue());
@@ -583,11 +611,11 @@ public final class WarmupDemoterStats
         res.put("not_executed_due_sync_demote_start_rejected", getnot_executed_due_sync_demote_start_rejected());
         res.put("dead_objects_deleted", getdead_objects_deleted());
         res.put("failed_objects_deleted", getfailed_objects_deleted());
+        res.put("deleted_bytes", getdeleted_bytes());
         res.put("deleted_by_low_priority", getdeleted_by_low_priority());
         res.put("number_of_cycles", getnumber_of_cycles());
         res.put("number_fail_acquire", getnumber_fail_acquire());
         res.put("currentUsage", getcurrentUsage());
-        res.put("totalCapacity", gettotalUsage());
         res.put("reserved_tx", getreserved_tx());
         res.put("failed_row_group_data", getfailed_row_group_data());
         return res;
