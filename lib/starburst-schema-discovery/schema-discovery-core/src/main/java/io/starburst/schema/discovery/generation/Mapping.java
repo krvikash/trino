@@ -33,7 +33,7 @@ import java.util.stream.Stream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.schema.discovery.generation.SqlType.sqlType;
 
-class Mapping
+public class Mapping
 {
     private Mapping() {}
 
@@ -53,12 +53,12 @@ class Mapping
         };
     }
 
-    static String columnType(Column column)
+    public static String columnType(Column column)
     {
         return convert(column.type().typeInfo()).getSqlType();
     }
 
-    static String tableFormat(DiscoveredTable table)
+    public static String tableFormat(DiscoveredTable table)
     {
         if (table.format() == TableFormat.CSV) {
             if (table.columns().flags().contains(CsvFlags.HAS_QUOTED_FIELDS)) {

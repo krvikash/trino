@@ -67,6 +67,7 @@
         <module>plugin/starburst-ai</module>
         <module>plugin/starburst-base-jdbc</module>
         <module>plugin/starburst-dynamodb</module>
+        <module>plugin/starburst-io</module>
         <module>plugin/starburst-oracle</module>
         <module>plugin/starburst-salesforce</module>
         <module>plugin/starburst-sap-hana</module>
@@ -993,6 +994,12 @@
                 <groupId>io.projectreactor.netty</groupId>
                 <artifactId>reactor-netty-core</artifactId>
                 <version>1.1.30</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.starburst.schema-discovery</groupId>
+                <artifactId>schema-discovery-core</artifactId>
+                <version>${project.version}</version>
             </dependency>
 
             <!-- io.confluent:kafka-avro-serializer uses multiple versions of this transitive dependency -->

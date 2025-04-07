@@ -943,6 +943,7 @@ jobs:
             !:starburst-ai-client,
             !:starburst-base-jdbc,
             !:starburst-dynamodb,
+            !:starburst-io,
             !:starburst-license,
             !:starburst-oracle,
             !:starburst-salesforce,
@@ -1097,6 +1098,7 @@ jobs:
             - { modules: lib/starburst-ai-client }
             - { modules: plugin/starburst-ai }
             - { modules: plugin/starburst-dynamodb }
+            - { modules: plugin/starburst-io }
             - { modules: plugin/starburst-oracle }
             - { modules: plugin/starburst-sap-hana }
             - { modules: plugin/starburst-sqlserver }
@@ -1193,6 +1195,7 @@ jobs:
         if: >-
           matrix.modules != 'plugin/starburst-ai'
           && matrix.modules != 'lib/starburst-ai-client'
+          && matrix.modules != 'plugin/starburst-io'
           && ! (contains(matrix.modules, 'trino-mongodb') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-bigquery') && contains(matrix.profile, 'cloud-tests-2'))
           && ! (contains(matrix.modules, 'trino-delta-lake') && contains(matrix.profile, 'cloud-tests'))
@@ -1219,6 +1222,22 @@ jobs:
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }}
+      - name: Run Starburst IO tests
+        id: tests-starburst-io
+        env:
+          S3_BUCKET: ${{ vars.TRINO_S3_BUCKET }}
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ vars.TRINO_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TRINO_AWS_SECRET_ACCESS_KEY }}
+          GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
+          GCP_CREDENTIALS_KEY: ${{ secrets.GCP_CREDENTIALS_KEY }}
+          ABFS_CONTAINER: ${{ vars.AZURE_ABFS_HIERARCHICAL_CONTAINER }}
+          ABFS_ACCOUNT: ${{ vars.AZURE_ABFS_HIERARCHICAL_ACCOUNT }}
+          ABFS_ACCESS_KEY: ${{ secrets.AZURE_ABFS_HIERARCHICAL_ACCESS_KEY }}
+        if: matrix.modules == 'plugin/starburst-io'
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }}
       - name: HDFS file system cache isolated JVM tests
         id: tests-hdfs-isolated
         if: contains(matrix.modules, 'trino-hdfs')
@@ -1491,6 +1510,7 @@ jobs:
           has-failed-tests: >-
             ${{ steps.tests.outcome == 'failure'
               || steps.tests-starburst-ai.outcome == 'failure'
+              || steps.tests-starburst-io.outcome == 'failure'
               || steps.tests-hdfs-isolated.outcome == 'failure'
               || steps.tests-hdfs.outcome == 'failure'
               || steps.tests-s3.outcome == 'failure'
