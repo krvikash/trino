@@ -501,8 +501,8 @@
                             <includes>
                                 <include>**/TestJdbcSnowflakeQueryFailureRecoveryTest.java</include>
                                 <include>**/TestJdbcSnowflakeTaskFailureRecoveryTest.java</include>
-                                <include>**/TestParallelSnowflakeQueryFailureRecoveryTest.java.java</include>
-                                <include>**/TestParallelSnowflakeTaskFailureRecoveryTest.java.java</include>
+                                <include>**/TestParallelSnowflakeQueryFailureRecoveryTest.java</include>
+                                <include>**/TestParallelSnowflakeTaskFailureRecoveryTest.java</include>
                             </includes>
                         </configuration>
                     </plugin>
