@@ -31,7 +31,11 @@ import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.LazyBlock;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.RunLengthEncodedBlock;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.type.Type;
 
@@ -598,10 +602,15 @@ public class DispatcherPageSource
         return new Page(orderedBlocks);
     }
 
-    private void fillBlock(Block block, BlockBuilder blockBuilder, int start, int end)
+    private static void appendBlockRange(Block block, int offset, int length, BlockBuilder blockBuilder)
     {
-        for (int position = start; position < end; position++) {
-            blockBuilder.append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(position));
+        Block rawBlock = block.getLoadedBlock();
+        switch (rawBlock) {
+            case RunLengthEncodedBlock rleBlock -> blockBuilder.appendRepeated(rleBlock.getValue(), 0, length);
+            case DictionaryBlock dictionaryBlock ->
+                    blockBuilder.appendPositions(dictionaryBlock.getDictionary(), dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset() + offset, length);
+            case ValueBlock valueBlock -> blockBuilder.appendRange(valueBlock, offset, length);
+            case LazyBlock _ -> throw new UnsupportedOperationException("getLoadedBlock should not return LazyBlock");
         }
     }
 
@@ -612,10 +621,9 @@ public class DispatcherPageSource
             int columnInBuilder)
     {
         for (int column = 0; column < page.getChannelCount(); column++) {
-            Block block = page.getBlock(column).getLoadedBlock();
             BlockBuilder blockBuilder = resultPageBuilder.getBlockBuilder(columnInBuilder);
             try {
-                fillBlock(block, blockBuilder, currentRowInPage, currentRowInPage + numberOfRowsToAdd);
+                appendBlockRange(page.getBlock(column), currentRowInPage, numberOfRowsToAdd, blockBuilder);
             }
             catch (Exception e) {
                 throw new TrinoException(
