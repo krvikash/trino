@@ -1016,6 +1016,15 @@ public final class ConnectorSensitiveProperties
                             "protocol.spooling.shared-secret-key",
                             "sqlserver.tls.truststore-password",
                             "web-ui.shared-secret"))
+            .put("starburst_ai",
+                    ImmutableSet.of(
+                            "auth-to-local.ldap.bind-password",
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password"))
             .put("stargate",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",

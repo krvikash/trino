@@ -104,7 +104,7 @@ public abstract class AbstractQueryTroubleshootingTest
 
     private static final Session TROUBLESHOOTED_SESSION_UNAUTHORIZED_TEMPLATE = testSessionBuilder()
             .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
-            .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "256kB")
+            .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "512kB")
             .build();
 
     private TroubleshootingContextManager troubleshootingContextManager;
