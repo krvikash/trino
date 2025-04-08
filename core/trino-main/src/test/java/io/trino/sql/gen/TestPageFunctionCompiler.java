@@ -17,20 +17,34 @@ import com.google.common.collect.ImmutableList;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.Work;
+import io.trino.operator.project.PageFilter;
 import io.trino.operator.project.PageProjection;
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.sql.ir.Case;
+import io.trino.sql.ir.Comparison;
+import io.trino.sql.ir.Constant;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Reference;
+import io.trino.sql.ir.WhenClause;
+import io.trino.sql.planner.Symbol;
 import io.trino.sql.relational.CallExpression;
+import io.trino.sql.relational.RowExpression;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.function.OperatorType.ADD;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.sql.ExpressionTestUtils.rowExpression;
+import static io.trino.sql.ir.Comparison.Operator.EQUAL;
 import static io.trino.sql.relational.Expressions.call;
 import static io.trino.sql.relational.Expressions.constant;
 import static io.trino.sql.relational.Expressions.field;
@@ -101,6 +115,57 @@ public class TestPageFunctionCompiler
         assertThat(noCacheCompiler.compileProjection(ADD_10_EXPRESSION, Optional.empty())).isNotSameAs(noCacheCompiler.compileProjection(ADD_10_EXPRESSION, Optional.of("hint2")));
     }
 
+    @Test
+    public void testHugeSearchedCase()
+    {
+        PageFunctionCompiler functionCompiler = FUNCTION_RESOLUTION.getPageFunctionCompiler();
+
+        int branchCount = 100;
+
+        // CASE
+        //   WHEN 0 = (CASE
+        //                 WHEN x = 0 THEN 0
+        //                 WHEN x = 1 THEN 10
+        //                 ...
+        //                 ELSE -1
+        //             END) THEN 0
+        //   WHEN 10 = (CASE
+        //                 WHEN x = 0 THEN 0
+        //                 WHEN x = 1 THEN 10
+        //                 ...
+        //                 ELSE -1
+        //             END) THEN 1
+        //   ...
+        //   ELSE -1
+        //END
+        List<WhenClause> whenClauses = new ArrayList<>();
+        for (long i = 0; i < branchCount; i++) {
+            List<WhenClause> innerWhenClauses = new ArrayList<>();
+            for (long j = 0; j < branchCount; j++) {
+                innerWhenClauses.add(whenClause(new Reference(BIGINT, "x"), j, j * 10));
+            }
+            Case innerCaseWhen = new Case(innerWhenClauses, new Constant(BIGINT, -1L));
+            whenClauses.add(whenClause(innerCaseWhen, i * 10, i));
+        }
+        Case caseWhen = new Case(whenClauses, new Constant(BIGINT, -1L));
+        Map<Symbol, Integer> sourceLayout = Map.of(new Symbol(BIGINT, "x"), 0);
+
+        Page inputPage = rangeLongBlockPage(0, branchCount);
+
+        RowExpression projectionExpression = rowExpression(caseWhen, sourceLayout);
+        Supplier<PageProjection> projectionSupplier = functionCompiler.compileProjection(projectionExpression, Optional.empty());
+        Block projectionResult = project(projectionSupplier.get(), inputPage, SelectedPositions.positionsRange(0, inputPage.getPositionCount()));
+        for (int i = 0; i < inputPage.getPositionCount() - 1; i++) {
+            assertThat(BIGINT.getLong(projectionResult, i)).isEqualTo(i);
+        }
+        assertThat(BIGINT.getLong(projectionResult, inputPage.getPositionCount() - 1)).isEqualTo(-1);
+
+        RowExpression filterExpression = rowExpression(new Comparison(EQUAL, caseWhen, new Constant(BIGINT, -1L)), sourceLayout);
+        Supplier<PageFilter> filterSupplier = functionCompiler.compileFilter(filterExpression, Optional.empty());
+        SelectedPositions filterResult = filterSupplier.get().filter(SESSION, inputPage);
+        assertThat(filterResult.getPositions()).containsExactly(100);
+    }
+
     private Block project(PageProjection projection, Page page, SelectedPositions selectedPositions)
     {
         Work<Block> work = projection.project(SESSION, new DriverYieldSignal(), page, selectedPositions);
@@ -115,5 +180,21 @@ public class TestPageFunctionCompiler
             BIGINT.writeLong(builder, value);
         }
         return new Page(builder.build());
+    }
+
+    private static Page rangeLongBlockPage(long startInclusive, long endInclusive)
+    {
+        BlockBuilder builder = BIGINT.createFixedSizeBlockBuilder((int) (endInclusive - startInclusive + 1));
+        for (long value = startInclusive; value <= endInclusive; value++) {
+            BIGINT.writeLong(builder, value);
+        }
+        return new Page(builder.build());
+    }
+
+    private static WhenClause whenClause(Expression left, long right, long result)
+    {
+        return new WhenClause(
+                new Comparison(EQUAL, left, new Constant(BIGINT, right)),
+                new Constant(BIGINT, result));
     }
 }

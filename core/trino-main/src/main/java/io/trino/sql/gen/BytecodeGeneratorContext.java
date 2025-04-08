@@ -87,6 +87,11 @@ public class BytecodeGeneratorContext
         return rowExpressionCompiler.compile(expression, scope);
     }
 
+    public BytecodeNode generateWithExtraction(RowExpression expression)
+    {
+        return rowExpressionCompiler.compileWithExtraction(expression, scope);
+    }
+
     public ScalarFunctionImplementation getScalarFunctionImplementation(ResolvedFunction resolvedFunction, InvocationConvention invocationConvention)
     {
         return functionManager.getScalarFunctionImplementation(resolvedFunction, invocationConvention);

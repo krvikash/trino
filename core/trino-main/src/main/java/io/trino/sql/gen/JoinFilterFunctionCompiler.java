@@ -50,6 +50,7 @@ import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -200,7 +201,8 @@ public class JoinFilterFunctionCompiler
                 fieldReferenceCompiler(callSiteBinder, leftPosition, leftPage, rightPosition, rightPage, leftBlocksSize),
                 functionManager,
                 compiledLambdaMap,
-                ImmutableList.of(leftPage, leftPosition, rightPage, rightPosition));
+                ImmutableList.of(leftPage, leftPosition, rightPage, rightPosition),
+                Optional.empty());
 
         BytecodeNode visitorBody = compiler.compile(filter, scope);
 

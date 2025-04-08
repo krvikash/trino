@@ -233,6 +233,7 @@ public class PageFunctionCompiler
                 generateProjectionWorkClassName(classNameSuffix),
                 type(Object.class),
                 type(Work.class));
+        ClassScope classScope = new ClassScope(classDefinition);
 
         FieldDefinition blockBuilderField = classDefinition.declareField(a(PRIVATE), "blockBuilder", BlockBuilder.class);
         FieldDefinition sessionField = classDefinition.declareField(a(PRIVATE), "session", ConnectorSession.class);
@@ -251,7 +252,7 @@ public class PageFunctionCompiler
 
         // evaluate
         Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, projection);
-        generateEvaluateMethod(classDefinition, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, projection, blockBuilderField);
+        generateEvaluateMethod(classDefinition, classScope, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, projection, blockBuilderField);
 
         // constructor
         Parameter blockBuilder = arg("blockBuilder", BlockBuilder.class);
@@ -333,6 +334,7 @@ public class PageFunctionCompiler
 
     private MethodDefinition generateEvaluateMethod(
             ClassDefinition classDefinition,
+            ClassScope classScope,
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
             Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap,
@@ -365,7 +367,8 @@ public class PageFunctionCompiler
                 fieldReferenceCompilerProjection(callSiteBinder),
                 functionManager,
                 compiledLambdaMap,
-                ImmutableList.of(session, position));
+                ImmutableList.of(session, position),
+                Optional.of(new ParentMethodContext(classScope, ImmutableList.of(wasNullVariable))));
 
         body.append(thisVariable.getField(blockBuilder))
                 .append(compiler.compile(projection, scope))
@@ -431,11 +434,12 @@ public class PageFunctionCompiler
                 generateFilterClassName(classNameSuffix),
                 type(Object.class),
                 type(PageFilter.class));
+        ClassScope classScope = new ClassScope(classDefinition);
 
         CachedInstanceBinder cachedInstanceBinder = new CachedInstanceBinder(classDefinition, callSiteBinder);
 
         Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, filter);
-        generateFilterMethod(classDefinition, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, filter);
+        generateFilterMethod(classDefinition, classScope, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, filter);
 
         FieldDefinition selectedPositions = classDefinition.declareField(a(PRIVATE), "selectedPositions", boolean[].class);
         generatePageFilterMethod(classDefinition, selectedPositions);
@@ -517,6 +521,7 @@ public class PageFunctionCompiler
 
     private MethodDefinition generateFilterMethod(
             ClassDefinition classDefinition,
+            ClassScope classScope,
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
             Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap,
@@ -541,7 +546,7 @@ public class PageFunctionCompiler
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        declareBlockVariables(filter, page, scope, body);
+        List<Variable> blockVariables = declareBlockVariables(filter, page, scope, body);
 
         Variable wasNullVariable = scope.declareVariable("wasNull", body, constantFalse());
         RowExpressionCompiler compiler = new RowExpressionCompiler(
@@ -551,7 +556,14 @@ public class PageFunctionCompiler
                 fieldReferenceCompiler(callSiteBinder),
                 functionManager,
                 compiledLambdaMap,
-                ImmutableList.of(page, position));
+                ImmutableList.of(session, page, position),
+                Optional.of(
+                        new ParentMethodContext(
+                                classScope,
+                                ImmutableList.<Variable>builder()
+                                        .addAll(blockVariables)
+                                        .add(wasNullVariable)
+                                        .build())));
 
         Variable result = scope.declareVariable(boolean.class, "result");
         body.append(compiler.compile(filter, scope))
@@ -607,11 +619,14 @@ public class PageFunctionCompiler
         body.ret();
     }
 
-    private static void declareBlockVariables(RowExpression expression, Parameter page, Scope scope, BytecodeBlock body)
+    private static List<Variable> declareBlockVariables(RowExpression expression, Parameter page, Scope scope, BytecodeBlock body)
     {
+        ImmutableList.Builder<Variable> variables = ImmutableList.builder();
         for (int channel : getInputChannels(expression)) {
-            scope.declareVariable("block_" + channel, body, page.invoke("getBlock", Block.class, constantInt(channel)));
+            Variable variable = scope.declareVariable("block_" + channel, body, page.invoke("getBlock", Block.class, constantInt(channel)));
+            variables.add(variable);
         }
+        return variables.build();
     }
 
     private static List<Integer> getInputChannels(Iterable<RowExpression> expressions)

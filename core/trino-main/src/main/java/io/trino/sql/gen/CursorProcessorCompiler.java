@@ -165,8 +165,9 @@ public class CursorProcessorCompiler
                 makeClassName(CursorProcessor.class.getSimpleName()),
                 type(Object.class),
                 type(CursorProcessor.class));
+        ClassScope classScope = new ClassScope(classDefinition);
 
-        generateMethods(classDefinition, callSiteBinder, filter, chunkClasses);
+        generateMethods(classDefinition, classScope, callSiteBinder, filter, chunkClasses);
 
         //
         // toString method
@@ -186,14 +187,14 @@ public class CursorProcessorCompiler
         return defineClass(classDefinition, CursorProcessor.class, dynamicClassLoader);
     }
 
-    private void generateMethods(ClassDefinition classDefinition, CallSiteBinder callSiteBinder, RowExpression filter, List<CursorProcessorChunkClass> chunkClasses)
+    private void generateMethods(ClassDefinition classDefinition, ClassScope classScope, CallSiteBinder callSiteBinder, RowExpression filter, List<CursorProcessorChunkClass> chunkClasses)
     {
         CachedInstanceBinder cachedInstanceBinder = new CachedInstanceBinder(classDefinition, callSiteBinder);
 
         generateProcessMethod(classDefinition, chunkClasses);
 
         Map<LambdaDefinitionExpression, CompiledLambda> filterCompiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, filter, "filter");
-        generateFilterMethod(classDefinition, callSiteBinder, cachedInstanceBinder, filterCompiledLambdaMap, filter);
+        generateFilterMethod(classDefinition, classScope, callSiteBinder, cachedInstanceBinder, filterCompiledLambdaMap, filter);
 
         MethodDefinition constructorDefinition = classDefinition.declareConstructor(a(PUBLIC));
         BytecodeBlock constructorBody = constructorDefinition.getBody();
@@ -299,6 +300,7 @@ public class CursorProcessorCompiler
                 a(PUBLIC, FINAL),
                 makeClassName("CursorProcessorChunk"),
                 type(Object.class));
+        ClassScope classScope = new ClassScope(definition);
 
         CachedInstanceBinder cachedInstanceBinder = new CachedInstanceBinder(definition, callSiteBinder);
 
@@ -309,7 +311,7 @@ public class CursorProcessorCompiler
                 .append(thisVariable)
                 .invokeConstructor(Object.class);
 
-        MethodDefinition project = generateProjectChunk(definition, projectionStartIndex, callSiteBinder, cachedInstanceBinder, projections);
+        MethodDefinition project = generateProjectChunk(definition, classScope, projectionStartIndex, callSiteBinder, cachedInstanceBinder, projections);
 
         cachedInstanceBinder.generateInitializations(thisVariable, constructorBody);
         constructorBody.ret();
@@ -319,6 +321,7 @@ public class CursorProcessorCompiler
 
     private MethodDefinition generateProjectChunk(
             ClassDefinition classDefinition,
+            ClassScope classScope,
             int projectionStartIndex,
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
@@ -350,6 +353,7 @@ public class CursorProcessorCompiler
                     methodName);
             generateProjectMethod(
                     classDefinition,
+                    classScope,
                     callSiteBinder,
                     cachedInstanceBinder,
                     projectCompiledLambdaMap,
@@ -412,6 +416,7 @@ public class CursorProcessorCompiler
 
     private void generateFilterMethod(
             ClassDefinition classDefinition,
+            ClassScope classScope,
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
             Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap,
@@ -433,7 +438,8 @@ public class CursorProcessorCompiler
                 fieldReferenceCompiler(cursor),
                 functionManager,
                 compiledLambdaMap,
-                ImmutableList.of(session, cursor));
+                ImmutableList.of(session, cursor),
+                Optional.of(new ParentMethodContext(classScope, ImmutableList.of(wasNullVariable))));
 
         LabelNode end = new LabelNode("end");
         method.getBody()
@@ -452,6 +458,7 @@ public class CursorProcessorCompiler
 
     private void generateProjectMethod(
             ClassDefinition classDefinition,
+            ClassScope classScope,
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
             Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap,
@@ -475,7 +482,8 @@ public class CursorProcessorCompiler
                 fieldReferenceCompiler(cursor),
                 functionManager,
                 compiledLambdaMap,
-                ImmutableList.of(session, cursor, output));
+                ImmutableList.of(session, cursor, output),
+                Optional.of(new ParentMethodContext(classScope, ImmutableList.of(wasNullVariable))));
 
         method.getBody()
                 .comment("boolean wasNull = false;")

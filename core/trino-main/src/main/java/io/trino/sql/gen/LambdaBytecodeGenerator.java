@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -137,7 +138,8 @@ public final class LambdaBytecodeGenerator
                 variableReferenceCompiler(parameterMapBuilder.buildOrThrow()),
                 functionManager,
                 compiledLambdaMap,
-                parameters.build());
+                parameters.build(),
+                Optional.empty());
 
         return defineLambdaMethod(
                 innerExpressionCompiler,
@@ -274,7 +276,8 @@ public final class LambdaBytecodeGenerator
                 variableReferenceCompiler(ImmutableMap.of()),
                 functionManager,
                 compiledLambdaMap,
-                ImmutableList.of());
+                ImmutableList.of(),
+                Optional.empty());
 
         List<Parameter> parameters = new ArrayList<>();
         parameters.add(arg("session", ConnectorSession.class));

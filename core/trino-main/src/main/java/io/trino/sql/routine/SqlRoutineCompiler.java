@@ -471,7 +471,8 @@ public final class SqlRoutineCompiler
                     FieldReferenceCompiler.INSTANCE,
                     functionManager,
                     compiledLambdaMap,
-                    ImmutableList.of());
+                    ImmutableList.of(),
+                    Optional.empty());
 
             return new BytecodeBlock()
                     .comment("boolean wasNull = false;")

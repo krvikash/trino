@@ -48,7 +48,7 @@ public class IfCodeGenerator
     {
         Variable wasNull = context.wasNull();
         BytecodeBlock conditionBlock = new BytecodeBlock()
-                .append(context.generate(condition))
+                .append(context.generateWithExtraction(condition))
                 .comment("... and condition value was not null")
                 .append(wasNull)
                 .invokeStatic(CompilerOperations.class, "not", boolean.class, boolean.class)
@@ -57,7 +57,7 @@ public class IfCodeGenerator
 
         return new IfStatement()
                 .condition(conditionBlock)
-                .ifTrue(context.generate(trueValue))
-                .ifFalse(context.generate(falseValue));
+                .ifTrue(context.generateWithExtraction(trueValue))
+                .ifFalse(context.generateWithExtraction(falseValue));
     }
 }
