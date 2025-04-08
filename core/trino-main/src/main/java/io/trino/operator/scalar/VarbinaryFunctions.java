@@ -501,4 +501,23 @@ public final class VarbinaryFunctions
         }
         return reverse;
     }
+
+    @Description("Computes Hamming distance between two varbinary")
+    @ScalarFunction("hamming_distance")
+    @SqlType(StandardTypes.BIGINT)
+    public static long hammingDistance(@SqlType("varbinary") Slice left, @SqlType("varbinary") Slice right)
+    {
+        int distance = 0;
+        if (left.length() != right.length()) {
+            throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "hamming_distance requires the inputs have the same length");
+        }
+
+        int length = left.length();
+        for (int position = 0; position < length; position++) {
+            int overlap = left.getByteUnchecked(position) ^ right.getByteUnchecked(position);
+            distance += Integer.bitCount(overlap);
+        }
+
+        return distance;
+    }
 }
