@@ -219,7 +219,7 @@
         <dep.starburst-dataframe.version>0.8.0.pr74-fbdfcb6</dep.starburst-dataframe.version>
 
         <!-- keep dependency properties sorted -->
-        <dep.airlift.version>312</dep.airlift.version>
+        <dep.airlift.version>330</dep.airlift.version>
         <dep.alluxio.version>2.9.6</dep.alluxio.version>
         <dep.antlr.version>4.13.2</dep.antlr.version>
         <dep.avro.version>1.12.0</dep.avro.version>
@@ -549,7 +549,7 @@
             <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>failureaccess</artifactId>
-                <version>1.0.2</version>
+                <version>1.0.3</version>
             </dependency>
 
             <dependency>
