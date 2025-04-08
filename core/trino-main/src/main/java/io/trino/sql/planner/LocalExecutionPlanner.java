@@ -347,6 +347,7 @@ import static io.trino.SystemSessionProperties.isEnableDynamicRowFiltering;
 import static io.trino.SystemSessionProperties.isEnableLargeDynamicFilters;
 import static io.trino.SystemSessionProperties.isForceSpillingOperator;
 import static io.trino.SystemSessionProperties.isSpillEnabled;
+import static io.trino.SystemSessionProperties.isUseCardinalityBasedPartialAggregationController;
 import static io.trino.cache.CacheCommonSubqueries.getLoadCachedDataPlanNode;
 import static io.trino.cache.CacheCommonSubqueries.isCacheChooseAlternativeNode;
 import static io.trino.cache.CacheUtils.uncheckedCacheGet;
@@ -4400,6 +4401,7 @@ public class LocalExecutionPlanner
     {
         return maxPartialAggregationMemorySize.isPresent() && step.isOutputPartial() && isAdaptivePartialAggregationEnabled(session) ?
                 Optional.of(new PartialAggregationController(
+                        isUseCardinalityBasedPartialAggregationController(session),
                         maxPartialAggregationMemorySize.get(),
                         getAdaptivePartialAggregationUniqueRowsRatioThreshold(session))) :
                 Optional.empty();

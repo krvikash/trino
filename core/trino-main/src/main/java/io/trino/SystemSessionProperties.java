@@ -217,6 +217,8 @@ public final class SystemSessionProperties
     public static final String FAULT_TOLERANT_EXECUTION_ADAPTIVE_JOIN_REORDERING_MIN_SIZE_THRESHOLD = "fault_tolerant_execution_adaptive_join_reordering_min_size_threshold";
     public static final String ADAPTIVE_PARTIAL_AGGREGATION_ENABLED = "adaptive_partial_aggregation_enabled";
     public static final String ADAPTIVE_PARTIAL_AGGREGATION_UNIQUE_ROWS_RATIO_THRESHOLD = "adaptive_partial_aggregation_unique_rows_ratio_threshold";
+    public static final String USE_CARDINALITY_ESTIMATION_BASED_PARTIAL_AGGREGATION_CONTROLLER = "use_cardinality_estimation_based_partial_aggregation_controller";
+    public static final String HLL_BUCKET_SIZE = "hll_bucket_size";
     public static final String REMOTE_TASK_ADAPTIVE_UPDATE_REQUEST_SIZE_ENABLED = "remote_task_adaptive_update_request_size_enabled";
     public static final String REMOTE_TASK_MAX_REQUEST_SIZE = "remote_task_max_request_size";
     public static final String REMOTE_TASK_REQUEST_SIZE_HEADROOM = "remote_task_request_size_headroom";
@@ -1139,6 +1141,17 @@ public final class SystemSessionProperties
                         optimizerConfig.getAdaptivePartialAggregationUniqueRowsRatioThreshold(),
                         false),
                 booleanProperty(
+                        USE_CARDINALITY_ESTIMATION_BASED_PARTIAL_AGGREGATION_CONTROLLER,
+                        "Enable cardinality estimation based partial aggregation controller",
+                        optimizerConfig.isCardinalityEstimationBasedPartialAggregationControllerEnabled(),
+                        false),
+                integerProperty(
+                        HLL_BUCKET_SIZE,
+                        "Bucket size for HLL to be used for cardinality estimator",
+                        optimizerConfig.getCardinalityEstimatorHllBucketCount(),
+                        value -> validateBucketCountForHLL(value, HLL_BUCKET_SIZE),
+                        false),
+                booleanProperty(
                         REMOTE_TASK_ADAPTIVE_UPDATE_REQUEST_SIZE_ENABLED,
                         "Experimental: Enable adaptive adjustment for size of remote task update request",
                         queryManagerConfig.isEnabledAdaptiveTaskRequestSize(),
@@ -1688,6 +1701,21 @@ public final class SystemSessionProperties
         }
     }
 
+    private static void validateBucketCountForHLL(Object value, String property)
+    {
+        int intValue = (int) value;
+        if (Integer.bitCount(intValue) != 1) {
+            throw new TrinoException(
+                    INVALID_SESSION_PROPERTY,
+                    format("%s must be a power of 2: %s", property, intValue));
+        }
+        if (intValue > 65536) {
+            throw new TrinoException(
+                    INVALID_SESSION_PROPERTY,
+                    format("%s must be less than 65536", property));
+        }
+    }
+
     private static Integer validateNullablePositiveIntegerValue(Object value, String property)
     {
         return validateIntegerValue(value, property, 1, true);
@@ -2160,6 +2188,16 @@ public final class SystemSessionProperties
     public static double getAdaptivePartialAggregationUniqueRowsRatioThreshold(Session session)
     {
         return session.getSystemProperty(ADAPTIVE_PARTIAL_AGGREGATION_UNIQUE_ROWS_RATIO_THRESHOLD, Double.class);
+    }
+
+    public static boolean isUseCardinalityBasedPartialAggregationController(Session session)
+    {
+        return session.getSystemProperty(USE_CARDINALITY_ESTIMATION_BASED_PARTIAL_AGGREGATION_CONTROLLER, Boolean.class);
+    }
+
+    public static int getHllBucketSize(Session session)
+    {
+        return session.getSystemProperty(HLL_BUCKET_SIZE, Integer.class);
     }
 
     public static boolean isRemoteTaskAdaptiveUpdateRequestSizeEnabled(Session session)

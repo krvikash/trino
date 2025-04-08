@@ -75,6 +75,9 @@ import static io.trino.operator.OperatorAssertion.assertPagesEqualIgnoreOrder;
 import static io.trino.operator.OperatorAssertion.dropChannel;
 import static io.trino.operator.OperatorAssertion.toMaterializedResult;
 import static io.trino.operator.OperatorAssertion.toPages;
+import static io.trino.operator.aggregation.partial.PartialAggregationController.AggregationMode.AGGREGATION;
+import static io.trino.operator.aggregation.partial.PartialAggregationController.AggregationMode.HLL;
+import static io.trino.operator.aggregation.partial.PartialAggregationController.AggregationMode.PASSTHROUGH;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -785,8 +788,8 @@ public class TestHashAggregationOperator
     {
         List<Integer> hashChannels = Ints.asList(0);
 
-        DataSize maxPartialMemory = DataSize.ofBytes(1);
-        PartialAggregationController partialAggregationController = new PartialAggregationController(maxPartialMemory, 0.8);
+        DataSize maxPartialMemory = DataSize.ofBytes(2);
+        PartialAggregationController partialAggregationController = new PartialAggregationController(true, maxPartialMemory, 0.8);
         HashAggregationOperatorFactory operatorFactory = new HashAggregationOperatorFactory(
                 0,
                 new PlanNodeId("test"),
@@ -804,33 +807,41 @@ public class TestHashAggregationOperator
                 // 1 byte maxPartialMemory causes adaptive partial aggregation to be triggered after each page flush
                 Optional.of(partialAggregationController));
 
-        // at the start partial aggregation is enabled
-        assertThat(partialAggregationController.isPartialAggregationDisabled()).isFalse();
+        // at the start aggregation mode is set to HLL
+        assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(HLL);
         // First operator will trigger adaptive partial aggregation after the first page
         List<Page> operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
-                .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8, 8)) // first page will be hashed but the values are almost unique, so it will trigger adaptation
-                .addBlocksPage(createRepeatedValuesBlock(1, 10)) // second page would be hashed to existing value 1. but if adaptive PA kicks in, the raw values will be passed on
+                .addBlocksPage(createRepeatedValuesBlock(1, 5))
                 .build();
         List<Page> operator1Expected = rowPagesBuilder(BIGINT, BIGINT)
-                .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8), createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8)) // the last position was aggregated
-                .addBlocksPage(createRepeatedValuesBlock(1, 10), createRepeatedValuesBlock(1, 10)) // we are expecting second page with raw values
+                .addBlocksPage(createRepeatedValuesBlock(1, 5), createRepeatedValuesBlock(1, 10)) // we are expecting second page with raw values
                 .build();
         assertOperatorEquals(operatorFactory, operator1Input, operator1Expected);
 
-        // the first operator flush disables partial aggregation
-        assertThat(partialAggregationController.isPartialAggregationDisabled()).isTrue();
+        // the first operator flush enables partial aggregation
+        assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(AGGREGATION);
+
+        operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+                .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8, 8))
+                .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)) // these pages will increase the threshold so that passthrough mode will be enabled
+                .build();
+        operator1Expected = rowPagesBuilder(BIGINT, BIGINT)
+                .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8), createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8)) // the last position was aggregated
+                .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+                .build();
+        assertOperatorEquals(operatorFactory, operator1Input, operator1Expected);
+        assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(PASSTHROUGH);
+
         // second operator using the same factory, reuses PartialAggregationControl, so it will only produce raw pages (partial aggregation is disabled at this point)
         List<Page> operator2Input = rowPagesBuilder(false, hashChannels, BIGINT)
                 .addBlocksPage(createRepeatedValuesBlock(1, 10))
-                .addBlocksPage(createRepeatedValuesBlock(2, 10))
                 .build();
         List<Page> operator2Expected = rowPagesBuilder(BIGINT, BIGINT)
                 .addBlocksPage(createRepeatedValuesBlock(1, 10), createRepeatedValuesBlock(1, 10))
-                .addBlocksPage(createRepeatedValuesBlock(2, 10), createRepeatedValuesBlock(2, 10))
                 .build();
         assertOperatorEquals(operatorFactory, operator2Input, operator2Expected);
 
-        // partial aggregation should be enabled again after enough data is processed
+        // partial aggregation should be set to HLL again after enough data is processed
         for (int i = 1; i <= 4; ++i) {
             List<Page> operatorInput = rowPagesBuilder(false, hashChannels, BIGINT)
                     .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8))
@@ -840,10 +851,10 @@ public class TestHashAggregationOperator
                     .build();
             assertOperatorEquals(operatorFactory, operatorInput, operatorExpected);
             if (i <= 3) {
-                assertThat(partialAggregationController.isPartialAggregationDisabled()).isTrue();
+                assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(PASSTHROUGH);
             }
             else {
-                assertThat(partialAggregationController.isPartialAggregationDisabled()).isFalse();
+                assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(HLL);
             }
         }
 
@@ -860,7 +871,7 @@ public class TestHashAggregationOperator
                 .addBlocksPage(createRepeatedValuesBlock(2, 1), createRepeatedValuesBlock(2, 1))
                 .build();
         assertOperatorEquals(operatorFactory, operator3Input, operator3Expected);
-        assertThat(partialAggregationController.isPartialAggregationDisabled()).isFalse();
+        assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(AGGREGATION);
     }
 
     @Test
@@ -868,7 +879,7 @@ public class TestHashAggregationOperator
     {
         List<Integer> hashChannels = Ints.asList(0);
 
-        PartialAggregationController partialAggregationController = new PartialAggregationController(DataSize.ofBytes(1), 0.8);
+        PartialAggregationController partialAggregationController = new PartialAggregationController(true, DataSize.ofBytes(1), 0.8);
         HashAggregationOperatorFactory operatorFactory = new HashAggregationOperatorFactory(
                 0,
                 new PlanNodeId("test"),
@@ -894,12 +905,13 @@ public class TestHashAggregationOperator
         // the total unique ows ratio for the first operator will be 10/12 so > 0.8 (adaptive partial aggregation uniqueRowsRatioThreshold)
         List<Page> operator1Expected = rowPagesBuilder(BIGINT, BIGINT)
                 .addSequencePage(10, 0, 0) // we are expecting second page to be squashed with the first
+                .addBlocksPage(createRepeatedValuesBlock(1, 2), createRepeatedValuesBlock(1, 2))
                 .build();
         assertOperatorEquals(driverContext, operatorFactory, operator1Input, operator1Expected);
 
         // the first operator flush disables partial aggregation
-        assertThat(partialAggregationController.isPartialAggregationDisabled()).isTrue();
-        assertInputRowsWithPartialAggregationDisabled(driverContext, 0);
+        assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(PASSTHROUGH);
+        assertInputRowsWithPartialAggregationDisabled(driverContext, 12);
 
         // second operator using the same factory, reuses PartialAggregationControl, so it will only produce raw pages (partial aggregation is disabled at this point)
         List<Page> operator2Input = rowPagesBuilder(false, hashChannels, BIGINT)
@@ -914,6 +926,53 @@ public class TestHashAggregationOperator
         driverContext = createDriverContext(1024);
         assertOperatorEquals(driverContext, operatorFactory, operator2Input, operator2Expected);
         assertInputRowsWithPartialAggregationDisabled(driverContext, 20);
+    }
+
+    @Test
+    public void testAdaptivePartialAggregationWithLeastCardinality()
+    {
+        List<Integer> hashChannels = Ints.asList(0);
+
+        PartialAggregationController partialAggregationController = new PartialAggregationController(true, DataSize.of(16, MEGABYTE), 0.8);
+        HashAggregationOperatorFactory operatorFactory = new HashAggregationOperatorFactory(
+                0,
+                new PlanNodeId("test"),
+                ImmutableList.of(BIGINT),
+                hashChannels,
+                ImmutableList.of(),
+                PARTIAL,
+                ImmutableList.of(LONG_MIN.createAggregatorFactory(PARTIAL, ImmutableList.of(0), OptionalInt.empty())),
+                Optional.empty(),
+                Optional.empty(),
+                10,
+                Optional.of(DataSize.of(16, MEGABYTE)), // this setting makes operator to flush only after all pages
+                hashStrategyCompiler,
+                hashCompiler,
+                Optional.of(partialAggregationController));
+
+        // Till we reach a threshold we tend to be in HLL mode even if the rows have less cardinality
+        for (int i = 0; i < 5; i++) {
+            List<Page> operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+                    .addBlocksPage(createRepeatedValuesBlock(1, 1000))
+                    .build();
+            List<Page> operator1Expected = rowPagesBuilder(BIGINT, BIGINT)
+                    .addBlocksPage(createRepeatedValuesBlock(1, 1000), createRepeatedValuesBlock(1, 1000))
+                    .build();
+            assertOperatorEquals(operatorFactory, operator1Input, operator1Expected);
+            assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(HLL);
+        }
+        partialAggregationController.onFlush(DataSize.of(2, MEGABYTE).toBytes(), 1_00_000, OptionalLong.of(6_000));
+
+        List<Page> operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+                .addBlocksPage(createLongsBlock(1, 2, 3, 1, 1, 2, 1, 1, 1, 1))
+                .build();
+        // Even though we haven't crossed the initial threshold of 32MB, since the rows are less unique we move to PA mode
+        List<Page> operator1Expected = rowPagesBuilder(BIGINT, BIGINT)
+                .addBlocksPage(createLongsBlock(1, 2, 3), createLongsBlock(1, 2, 3))
+                .build();
+        assertOperatorEquals(operatorFactory, operator1Input, operator1Expected);
+
+        assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(AGGREGATION);
     }
 
     private void assertInputRowsWithPartialAggregationDisabled(DriverContext context, long expectedRowCount)

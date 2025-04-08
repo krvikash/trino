@@ -15,7 +15,9 @@ package io.trino.operator;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.stats.cardinality.HyperLogLog;
 import io.airlift.units.DataSize;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.aggregation.AggregatorFactory;
@@ -27,6 +29,7 @@ import io.trino.operator.aggregation.partial.SkipAggregationBuilder;
 import io.trino.operator.scalar.CombineHashFunction;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
+import io.trino.spi.block.Block;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.Type;
 import io.trino.spiller.SpillerFactory;
@@ -40,6 +43,8 @@ import java.util.OptionalLong;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.trino.SystemSessionProperties.getHllBucketSize;
+import static io.trino.SystemSessionProperties.isUseCardinalityBasedPartialAggregationController;
 import static io.trino.operator.HashGenerator.INITIAL_HASH_VALUE;
 import static io.trino.operator.aggregation.builder.InMemoryHashAggregationBuilder.toTypes;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -265,6 +270,7 @@ public class HashAggregationOperator
     private final Optional<PartialAggregationController> partialAggregationController;
     private final List<Type> groupByTypes;
     private final List<Integer> groupByChannels;
+    private final int[] columnsToBeLoaded;
     private final List<Integer> globalAggregationGroupIds;
     private final Step step;
     private final boolean produceDefaultOutput;
@@ -285,6 +291,8 @@ public class HashAggregationOperator
 
     private HashAggregationBuilder aggregationBuilder;
     private final LocalMemoryContext memoryContext;
+    private final FlatHashStrategy flatHashStrategy;
+
     private WorkProcessor<Page> outputPages;
     private long totalInputRowsProcessed;
     private boolean finishing;
@@ -295,6 +303,7 @@ public class HashAggregationOperator
     private long aggregationInputBytesProcessed;
     private long aggregationInputRowsProcessed;
     private long aggregationUniqueRowsProduced;
+    private CardinalityEstimator cardinalityEstimator;
 
     private HashAggregationOperator(
             OperatorContext operatorContext,
@@ -342,6 +351,10 @@ public class HashAggregationOperator
         this.hashCompiler = requireNonNull(hashCompiler, "hashCompiler is null");
 
         this.memoryContext = operatorContext.localUserMemoryContext();
+
+        this.flatHashStrategy = flatHashStrategyCompiler.getFlatHashStrategy(groupByTypes);
+        this.columnsToBeLoaded = hashChannel.map(integer -> new int[] {integer}).orElseGet(() -> Ints.toArray(groupByChannels));
+        this.cardinalityEstimator = createCardinalityEstimator();
     }
 
     @Override
@@ -383,11 +396,21 @@ public class HashAggregationOperator
         totalInputRowsProcessed += page.getPositionCount();
 
         if (aggregationBuilder == null) {
-            boolean partialAggregationDisabled = partialAggregationController
-                    .map(PartialAggregationController::isPartialAggregationDisabled)
-                    .orElse(false);
+            PartialAggregationController.AggregationMode aggregationMode = partialAggregationController
+                    .map(PartialAggregationController::getPartialAggregationMode)
+                    .orElse(PartialAggregationController.AggregationMode.AGGREGATION);
+
+            boolean partialAggregationDisabled = aggregationMode == PartialAggregationController.AggregationMode.HLL
+                    || aggregationMode == PartialAggregationController.AggregationMode.PASSTHROUGH;
+
             if (step.isOutputPartial() && partialAggregationDisabled) {
-                aggregationBuilder = new SkipAggregationBuilder(groupByChannels, hashChannel, aggregatorFactories, memoryContext, aggregationMetrics);
+                aggregationBuilder = new SkipAggregationBuilder(
+                        groupByChannels,
+                        hashChannel,
+                        aggregatorFactories,
+                        aggregationMode == PartialAggregationController.AggregationMode.PASSTHROUGH ? new NoOpCardinalityEstimator() : cardinalityEstimator,
+                        memoryContext,
+                        aggregationMetrics);
             }
             else if (step.isOutputPartial() || !spillEnabled || !isSpillable()) {
                 // TODO: We ignore spillEnabled here if any aggregate has ORDER BY clause or DISTINCT because they are not yet implemented for spilling.
@@ -534,9 +557,10 @@ public class HashAggregationOperator
 
     private void closeAggregationBuilder()
     {
-        if (aggregationBuilder instanceof SkipAggregationBuilder) {
+        if (aggregationBuilder instanceof SkipAggregationBuilder skipAggregationBuilder) {
             aggregationMetrics.recordInputRowsProcessedWithPartialAggregationDisabled(aggregationInputRowsProcessed);
-            partialAggregationController.ifPresent(controller -> controller.onFlush(aggregationInputBytesProcessed, aggregationInputRowsProcessed, OptionalLong.empty()));
+            CardinalityDetails cardinalityDetails = skipAggregationBuilder.getCardinalityDetails();
+            partialAggregationController.ifPresent(controller -> controller.onFlush(aggregationInputBytesProcessed, cardinalityDetails.rowsProcessed(), cardinalityDetails.estimatedUniqueValues()));
         }
         else {
             partialAggregationController.ifPresent(controller -> controller.onFlush(aggregationInputBytesProcessed, aggregationInputRowsProcessed, OptionalLong.of(aggregationUniqueRowsProduced)));
@@ -608,5 +632,103 @@ public class HashAggregationOperator
             }
         }
         return result;
+    }
+
+    public CardinalityEstimator createCardinalityEstimator()
+    {
+        if (isUseCardinalityBasedPartialAggregationController(operatorContext.getSession())) {
+            HyperLogLog hyperLogLog = HyperLogLog.newInstance(getHllBucketSize(operatorContext.getSession()));
+            hyperLogLog.makeDense();
+            return new HllCardinalityEstimator(
+                    columnsToBeLoaded,
+                    flatHashStrategy,
+                    hyperLogLog,
+                    aggregationMetrics);
+        }
+        else {
+            return new NoOpCardinalityEstimator();
+        }
+    }
+
+    public interface CardinalityEstimator
+    {
+        void processInput(Page page);
+
+        CardinalityDetails getCardinalityDetails();
+    }
+
+    public record CardinalityDetails(OptionalLong estimatedUniqueValues, long rowsProcessed) {}
+
+    public static class NoOpCardinalityEstimator
+            implements CardinalityEstimator
+    {
+        private long rowsProcessed;
+
+        @Override
+        public void processInput(Page page)
+        {
+            rowsProcessed += page.getPositionCount();
+        }
+
+        @Override
+        public CardinalityDetails getCardinalityDetails()
+        {
+            CardinalityDetails cardinalityDetails = new CardinalityDetails(OptionalLong.empty(), rowsProcessed);
+            rowsProcessed = 0;
+            return cardinalityDetails;
+        }
+    }
+
+    public static class HllCardinalityEstimator
+            implements CardinalityEstimator
+    {
+        private final int[] columnsToBeLoaded;
+        private final FlatHashStrategy flatHashStrategy;
+        private final HyperLogLog hyperLogLog;
+        private final AggregationMetrics aggregationMetrics;
+        private long inputRowsProcessed;
+        private long processedCardinality;
+
+        public HllCardinalityEstimator(int[] columnsToBeLoaded, FlatHashStrategy flatHashStrategy, HyperLogLog hyperLogLog, AggregationMetrics aggregationMetrics)
+        {
+            this.flatHashStrategy = requireNonNull(flatHashStrategy, "flatHash is null");
+            this.hyperLogLog = hyperLogLog;
+            this.columnsToBeLoaded = columnsToBeLoaded;
+            this.aggregationMetrics = requireNonNull(aggregationMetrics, "aggregationMetrics is null");
+        }
+
+        @Override
+        public void processInput(Page page)
+        {
+            long startTime = System.nanoTime();
+            inputRowsProcessed += page.getPositionCount();
+            Block[] blocks = getBlocksFromPage(page, columnsToBeLoaded);
+            long[] hashes = new long[page.getPositionCount()];
+            flatHashStrategy.hashBlocksBatched(blocks, hashes, 0, hashes.length);
+            for (long hash : hashes) {
+                hyperLogLog.add(hash);
+            }
+            aggregationMetrics.recordCardinalityEstimatorUpdateTimeSince(startTime);
+        }
+
+        @Override
+        public CardinalityDetails getCardinalityDetails()
+        {
+            CardinalityDetails cardinalityDetails = new CardinalityDetails(OptionalLong.of(hyperLogLog.cardinality() - processedCardinality), inputRowsProcessed);
+            inputRowsProcessed = 0;
+            processedCardinality = hyperLogLog.cardinality();
+            return cardinalityDetails;
+        }
+    }
+
+    private static Block[] getBlocksFromPage(Page page, int[] columnsToBeLoaded)
+    {
+        Block[] blocks = new Block[columnsToBeLoaded.length];
+        int index = 0;
+        for (int column : columnsToBeLoaded) {
+            blocks[index] = page.getBlock(column);
+            index++;
+        }
+        return blocks;
     }
 }

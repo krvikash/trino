@@ -18,6 +18,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.AggregationMetrics;
 import io.trino.operator.CompletedWork;
+import io.trino.operator.HashAggregationOperator.CardinalityDetails;
+import io.trino.operator.HashAggregationOperator.CardinalityEstimator;
 import io.trino.operator.Work;
 import io.trino.operator.WorkProcessor;
 import io.trino.operator.aggregation.AggregatorFactory;
@@ -47,17 +49,20 @@ public class SkipAggregationBuilder
     private final AggregationMetrics aggregationMetrics;
     @Nullable
     private Page currentPage;
+    private final CardinalityEstimator cardinalityEstimator;
     private final int[] hashChannels;
 
     public SkipAggregationBuilder(
             List<Integer> groupByChannels,
             Optional<Integer> inputHashChannel,
             List<AggregatorFactory> aggregatorFactories,
+            CardinalityEstimator cardinalityEstimator,
             LocalMemoryContext memoryContext,
             AggregationMetrics aggregationMetrics)
     {
         this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.aggregatorFactories = ImmutableList.copyOf(requireNonNull(aggregatorFactories, "aggregatorFactories is null"));
+        this.cardinalityEstimator = requireNonNull(cardinalityEstimator, "cardinalityEstimator is null");
         this.hashChannels = new int[groupByChannels.size() + (inputHashChannel.isPresent() ? 1 : 0)];
         for (int i = 0; i < groupByChannels.size(); i++) {
             hashChannels[i] = groupByChannels.get(i);
@@ -117,6 +122,8 @@ public class SkipAggregationBuilder
 
     private Page buildOutputPage(Page page)
     {
+        cardinalityEstimator.processInput(page);
+
         // Prefix the output with the hash channels
         Block[] outputBlocks = new Block[hashChannels.length + aggregatorFactories.size()];
         for (int i = 0; i < hashChannels.length; i++) {
@@ -143,5 +150,10 @@ public class SkipAggregationBuilder
         }
 
         return new Page(positionCount, outputBlocks);
+    }
+
+    public CardinalityDetails getCardinalityDetails()
+    {
+        return cardinalityEstimator.getCardinalityDetails();
     }
 }

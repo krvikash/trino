@@ -28,10 +28,12 @@ public class AggregationMetrics
     static final String INPUT_ROWS_WITH_PARTIAL_AGGREGATION_DISABLED_METRIC_NAME = "Input rows processed without partial aggregation enabled";
     private static final String ACCUMULATOR_TIME_METRIC_NAME = "Accumulator update CPU time";
     private static final String GROUP_BY_HASH_TIME_METRIC_NAME = "Group by hash update CPU time";
+    private static final String CARDINALITY_ESTIMATOR_TIME_METRIC_NAME = "Time taken to estimate cardinality";
 
     private long accumulatorTimeNanos;
     private long groupByHashTimeNanos;
     private long inputRowsProcessedWithPartialAggregationDisabled;
+    private long cardinalityEstimatorTimeNanos;
 
     public void recordAccumulatorUpdateTimeSince(long startNanos)
     {
@@ -41,6 +43,11 @@ public class AggregationMetrics
     public void recordGroupByHashUpdateTimeSince(long startNanos)
     {
         groupByHashTimeNanos += System.nanoTime() - startNanos;
+    }
+
+    public void recordCardinalityEstimatorUpdateTimeSince(long startNanos)
+    {
+        cardinalityEstimatorTimeNanos += System.nanoTime() - startNanos;
     }
 
     public void recordInputRowsProcessedWithPartialAggregationDisabled(long rows)
@@ -53,6 +60,7 @@ public class AggregationMetrics
         return new Metrics(ImmutableMap.of(
                 INPUT_ROWS_WITH_PARTIAL_AGGREGATION_DISABLED_METRIC_NAME, new LongCount(inputRowsProcessedWithPartialAggregationDisabled),
                 ACCUMULATOR_TIME_METRIC_NAME, new DurationTiming(new Duration(accumulatorTimeNanos, NANOSECONDS)),
-                GROUP_BY_HASH_TIME_METRIC_NAME, new DurationTiming(new Duration(groupByHashTimeNanos, NANOSECONDS))));
+                GROUP_BY_HASH_TIME_METRIC_NAME, new DurationTiming(new Duration(groupByHashTimeNanos, NANOSECONDS)),
+                CARDINALITY_ESTIMATOR_TIME_METRIC_NAME, new DurationTiming(new Duration(cardinalityEstimatorTimeNanos, NANOSECONDS))));
     }
 }

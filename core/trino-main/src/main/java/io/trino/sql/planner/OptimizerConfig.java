@@ -20,6 +20,7 @@ import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.trino.util.PowerOfTwo;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -99,6 +100,8 @@ public class OptimizerConfig
     // adaptive partial aggregation
     private boolean adaptivePartialAggregationEnabled = true;
     private double adaptivePartialAggregationUniqueRowsRatioThreshold = 0.8;
+    private boolean cardinalityEstimationBasedPartialAggregationControllerEnabled = true;
+    private int cardinalityEstimatorHllBucketCount = 8192;
     private long joinPartitionedBuildMinRowCount = 1_000_000L;
     private DataSize minInputSizePerTask = DataSize.of(5, GIGABYTE);
     private long minInputRowsPerTask = 10_000_000L;
@@ -754,6 +757,34 @@ public class OptimizerConfig
     public OptimizerConfig setAdaptivePartialAggregationUniqueRowsRatioThreshold(double adaptivePartialAggregationUniqueRowsRatioThreshold)
     {
         this.adaptivePartialAggregationUniqueRowsRatioThreshold = adaptivePartialAggregationUniqueRowsRatioThreshold;
+        return this;
+    }
+
+    public boolean isCardinalityEstimationBasedPartialAggregationControllerEnabled()
+    {
+        return cardinalityEstimationBasedPartialAggregationControllerEnabled;
+    }
+
+    @Config("adaptive-partial-aggregation.cardinality-based-partial-aggregation-controller.enabled")
+    @ConfigDescription("Enables cardinality based partial aggregation controller")
+    public OptimizerConfig setCardinalityEstimationBasedPartialAggregationControllerEnabled(boolean cardinalityEstimationBasedPartialAggregationControllerEnabled)
+    {
+        this.cardinalityEstimationBasedPartialAggregationControllerEnabled = cardinalityEstimationBasedPartialAggregationControllerEnabled;
+        return this;
+    }
+
+    @Max(65536)
+    @PowerOfTwo
+    public int getCardinalityEstimatorHllBucketCount()
+    {
+        return cardinalityEstimatorHllBucketCount;
+    }
+
+    @Config("adaptive-partial-aggregation.cardinality-based-partial-aggregation-controller.hll-bucket-count")
+    @ConfigDescription("Number of buckets for HLL which is used to estimate cardinality")
+    public OptimizerConfig setCardinalityEstimatorHllBucketCount(int cardinalityEstimatorHllBucketCount)
+    {
+        this.cardinalityEstimatorHllBucketCount = cardinalityEstimatorHllBucketCount;
         return this;
     }
 
