@@ -330,7 +330,7 @@ public class WarpProxiedWarmerTest
             List<WarmUpElement> warmupElements = createRegularWarmupElements(columnNameToWarmUpType);
 
             when(connectorPageSource.isFinished()).thenReturn(false);
-            when(connectorPageSource.getNextPage()).thenThrow(new RuntimeException("exception during warm"));
+            when(connectorPageSource.getNextSourcePage()).thenThrow(new RuntimeException("exception during warm"));
             try {
                 act(warpProxiedWarmer, dispatcherSplitRowGroupKeyPair, columnsToWarm, warmupElements, requiredWarmUpTypeMap);
             }
@@ -356,7 +356,7 @@ public class WarpProxiedWarmerTest
         List<WarmUpElement> warmupElements = createRegularWarmupElements(columnNameToWarmUpType);
 
         when(connectorPageSource.isFinished()).thenReturn(false);
-        when(connectorPageSource.getNextPage())
+        when(connectorPageSource.getNextSourcePage())
                 .thenThrow(new TrinoException(NOT_SUPPORTED, format("Unsupported Trino column type (%s) for Parquet column (%s)", IntegerType.INTEGER, column1)));
         when(rowGroupDataService.markAsFailedPermanently(any(RowGroupData.class), any(WarmUpElement.class))).thenCallRealMethod();
 

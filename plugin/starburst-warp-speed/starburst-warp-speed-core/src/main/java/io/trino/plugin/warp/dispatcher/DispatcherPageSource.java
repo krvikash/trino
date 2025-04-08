@@ -48,6 +48,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.StringJoiner;
+import java.util.function.ObjLongConsumer;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -181,7 +182,7 @@ public class DispatcherPageSource
         else {
             emptyPagesCounter = 0;
         }
-        return SourcePage.create(dispatcherPage);
+        return new DispatcherSourcePage(dispatcherPage);
     }
 
     private Page getDispatcherPage()
@@ -354,7 +355,7 @@ public class DispatcherPageSource
         Page overlapWarpPage = currentWarpPage.getRegion(currentWarpPagePosition, positionCount);
         for (int i = 0; i < queryContext.getTotalCollectCount(); i++) {
             if (queryContext.getRemainingCollectColumnByBlockIndex().containsKey(i)) {
-                orderedBlocks[i] = overlapPoxiedPage.getBlock(startPointProxied);
+                orderedBlocks[i] = overlapPoxiedPage.getBlock(startPointProxied).getLoadedBlock();
                 startPointProxied++;
             }
             else {
@@ -672,6 +673,84 @@ public class DispatcherPageSource
     {
         if (!condition) {
             throw new TrinoException(WarpErrorCode.WARP_MATCH_RANGES_ERROR, format(formatString, args));
+        }
+    }
+
+    private static class DispatcherSourcePage
+            implements SourcePage
+    {
+        private Page page;
+
+        public DispatcherSourcePage(Page page)
+        {
+            this.page = page;
+        }
+
+        @Override
+        public int getPositionCount()
+        {
+            return page.getPositionCount();
+        }
+
+        @Override
+        public long getSizeInBytes()
+        {
+            long sizeInBytes = 0;
+            for (int i = 0; i < page.getChannelCount(); i++) {
+                Block block = page.getBlock(i);
+                if (block != null) {
+                    sizeInBytes += block.getSizeInBytes();
+                }
+            }
+            return sizeInBytes;
+        }
+
+        @Override
+        public long getRetainedSizeInBytes()
+        {
+            long retainedSizeInBytes = 0;
+            for (int i = 0; i < page.getChannelCount(); i++) {
+                Block block = page.getBlock(i);
+                if (block != null) {
+                    retainedSizeInBytes += block.getRetainedSizeInBytes();
+                }
+            }
+            return retainedSizeInBytes;
+        }
+
+        @Override
+        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
+        {
+            for (int i = 0; i < page.getChannelCount(); i++) {
+                Block block = page.getBlock(i);
+                if (block != null) {
+                    block.retainedBytesForEachPart(consumer);
+                }
+            }
+        }
+
+        @Override
+        public int getChannelCount()
+        {
+            return page.getChannelCount();
+        }
+
+        @Override
+        public Block getBlock(int channel)
+        {
+            return page.getBlock(channel);
+        }
+
+        @Override
+        public Page getPage()
+        {
+            return page;
+        }
+
+        @Override
+        public void selectPositions(int[] positions, int offset, int size)
+        {
+            page = page.getPositions(positions, offset, size);
         }
     }
 }
