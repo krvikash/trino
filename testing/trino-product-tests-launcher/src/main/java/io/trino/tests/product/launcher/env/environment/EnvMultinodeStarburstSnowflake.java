@@ -63,7 +63,8 @@ public class EnvMultinodeStarburstSnowflake
                         forHostPath(configDir.getPath("jvm.config")),
                         CONTAINER_TRINO_JVM_CONFIG)
                 .withEnv("SNOWFLAKE_JDBC_URL", getSnowflakeEndpoint())
-                .withEnv("SNOWFLAKE_PASSWORD", getSnowflakePassword());
+                .withEnv("SNOWFLAKE_PASSWORD", getSnowflakePassword())
+                .withEnv("SNOWFLAKE_WAREHOUSE", getSnowflakeWarehouse());
     }
 
     private String getSnowflakeEndpoint()
@@ -75,5 +76,10 @@ public class EnvMultinodeStarburstSnowflake
     private String getSnowflakePassword()
     {
         return requireEnv("SNOWFLAKE_PASSWORD");
+    }
+
+    private String getSnowflakeWarehouse()
+    {
+        return requireEnv("SNOWFLAKE_WAREHOUSE");
     }
 }
