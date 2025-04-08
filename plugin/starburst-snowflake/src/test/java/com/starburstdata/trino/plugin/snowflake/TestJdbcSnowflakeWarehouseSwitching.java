@@ -28,7 +28,6 @@ import static java.lang.String.format;
 public class TestJdbcSnowflakeWarehouseSwitching
         extends AbstractTestQueryFramework
 {
-    protected static final String COMPUTE_WAREHOUSE = "COMPUTE_WH";
     protected static final String INVALID_WAREHOUSE = "NOT_EXISTING_WH";
 
     @Override
@@ -62,10 +61,10 @@ public class TestJdbcSnowflakeWarehouseSwitching
     public void testSwitchToExistingWarehouse()
     {
         Session session = Session.builder(getSession())
-                .setCatalogSessionProperty("snowflake", "warehouse", COMPUTE_WAREHOUSE)
+                .setCatalogSessionProperty("snowflake", "warehouse", TEST_WAREHOUSE)
                 .build();
 
-        assertQuery(session, "SELECT * FROM current_warehouse", format("VALUES ('%s')", COMPUTE_WAREHOUSE));
+        assertQuery(session, "SELECT * FROM current_warehouse", format("VALUES ('%s')", TEST_WAREHOUSE));
         assertQuery(session, "SELECT regionkey FROM nation WHERE name = 'ALGERIA'", "VALUES (0)");
     }
 
