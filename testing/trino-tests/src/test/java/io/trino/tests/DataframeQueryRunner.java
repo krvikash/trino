@@ -89,6 +89,7 @@ public class DataframeQueryRunner
         if (catalogType == null) {
             icebergProperties.put("iceberg.catalog.type", "TESTING_FILE_METASTORE");
             icebergProperties.put("hive.metastore.catalog.dir", dataDir.toString());
+            icebergProperties.put("fs.hadoop.enabled", "true");
         }
 
         queryRunner.createCatalog("iceberg", "iceberg", icebergProperties);
