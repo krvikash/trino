@@ -20,11 +20,16 @@ import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
 import io.trino.spi.TrinoException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClientBuilder;
+import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
 import java.util.Map;
 
@@ -82,18 +87,28 @@ public class AwsBedrockClientFactory
     {
         BedrockRuntimeClientBuilder clientBuilder = BedrockRuntimeClient.builder();
 
-        connectionInfo.iamRole().ifPresentOrElse(
-                role -> clientBuilder.credentialsProvider(StsAssumeRoleCredentialsProvider.builder()
-                        .refreshRequest(request -> request
-                                .roleArn(role)
-                                .externalId(connectionInfo.externalId().orElse(null)))
-                        .asyncCredentialUpdateEnabled(true)
-                        .build()),
-                () -> connectionInfo.awsAccessKey().ifPresent(accessKey ->
-                        connectionInfo.awsSecretKey().ifPresent(awsSecretKey ->
-                                clientBuilder.credentialsProvider(
-                                        StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, awsSecretKey))))));
+        AwsCredentialsProvider awsCredentialsProvider = DefaultCredentialsProvider.create();
+        if (connectionInfo.awsAccessKey().isPresent() && connectionInfo.awsSecretKey().isPresent()) {
+            awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(connectionInfo.awsAccessKey().orElseThrow(), connectionInfo.awsSecretKey().orElseThrow()));
+        }
+        if (connectionInfo.iamRole().isPresent()) {
+            StsAssumeRoleCredentialsProvider.Builder assumeRoleCredentialsProvider = StsAssumeRoleCredentialsProvider.builder();
+            StsClientBuilder stsClient = StsClient.builder()
+                    .credentialsProvider(awsCredentialsProvider);
+            connectionInfo.region().ifPresent(region -> stsClient.region(Region.of(region)));
 
+            AssumeRoleRequest.Builder assumeRoleRequest = AssumeRoleRequest.builder();
+            assumeRoleRequest.roleSessionName("starburst-ai-session");
+            assumeRoleRequest.roleArn(connectionInfo.iamRole().orElseThrow());
+            connectionInfo.externalId().ifPresent(assumeRoleRequest::externalId);
+
+            assumeRoleCredentialsProvider
+                    .stsClient(stsClient.build())
+                    .refreshRequest(assumeRoleRequest.build())
+                    .asyncCredentialUpdateEnabled(true);
+            awsCredentialsProvider = assumeRoleCredentialsProvider.build();
+        }
+        clientBuilder.credentialsProvider(awsCredentialsProvider);
         connectionInfo.region().ifPresent(region ->
                 clientBuilder.region(Region.of(region)));
 
