@@ -725,7 +725,7 @@ public class LocalExecutionPlanner
         if (session.getQueryDataEncoding().isEmpty()) {
             return false;
         }
-        return operation.getOperatorFactories().getLast() instanceof OutputSpoolingOperatorFactory;
+        return operation instanceof SpooledPhysicalOperation;
     }
 
     private class LocalExecutionPlanContext
@@ -1142,7 +1142,7 @@ public class LocalExecutionPlanner
                     () -> encoderFactory.create(session, spooledOutputLayout(node, operation.layout)),
                     spoolingManager.orElseThrow());
 
-            return new PhysicalOperation(outputSpoolingOperatorFactory, operation.layout, operation);
+            return new SpooledPhysicalOperation(outputSpoolingOperatorFactory, operation);
         }
 
         @Override
@@ -4658,6 +4658,15 @@ public class LocalExecutionPlanner
         private List<OperatorFactory> getPipelineTail()
         {
             return pipelineTail;
+        }
+    }
+
+    private static class SpooledPhysicalOperation
+            extends PhysicalOperation
+    {
+        public SpooledPhysicalOperation(OutputSpoolingOperatorFactory outputSpoolingOperatorFactory, PhysicalOperation operation)
+        {
+            super(outputSpoolingOperatorFactory, operation.layout, operation);
         }
     }
 
