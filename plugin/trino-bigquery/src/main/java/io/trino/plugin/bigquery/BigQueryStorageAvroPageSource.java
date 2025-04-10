@@ -97,6 +97,7 @@ public class BigQueryStorageAvroPageSource
     private final AtomicLong readBytes = new AtomicLong();
     private final AtomicLong readTimeNanos = new AtomicLong();
     private final PageBuilder pageBuilder;
+    private final ReadRowsHelper readRowsHelper;
     private final Iterator<ReadRowsResponse> responses;
 
     private CompletableFuture<ReadRowsResponse> nextResponse;
@@ -122,7 +123,8 @@ public class BigQueryStorageAvroPageSource
                 .collect(toImmutableList()));
 
         log.debug("Starting to read from %s", streamName);
-        responses = new ReadRowsHelper(bigQueryReadClient, streamName, maxReadRowsRetries).readRows();
+        readRowsHelper = new ReadRowsHelper(bigQueryReadClient, streamName, maxReadRowsRetries);
+        responses = readRowsHelper.readRows();
         nextResponse = CompletableFuture.supplyAsync(this::getResponse, executor);
     }
 
@@ -333,6 +335,7 @@ public class BigQueryStorageAvroPageSource
     public void close()
     {
         nextResponse.cancel(true);
+        readRowsHelper.close();
         bigQueryReadClient.close();
     }
 

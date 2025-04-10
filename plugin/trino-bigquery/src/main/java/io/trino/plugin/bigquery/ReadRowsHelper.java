@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.bigquery;
 
+import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
@@ -24,12 +25,14 @@ import java.util.NoSuchElementException;
 import static java.util.Objects.requireNonNull;
 
 public class ReadRowsHelper
+        implements AutoCloseable
 {
     private static final Logger log = Logger.get(ReadRowsHelper.class);
 
     private final BigQueryReadClient client;
     private final String streamName;
     private final int maxReadRowsRetries;
+    private ServerStream<ReadRowsResponse> stream;
 
     public ReadRowsHelper(BigQueryReadClient client, String streamName, int maxReadRowsRetries)
     {
@@ -48,12 +51,17 @@ public class ReadRowsHelper
     protected Iterator<ReadRowsResponse> fetchResponses(long offset)
     {
         log.debug("Reading rows from %s offset %s", streamName, offset);
-        return client.readRowsCallable()
-                .call(ReadRowsRequest.newBuilder()
-                        .setReadStream(streamName)
-                        .setOffset(offset)
-                        .build())
-                .iterator();
+        ReadRowsRequest request = ReadRowsRequest.newBuilder().setReadStream(streamName).setOffset(offset).build();
+        stream = client.readRowsCallable().call(request);
+        return stream.iterator();
+    }
+
+    @Override
+    public void close()
+    {
+        if (stream != null) {
+            stream.cancel();
+        }
     }
 
     // Ported from https://github.com/GoogleCloudDataproc/spark-bigquery-connector/pull/150
@@ -93,6 +101,8 @@ public class ReadRowsHelper
                     // if relevant, retry the read, from the last read position
                     if (BigQueryUtil.isRetryable(e) && retries < helper.maxReadRowsRetries) {
                         log.debug("Request failed, retrying: %s", e);
+                        // Cancel the current stream and create a new one
+                        helper.close();
                         serverResponses = helper.fetchResponses(nextOffset);
                         retries++;
                     }
