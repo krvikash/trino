@@ -14,7 +14,7 @@ import io.trino.spi.type.Type;
 import net.snowflake.client.core.SFException;
 import net.snowflake.client.core.arrow.ArrowVectorConverter;
 
-import static com.starburstdata.trino.plugin.snowflake.jdbc.SnowflakeClient.toPrestoTime;
+import static com.google.common.base.Verify.verify;
 
 public class TimeValueWriter
         implements BlockWriter
@@ -39,7 +39,8 @@ public class TimeValueWriter
                 output.appendNull();
             }
             else {
-                type.writeLong(output, toPrestoTime(converter.toTime(row)));
+                verify(converter instanceof StarburstTimeConverter, "converter should be StarburstTimeConverter type");
+                type.writeLong(output, ((StarburstTimeConverter) converter).toTrinoTime(row));
             }
         }
     }

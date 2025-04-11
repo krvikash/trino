@@ -44,7 +44,11 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimeType.TIME_MILLIS;
+import static io.trino.spi.type.TimeType.TIME_NANOS;
+import static io.trino.spi.type.TimeType.TIME_SECONDS;
+import static io.trino.spi.type.TimeType.createTimeType;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
@@ -383,21 +387,41 @@ public abstract class BaseSnowflakeTypeMappingTest
                 .build();
 
         SqlDataTypeTest.create()
+                .addRoundTrip("TIME(0)", "'01:33:17'", TIME_SECONDS, "TIME '01:33:17'")
                 .addRoundTrip("TIME", "'00:00:00'", TIME_MILLIS, "TIME '00:00:00.000'") // gap in JVM zone on Epoch day
                 .addRoundTrip("TIME", "'00:13:42'", TIME_MILLIS, "TIME '00:13:42.000'") // gap in JVM
                 .addRoundTrip("TIME", "'13:18:03.123'", TIME_MILLIS, "TIME '13:18:03.123'")
-                .addRoundTrip("TIME", "'14:18:03.423'", TIME_MILLIS, "TIME '14:18:03.423'")
-                .addRoundTrip("TIME", "'15:18:03.523'", TIME_MILLIS, "TIME '15:18:03.523'")
-                .addRoundTrip("TIME", "'16:18:03.623'", TIME_MILLIS, "TIME '16:18:03.623'")
-                .addRoundTrip("TIME", "'10:01:17.987'", TIME_MILLIS, "TIME '10:01:17.987'")
-                .addRoundTrip("TIME", "'19:01:17.987'", TIME_MILLIS, "TIME '19:01:17.987'")
-                .addRoundTrip("TIME", "'20:01:17.987'", TIME_MILLIS, "TIME '20:01:17.987'")
-                .addRoundTrip("TIME", "'21:01:17.987'", TIME_MILLIS, "TIME '21:01:17.987'")
                 .addRoundTrip("TIME", "'01:33:17.456'", TIME_MILLIS, "TIME '01:33:17.456'")
                 .addRoundTrip("TIME", "'03:17:17.000'", TIME_MILLIS, "TIME '03:17:17.000'")
-                .addRoundTrip("TIME", "'22:59:59.000'", TIME_MILLIS, "TIME '22:59:59.000'")
-                .addRoundTrip("TIME", "'22:59:59.999'", TIME_MILLIS, "TIME '22:59:59.999'")
-                .execute(getQueryRunner(), session, trinoCreateAsSelect(session))
+                .addRoundTrip("TIME(1)", "'14:18:03.4'", createTimeType(1), "TIME '14:18:03.4'")
+                .addRoundTrip("TIME(2)", "'14:18:03.42'", createTimeType(2), "TIME '14:18:03.42'")
+                .addRoundTrip("TIME(3)", "'15:18:03.523'", TIME_MILLIS, "TIME '15:18:03.523'")
+                .addRoundTrip("TIME(4)", "'16:18:03.6234'", createTimeType(4), "TIME '16:18:03.6234'")
+                .addRoundTrip("TIME(5)", "'10:01:17.98745'", createTimeType(5), "TIME '10:01:17.98745'")
+                .addRoundTrip("TIME(6)", "'19:01:17.987123'", TIME_MICROS, "TIME '19:01:17.987123'")
+                .addRoundTrip("TIME(7)", "'20:01:17.9874567'", createTimeType(7), "TIME '20:01:17.9874567'")
+                .addRoundTrip("TIME(8)", "'21:01:17.98745678'", createTimeType(8), "TIME '21:01:17.98745678'")
+                .addRoundTrip("TIME(9)", "'22:59:59.123456789'", TIME_NANOS, "TIME '22:59:59.123456789'")
+                .addRoundTrip("TIME(9)", "'22:59:59.999'", TIME_NANOS, "TIME '22:59:59.999000000'")
+                .execute(getQueryRunner(), session, trinoCreateAsSelect(session));
+
+        SqlDataTypeTest.create()
+                .addRoundTrip("TIME(0)", "'01:33:17'", TIME_SECONDS, "TIME '01:33:17'")
+                .addRoundTrip("TIME", "'00:00:00'", TIME_NANOS, "TIME '00:00:00.000000000'") // gap in JVM zone on Epoch day
+                .addRoundTrip("TIME", "'00:13:42'", TIME_NANOS, "TIME '00:13:42.000000000'") // gap in JVM
+                .addRoundTrip("TIME", "'13:18:03.123'", TIME_NANOS, "TIME '13:18:03.123000000'")
+                .addRoundTrip("TIME", "'01:33:17.456'", TIME_NANOS, "TIME '01:33:17.456000000'")
+                .addRoundTrip("TIME", "'03:17:17.000'", TIME_NANOS, "TIME '03:17:17.000000000'")
+                .addRoundTrip("TIME(1)", "'14:18:03.4'", createTimeType(1), "TIME '14:18:03.4'")
+                .addRoundTrip("TIME(2)", "'14:18:03.42'", createTimeType(2), "TIME '14:18:03.42'")
+                .addRoundTrip("TIME(3)", "'15:18:03.523'", TIME_MILLIS, "TIME '15:18:03.523'")
+                .addRoundTrip("TIME(4)", "'16:18:03.6234'", createTimeType(4), "TIME '16:18:03.6234'")
+                .addRoundTrip("TIME(5)", "'10:01:17.98745'", createTimeType(5), "TIME '10:01:17.98745'")
+                .addRoundTrip("TIME(6)", "'19:01:17.987123'", TIME_MICROS, "TIME '19:01:17.987123'")
+                .addRoundTrip("TIME(7)", "'20:01:17.9874567'", createTimeType(7), "TIME '20:01:17.9874567'")
+                .addRoundTrip("TIME(8)", "'21:01:17.98745678'", createTimeType(8), "TIME '21:01:17.98745678'")
+                .addRoundTrip("TIME(9)", "'22:59:59.123456789'", TIME_NANOS, "TIME '22:59:59.123456789'")
+                .addRoundTrip("TIME(9)", "'22:59:59.999'", TIME_NANOS, "TIME '22:59:59.999000000'")
                 .execute(getQueryRunner(), session, snowflakeCreateAndInsert());
     }
 

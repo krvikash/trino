@@ -671,30 +671,30 @@ public abstract class BaseSnowflakeConnectorTest
             assertThat((String) computeActual("SHOW CREATE TABLE " + testTable.getName()).getOnlyValue())
                     .matches("""
                             CREATE TABLE \\w+\\.\\w+\\.\\w+ \\Q(
-                               time0 time(3),
-                               time1 time(3),
-                               time2 time(3),
+                               time0 time(0),
+                               time1 time(1),
+                               time2 time(2),
                                time3 time(3),
-                               time4 time(3),
-                               time5 time(3),
-                               time6 time(3),
-                               time7 time(3),
-                               time8 time(3),
-                               time9 time(3)
+                               time4 time(4),
+                               time5 time(5),
+                               time6 time(6),
+                               time7 time(7),
+                               time8 time(8),
+                               time9 time(9)
                             )""");
 
             assertThat(query("SELECT * FROM " + testTable.getName()))
                     .matches("VALUES (" +
-                            "TIME '04:05:06.000'," +
-                            "TIME '04:05:06.100'," +
-                            "TIME '04:05:06.120'," +
+                            "TIME '04:05:06'," +
+                            "TIME '04:05:06.1'," +
+                            "TIME '04:05:06.12'," +
                             "TIME '04:05:06.123'," +
-                            "TIME '04:05:06.123'," +
-                            "TIME '04:05:06.123'," +
-                            "TIME '04:05:06.123'," +
-                            "TIME '04:05:06.123'," +
-                            "TIME '04:05:06.123'," +
-                            "TIME '04:05:06.123')");
+                            "TIME '04:05:06.1234'," +
+                            "TIME '04:05:06.12345'," +
+                            "TIME '04:05:06.123456'," +
+                            "TIME '04:05:06.1234567'," +
+                            "TIME '04:05:06.12345678'," +
+                            "TIME '04:05:06.123456789')");
         }
     }
 
@@ -737,23 +737,6 @@ public abstract class BaseSnowflakeConnectorTest
                             TIMESTAMP '1901-02-03 04:05:06.123900000 +02:00',
                             TIMESTAMP '2001-02-03 04:05:06.123499999 +02:00',
                             TIMESTAMP '2001-02-03 04:05:06.123900000 +02:00'""");
-        }
-    }
-
-    @Test
-    public void testSnowflakeTimeRounding()
-    {
-        try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_time_rounding",
-                "(t time(9))",
-                ImmutableList.of(
-                        "TIME '04:05:06.123499999'",
-                        "TIME '04:05:06.123900000'",
-                        "TIME '23:59:59.999999999'"))) {
-            assertThat(query("SELECT * FROM " + testTable.getName()))
-                    .matches("VALUES " +
-                            "TIME '04:05:06.123'," +
-                            "TIME '04:05:06.123'," + // Snowflake truncates on cast
-                            "TIME '23:59:59.999'");
         }
     }
 

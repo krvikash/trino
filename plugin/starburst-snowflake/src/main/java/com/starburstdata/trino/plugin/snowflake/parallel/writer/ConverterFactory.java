@@ -10,6 +10,8 @@
 package com.starburstdata.trino.plugin.snowflake.parallel.writer;
 
 import com.starburstdata.trino.plugin.snowflake.parallel.StarburstDataConversionContext;
+import com.starburstdata.trino.plugin.snowflake.parallel.writer.StarburstTimeConverter.StarburstBigintToTimeConverter;
+import com.starburstdata.trino.plugin.snowflake.parallel.writer.StarburstTimeConverter.StarburstIntToTimeConverter;
 import io.trino.spi.TrinoException;
 import net.snowflake.client.core.DataConversionContext;
 import net.snowflake.client.core.SFBaseSession;
@@ -17,7 +19,6 @@ import net.snowflake.client.core.arrow.ArrayConverter;
 import net.snowflake.client.core.arrow.ArrowVectorConverter;
 import net.snowflake.client.core.arrow.BigIntToFixedConverter;
 import net.snowflake.client.core.arrow.BigIntToScaledFixedConverter;
-import net.snowflake.client.core.arrow.BigIntToTimeConverter;
 import net.snowflake.client.core.arrow.BigIntToTimestampLTZConverter;
 import net.snowflake.client.core.arrow.BigIntToTimestampNTZConverter;
 import net.snowflake.client.core.arrow.BitToBooleanConverter;
@@ -26,7 +27,6 @@ import net.snowflake.client.core.arrow.DecimalToScaledFixedConverter;
 import net.snowflake.client.core.arrow.DoubleToRealConverter;
 import net.snowflake.client.core.arrow.IntToFixedConverter;
 import net.snowflake.client.core.arrow.IntToScaledFixedConverter;
-import net.snowflake.client.core.arrow.IntToTimeConverter;
 import net.snowflake.client.core.arrow.SmallIntToFixedConverter;
 import net.snowflake.client.core.arrow.SmallIntToScaledFixedConverter;
 import net.snowflake.client.core.arrow.StructConverter;
@@ -150,10 +150,10 @@ public final class ConverterFactory
                 case TIME -> {
                     switch (arrowMinorType) {
                         case INT -> {
-                            return new IntToTimeConverter(vector, index, conversionContext);
+                            return new StarburstIntToTimeConverter(vector, index, conversionContext);
                         }
                         case BIGINT -> {
-                            return new BigIntToTimeConverter(vector, index, conversionContext);
+                            return new StarburstBigintToTimeConverter(vector, index, conversionContext);
                         }
                         default -> throw new TrinoException(GENERIC_INTERNAL_ERROR, "Unexpected Arrow Field for %s".formatted(snowflakeType.name()));
                     }

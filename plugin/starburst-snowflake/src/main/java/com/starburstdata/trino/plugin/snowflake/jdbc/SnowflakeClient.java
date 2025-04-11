@@ -86,6 +86,7 @@ import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
+import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeSignature;
@@ -97,11 +98,11 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Time;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -132,7 +133,6 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.defaultVarcharColumnMa
 import static io.trino.plugin.jdbc.StandardColumnMappings.doubleColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.doubleWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.fromLongTrinoTimestamp;
-import static io.trino.plugin.jdbc.StandardColumnMappings.fromTrinoTime;
 import static io.trino.plugin.jdbc.StandardColumnMappings.fromTrinoTimestamp;
 import static io.trino.plugin.jdbc.StandardColumnMappings.integerColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.integerWriteFunction;
@@ -161,13 +161,11 @@ import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.StandardTypes.JSON;
-import static io.trino.spi.type.TimeType.TIME_MILLIS;
 import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
-import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -197,6 +195,7 @@ public class SnowflakeClient
     public static final int SNOWFLAKE_MAX_TIMESTAMP_PRECISION = 9;
     public static final int SNOWFLAKE_MAX_LIST_EXPRESSIONS = 1000;
     private static final DateTimeFormatter SNOWFLAKE_DATE_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd");
+    private static final DateTimeFormatter SNOWFLAKE_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSSSSS");
     // TODO https://starburstdata.atlassian.net/browse/SEP-9994
     // TODO https://starburstdata.atlassian.net/browse/SEP-10002
     // below formatters use `y` for years. `u` has to be used eventually.
@@ -549,7 +548,7 @@ public class SnowflakeClient
         }
 
         if (typeHandle.jdbcType() == Types.TIME) {
-            return Optional.of(updatePushdownController(timeColumnMapping()));
+            return Optional.of(updatePushdownController(timeColumnMapping(typeHandle.requiredDecimalDigits())));
         }
 
         if (typeHandle.jdbcType() == Types.TIMESTAMP_WITH_TIMEZONE || typeName.equals("TIMESTAMPLTZ")) {
@@ -616,8 +615,8 @@ public class SnowflakeClient
             return WriteMapping.sliceMapping(dataType, varcharWriteFunction());
         }
 
-        if (type instanceof TimeType) {
-            return WriteMapping.longMapping("time", timeWriteFunction());
+        if (type instanceof TimeType timeType) {
+            return WriteMapping.longMapping(format("time(%s)", timeType.getPrecision()), timeWriteFunction(timeType.getPrecision()));
         }
 
         if (type instanceof TimestampType timestampType) {
@@ -907,17 +906,30 @@ public class SnowflakeClient
         return (statement, index, value) -> statement.setString(index, fromTrinoTimestamp(value).toString());
     }
 
-    private static ColumnMapping timeColumnMapping()
+    private static ColumnMapping timeColumnMapping(int precision)
     {
+        checkArgument(precision <= SNOWFLAKE_MAX_TIMESTAMP_PRECISION, "The max timestamp precision in Snowflake is " + SNOWFLAKE_MAX_TIMESTAMP_PRECISION);
         return ColumnMapping.longMapping(
-                TIME_MILLIS,
-                (resultSet, columnIndex) -> toPrestoTime(resultSet.getTime(columnIndex)),
-                timeWriteFunction());
+                TimeType.createTimeType(precision),
+                (resultSet, columnIndex) -> {
+                    LocalTime time = SNOWFLAKE_TIME_FORMATTER.parse(resultSet.getString(columnIndex), LocalTime::from);
+                    return Timestamps.round(time.toNanoOfDay() * PICOSECONDS_PER_NANOSECOND, 12 - precision);
+                },
+                timeWriteFunction(precision),
+                FULL_PUSHDOWN);
     }
 
-    private static LongWriteFunction timeWriteFunction()
+    private static LongWriteFunction timeWriteFunction(int precision)
     {
-        return (statement, index, value) -> statement.setString(index, fromTrinoTime(value).toString());
+        checkArgument(precision <= SNOWFLAKE_MAX_TIMESTAMP_PRECISION, "Unsupported precision: %s", precision);
+        return (statement, index, picosOfDay) -> {
+            picosOfDay = Timestamps.round(picosOfDay, 12 - precision);
+            if (picosOfDay == Timestamps.PICOSECONDS_PER_DAY) {
+                picosOfDay = 0;
+            }
+            LocalTime localTime = LocalTime.ofNanoOfDay(picosOfDay / PICOSECONDS_PER_NANOSECOND);
+            statement.setString(index, SNOWFLAKE_TIME_FORMATTER.format(localTime));
+        };
     }
 
     private static LocalDateTime toLocalDateTime(ResultSet resultSet, int columnIndex)
@@ -925,11 +937,6 @@ public class SnowflakeClient
     {
         String string = resultSet.getString(columnIndex);
         return LocalDateTime.parse(string, SNOWFLAKE_TIMESTAMP_READ_FORMATTER);
-    }
-
-    public static long toPrestoTime(Time sqlTime)
-    {
-        return PICOSECONDS_PER_MILLISECOND * sqlTime.getTime();
     }
 
     @Override
