@@ -53,7 +53,6 @@ import io.trino.execution.TableExecuteContextManager;
 import io.trino.execution.TaskId;
 import io.trino.execution.TaskManagerConfig;
 import io.trino.execution.buffer.OutputBuffer;
-import io.trino.execution.buffer.PagesSerdeFactory;
 import io.trino.metadata.MergeHandle;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.ResolvedFunction;
@@ -333,7 +332,6 @@ import static io.trino.SystemSessionProperties.getAdaptivePartialAggregationUniq
 import static io.trino.SystemSessionProperties.getAggregationOperatorUnspillMemoryLimit;
 import static io.trino.SystemSessionProperties.getCacheMaxSplitSize;
 import static io.trino.SystemSessionProperties.getDynamicRowFilterSelectivityThreshold;
-import static io.trino.SystemSessionProperties.getExchangeCompressionCodec;
 import static io.trino.SystemSessionProperties.getFilterAndProjectMinOutputPageRowCount;
 import static io.trino.SystemSessionProperties.getFilterAndProjectMinOutputPageSize;
 import static io.trino.SystemSessionProperties.getPagePartitioningBufferPoolSize;
@@ -354,6 +352,7 @@ import static io.trino.cache.CacheUtils.uncheckedCacheGet;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.cache.StaticDynamicFilter.createStaticDynamicFilter;
 import static io.trino.cache.StaticDynamicFilter.createStaticDynamicFilterSupplier;
+import static io.trino.execution.buffer.PagesSerdes.createExchangePagesSerdeFactory;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.operator.DistinctLimitOperator.DistinctLimitOperatorFactory;
 import static io.trino.operator.HashArraySizeSupplier.incrementalLoadFactorHashArraySizeSupplier;
@@ -709,7 +708,7 @@ public class LocalExecutionPlanner
                                 plan.getId(),
                                 outputTypes,
                                 pagePreprocessor,
-                                new PagesSerdeFactory(plannerContext.getBlockEncodingSerde(), getExchangeCompressionCodec(session))),
+                                createExchangePagesSerdeFactory(plannerContext.getBlockEncodingSerde(), session)),
                         physicalOperation),
                 context);
 
@@ -1075,7 +1074,7 @@ public class LocalExecutionPlanner
                     context.getNextOperatorId(),
                     node.getId(),
                     directExchangeClientSupplier,
-                    new PagesSerdeFactory(plannerContext.getBlockEncodingSerde(), getExchangeCompressionCodec(session)),
+                    createExchangePagesSerdeFactory(plannerContext.getBlockEncodingSerde(), session),
                     orderingCompiler,
                     types,
                     outputChannels,
@@ -1095,7 +1094,7 @@ public class LocalExecutionPlanner
                     context.getNextOperatorId(),
                     node.getId(),
                     directExchangeClientSupplier,
-                    new PagesSerdeFactory(plannerContext.getBlockEncodingSerde(), getExchangeCompressionCodec(session)),
+                    createExchangePagesSerdeFactory(plannerContext.getBlockEncodingSerde(), session),
                     node.getRetryPolicy(),
                     exchangeManagerRegistry);
 
