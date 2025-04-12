@@ -15,17 +15,59 @@ package com.starburstdata.trino.plugin.ai;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
+import io.trino.Session;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.TestingSession;
 
 import java.io.File;
+import java.util.Map;
 
-import static com.starburstdata.trino.plugin.ai.TestingUtils.createModelConnectionSpecsFile;
+import static io.starburst.ai.client.TestingUtils.createModelConnectionSpecsFile;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static java.util.Objects.requireNonNull;
 
 public final class AiQueryRunner
 {
+    public static final String STARBURST_AI_CATALOG = "starburst";
+
+    public static final Session TEST_AI_SESSION = TestingSession.testSessionBuilder()
+            .setCatalog(STARBURST_AI_CATALOG)
+            .build();
+
     private AiQueryRunner() {}
+
+    public static void addStarburstAiCatalog(String modelSpecJson, QueryRunner runner)
+    {
+        requireNonNull(modelSpecJson, "modelSpecJson is null");
+        requireNonNull(runner, "runner is null");
+        addStarburstAiCatalog(starburstAiFileStorageProperties(modelSpecJson), runner);
+    }
+
+    public static void addStarburstAiCatalog(File modelSpecsFile, QueryRunner runner)
+    {
+        requireNonNull(modelSpecsFile, "modelSpecsFile is null");
+        requireNonNull(runner, "runner is null");
+        addStarburstAiCatalog(starburstAiFileStorageProperties(modelSpecsFile), runner);
+    }
+
+    private static void addStarburstAiCatalog(Map<String, String> properties, QueryRunner runner)
+    {
+        runner.installPlugin(new AiPlugin());
+        runner.createCatalog(STARBURST_AI_CATALOG, "starburst_ai", properties);
+    }
+
+    public static Map<String, String> starburstAiFileStorageProperties(String modelSpecJson)
+    {
+        requireNonNull(modelSpecJson, "modelSpecJson is null");
+        return starburstAiFileStorageProperties(createModelConnectionSpecsFile(modelSpecJson));
+    }
+
+    public static Map<String, String> starburstAiFileStorageProperties(File modelSpecsFile)
+    {
+        requireNonNull(modelSpecsFile, "modelSpecsFile is null");
+        return ImmutableMap.of("ai.client.models.storage", "FILE", "ai.client.models.file", modelSpecsFile.getAbsolutePath(), "ai.client.cache.refresh.enabled", "true");
+    }
 
     public static void main(String[] args)
             throws Exception
@@ -85,15 +127,10 @@ public final class AiQueryRunner
                 }
                 """.stripIndent();
 
-        File file = createModelConnectionSpecsFile(json);
         QueryRunner queryRunner = DistributedQueryRunner.builder(testSessionBuilder().build())
                 .addCoordinatorProperty("http-server.http.port", "8080")
-                .addCoordinatorProperty("sql.path", "ai")
+                .setAdditionalSetup(runner -> addStarburstAiCatalog(json, runner))
                 .build();
-        queryRunner.installPlugin(new AiPlugin());
-        queryRunner.createCatalog("ai", "starburst_ai", ImmutableMap.<String, String>builder()
-                .put("ai.models-file", file.getAbsolutePath())
-                .buildOrThrow());
         Logger log = Logger.get(AiQueryRunner.class);
         log.info("======== SERVER STARTED ========");
         log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());

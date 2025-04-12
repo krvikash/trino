@@ -16,7 +16,6 @@ package io.trino.plugin.iceberg;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
-import com.starburstdata.trino.plugin.ai.AiPlugin;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
@@ -48,6 +47,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.starburstdata.trino.plugin.ai.AiQueryRunner.addStarburstAiCatalog;
+import static com.starburstdata.trino.plugin.ai.AiQueryRunner.starburstAiFileStorageProperties;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.PASSWORD;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.USER;
@@ -213,6 +214,7 @@ public final class IcebergQueryRunner
                 throws Exception
         {
             File modelsFile = new File(System.getProperty("iceberg.model-file.path"));
+            String modelSpecJson = Files.readString(modelsFile.toPath(), UTF_8);
             String bucketName = "test-bucket";
             @SuppressWarnings("resource")
             Minio minio = Minio.builder().build();
@@ -221,26 +223,24 @@ public final class IcebergQueryRunner
 
             @SuppressWarnings("resource")
             QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
-                    .setIcebergProperties(Map.of(
-                            "iceberg.catalog.type", "TESTING_FILE_METASTORE",
-                            "hive.metastore.catalog.dir", "s3://%s/".formatted(bucketName),
-                            "fs.native-s3.enabled", "true",
-                            "s3.aws-access-key", MINIO_ACCESS_KEY,
-                            "s3.aws-secret-key", MINIO_SECRET_KEY,
-                            "s3.region", MINIO_REGION,
-                            "s3.endpoint", "http://" + minio.getMinioApiEndpoint(),
-                            "s3.path-style-access", "true",
-                            "s3.streaming.part-size", "5MB"))
-                    .addIcebergProperty("ai.models-file", modelsFile.getAbsolutePath())
+                    .setIcebergProperties(ImmutableMap.<String, String>builder()
+                                    .put("iceberg.catalog.type", "TESTING_FILE_METASTORE")
+                            .put("hive.metastore.catalog.dir", "s3://%s/".formatted(bucketName))
+                            .put("fs.native-s3.enabled", "true")
+                            .put("s3.aws-access-key", MINIO_ACCESS_KEY)
+                            .put("s3.aws-secret-key", MINIO_SECRET_KEY)
+                            .put("s3.region", MINIO_REGION)
+                            .put("s3.endpoint", "http://" + minio.getMinioApiEndpoint())
+                            .put("s3.path-style-access", "true")
+                            .put("s3.streaming.part-size", "5MB")
+                            .putAll(starburstAiFileStorageProperties(modelSpecJson))
+                            .buildOrThrow())
                     .setSchemaInitializer(
                             SchemaInitializer.builder()
                                     .withSchemaName("tpch")
                                     .withClonedTpchTables(TpchTable.getTables())
                                     .build())
-                    .setAdditionalSetup(runner -> {
-                        runner.installPlugin(new AiPlugin());
-                        runner.createCatalog("ai", "starburst_ai", Map.of("ai.models-file", modelsFile.getAbsolutePath()));
-                    })
+                    .setAdditionalSetup(runner -> addStarburstAiCatalog(modelSpecJson, runner))
                     .build();
 
             Logger log = Logger.get(IcebergAiMinIoQueryRunnerMain.class);

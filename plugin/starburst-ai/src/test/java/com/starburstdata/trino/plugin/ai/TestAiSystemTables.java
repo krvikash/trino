@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.util.Map;
 
+import static io.starburst.ai.client.TestingUtils.createModelConnectionSpecsFile;
+
 public class TestAiSystemTables
         extends AbstractTestQueryFramework
 {
@@ -28,7 +30,7 @@ public class TestAiSystemTables
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        File modelsFile = TestingUtils.createModelConnectionSpecsFile("""
+        File modelsFile = createModelConnectionSpecsFile("""
                 {
                  "models": [
                      {
@@ -97,7 +99,8 @@ public class TestAiSystemTables
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new AiPlugin());
                     runner.createCatalog("ai", "starburst_ai", Map.of(
-                            "ai.models-file", modelsFile.getAbsolutePath()));
+                            "ai.client.models.storage", "FILE",
+                            "ai.client.models.file", modelsFile.getAbsolutePath()));
                 })
                 .build();
     }

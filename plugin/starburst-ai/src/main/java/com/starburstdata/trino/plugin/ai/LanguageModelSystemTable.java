@@ -15,6 +15,9 @@ package com.starburstdata.trino.plugin.ai;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import io.starburst.ai.client.LanguageModelConnectionSpec;
+import io.starburst.ai.client.ModelConnectionSpecDao;
+import io.starburst.ai.client.PromptOverrides;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.SchemaTableName;
@@ -76,17 +79,17 @@ public class LanguageModelSystemTable
         row.add(spec.maxTokens().orElse(null));
         row.add(convertFloat(spec.temperature()));
         row.add(convertFloat(spec.topP()));
-        row.add(spec.prompts().flatMap(Prompts::systemPrompts).map(LanguageModelSystemTable::convertList).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::analyzeSentimentPrompt).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::analyzeSentimentSystemPrompt).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::classifyPrompt).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::classifySystemPrompt).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::fixGrammarPrompt).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::fixGrammarSystemPrompt).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::maskPrompt).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::maskSystemPrompt).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::translatePrompt).orElse(null));
-        row.add(spec.prompts().flatMap(Prompts::translateSystemPrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::systemPrompts).map(LanguageModelSystemTable::convertList).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::analyzeSentimentPrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::analyzeSentimentSystemPrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::classifyPrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::classifySystemPrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::fixGrammarPrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::fixGrammarSystemPrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::maskPrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::maskSystemPrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::translatePrompt).orElse(null));
+        row.add(spec.prompts().flatMap(PromptOverrides::translateSystemPrompt).orElse(null));
         return row;
     }
 

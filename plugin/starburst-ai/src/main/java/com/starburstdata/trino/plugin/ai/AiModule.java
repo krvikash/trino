@@ -13,15 +13,12 @@
  */
 package com.starburstdata.trino.plugin.ai;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.starburstdata.trino.plugin.ai.embedding.GenerateEmbeddingsTableFunction;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.configuration.secrets.SecretsResolver;
-import io.trino.spi.TrinoException;
+import io.starburst.ai.client.AiClientModule;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.SystemTable;
@@ -29,17 +26,9 @@ import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 
-import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
-import static com.starburstdata.trino.plugin.ai.AiErrorCode.AI_ERROR;
-import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.trino.plugin.base.util.JsonUtils.parseJson;
 
 public class AiModule
         extends AbstractConfigurationAwareModule
@@ -47,7 +36,7 @@ public class AiModule
     @Override
     protected void setup(Binder binder)
     {
-        configBinder(binder).bindConfig(AiConfig.class);
+        install(new AiClientModule());
         binder.bind(AiConnector.class).in(Scopes.SINGLETON);
         binder.bind(AiMetadata.class).in(Scopes.SINGLETON);
         binder.bind(AiFunctions.class).in(Scopes.SINGLETON);
@@ -55,9 +44,6 @@ public class AiModule
         binder.bind(Connector.class).to(AiConnector.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorMetadata.class).to(AiMetadata.class).in(Scopes.SINGLETON);
         binder.bind(FunctionProvider.class).to(AiFunctions.class).in(Scopes.SINGLETON);
-
-        install(new AiClientModule());
-        binder.bind(ClientProvider.class).to(ModelClientProvider.class).in(Scopes.SINGLETON);
 
         var systemTableBinder = newSetBinder(binder, SystemTable.class);
         systemTableBinder.addBinding().to(LanguageModelSystemTable.class).in(Scopes.SINGLETON);
@@ -70,29 +56,5 @@ public class AiModule
     public static List<FunctionMetadata> getFunctionMetadata(AiFunctions functions)
     {
         return functions.getFunctions();
-    }
-
-    @Provides
-    public static List<ModelConnectionSpec> getModelConnectionSpecs(AiConfig config, SecretsResolver secretsResolver)
-    {
-        try {
-            String json = Files.readString(Path.of(config.getModelConnectionSpecsFile()));
-            String resolvedJson = secretsResolver.getResolvedConfiguration(ImmutableMap.of("json", json)).get("json");
-            return parseJson(resolvedJson, ModelConnectionSpecs.class).models();
-        }
-        catch (RuntimeException e) {
-            // the error message can contain sensitive information, so just include the location of the parsing error
-            getCausalChain(e).stream()
-                    .filter(JsonParseException.class::isInstance)
-                    .map(JsonParseException.class::cast)
-                    .findFirst()
-                    .ifPresent(jpe -> {
-                        throw new TrinoException(AI_ERROR, "Error parsing AI model connection spec at: %s".formatted(jpe.getLocation().offsetDescription()));
-                    });
-            throw e;
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 }

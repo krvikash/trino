@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.ai.embedding.GenerateEmbeddingsFunctionHandle;
 import com.starburstdata.trino.plugin.ai.embedding.GenerateEmbeddingsTableFunction;
 import io.airlift.slice.Slice;
+import io.starburst.ai.client.ModelClientProvider;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LongArrayBlockBuilder;
@@ -40,6 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.spi.type.TypeSignature.arrayType;
@@ -128,10 +130,10 @@ public class AiFunctions
         }
     }
 
-    private final ClientProvider clientProvider;
+    private final ModelClientProvider clientProvider;
 
     @Inject
-    public AiFunctions(ClientProvider clientProvider)
+    public AiFunctions(ModelClientProvider clientProvider)
     {
         this.clientProvider = requireNonNull(clientProvider, "clientProvider is null");
     }
@@ -214,7 +216,7 @@ public class AiFunctions
             throw e;
         }
         catch (RuntimeException e) {
-            throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to generate embedding with remote model", e);
+            throw new TrinoException(AI_CLIENT_ERROR, "Failed to generate embedding with remote model", e);
         }
 
         LongArrayBlockBuilder blockBuilder = new LongArrayBlockBuilder(null, data.size());
@@ -237,7 +239,7 @@ public class AiFunctions
             throw e;
         }
         catch (RuntimeException e) {
-            throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to generate embedding with remote model", e);
+            throw new TrinoException(AI_CLIENT_ERROR, "Failed to generate embedding with remote model", e);
         }
     }
 

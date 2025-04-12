@@ -14,10 +14,10 @@
 package io.trino.plugin.iceberg;
 
 import com.google.inject.Inject;
-import com.starburstdata.trino.plugin.ai.ClientProvider;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
+import io.starburst.ai.client.ModelClientProvider;
 import io.trino.plugin.hive.SortingFileWriterConfig;
 import io.trino.plugin.iceberg.procedure.IcebergGenerateEmbeddingsHandle;
 import io.trino.plugin.iceberg.procedure.IcebergOptimizeHandle;
@@ -60,7 +60,7 @@ public class IcebergPageSinkProvider
     private final int sortingFileWriterMaxOpenFiles;
     private final TypeManager typeManager;
     private final PageSorter pageSorter;
-    private final ClientProvider embeddingClientProvider;
+    private final ModelClientProvider embeddingClientProvider;
 
     @Inject
     public IcebergPageSinkProvider(
@@ -72,7 +72,7 @@ public class IcebergPageSinkProvider
             SortingFileWriterConfig sortingFileWriterConfig,
             TypeManager typeManager,
             PageSorter pageSorter,
-            ClientProvider embeddingClientProvider)
+            ModelClientProvider embeddingClientProvider)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.jsonCodec = requireNonNull(jsonCodec, "jsonCodec is null");

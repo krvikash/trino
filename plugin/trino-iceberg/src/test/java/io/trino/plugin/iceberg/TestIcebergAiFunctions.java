@@ -13,17 +13,13 @@
  */
 package io.trino.plugin.iceberg;
 
-import com.google.common.collect.ImmutableMap;
-import com.starburstdata.trino.plugin.ai.AiPlugin;
-import com.starburstdata.trino.plugin.ai.TestingUtils;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
-import java.util.Map;
-
+import static com.starburstdata.trino.plugin.ai.AiQueryRunner.addStarburstAiCatalog;
+import static com.starburstdata.trino.plugin.ai.AiQueryRunner.starburstAiFileStorageProperties;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestIcebergAiFunctions
@@ -59,14 +55,9 @@ public class TestIcebergAiFunctions
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        File modelsFile = TestingUtils.createModelConnectionSpecsFile(MODEL_PROVIDERS);
         return IcebergQueryRunner.builder()
-                .setIcebergProperties(ImmutableMap.of(
-                        "ai.models-file", modelsFile.getAbsolutePath()))
-                .setAdditionalSetup(runner -> {
-                    runner.installPlugin(new AiPlugin());
-                    runner.createCatalog("ai", "starburst_ai", Map.of("ai.models-file", modelsFile.getAbsolutePath()));
-                })
+                .setIcebergProperties(starburstAiFileStorageProperties(MODEL_PROVIDERS))
+                .setAdditionalSetup(runner -> addStarburstAiCatalog(MODEL_PROVIDERS, runner))
                 .build();
     }
 
@@ -79,7 +70,7 @@ public class TestIcebergAiFunctions
             assertUpdate("ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'openai')".formatted(table.getName()));
 
             assertQuery(
-                    "SELECT data FROM (SELECT data, cosine_similarity(embedding, ai.ai.generate_embedding('animal', 'openai')) AS similarity FROM %s ORDER BY similarity DESC LIMIT 2)".formatted(table.getName()),
+                    "SELECT data FROM (SELECT data, cosine_similarity(embedding, starburst.ai.generate_embedding('animal', 'openai')) AS similarity FROM %s ORDER BY similarity DESC LIMIT 2)".formatted(table.getName()),
                     "VALUES 'cat', 'dog'");
         }
 
@@ -89,7 +80,7 @@ public class TestIcebergAiFunctions
             assertUpdate("ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'openai')".formatted(table.getName()));
 
             assertQuery(
-                    "SELECT data FROM (SELECT data, cosine_similarity(embedding, ai.ai.generate_embedding('animal', 'openai')) AS similarity FROM %s ORDER BY similarity DESC LIMIT 2)".formatted(table.getName()),
+                    "SELECT data FROM (SELECT data, cosine_similarity(embedding, starburst.ai.generate_embedding('animal', 'openai')) AS similarity FROM %s ORDER BY similarity DESC LIMIT 2)".formatted(table.getName()),
                     "VALUES 'cat', 'dog'");
         }
 
@@ -102,14 +93,14 @@ public class TestIcebergAiFunctions
             assertUpdate("ALTER TABLE " + table.getName() + " ADD COLUMN embedding ARRAY(DOUBLE)");
             assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'openai')");
             assertQuery(
-                    "SELECT data FROM (SELECT data, cosine_similarity(embedding, ai.ai.generate_embedding('animal', 'openai')) AS similarity FROM " 
-                            + table.getName() 
+                    "SELECT data FROM (SELECT data, cosine_similarity(embedding, starburst.ai.generate_embedding('animal', 'openai')) AS similarity FROM "
+                            + table.getName()
                             + " ORDER BY similarity DESC LIMIT 2)",
                     "VALUES 'cat', 'dog'");
             // Conditionally create embeddings
             assertUpdate("ALTER TABLE " + table.getName() + " ADD COLUMN data_orange_embedding ARRAY(DOUBLE)");
-            assertUpdate("ALTER TABLE " 
-                    + table.getName() 
+            assertUpdate("ALTER TABLE "
+                    + table.getName()
                     + " EXECUTE generate_embeddings(embedding_column => 'data_orange_embedding', data_column => 'data', model_id => 'openai') WHERE c1 = 2");
             assertThat(query("SELECT c1 FROM " + table.getName() + " WHERE data_orange_embedding IS NOT NULL"))
                     .matches("VALUES 2");
@@ -125,7 +116,7 @@ public class TestIcebergAiFunctions
             assertUpdate("ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'cohere')".formatted(table.getName()));
 
             assertQuery(
-                    ("SELECT data FROM (SELECT data, hamming_distance(embedding, ai.ai.generate_binary_embedding('clothing', 'cohere')) AS distance " +
+                    ("SELECT data FROM (SELECT data, hamming_distance(embedding, starburst.ai.generate_binary_embedding('clothing', 'cohere')) AS distance " +
                             "FROM %s ORDER BY distance ASC LIMIT 2)").formatted(table.getName()),
                     "VALUES 'shirt', 'pants'");
         }

@@ -13,9 +13,9 @@
  */
 package com.starburstdata.trino.plugin.ai;
 
-import com.starburstdata.trino.plugin.ai.ConnectionInfo.AwsBedrockConnectionInfo;
-import com.starburstdata.trino.plugin.ai.ConnectionInfo.OpenAiConnectionInfo;
 import io.airlift.slice.Slices;
+import io.starburst.ai.client.ConnectionInfo;
+import io.starburst.ai.client.ModelConnectionSpec;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ColumnMetadata;
@@ -101,8 +101,8 @@ public abstract class AiSystemTable<T extends ModelConnectionSpec>
     protected static String convertProvider(ConnectionInfo connectionInfo)
     {
         return switch (connectionInfo) {
-            case OpenAiConnectionInfo _ -> "OPENAI";
-            case AwsBedrockConnectionInfo _ -> "AWS_BEDROCK";
+            case ConnectionInfo.OpenAiConnectionInfo _ -> "OPENAI";
+            case ConnectionInfo.AwsBedrockConnectionInfo _ -> "AWS_BEDROCK";
         };
     }
 }

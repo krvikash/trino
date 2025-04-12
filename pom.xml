@@ -40,6 +40,7 @@
         <module>core/trino-spi</module>
         <module>core/trino-web-ui</module>
         <module>docs</module>
+        <module>lib/starburst-ai-client</module>
         <module>lib/starburst-license</module>
         <module>lib/starburst-schema-discovery</module>
         <module>lib/starburst-testing-auto-configuration</module>
@@ -1001,6 +1002,26 @@
                 <groupId>io.swagger.core.v3</groupId>
                 <artifactId>swagger-core</artifactId>
                 <version>${dep.swagger.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-ai</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-ai-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-ai-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
             </dependency>
 
             <dependency>

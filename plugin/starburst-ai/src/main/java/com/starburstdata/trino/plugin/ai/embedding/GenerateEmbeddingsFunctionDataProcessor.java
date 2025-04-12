@@ -13,10 +13,9 @@
  */
 package com.starburstdata.trino.plugin.ai.embedding;
 
-import com.starburstdata.trino.plugin.ai.AiErrorCode;
-import com.starburstdata.trino.plugin.ai.EmbeddingModelClient;
-import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.slice.Slice;
+import io.starburst.ai.client.EmbeddingModelClient;
+import io.starburst.ai.client.EmbeddingType;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.ArrayBlockBuilder;
@@ -38,6 +37,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static io.trino.spi.function.table.TableFunctionProcessorState.Finished.FINISHED;
 import static io.trino.spi.function.table.TableFunctionProcessorState.Processed.usedInputAndProduced;
 import static java.util.Objects.requireNonNull;
@@ -111,7 +111,7 @@ public class GenerateEmbeddingsFunctionDataProcessor
             throw e;
         }
         catch (RuntimeException e) {
-            throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to generate embedding with remote model", e);
+            throw new TrinoException(AI_CLIENT_ERROR, "Failed to generate embedding with remote model", e);
         }
 
         Type arrayType = new ArrayType(RealType.REAL);
@@ -146,7 +146,7 @@ public class GenerateEmbeddingsFunctionDataProcessor
             throw e;
         }
         catch (RuntimeException e) {
-            throw new TrinoException(AiErrorCode.AI_ERROR, "Failed to generate embedding with remote model", e);
+            throw new TrinoException(AI_CLIENT_ERROR, "Failed to generate embedding with remote model", e);
         }
 
         BlockBuilder blockBuilder = VarbinaryType.VARBINARY.createBlockBuilder(null, positionCount);

@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.iceberg.procedure;
 
-import com.starburstdata.trino.plugin.ai.EmbeddingType;
+import io.starburst.ai.client.EmbeddingType;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.TrinoSortField;

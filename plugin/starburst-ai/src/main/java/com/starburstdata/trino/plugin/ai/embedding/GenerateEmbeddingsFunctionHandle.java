@@ -13,8 +13,8 @@
  */
 package com.starburstdata.trino.plugin.ai.embedding;
 
-import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.slice.Slice;
+import io.starburst.ai.client.EmbeddingType;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 
 import static java.util.Objects.requireNonNull;

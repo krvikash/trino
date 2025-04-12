@@ -14,9 +14,9 @@
 package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableList;
-import com.starburstdata.trino.plugin.ai.EmbeddingModelClient;
-import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.slice.Slice;
+import io.starburst.ai.client.EmbeddingModelClient;
+import io.starburst.ai.client.EmbeddingType;
 import io.trino.spi.Page;
 import io.trino.spi.block.ArrayBlockBuilder;
 import io.trino.spi.block.Block;

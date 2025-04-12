@@ -16,9 +16,9 @@ package com.starburstdata.trino.plugin.ai.embedding;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.trino.plugin.ai.AiMetadata;
-import com.starburstdata.trino.plugin.ai.ClientProvider;
-import com.starburstdata.trino.plugin.ai.EmbeddingType;
 import io.airlift.slice.Slice;
+import io.starburst.ai.client.EmbeddingType;
+import io.starburst.ai.client.ModelClientProvider;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorSession;
@@ -171,7 +171,7 @@ public class GenerateEmbeddingsTableFunction
                 .build();
     }
 
-    public static TableFunctionProcessorProvider getGenerateEmbeddingsFunctionProcessorProvider(ClientProvider clientProvider)
+    public static TableFunctionProcessorProvider getGenerateEmbeddingsFunctionProcessorProvider(ModelClientProvider clientProvider)
     {
         return new TableFunctionProcessorProvider()
         {

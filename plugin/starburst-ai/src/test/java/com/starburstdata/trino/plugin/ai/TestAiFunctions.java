@@ -20,80 +20,30 @@ import io.trino.testing.QueryRunner;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.starburstdata.trino.plugin.ai.TestingUtils.TEST_AI_SESSION;
-import static com.starburstdata.trino.plugin.ai.TestingUtils.createModelConnectionSpecsFile;
+import static com.starburstdata.trino.plugin.ai.AiQueryRunner.TEST_AI_SESSION;
+import static com.starburstdata.trino.plugin.ai.AiQueryRunner.addStarburstAiCatalog;
 import static io.airlift.json.JsonCodec.listJsonCodec;
 import static io.airlift.json.JsonCodec.mapJsonCodec;
+import static io.starburst.ai.client.TestingUtils.LANGUAGE_MODEL_PROVIDERS;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestAiFunctions
         extends AbstractTestQueryFramework
 {
-    private static final String MODEL_PROVIDERS = """
-            {
-                "models": [
-                    {
-                        "id": "gpt4o_mini",
-                        "modelName": "gpt-4o-mini",
-                        "kind": "GENERATE",
-                        "maxTokens": 8192,
-                        "temperature": 0.1,
-                        "connectionInfo": {
-                            "provider": "OPENAI",
-                            "endpoint": "https://api.openai.com/v1",
-                            "apiKey": "${ENV:OPEN_AI_API_KEY}"
-                        }
-                    },
-                    {
-                        "id": "meta_llama",
-                        "modelName": "us.meta.llama3-3-70b-instruct-v1:0",
-                        "kind": "GENERATE",
-                        "maxTokens": 8192,
-                        "temperature": 0.001,
-                        "connectionInfo": {
-                            "provider": "AWS_BEDROCK",
-                            "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
-                            "awsSecretKey": "${ENV:AWS_SECRET_ACCESS_KEY}",
-                            "region": "us-east-2"
-                        }
-                    },
-                    {
-                        "id": "haiku35",
-                        "modelName": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
-                        "kind": "GENERATE",
-                        "maxTokens": 8192,
-                        "temperature": 0.1,
-                        "connectionInfo": {
-                            "provider": "AWS_BEDROCK",
-                            "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
-                            "awsSecretKey": "${ENV:AWS_SECRET_ACCESS_KEY}",
-                            "region": "us-east-2"
-                        }
-                    }
-                ]
-            }""";
-
     private static final JsonCodec<List<LabelAndContent>> LABEL_AND_CONTENT_CODEC = listJsonCodec(LabelAndContent.class);
 
     @Override
     public QueryRunner createQueryRunner()
             throws Exception
     {
-        File modelProvidersFile = createModelConnectionSpecsFile(MODEL_PROVIDERS);
         return MemoryQueryRunner.builder()
-                .addCoordinatorProperty("sql.path", "ai")
-                .setAdditionalSetup(runner -> {
-                    runner.installPlugin(new AiPlugin());
-                    runner.createCatalog("ai", "starburst_ai", Map.of(
-                            "ai.models-file", modelProvidersFile.getAbsolutePath()));
-                })
+                .setAdditionalSetup(runner -> addStarburstAiCatalog(LANGUAGE_MODEL_PROVIDERS, runner))
                 .build();
     }
 
