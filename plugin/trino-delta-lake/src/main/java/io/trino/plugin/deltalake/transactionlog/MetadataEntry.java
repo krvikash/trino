@@ -49,8 +49,7 @@ public class MetadataEntry
     public static final String DELTA_CHECKPOINT_WRITE_STATS_AS_JSON_PROPERTY = "delta.checkpoint.writeStatsAsJson";
     public static final String DELTA_CHECKPOINT_WRITE_STATS_AS_STRUCT_PROPERTY = "delta.checkpoint.writeStatsAsStruct";
     public static final String DELTA_CHANGE_DATA_FEED_ENABLED_PROPERTY = "delta.enableChangeDataFeed";
-
-    private static final String DELTA_CHECKPOINT_INTERVAL_PROPERTY = "delta.checkpointInterval";
+    public static final String DELTA_CHECKPOINT_INTERVAL_PROPERTY = "delta.checkpointInterval";
 
     private final String id;
     private final String name;

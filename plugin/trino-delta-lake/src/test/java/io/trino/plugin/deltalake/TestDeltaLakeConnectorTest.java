@@ -1462,6 +1462,38 @@ public class TestDeltaLakeConnectorTest
     }
 
     @Test
+    public void testSetCheckpointIntervalProperty()
+    {
+        try (TestTable table = newTrinoTable("test_set_property", "(x int)")) {
+            assertThat(getTableProperties(table.getName()))
+                    .containsExactly(
+                            entry("delta.enableDeletionVectors", "false"),
+                            entry("delta.minReaderVersion", "1"),
+                            entry("delta.minWriterVersion", "2"));
+
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES checkpoint_interval = 10");
+            assertThat(getTableProperties(table.getName()))
+                    .containsExactly(
+                            entry("delta.checkpointInterval", "10"),
+                            entry("delta.enableDeletionVectors", "false"),
+                            entry("delta.minReaderVersion", "1"),
+                            entry("delta.minWriterVersion", "2"));
+
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES checkpoint_interval = 100");
+            assertThat(getTableProperties(table.getName()))
+                    .containsExactly(
+                            entry("delta.checkpointInterval", "100"),
+                            entry("delta.enableDeletionVectors", "false"),
+                            entry("delta.minReaderVersion", "1"),
+                            entry("delta.minWriterVersion", "2"));
+
+            assertQueryFails(
+                    "ALTER TABLE " + table.getName() + " SET PROPERTIES checkpoint_interval = 0",
+                    "The checkpoint_interval property must be greater than 0");
+        }
+    }
+
+    @Test
     public void testCreateTableWithColumnMappingMode()
     {
         testCreateTableWithColumnMappingMode(ColumnMappingMode.ID);
@@ -2670,8 +2702,6 @@ public class TestDeltaLakeConnectorTest
 
         assertUpdate("CREATE TABLE " + tableName + " (a_number INT)");
 
-        assertQueryFails("ALTER TABLE " + tableName + " SET PROPERTIES change_data_feed_enabled = true, checkpoint_interval = 10",
-                "The following properties cannot be updated: checkpoint_interval");
         assertQueryFails("ALTER TABLE " + tableName + " SET PROPERTIES partitioned_by = ARRAY['a']",
                 "The following properties cannot be updated: partitioned_by");
         assertQueryFails("ALTER TABLE " + tableName + " SET PROPERTIES column_mapping_mode = 'ID'",

@@ -284,6 +284,7 @@ import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ve
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.unsupportedReaderFeatures;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.unsupportedWriterFeatures;
 import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.DELTA_CHANGE_DATA_FEED_ENABLED_PROPERTY;
+import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.DELTA_CHECKPOINT_INTERVAL_PROPERTY;
 import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.configurationForNewTable;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogParser.getMandatoryCurrentVersion;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogUtil.getTransactionLogDir;
@@ -409,7 +410,11 @@ public class DeltaLakeMetadata
             .add(NUMBER_OF_NON_NULL_VALUES)
             .build();
     private static final String ENABLE_NON_CONCURRENT_WRITES_CONFIGURATION_KEY = "delta.enable-non-concurrent-writes";
-    public static final Set<String> UPDATABLE_TABLE_PROPERTIES = ImmutableSet.of(CHANGE_DATA_FEED_ENABLED_PROPERTY);
+
+    public static final Set<String> UPDATABLE_TABLE_PROPERTIES = ImmutableSet.<String>builder()
+            .add(CHECKPOINT_INTERVAL_PROPERTY)
+            .add(CHANGE_DATA_FEED_ENABLED_PROPERTY)
+            .build();
 
     public static final Set<String> CHANGE_DATA_FEED_COLUMN_NAMES = ImmutableSet.<String>builder()
             .add("_change_type")
@@ -3112,8 +3117,17 @@ public class DeltaLakeMetadata
 
         long createdTime = Instant.now().toEpochMilli();
 
+        Map<String, String> configuration = new HashMap<>(handle.getMetadataEntry().getConfiguration());
         int requiredWriterVersion = currentProtocolEntry.minWriterVersion();
-        Optional<MetadataEntry> metadataEntry = Optional.empty();
+        Optional<MetadataEntry> metadataEntry;
+        if (properties.containsKey(CHECKPOINT_INTERVAL_PROPERTY)) {
+            Long checkpointInterval = (Long) properties.get(CHECKPOINT_INTERVAL_PROPERTY)
+                    .orElseThrow(() -> new IllegalArgumentException("The checkpoint_interval property cannot be empty"));
+            if (checkpointInterval == null || checkpointInterval <= 0) {
+                throw new TrinoException(NOT_SUPPORTED, "The checkpoint_interval property must be greater than 0");
+            }
+            configuration.put(DELTA_CHECKPOINT_INTERVAL_PROPERTY, String.valueOf(checkpointInterval));
+        }
         if (properties.containsKey(CHANGE_DATA_FEED_ENABLED_PROPERTY)) {
             boolean changeDataFeedEnabled = (Boolean) properties.get(CHANGE_DATA_FEED_ENABLED_PROPERTY)
                     .orElseThrow(() -> new IllegalArgumentException("The change_data_feed_enabled property cannot be empty"));
@@ -3125,10 +3139,9 @@ public class DeltaLakeMetadata
                 }
                 requiredWriterVersion = max(requiredWriterVersion, CDF_SUPPORTED_WRITER_VERSION);
             }
-            Map<String, String> configuration = new HashMap<>(handle.getMetadataEntry().getConfiguration());
             configuration.put(DELTA_CHANGE_DATA_FEED_ENABLED_PROPERTY, String.valueOf(changeDataFeedEnabled));
-            metadataEntry = Optional.of(buildMetadataEntry(handle.getMetadataEntry(), configuration, createdTime));
         }
+        metadataEntry = Optional.of(buildMetadataEntry(handle.getMetadataEntry(), configuration, createdTime));
 
         long readVersion = handle.getReadVersion();
         long commitVersion = readVersion + 1;
