@@ -99,6 +99,9 @@ the following table:
 * - `DATE`
   - `DATE`
   -
+* - `TIMESTAMP (n)`
+  - `TIMESTAMP (n)`
+  -
 :::
 
 No other types are supported.

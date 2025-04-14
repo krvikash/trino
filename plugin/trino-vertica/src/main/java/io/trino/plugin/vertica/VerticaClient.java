@@ -58,6 +58,7 @@ import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
@@ -68,6 +69,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
@@ -98,6 +100,7 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.doubleWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.longDecimalWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.realWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.shortDecimalWriteFunction;
+import static io.trino.plugin.jdbc.StandardColumnMappings.toTrinoTimestamp;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharColumnMapping;
@@ -105,6 +108,7 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.varcharWriteFunction;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.getUnsupportedTypeHandling;
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
 import static io.trino.plugin.vertica.VerticaTableStatisticsReader.readTableStatistics;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.connector.JoinCondition.Operator.IDENTICAL;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -116,6 +120,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static java.lang.Math.max;
@@ -132,6 +137,15 @@ public class VerticaClient
     private static final DateTimeFormatter DATE_WRITE_FORMATTER = new DateTimeFormatterBuilder()
             .appendValueReduced(ChronoField.YEAR, 4, 7, 1000)
             .appendPattern("-MM-dd[ G]")
+            .toFormatter();
+    protected static final DateTimeFormatter TIMESTAMP_MICRO_OPTIONAL_FORMATTER = new DateTimeFormatterBuilder()
+            .appendOptional(new DateTimeFormatterBuilder().appendPattern("yyyy").toFormatter())
+            .appendOptional(new DateTimeFormatterBuilder().appendPattern("yyyyy").toFormatter())
+            .appendOptional(new DateTimeFormatterBuilder().appendPattern("yyyyyy").toFormatter())
+            .appendPattern("-MM-dd HH:mm:ss")
+            .optionalStart()
+            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 6, true)
+            .optionalEnd()
             .toFormatter();
 
     private final boolean statisticsEnabled;
@@ -268,6 +282,8 @@ public class VerticaClient
                         DATE,
                         (resultSet, index) -> LocalDate.parse(resultSet.getString(index), DATE_READ_FORMATTER).toEpochDay(),
                         dateWriteFunctionUsingString()));
+            case Types.TIMESTAMP:
+                return Optional.of(timestampColumnMappingUsingString(createTimestampType(typeHandle.requiredDecimalDigits())));
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {
@@ -474,6 +490,27 @@ public class VerticaClient
     public OptionalInt getMaxColumnNameLength(ConnectorSession session)
     {
         return this.getMaxColumnNameLengthFromDatabaseMetaData(session);
+    }
+
+    private static ColumnMapping timestampColumnMappingUsingString(TimestampType timestampType)
+    {
+        checkArgument(timestampType.getPrecision() <= TimestampType.MAX_SHORT_PRECISION, "Precision is out of range: %s", timestampType.getPrecision());
+        return ColumnMapping.longMapping(
+                timestampType,
+                (resultSet, columnIndex) -> toTrinoTimestamp(timestampType, LocalDateTime.parse(resultSet.getString(columnIndex), TIMESTAMP_MICRO_OPTIONAL_FORMATTER)),
+                timestampWriteFunction(timestampType),
+                // Vertica jdbc driver uses java.sql.Timestamp for handling this type instead of java.time.LocalDateTime as other jdbc drivers.
+                // So we cannot use this type for any write operations and pushdowns, because values will be automatically converted (to java.sql.Timestamp) and
+                // we can not guarantee correct results especially with DST rules
+                DISABLE_PUSHDOWN);
+    }
+
+    private static LongWriteFunction timestampWriteFunction(TimestampType timestampType)
+    {
+        checkArgument(timestampType.getPrecision() <= TimestampType.MAX_SHORT_PRECISION, "Precision is out of range: %s", timestampType.getPrecision());
+        return LongWriteFunction.of(Types.TIMESTAMP, (_, _, _) -> {
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Trino doesn't support timestamp write operations on Vertica jdbc driver");
+        });
     }
 
     private static Optional<JdbcTypeHandle> toTypeHandle(DecimalType decimalType)
