@@ -83,7 +83,7 @@ public final class ConverterFactory
             // Note: Decimal vector is different from others
             return new DecimalToScaledFixedConverter(vector, index, conversionContext);
         }
-        else if (!columnMetadata.isEmpty()) {
+        if (!columnMetadata.isEmpty()) {
             SnowflakeType snowflakeType = SnowflakeType.valueOf(columnMetadata.get("logicalType"));
             switch (snowflakeType) {
                 case ANY, CHAR, TEXT, VARIANT -> {
@@ -93,17 +93,13 @@ public final class ConverterFactory
                     if (vector instanceof ListVector listVector) {
                         return new ArrayConverter(listVector, index, conversionContext);
                     }
-                    else {
-                        return new VarCharConverter(vector, index, conversionContext);
-                    }
+                    return new VarCharConverter(vector, index, conversionContext);
                 }
                 case OBJECT -> {
                     if (vector instanceof StructVector structVector) {
                         return new StructConverter(structVector, index, conversionContext);
                     }
-                    else {
-                        return new VarCharConverter(vector, index, conversionContext);
-                    }
+                    return new VarCharConverter(vector, index, conversionContext);
                 }
                 case BINARY -> {
                     return new VarBinaryToBinaryConverter(vector, index, conversionContext);
@@ -125,33 +121,25 @@ public final class ConverterFactory
                             if (scale == 0) {
                                 return new TinyIntToFixedConverter(vector, index, conversionContext);
                             }
-                            else {
-                                return new TinyIntToScaledFixedConverter(vector, index, conversionContext, scale);
-                            }
+                            return new TinyIntToScaledFixedConverter(vector, index, conversionContext, scale);
                         }
                         case SMALLINT -> {
                             if (scale == 0) {
                                 return new SmallIntToFixedConverter(vector, index, conversionContext);
                             }
-                            else {
-                                return new SmallIntToScaledFixedConverter(vector, index, conversionContext, scale);
-                            }
+                            return new SmallIntToScaledFixedConverter(vector, index, conversionContext, scale);
                         }
                         case INT -> {
                             if (scale == 0) {
                                 return new IntToFixedConverter(vector, index, conversionContext);
                             }
-                            else {
-                                return new IntToScaledFixedConverter(vector, index, conversionContext, scale);
-                            }
+                            return new IntToScaledFixedConverter(vector, index, conversionContext, scale);
                         }
                         case BIGINT -> {
                             if (scale == 0) {
                                 return new BigIntToFixedConverter(vector, index, conversionContext);
                             }
-                            else {
-                                return new BigIntToScaledFixedConverter(vector, index, conversionContext, scale);
-                            }
+                            return new BigIntToScaledFixedConverter(vector, index, conversionContext, scale);
                         }
                         default -> {}
                     }
@@ -175,41 +163,35 @@ public final class ConverterFactory
                         // case when the scale of the timestamp is equal or smaller than millisecs since epoch
                         return new BigIntToTimestampLTZConverter(vector, index, conversionContext);
                     }
-                    else if (field.getChildren().size() == 2) {
+                    if (field.getChildren().size() == 2) {
                         // case when the scale of the timestamp is larger than millisecs since epoch, e.g.,
                         // nanosecs
                         return new TwoFieldStructToTimestampLTZConverter(vector, index, conversionContext);
                     }
-                    else {
-                        throw new TrinoException(GENERIC_INTERNAL_ERROR, "Unexpected Arrow Field for %s".formatted(snowflakeType.name()));
-                    }
+                    throw new TrinoException(GENERIC_INTERNAL_ERROR, "Unexpected Arrow Field for %s".formatted(snowflakeType.name()));
                 }
                 case TIMESTAMP_NTZ -> {
                     if (field.getChildren().isEmpty()) {
                         // case when the scale of the timestamp is equal or smaller than 7
                         return new BigIntToTimestampNTZConverter(vector, index, conversionContext);
                     }
-                    else if (field.getChildren().size() == 2) {
+                    if (field.getChildren().size() == 2) {
                         // when the timestamp is represented in two-field struct
                         return new TwoFieldStructToTimestampNTZConverter(vector, index, conversionContext);
                     }
-                    else {
-                        throw new TrinoException(GENERIC_INTERNAL_ERROR, "Unexpected Arrow Field for %s".formatted(snowflakeType.name()));
-                    }
+                    throw new TrinoException(GENERIC_INTERNAL_ERROR, "Unexpected Arrow Field for %s".formatted(snowflakeType.name()));
                 }
                 case TIMESTAMP_TZ -> {
                     if (field.getChildren().size() == 2) {
                         // case when the scale of the timestamp is equal or smaller than millisecs since epoch
                         return new TwoFieldStructToTimestampTZConverter(vector, index, conversionContext);
                     }
-                    else if (field.getChildren().size() == 3) {
+                    if (field.getChildren().size() == 3) {
                         // case when the scale of the timestamp is larger than millisecs since epoch, e.g.,
                         // nanosecs
                         return new ThreeFieldStructToTimestampTZConverter(vector, index, conversionContext);
                     }
-                    else {
-                        throw new TrinoException(GENERIC_INTERNAL_ERROR, "Unexpected SnowflakeType %s".formatted(snowflakeType.name()));
-                    }
+                    throw new TrinoException(GENERIC_INTERNAL_ERROR, "Unexpected SnowflakeType %s".formatted(snowflakeType.name()));
                 }
                 default -> throw new TrinoException(GENERIC_INTERNAL_ERROR, "Unexpected Arrow Field for %s".formatted(snowflakeType.name()));
             }
