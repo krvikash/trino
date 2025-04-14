@@ -196,6 +196,7 @@ final class TestHttpEventListener
                 Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyList(),
+                Collections.emptyList(),
                 Optional.empty());
 
         splitCompleteEvent = new SplitCompletedEvent(
