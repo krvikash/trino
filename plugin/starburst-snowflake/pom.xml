@@ -17,7 +17,8 @@
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
         <air.test.thread-count>8</air.test.thread-count>
         <!-- This is required for Snowflake JDBC Driver on JDK 17 -->
-        <air.test.jvm.additional-arguments>--add-opens=java.base/java.nio=ALL-UNNAMED</air.test.jvm.additional-arguments>
+        <air.test.jvm.additional-arguments>--add-opens=java.base/java.nio=ALL-UNNAMED
+            -Dnet.snowflake.jdbc.enableBouncyCastle=true</air.test.jvm.additional-arguments>
     </properties>
 
     <dependencies>

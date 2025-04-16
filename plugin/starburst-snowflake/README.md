@@ -70,3 +70,8 @@ sequenceDiagram
 
 With each driver version bump, there is a chance that Arrow handling has changed and parallel code in this module needs adjusting.
 Consult [snowflake-driver-bump.md](snowflake-driver-bump.md) for reference.
+
+## Trivia 
+
+- `-Dnet.snowflake.jdbc.enableBouncyCastle=true` is required for snowflake-jdbc driver to be able to [decrypt stronger keys](https://github.com/snowflakedb/snowflake-jdbc/issues/1683#issuecomment-2034442119)
+- `--add-opens=java.base/java.nio=ALL-UNNAMED` is required for snowflake-jdbc driver due to Arrow usage
