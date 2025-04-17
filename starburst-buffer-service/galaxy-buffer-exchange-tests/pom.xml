@@ -385,6 +385,8 @@
                 <artifactId>duplicate-finder-maven-plugin</artifactId>
                 <configuration>
                     <ignoredResourcePatterns>
+                        <!-- Conflicts between com.cronutils:cron-utils:9.2.0 and org.openjdk.jmh:jmh-core:1.37 -->
+                        <ignoredResourcePattern>checkstyle.xml</ignoredResourcePattern>
                         <!-- com.amazonaws:aws-java-sdk-core and software.amazon.awssdk:sdk-core MIME type file duplicate-->
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
                         <ignoredResourcePattern>about.html</ignoredResourcePattern>
