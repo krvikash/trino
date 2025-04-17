@@ -17,6 +17,7 @@ import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
+import io.trino.spi.security.AiModelAccessControl;
 
 import java.util.Map;
 
@@ -42,6 +43,7 @@ public class AiConnectorFactory
                     binder.bind(Tracer.class).toInstance(context.getTracer());
                     binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
                     binder.bind(NodeManager.class).toInstance(context.getNodeManager());
+                    binder.bind(AiModelAccessControl.class).toInstance(context.getAiModelAccessControl());
                 });
 
         Injector injector = app

@@ -29,6 +29,7 @@ import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.MetadataProvider;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.util.EmbedVersion;
@@ -91,6 +92,12 @@ public final class TestingConnectorContext
     public MetadataProvider getMetadataProvider()
     {
         return NOOP_METADATA_PROVIDER;
+    }
+
+    @Override
+    public AiModelAccessControl getAiModelAccessControl()
+    {
+        return AiModelAccessControl.ALLOW_ALL;
     }
 
     @Override

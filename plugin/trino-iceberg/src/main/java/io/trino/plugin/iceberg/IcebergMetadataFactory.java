@@ -23,6 +23,7 @@ import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.spi.connector.CatalogHandle;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
 
@@ -37,6 +38,7 @@ import static java.util.Objects.requireNonNull;
 public class IcebergMetadataFactory
 {
     private final LocationAccessControl locationAccessControl;
+    private final AiModelAccessControl aiModelAccessControl;
     private final TypeManager typeManager;
     private final CatalogHandle trinoCatalogHandle;
     private final JsonCodec<CommitTaskData> commitTaskCodec;
@@ -53,6 +55,7 @@ public class IcebergMetadataFactory
     @Inject
     public IcebergMetadataFactory(
             LocationAccessControl locationAccessControl,
+            AiModelAccessControl aiModelAccessControl,
             TypeManager typeManager,
             CatalogHandle trinoCatalogHandle,
             JsonCodec<CommitTaskData> commitTaskCodec,
@@ -65,6 +68,7 @@ public class IcebergMetadataFactory
             IcebergConfig config)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
+        this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.trinoCatalogHandle = requireNonNull(trinoCatalogHandle, "trinoCatalogHandle is null");
         this.commitTaskCodec = requireNonNull(commitTaskCodec, "commitTaskCodec is null");
@@ -94,6 +98,7 @@ public class IcebergMetadataFactory
     {
         return new IcebergMetadata(
                 locationAccessControl,
+                aiModelAccessControl,
                 typeManager,
                 trinoCatalogHandle,
                 commitTaskCodec,

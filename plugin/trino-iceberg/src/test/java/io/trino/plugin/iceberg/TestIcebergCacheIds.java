@@ -42,6 +42,7 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.TestingTypeManager;
 import io.trino.spi.type.Type;
@@ -114,6 +115,7 @@ public class TestIcebergCacheIds
                 Tracing.noopTracer());
         IcebergMetadataFactory icebergMetadataFactory = new IcebergMetadataFactory(
                 LocationAccessControl.ALLOW_ALL,
+                AiModelAccessControl.ALLOW_ALL,
                 TESTING_TYPE_MANAGER,
                 CatalogHandle.fromId("iceberg:NORMAL:v12345"),
                 createJsonCodec(CommitTaskData.class),

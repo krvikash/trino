@@ -38,6 +38,7 @@ import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 import org.weakref.jmx.guice.MBeanModule;
 
@@ -94,6 +95,7 @@ public class IcebergConnectorFactory
                         binder.bind(PageIndexerFactory.class).toInstance(context.getPageIndexerFactory());
                         binder.bind(CatalogHandle.class).toInstance(context.getCatalogHandle());
                         binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
+                        binder.bind(AiModelAccessControl.class).toInstance(context.getAiModelAccessControl());
                         binder.bind(PageSorter.class).toInstance(context.getPageSorter());
                     },
                     module);

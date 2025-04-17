@@ -27,6 +27,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorMetadata;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.PrincipalType;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.type.TestingTypeManager;
@@ -47,7 +48,6 @@ import static io.trino.metastore.TableInfo.ExtendedRelationType.OTHER_VIEW;
 import static io.trino.plugin.iceberg.catalog.rest.IcebergRestCatalogConfig.SessionType.NONE;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogTestUtils.backendCatalog;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
-import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -116,6 +116,7 @@ public class TestTrinoRestCatalog
             // Test with IcebergMetadata, should the ConnectorMetadata implementation behavior depend on that class
             ConnectorMetadata icebergMetadata = new IcebergMetadata(
                     LocationAccessControl.ALLOW_ALL,
+                    AiModelAccessControl.ALLOW_ALL,
                     PLANNER_CONTEXT.getTypeManager(),
                     CatalogHandle.fromId("iceberg:NORMAL:v12345"),
                     jsonCodec(CommitTaskData.class),

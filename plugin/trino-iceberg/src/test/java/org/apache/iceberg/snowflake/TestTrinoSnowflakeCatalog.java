@@ -40,6 +40,7 @@ import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorViewDefinition;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.VarcharType;
 import io.trino.tpch.TpchTable;
@@ -218,6 +219,7 @@ public class TestTrinoSnowflakeCatalog
         // Test with IcebergMetadata, should the ConnectorMetadata implementation behavior depend on that class
         ConnectorMetadata icebergMetadata = new IcebergMetadata(
                 LocationAccessControl.ALLOW_ALL,
+                AiModelAccessControl.ALLOW_ALL,
                 PLANNER_CONTEXT.getTypeManager(),
                 CatalogHandle.fromId("iceberg:NORMAL:v12345"),
                 jsonCodec(CommitTaskData.class),

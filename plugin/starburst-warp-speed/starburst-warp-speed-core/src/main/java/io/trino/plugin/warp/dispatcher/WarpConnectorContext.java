@@ -22,6 +22,7 @@ import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.MetadataProvider;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 
 import static java.util.Objects.requireNonNull;
@@ -102,5 +103,11 @@ public class WarpConnectorContext
     public WarpPluginSharedInstances getWarpPluginSharedInstances()
     {
         return sharedInstances;
+    }
+
+    @Override
+    public AiModelAccessControl getAiModelAccessControl()
+    {
+        return connectorContext.getAiModelAccessControl();
     }
 }

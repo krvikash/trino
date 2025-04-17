@@ -158,6 +158,7 @@ import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.connector.ConnectorName;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
@@ -426,6 +427,7 @@ public class PlanTester
                 transactionManager,
                 typeManager,
                 nodeSchedulerConfig,
+                AiModelAccessControl.ALLOW_ALL,
                 optimizerConfig,
                 secretsResolver));
         this.splitManager = new SplitManager(createSplitManagerProvider(catalogManager), tracer, new QueryManagerConfig());

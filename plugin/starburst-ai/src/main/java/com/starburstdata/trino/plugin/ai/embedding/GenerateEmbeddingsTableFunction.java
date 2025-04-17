@@ -11,6 +11,7 @@ package com.starburstdata.trino.plugin.ai.embedding;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.ai.AiMetadata;
 import io.airlift.slice.Slice;
 import io.starburst.ai.client.EmbeddingType;
@@ -32,6 +33,7 @@ import io.trino.spi.function.table.TableArgumentSpecification;
 import io.trino.spi.function.table.TableFunctionAnalysis;
 import io.trino.spi.function.table.TableFunctionDataProcessor;
 import io.trino.spi.function.table.TableFunctionProcessorProvider;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.RealType;
@@ -54,6 +56,7 @@ import static io.trino.spi.function.table.DescriptorArgument.NULL_DESCRIPTOR;
 import static io.trino.spi.function.table.ReturnTypeSpecification.GenericTable.GENERIC_TABLE;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
+import static java.util.Objects.requireNonNull;
 
 public class GenerateEmbeddingsTableFunction
         extends AbstractConnectorTableFunction
@@ -68,7 +71,10 @@ public class GenerateEmbeddingsTableFunction
             .put(VarbinaryType.VARBINARY.getTypeSignature(), EmbeddingType.BINARY)
             .buildOrThrow();
 
-    public GenerateEmbeddingsTableFunction()
+    private final AiModelAccessControl aiModelAccessControl;
+
+    @Inject
+    public GenerateEmbeddingsTableFunction(AiModelAccessControl aiModelAccessControl)
     {
         super(
                 AiMetadata.SCHEMA_NAME,
@@ -90,6 +96,7 @@ public class GenerateEmbeddingsTableFunction
                                 .type(VarcharType.VARCHAR)
                                 .build()),
                 GENERIC_TABLE);
+        this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
     }
 
     @Override
@@ -131,6 +138,7 @@ public class GenerateEmbeddingsTableFunction
         checkFunctionArgument(modelIdArgument.getValue() != null, "MODEL_ID value cannot be null");
         Slice modelId = ((Slice) modelIdArgument.getValue());
         checkFunctionArgument(modelId.length() > 0, "MODEL_ID value cannot be empty");
+        aiModelAccessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
 
         String dataColumnName = getOnlyElement(contentColumnDescriptor.getFields()).getName().orElseThrow().toLowerCase(ENGLISH);
 

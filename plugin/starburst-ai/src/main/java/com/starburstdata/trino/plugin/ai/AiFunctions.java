@@ -18,6 +18,7 @@ import io.starburst.ai.client.ModelClientProvider;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LongArrayBlockBuilder;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.FunctionDependencies;
 import io.trino.spi.function.FunctionId;
@@ -29,6 +30,7 @@ import io.trino.spi.function.ScalarFunctionImplementation;
 import io.trino.spi.function.Signature;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.function.table.TableFunctionProcessorProvider;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.TypeSignature;
 
@@ -111,15 +113,15 @@ public class AiFunctions
 
     static {
         try {
-            GENERATE_EMBEDDING = lookup().findVirtual(AiFunctions.class, "generateEmbedding", methodType(Block.class, Slice.class, Slice.class));
-            GENERATE_BINARY_EMBEDDING = lookup().findVirtual(AiFunctions.class, "generateBinaryEmbedding", methodType(Slice.class, Slice.class, Slice.class));
-            ANALYZE_SENTIMENT = lookup().findVirtual(AiFunctions.class, "analyzeSentiment", methodType(Slice.class, Slice.class, Slice.class));
-            CLASSIFY = lookup().findVirtual(AiFunctions.class, "classify", methodType(Slice.class, Slice.class, Block.class, Slice.class));
-            FIX_GRAMMAR = lookup().findVirtual(AiFunctions.class, "fixGrammar", methodType(Slice.class, Slice.class, Slice.class));
-            PROMPT = lookup().findVirtual(AiFunctions.class, "prompt", methodType(Slice.class, Slice.class, Slice.class));
-            PROMPT_SYSTEM = lookup().findVirtual(AiFunctions.class, "promptSystem", methodType(Slice.class, Slice.class, Slice.class, Slice.class));
-            MASK = lookup().findVirtual(AiFunctions.class, "mask", methodType(Slice.class, Slice.class, Block.class, Slice.class));
-            TRANSLATE = lookup().findVirtual(AiFunctions.class, "translate", methodType(Slice.class, Slice.class, Slice.class, Slice.class));
+            GENERATE_EMBEDDING = lookup().findVirtual(AiFunctions.class, "generateEmbedding", methodType(Block.class, ConnectorSession.class, Slice.class, Slice.class));
+            GENERATE_BINARY_EMBEDDING = lookup().findVirtual(AiFunctions.class, "generateBinaryEmbedding", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
+            ANALYZE_SENTIMENT = lookup().findVirtual(AiFunctions.class, "analyzeSentiment", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
+            CLASSIFY = lookup().findVirtual(AiFunctions.class, "classify", methodType(Slice.class, ConnectorSession.class, Slice.class, Block.class, Slice.class));
+            FIX_GRAMMAR = lookup().findVirtual(AiFunctions.class, "fixGrammar", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
+            PROMPT = lookup().findVirtual(AiFunctions.class, "prompt", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
+            PROMPT_SYSTEM = lookup().findVirtual(AiFunctions.class, "promptSystem", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class, Slice.class));
+            MASK = lookup().findVirtual(AiFunctions.class, "mask", methodType(Slice.class, ConnectorSession.class, Slice.class, Block.class, Slice.class));
+            TRANSLATE = lookup().findVirtual(AiFunctions.class, "translate", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class, Slice.class));
         }
         catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
@@ -127,11 +129,13 @@ public class AiFunctions
     }
 
     private final ModelClientProvider clientProvider;
+    private final AiModelAccessControl accessControl;
 
     @Inject
-    public AiFunctions(ModelClientProvider clientProvider)
+    public AiFunctions(ModelClientProvider clientProvider, AiModelAccessControl accessControl)
     {
         this.clientProvider = requireNonNull(clientProvider, "clientProvider is null");
+        this.accessControl = new CachingAiModelAccessControl(requireNonNull(accessControl, "accessControl is null"));
     }
 
     public List<FunctionMetadata> getFunctions()
@@ -174,7 +178,7 @@ public class AiFunctions
         InvocationConvention actualConvention = new InvocationConvention(
                 nCopies(boundSignature.getArity(), NEVER_NULL),
                 FAIL_ON_NULL,
-                false,
+                true,
                 false);
 
         handle = ScalarFunctionAdapter.adapt(
@@ -198,8 +202,10 @@ public class AiFunctions
         throw new UnsupportedOperationException("Unsupported function: " + functionHandle);
     }
 
-    private Block generateEmbedding(Slice sourceString, Slice modelId)
+    private Block generateEmbedding(ConnectorSession session, Slice sourceString, Slice modelId)
     {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+
         if (sourceString.length() == 0) {
             return null;
         }
@@ -222,8 +228,10 @@ public class AiFunctions
         return blockBuilder.build();
     }
 
-    private Slice generateBinaryEmbedding(Slice sourceString, Slice modelId)
+    private Slice generateBinaryEmbedding(ConnectorSession session, Slice sourceString, Slice modelId)
     {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+
         if (sourceString.length() == 0) {
             return null;
         }
@@ -239,44 +247,58 @@ public class AiFunctions
         }
     }
 
-    public Slice analyzeSentiment(Slice text, Slice modelId)
+    public Slice analyzeSentiment(ConnectorSession session, Slice text, Slice modelId)
     {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+
         return utf8Slice(clientProvider.languageModelClient(modelId).analyzeSentiment(text.toStringUtf8()));
     }
 
-    public Slice classify(Slice text, Block labels, Slice modelId)
+    public Slice classify(ConnectorSession session, Slice text, Block labels, Slice modelId)
     {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+
         return utf8Slice(clientProvider.languageModelClient(modelId).classify(text.toStringUtf8(), fromSqlArray(labels)));
     }
 
-    public Slice fixGrammar(Slice text, Slice modelId)
+    public Slice fixGrammar(ConnectorSession session, Slice text, Slice modelId)
     {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+
         return utf8Slice(clientProvider.languageModelClient(modelId).fixGrammar(text.toStringUtf8()));
     }
 
-    public Slice prompt(Slice prompt, Slice modelId)
+    public Slice prompt(ConnectorSession session, Slice prompt, Slice modelId)
     {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+
         if (prompt.length() == 0) {
             return null;
         }
         return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8()));
     }
 
-    public Slice promptSystem(Slice systemPrompt, Slice prompt, Slice modelId)
+    public Slice promptSystem(ConnectorSession session, Slice systemPrompt, Slice prompt, Slice modelId)
     {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+
         if (prompt.length() == 0) {
             return null;
         }
         return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8(), systemPrompt.toStringUtf8()));
     }
 
-    public Slice mask(Slice text, Block labels, Slice modelId)
+    public Slice mask(ConnectorSession session, Slice text, Block labels, Slice modelId)
     {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+
         return utf8Slice(clientProvider.languageModelClient(modelId).mask(text.toStringUtf8(), fromSqlArray(labels)));
     }
 
-    public Slice translate(Slice text, Slice language, Slice modelId)
+    public Slice translate(ConnectorSession session, Slice text, Slice language, Slice modelId)
     {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+
         return utf8Slice(clientProvider.languageModelClient(modelId).translate(text.toStringUtf8(), language.toStringUtf8()));
     }
 

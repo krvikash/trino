@@ -126,6 +126,7 @@ import io.trino.spi.function.SchemaFunctionName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.statistics.ColumnStatisticMetadata;
 import io.trino.spi.statistics.ComputedStatistics;
@@ -468,6 +469,7 @@ public class IcebergMetadata
     private static final String TRINO_QUERY_START_TIME = "trino-query-start-time";
 
     private final LocationAccessControl locationAccessControl;
+    private final AiModelAccessControl aiModelAccessControl;
     private final TypeManager typeManager;
     private final CatalogHandle trinoCatalogHandle;
     private final JsonCodec<CommitTaskData> commitTaskCodec;
@@ -488,6 +490,7 @@ public class IcebergMetadata
 
     public IcebergMetadata(
             LocationAccessControl locationAccessControl,
+            AiModelAccessControl aiModelAccessControl,
             TypeManager typeManager,
             CatalogHandle trinoCatalogHandle,
             JsonCodec<CommitTaskData> commitTaskCodec,
@@ -502,6 +505,7 @@ public class IcebergMetadata
             Executor metadataFetchingExecutor)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
+        this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.trinoCatalogHandle = requireNonNull(trinoCatalogHandle, "trinoCatalogHandle is null");
         this.commitTaskCodec = requireNonNull(commitTaskCodec, "commitTaskCodec is null");
@@ -1910,6 +1914,7 @@ public class IcebergMetadata
 
         accessControl.checkCanSelectFromColumns(null, tableHandle.getSchemaTableName(), Set.of(embeddingColumnName, dataColumnName));
         accessControl.checkCanInsertIntoTable(null, tableHandle.getSchemaTableName());
+        aiModelAccessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId);
 
         Schema schema = SchemaParser.fromJson(tableHandle.getTableSchemaJson());
         Optional<NestedField> embeddingColumn = Optional.ofNullable(schema.caseInsensitiveFindField(embeddingColumnName));

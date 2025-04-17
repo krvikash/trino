@@ -10,11 +10,12 @@
 package com.starburstdata.trino.plugin.ai;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import io.trino.Session;
+import io.trino.spi.security.Identity;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
-import io.trino.testing.TestingSession;
 
 import java.io.File;
 import java.util.Map;
@@ -27,7 +28,7 @@ public final class AiQueryRunner
 {
     public static final String STARBURST_AI_CATALOG = "starburst";
 
-    public static final Session TEST_AI_SESSION = TestingSession.testSessionBuilder()
+    public static final Session TEST_AI_SESSION = testSessionBuilder()
             .setCatalog(STARBURST_AI_CATALOG)
             .build();
 
@@ -63,6 +64,14 @@ public final class AiQueryRunner
     {
         requireNonNull(modelSpecsFile, "modelSpecsFile is null");
         return ImmutableMap.of("ai.client.models.storage", "FILE", "ai.client.models.file", modelSpecsFile.getAbsolutePath(), "ai.client.cache.refresh.enabled", "true");
+    }
+
+    public static Session sessionWithRole(String role)
+    {
+        return testSessionBuilder()
+                .setCatalog(STARBURST_AI_CATALOG)
+                .setIdentity(Identity.forUser("user").withEnabledRoles(ImmutableSet.of(role)).build())
+                .build();
     }
 
     public static void main(String[] args)

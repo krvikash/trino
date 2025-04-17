@@ -100,6 +100,7 @@ import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorName;
 import io.trino.spi.eventlistener.EventListener;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.GroupProvider;
 import io.trino.spi.security.SystemAccessControl;
 import io.trino.spi.session.PropertyMetadata;
@@ -368,6 +369,7 @@ public class TestingTrinoServer
             modules.add(new TestingDiscoveryModule());
         }
 
+        modules.add(aiModelAccessControlModule());
         modules.add(additionalModule);
 
         Bootstrap app = new Bootstrap(modules.build());
@@ -760,6 +762,13 @@ public class TestingTrinoServer
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private static Module aiModelAccessControlModule()
+    {
+        return binder -> newOptionalBinder(binder, AiModelAccessControl.class)
+                .setDefault()
+                .toInstance(AiModelAccessControl.ALLOW_ALL);
     }
 
     public static class Builder

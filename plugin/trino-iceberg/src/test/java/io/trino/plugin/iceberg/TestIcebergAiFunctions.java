@@ -13,11 +13,22 @@
  */
 package io.trino.plugin.iceberg;
 
+import io.trino.Session;
+import io.trino.metadata.DisabledSystemSecurityMetadata;
+import io.trino.metadata.SystemSecurityMetadata;
+import io.trino.spi.security.AccessDeniedException;
+import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.Identity;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
 
+import java.util.Set;
+
+import static com.google.inject.Scopes.SINGLETON;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.starburstdata.trino.plugin.ai.AiQueryRunner.addStarburstAiCatalog;
 import static com.starburstdata.trino.plugin.ai.AiQueryRunner.starburstAiFileStorageProperties;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +36,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestIcebergAiFunctions
         extends AbstractTestQueryFramework
 {
+    private static final String DENY_ACCESS_MODEL = "deny_access_model";
+    private static final String DENY_ACCESS_ROLE = "deny_access_role";
+    private static final String ALLOW_ACCESS_ROLE = "allow_access_role";
     private static final String MODEL_PROVIDERS = """
         {
             "models": [
@@ -46,10 +60,20 @@ public class TestIcebergAiFunctions
                         "endpoint": "https://api.openai.com/v1",
                         "apiKey": "${ENV:OPEN_AI_API_KEY}"
                     }
+                },
+                {
+                    "id": "%s",
+                    "modelName": "text-embedding-3-small",
+                    "kind": "EMBED",
+                    "connectionInfo": {
+                        "provider": "OPENAI",
+                        "endpoint": "https://api.openai.com/v1",
+                        "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                    }
                 }
             ]
         }
-        """;
+        """.formatted(DENY_ACCESS_MODEL);
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -57,7 +81,24 @@ public class TestIcebergAiFunctions
     {
         return IcebergQueryRunner.builder()
                 .setIcebergProperties(starburstAiFileStorageProperties(MODEL_PROVIDERS))
+                .setAdditionalModule(binder -> {
+                    newOptionalBinder(binder, AiModelAccessControl.class)
+                            .setBinding()
+                            .to(TestingAiModelAccessControl.class)
+                            .in(SINGLETON);
+                    newOptionalBinder(binder, SystemSecurityMetadata.class)
+                            .setBinding()
+                            .toInstance(new DisabledSystemSecurityMetadata()
+                            {
+                                @Override
+                                public Set<String> listEnabledRoles(Identity identity)
+                                {
+                                    return Set.of(ALLOW_ACCESS_ROLE, DENY_ACCESS_ROLE);
+                                }
+                            });
+                })
                 .setAdditionalSetup(runner -> addStarburstAiCatalog(MODEL_PROVIDERS, runner))
+                .amendSession(builder -> builder.setIdentity(Identity.forUser("user").withEnabledRoles(ImmutableSet.of(ALLOW_ACCESS_ROLE)).build()))
                 .build();
     }
 
@@ -119,6 +160,45 @@ public class TestIcebergAiFunctions
                     ("SELECT data FROM (SELECT data, hamming_distance(embedding, starburst.ai.generate_binary_embedding('clothing', 'cohere')) AS distance " +
                             "FROM %s ORDER BY distance ASC LIMIT 2)").formatted(table.getName()),
                     "VALUES 'shirt', 'pants'");
+        }
+    }
+
+    @Test
+    public void testAccessControl()
+    {
+        try (TestTable table = newTrinoTable("test_binary_embeddings_", "(data VARCHAR)")) {
+            assertUpdate("INSERT INTO %s VALUES 'apple', 'orange', 'cat', 'dog', null, '', 'shirt', 'pants'".formatted(table.getName()), 8);
+            assertUpdate("ALTER TABLE %s ADD COLUMN embedding VARBINARY".formatted(table.getName()));
+            assertQuerySucceeds(
+                    sessionWithRole(ALLOW_ACCESS_ROLE),
+                    "ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'cohere')".formatted(table.getName()));
+            assertQueryFails(
+                    sessionWithRole(DENY_ACCESS_ROLE),
+                    "ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'cohere')".formatted(table.getName()),
+                    AccessDeniedException.PREFIX + "Model cohere");
+            assertQueryFails(
+                    sessionWithRole(ALLOW_ACCESS_ROLE),
+                    "ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => '%s')".formatted(table.getName(), DENY_ACCESS_MODEL),
+                    AccessDeniedException.PREFIX + "Model %s".formatted(DENY_ACCESS_MODEL));
+        }
+    }
+
+    private Session sessionWithRole(String role)
+    {
+        return Session.builder(getQueryRunner().getDefaultSession())
+                .setIdentity(Identity.forUser("user").withEnabledRoles(Set.of(role)).build())
+                .build();
+    }
+
+    public static class TestingAiModelAccessControl
+            implements AiModelAccessControl
+    {
+        @Override
+        public void checkCanExecuteModel(Context context, String modelId)
+        {
+            if (modelId.equals(DENY_ACCESS_MODEL) || context.connectorIdentity().getEnabledSystemRoles().contains(DENY_ACCESS_ROLE)) {
+                denyAiModelAccess(modelId);
+            }
         }
     }
 }

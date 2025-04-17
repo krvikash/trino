@@ -38,6 +38,7 @@ import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.connector.ConnectorName;
+import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 import io.trino.sql.planner.OptimizerConfig;
 import io.trino.transaction.TransactionManager;
@@ -70,6 +71,7 @@ public class DefaultCatalogFactory
 
     private final boolean schedulerIncludeCoordinator;
     private final int maxPrefetchedInformationSchemaPrefixes;
+    private final AiModelAccessControl aiModelAccessControl;
 
     private final ConcurrentMap<ConnectorName, ConnectorFactory> connectorFactories = new ConcurrentHashMap<>();
     private final SecretsResolver secretsResolver;
@@ -87,6 +89,7 @@ public class DefaultCatalogFactory
             TransactionManager transactionManager,
             TypeManager typeManager,
             NodeSchedulerConfig nodeSchedulerConfig,
+            AiModelAccessControl aiModelAccessControl,
             OptimizerConfig optimizerConfig,
             SecretsResolver secretsResolver)
     {
@@ -102,6 +105,7 @@ public class DefaultCatalogFactory
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.schedulerIncludeCoordinator = nodeSchedulerConfig.isIncludeCoordinator();
         this.maxPrefetchedInformationSchemaPrefixes = optimizerConfig.getMaxPrefetchedInformationSchemaPrefixes();
+        this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
     }
 
@@ -201,6 +205,7 @@ public class DefaultCatalogFactory
                 versionEmbedder,
                 typeManager,
                 new InternalMetadataProvider(metadata, typeManager),
+                aiModelAccessControl,
                 pageSorter,
                 pageIndexerFactory);
 

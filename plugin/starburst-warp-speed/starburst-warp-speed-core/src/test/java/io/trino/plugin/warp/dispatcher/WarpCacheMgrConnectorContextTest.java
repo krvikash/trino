@@ -35,6 +35,7 @@ public class WarpCacheMgrConnectorContextTest
                         ConnectorContext.class.getMethod("getMetadataProvider"),
                         ConnectorContext.class.getMethod("getTypeManager"),
                         ConnectorContext.class.getMethod("getPageIndexerFactory"),
+                        ConnectorContext.class.getMethod("getAiModelAccessControl"),
                         ConnectorContext.class.getMethod("getPageSorter")));
 
         InterfaceTestUtils.assertAllMethodsOverridden(
