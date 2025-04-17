@@ -743,17 +743,6 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "web-ui.shared-secret"))
-            .put("phoenix5",
-                    ImmutableSet.of(
-                            "auth-to-local.ldap.bind-password",
-                            "connection-password",
-                            "http-client.http-proxy.password",
-                            "http-client.https.automatic-shared-secret",
-                            "http-client.key-store-password",
-                            "http-client.trust-store-password",
-                            "keystore-password",
-                            "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
             .put("pinot",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
