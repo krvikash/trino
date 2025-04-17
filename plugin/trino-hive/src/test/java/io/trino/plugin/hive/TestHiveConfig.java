@@ -20,6 +20,7 @@ import io.airlift.units.DataSize.Unit;
 import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.TimeZone;
@@ -131,6 +132,7 @@ public class TestHiveConfig
 
     @Test
     public void testExplicitPropertyMappings()
+            throws IOException
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("hive.single-statement-writes", "true")
