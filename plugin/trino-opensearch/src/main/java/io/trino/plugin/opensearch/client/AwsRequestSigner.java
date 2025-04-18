@@ -17,6 +17,8 @@ import com.amazonaws.DefaultRequest;
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.http.HttpMethodName;
+import com.amazonaws.util.BinaryUtils;
+import com.google.common.collect.ImmutableMap;
 import org.apache.http.Header;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpHost;
@@ -28,17 +30,18 @@ import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HttpContext;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.plugin.opensearch.AwsSecurityConfig.DeploymentType;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static org.apache.http.protocol.HttpCoreContext.HTTP_TARGET_HOST;
@@ -46,6 +49,7 @@ import static org.apache.http.protocol.HttpCoreContext.HTTP_TARGET_HOST;
 class AwsRequestSigner
         implements HttpRequestInterceptor
 {
+    private static final String EMPTY_BODY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private final String serviceName;
     private final AWSCredentialsProvider credentialsProvider;
     private final AWS4Signer signer;
@@ -77,16 +81,32 @@ class AwsRequestSigner
             parameters.computeIfAbsent(parameter.getName(), key -> new ArrayList<>())
                     .add(parameter.getValue());
         }
+        // reuse contentBytes for both signing and post-signing. InputStream will be consumed post signing, setting the request entity content to empty
+        byte[] contentBytes = null;
+        if (request instanceof HttpEntityEnclosingRequest enclosingRequest && enclosingRequest.getEntity() != null) {
+            InputStream contentStream = enclosingRequest.getEntity().getContent();
+            contentBytes = contentStream.readAllBytes();
+        }
 
-        Map<String, String> headers = Arrays.stream(request.getAllHeaders())
-                .collect(toImmutableMap(Header::getName, Header::getValue));
+        // Serverless requires payload hash
+        String payloadHash;
+        try {
+            MessageDigest sha256Digest = MessageDigest.getInstance("SHA-256");
 
-        InputStream content = null;
-        if (request instanceof HttpEntityEnclosingRequest enclosingRequest) {
-            if (enclosingRequest.getEntity() != null) {
-                content = enclosingRequest.getEntity().getContent();
+            if (contentBytes != null) {
+                payloadHash = BinaryUtils.toHex(sha256Digest.digest(contentBytes));
+            }
+            else {
+                payloadHash = EMPTY_BODY_SHA256;
             }
         }
+        catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        ImmutableMap.Builder<String, String> headersBuilder = ImmutableMap.builder();
+        Arrays.stream(request.getAllHeaders())
+                .forEach(header -> headersBuilder.put(header.getName(), header.getValue()));
+        headersBuilder.put("X-Amz-Content-Sha256", payloadHash);
 
         DefaultRequest<?> awsRequest = new DefaultRequest<>(serviceName);
 
@@ -96,9 +116,11 @@ class AwsRequestSigner
         }
         awsRequest.setHttpMethod(HttpMethodName.fromValue(method));
         awsRequest.setResourcePath(uri.getRawPath());
-        awsRequest.setContent(content);
+        if (contentBytes != null) {
+            awsRequest.setContent(new ByteArrayInputStream(contentBytes));
+        }
         awsRequest.setParameters(parameters);
-        awsRequest.setHeaders(headers);
+        awsRequest.setHeaders(headersBuilder.buildOrThrow());
 
         signer.sign(awsRequest, credentialsProvider.getCredentials());
 
@@ -108,11 +130,10 @@ class AwsRequestSigner
 
         request.setHeaders(newHeaders);
 
-        InputStream newContent = awsRequest.getContent();
-        checkState(newContent == null || request instanceof HttpEntityEnclosingRequest);
-        if (newContent != null) {
+        if (contentBytes != null) {
             BasicHttpEntity entity = new BasicHttpEntity();
-            entity.setContent(newContent);
+            entity.setContent(new ByteArrayInputStream(contentBytes));
+            entity.setContentLength(contentBytes.length);
             ((HttpEntityEnclosingRequest) request).setEntity(entity);
         }
     }
