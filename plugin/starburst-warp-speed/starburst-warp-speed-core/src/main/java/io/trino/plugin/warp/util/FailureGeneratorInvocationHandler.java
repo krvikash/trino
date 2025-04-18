@@ -99,17 +99,15 @@ public class FailureGeneratorInvocationHandler
         private void calculateNextExecution()
         {
             switch (failureRepetitionMode) {
-                case REP_MODE_ALWAYS:
+                case REP_MODE_ALWAYS -> {
                     nextExecution = repetitionCount;
                     executionCount = 0;
-                    break;
-                case REP_MODE_ONCE:
-                    nextExecution = 1;
-                    break;
-                case REP_MODE_RANDOM:
+                }
+                case REP_MODE_ONCE -> nextExecution = 1;
+                case REP_MODE_RANDOM -> {
                     nextExecution = (int) (Math.random() * repetitionCount);
                     executionCount = 0;
-                    break;
+                }
             }
         }
 

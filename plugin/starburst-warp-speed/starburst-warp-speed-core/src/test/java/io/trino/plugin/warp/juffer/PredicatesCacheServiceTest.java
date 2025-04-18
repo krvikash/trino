@@ -98,7 +98,7 @@ public class PredicatesCacheServiceTest
     {
         PredicateData predicateData = buildMockedPredicateData(MemorySegment.NULL, predicateBufferPoolType, 1);
         ArgumentCaptor<PredicateCacheData> argument = ArgumentCaptor.forClass(PredicateCacheData.class);
-        Domain domain = Domain.singleValue(IntegerType.INTEGER, (long) 1);
+        Domain domain = Domain.singleValue(IntegerType.INTEGER, 1L);
         PredicateCacheData actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData, domain).orElseThrow();
         assertThat(actualBufferHandle.isUsed()).isTrue();
         predicatesCacheService.markFinished(List.of(actualBufferHandle));
@@ -113,8 +113,8 @@ public class PredicatesCacheServiceTest
         PredicateData predicateData = buildMockedPredicateData(MemorySegment.NULL, predicateBufferPoolType, 1);
         PredicateData predicateData2 = buildMockedPredicateData(MemorySegment.NULL, predicateBufferPoolType, 2);
         ArgumentCaptor<PredicateCacheData> argument = ArgumentCaptor.forClass(PredicateCacheData.class);
-        Domain domain = Domain.singleValue(IntegerType.INTEGER, (long) 1);
-        Domain domain2 = Domain.singleValue(IntegerType.INTEGER, (long) 2);
+        Domain domain = Domain.singleValue(IntegerType.INTEGER, 1L);
+        Domain domain2 = Domain.singleValue(IntegerType.INTEGER, 2L);
         PredicateCacheData actualBufferHandle;
         actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData, domain).orElseThrow();
         assertThat(actualBufferHandle.isUsed()).isTrue();
@@ -139,7 +139,7 @@ public class PredicatesCacheServiceTest
     public void testNoFreeEntriesPoolMedium()
     {
         PredicateData predicateData = buildMockedPredicateData(MemorySegment.NULL, PredicateBufferPoolType.MEDIUM, 1);
-        Domain domain = Domain.singleValue(IntegerType.INTEGER, (long) 1);
+        Domain domain = Domain.singleValue(IntegerType.INTEGER, 1L);
         when(bufferAllocator.getPoolSize(PredicateBufferPoolType.MEDIUM)).thenReturn(0);
         Optional<PredicateCacheData> actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData, domain);
         assertThat(actualBufferHandle).isEmpty();

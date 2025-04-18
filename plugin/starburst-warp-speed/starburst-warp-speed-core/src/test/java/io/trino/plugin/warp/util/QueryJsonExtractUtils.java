@@ -197,26 +197,14 @@ public class QueryJsonExtractUtils
         Iterator<Map.Entry<String, JsonNode>> elements = node.fields();
         while (elements.hasNext()) {
             Map.Entry<String, JsonNode> entry = elements.next();
-            String key = entry.getKey();
-            switch (key) {
-                case "stageId":
-                    key = "1.stageId";
-                    break;
-                case "pipelineId":
-                    key = "2.pipelineId";
-                    break;
-                case "alternativeId":
-                    key = "3.alternativeId";
-                    break;
-                case "operatorId":
-                    key = "4.operatorId";
-                    break;
-                case "operatorType":
-                    key = "5.operatorType";
-                    break;
-                default:
-                    break;
-            }
+            String key = switch (entry.getKey()) {
+                case "stageId" -> "1.stageId";
+                case "pipelineId" -> "2.pipelineId";
+                case "alternativeId" -> "3.alternativeId";
+                case "operatorId" -> "4.operatorId";
+                case "operatorType" -> "5.operatorType";
+                default -> entry.getKey();
+            };
             if (key.equals("metrics") || key.equals("info")) {
                 continue;
             }

@@ -156,16 +156,9 @@ public class NativeLogger
         }
         else if (!logString.isEmpty() && (logString.length() <= MAX_LOG_STRING_LENGTH)) {
             switch (logLevel) {
-                case 1:
-                    shapingLogger.error("%s", logString);
-                    break;
-                case 2:
-                    shapingLogger.info("%s", logString);
-                    break;
-                case 3:
-                    shapingLogger.debug("%s", logString);
-                    break;
-                default: break;
+                case 1 -> shapingLogger.error("%s", logString);
+                case 2 -> shapingLogger.info("%s", logString);
+                case 3 -> shapingLogger.debug("%s", logString);
             }
         }
     }

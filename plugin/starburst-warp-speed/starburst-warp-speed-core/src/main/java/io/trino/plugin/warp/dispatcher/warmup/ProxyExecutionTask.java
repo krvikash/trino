@@ -243,15 +243,9 @@ public class ProxyExecutionTask
         WarmData dataToWarm = getWarmData(true);
         WarmExecutionState warmExecutionState = dataToWarm.warmExecutionState();
         switch (warmExecutionState) {
-            case WARM:
-                nextTask = Optional.of(createProxyExecutionTask((int) dataToWarm.highestPriority()));
-                break;
-            case EMPTY_ROW_GROUP:
-            case NOTHING_TO_WARM:
-                eventBus.post(new WarmingFinishedEvent(rowGroupKey, session));
-                break;
-            default:
-                throw new RuntimeException(String.format(Locale.US, "state: %s is not valid, only warm or NOTHING_TO_WARM are valid", warmExecutionState));
+            case WARM -> nextTask = Optional.of(createProxyExecutionTask((int) dataToWarm.highestPriority()));
+            case EMPTY_ROW_GROUP, NOTHING_TO_WARM -> eventBus.post(new WarmingFinishedEvent(rowGroupKey, session));
+            default -> throw new RuntimeException(String.format(Locale.US, "state: %s is not valid, only warm or NOTHING_TO_WARM are valid", warmExecutionState));
         }
     }
 

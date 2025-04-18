@@ -317,17 +317,17 @@ class RangesConverterTest
 
         var expectedLowResults =
                 List.of(Pair.of(DOUBLE_LOWER_UNBOUNDED, INCLUSIVE),
-                        Pair.of((double) 3, INCLUSIVE),
-                        Pair.of((double) 7, EXCLUSIVE),
-                        Pair.of((double) 20, INCLUSIVE),
-                        Pair.of((double) 30, EXCLUSIVE),
-                        Pair.of((double) 90, INCLUSIVE));
+                        Pair.of(3.0, INCLUSIVE),
+                        Pair.of(7.0, EXCLUSIVE),
+                        Pair.of(20.0, INCLUSIVE),
+                        Pair.of(30.0, EXCLUSIVE),
+                        Pair.of(90.0d, INCLUSIVE));
         validateResults(low, expectedLowResults, sortedRangeSet.getType());
-        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(Pair.of((double) -9, INCLUSIVE),
-                Pair.of((double) 5, INCLUSIVE),
-                Pair.of((double) 10, EXCLUSIVE),
-                Pair.of((double) 25, EXCLUSIVE),
-                Pair.of((double) 35, INCLUSIVE),
+        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(Pair.of(-9.0d, INCLUSIVE),
+                Pair.of(5.0d, INCLUSIVE),
+                Pair.of(10.0, EXCLUSIVE),
+                Pair.of(25.0, EXCLUSIVE),
+                Pair.of(35.0d, INCLUSIVE),
                 Pair.of(DOUBLE_UPPER_UNBOUNDED, INCLUSIVE));
         validateResults(high, expectedHighResults, sortedRangeSet.getType());
     }
@@ -430,17 +430,10 @@ class RangesConverterTest
 
         var expectedLowResults =
                 List.of(Pair.of(FLOAT_LOWER_UNBOUNDED, INCLUSIVE),
-  /*                      Pair.of((double) 3, INCLUSIVE),
-                        Pair.of((double) 7, EXCLUSIVE),
-                        Pair.of((double) 20, INCLUSIVE),
-                        Pair.of((double) 30, EXCLUSIVE),*/
-                        Pair.of((double) 90, INCLUSIVE));
+                        Pair.of(90.0d, INCLUSIVE));
         validateResults(low, expectedLowResults, sortedRangeSet.getType());
-        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(Pair.of((double) 9, INCLUSIVE),
-                                                                      /*             Pair.of((double) 5, INCLUSIVE),
-                                                                                   Pair.of((double) 10, EXCLUSIVE),
-                                                                                   Pair.of((double) 25, EXCLUSIVE),
-                                                                                   Pair.of((double) 35, INCLUSIVE),*/
+        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(
+                Pair.of(9.0d, INCLUSIVE),
                 Pair.of(FLOAT_UPPER_UNBOUNDED, INCLUSIVE));
         validateResults(high, expectedHighResults, sortedRangeSet.getType());
     }
