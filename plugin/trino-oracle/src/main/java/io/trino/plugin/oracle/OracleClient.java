@@ -236,6 +236,8 @@ public class OracleClient
 
         this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
                 .addStandardRules(this::quoted)
+                .add(new RewriteLike())
+                .add(new RewriteLikeEscape())
                 .withTypeClass("numeric_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint", "decimal", "real", "double"))
                 .map("$equal(left: numeric_type, right: numeric_type)").to("left = right")
                 .map("$not_equal(left: numeric_type, right: numeric_type)").to("left <> right")
@@ -243,7 +245,9 @@ public class OracleClient
                 .map("$less_than_or_equal(left: numeric_type, right: numeric_type)").to("left <= right")
                 .map("$greater_than(left: numeric_type, right: numeric_type)").to("left > right")
                 .map("$greater_than_or_equal(left: numeric_type, right: numeric_type)").to("left >= right")
+                .map("$not(value: boolean)").to("NOT value")
                 .add(new RewriteStringComparison())
+                .add(new RewriteStringComparisonConstant())
                 .build();
 
         this.projectFunctionRewriter = new ProjectFunctionRewriter<>(

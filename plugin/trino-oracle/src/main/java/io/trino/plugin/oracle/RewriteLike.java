@@ -1,0 +1,110 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.plugin.oracle;
+
+import com.google.common.collect.ImmutableList;
+import io.trino.matching.Capture;
+import io.trino.matching.Captures;
+import io.trino.matching.Pattern;
+import io.trino.plugin.base.expression.ConnectorExpressionRule;
+import io.trino.plugin.jdbc.JdbcColumnHandle;
+import io.trino.plugin.jdbc.JdbcTypeHandle;
+import io.trino.plugin.jdbc.QueryParameter;
+import io.trino.plugin.jdbc.expression.ParameterizedExpression;
+import io.trino.spi.expression.Call;
+import io.trino.spi.expression.ConnectorExpression;
+import io.trino.spi.expression.Variable;
+import io.trino.spi.type.VarcharType;
+import oracle.jdbc.OracleTypes;
+
+import java.util.Optional;
+
+import static io.trino.matching.Capture.newCapture;
+import static io.trino.plugin.base.expression.ConnectorExpressionPatterns.argument;
+import static io.trino.plugin.base.expression.ConnectorExpressionPatterns.argumentCount;
+import static io.trino.plugin.base.expression.ConnectorExpressionPatterns.call;
+import static io.trino.plugin.base.expression.ConnectorExpressionPatterns.expression;
+import static io.trino.plugin.base.expression.ConnectorExpressionPatterns.functionName;
+import static io.trino.plugin.base.expression.ConnectorExpressionPatterns.type;
+import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static java.lang.String.format;
+
+/**
+ * Specialized version of {@link io.trino.plugin.jdbc.expression.RewriteLikeWithCaseSensitivity}
+ * with the following modifications:
+ * - Restricts the set of supported types
+ * - Removes case sensitivity checks since the Oracle driver does not report them
+ */
+public class RewriteLike
+        implements ConnectorExpressionRule<Call, ParameterizedExpression>
+{
+    private static final Capture<ConnectorExpression> LIKE_VALUE = newCapture();
+    private static final Capture<ConnectorExpression> LIKE_PATTERN = newCapture();
+    private static final Pattern<Call> PATTERN = call()
+            .with(functionName().equalTo(LIKE_FUNCTION_NAME))
+            .with(type().equalTo(BOOLEAN))
+            .with(argumentCount().equalTo(2))
+            .with(argument(0).matching(expression().capturedAs(LIKE_VALUE).with(type().matching(VarcharType.class::isInstance))))
+            .with(argument(1).matching(expression().capturedAs(LIKE_PATTERN).with(type().matching(VarcharType.class::isInstance))));
+
+    @Override
+    public Pattern<Call> getPattern()
+    {
+        return PATTERN;
+    }
+
+    @Override
+    public Optional<ParameterizedExpression> rewrite(Call expression, Captures captures, RewriteContext<ParameterizedExpression> context)
+    {
+        ConnectorExpression capturedValue = captures.get(LIKE_VALUE);
+        if (capturedValue instanceof Variable variable) {
+            JdbcColumnHandle columnHandle = (JdbcColumnHandle) context.getAssignment(variable.getName());
+            if (!supportedType(columnHandle.getJdbcTypeHandle())) {
+                return Optional.empty();
+            }
+        }
+        Optional<ParameterizedExpression> value = context.defaultRewrite(capturedValue);
+        if (value.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ImmutableList.Builder<QueryParameter> parameters = ImmutableList.builder();
+        parameters.addAll(value.get().parameters());
+        ConnectorExpression patternExpression = captures.get(LIKE_PATTERN);
+        if (patternExpression instanceof Variable patternVariable) {
+            JdbcColumnHandle columnHandle = (JdbcColumnHandle) context.getAssignment(patternVariable.getName());
+            if (!supportedType(columnHandle.getJdbcTypeHandle())) {
+                return Optional.empty();
+            }
+        }
+        Optional<ParameterizedExpression> pattern = context.defaultRewrite(patternExpression);
+        if (pattern.isEmpty()) {
+            return Optional.empty();
+        }
+        parameters.addAll(pattern.get().parameters());
+        return Optional.of(new ParameterizedExpression(format("%s LIKE %s", value.get().expression(), pattern.get().expression()), parameters.build()));
+    }
+
+    static boolean supportedType(JdbcTypeHandle typeHandle)
+    {
+        return switch (typeHandle.jdbcType()) {
+            case OracleTypes.CHAR,
+                 OracleTypes.VARCHAR,
+                 OracleTypes.NCHAR,
+                 OracleTypes.NVARCHAR -> true;
+            default -> false;
+        };
+    }
+}

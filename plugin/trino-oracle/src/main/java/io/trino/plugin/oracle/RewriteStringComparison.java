@@ -83,7 +83,7 @@ public class RewriteStringComparison
                                         .build())));
     }
 
-    private static boolean isClob(Variable variable, RewriteContext<?> context)
+    static boolean isClob(Variable variable, RewriteContext<?> context)
     {
         return switch (((JdbcColumnHandle) context.getAssignment(variable.getName())).getJdbcTypeHandle().jdbcType()) {
             case OracleTypes.CLOB, OracleTypes.NCLOB -> true;

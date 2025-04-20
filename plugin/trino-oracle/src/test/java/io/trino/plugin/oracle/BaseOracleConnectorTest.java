@@ -30,14 +30,12 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 import static io.trino.plugin.oracle.TestingOracleServer.TEST_USER;
-import static io.trino.spi.connector.ConnectorMetadata.MODIFYING_ROWS_MESSAGE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public abstract class BaseOracleConnectorTest
         extends BaseJdbcConnectorTest
@@ -46,7 +44,8 @@ public abstract class BaseOracleConnectorTest
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
         return switch (connectorBehavior) {
-            case SUPPORTS_JOIN_PUSHDOWN -> true;
+            case SUPPORTS_JOIN_PUSHDOWN,
+                 SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE -> true;
             case SUPPORTS_ADD_COLUMN_WITH_COMMENT,
                  SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION,
                  SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
@@ -266,14 +265,6 @@ public abstract class BaseOracleConnectorTest
     protected TestTable createAggregationTestTable(String name, List<String> rows)
     {
         return new TestTable(onRemoteDatabase(), name, "(short_decimal number(9, 3), long_decimal number(30, 10), a_bigint number(19), t_double binary_double)", rows);
-    }
-
-    @Test
-    @Override
-    public void testDeleteWithLike()
-    {
-        assertThatThrownBy(super::testDeleteWithLike)
-                .hasStackTraceContaining("TrinoException: " + MODIFYING_ROWS_MESSAGE);
     }
 
     @Test
