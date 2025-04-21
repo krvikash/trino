@@ -141,6 +141,16 @@ public class WorkerTaskExecutorService
                 scheduledCloudExecutorService.shutdown();
             }
             proxyExecutorService.shutdown();
+
+            prioritizeExecutorService.awaitTermination(10, TimeUnit.SECONDS);
+            if (isImportExportInitialized) {
+                cloudExecutorService.awaitTermination(10, TimeUnit.SECONDS);
+                scheduledCloudExecutorService.awaitTermination(10, TimeUnit.SECONDS);
+            }
+            proxyExecutorService.awaitTermination(10, TimeUnit.SECONDS);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
         finally {
             lock.unlock();
