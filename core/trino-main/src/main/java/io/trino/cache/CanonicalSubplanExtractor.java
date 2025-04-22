@@ -81,7 +81,6 @@ import static io.trino.sql.ir.IrUtils.extractConjuncts;
 import static io.trino.sql.planner.DeterminismEvaluator.isDeterministic;
 import static io.trino.sql.planner.ExpressionExtractor.extractExpressions;
 import static io.trino.sql.planner.plan.AggregationNode.Step.PARTIAL;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
@@ -625,8 +624,7 @@ public final class CanonicalSubplanExtractor
                 }
 
                 Domain domain = entry.getValue();
-                checkState(result.put(columnId.get(), domain) == null || result.get(columnId.get()).equals(domain),
-                        format("Columns with same ids should have same domains: %s maps to %s and %s", entry.getKey(), entry.getValue(), domain));
+                checkState(result.put(columnId.get(), domain) == null || result.get(columnId.get()).equals(domain), "Columns with same ids should have same domains: %s maps to %s and %s", entry.getKey(), entry.getValue(), domain);
             }
             return TupleDomain.withColumnDomains(result);
         }

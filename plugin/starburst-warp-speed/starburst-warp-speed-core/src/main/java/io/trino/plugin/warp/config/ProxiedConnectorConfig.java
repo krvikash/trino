@@ -20,7 +20,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static java.lang.String.format;
 
 public class ProxiedConnectorConfig
 {
@@ -60,8 +59,7 @@ public class ProxiedConnectorConfig
         this.passThroughDispatcherSet = Arrays.stream(passThroughDispatcherListStr.split(",", -1))
                 .map(String::trim)
                 .collect(Collectors.toSet());
-        checkArgument(supportedConnectors.containsAll(passThroughDispatcherSet),
-                format("%s config only supports %s", PASS_THROUGH_DISPATCHER, supportedConnectors));
+        checkArgument(supportedConnectors.containsAll(passThroughDispatcherSet), "%s config only supports %s", PASS_THROUGH_DISPATCHER, supportedConnectors);
     }
 
     public boolean getEnableIcebergSnapshotIdUniqueness()
