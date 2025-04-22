@@ -32,7 +32,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.jdbc.JdbcModule.bindSessionPropertiesProvider;
@@ -62,8 +61,6 @@ public class DynamoDbModule
         bindTablePropertiesProvider(binder, DynamoDbTableProperties.class);
         bindSessionPropertiesProvider(binder, DynamoDbSessionProperties.class);
 
-        binder.bind(CredentialPropertiesProvider.class).to(DynamoDbCredentialPropertiesProvider.class).in(SINGLETON);
-
         // Set the connection URL to some value as it is a required property in the JdbcModule
         // The actual connection URL is set via the DynamoDbConnectionFactory
         configBinder(binder).bindConfigDefaults(BaseJdbcConfig.class, config -> config.setConnectionUrl("jdbc:dynamodb:"));
@@ -73,6 +70,8 @@ public class DynamoDbModule
                 .setDefault()
                 .to(Key.get(ConnectionFactory.class, DefaultDynamoDbBinding.class))
                 .in(Scopes.SINGLETON);
+
+        install(new CredentialPropertiesModule());
     }
 
     @Provides
