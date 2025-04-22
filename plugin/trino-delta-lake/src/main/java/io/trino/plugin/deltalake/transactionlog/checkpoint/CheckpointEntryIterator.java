@@ -220,6 +220,7 @@ public class CheckpointEntryIterator
                 stats,
                 parquetReaderOptions,
                 Optional.empty(),
+                Optional.empty(),
                 domainCompactionThreshold,
                 OptionalLong.of(fileSize));
 

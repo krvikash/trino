@@ -17,6 +17,7 @@ import com.starburstdata.trino.plugin.functions.io.StorageModule;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
 import io.trino.plugin.base.ConnectorContextModule;
+import io.trino.plugin.hive.crypto.ParquetEncryptionModule;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -60,6 +61,7 @@ public class FunctionsConnectorFactory
                 new StorageModule(),
                 new ResolvingFileSystemModule(context.getOpenTelemetry()),
                 new ConnectorContextModule(catalogName, context),
+                new ParquetEncryptionModule(),
                 module);
 
         Injector injector = app
