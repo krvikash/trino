@@ -258,4 +258,19 @@ public class TestIcebergHiveCatalogMaterializedViewAutoRefreshTest
 
         assertUpdate("DROP MATERIALIZED VIEW " + materializedView);
     }
+
+    @Test
+    public void testMaterializedViewWithInvalidRefreshInterval()
+    {
+        CatalogSchemaTableName materializedView = new CatalogSchemaTableName(
+                TEST_CATALOG,
+                new SchemaTableName(schemaName, "test_invalid_refresh_interval" + randomNameSuffix()));
+
+        assertThat(query(getSession(), "CREATE MATERIALIZED VIEW " + materializedView + " WITH (refresh_schedule = 'not cron') AS SELECT 1 AS c"))
+                .failure().hasStackTraceContaining("Refresh interval is not cron string");
+
+        assertUpdate("CREATE MATERIALIZED VIEW " + materializedView + " AS SELECT * FROM tpch.tiny.nation");
+        assertThat(query(getSession(), "ALTER MATERIALIZED VIEW " + materializedView + " SET PROPERTIES refresh_schedule = 'not cron'"))
+                .failure().hasStackTraceContaining("Refresh interval is not cron string");
+    }
 }

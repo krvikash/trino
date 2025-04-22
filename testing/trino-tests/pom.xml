@@ -446,6 +446,8 @@
                 <artifactId>duplicate-finder-maven-plugin</artifactId>
                 <configuration>
                     <ignoredResourcePatterns>
+                        <!-- Conflicts between com.cronutils:cron-utils:9.2.0 and org.openjdk.jmh:jmh-core:1.37 -->
+                        <ignoredResourcePattern>checkstyle.xml</ignoredResourcePattern>
                         <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>

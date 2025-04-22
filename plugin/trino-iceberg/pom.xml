@@ -16,6 +16,7 @@
     <properties>
         <!-- Nessie version (compatible with Iceberg release) must be bumped along with Iceberg version bump to avoid compatibility issues -->
         <dep.nessie.version>0.103.0</dep.nessie.version>
+        <dep.cron-utils.version>9.2.0</dep.cron-utils.version>
     </properties>
 
     <dependencyManagement>
@@ -29,6 +30,12 @@
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>com.cronutils</groupId>
+            <artifactId>cron-utils</artifactId>
+            <version>${dep.cron-utils.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
@@ -731,6 +738,8 @@
                 <artifactId>duplicate-finder-maven-plugin</artifactId>
                 <configuration>
                     <ignoredResourcePatterns>
+                        <!-- Conflicts between com.cronutils:cron-utils:9.2.0 and org.openjdk.jmh:jmh-core:1.37 -->
+                        <ignoredResourcePattern>checkstyle.xml</ignoredResourcePattern>
                         <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
