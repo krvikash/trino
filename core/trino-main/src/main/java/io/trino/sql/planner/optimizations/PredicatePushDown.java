@@ -35,6 +35,7 @@ import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.optimizer.IrExpressionOptimizer;
+import io.trino.sql.planner.DomainTranslator;
 import io.trino.sql.planner.EffectivePredicateExtractor;
 import io.trino.sql.planner.EqualityInference;
 import io.trino.sql.planner.PlanNodeIdAllocator;
@@ -86,6 +87,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.SystemSessionProperties.isEnableDynamicFiltering;
 import static io.trino.SystemSessionProperties.isPredicatePushdownUseTableProperties;
+import static io.trino.SystemSessionProperties.isSuperSetPredicatePushdownEnabled;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.spi.function.OperatorType.ADD;
 import static io.trino.spi.function.OperatorType.DIVIDE;
@@ -441,6 +443,16 @@ public class PredicatePushDown
 
             switch (node.getType()) {
                 case INNER -> {
+                    if (isSuperSetPredicatePushdownEnabled(session)) {
+                        DomainTranslator domainTranslator = new DomainTranslator(metadata);
+
+                        DomainTranslator.ExtractionResult inheritedPredicateExtractionResult = DomainTranslator.getExtractionResult(plannerContext, session, inheritedPredicate);
+                        inheritedPredicate = combineConjuncts(inheritedPredicate, domainTranslator.toPredicate(inheritedPredicateExtractionResult.getTupleDomain()));
+
+                        DomainTranslator.ExtractionResult joinPredicateExtractionResult = DomainTranslator.getExtractionResult(plannerContext, session, joinPredicate);
+                        joinPredicate = combineConjuncts(joinPredicate, domainTranslator.toPredicate(joinPredicateExtractionResult.getTupleDomain()));
+                    }
+
                     InnerJoinPushDownResult innerJoinPushDownResult = processInnerJoin(
                             inheritedPredicate,
                             leftEffectivePredicate,
@@ -760,6 +772,16 @@ public class PredicatePushDown
 
             switch (node.getType()) {
                 case INNER -> {
+                    if (isSuperSetPredicatePushdownEnabled(session)) {
+                        DomainTranslator domainTranslator = new DomainTranslator(metadata);
+
+                        DomainTranslator.ExtractionResult inheritedPredicateExtractionResult = DomainTranslator.getExtractionResult(plannerContext, session, inheritedPredicate);
+                        inheritedPredicate = combineConjuncts(inheritedPredicate, domainTranslator.toPredicate(inheritedPredicateExtractionResult.getTupleDomain()));
+
+                        DomainTranslator.ExtractionResult joinPredicateExtractionResult = DomainTranslator.getExtractionResult(plannerContext, session, joinPredicate);
+                        joinPredicate = combineConjuncts(joinPredicate, domainTranslator.toPredicate(joinPredicateExtractionResult.getTupleDomain()));
+                    }
+
                     InnerJoinPushDownResult innerJoinPushDownResult = processInnerJoin(
                             inheritedPredicate,
                             leftEffectivePredicate,

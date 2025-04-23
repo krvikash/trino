@@ -123,6 +123,8 @@ public class FeaturesConfig
 
     private boolean faultTolerantExecutionExchangeEncryptionEnabled = true;
 
+    private boolean superSetPredicatePushdownEnabled = true;
+
     public enum DataIntegrityVerification
     {
         NONE,
@@ -519,5 +521,18 @@ public class FeaturesConfig
     public void applyFaultTolerantExecutionDefaults()
     {
         exchangeCompressionCodec = LZ4;
+    }
+
+    public boolean isSuperSetPredicatePushdownEnabled()
+    {
+        return superSetPredicatePushdownEnabled;
+    }
+
+    @Config("optimizer.super-set-predicate.pushdown.enabled")
+    @ConfigDescription("Enables superset predicate pushdown derived from complex filter expression")
+    public FeaturesConfig setSuperSetPredicatePushdownEnabled(boolean superSetPredicatePushdownEnabled)
+    {
+        this.superSetPredicatePushdownEnabled = superSetPredicatePushdownEnabled;
+        return this;
     }
 }

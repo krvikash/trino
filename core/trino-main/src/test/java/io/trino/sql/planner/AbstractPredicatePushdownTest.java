@@ -20,6 +20,7 @@ import io.trino.Session;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.function.OperatorType;
+import io.trino.spi.type.Type;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Cast;
@@ -72,8 +73,10 @@ import static io.trino.sql.planner.assertions.PlanMatchPattern.project;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.semiJoin;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.values;
+import static io.trino.sql.planner.plan.JoinType.FULL;
 import static io.trino.sql.planner.plan.JoinType.INNER;
 import static io.trino.sql.planner.plan.JoinType.LEFT;
+import static io.trino.sql.planner.plan.JoinType.RIGHT;
 
 public abstract class AbstractPredicatePushdownTest
         extends BasePlanTest
@@ -803,6 +806,201 @@ public abstract class AbstractPredicatePushdownTest
                                                         filter(
                                                                 new Comparison(EQUAL, new Reference(BIGINT, "R_NATIONKEY"), new Constant(BIGINT, 5L)),
                                                                 tableScan("nation", ImmutableMap.of("R_NATIONKEY", "nationkey", "R_REGIONKEY", "regionkey")))))))));
+    }
+
+    @Test
+    public void testSupersetPredicatePushdownOnInnerJoin()
+    {
+        Type nameColumnType = createVarcharType(25);
+
+        // For INNER join
+        assertPlan(
+                """
+
+                        SELECT c.mktsegment
+                   FROM
+                       customer c INNER JOIN nation n ON c.nationkey = n.nationkey
+                   WHERE
+                       (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
+                       OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
+                       OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
+                   """,
+                output(
+                        join(INNER, builder -> builder
+                                .equiCriteria("C_NATIONKEY", "N_NATIONKEY")
+                                .filter(new Logical(
+                                        OR,
+                                        ImmutableList.of(
+                                                new Logical(AND, ImmutableList.of(
+                                                        new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
+                                                        new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
+                                                new Logical(AND, ImmutableList.of(
+                                                        new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
+                                                        new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
+                                                new Logical(AND, ImmutableList.of(
+                                                        new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"),createVarcharConstant(25, "BRAZIL"))),
+                                                        new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))))
+                                .left(
+                                        filter(
+                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 6000.0)),
+                                                tableScan(
+                                                        "customer",
+                                                        ImmutableMap.of("C_MKTSEGMENT", "mktsegment", "C_ACCTBAL", "acctbal", "C_NATIONKEY", "nationkey"))))
+                                .right(
+                                        exchange(
+                                                filter(
+                                                        new In(
+                                                                new Reference(nameColumnType, "N_NAME"),
+                                                                ImmutableList.of(
+                                                                        createVarcharConstant(25, "ALGERIA"),
+                                                                        createVarcharConstant(25, "BRAZIL"),
+                                                                        createVarcharConstant(25, "CANADA"),
+                                                                        createVarcharConstant(25, "CHINA"),
+                                                                        createVarcharConstant(25, "EGYPT"),
+                                                                        createVarcharConstant(25, "FRANCE"),
+                                                                        createVarcharConstant(25, "GERMANY"),
+                                                                        createVarcharConstant(25, "INDIA"),
+                                                                        createVarcharConstant(25, "UNITED STATES"))),
+                                                        tableScan(
+                                                                "nation",
+                                                                ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name"))))))));
+
+    }
+
+
+    @Test
+    public void testSupersetPredicatePushdownOnLeftJoin()
+    {
+        Type nameColumnType = createVarcharType(25);
+        assertPlan(
+                    """
+                    SELECT c.mktsegment
+                    FROM
+                        customer c LEFT JOIN nation n ON c.nationkey = n.nationkey
+                    WHERE
+                       (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
+                       OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
+                       OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
+                    """,
+                output(
+                        project(
+                                filter(
+                                        new Logical(
+                                                OR,
+                                                ImmutableList.of(
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))),
+                                        join(LEFT, builder -> builder
+                                                .equiCriteria("C_NATIONKEY", "N_NATIONKEY")
+                                                .left(
+                                                        tableScan(
+                                                                "customer",
+                                                                ImmutableMap.of("C_MKTSEGMENT", "mktsegment", "C_ACCTBAL", "acctbal", "C_NATIONKEY", "nationkey")))
+                                                .right(
+                                                        exchange(
+                                                                tableScan(
+                                                                        "nation",
+                                                                        ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name")))))))));
+
+    }
+
+    @Test
+    public void testSupersetPredicatePushdownOnRightJoin()
+    {
+        Type nameColumnType = createVarcharType(25);
+
+        assertPlan(
+                """
+                    SELECT c.mktsegment
+                    FROM
+                        customer c RIGHT JOIN nation n ON c.nationkey = n.nationkey
+                    WHERE
+                       (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
+                       OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
+                       OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
+                    """,
+                output(
+                        project(
+                                filter(
+                                        new Logical(
+                                                OR,
+                                                ImmutableList.of(
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))),
+                                        join(RIGHT, builder -> builder
+                                                .equiCriteria("C_NATIONKEY", "N_NATIONKEY")
+                                                .left(anyIfDynamicFilteringEnabled(
+                                                        tableScan(
+                                                                "customer",
+                                                                ImmutableMap.of("C_MKTSEGMENT", "mktsegment", "C_ACCTBAL", "acctbal", "C_NATIONKEY", "nationkey"))))
+                                                .right(
+                                                        exchange(
+                                                                tableScan(
+                                                                        "nation",
+                                                                        ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name")))))))));
+    }
+
+    @Test
+    public void testSupersetPredicatePushdownOnFullJoin()
+    {
+        Type nameColumnType = createVarcharType(25);
+
+        assertPlan(
+                """
+                    SELECT c.mktsegment
+                    FROM
+                        customer c FULL JOIN nation n ON c.nationkey = n.nationkey
+                    WHERE
+                       (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
+                       OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
+                       OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
+                    """,
+                output(
+                        project(
+                                filter(
+                                        new Logical(
+                                                OR,
+                                                ImmutableList.of(
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))),
+                                        join(FULL, builder -> builder
+                                                .equiCriteria("C_NATIONKEY", "N_NATIONKEY")
+                                                .left(
+                                                        tableScan(
+                                                                "customer",
+                                                                ImmutableMap.of("C_MKTSEGMENT", "mktsegment", "C_ACCTBAL", "acctbal", "C_NATIONKEY", "nationkey")))
+                                                .right(
+                                                        exchange(
+                                                                tableScan(
+                                                                        "nation",
+                                                                        ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name")))))))));
+    }
+
+
+    private Constant createVarcharConstant(int length, String value)
+    {
+        return new Constant(createVarcharType(length), utf8Slice(value));
     }
 
     protected Session noSemiJoinRewrite()
