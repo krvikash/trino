@@ -21,6 +21,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Sets;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.Session;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.TableHandle;
@@ -28,6 +30,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.UnificationResult;
+import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
@@ -35,18 +38,21 @@ import io.trino.sql.PlannerContext;
 import io.trino.sql.dialect.trino.Context;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.ScalarProgramBuilder;
+import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.Filter;
-import io.trino.sql.dialect.trino.operation.Output;
+import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
 import io.trino.sql.dialect.trino.operation.Return;
+import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.newir.Operation;
+import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Program;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.SourceNode;
@@ -80,9 +86,19 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.sql.dialect.ir.IrDialect.IR;
+import static io.trino.sql.dialect.ir.IrDialect.TERMINAL;
 import static io.trino.sql.dialect.trino.Attributes.COLUMN_HANDLES;
+import static io.trino.sql.dialect.trino.Attributes.CONSTANT_RESULT;
+import static io.trino.sql.dialect.trino.Attributes.DISTRIBUTION_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.Attributes.ExchangeScope.REMOTE;
+import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.MAY_SKIP_OUTPUT_DUPLICATES;
+import static io.trino.sql.dialect.trino.Attributes.SPILLABLE;
+import static io.trino.sql.dialect.trino.Attributes.STATISTICS_AND_COST_SUMMARY;
 import static io.trino.sql.dialect.trino.Attributes.TABLE_HANDLE;
 import static io.trino.sql.dialect.trino.Attributes.UPDATE_TARGET;
 import static io.trino.sql.dialect.trino.Attributes.USE_CONNECTOR_NODE_PARTITIONING;
@@ -91,17 +107,22 @@ import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowTyp
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.newir.Region.singleBlockRegion;
+import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getEmptyFieldSelector;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getPassthroughMapping;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getPrunedFields;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getPruningAssignments;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getReorderingAssignments;
+import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getSelectedFields;
+import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.isEmptyFieldSelector;
 import static io.trino.sql.planner.optimizations.ctereuse.BranchesToCheckpointsMapping.identityBranchToCheckpoint;
 import static io.trino.sql.planner.optimizations.ctereuse.DeterminismUtils.isDeterministic;
 import static io.trino.sql.planner.optimizations.ctereuse.DynamicFilterUtils.extractDynamicConjunct;
 import static io.trino.sql.planner.optimizations.ctereuse.DynamicFilterUtils.extractDynamicFilters;
+import static io.trino.sql.planner.optimizations.ctereuse.DynamicFilterUtils.isDynamicFilterFunction;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.conjunction;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.disjunction;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.extractConjuncts;
+import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.hoistCommonConjuncts;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.isTrue;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.optimizeLogicalOperations;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.removeConjuncts;
@@ -184,7 +205,11 @@ public class CteReuse
 
         // create the new plan consisting of old and new operations
         Block oldMainBlock = ((Query) program.getRoot()).query();
-        Block newMainBlock = layoutOperations(oldMainBlock, newOperations.build());
+        Block newMainBlock = layoutOperations(oldMainBlock, newOperations.build(), false);
+
+        // clean up dynamic filters
+        newMainBlock = cleanUpDynamicFilters(newMainBlock, nameAllocator);
+
         Program newProgram = new Program(((Query) program.getRoot()).withRegions(ImmutableList.of(singleBlockRegion(newMainBlock))), ImmutableMap.of());
 
         System.out.println("\n\n\nBEFORE\n" + program.print(1, formatOptions) + "\n\n\n");
@@ -1128,17 +1153,16 @@ public class CteReuse
         return !(operation instanceof Project project && project.isPruning());
     }
 
-    private static Block layoutOperations(Block oldMainBlock, Set<Operation> newOperations)
+    /**
+     * Build an updated block consisting of old and new operations.
+     */
+    private static Block layoutOperations(Block oldMainBlock, Set<Operation> newOperations, boolean allowUnresolvedArguments)
     {
-        // find the Output operation of the resulting plan
-        Set<Operation> oldOperations = ImmutableSet.copyOf(oldMainBlock.operations());
+        // find the terminal operation of the resulting block
         Operation rootOperation = newOperations.stream()
-                .filter(Output.class::isInstance)
+                .filter(operation -> Objects.equals(operation.attributes().get(new AttributeKey(IR, TERMINAL)), true))
                 .findFirst()
-                .orElse(oldOperations.stream()
-                        .filter(Output.class::isInstance)
-                        .findFirst()
-                        .orElseThrow());
+                .orElse(oldMainBlock.getTerminalOperation());
 
         Block.Builder newMainBlock = new Block.Builder(oldMainBlock.name(), oldMainBlock.parameters());
 
@@ -1146,16 +1170,19 @@ public class CteReuse
                 rootOperation,
                 newOperations.stream()
                         .collect(toImmutableMap(Operation::result, identity())),
-                oldOperations.stream()
+                oldMainBlock.operations().stream()
                         .collect(toImmutableMap(Operation::result, identity())),
                 newMainBlock,
-                new HashSet<>());
+                new HashSet<>(),
+                allowUnresolvedArguments);
 
         return newMainBlock.build();
     }
 
     /**
-     * Build a block representing the updated query with diamond shape.
+     * Build an updated block consisting of old and new operations.
+     * <p>
+     * Use case 1: Build a block representing the updated query with diamond shape.
      * <p>
      * The root operation is the Output operation, being the root of the query plan. Starting from this operation, we recursively output
      * the operation's sources, and then the operation itself. This way we assure the correct layout of the program where each value
@@ -1168,14 +1195,18 @@ public class CteReuse
      * <p>
      * Because there is diamond shape, the common subqueries will be visited multiple times in this method.
      * We layout them once, on the first visit.
+     * <p>
+     * Use case 2: Build a block representing an updated filter predicate or an updated field selector after cleaning up dynamic filters.
+     * For this case, we added the allowUnresolvedArguments option so that the operations in the block can refer to block parameters.
      *
      * @param operation -- the Output operation, being the root of the query plan
      * @param newOperations -- the relational operations created by the CTE reuse algorithm
      * @param oldOperations -- all the top-level relational operations from the original program
      * @param block -- a builder of the new top-level block
      * @param alreadyOutputOperations -- results of the operations that are already in the block
+     * @param allowUnresolvedArguments -- informs whether all arguments of operations must refer to other operations (from newOperations or oldOperations). If false, other arguments are allowed, for example block parameters or correlated values.
      */
-    private static void layoutOperations(Operation operation, Map<Value, Operation> newOperations, Map<Value, Operation> oldOperations, Block.Builder block, Set<Value> alreadyOutputOperations)
+    private static void layoutOperations(Operation operation, Map<Value, Operation> newOperations, Map<Value, Operation> oldOperations, Block.Builder block, Set<Value> alreadyOutputOperations, boolean allowUnresolvedArguments)
     {
         if (!alreadyOutputOperations.contains(operation.result())) {
             for (Value value : operation.arguments()) {
@@ -1183,11 +1214,247 @@ public class CteReuse
                 if (source == null) {
                     source = oldOperations.get(value);
                 }
-                requireNonNull(source, "source operation not found");
-                layoutOperations(source, newOperations, oldOperations, block, alreadyOutputOperations);
+                if (source != null) {
+                    layoutOperations(source, newOperations, oldOperations, block, alreadyOutputOperations, allowUnresolvedArguments);
+                }
+                else {
+                    checkArgument(allowUnresolvedArguments, "source operation not found");
+                }
             }
             block.addOperation(operation);
             alreadyOutputOperations.add(operation.result());
+        }
+    }
+
+    /**
+     * Unify dynamic filters whenever possible and remove the unsupported dynamic filters.
+     * <p>
+     * When subplans containing dynamic filters are merged, a disjunction of dynamic predicates is created.
+     * Example:
+     * one branch of the plan has predicate df1 AND df2 AND static_predicate_1,
+     * another branch of the plan has predicate df3 AND df4 AND static_predicate_2.
+     * After these branches are merged, the resulting subplan has filter:
+     * ((df1 AND df2) OR (df3 AND df4)) AND (static_predicate_1 OR static_predicate_2).
+     * The dynamic filters ((df1 AND df2) OR (df3 AND df4)) cannot be executed in this form.
+     * Dynamic filters can only be executed if each dynamic filter forms a separate conjunct.
+     * This transformation aims to extract dynamic filters as separate conjuncts so that they can be executed.
+     * The dynamic filters that cannot be transformed this way, are removed both from Filter predicates,
+     * and from assignments in Joins.
+     * This transformation uses dynamic filter equivalence. Different Join operations can define sets of
+     * globally unique dynamic filter assignments. When Join operations are merged, the resulting Join inherits
+     * all dynamic filter assignments from the component Joins. If two or more assignments refer to the same build side field,
+     * such dynamic filters can be considered equivalent.
+     * <p>
+     * Transformation steps
+     * 1. Identify equivalent dynamic filter ids. See {@link #getEquivalentDynamicFilters(Join)}.
+     * For example, let's assume that {df1, df3} are identified as equivalent, because they are assigned in the same Join,
+     * and refer to the same build side field.
+     * 2. Rewrite dynamic filter references so that all equivalent ids are replaced with the same representative.
+     * The example predicate is rewritten to:
+     * ((df1 AND df2) OR (df1 AND df4)) AND (static_predicate_1 OR static_predicate_2)
+     * 3. Hoist common dynamic conjuncts. See {@link PredicateUtils#hoistCommonConjuncts(Block, ProgramBuilder.ValueNameAllocator)}.
+     * The example predicate is rewritten to:
+     * df1 AND (df2 OR df4) AND (static_predicate_1 OR static_predicate_2)
+     * 4. Remove the unsupported dynamic conjunct (where OR remains).
+     * The example predicate is rewritten to:
+     * df1 AND (static_predicate_1 OR static_predicate_2)
+     * 5. Remove assignments for dynamic filters that are not used anymore from Join operations.
+     * In the example, we should remove assignments for df2, df3, and df4.
+     * <p>
+     * Note: in this transformation, we only visit top-level Join and Filter operations. We don't support correlated queries.
+     */
+    private static Block cleanUpDynamicFilters(Block mainBlock, ProgramBuilder.ValueNameAllocator nameAllocator)
+    {
+        // initialize a collection of newly created operations
+        ImmutableSet.Builder<Operation> newOperations = ImmutableSet.builder();
+
+        // collect dynamic filter ids from all Join operations, and group them by equivalence.
+        List<EquivalentDynamicFilters> equivalenceGroups = mainBlock.operations().stream()
+                .filter(Join.class::isInstance)
+                .map(Join.class::cast)
+                .map(CteReuse::getEquivalentDynamicFilters)
+                .flatMap(List::stream)
+                .collect(toImmutableList());
+
+        // process dynamic predicates in filters. Collect the ids of all retained dynamic filters
+        ImmutableSet.Builder<String> retainedDynamicFilterIds = ImmutableSet.builder();
+        for (Operation operation : mainBlock.operations()) {
+            if (operation instanceof Filter filter) {
+                DynamicFilterExtractionResult extractionResult = extractDynamicConjunct(filter.predicate(), nameAllocator);
+                Block dynamicPredicate = extractionResult.dynamicPredicate();
+                if (isTrue(dynamicPredicate)) {
+                    continue;
+                }
+                // rewrite dynamic filters based on equivalence
+                Block rewrittenDynamicPredicate = rewriteDynamicFilterIds(dynamicPredicate, equivalenceGroups);
+                // hoist common dynamic conjuncts
+                Block hoistedDynamicPredicate = hoistCommonConjuncts(rewrittenDynamicPredicate, nameAllocator);
+                // keep only those dynamic filters which form separate conjuncts
+                List<Block> dynamicConjuncts = extractConjuncts(hoistedDynamicPredicate, nameAllocator).stream()
+                        .filter(DynamicFilterUtils::isDynamicFilter)
+                        .collect(toImmutableList());
+                dynamicConjuncts.stream()
+                        .map(DynamicFilterUtils::getDynamicFilterId)
+                        .forEach(retainedDynamicFilterIds::add);
+                // combine dynamic conjuncts with the static part of the predicate
+                Block newPredicate = optimizeLogicalOperations(conjunction(
+                        ImmutableList.<Block>builder()
+                                .addAll(dynamicConjuncts)
+                                .add(extractionResult.staticPredicate())
+                                .build(),
+                        nameAllocator));
+                Filter newFilter = new Filter(
+                        filter.result().name(),
+                        filter.argument(),
+                        newPredicate,
+                        ImmutableMap.of());
+                newOperations.add(newFilter);
+            }
+        }
+
+        // remove all unused dynamic filters from Joins
+        for (Operation operation : mainBlock.operations()) {
+            if (operation instanceof Join join) {
+                Join newJoin = removeDynamicFilterAssignments(join, retainedDynamicFilterIds.build(), nameAllocator);
+                newOperations.add(newJoin);
+            }
+        }
+
+        // build the new query plan with the modified Filter and Join operations
+        return layoutOperations(mainBlock, newOperations.build(), false);
+    }
+
+    /**
+     * Group dynamic filters assigned in given Join by equivalence.
+     * Two dynamic filter ids are equivalent if they are assigned in the same Join, and refer to the same build side field.
+     * Such situation is possible when the Join is a result of merging multiple Join operations.
+     * When merging Join operations, their dynamic filter assignments are concatenated.
+     */
+    private static List<EquivalentDynamicFilters> getEquivalentDynamicFilters(Join join)
+    {
+        List<String> dynamicFilterIds = DYNAMIC_FILTER_IDS.getAttribute(join.attributes());
+        Block dynamicFilterTargetSelector = join.regions().get(7).getOnlyBlock();
+        List<Integer> targetFields = getSelectedFields(dynamicFilterTargetSelector);
+
+        ImmutableListMultimap.Builder<Integer, String> idsForField = ImmutableListMultimap.builder();
+        for (int i = 0; i < targetFields.size(); i++) {
+            idsForField.put(targetFields.get(i), dynamicFilterIds.get(i));
+        }
+
+        return idsForField.build().asMap().values().stream()
+                .map(ids -> new EquivalentDynamicFilters(
+                        ImmutableSet.copyOf(ids),
+                        ids.stream().findFirst().orElseThrow()))
+                .collect(toImmutableList());
+    }
+
+    /**
+     * Rewrite dynamic filters based on equivalence. Replace each dynamic filter id with a representative of its equivalence group.
+     * Initially, the predicate should be of the following form: (df1 AND df2) OR (df3 AND df4 AND df5) OR ..., where each disjunct comes from one merged branch.
+     * For equivalence groups: {df1, df4}, {df2, df5}, the rewritten predicate will be: (df1 AND df2) OR (df3 AND df1 AND df2) OR ...
+     * <p>
+     * Note: this method only visits the top-level operations in the predicate block. We don't expect dynamic filters on nested level in the predicate.
+     */
+    private static Block rewriteDynamicFilterIds(Block predicate, List<EquivalentDynamicFilters> equivalenceGroups)
+    {
+        ImmutableSet.Builder<Operation> newOperations = ImmutableSet.builder();
+
+        Map<Value, Operation> operations = predicate.operations().stream()
+                .collect(toImmutableMap(Operation::result, identity()));
+
+        predicate.operations().stream()
+                .forEach(operation -> {
+                    if (isDynamicFilterFunction(operation)) {
+                        // get the dynamic filter id
+                        Value idArgument = operation.arguments().get(2);
+                        Operation idOperation = operations.get(idArgument);
+                        checkArgument(idOperation instanceof Constant, "expected dynamic filter id to be constant");
+                        NullableValue idAttribute = CONSTANT_RESULT.getAttribute(idOperation.attributes());
+                        checkArgument(idAttribute.getType().equals(VARCHAR), "expected dynamic filter id to be of varchar type");
+                        String id = ((Slice) idAttribute.getValue()).toStringUtf8();
+                        // find the equivalence group of the id, and get the group representative
+                        String representative = equivalenceGroups.stream()
+                                .filter(group -> group.ids().contains(id))
+                                .map(EquivalentDynamicFilters::representative)
+                                .findFirst()
+                                .orElseThrow();
+                        // replace the id with the group representative
+                        if (!representative.equals(id)) {
+                            Operation newIdOperation = new Constant(idOperation.result().name(), VARCHAR, Slices.utf8Slice(representative));
+                            newOperations.add(newIdOperation);
+                        }
+                    }
+                });
+
+        return layoutOperations(predicate, newOperations.build(), true);
+    }
+
+    private static Join removeDynamicFilterAssignments(Join join, Set<String> retainedDynamicFilterIds, ProgramBuilder.ValueNameAllocator nameAllocator)
+    {
+        List<String> dynamicFilterIds = DYNAMIC_FILTER_IDS.getAttribute(join.attributes());
+        Block dynamicFilterTargetSelector = join.regions().get(7).getOnlyBlock();
+
+        if (isEmptyFieldSelector(dynamicFilterTargetSelector)) {
+            return join;
+        }
+
+        Row row = (Row) dynamicFilterTargetSelector.operations().get(dynamicFilterTargetSelector.operations().size() - 2);
+        ImmutableList.Builder<String> newDynamicFilterIdsBuilder = ImmutableList.builder();
+        ImmutableList.Builder<Value> newSelectedFieldsBuilder = ImmutableList.builder();
+        for (int i = 0; i < dynamicFilterIds.size(); i++) {
+            if (retainedDynamicFilterIds.contains(dynamicFilterIds.get(i))) {
+                newDynamicFilterIdsBuilder.add(dynamicFilterIds.get(i));
+                newSelectedFieldsBuilder.add(row.arguments().get(i));
+            }
+        }
+        List<String> newDynamicFilterIds = newDynamicFilterIdsBuilder.build();
+        List<Value> newSelectedFields = newSelectedFieldsBuilder.build();
+        Block newDynamicFilterTargetSelector;
+        if (newSelectedFields.isEmpty()) {
+            newDynamicFilterTargetSelector = getEmptyFieldSelector(
+                    dynamicFilterTargetSelector.name().orElseThrow(),
+                    trinoType(getOnlyElement(dynamicFilterTargetSelector.parameters()).type()),
+                    nameAllocator);
+        }
+        else {
+            Row newRow = new Row(nameAllocator.newName(), newSelectedFields, ImmutableList.of());
+            Return newReturn = new Return(nameAllocator.newName(), newRow.result(), newRow.attributes());
+            newDynamicFilterTargetSelector = layoutOperations(
+                    dynamicFilterTargetSelector,
+                    ImmutableSet.of(newRow, newReturn),
+                    true);
+        }
+
+        return new Join(
+                join.result().name(),
+                join.arguments().get(0),
+                join.arguments().get(1),
+                join.regions().get(0).getOnlyBlock(),
+                join.regions().get(1).getOnlyBlock(),
+                join.regions().get(2).getOnlyBlock(),
+                join.regions().get(3).getOnlyBlock(),
+                join.regions().get(4).getOnlyBlock(),
+                join.regions().get(5).getOnlyBlock(),
+                join.regions().get(6).getOnlyBlock(),
+                newDynamicFilterTargetSelector,
+                JOIN_TYPE.getAttribute(join.attributes()),
+                MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(join.attributes()),
+                Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(join.attributes())),
+                Optional.ofNullable(SPILLABLE.getAttribute(join.attributes())),
+                newDynamicFilterIds,
+                Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(join.attributes())),
+                ImmutableMap.of(),
+                ImmutableMap.of());
+    }
+
+    private record EquivalentDynamicFilters(Set<String> ids, String representative)
+    {
+        private EquivalentDynamicFilters
+        {
+            requireNonNull(ids, "ids is null");
+            requireNonNull(representative, "representative is null");
+            checkArgument(ids.contains(representative), "representative not in set");
+            ids = ImmutableSet.copyOf(ids);
         }
     }
 
