@@ -56,6 +56,7 @@ public class TestingIcebergConnectorFactory
             newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
                     .addBinding("local").toInstance(new LocalFileSystemFactory(localFileSystemRootPath));
             configBinder(binder).bindConfigDefaults(FileHiveMetastoreConfig.class, config -> config.setCatalogDirectory("local:///"));
+            configBinder(binder).bindConfigDefaults(IcebergConfig.class, config -> config.setMaxFormatVersion(3));
             if (workScheduler.isPresent()) {
                 newOptionalBinder(binder, WorkScheduler.class).setBinding().toInstance(workScheduler.get());
             }

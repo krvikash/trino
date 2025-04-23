@@ -125,6 +125,7 @@ public class TestTrinoRestCatalog
                     },
                     new TableStatisticsWriter(new NodeVersion("test-version")),
                     Optional.empty(),
+                    3,
                     false,
                     _ -> false,
                     newDirectExecutorService(),

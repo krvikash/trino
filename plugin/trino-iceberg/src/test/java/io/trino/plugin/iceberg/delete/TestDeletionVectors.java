@@ -52,6 +52,7 @@ final class TestDeletionVectors
     {
         QueryRunner queryRunner = IcebergQueryRunner.builder()
                 .addIcebergProperty("iceberg.format-version", "3")
+                .addIcebergProperty("iceberg.max-format-version", "3")
                 .build();
         metastore = getHiveMetastore(queryRunner);
         fileSystemFactory = getFileSystemFactory(queryRunner);

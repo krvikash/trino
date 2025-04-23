@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.ConfigHidden;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
@@ -76,6 +77,7 @@ public class IcebergConfig
     private boolean addFilesProcedureEnabled;
     private Optional<String> hiveCatalogName = Optional.empty();
     private int formatVersion = FORMAT_VERSION_DEFAULT;
+    private int maxFormatVersion = 2;
     private Duration expireSnapshotsMinRetention = new Duration(7, DAYS);
     private Duration removeOrphanFilesMinRetention = new Duration(7, DAYS);
     private DataSize targetMaxFileSize = DataSize.of(1, GIGABYTE);
@@ -309,9 +311,9 @@ public class IcebergConfig
     }
 
     @Min(FORMAT_VERSION_SUPPORT_MIN)
-    @Max(FORMAT_VERSION_SUPPORT_MAX)
     public int getFormatVersion()
     {
+        checkArgument(formatVersion <= maxFormatVersion, "Format version %s must be lower than %s", formatVersion, maxFormatVersion);
         return formatVersion;
     }
 
@@ -320,6 +322,21 @@ public class IcebergConfig
     public IcebergConfig setFormatVersion(int formatVersion)
     {
         this.formatVersion = formatVersion;
+        return this;
+    }
+
+    @Max(FORMAT_VERSION_SUPPORT_MAX)
+    public int getMaxFormatVersion()
+    {
+        return maxFormatVersion;
+    }
+
+    @ConfigHidden // Expose V3 spec once we support all V3 requirements
+    @Config("iceberg.max-format-version")
+    @ConfigDescription("Max Iceberg table format version")
+    public IcebergConfig setMaxFormatVersion(int maxFormatVersion)
+    {
+        this.maxFormatVersion = maxFormatVersion;
         return this;
     }
 

@@ -471,6 +471,7 @@ public class IcebergMetadata
     private final IcebergFileSystemFactory fileSystemFactory;
     private final TableStatisticsWriter tableStatisticsWriter;
     private final Optional<HiveMetastoreFactory> metastoreFactory;
+    private final int maxFormatVersion;
     private final boolean addFilesProcedureEnabled;
     private final Predicate<String> allowedExtraProperties;
     private final ExecutorService icebergScanExecutor;
@@ -490,6 +491,7 @@ public class IcebergMetadata
             IcebergFileSystemFactory fileSystemFactory,
             TableStatisticsWriter tableStatisticsWriter,
             Optional<HiveMetastoreFactory> metastoreFactory,
+            int maxFormatVersion,
             boolean addFilesProcedureEnabled,
             Predicate<String> allowedExtraProperties,
             ExecutorService icebergScanExecutor,
@@ -503,6 +505,7 @@ public class IcebergMetadata
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableStatisticsWriter = requireNonNull(tableStatisticsWriter, "tableStatisticsWriter is null");
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
+        this.maxFormatVersion = maxFormatVersion;
         this.addFilesProcedureEnabled = addFilesProcedureEnabled;
         this.allowedExtraProperties = requireNonNull(allowedExtraProperties, "allowedExtraProperties is null");
         this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
@@ -3277,10 +3280,10 @@ public class IcebergMetadata
         return new IcebergMergeTableHandle(table, insertHandle);
     }
 
-    private static List<PositionDeleteFiles> loadPreviousDeleteFiles(Table icebergTable)
+    private List<PositionDeleteFiles> loadPreviousDeleteFiles(Table icebergTable)
     {
         int formatVersion = formatVersion(icebergTable);
-        validateFormatVersion(formatVersion);
+        validateFormatVersion(formatVersion, maxFormatVersion);
         if (formatVersion < 3) {
             return ImmutableList.of();
         }

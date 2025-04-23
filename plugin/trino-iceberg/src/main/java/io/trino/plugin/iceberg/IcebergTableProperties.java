@@ -31,7 +31,6 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static io.trino.plugin.iceberg.IcebergConfig.FORMAT_VERSION_SUPPORT_MAX;
 import static io.trino.plugin.iceberg.IcebergConfig.FORMAT_VERSION_SUPPORT_MIN;
 import static io.trino.spi.StandardErrorCode.INVALID_TABLE_PROPERTY;
 import static io.trino.spi.session.PropertyMetadata.booleanProperty;
@@ -130,7 +129,7 @@ public class IcebergTableProperties
                         FORMAT_VERSION_PROPERTY,
                         "Iceberg table format version",
                         icebergConfig.getFormatVersion(),
-                        IcebergTableProperties::validateFormatVersion,
+                        version -> validateFormatVersion(version, icebergConfig.getMaxFormatVersion()),
                         false))
                 .add(integerProperty(
                         MAX_COMMIT_RETRY,
@@ -244,11 +243,11 @@ public class IcebergTableProperties
         return (int) tableProperties.get(FORMAT_VERSION_PROPERTY);
     }
 
-    public static void validateFormatVersion(int version)
+    public static void validateFormatVersion(int version, int maxFormatVersion)
     {
-        if (version < FORMAT_VERSION_SUPPORT_MIN || version > FORMAT_VERSION_SUPPORT_MAX) {
+        if (version < FORMAT_VERSION_SUPPORT_MIN || version > maxFormatVersion) {
             throw new TrinoException(INVALID_TABLE_PROPERTY,
-                    format("format_version must be between %d and %d", FORMAT_VERSION_SUPPORT_MIN, FORMAT_VERSION_SUPPORT_MAX));
+                    format("format_version must be between %d and %d", FORMAT_VERSION_SUPPORT_MIN, maxFormatVersion));
         }
     }
 
