@@ -179,7 +179,6 @@ public class StorageCollectorService
                 collectChunk(aggregatorPageArgs,
                         aggregatorPageArgs.queryResultTypes().get(),
                         queryArgs.dispatcherPageSourceStats());
-                queryArgs.dispatcherPageSourceStats().addcached_read_rows(chunk.numRecordsInChunk());
             }
             catch (Exception e) {
                 shapingLogger.error(e, "Failed To collect chunk %s", chunk);

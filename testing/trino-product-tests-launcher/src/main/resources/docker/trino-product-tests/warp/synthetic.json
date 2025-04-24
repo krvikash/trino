@@ -817,7 +817,7 @@
           "warp_collect_columns": 2,
           "external_match_columns": 1,
           "external_collect_columns": 0,
-          "non_trivial_alternative_chosen": 1
+          "non_trivial_alternative_chosen": 0
         },
         "bench_expected_counters": {
           "warp_match_columns": 2,
@@ -3408,10 +3408,10 @@
         ],
         "query_id": "tuples_40keys_30",
         "expected_counters": {
-          "warp_match_columns": 1,
+          "warp_match_columns": 0,
           "warp_collect_columns": 1,
           "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
+          "external_match_columns": 1,
           "external_collect_columns": 0
         }
       },
@@ -3520,10 +3520,10 @@
         ],
         "query_id": "tuples_40keys_38",
         "expected_counters": {
-          "warp_match_columns": 1,
+          "warp_match_columns": 0,
           "warp_collect_columns": 1,
           "warp_prefilled_collect_columns": 0,
-          "external_match_columns": 0,
+          "external_match_columns": 1,
           "external_collect_columns": 0
         }
       },

@@ -43,8 +43,10 @@ import io.trino.spi.type.Type;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.StringJoiner;
@@ -87,7 +89,7 @@ public class DispatcherPageSource
     private final Deque<RowRange> proxiedPageRanges;
     private long proxiedPagePositionsRead;
     private boolean wasProxiedPagedLoaded;
-    private Page currentWarpPage;
+    private SourcePage currentWarpSourcePage;
     private int currentWarpPagePosition; // Position upto which currentWarpPage has been consumed
     private Deque<RowRange> warpPageRanges;
     private int emptyPagesCounter;
@@ -154,7 +156,7 @@ public class DispatcherPageSource
                     warpPageRanges.size(),
                     currentWarpPagePosition,
                     currentProxiedPage.getPositionCount(),
-                    currentWarpPage.getPositionCount(),
+                    currentWarpSourcePage.getPositionCount(),
                     warpWithoutPrefilledAndProxiedCollectTypes,
                     proxiedPagePositionsRead,
                     proxiedConnectorPageSource,
@@ -175,28 +177,28 @@ public class DispatcherPageSource
             return SourcePage.create(0);
         }
 
-        Page dispatcherPage = getDispatcherPage();
-        if (dispatcherPage.getPositionCount() == 0 && !isFinished()) {
+        SourcePage dispatcherSourcePage = getDispatcherSourcePage();
+        if (dispatcherSourcePage.getPositionCount() == 0 && !isFinished()) {
             emptyPagesCounter++;
         }
         else {
             emptyPagesCounter = 0;
         }
-        return new DispatcherSourcePage(dispatcherPage);
+        return dispatcherSourcePage;
     }
 
-    private Page getDispatcherPage()
+    private SourcePage getDispatcherSourcePage()
     {
         try {
             if (PageSourceDecision.WARP.equals(pageSourceDecision)) {
-                Page result = warpPageSource.getNextPage();
-                return mergeWarpPrefilled(result, prefilledPageSource);
+                SourcePage warpSourcePage = warpPageSource.getNextSourcePage();
+                return mergeWarpPrefilled(warpSourcePage, prefilledPageSource);
             }
 
             PageBuilder resultPageBuilder = PageBuilder.withMaxPageSize(pageSizeInBytes, warpWithoutPrefilledAndProxiedCollectTypes);
             if (warpPageRanges.isEmpty()) {
                 // Calling getNextPage at least once is necessary to make warp page source populate row ranges
-                getNextWarpPage();
+                getNextWarpSourcePage();
                 if (warpPageRanges.isEmpty()) {
                     return buildResultPage(resultPageBuilder);
                 }
@@ -213,7 +215,7 @@ public class DispatcherPageSource
                 RowRange proxiedCurrentRange = proxiedPageRanges.peek();
                 logger.debug(
                         "Going to merge results for a mixed query with predicate. warpCurrentRange=%s, proxiedCurrentRange=%s, currentWarpPagePosition=%d, currentProxiedPagePositions=%d, currentWarpPagePositions=%d, currentProxiedPagePositions=%d",
-                        warpCurrentRange, proxiedCurrentRange, currentWarpPagePosition, currentProxiedPagePosition, currentWarpPage.getPositionCount(), currentProxiedPage.getPositionCount());
+                        warpCurrentRange, proxiedCurrentRange, currentWarpPagePosition, currentProxiedPagePosition, currentWarpSourcePage.getPositionCount(), currentProxiedPage.getPositionCount());
 
                 if (warpCurrentRange.isFullyBefore(proxiedCurrentRange)) {
                     warpPageRanges.removeFirst();
@@ -234,7 +236,7 @@ public class DispatcherPageSource
                     int overlapRowCount = toIntExact(overlapEndExclusive - overlapStartInclusive);
                     // Collect overlappingRows from warp and proxied pages
                     if (canMergeFull(resultPageBuilder, overlapRowCount)) {
-                        Page resultPage = buildFullResultPage(overlapRowCount);
+                        SourcePage resultPage = buildFullResultPage(overlapRowCount);
                         long resultEndExclusive = overlapStartInclusive + resultPage.getPositionCount();
                         // Add back any remaining part of row range onto the deque for the next iteration
                         if (warpCurrentRange.maxExclusive() > resultEndExclusive) {
@@ -255,7 +257,7 @@ public class DispatcherPageSource
                     }
                 }
             }
-            Page resultPage = buildResultPage(resultPageBuilder);
+            SourcePage resultPage = buildResultPage(resultPageBuilder);
             if (forceFinish) {
                 logger.info("queryId=%s, resultPage positionCount=%s", queryContext.getQueryId(), resultPage.getPositionCount());
             }
@@ -273,44 +275,45 @@ public class DispatcherPageSource
         }
     }
 
-    private Page mergeWarpPrefilled(Page currentWarpPage,
+    private SourcePage mergeWarpPrefilled(SourcePage currentWarpSourcePage,
             PrefilledPageSource prefilledPageSource)
     {
         Block[] orderedBlocks = new Block[queryContext.getTotalCollectCount()];
         int startPointWarp = 0;
 
-        if (currentWarpPage.getPositionCount() == 0 || queryContext.getTotalCollectCount() == 0) {
-            return new Page(currentWarpPage.getPositionCount());
+        if (currentWarpSourcePage.getPositionCount() == 0 || queryContext.getTotalCollectCount() == 0) {
+            return SourcePage.create(currentWarpSourcePage.getPositionCount());
         }
 
+        HashMap<Integer, Integer> warpColumnIndexMap = new HashMap<>();
         for (int i = 0; i < queryContext.getTotalCollectCount(); i++) {
             if (prefilledPageSource.hasBlock(i)) {
-                orderedBlocks[i] = prefilledPageSource.createBlock(i, currentWarpPage.getPositionCount());
+                orderedBlocks[i] = prefilledPageSource.createBlock(i, currentWarpSourcePage.getPositionCount());
             }
             else {
                 final int warpBlockIndex = queryContext.getNativeQueryCollectDataList()
                         .get(startPointWarp)
                         .getBlockIndex();
-                orderedBlocks[warpBlockIndex] = currentWarpPage.getBlock(startPointWarp);
+                warpColumnIndexMap.put(warpBlockIndex, startPointWarp);
                 startPointWarp++;
             }
         }
-        return new Page(currentWarpPage.getPositionCount(), orderedBlocks);
+        return new DispatcherSourcePage(orderedBlocks, currentWarpSourcePage, warpColumnIndexMap);
     }
 
     private void seekWarpPageSource(int rowsToSkip)
     {
         currentWarpPagePosition += rowsToSkip;
         checkState(
-                currentWarpPagePosition <= currentWarpPage.getPositionCount(),
+                currentWarpPagePosition <= currentWarpSourcePage.getPositionCount(),
                 "currentWarpPagePosition %s, currentWarpPage positions %s, warpPageRanges %s",
-                currentWarpPagePosition, currentWarpPage.getPositionCount(), warpPageRanges);
-        if (currentWarpPagePosition == currentWarpPage.getPositionCount()) {
+                currentWarpPagePosition, currentWarpSourcePage.getPositionCount(), warpPageRanges);
+        if (currentWarpPagePosition == currentWarpSourcePage.getPositionCount()) {
             checkState(
                     warpPageRanges.isEmpty(),
                     "currentWarpPagePosition %s, currentWarpPage positions %s, warpPageRanges %s",
-                    currentWarpPagePosition, currentWarpPage.getPositionCount(), warpPageRanges);
-            getNextWarpPage();
+                    currentWarpPagePosition, currentWarpSourcePage.getPositionCount(), warpPageRanges);
+            getNextWarpSourcePage();
         }
     }
 
@@ -341,9 +344,9 @@ public class DispatcherPageSource
         return Math.min(pagePositionsLeft, overlapRowCount) >= MINIMUM_OUTPUT_ROW_COUNT;
     }
 
-    private Page buildFullResultPage(int overlapRowCount)
+    private SourcePage buildFullResultPage(int overlapRowCount)
     {
-        if (queryContext.getTotalCollectCount() != (currentProxiedPage.getChannelCount() + currentWarpPage.getChannelCount() + prefilledPageSource.getChannelCount())) {
+        if (queryContext.getTotalCollectCount() != (currentProxiedPage.getChannelCount() + currentWarpSourcePage.getChannelCount() + prefilledPageSource.getChannelCount())) {
             throw new TrinoException(WarpErrorCode.WARP_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
         }
         Block[] orderedBlocks = new Block[queryContext.getTotalCollectCount()];
@@ -351,8 +354,8 @@ public class DispatcherPageSource
         int startPointProxied = START_INDEX_OF_PROXIED_CONNECTOR_COLUMNS;
         int positionCount = Math.min(currentProxiedPage.getPositionCount() - currentProxiedPagePosition, overlapRowCount);
         Page overlapPoxiedPage = currentProxiedPage.getPage().getRegion(currentProxiedPagePosition, positionCount);
-        recordProxiedPageLoad(); // Technically the proxied page is not "loaded" here, but we track it for metrics anyway
-        Page overlapWarpPage = currentWarpPage.getRegion(currentWarpPagePosition, positionCount);
+        recordProxiedPageLoad();
+        Page overlapWarpPage = currentWarpSourcePage.getPage().getRegion(currentWarpPagePosition, positionCount);
         for (int i = 0; i < queryContext.getTotalCollectCount(); i++) {
             if (queryContext.getRemainingCollectColumnByBlockIndex().containsKey(i)) {
                 orderedBlocks[i] = overlapPoxiedPage.getBlock(startPointProxied).getLoadedBlock();
@@ -372,7 +375,7 @@ public class DispatcherPageSource
 
         seekWarpPageSource(positionCount);
         seekProxiedPageSource(positionCount);
-        return new Page(positionCount, orderedBlocks);
+        return SourcePage.create(new Page(positionCount, orderedBlocks));
     }
 
     private void fillOverlappingPage(PageBuilder resultPageBuilder, int numberOfRowsToAdd)
@@ -383,7 +386,7 @@ public class DispatcherPageSource
         int pagePositionsLeft = currentProxiedPage.getPositionCount() - currentProxiedPagePosition;
         int overlapRowsRemaining = numberOfRowsToAdd;
         while (overlapRowsRemaining >= pagePositionsLeft && overlapRowsRemaining > 0) {
-            addColumnsToBuilder(resultPageBuilder, pagePositionsLeft, currentProxiedPage.getPage(), currentProxiedPagePosition, 0);
+            addColumnsToBuilder(resultPageBuilder, pagePositionsLeft, currentProxiedPage, currentProxiedPagePosition, 0);
             recordProxiedPageLoad();
             overlapRowsRemaining -= pagePositionsLeft;
             getNextProxiedPage();
@@ -398,14 +401,14 @@ public class DispatcherPageSource
             }
         }
         if (overlapRowsRemaining > 0) {
-            addColumnsToBuilder(resultPageBuilder, overlapRowsRemaining, currentProxiedPage.getPage(), currentProxiedPagePosition, 0);
+            addColumnsToBuilder(resultPageBuilder, overlapRowsRemaining, currentProxiedPage, currentProxiedPagePosition, 0);
             recordProxiedPageLoad();
             currentProxiedPagePosition += overlapRowsRemaining;
         }
         stats.addproxied_loaded_pages_time(System.nanoTime() - start);
 
         // Add overlapping rows from currentWarpPage
-        addColumnsToBuilder(resultPageBuilder, numberOfRowsToAdd, currentWarpPage, currentWarpPagePosition, queryContext.getRemainingCollectColumnByBlockIndex().size());
+        addColumnsToBuilder(resultPageBuilder, numberOfRowsToAdd, currentWarpSourcePage, currentWarpPagePosition, queryContext.getRemainingCollectColumnByBlockIndex().size());
         seekWarpPageSource(numberOfRowsToAdd);
     }
 
@@ -464,7 +467,7 @@ public class DispatcherPageSource
             StringJoiner errorMsg = new StringJoiner(",");
             try {
                 warpPageRanges.clear();
-                currentWarpPage = null;
+                currentWarpSourcePage = null;
                 warpPageSource.close();
             }
             catch (Exception e) {
@@ -498,29 +501,29 @@ public class DispatcherPageSource
         }
     }
 
-    private void getNextWarpPage()
+    private void getNextWarpSourcePage()
     {
-        currentWarpPage = requireNonNull(warpPageSource.getNextPage(), "warpPageSource returned a null Page");
+        currentWarpSourcePage = requireNonNull(warpPageSource.getNextSourcePage(), "warpPageSource returned a null Page");
         currentWarpPagePosition = 0;
         // WarpPageSource#getSortedRowRanges always returns row ranges for the Page returned from previous call of WarpPageSource#getNextPage
         // It may return a smaller Page than the row ranges when LIMIT is reached
         WarpStoragePageSource.RowRanges warpRowRanges = warpPageSource.getSortedRowRanges();
         if (warpPageSource.isRowsLimitReached()) {
             validateRanges(
-                    warpRowRanges.getRowCount() >= currentWarpPage.getPositionCount(),
+                    warpRowRanges.getRowCount() >= currentWarpSourcePage.getPositionCount(),
                     "Row ranges %s are smaller than page positions count %s",
                     warpRowRanges,
-                    currentWarpPage.getPositionCount());
+                    currentWarpSourcePage.getPositionCount());
         }
         else {
             validateRanges(
-                    warpRowRanges.getRowCount() == currentWarpPage.getPositionCount(),
+                    warpRowRanges.getRowCount() == currentWarpSourcePage.getPositionCount(),
                     "Mismatch in row ranges %s and page positions count %s",
                     warpRowRanges,
-                    currentWarpPage.getPositionCount());
+                    currentWarpSourcePage.getPositionCount());
         }
         Deque<RowRange> sortedRowRangesWithLimit = new ArrayDeque<>();
-        int rowRangeToCollect = currentWarpPage.getPositionCount();
+        int rowRangeToCollect = currentWarpSourcePage.getPositionCount();
         for (int rangeIndex = 0; rangeIndex < warpRowRanges.getRangesCount() && rowRangeToCollect > 0; rangeIndex++) {
             long lowerInclusive = warpRowRanges.getLowerInclusive(rangeIndex);
             long upperExclusive = warpRowRanges.getUpperExclusive(rangeIndex);
@@ -572,7 +575,7 @@ public class DispatcherPageSource
         stats.addproxied_time(System.nanoTime() - start);
     }
 
-    private Page buildResultPage(PageBuilder resultPageBuilder)
+    private SourcePage buildResultPage(PageBuilder resultPageBuilder)
     {
         Page resultPage = resultPageBuilder.build();
         int blocksCount = queryContext.getTotalCollectCount();
@@ -601,7 +604,7 @@ public class DispatcherPageSource
             }
         }
         resultPageBuilder.reset();
-        return new Page(orderedBlocks);
+        return SourcePage.create(new Page(orderedBlocks));
     }
 
     private static void appendBlockRange(Block block, int offset, int length, BlockBuilder blockBuilder)
@@ -618,14 +621,14 @@ public class DispatcherPageSource
 
     private void addColumnsToBuilder(PageBuilder resultPageBuilder,
             int numberOfRowsToAdd,
-            Page page,
+            SourcePage sourcePage,
             int currentRowInPage,
             int columnInBuilder)
     {
-        for (int column = 0; column < page.getChannelCount(); column++) {
+        for (int column = 0; column < sourcePage.getChannelCount(); column++) {
             BlockBuilder blockBuilder = resultPageBuilder.getBlockBuilder(columnInBuilder);
             try {
-                appendBlockRange(page.getBlock(column), currentRowInPage, numberOfRowsToAdd, blockBuilder);
+                appendBlockRange(sourcePage.getBlock(column), currentRowInPage, numberOfRowsToAdd, blockBuilder);
             }
             catch (Exception e) {
                 throw new TrinoException(
@@ -679,25 +682,30 @@ public class DispatcherPageSource
     private static class DispatcherSourcePage
             implements SourcePage
     {
-        private Page page;
+        private final Block[] blocks;
+        private final SourcePage warpSourcePage;
+        private final Map<Integer, Integer> warpIxMap;
 
-        public DispatcherSourcePage(Page page)
+        public DispatcherSourcePage(Block[] blocks,
+                                    SourcePage warpSourcePage,
+                                    Map<Integer, Integer> warpIxMap)
         {
-            this.page = page;
+            this.blocks = blocks;
+            this.warpSourcePage = warpSourcePage;
+            this.warpIxMap = warpIxMap;
         }
 
         @Override
         public int getPositionCount()
         {
-            return page.getPositionCount();
+            return warpSourcePage.getPositionCount();
         }
 
         @Override
         public long getSizeInBytes()
         {
             long sizeInBytes = 0;
-            for (int i = 0; i < page.getChannelCount(); i++) {
-                Block block = page.getBlock(i);
+            for (Block block : blocks) {
                 if (block != null) {
                     sizeInBytes += block.getSizeInBytes();
                 }
@@ -709,8 +717,7 @@ public class DispatcherPageSource
         public long getRetainedSizeInBytes()
         {
             long retainedSizeInBytes = 0;
-            for (int i = 0; i < page.getChannelCount(); i++) {
-                Block block = page.getBlock(i);
+            for (Block block : blocks) {
                 if (block != null) {
                     retainedSizeInBytes += block.getRetainedSizeInBytes();
                 }
@@ -721,8 +728,7 @@ public class DispatcherPageSource
         @Override
         public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
         {
-            for (int i = 0; i < page.getChannelCount(); i++) {
-                Block block = page.getBlock(i);
+            for (Block block : blocks) {
                 if (block != null) {
                     block.retainedBytesForEachPart(consumer);
                 }
@@ -732,25 +738,37 @@ public class DispatcherPageSource
         @Override
         public int getChannelCount()
         {
-            return page.getChannelCount();
+            return blocks.length;
         }
 
         @Override
         public Block getBlock(int channel)
         {
-            return page.getBlock(channel);
+            if (blocks[channel] == null) {
+                blocks[channel] = warpSourcePage.getBlock(warpIxMap.get(channel));
+            }
+            return blocks[channel];
         }
 
         @Override
         public Page getPage()
         {
-            return page;
+            for (int channel = 0; channel < blocks.length; channel++) {
+                getBlock(channel);
+            }
+            // TODO get multiple blocks from warpSourcePage at once
+            return new Page(getPositionCount(), blocks);
         }
 
         @Override
         public void selectPositions(int[] positions, int offset, int size)
         {
-            page = page.getPositions(positions, offset, size);
+            for (int i = 0; i < blocks.length; i++) {
+                if (blocks[i] != null) {
+                    blocks[i] = blocks[i].getPositions(positions, offset, size);
+                }
+            }
+            warpSourcePage.selectPositions(positions, offset, size);
         }
     }
 }

@@ -132,12 +132,13 @@ public class WarpReader
                     queryState,
                     blocksToLoad);
             pageChunksList.add(chunk.get());
+            queryArgs.dispatcherPageSourceStats().addcached_read_rows(chunk.get().numRecordsInChunk());
         }
 
         return queryState.getNumRecordsInCurPage() > 0;
     }
 
-    ReadResult getPage()
+    ReadResult getSourcePage()
     {
         ReadResult readResult;
         try {
@@ -172,7 +173,7 @@ public class WarpReader
             long numReadPages = closePage();
 
             WarpSourcePage warpSourcePage = new WarpSourcePage(recordIndexes, pageChunksList, queryState.getNumRecordsInCurPage(), blocks);
-            readResult = new ReadResult(warpSourcePage.getPage(), queryState.getNumRecordsInCurPage(), ranges, numReadPages);
+            readResult = new ReadResult(warpSourcePage, queryState.getNumRecordsInCurPage(), ranges, numReadPages);
         }
         catch (Exception e) {
             abortPage(e);

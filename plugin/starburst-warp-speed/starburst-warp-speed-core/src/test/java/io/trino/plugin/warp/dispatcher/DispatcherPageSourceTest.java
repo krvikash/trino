@@ -113,7 +113,7 @@ public class DispatcherPageSourceTest
     public void testRowGroupRemovalOnNativeException()
     {
         warpPageSource = mock(WarpPageSource.class);
-        when(warpPageSource.getNextPage())
+        when(warpPageSource.getNextSourcePage())
                 .thenThrow(new TrinoException(WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR, "message"));
 
         DispatcherPageSource mixQueryWithPredicate = getDispatcherPageSource(2, Map.of(0, IntegerType.INTEGER));

@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.spi.Page;
+import io.trino.spi.connector.SourcePage;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -23,7 +23,7 @@ public interface WarpStoragePageSource
 
     boolean isRowsLimitReached();
 
-    Page getNextPage();
+    SourcePage getNextSourcePage();
 
     long getMemoryUsage();
 
