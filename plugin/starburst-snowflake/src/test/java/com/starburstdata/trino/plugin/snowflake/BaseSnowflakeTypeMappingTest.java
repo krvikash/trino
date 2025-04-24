@@ -567,11 +567,11 @@ public abstract class BaseSnowflakeTypeMappingTest
         //timestamp(9) -0001-01-01 00:00:00.000000000 has different results in jdbc and distributed connectors
         try (TestTable table = new TestTable(sqls -> getQueryRunner().execute(sqls), "test_schema_2.test_timestamp", "(c1 timestamp(6))")) {
             assertQueryFails(format("INSERT INTO %s (c1) VALUES (TIMESTAMP '-0001-01-01 00:00:00.000000')", table.getName()),
-                    "Failed to insert data: Timestamp '-0001-01-01T00:00' is not recognized");
+                    "Failed to insert data: .*Timestamp '-0001-01-01T00:00' is not recognized");
         }
         try (TestTable table = new TestTable(sqls -> getQueryRunner().execute(sqls), "test_schema_2.test_timestamp", "(c1 timestamp(3))")) {
             assertQueryFails(format("INSERT INTO %s (c1) VALUES (TIMESTAMP '-0001-01-01 00:00:00.000')", table.getName()),
-                    "Failed to insert data: Timestamp '-0001-01-01T00:00' is not recognized");
+                    "Failed to insert data: .*Timestamp '-0001-01-01T00:00' is not recognized");
         }
     }
 
