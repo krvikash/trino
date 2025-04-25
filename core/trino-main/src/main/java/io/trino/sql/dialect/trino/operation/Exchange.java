@@ -33,7 +33,6 @@ import io.trino.sql.planner.SystemPartitioningHandle;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -243,30 +242,5 @@ public class Exchange
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty exchange";
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (Exchange) obj;
-        return Objects.equals(this.result, that.result) &&
-                Objects.equals(this.inputs, that.inputs) &&
-                Objects.equals(this.inputFieldSelectors, that.inputFieldSelectors) &&
-                Objects.equals(this.partitioningBoundArguments, that.partitioningBoundArguments) &&
-                Objects.equals(this.partitioningHashSelector, that.partitioningHashSelector) &&
-                Objects.equals(this.orderingSelector, that.orderingSelector) &&
-                Objects.equals(this.attributes, that.attributes);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(result, inputs, inputFieldSelectors, partitioningBoundArguments, partitioningHashSelector, orderingSelector, attributes);
     }
 }

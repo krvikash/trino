@@ -18,6 +18,7 @@ import io.trino.sql.newir.Block.Parameter;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.newir.Dialect.validateDialectName;
@@ -155,5 +156,29 @@ public abstract non-sealed class Operation
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return print(1, indentLevel, formatOptions);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (o == this) {
+            return true;
+        }
+        if (o == null || o.getClass() != this.getClass()) {
+            return false;
+        }
+        Operation operation = (Operation) o;
+        return Objects.equals(dialect, operation.dialect) &&
+                Objects.equals(name, operation.name) &&
+                Objects.equals(result(), operation.result()) &&
+                Objects.equals(arguments(), operation.arguments()) &&
+                Objects.equals(regions(), operation.regions()) &&
+                Objects.equals(attributes(), operation.attributes());
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(dialect, name, result(), arguments(), regions(), attributes());
     }
 }

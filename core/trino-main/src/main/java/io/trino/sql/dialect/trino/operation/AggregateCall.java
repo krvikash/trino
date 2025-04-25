@@ -30,7 +30,6 @@ import io.trino.type.FunctionType;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -221,30 +220,5 @@ public class AggregateCall
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty aggregate call";
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (AggregateCall) obj;
-        return Objects.equals(this.result, that.result) &&
-                Objects.equals(this.group, that.group) &&
-                Objects.equals(this.arguments, that.arguments) &&
-                Objects.equals(this.filterSelector, that.filterSelector) &&
-                Objects.equals(this.maskSelector, that.maskSelector) &&
-                Objects.equals(this.orderingSelector, that.orderingSelector) &&
-                Objects.equals(this.attributes, that.attributes);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(result, group, arguments, filterSelector, maskSelector, orderingSelector, attributes);
     }
 }

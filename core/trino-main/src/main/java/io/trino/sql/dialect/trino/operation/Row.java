@@ -25,7 +25,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -91,26 +90,5 @@ public final class Row
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "row :)";
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (Row) obj;
-        return Objects.equals(this.result, that.result) &&
-                Objects.equals(this.fields, that.fields) &&
-                Objects.equals(this.attributes, that.attributes);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(result, fields, attributes);
     }
 }

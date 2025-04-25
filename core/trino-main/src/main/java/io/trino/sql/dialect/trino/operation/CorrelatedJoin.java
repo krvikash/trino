@@ -27,7 +27,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -147,29 +146,5 @@ public final class CorrelatedJoin
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty correlated join";
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (CorrelatedJoin) obj;
-        return Objects.equals(this.result, that.result) &&
-                Objects.equals(this.input, that.input) &&
-                Objects.equals(this.correlation, that.correlation) &&
-                Objects.equals(this.subquery, that.subquery) &&
-                Objects.equals(this.filter, that.filter) &&
-                Objects.equals(this.attributes, that.attributes);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(result, input, correlation, subquery, filter, attributes);
     }
 }

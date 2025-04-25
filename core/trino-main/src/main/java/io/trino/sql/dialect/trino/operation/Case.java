@@ -25,7 +25,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -125,28 +124,5 @@ public final class Case
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "case :)";
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (Case) obj;
-        return Objects.equals(this.result, that.result) &&
-                Objects.equals(this.when, that.when) &&
-                Objects.equals(this.then, that.then) &&
-                Objects.equals(this.defaultValue, that.defaultValue) &&
-                Objects.equals(this.attributes, that.attributes);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(result, when, then, defaultValue, attributes);
     }
 }

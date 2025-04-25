@@ -25,7 +25,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
@@ -103,27 +102,5 @@ public class ExplainAnalyze
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty explain analyze";
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (ExplainAnalyze) obj;
-        return Objects.equals(this.result, that.result) &&
-                Objects.equals(this.input, that.input) &&
-                Objects.equals(this.fieldSelector, that.fieldSelector) &&
-                Objects.equals(this.attributes, that.attributes);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(result, input, fieldSelector, attributes);
     }
 }

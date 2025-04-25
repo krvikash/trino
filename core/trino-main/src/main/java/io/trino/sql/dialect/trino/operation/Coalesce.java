@@ -25,7 +25,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -97,26 +96,5 @@ public final class Coalesce
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "coalesce :)";
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (Coalesce) obj;
-        return Objects.equals(this.result, that.result) &&
-                Objects.equals(this.operands, that.operands) &&
-                Objects.equals(this.attributes, that.attributes);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(result, operands, attributes);
     }
 }

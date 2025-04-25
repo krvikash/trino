@@ -28,7 +28,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.OptionalInt;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -180,29 +179,5 @@ public class Aggregation
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty aggregation";
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (Aggregation) obj;
-        return Objects.equals(this.result, that.result) &&
-                Objects.equals(this.input, that.input) &&
-                Objects.equals(this.aggregateCalls, that.aggregateCalls) &&
-                Objects.equals(this.groupingKeysSelector, that.groupingKeysSelector) &&
-                Objects.equals(this.hashSelector, that.hashSelector) &&
-                Objects.equals(this.attributes, that.attributes);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(result, input, aggregateCalls, groupingKeysSelector, hashSelector, attributes);
     }
 }

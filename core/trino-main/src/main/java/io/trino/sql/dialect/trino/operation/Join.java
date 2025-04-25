@@ -30,7 +30,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -235,35 +234,5 @@ public final class Join
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty join";
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (obj == this) {
-            return true;
-        }
-        if (obj == null || obj.getClass() != this.getClass()) {
-            return false;
-        }
-        var that = (Join) obj;
-        return Objects.equals(this.result, that.result) &&
-                Objects.equals(this.left, that.left) &&
-                Objects.equals(this.right, that.right) &&
-                Objects.equals(this.leftCriteriaSelector, that.leftCriteriaSelector) &&
-                Objects.equals(this.rightCriteriaSelector, that.rightCriteriaSelector) &&
-                Objects.equals(this.filter, that.filter) &&
-                Objects.equals(this.leftHashSelector, that.leftHashSelector) &&
-                Objects.equals(this.rightHashSelector, that.rightHashSelector) &&
-                Objects.equals(this.leftOutputSelector, that.leftOutputSelector) &&
-                Objects.equals(this.rightOutputSelector, that.rightOutputSelector) &&
-                Objects.equals(this.dynamicFilterTargetSelector, that.dynamicFilterTargetSelector) &&
-                Objects.equals(this.attributes, that.attributes);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(result, left, right, leftCriteriaSelector, rightCriteriaSelector, filter, leftHashSelector, rightHashSelector, leftOutputSelector, rightOutputSelector, dynamicFilterTargetSelector, attributes);
     }
 }
