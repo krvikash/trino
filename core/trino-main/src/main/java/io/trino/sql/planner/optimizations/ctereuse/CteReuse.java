@@ -68,6 +68,7 @@ import io.trino.sql.planner.optimizations.ctereuse.DynamicFilterUtils.DynamicFil
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -182,7 +183,7 @@ public class CteReuse
         MultiGroupMerger multiGroupMerger = new MultiGroupMerger();
 
         // initialize a collection of all newly created operations
-        ImmutableSet.Builder<Operation> newOperations = ImmutableSet.builder();
+        Map<Value, Operation> newOperations = new HashMap<>();
 
         // merge each group
         for (UnifiedGroup unifiedGroup : unifiedGroups) {
@@ -205,7 +206,7 @@ public class CteReuse
 
         // create the new plan consisting of old and new operations
         Block oldMainBlock = ((Query) program.getRoot()).query();
-        Block newMainBlock = layoutOperations(oldMainBlock, newOperations.build(), false);
+        Block newMainBlock = layoutOperations(oldMainBlock, newOperations, false);
 
         // clean up dynamic filters
         newMainBlock = cleanUpDynamicFilters(newMainBlock, nameAllocator);
@@ -383,11 +384,11 @@ public class CteReuse
             Metadata metadata,
             Multimap<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            ImmutableSet.Builder<Operation> newOperations)
+            Map<Value, Operation> newOperations)
     {
         // unified TableScan is the first unified operation
         TableScan unifiedTableScan = getUnifiedTableScan(unifiedGroup, nameAllocator);
-        newOperations.add(unifiedTableScan);
+        newOperations.put(unifiedTableScan.result(), unifiedTableScan);
 
         // initialize traversal context for each branch on top of the unified TableScan
         List<TraversalContext> traversalContexts = initializeTraversalContexts(unifiedGroup, unifiedTableScan, metadata, nameAllocator);
@@ -716,7 +717,7 @@ public class CteReuse
             boolean setCheckpoint,
             Multimap<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            ImmutableSet.Builder<Operation> newOperations,
+            Map<Value, Operation> newOperations,
             MultiGroupMerger multiGroupMerger,
             Session session,
             Metadata metadata)
@@ -874,7 +875,7 @@ public class CteReuse
      * This method assumes that all provided states are based on baseUnifiedOperation, so they can be safely combined.
      * There must be at least two states provided.
      */
-    private static UnifiedStatesAndCheckpointRequirement outputCommonSemantics(List<TraversalState> states, Operation baseUnifiedOperation, ProgramBuilder.ValueNameAllocator nameAllocator, ImmutableSet.Builder<Operation> newOperations)
+    private static UnifiedStatesAndCheckpointRequirement outputCommonSemantics(List<TraversalState> states, Operation baseUnifiedOperation, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations)
     {
         checkArgument(states.size() > 1, "at least two branches must be provided for unification");
 
@@ -940,7 +941,7 @@ public class CteReuse
                     unifiedOperation.result(),
                     unifiedPredicateToApply.withLabel("^predicate"),
                     unifiedOperation.attributes());
-            newOperations.add(unifiedOperation);
+            newOperations.put(unifiedOperation.result(), unifiedOperation);
             // set checkpoint after Filter only if there are static predicates
             DynamicFilterExtractionResult extractionResult = extractDynamicConjunct(unifiedPredicateToApply, nameAllocator);
             if (!isTrue(extractionResult.staticPredicate())) {
@@ -958,7 +959,7 @@ public class CteReuse
                     pruningAssignments,
                     unifiedOperation.attributes());
             unifiedMapping = unifiedMapping.composeWith(getPassthroughMapping(pruningAssignments));
-            newOperations.add(unifiedOperation);
+            newOperations.put(unifiedOperation.result(), unifiedOperation);
         }
 
         // compute the new enforced predicate and rebase it onto the last unified operation.
@@ -1052,7 +1053,7 @@ public class CteReuse
             UnifiedStates unifiedStates,
             Multimap<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            ImmutableSet.Builder<Operation> newOperations,
+            Map<Value, Operation> newOperations,
             MultiGroupMerger multiGroupMerger,
             Session session,
             Metadata metadata)
@@ -1093,7 +1094,7 @@ public class CteReuse
      * Wire the new part of the plan to the old plan by replacing the argument of the next downstream operation
      * with the result of the last new operation.
      */
-    public static void compensateAndWire(TraversalState branch, Operation unifiedOperation, ProgramBuilder.ValueNameAllocator nameAllocator, ImmutableSet.Builder<Operation> newOperations)
+    public static void compensateAndWire(TraversalState branch, Operation unifiedOperation, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations)
     {
         Operation recentOperation = unifiedOperation;
         FieldMapping mapping = branch.traversalContext().fieldMapping();
@@ -1105,7 +1106,7 @@ public class CteReuse
                     recentOperation.result(),
                     branch.traversalContext().predicateToApply().withLabel("^predicate"),
                     recentOperation.attributes());
-            newOperations.add(recentOperation);
+            newOperations.put(recentOperation.result(), recentOperation);
         }
 
         // apply pruning
@@ -1116,7 +1117,7 @@ public class CteReuse
                     recentOperation.result(),
                     pruningAssignments,
                     recentOperation.attributes());
-            newOperations.add(recentOperation);
+            newOperations.put(recentOperation.result(), recentOperation);
             mapping = mapping.composeWith(getPassthroughMapping(pruningAssignments));
         }
 
@@ -1127,14 +1128,17 @@ public class CteReuse
                     recentOperation.result(),
                     getReorderingAssignments(relationRowType(trinoType(recentOperation.result().type())), mapping, nameAllocator),
                     recentOperation.attributes());
-            newOperations.add(recentOperation);
+            newOperations.put(recentOperation.result(), recentOperation);
         }
 
-        // compensations are fully applied. wire recentOperation to the nextOperation
+        // compensations are fully applied. Wire recentOperation to the nextOperation
         // the operation created by the withArgument() method has the same result as the original operation,
         // therefore it can be used by the downstream plan without further adjustments
-        Operation nextOperationWired = ((TrinoOperation) branch.nextOperation().operation()).withArgument(recentOperation.result(), branch.nextOperation().sourceIndex());
-        newOperations.add(nextOperationWired);
+        // Note: It is possible that multiple branches are wired to the same next operation (for example, if they are sources of the same union)
+        Value nextOperationResult = branch.nextOperation().operation().result();
+        Operation nextOperation = newOperations.containsKey(nextOperationResult) ? newOperations.get(nextOperationResult) : branch.nextOperation().operation();
+        Operation nextOperationWired = ((TrinoOperation) nextOperation).withArgument(recentOperation.result(), branch.nextOperation().sourceIndex());
+        newOperations.put(nextOperationWired.result(), nextOperationWired);
     }
 
     /**
@@ -1156,10 +1160,10 @@ public class CteReuse
     /**
      * Build an updated block consisting of old and new operations.
      */
-    private static Block layoutOperations(Block oldMainBlock, Set<Operation> newOperations, boolean allowUnresolvedArguments)
+    private static Block layoutOperations(Block oldMainBlock, Map<Value, Operation> newOperations, boolean allowUnresolvedArguments)
     {
         // find the terminal operation of the resulting block
-        Operation rootOperation = newOperations.stream()
+        Operation rootOperation = newOperations.values().stream()
                 .filter(operation -> Objects.equals(operation.attributes().get(new AttributeKey(IR, TERMINAL)), true))
                 .findFirst()
                 .orElse(oldMainBlock.getTerminalOperation());
@@ -1168,8 +1172,7 @@ public class CteReuse
 
         layoutOperations(
                 rootOperation,
-                newOperations.stream()
-                        .collect(toImmutableMap(Operation::result, identity())),
+                newOperations,
                 oldMainBlock.operations().stream()
                         .collect(toImmutableMap(Operation::result, identity())),
                 newMainBlock,
@@ -1266,7 +1269,7 @@ public class CteReuse
     private static Block cleanUpDynamicFilters(Block mainBlock, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
         // initialize a collection of newly created operations
-        ImmutableSet.Builder<Operation> newOperations = ImmutableSet.builder();
+        Map<Value, Operation> newOperations = new HashMap<>();
 
         // collect dynamic filter ids from all Join operations, and group them by equivalence.
         List<EquivalentDynamicFilters> equivalenceGroups = mainBlock.operations().stream()
@@ -1308,7 +1311,7 @@ public class CteReuse
                         filter.argument(),
                         newPredicate,
                         ImmutableMap.of());
-                newOperations.add(newFilter);
+                newOperations.put(newFilter.result(), newFilter);
             }
         }
 
@@ -1316,12 +1319,12 @@ public class CteReuse
         for (Operation operation : mainBlock.operations()) {
             if (operation instanceof Join join) {
                 Join newJoin = removeDynamicFilterAssignments(join, retainedDynamicFilterIds.build(), nameAllocator);
-                newOperations.add(newJoin);
+                newOperations.put(newJoin.result(), newJoin);
             }
         }
 
         // build the new query plan with the modified Filter and Join operations
-        return layoutOperations(mainBlock, newOperations.build(), false);
+        return layoutOperations(mainBlock, newOperations, false);
     }
 
     /**
@@ -1357,7 +1360,7 @@ public class CteReuse
      */
     private static Block rewriteDynamicFilterIds(Block predicate, List<EquivalentDynamicFilters> equivalenceGroups)
     {
-        ImmutableSet.Builder<Operation> newOperations = ImmutableSet.builder();
+        Map<Value, Operation> newOperations = new HashMap<>();
 
         Map<Value, Operation> operations = predicate.operations().stream()
                 .collect(toImmutableMap(Operation::result, identity()));
@@ -1381,12 +1384,12 @@ public class CteReuse
                         // replace the id with the group representative
                         if (!representative.equals(id)) {
                             Operation newIdOperation = new Constant(idOperation.result().name(), VARCHAR, Slices.utf8Slice(representative));
-                            newOperations.add(newIdOperation);
+                            newOperations.put(newIdOperation.result(), newIdOperation);
                         }
                     }
                 });
 
-        return layoutOperations(predicate, newOperations.build(), true);
+        return layoutOperations(predicate, newOperations, true);
     }
 
     private static Join removeDynamicFilterAssignments(Join join, Set<String> retainedDynamicFilterIds, ProgramBuilder.ValueNameAllocator nameAllocator)
@@ -1421,7 +1424,7 @@ public class CteReuse
             Return newReturn = new Return(nameAllocator.newName(), newRow.result(), newRow.attributes());
             newDynamicFilterTargetSelector = layoutOperations(
                     dynamicFilterTargetSelector,
-                    ImmutableSet.of(newRow, newReturn),
+                    ImmutableMap.of(newRow.result(), newRow, newReturn.result(), newReturn),
                     true);
         }
 

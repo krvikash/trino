@@ -14,7 +14,6 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import io.trino.Session;
 import io.trino.metadata.Metadata;
@@ -22,8 +21,10 @@ import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.newir.Operation;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -42,7 +43,7 @@ public sealed interface Checkpoint
             List<Integer> subgroupIndexes,
             Multimap<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            ImmutableSet.Builder<Operation> newOperations,
+            Map<Value, Operation> newOperations,
             Session session,
             Metadata metadata);
 
@@ -68,7 +69,7 @@ public sealed interface Checkpoint
                 List<Integer> subgroupIndexes,
                 Multimap<Operation, Operation> usesMap,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
-                ImmutableSet.Builder<Operation> newOperations,
+                Map<Value, Operation> newOperations,
                 Session session,
                 Metadata metadata)
         {
@@ -119,7 +120,7 @@ public sealed interface Checkpoint
                 List<Integer> subgroupIndexes,
                 Multimap<Operation, Operation> usesMap,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
-                ImmutableSet.Builder<Operation> newOperations,
+                Map<Value, Operation> newOperations,
                 Session session,
                 Metadata metadata)
         {

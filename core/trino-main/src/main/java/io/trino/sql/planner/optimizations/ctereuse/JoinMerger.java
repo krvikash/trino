@@ -16,7 +16,6 @@ package io.trino.sql.planner.optimizations.ctereuse;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.trino.cost.PlanNodeStatsAndCostSummary;
@@ -335,7 +334,7 @@ public class JoinMerger
             Map<Integer, MultiGroupMerger.HangingGroup> hangingGroups,
             Multimap<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            ImmutableSet.Builder<Operation> newOperations)
+            Map<Value, Operation> newOperations)
     {
         CteReuse.UnifiedStates newGroup = new CteReuse.UnifiedStates(unifiedOperation, branches);
         int hangingGroupIndex = getOnlyElement(hangingGroupsToMerge);
@@ -524,7 +523,7 @@ public class JoinMerger
                 unifiedReorderJoinStatsAndCost,
                 leftSource.unifiedOperation().attributes(),
                 rightSource.unifiedOperation().attributes());
-        newOperations.add(unifiedJoin);
+        newOperations.put(unifiedJoin.result(), unifiedJoin);
 
         // pull the TraversalContexts through the unified Join
         ImmutableList.Builder<CteReuse.TraversalState> traversalStates = ImmutableList.builder();

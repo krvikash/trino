@@ -14,12 +14,13 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.newir.Operation;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -50,7 +51,7 @@ public class SingleGroupMerger
             BranchesToCheckpointsMapping branchToCheckpoint,
             Multimap<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            ImmutableSet.Builder<Operation> newOperations)
+            Map<Value, Operation> newOperations)
     {
         SingleGroupProcessor processor = SINGLE_GROUP_PROCESSORS.stream()
                 .filter(singleGroupProcessor -> singleGroupProcessor.processes(branches.getFirst().nextOperation().operation()))
@@ -117,6 +118,6 @@ public class SingleGroupMerger
                 BranchesToCheckpointsMapping branchToCheckpoint,
                 Multimap<Operation, Operation> usesMap,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
-                ImmutableSet.Builder<Operation> newOperations);
+                Map<Value, Operation> newOperations);
     }
 }

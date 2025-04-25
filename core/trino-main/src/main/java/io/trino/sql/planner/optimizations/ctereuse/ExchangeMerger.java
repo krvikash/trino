@@ -15,13 +15,13 @@ package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.TraversalState;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStates;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStatesAndCheckpointMapping;
@@ -150,7 +150,7 @@ public class ExchangeMerger
             BranchesToCheckpointsMapping branchToCheckpoint,
             Multimap<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            ImmutableSet.Builder<Operation> newOperations)
+            Map<Value, Operation> newOperations)
     {
         checkArgument(branches.size() > 1, "must provide at least two branches for merging");
         // TODO reuse the code or make it stateful so that we can record and use the rebased operation from the identifyExchangesToMerge() method
@@ -181,7 +181,7 @@ public class ExchangeMerger
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
                 ImmutableList.of());
-        newOperations.add(mergedExchange);
+        newOperations.put(mergedExchange.result(), mergedExchange);
 
         return new UnifiedStatesAndCheckpointMapping(
                 new UnifiedStates(

@@ -83,7 +83,7 @@ public class MultiGroupMerger
      * - multiGroupMerges -> (b0, b1) can be merged with group C
      * - hangingBranches -> (b2, b3)
      */
-    public MultiGroupMergeDecomposition identifyMultiGroupSubgroupsToMerge(CteReuse.UnifiedStates newGroup, Multimap<Operation, Operation> usesMap, ProgramBuilder.ValueNameAllocator nameAllocator, ImmutableSet.Builder<Operation> newOperations, Session session, Metadata metadata)
+    public MultiGroupMergeDecomposition identifyMultiGroupSubgroupsToMerge(CteReuse.UnifiedStates newGroup, Multimap<Operation, Operation> usesMap, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations, Session session, Metadata metadata)
     {
         // find merging candidates across the new group and the hanging groups
         List<MultiGroupMergeCandidate> candidates = MULTI_GROUP_PROCESSORS.stream()
@@ -149,7 +149,7 @@ public class MultiGroupMerger
             List<Integer> hangingGroupsToMerge,
             Multimap<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            ImmutableSet.Builder<Operation> newOperations)
+            Map<Value, Operation> newOperations)
     {
         MultiGroupProcessor processor = MULTI_GROUP_PROCESSORS.stream()
                 .filter(multiGroupProcessor -> multiGroupProcessor.processes(branches.getFirst().nextOperation().operation()))
@@ -184,7 +184,7 @@ public class MultiGroupMerger
                 new HangingGroup(unifiedOperation, branches, checkpoints, branchToCheckpoint, setCheckpoint));
     }
 
-    public void flush(ProgramBuilder.ValueNameAllocator nameAllocator, ImmutableSet.Builder<Operation> newOperations)
+    public void flush(ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations)
     {
         for (int groupId : ImmutableSet.copyOf(hangingGroups.keySet())) {
             HangingGroup hangingGroup = hangingGroups.remove(groupId);
@@ -217,7 +217,7 @@ public class MultiGroupMerger
             Collection<List<Integer>> decomposition,
             Multimap<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            ImmutableSet.Builder<Operation> newOperations,
+            Map<Value, Operation> newOperations,
             Session session,
             Metadata metadata)
     {
@@ -416,6 +416,6 @@ public class MultiGroupMerger
                 Map<Integer, HangingGroup> hangingGroups,
                 Multimap<Operation, Operation> usesMap,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
-                ImmutableSet.Builder<Operation> newOperations);
+                Map<Value, Operation> newOperations);
     }
 }
