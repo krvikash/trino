@@ -4365,7 +4365,6 @@ public class LocalExecutionPlanner
                     unspillMemoryLimit,
                     spillerFactory,
                     hashStrategyCompiler,
-                    hashCompiler,
                     createPartialAggregationController(maxPartialAggregationMemorySize, step, session));
         }
     }

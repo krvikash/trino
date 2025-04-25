@@ -21,7 +21,6 @@ import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.AggregationMetrics;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.MergeHashSort;
-import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.Work;
 import io.trino.operator.WorkProcessor;
@@ -68,7 +67,6 @@ public class SpillableHashAggregationBuilder
     private Optional<MergeHashSort> mergeHashSort = Optional.empty();
     private ListenableFuture<Void> spillInProgress = immediateVoidFuture();
     private final FlatHashStrategyCompiler hashStrategyCompiler;
-    private final NullSafeHashCompiler hashCompiler;
     private final AggregationMetrics aggregationMetrics;
 
     // todo get rid of that and only use revocable memory
@@ -89,7 +87,6 @@ public class SpillableHashAggregationBuilder
             DataSize memoryLimitForMergeWithMemory,
             SpillerFactory spillerFactory,
             FlatHashStrategyCompiler hashStrategyCompiler,
-            NullSafeHashCompiler hashCompiler,
             AggregationMetrics aggregationMetrics)
     {
         this.aggregatorFactories = aggregatorFactories;
@@ -105,7 +102,6 @@ public class SpillableHashAggregationBuilder
         this.memoryLimitForMergeWithMemory = memoryLimitForMergeWithMemory.toBytes();
         this.spillerFactory = spillerFactory;
         this.hashStrategyCompiler = hashStrategyCompiler;
-        this.hashCompiler = hashCompiler;
         this.aggregationMetrics = requireNonNull(aggregationMetrics, "aggregationMetrics is null");
 
         rebuildHashAggregationBuilder();
@@ -259,13 +255,13 @@ public class SpillableHashAggregationBuilder
 
         if (spiller.isEmpty()) {
             spiller = Optional.of(spillerFactory.create(
-                    hashAggregationBuilder.buildTypes(),
+                    hashAggregationBuilder.buildSpillTypes(),
                     operatorContext.getSpillContext(),
                     operatorContext.newAggregateUserMemoryContext()));
         }
 
         // start spilling process with current content of the hashAggregationBuilder builder...
-        spillInProgress = spiller.get().spill(hashAggregationBuilder.buildHashSortedResult().iterator());
+        spillInProgress = spiller.get().spill(hashAggregationBuilder.buildSpillResult().iterator());
         // ... and immediately create new hashAggregationBuilder so effectively memory ownership
         // over hashAggregationBuilder is transferred from this thread to a spilling thread
         rebuildHashAggregationBuilder();
@@ -283,18 +279,19 @@ public class SpillableHashAggregationBuilder
         checkState(spiller.isPresent());
 
         hashAggregationBuilder.setSpillOutput();
-        mergeHashSort = Optional.of(new MergeHashSort(operatorContext.newAggregateUserMemoryContext(), hashCompiler));
+        mergeHashSort = Optional.of(new MergeHashSort(operatorContext.newAggregateUserMemoryContext()));
 
+        List<Type> spillTypes = hashAggregationBuilder.buildSpillTypes();
         WorkProcessor<Page> mergedSpilledPages = mergeHashSort.get().merge(
-                groupByTypes,
-                hashAggregationBuilder.buildSpillTypes(),
+                spillTypes,
                 ImmutableList.<WorkProcessor<Page>>builder()
                         .addAll(spiller.get().getSpills().stream()
                                 .map(WorkProcessor::fromIterator)
                                 .collect(toImmutableList()))
-                        .add(hashAggregationBuilder.buildHashSortedResult())
+                        .add(hashAggregationBuilder.buildSpillResult())
                         .build(),
-                operatorContext.getDriverContext().getYieldSignal());
+                operatorContext.getDriverContext().getYieldSignal(),
+                spillTypes.size() - 1);
 
         spiller = Optional.empty();
         return mergeSortedPages(mergedSpilledPages, max(memoryLimitForMerge - memoryLimitForMergeWithMemory, 1L));

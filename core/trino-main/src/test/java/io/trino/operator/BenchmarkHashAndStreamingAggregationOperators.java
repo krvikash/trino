@@ -263,7 +263,6 @@ public class BenchmarkHashAndStreamingAggregationOperators
                     succinctBytes(Integer.MAX_VALUE),
                     spillerFactory,
                     new FlatHashStrategyCompiler(TYPE_OPERATORS, hashCompiler),
-                    hashCompiler,
                     Optional.empty());
         }
 
