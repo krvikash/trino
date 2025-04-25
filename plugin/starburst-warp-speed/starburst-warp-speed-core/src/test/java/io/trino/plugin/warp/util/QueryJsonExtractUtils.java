@@ -33,7 +33,6 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -163,9 +162,7 @@ public class QueryJsonExtractUtils
             if (connectorMetrics.get("dispatcherPageSource:execution_time") != null) {
                 JsonNode executionTimeMetricsNode = connectorMetrics.get("dispatcherPageSource:execution_time");
                 moreInfo += ", exec_time=" + executionTimeMetricsNode.get("total").asLong();
-                Iterator<Map.Entry<String, JsonNode>> connectorMetricsIter = connectorMetrics.fields();
-                while (connectorMetricsIter.hasNext()) {
-                    Map.Entry<String, JsonNode> metrics = connectorMetricsIter.next();
+                for (Map.Entry<String, JsonNode> metrics : connectorMetrics.properties()) {
                     if (metrics.getKey().contains("TABLE_NAME")) {
                         moreInfo += ", tn=" + metrics.getKey();
                     }
@@ -194,9 +191,8 @@ public class QueryJsonExtractUtils
     private static ObjectNode convertNode(ObjectNode node)
     {
         Map<String, JsonNode> nodeValues = new TreeMap<>();
-        Iterator<Map.Entry<String, JsonNode>> elements = node.fields();
-        while (elements.hasNext()) {
-            Map.Entry<String, JsonNode> entry = elements.next();
+
+        for (Map.Entry<String, JsonNode> entry : node.properties()) {
             String key = switch (entry.getKey()) {
                 case "stageId" -> "1.stageId";
                 case "pipelineId" -> "2.pipelineId";

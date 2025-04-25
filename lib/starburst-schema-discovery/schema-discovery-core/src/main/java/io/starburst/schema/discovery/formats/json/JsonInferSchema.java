@@ -122,11 +122,9 @@ class JsonInferSchema
         }
         ImmutableList.Builder<String> namesBuilder = ImmutableList.<String>builder();
         ImmutableList.Builder<TypeInfo> fieldsBuilder = ImmutableList.<TypeInfo>builder();
-        Iterator<Entry<String, JsonNode>> iterator = node.fields();
-        while (iterator.hasNext()) {
-            Entry<String, JsonNode> next = iterator.next();
-            TypeInfo type = inferField(NullType.NULL_TYPE, next.getValue());
-            namesBuilder.add(next.getKey());
+        for (Entry<String, JsonNode> entry : node.properties()) {
+            TypeInfo type = inferField(NullType.NULL_TYPE, entry.getValue());
+            namesBuilder.add(entry.getKey());
             fieldsBuilder.add(type);
         }
         return HiveTypes.structType(namesBuilder.build(), fieldsBuilder.build());

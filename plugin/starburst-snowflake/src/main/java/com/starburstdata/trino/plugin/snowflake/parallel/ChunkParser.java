@@ -18,7 +18,6 @@ import net.snowflake.client.core.SFSession;
 import net.snowflake.client.core.SessionUtil;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -55,10 +54,9 @@ final class ChunkParser
         // parse chunk headers
         Map<String, String> chunkHeadersMap = new HashMap<>();
         JsonNode chunkHeaders = data.path("chunkHeaders");
+
         if (chunkHeaders != null && !chunkHeaders.isMissingNode()) {
-            Iterator<Entry<String, JsonNode>> chunkHeadersIter = chunkHeaders.fields();
-            while (chunkHeadersIter.hasNext()) {
-                Entry<String, JsonNode> chunkHeader = chunkHeadersIter.next();
+            for (Entry<String, JsonNode> chunkHeader : chunkHeaders.properties()) {
                 chunkHeadersMap.put(chunkHeader.getKey(), chunkHeader.getValue().asText());
             }
         }
