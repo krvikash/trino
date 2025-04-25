@@ -13,7 +13,6 @@
  */
 package io.trino.metadata;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import io.trino.spi.block.ArrayBlockEncoding;
@@ -110,9 +109,7 @@ public final class BlockEncodingManager
         checkArgument(existingEntryByName == null, "Encoding already registered: %s", blockEncoding.getName());
     }
 
-    // internal for now
-    @VisibleForTesting
-    void addTypeSpecificBlockEncodingOverride(BlockEncoding blockEncoding, Predicate<Type> typePredicate)
+    public void addTypeSpecificBlockEncodingOverride(BlockEncoding blockEncoding, Predicate<Type> typePredicate)
     {
         requireNonNull(blockEncoding, "blockEncoding is null");
         requireNonNull(typePredicate, "type is null");

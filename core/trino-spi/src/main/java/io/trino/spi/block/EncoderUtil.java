@@ -21,7 +21,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Optional;
 
-final class EncoderUtil
+// todo avoid maiking this public
+public final class EncoderUtil
 {
     private EncoderUtil() {}
 

@@ -259,6 +259,11 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>starburst-vbyte</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-array</artifactId>
         </dependency>
 
