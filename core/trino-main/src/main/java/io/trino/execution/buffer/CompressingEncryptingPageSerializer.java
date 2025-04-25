@@ -24,6 +24,7 @@ import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockEncodingSerde;
 import io.trino.spi.metrics.Metrics;
+import io.trino.spi.type.Type;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -33,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -86,10 +88,10 @@ public class CompressingEncryptingPageSerializer
     }
 
     @Override
-    public Slice serialize(Page page)
+    public Slice serialize(Page page, List<? extends Type> types)
     {
         output.startPage(page.getPositionCount(), toIntExact(page.getSizeInBytes()));
-        writeRawPage(page, output, blockEncodingSerde);
+        writeRawPage(page, types, output, blockEncodingSerde);
         SerializedPage serializedPage = output.closePage();
         inputBytes += serializedPage.uncompressedSize();
         outputBytes += serializedPage.compressedSize();

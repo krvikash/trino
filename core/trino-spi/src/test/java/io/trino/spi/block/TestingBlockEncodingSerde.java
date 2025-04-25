@@ -81,7 +81,7 @@ public final class TestingBlockEncodingSerde
     }
 
     @Override
-    public void writeBlock(SliceOutput output, Block block)
+    public void writeBlock(SliceOutput output, Block block, Optional<Type> dataType)
     {
         while (true) {
             // look up the encoding factory

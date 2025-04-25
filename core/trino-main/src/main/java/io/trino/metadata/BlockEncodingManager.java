@@ -13,6 +13,9 @@
  */
 package io.trino.metadata;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
 import io.trino.spi.block.ArrayBlockEncoding;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
@@ -27,9 +30,13 @@ import io.trino.spi.block.RowBlockEncoding;
 import io.trino.spi.block.RunLengthBlockEncoding;
 import io.trino.spi.block.ShortArrayBlockEncoding;
 import io.trino.spi.block.VariableWidthBlockEncoding;
+import io.trino.spi.type.Type;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -38,8 +45,12 @@ public final class BlockEncodingManager
 {
     // for deserialization
     private final Map<String, BlockEncoding> blockEncodingsByName = new ConcurrentHashMap<>();
+
     // for serialization
+    // default block encoding per block
     private final Map<Class<? extends Block>, BlockEncoding> blockEncodingNamesByClass = new ConcurrentHashMap<>();
+    // overrides per type
+    private final ListMultimap<Class<? extends Block>, Function<Type, Optional<BlockEncoding>>> blockEncodingsPerTypeOverrides = ArrayListMultimap.create();
 
     public BlockEncodingManager()
     {
@@ -56,6 +67,8 @@ public final class BlockEncodingManager
         addBlockEncoding(new MapBlockEncoding());
         addBlockEncoding(new RowBlockEncoding());
         addBlockEncoding(new RunLengthBlockEncoding());
+
+        // todo add per type overrides
     }
 
     public BlockEncoding getBlockEncodingByName(String encodingName)
@@ -67,6 +80,22 @@ public final class BlockEncodingManager
 
     public BlockEncoding getBlockEncodingByBlockClass(Class<? extends Block> clazz)
     {
+        return getBlockEncodingByBlockClassAndType(clazz, Optional.empty());
+    }
+
+    public BlockEncoding getBlockEncodingByBlockClassAndType(Class<? extends Block> clazz, Optional<Type> type)
+    {
+        if (type.isPresent()) {
+            for (Function<Type, Optional<BlockEncoding>> entry : blockEncodingsPerTypeOverrides.get(clazz)) {
+                Optional<BlockEncoding> blockEncoding = entry.apply(type.orElseThrow());
+                if (blockEncoding.isPresent()) {
+                    // type specific block encoding found.
+                    return blockEncoding.get();
+                }
+            }
+        }
+
+        // default block encoding
         BlockEncoding blockEncoding = blockEncodingNamesByClass.get(clazz);
         checkArgument(blockEncoding != null, "Unknown block encoding for block: %s", clazz.getName());
         return blockEncoding;
@@ -79,5 +108,26 @@ public final class BlockEncodingManager
         checkArgument(existingEntryByClass == null, "Encoding already registered: %s", blockEncoding.getName());
         BlockEncoding existingEntryByName = blockEncodingsByName.putIfAbsent(blockEncoding.getName(), blockEncoding);
         checkArgument(existingEntryByName == null, "Encoding already registered: %s", blockEncoding.getName());
+    }
+
+    // internal for now
+    @VisibleForTesting
+    void addTypeSpecificBlockEncodingOverride(BlockEncoding blockEncoding, Predicate<Type> typePredicate)
+    {
+        requireNonNull(blockEncoding, "blockEncoding is null");
+        requireNonNull(typePredicate, "type is null");
+
+        // ensure we have entry in blockEncodingsByName
+        if (!blockEncodingsByName.containsKey(blockEncoding.getName())) {
+            blockEncodingsByName.put(blockEncoding.getName(), blockEncoding);
+        }
+
+        blockEncodingsPerTypeOverrides.put(blockEncoding.getBlockClass(),
+                type -> {
+                    if (typePredicate.test(type)) {
+                        return Optional.of(blockEncoding);
+                    }
+                    return Optional.empty();
+                });
     }
 }

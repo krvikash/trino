@@ -32,6 +32,7 @@ import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.SpillContext;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
+import io.trino.spi.type.Type;
 
 import javax.crypto.SecretKey;
 
@@ -63,6 +64,7 @@ public class FileSingleStreamSpiller
     private final FileHolder targetFile;
     private final Closer closer = Closer.create();
     private final PagesSerdeFactory serdeFactory;
+    private final ImmutableList<Type> types;
     private volatile Optional<SecretKey> encryptionKey;
     private final boolean encrypted;
     private final SpillerStats spillerStats;
@@ -78,6 +80,7 @@ public class FileSingleStreamSpiller
     private final Runnable fileSystemErrorHandler;
 
     public FileSingleStreamSpiller(
+            List<Type> types,
             PagesSerdeFactory serdeFactory,
             Optional<SecretKey> encryptionKey,
             ListeningExecutorService executor,
@@ -87,6 +90,7 @@ public class FileSingleStreamSpiller
             LocalMemoryContext memoryContext,
             Runnable fileSystemErrorHandler)
     {
+        this.types = ImmutableList.copyOf(types);
         this.serdeFactory = requireNonNull(serdeFactory, "serdeFactory is null");
         this.encryptionKey = requireNonNull(encryptionKey, "encryptionKey is null");
         this.encrypted = encryptionKey.isPresent();
@@ -120,7 +124,7 @@ public class FileSingleStreamSpiller
     {
         requireNonNull(pageIterator, "pageIterator is null");
         checkNoSpillInProgress();
-        spillInProgress = Futures.submit(() -> writePages(pageIterator), executor);
+        spillInProgress = Futures.submit(() -> writePages(pageIterator, types), executor);
         return spillInProgress;
     }
 
@@ -143,7 +147,7 @@ public class FileSingleStreamSpiller
         return executor.submit(() -> ImmutableList.copyOf(getSpilledPages()));
     }
 
-    private void writePages(Iterator<Page> pageIterator)
+    private void writePages(Iterator<Page> pageIterator, List<Type> types)
     {
         checkState(writable, "Spilling no longer allowed. The spiller has been made non-writable on first read for subsequent reads to be consistent");
 
@@ -154,7 +158,7 @@ public class FileSingleStreamSpiller
             while (pageIterator.hasNext()) {
                 Page page = pageIterator.next();
                 spilledPagesInMemorySize += page.getSizeInBytes();
-                Slice serializedPage = serializer.serialize(page);
+                Slice serializedPage = serializer.serialize(page, types);
                 long pageSize = serializedPage.length();
                 localSpillContext.updateBytes(pageSize);
                 spillerStats.addToTotalSpilledBytes(pageSize);

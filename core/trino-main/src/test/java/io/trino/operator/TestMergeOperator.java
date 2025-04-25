@@ -40,7 +40,6 @@ import io.trino.split.RemoteSplit;
 import io.trino.sql.gen.OrderingCompiler;
 import io.trino.sql.planner.plan.PlanNodeId;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -86,14 +85,13 @@ public class TestMergeOperator
 
     private LoadingCache<TaskId, TestingTaskBuffer> taskBuffers;
 
-    @BeforeEach
-    public void setUp()
+    public void setUp(List<Type> types)
     {
         executor = newSingleThreadScheduledExecutor(daemonThreadsNamed("test-merge-operator-%s"));
         serdeFactory = createTestingPagesSerdeFactory(LZ4);
 
         taskBuffers = buildNonEvictableCache(CacheBuilder.newBuilder(), CacheLoader.from(TestingTaskBuffer::new));
-        httpClient = new TestingHttpClient(new TestingExchangeHttpClientHandler(taskBuffers, serdeFactory), executor);
+        httpClient = new TestingHttpClient(new TestingExchangeHttpClientHandler(taskBuffers, serdeFactory, types), executor);
         exchangeClientFactory = new DirectExchangeClientFactory(
                 new NodeInfo("test"),
                 new FeaturesConfig(),
@@ -126,6 +124,7 @@ public class TestMergeOperator
             throws Exception
     {
         List<Type> types = ImmutableList.of(BIGINT, BIGINT);
+        setUp(types);
 
         MergeOperator operator = createMergeOperator(types, ImmutableList.of(1), ImmutableList.of(0, 1), ImmutableList.of(ASC_NULLS_FIRST, ASC_NULLS_FIRST));
         assertThat(operator.isFinished()).isFalse();
@@ -172,6 +171,8 @@ public class TestMergeOperator
             throws Exception
     {
         ImmutableList<Type> types = ImmutableList.of(BIGINT, INTEGER);
+        setUp(types);
+
         MergeOperator operator = createMergeOperator(types, ImmutableList.of(1, 0), ImmutableList.of(1, 0), ImmutableList.of(DESC_NULLS_FIRST, ASC_NULLS_FIRST));
         operator.addSplit(createRemoteSplit(TASK_1_ID));
         operator.addSplit(createRemoteSplit(TASK_2_ID));
@@ -221,6 +222,7 @@ public class TestMergeOperator
             throws Exception
     {
         List<Type> types = ImmutableList.of(BIGINT, BIGINT, BIGINT);
+        setUp(types);
 
         MergeOperator operator = createMergeOperator(types, ImmutableList.of(0, 1, 2), ImmutableList.of(0), ImmutableList.of(ASC_NULLS_FIRST));
         operator.addSplit(createRemoteSplit(TASK_1_ID));

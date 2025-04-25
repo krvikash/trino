@@ -27,7 +27,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 
 public class TestingTaskBuffer
 {
-    private static final List<Type> TYPES = ImmutableList.of(VARCHAR);
+    public static final List<Type> TYPES = ImmutableList.of(VARCHAR);
     public static final Page PAGE = createSequencePage(TYPES, 10, 100);
 
     private final List<Page> buffer = new ArrayList<>();

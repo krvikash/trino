@@ -81,6 +81,7 @@ import static io.trino.execution.buffer.TestingPagesSerdes.createTestingPagesSer
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.exchange.ExchangeId.createRandomExchangeId;
+import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
@@ -1114,7 +1115,7 @@ public class TestDirectExchangeClient
 
     private Slice createSerializedPage(int size)
     {
-        return serdeFactory.createSerializer(Optional.empty()).serialize(createPage(size));
+        return serdeFactory.createSerializer(Optional.empty()).serialize(createPage(size), ImmutableList.of(BIGINT));
     }
 
     private static Slice getNextPage(DirectExchangeClient exchangeClient)

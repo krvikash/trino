@@ -67,7 +67,7 @@ public class BenchmarkPagesSerde
         Page[] pages = data.dataPages;
         PageSerializer serializer = data.serializer;
         for (int i = 0; i < pages.length; i++) {
-            blackhole.consume(serializer.serialize(pages[i]));
+            blackhole.consume(serializer.serialize(pages[i], BenchmarkData.TYPES));
         }
     }
 
@@ -132,7 +132,7 @@ public class BenchmarkPagesSerde
         {
             Slice[] result = new Slice[dataPages.length];
             for (int i = 0; i < result.length; i++) {
-                result[i] = serializer.serialize(dataPages[i]);
+                result[i] = serializer.serialize(dataPages[i], TYPES);
             }
             return result;
         }

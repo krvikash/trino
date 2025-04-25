@@ -169,6 +169,7 @@ public class FileSingleStreamSpillerFactory
     {
         Optional<SecretKey> encryptionKey = spillEncryptionEnabled ? Optional.of(createRandomAesEncryptionKey()) : Optional.empty();
         return new FileSingleStreamSpiller(
+                types,
                 serdeFactory,
                 encryptionKey,
                 executor,

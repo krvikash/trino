@@ -28,8 +28,10 @@ import io.trino.spi.QueryId;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.exchange.ExchangeSink;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
+import io.trino.spi.type.Type;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -304,14 +306,15 @@ public class TestSpoolingExchangeOutputBuffer
 
     private static Slice createPage(String value)
     {
-        PageBuilder pageBuilder = new PageBuilder(ImmutableList.of(VARCHAR));
+        List<Type> types = ImmutableList.of(VARCHAR);
+        PageBuilder pageBuilder = new PageBuilder(types);
         pageBuilder.declarePosition();
         Slice valueSlice = utf8Slice(value);
         VariableWidthBlockBuilder blockBuilder = (VariableWidthBlockBuilder) pageBuilder.getBlockBuilder(0);
         blockBuilder.writeEntry(valueSlice);
         Page page = pageBuilder.build();
         PageSerializer serializer = createTestingPagesSerdeFactory().createSerializer(Optional.empty());
-        return serializer.serialize(page);
+        return serializer.serialize(page, types);
     }
 
     private static class TestingExchangeSink

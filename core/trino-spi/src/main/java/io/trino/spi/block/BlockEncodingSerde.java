@@ -17,6 +17,8 @@ import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.trino.spi.type.Type;
 
+import java.util.Optional;
+
 public interface BlockEncodingSerde
 {
     /**
@@ -25,9 +27,17 @@ public interface BlockEncodingSerde
     Block readBlock(SliceInput input);
 
     /**
-     * Write a blockEncoding to the output.
+     * Writes encoded block to the output using default (non-type specific) encoding.
      */
-    void writeBlock(SliceOutput output, Block block);
+    default void writeBlock(SliceOutput output, Block block)
+    {
+        writeBlock(output, block, Optional.empty());
+    }
+
+    /**
+     * Writes encoded block to the output. If dataType is present type specific encoding may be used.
+     */
+    void writeBlock(SliceOutput output, Block block, Optional<Type> dataType);
 
     /**
      * Estimate the size of the block when serialized to the on-the-wire representation.

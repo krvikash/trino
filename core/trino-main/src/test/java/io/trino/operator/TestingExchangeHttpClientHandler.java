@@ -27,7 +27,9 @@ import io.airlift.slice.Slice;
 import io.trino.execution.TaskId;
 import io.trino.execution.buffer.PagesSerdeFactory;
 import io.trino.spi.Page;
+import io.trino.spi.type.Type;
 
+import java.util.List;
 import java.util.Optional;
 
 import static io.trino.TrinoMediaTypes.TRINO_PAGES;
@@ -47,11 +49,13 @@ public class TestingExchangeHttpClientHandler
 {
     private final LoadingCache<TaskId, TestingTaskBuffer> taskBuffers;
     private final PagesSerdeFactory serdeFactory;
+    private final List<Type> types;
 
-    public TestingExchangeHttpClientHandler(LoadingCache<TaskId, TestingTaskBuffer> taskBuffers, PagesSerdeFactory serdeFactory)
+    public TestingExchangeHttpClientHandler(LoadingCache<TaskId, TestingTaskBuffer> taskBuffers, PagesSerdeFactory serdeFactory, List<Type> types)
     {
         this.taskBuffers = requireNonNull(taskBuffers, "taskBuffers is null");
         this.serdeFactory = requireNonNull(serdeFactory, "serdeFactory is null");
+        this.types = ImmutableList.copyOf(types);
     }
 
     @Override
@@ -78,7 +82,7 @@ public class TestingExchangeHttpClientHandler
         if (page != null) {
             headers.put(TRINO_PAGE_NEXT_TOKEN, String.valueOf(pageToken + 1));
             headers.put(TRINO_BUFFER_COMPLETE, String.valueOf(false));
-            Slice serializedPage = serdeFactory.createSerializer(Optional.empty()).serialize(page);
+            Slice serializedPage = serdeFactory.createSerializer(Optional.empty()).serialize(page, types);
             DynamicSliceOutput output = new DynamicSliceOutput(256);
             output.writeInt(SERIALIZED_PAGES_MAGIC);
             output.writeLong(calculateChecksum(ImmutableList.of(serializedPage)));

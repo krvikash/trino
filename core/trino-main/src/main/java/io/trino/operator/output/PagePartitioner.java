@@ -63,6 +63,7 @@ public class PagePartitioner
     private final LocalMemoryContext memoryContext;
     @Nullable
     private final Block[] partitionConstantBlocks; // when null, no constants are present. Only non-null elements are constants
+    private final List<Type> sourceTypes;
     private final PageSerializer serializer;
     private final PositionsAppenderPageBuilder[] positionsAppenders;
     private final boolean replicatesAnyRow;
@@ -104,6 +105,7 @@ public class PagePartitioner
         this.replicatesAnyRow = replicatesAnyRow;
         this.nullChannel = nullChannel.orElse(-1);
         this.outputBuffer = requireNonNull(outputBuffer, "outputBuffer is null");
+        this.sourceTypes = ImmutableList.copyOf(sourceTypes);
         this.serializer = serdeFactory.createSerializer(exchangeEncryptionKey.map(Ciphers::deserializeAesEncryptionKey));
         this.partitionProcessRleAndDictionaryBlocks = partitionProcessRleAndDictionaryBlocks;
 
@@ -515,7 +517,7 @@ public class PagePartitioner
         List<Page> split = splitPage(page, DEFAULT_MAX_PAGE_SIZE_IN_BYTES);
         ImmutableList.Builder<Slice> builder = ImmutableList.builderWithExpectedSize(split.size());
         for (Page chunk : split) {
-            builder.add(serializer.serialize(chunk));
+            builder.add(serializer.serialize(chunk, sourceTypes));
         }
         return builder.build();
     }
