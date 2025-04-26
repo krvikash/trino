@@ -687,7 +687,7 @@ class StatementClientV1
     private enum State
     {
         /**
-         * submitted to server, not in terminal state (including planning, queued, running, etc)
+         * submitted to server, not in terminal state (including planning, queued, running, etc.)
          */
         RUNNING,
         CLIENT_ERROR,
