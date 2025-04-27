@@ -28,6 +28,7 @@ import io.trino.plugin.base.type.DecodedTimestamp;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.Fixed12Block;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.SqlTimestamp;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Timestamps;
@@ -60,6 +61,7 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_PICOS;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
+import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static java.lang.Math.floorDiv;
 import static java.lang.Math.floorMod;
 import static java.time.ZoneOffset.UTC;
@@ -118,9 +120,10 @@ public class TestInt96Timestamp
         SourcePage page = reader.nextPage();
         ImmutableList.Builder<LocalDateTime> builder = ImmutableList.builder();
         while (page != null) {
-            Fixed12Block block = (Fixed12Block) page.getBlock(0);
+            Block block = page.getBlock(0);
+            Type type = types.getFirst();
             for (int i = 0; i < block.getPositionCount(); i++) {
-                builder.add(toLocalDateTime(block, i));
+                builder.add(toLocalDateTime(type, block, i));
             }
             page = reader.nextPage();
         }
@@ -204,10 +207,11 @@ public class TestInt96Timestamp
                 floorMod(fixed12Block.getFixed12First(position), MICROSECONDS_PER_SECOND) * NANOSECONDS_PER_MICROSECOND + fixed12Block.getFixed12Second(position) / PICOSECONDS_PER_NANOSECOND);
     }
 
-    private static LocalDateTime toLocalDateTime(Fixed12Block block, int position)
+    private static LocalDateTime toLocalDateTime(Type type, Block block, int position)
     {
-        long epochMicros = block.getFixed12First(position);
-        int picosOfMicro = block.getFixed12Second(position);
+        LongTimestamp timestamp = (LongTimestamp) readNativeValue(type, block, position);
+        long epochMicros = timestamp.getEpochMicros();
+        int picosOfMicro = timestamp.getPicosOfMicro();
 
         return SqlTimestamp.newInstance(9, epochMicros, picosOfMicro)
                 .toLocalDateTime();
