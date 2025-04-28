@@ -74,7 +74,6 @@ public class LongArrayVByteBlockEncoding
             }
 
             sliceOutput.writeInt(nonNullPositionCount);
-
             vByteEncodeLongs(vByteEncoder, sliceOutput, valuesWithoutNull, 0, nonNullPositionCount);
         }
     }

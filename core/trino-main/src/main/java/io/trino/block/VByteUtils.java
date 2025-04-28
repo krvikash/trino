@@ -37,4 +37,20 @@ public final class VByteUtils
         sliceInput.read(vbyteEncodedValues);
         vByteDecoder.decodeLongs(vbyteEncodedValues, 0, vbyteEncodedValues.length, valuesCount, values, 0);
     }
+
+    public static void vByteEncodeInts(VByteEncoder vByteEncoder, SliceOutput sliceOutput, int[] values, int valuesOffset, int valuesCount)
+    {
+        byte[] vbyteEncodedValues = new byte[vByteEncoder.maxLongsEncodedLength(valuesCount)];
+        int vbyteEncodedValuesSize = vByteEncoder.encodeInts(values, valuesOffset, valuesCount, vbyteEncodedValues, 0, vbyteEncodedValues.length);
+        sliceOutput.writeInt(vbyteEncodedValuesSize);
+        sliceOutput.write(vbyteEncodedValues, 0, vbyteEncodedValuesSize);
+    }
+
+    public static void vByteDecodeInts(VByteDecoder vByteDecoder, SliceInput sliceInput, int valuesCount, int[] values)
+    {
+        int vByteEncodedValuesSize = sliceInput.readInt();
+        byte[] vByteEncodedValues = new byte[vByteEncodedValuesSize];
+        sliceInput.read(vByteEncodedValues);
+        vByteDecoder.decodeInts(vByteEncodedValues, 0, vByteEncodedValues.length, valuesCount, values, 0);
+    }
 }
