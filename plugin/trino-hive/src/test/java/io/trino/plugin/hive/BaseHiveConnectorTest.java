@@ -4164,7 +4164,7 @@ public abstract class BaseHiveConnectorTest
             // We need to use large table (sf2) to see the effect. Otherwise, a single writer will write the entire
             // data before ScaledWriterScheduler is able to scale it to multiple machines.
             @Language("SQL") String createTableSql = "CREATE TABLE scale_writers_large WITH (format = 'PARQUET') AS " +
-                    "SELECT * FROM tpch.sf2.orders";
+                    "SELECT * FROM tpch.sf4.orders";
             assertUpdate(
                     Session.builder(getSession())
                             .setSystemProperty("task_min_writer_count", "1")
@@ -4173,7 +4173,7 @@ public abstract class BaseHiveConnectorTest
                             .setSystemProperty("writer_scaling_min_data_processed", "1MB")
                             .build(),
                     createTableSql,
-                    (long) computeActual("SELECT count(*) FROM tpch.sf2.orders").getOnlyValue());
+                    (long) computeActual("SELECT count(*) FROM tpch.sf4.orders").getOnlyValue());
 
             long files = (long) computeScalar("SELECT count(DISTINCT \"$path\") FROM scale_writers_large");
             long workers = (long) computeScalar("SELECT count(*) FROM system.runtime.nodes");
@@ -4193,7 +4193,7 @@ public abstract class BaseHiveConnectorTest
             // Skewed table that will scale writers to multiple machines.
             String selectSql =
                     """
-                    SELECT t1.* FROM (SELECT *, case when orderkey >= 0 then 1 else orderkey end as join_key FROM tpch.sf1.orders) t1
+                    SELECT t1.* FROM (SELECT *, case when orderkey >= 0 then 1 else orderkey end as join_key FROM tpch.sf2.orders) t1
                     INNER JOIN (SELECT orderkey FROM tpch.tiny.orders) t2
                     ON t1.join_key = t2.orderkey
                     """;
@@ -4280,10 +4280,10 @@ public abstract class BaseHiveConnectorTest
                 .build();
         String tableName = "writing_tasks_limit_%s".formatted(randomNameSuffix());
         @Language("SQL") String createTableSql = format(
-                "CREATE TABLE %s WITH (format = 'ORC' %s) AS SELECT *, mod(orderkey, 2) as part_key FROM tpch.sf2.orders LIMIT",
+                "CREATE TABLE %s WITH (format = 'ORC' %s) AS SELECT *, mod(orderkey, 2) as part_key FROM tpch.sf4.orders LIMIT",
                 tableName, partitioned ? ", partitioned_by = ARRAY['part_key']" : "");
         try {
-            assertUpdate(session, createTableSql, (long) computeActual("SELECT count(*) FROM tpch.sf2.orders").getOnlyValue());
+            assertUpdate(session, createTableSql, (long) computeActual("SELECT count(*) FROM tpch.sf4.orders").getOnlyValue());
             long files = (long) computeScalar("SELECT count(DISTINCT \"$path\") FROM %s".formatted(tableName));
             assertThat(files).isEqualTo(expectedFilesCount);
         }

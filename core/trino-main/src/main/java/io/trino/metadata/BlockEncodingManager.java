@@ -15,6 +15,14 @@ package io.trino.metadata;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.inject.Inject;
+import io.airlift.log.Logger;
+import io.starburst.vbyte.VByteNative;
+import io.trino.FeaturesConfig;
+import io.trino.block.DictionaryVByteBlockEncoding;
+import io.trino.block.IntArrayVByteBlockEncoding;
+import io.trino.block.LongArrayVByteBlockEncoding;
+import io.trino.block.VariableWidthVByteBlockEncoding;
 import io.trino.spi.block.ArrayBlockEncoding;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
@@ -29,6 +37,7 @@ import io.trino.spi.block.RowBlockEncoding;
 import io.trino.spi.block.RunLengthBlockEncoding;
 import io.trino.spi.block.ShortArrayBlockEncoding;
 import io.trino.spi.block.VariableWidthBlockEncoding;
+import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
 
 import java.util.Map;
@@ -38,10 +47,15 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.IntegerType.INTEGER;
 import static java.util.Objects.requireNonNull;
 
 public final class BlockEncodingManager
 {
+    private static final Logger log = Logger.get(VByteNative.class);
+
     // for deserialization
     private final Map<String, BlockEncoding> blockEncodingsByName = new ConcurrentHashMap<>();
 
@@ -51,23 +65,40 @@ public final class BlockEncodingManager
     // overrides per type
     private final ListMultimap<Class<? extends Block>, Function<Type, Optional<BlockEncoding>>> blockEncodingsPerTypeOverrides = ArrayListMultimap.create();
 
-    public BlockEncodingManager()
+    @Inject
+    public BlockEncodingManager(FeaturesConfig config)
     {
         // add the built-in BlockEncodings
-        addBlockEncoding(new VariableWidthBlockEncoding());
         addBlockEncoding(new ByteArrayBlockEncoding());
         addBlockEncoding(new ShortArrayBlockEncoding());
         addBlockEncoding(new IntArrayBlockEncoding());
         addBlockEncoding(new LongArrayBlockEncoding());
         addBlockEncoding(new Fixed12BlockEncoding());
         addBlockEncoding(new Int128ArrayBlockEncoding());
-        addBlockEncoding(new DictionaryBlockEncoding());
         addBlockEncoding(new ArrayBlockEncoding());
         addBlockEncoding(new MapBlockEncoding());
         addBlockEncoding(new RowBlockEncoding());
         addBlockEncoding(new RunLengthBlockEncoding());
 
-        // todo add per type overrides
+        if (config.isExchangeVbyteBlockEncodingEnabled() && VByteNative.getLinkageError().isPresent()) {
+            log.warn(VByteNative.getLinkageError().orElseThrow(), "VByte block encoding disabled because of linkage error");
+        }
+
+        if (config.isExchangeVbyteBlockEncodingEnabled() && VByteNative.getLinkageError().isEmpty()) {
+            addTypeSpecificBlockEncodingOverride(new LongArrayVByteBlockEncoding(),
+                    type -> type.equals(BIGINT)
+                            || (type instanceof DecimalType decimalType && decimalType.isShort()));
+
+            addTypeSpecificBlockEncodingOverride(new IntArrayVByteBlockEncoding(),
+                    type -> type.equals(INTEGER)
+                            || type.equals(DATE));
+            addBlockEncoding(new DictionaryVByteBlockEncoding());
+            addBlockEncoding(new VariableWidthVByteBlockEncoding());
+        }
+        else {
+            addBlockEncoding(new DictionaryBlockEncoding());
+            addBlockEncoding(new VariableWidthBlockEncoding());
+        }
     }
 
     public BlockEncoding getBlockEncodingByName(String encodingName)

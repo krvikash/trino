@@ -13,6 +13,7 @@
  */
 package io.trino.block;
 
+import io.trino.FeaturesConfig;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
 import io.trino.spi.block.BaseBlockEncodingTest;
@@ -31,7 +32,7 @@ class TestLongArrayVByteBlockEncoding
     @Override
     protected BlockEncodingSerde createBlockEncodingSerde()
     {
-        BlockEncodingManager blockEncodingManager = new BlockEncodingManager();
+        BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig());
         blockEncodingManager.addTypeSpecificBlockEncodingOverride(new LongArrayVByteBlockEncoding(), BIGINT::equals);
         return new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
     }

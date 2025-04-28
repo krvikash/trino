@@ -14,6 +14,7 @@
 package io.trino.block;
 
 import io.airlift.slice.DynamicSliceOutput;
+import io.trino.FeaturesConfig;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
 import io.trino.spi.block.Block;
@@ -46,7 +47,7 @@ public class TestDictionaryVByteBlockEncoding
     @BeforeAll
     public void setup()
     {
-        BlockEncodingManager blockEncodingManager = new BlockEncodingManager();
+        BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig());
         blockEncodingManager.addTypeSpecificBlockEncodingOverride(new DictionaryVByteBlockEncoding(), _ -> true);
         assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(DictionaryBlock.class, Optional.of(VARCHAR))).isInstanceOf(DictionaryVByteBlockEncoding.class); // ensure proper setup
         blockEncodingSerde = new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);

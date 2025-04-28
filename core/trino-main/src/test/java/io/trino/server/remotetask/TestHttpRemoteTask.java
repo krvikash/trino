@@ -21,9 +21,9 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
-import com.google.inject.Module;
 import com.google.inject.Provides;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.client.testing.TestingHttpClient;
 import io.airlift.jaxrs.JsonMapper;
 import io.airlift.jaxrs.testing.JaxrsTestingHttpProcessor;
@@ -32,6 +32,7 @@ import io.airlift.json.JsonModule;
 import io.airlift.units.Duration;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
+import io.trino.FeaturesConfig;
 import io.trino.Session;
 import io.trino.block.BlockJsonSerde;
 import io.trino.cache.SplitAdmissionControllerProvider;
@@ -121,6 +122,7 @@ import java.util.function.BooleanSupplier;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.inject.Scopes.SINGLETON;
+import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonBinder.jsonBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static io.airlift.tracing.SpanSerialization.SpanDeserializer;
@@ -661,10 +663,10 @@ public class TestHttpRemoteTask
         Bootstrap app = new Bootstrap(
                 new JsonModule(),
                 new HandleJsonModule(),
-                new Module()
+                new AbstractConfigurationAwareModule()
                 {
                     @Override
-                    public void configure(Binder binder)
+                    public void setup(Binder binder)
                     {
                         binder.bind(JsonMapper.class).in(SINGLETON);
                         binder.bind(Metadata.class).toInstance(createTestMetadataManager());
@@ -687,6 +689,8 @@ public class TestHttpRemoteTask
                         binder.bind(OpenTelemetry.class).toInstance(OpenTelemetry.noop());
                         jsonBinder(binder).addSerializerBinding(Span.class).to(SpanSerializer.class);
                         jsonBinder(binder).addDeserializerBinding(Span.class).to(SpanDeserializer.class);
+
+                        configBinder(binder).bindConfig(FeaturesConfig.class);
                     }
 
                     @Provides

@@ -13,6 +13,7 @@
  */
 package io.trino.execution.buffer;
 
+import io.trino.FeaturesConfig;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
 
@@ -23,7 +24,7 @@ public final class TestingPagesSerdes
 {
     private TestingPagesSerdes() {}
 
-    private static final InternalBlockEncodingSerde BLOCK_ENCODING_SERDE = new InternalBlockEncodingSerde(new BlockEncodingManager(), TESTING_TYPE_MANAGER);
+    private static final InternalBlockEncodingSerde BLOCK_ENCODING_SERDE = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), TESTING_TYPE_MANAGER);
 
     public static PagesSerdeFactory createTestingPagesSerdeFactory()
     {

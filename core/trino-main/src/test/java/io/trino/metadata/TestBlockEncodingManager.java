@@ -15,6 +15,7 @@ package io.trino.metadata;
 
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
+import io.trino.FeaturesConfig;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -33,7 +34,9 @@ class TestBlockEncodingManager
     @Test
     public void testLookupPerTypeOverrides()
     {
-        BlockEncodingManager manager = new BlockEncodingManager();
+        FeaturesConfig config = new FeaturesConfig();
+        config.setExchangeVbyteBlockEncodingEnabled(false);
+        BlockEncodingManager manager = new BlockEncodingManager(config);
 
         // no overrides so far
         assertThat(manager.getBlockEncodingByBlockClassAndType(LongArrayBlock.class, Optional.empty()).getClass()).isEqualTo(LongArrayBlockEncoding.class);

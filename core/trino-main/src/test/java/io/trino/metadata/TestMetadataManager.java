@@ -98,7 +98,7 @@ public final class TestMetadataManager
             }
 
             if (languageFunctionManager == null) {
-                BlockEncodingSerde blockEncodingSerde = new InternalBlockEncodingSerde(new BlockEncodingManager(), typeManager);
+                BlockEncodingSerde blockEncodingSerde = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), typeManager);
                 LanguageFunctionEngineManager engineManager = new LanguageFunctionEngineManager();
                 languageFunctionManager = new LanguageFunctionManager(new SqlParser(), typeManager, _ -> ImmutableSet.of(), blockEncodingSerde, engineManager);
             }
