@@ -253,13 +253,4 @@ final class TestIcebergPolarisCatalogConnectorSmokeTest
         //TODO: Fix https://github.com/trinodb/trino/issues/23941
         abort("Skipped for now due to #23941");
     }
-
-    @Test
-    @Override
-    public void testDeleteWithV3Format()
-    {
-        // TODO https://starburstdata.atlassian.net/browse/CONNECT-536 Support default values in Iceberg
-        assertThatThrownBy(super::testDeleteWithV3Format)
-                .hasMessageContaining("Cannot parse missing long: next-row-id");
-    }
 }
