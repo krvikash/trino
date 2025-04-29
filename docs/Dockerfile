@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM 843985043183.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/python:slim
+FROM 843985043183.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/python:3.12-slim
 
 # Required by pillow
 RUN apt update -y && apt install -y zlib1g-dev libjpeg-dev libxml2-dev libxslt-dev build-essential xsltproc
