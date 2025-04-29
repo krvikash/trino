@@ -44,9 +44,19 @@ public class TestingTokenAwareMetastoreClientFactory
         this(socksProxy, address, timeout, delegate -> delegate);
     }
 
+    public TestingTokenAwareMetastoreClientFactory(Optional<HostAndPort> socksProxy, URI address, Duration timeout, boolean metastoreSupportsTableMeta)
+    {
+        this(socksProxy, address, timeout, delegate -> delegate, metastoreSupportsTableMeta);
+    }
+
     public TestingTokenAwareMetastoreClientFactory(Optional<HostAndPort> socksProxy, URI uri, Duration timeout, MetastoreClientAdapterProvider metastoreClientAdapterProvider)
     {
-        this.factory = new DefaultThriftMetastoreClientFactory(Optional.empty(), socksProxy, timeout, timeout, AUTHENTICATION, "localhost", Optional.empty());
+        this(socksProxy, uri, timeout, metastoreClientAdapterProvider, true);
+    }
+
+    public TestingTokenAwareMetastoreClientFactory(Optional<HostAndPort> socksProxy, URI uri, Duration timeout, MetastoreClientAdapterProvider metastoreClientAdapterProvider, boolean metastoreSupportsTableMeta)
+    {
+        this.factory = new DefaultThriftMetastoreClientFactory(Optional.empty(), socksProxy, timeout, timeout, AUTHENTICATION, "localhost", Optional.empty(), metastoreSupportsTableMeta);
         this.address = requireNonNull(uri, "uri is null");
         this.metastoreClientAdapterProvider = requireNonNull(metastoreClientAdapterProvider, "metastoreClientAdapterProvider is null");
     }

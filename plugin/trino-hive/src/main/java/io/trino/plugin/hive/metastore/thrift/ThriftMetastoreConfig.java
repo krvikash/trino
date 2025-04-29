@@ -16,6 +16,7 @@ package io.trino.plugin.hive.metastore.thrift;
 import com.google.common.net.HostAndPort;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.ConfigHidden;
 import io.airlift.configuration.ConfigSecuritySensitive;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
@@ -56,6 +57,7 @@ public class ThriftMetastoreConfig
     private String trustStorePassword;
     private boolean assumeCanonicalPartitionKeys;
     private int writeStatisticsThreads = 20;
+    private boolean metastoreSupportsTableMeta = true;
 
     @NotNull
     public Duration getConnectTimeout()
@@ -359,6 +361,20 @@ public class ThriftMetastoreConfig
     public ThriftMetastoreConfig setCatalogName(String catalogName)
     {
         this.catalogName = catalogName;
+        return this;
+    }
+
+    public boolean isMetastoreSupportsTableMeta()
+    {
+        return metastoreSupportsTableMeta;
+    }
+
+    @ConfigHidden
+    @Config("hive.metastore.thrift.metastore-supports-table-meta")
+    @ConfigDescription("Metastore supports table meta, direct call to table metadata")
+    public ThriftMetastoreConfig setMetastoreSupportsTableMeta(boolean metastoreSupportsTableMeta)
+    {
+        this.metastoreSupportsTableMeta = metastoreSupportsTableMeta;
         return this;
     }
 }

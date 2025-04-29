@@ -163,8 +163,8 @@ public final class S3HiveQueryRunner
             addHiveProperty("s3.path-style-access", "true");
             setMetastore(distributedQueryRunner -> new BridgingHiveMetastore(
                     testingThriftHiveMetastoreBuilder()
-                            .metastoreClient(hiveMetastoreEndpoint, thriftMetastoreTimeout)
                             .thriftMetastoreConfig(thriftMetastoreConfig)
+                            .metastoreClient(hiveMetastoreEndpoint, thriftMetastoreTimeout)
                             .build(distributedQueryRunner::registerResource)));
             setInitialSchemasLocationBase("s3a://" + bucketName); // cannot use s3:// as Hive metastore is not configured to accept it
             return super.build();

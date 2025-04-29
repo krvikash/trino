@@ -46,6 +46,7 @@ public class DefaultThriftMetastoreClientFactory
     private final HiveMetastoreAuthentication metastoreAuthentication;
     private final String hostname;
     private final Optional<String> catalogName;
+    private final boolean metastoreSupportsTableMeta;
 
     private final MetastoreSupportsDateStatistics metastoreSupportsDateStatistics = new MetastoreSupportsDateStatistics();
     private final AtomicInteger chosenGetTableAlternative = new AtomicInteger(Integer.MAX_VALUE);
@@ -60,7 +61,8 @@ public class DefaultThriftMetastoreClientFactory
             Duration readTimeout,
             HiveMetastoreAuthentication metastoreAuthentication,
             String hostname,
-            Optional<String> catalogName)
+            Optional<String> catalogName,
+            boolean metastoreSupportsTableMeta)
     {
         this.sslContext = requireNonNull(sslContext, "sslContext is null");
         this.socksProxy = requireNonNull(socksProxy, "socksProxy is null");
@@ -69,6 +71,7 @@ public class DefaultThriftMetastoreClientFactory
         this.metastoreAuthentication = requireNonNull(metastoreAuthentication, "metastoreAuthentication is null");
         this.hostname = requireNonNull(hostname, "hostname is null");
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
+        this.metastoreSupportsTableMeta = metastoreSupportsTableMeta;
     }
 
     @Inject
@@ -89,7 +92,8 @@ public class DefaultThriftMetastoreClientFactory
                 config.getReadTimeout(),
                 metastoreAuthentication,
                 nodeManager.getCurrentNode().getHost(),
-                config.getCatalogName());
+                config.getCatalogName(),
+                config.isMetastoreSupportsTableMeta());
     }
 
     @Override
@@ -114,6 +118,7 @@ public class DefaultThriftMetastoreClientFactory
                 hostname,
                 catalogName,
                 metastoreSupportsDateStatistics,
+                metastoreSupportsTableMeta,
                 chosenGetTableAlternative,
                 chosenTableParamAlternative,
                 chosenAlterTransactionalTableAlternative,

@@ -65,7 +65,7 @@ public final class TestingThriftHiveMetastoreBuilder
         requireNonNull(address, "address is null");
         requireNonNull(timeout, "timeout is null");
         checkState(tokenAwareMetastoreClientFactory == null, "Metastore client already set");
-        tokenAwareMetastoreClientFactory = new TestingTokenAwareMetastoreClientFactory(HiveTestUtils.SOCKS_PROXY, address, timeout);
+        tokenAwareMetastoreClientFactory = new TestingTokenAwareMetastoreClientFactory(HiveTestUtils.SOCKS_PROXY, address, timeout, thriftMetastoreConfig.isMetastoreSupportsTableMeta());
         return this;
     }
 

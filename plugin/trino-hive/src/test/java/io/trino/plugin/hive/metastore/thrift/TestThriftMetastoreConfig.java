@@ -59,7 +59,8 @@ public class TestThriftMetastoreConfig
                 .setMaxWaitForTransactionLock(new Duration(10, MINUTES))
                 .setAssumeCanonicalPartitionKeys(false)
                 .setWriteStatisticsThreads(20)
-                .setCatalogName(null));
+                .setCatalogName(null)
+                .setMetastoreSupportsTableMeta(true));
     }
 
     @Test
@@ -92,6 +93,7 @@ public class TestThriftMetastoreConfig
                 .put("hive.metastore.thrift.assume-canonical-partition-keys", "true")
                 .put("hive.metastore.thrift.use-spark-table-statistics-fallback", "false")
                 .put("hive.metastore.thrift.catalog-name", "custom_catalog_name")
+                .put("hive.metastore.thrift.metastore-supports-table-meta", "false")
                 .buildOrThrow();
 
         ThriftMetastoreConfig expected = new ThriftMetastoreConfig()
@@ -116,7 +118,8 @@ public class TestThriftMetastoreConfig
                 .setAssumeCanonicalPartitionKeys(true)
                 .setWriteStatisticsThreads(10)
                 .setUseSparkTableStatisticsFallback(false)
-                .setCatalogName("custom_catalog_name");
+                .setCatalogName("custom_catalog_name")
+                .setMetastoreSupportsTableMeta(false);
 
         assertFullMapping(properties, expected);
     }
