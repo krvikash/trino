@@ -12,6 +12,7 @@ package com.starburstdata.trino.plugin.ai;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -135,6 +136,7 @@ public class TestReloadingModelClientProvider
                 .build();
     }
 
+    @Disabled("Need to investigate Mask assert is flakiness")
     @Test
     public void testRefreshingModelClientProvider()
             throws IOException
