@@ -91,6 +91,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getMetadataFileAndUpdatedMillis;
@@ -948,6 +949,7 @@ public class TestIcebergV2
                     TupleDomain.all(),
                     ImmutableSet.of(),
                     true,
+                    newDirectExecutorService(),
                     fileSystemFactory.create(SESSION));
             assertThat(withNoFilter.getRowCount().getValue()).isEqualTo(4.0);
 
@@ -961,6 +963,7 @@ public class TestIcebergV2
                     TupleDomain.all(),
                     ImmutableSet.of(),
                     true,
+                    newDirectExecutorService(),
                     fileSystemFactory.create(SESSION));
             assertThat(withPartitionFilter.getRowCount().getValue()).isEqualTo(3.0);
 
@@ -975,6 +978,7 @@ public class TestIcebergV2
                             Domain.create(ValueSet.ofRanges(Range.greaterThan(INTEGER, 100L)), true))),
                     ImmutableSet.of(column),
                     true,
+                    newDirectExecutorService(),
                     fileSystemFactory.create(SESSION));
             assertThat(withUnenforcedFilter.getRowCount().getValue()).isEqualTo(2.0);
         }
@@ -998,6 +1002,7 @@ public class TestIcebergV2
                     TupleDomain.all(),
                     ImmutableSet.of(),
                     true,
+                    newDirectExecutorService(),
                     fileSystemFactory.create(SESSION));
             assertThat(withNoProjectedColumns.getRowCount().getValue()).isEqualTo(4.0);
             assertThat(withNoProjectedColumns.getColumnStatistics()).isEmpty();
@@ -1011,6 +1016,7 @@ public class TestIcebergV2
                     TupleDomain.all(),
                     ImmutableSet.of(column),
                     true,
+                    newDirectExecutorService(),
                     fileSystemFactory.create(SESSION));
             assertThat(withProjectedColumns.getRowCount().getValue()).isEqualTo(4.0);
             assertThat(withProjectedColumns.getColumnStatistics()).containsOnlyKeys(column);
@@ -1031,6 +1037,7 @@ public class TestIcebergV2
                             Domain.singleValue(INTEGER, 10L))),
                     ImmutableSet.of(column),
                     true,
+                    newDirectExecutorService(),
                     fileSystemFactory.create(SESSION));
             assertThat(withPartitionFilterAndProjectedColumn.getRowCount().getValue()).isEqualTo(3.0);
             assertThat(withPartitionFilterAndProjectedColumn.getColumnStatistics()).containsOnlyKeys(column);

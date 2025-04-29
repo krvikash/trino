@@ -136,6 +136,7 @@ public class TestIcebergCacheIds
                 Optional.of(metastoreFactory),
                 newDirectExecutorService(),
                 newDirectExecutorService(),
+                newDirectExecutorService(),
                 icebergConfig);
         icebergMetadata = new IcebergCacheMetadata(
                 createJsonCodec(IcebergCacheTableId.class),

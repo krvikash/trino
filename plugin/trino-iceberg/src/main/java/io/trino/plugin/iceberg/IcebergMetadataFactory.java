@@ -51,6 +51,7 @@ public class IcebergMetadataFactory
     private final Predicate<String> allowedExtraProperties;
     private final ExecutorService icebergScanExecutor;
     private final Executor metadataFetchingExecutor;
+    private final ExecutorService icebergPlanningExecutor;
 
     @Inject
     public IcebergMetadataFactory(
@@ -65,6 +66,7 @@ public class IcebergMetadataFactory
             @RawHiveMetastoreFactory Optional<HiveMetastoreFactory> metastoreFactory,
             @ForIcebergSplitManager ExecutorService icebergScanExecutor,
             @ForIcebergMetadata ExecutorService metadataExecutorService,
+            @ForIcebergPlanning ExecutorService icebergPlanningExecutor,
             IcebergConfig config)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
@@ -92,6 +94,7 @@ public class IcebergMetadataFactory
         else {
             this.metadataFetchingExecutor = new BoundedExecutor(metadataExecutorService, config.getMetadataParallelism());
         }
+        this.icebergPlanningExecutor = requireNonNull(icebergPlanningExecutor, "icebergPlanningExecutor is null");
     }
 
     public IcebergMetadata create(ConnectorIdentity identity)
@@ -110,6 +113,7 @@ public class IcebergMetadataFactory
                 addFilesProcedureEnabled,
                 allowedExtraProperties,
                 icebergScanExecutor,
-                metadataFetchingExecutor);
+                metadataFetchingExecutor,
+                icebergPlanningExecutor);
     }
 }

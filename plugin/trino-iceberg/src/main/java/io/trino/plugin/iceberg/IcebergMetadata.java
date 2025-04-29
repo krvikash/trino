@@ -487,7 +487,7 @@ public class IcebergMetadata
     private final Predicate<String> allowedExtraProperties;
     private final ExecutorService icebergScanExecutor;
     private final Executor metadataFetchingExecutor;
-
+    private final ExecutorService icebergPlanningExecutor;
     private final Map<IcebergTableHandle, AtomicReference<TableStatistics>> tableStatisticsCache = new ConcurrentHashMap<>();
 
     private Transaction transaction;
@@ -507,7 +507,8 @@ public class IcebergMetadata
             boolean addFilesProcedureEnabled,
             Predicate<String> allowedExtraProperties,
             ExecutorService icebergScanExecutor,
-            Executor metadataFetchingExecutor)
+            Executor metadataFetchingExecutor,
+            ExecutorService icebergPlanningExecutor)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
@@ -523,6 +524,7 @@ public class IcebergMetadata
         this.allowedExtraProperties = requireNonNull(allowedExtraProperties, "allowedExtraProperties is null");
         this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
+        this.icebergPlanningExecutor = requireNonNull(icebergPlanningExecutor, "icebergPlanningExecutor is null");
     }
 
     @Override
@@ -854,7 +856,8 @@ public class IcebergMetadata
             Supplier<Map<StructLikeWrapperWithFieldIdToIndex, PartitionSpec>> lazyUniquePartitions = Suppliers.memoize(() -> {
                 TableScan tableScan = icebergTable.newScan()
                         .useSnapshot(table.getSnapshotId().get())
-                        .filter(toIcebergExpression(enforcedPredicate));
+                        .filter(toIcebergExpression(enforcedPredicate))
+                        .planWith(icebergPlanningExecutor);
 
                 try (CloseableIterable<FileScanTask> fileScanTasks = tableScan.planFiles()) {
                     Map<StructLikeWrapperWithFieldIdToIndex, PartitionSpec> partitions = new HashMap<>();
@@ -3903,6 +3906,7 @@ public class IcebergMetadata
                             originalHandle,
                             projectedColumns,
                             icebergTable,
+                            icebergPlanningExecutor,
                             fileSystemFactory.create(session.getIdentity(), icebergTable.io().properties()));
                 },
                 originalHandle.getProjectedColumns());
