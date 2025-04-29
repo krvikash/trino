@@ -34,6 +34,8 @@ import static io.trino.filesystem.s3.S3FileSystemConfig.RetryMode.LEGACY;
 import static io.trino.filesystem.s3.S3FileSystemConfig.RetryMode.STANDARD;
 import static io.trino.filesystem.s3.S3FileSystemConfig.StorageClassType.STANDARD_IA;
 import static java.util.concurrent.TimeUnit.MINUTES;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestS3FileSystemConfig
 {
@@ -75,7 +77,9 @@ public class TestS3FileSystemConfig
                 .setHttpProxyPreemptiveBasicProxyAuth(false)
                 .setSupportsExclusiveCreate(true)
                 .setCrossRegionAccessEnabled(false)
-                .setApplicationId("Trino"));
+                .setApplicationId("Trino")
+                .setCustomCredentialProviderClass(null)
+                .setCustomCredentialProviderArguments(""));
     }
 
     @Test
@@ -117,6 +121,8 @@ public class TestS3FileSystemConfig
                 .put("s3.exclusive-create", "false")
                 .put("s3.application-id", "application id")
                 .put("s3.cross-region-access", "true")
+                .put("s3.custom-credential-provider-class", "SampleClass")
+                .put("s3.custom-credential-provider-class.arguments", "argument1=value1,argument2=value2")
                 .buildOrThrow();
 
         S3FileSystemConfig expected = new S3FileSystemConfig()
@@ -154,7 +160,9 @@ public class TestS3FileSystemConfig
                 .setHttpProxyPreemptiveBasicProxyAuth(true)
                 .setSupportsExclusiveCreate(false)
                 .setCrossRegionAccessEnabled(true)
-                .setApplicationId("application id");
+                .setApplicationId("application id")
+                .setCustomCredentialProviderClass("SampleClass")
+                .setCustomCredentialProviderArguments("argument1=value1,argument2=value2");
 
         assertFullMapping(properties, expected);
     }
@@ -167,5 +175,48 @@ public class TestS3FileSystemConfig
                 "sseWithCustomerKeyConfigValid",
                 "s3.sse.customer-key has to be set for server-side encryption with customer-provided key",
                 AssertTrue.class);
+    }
+
+    @Test
+    public void testCustomCredentialProviderArgumentsValidation()
+    {
+        assertFailsValidation(new S3FileSystemConfig()
+                        .setCustomCredentialProviderArguments("key=value"),
+                "customCredentialProviderArgumentsValid",
+                "'s3.custom-credential-provider-class.arguments' must to be set only if 's3.custom-credential-provider-class' is configured",
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testCustomCredentialProviderArguments()
+    {
+        S3FileSystemConfig config = new S3FileSystemConfig();
+        // check default
+        assertThat(config.getCustomCredentialProviderArguments()).isEmpty();
+
+        // check empty string
+        config.setCustomCredentialProviderArguments("");
+        assertThat(config.getCustomCredentialProviderArguments()).isEmpty();
+
+        config.setCustomCredentialProviderArguments(",,,,,");
+        assertThat(config.getCustomCredentialProviderArguments()).isEmpty();
+
+        // check setting multiple values
+        config.setCustomCredentialProviderArguments("argument1=value1,,,argument2=value2, argument 3 = value 3 ");
+        assertThat(config.getCustomCredentialProviderArguments())
+                .containsAllEntriesOf(ImmutableMap.of(
+                        "argument1", "value1",
+                        "argument2", "value2",
+                        "argument 3 ", " value 3"));
+
+        // check missing = throws
+        assertThatThrownBy(() -> config.setCustomCredentialProviderArguments("invalidargument,key=value"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Chunk [invalidargument] is not a valid entry");
+
+        // duplicate entries
+        assertThatThrownBy(() -> config.setCustomCredentialProviderArguments("argument1=value1,,,argument1=argument1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Duplicate key [argument1] found.");
     }
 }

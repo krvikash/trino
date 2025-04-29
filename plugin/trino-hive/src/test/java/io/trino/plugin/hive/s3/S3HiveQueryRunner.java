@@ -32,6 +32,7 @@ import io.trino.tpch.TpchTable;
 import java.net.URI;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
@@ -69,6 +70,16 @@ public final class S3HiveQueryRunner
                 .setBucketName(hiveMinioDataLake.getBucketName());
     }
 
+    public static Builder builderWithAwsCustomCredentialProvider(HiveMinioDataLake hiveMinioDataLake, String customAwsCredentialProvider)
+    {
+        return builder()
+                .setHiveMetastoreEndpoint(hiveMinioDataLake.getHiveMetastoreEndpoint())
+                .setS3Endpoint("http://" + hiveMinioDataLake.getMinio().getMinioApiEndpoint())
+                .setS3Region(MINIO_REGION)
+                .setCustomAwsCredentialProvider(customAwsCredentialProvider)
+                .setBucketName(hiveMinioDataLake.getBucketName());
+    }
+
     public static Builder builder()
     {
         return new Builder();
@@ -82,8 +93,9 @@ public final class S3HiveQueryRunner
         private ThriftMetastoreConfig thriftMetastoreConfig = new ThriftMetastoreConfig();
         private String s3Region;
         private String s3Endpoint;
-        private String s3AccessKey;
-        private String s3SecretKey;
+        private Optional<String> s3AccessKey = Optional.empty();
+        private Optional<String> s3SecretKey = Optional.empty();
+        private Optional<String> customAwsCredentialProviderClassName = Optional.empty();
         private String bucketName;
 
         @CanIgnoreReturnValue
@@ -124,14 +136,21 @@ public final class S3HiveQueryRunner
         @CanIgnoreReturnValue
         public Builder setS3AccessKey(String s3AccessKey)
         {
-            this.s3AccessKey = requireNonNull(s3AccessKey, "s3AccessKey is null");
+            this.s3AccessKey = Optional.of(requireNonNull(s3AccessKey, "s3AccessKey is null"));
             return this;
         }
 
         @CanIgnoreReturnValue
         public Builder setS3SecretKey(String s3SecretKey)
         {
-            this.s3SecretKey = requireNonNull(s3SecretKey, "s3SecretKey is null");
+            this.s3SecretKey = Optional.of(requireNonNull(s3SecretKey, "s3SecretKey is null"));
+            return this;
+        }
+
+        @CanIgnoreReturnValue
+        public Builder setCustomAwsCredentialProvider(String customAwsCredentialProviderClassName)
+        {
+            this.customAwsCredentialProviderClassName = Optional.of(requireNonNull(customAwsCredentialProviderClassName, "customAwsCredentialProviderClassName is null"));
             return this;
         }
 
@@ -158,8 +177,9 @@ public final class S3HiveQueryRunner
             addHiveProperty("fs.native-s3.enabled", "true");
             addHiveProperty("s3.region", s3Region);
             addHiveProperty("s3.endpoint", s3Endpoint);
-            addHiveProperty("s3.aws-access-key", s3AccessKey);
-            addHiveProperty("s3.aws-secret-key", s3SecretKey);
+            s3AccessKey.ifPresent(accessKey -> addHiveProperty("s3.aws-access-key", accessKey));
+            s3SecretKey.ifPresent(secretKey -> addHiveProperty("s3.aws-secret-key", secretKey));
+            customAwsCredentialProviderClassName.ifPresent(className -> addHiveProperty("s3.custom-credential-provider-class", className));
             addHiveProperty("s3.path-style-access", "true");
             setMetastore(distributedQueryRunner -> new BridgingHiveMetastore(
                     testingThriftHiveMetastoreBuilder()

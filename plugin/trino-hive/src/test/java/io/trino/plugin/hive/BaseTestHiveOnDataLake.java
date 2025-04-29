@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -65,6 +66,7 @@ import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.MINUTES;
+import static java.util.Objects.requireNonNull;
 import static java.util.regex.Pattern.quote;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toSet;
@@ -80,14 +82,21 @@ abstract class BaseTestHiveOnDataLake
     private static final DataSize HIVE_S3_STREAMING_PART_SIZE = DataSize.of(5, MEGABYTE);
 
     private final HiveMinioDataLake hiveMinioDataLake;
+    private final Function<HiveMinioDataLake, S3HiveQueryRunner.Builder> queryRunnerBuilderProvider;
     private final String bucketName;
 
     private HiveMetastore metastoreClient;
 
     public BaseTestHiveOnDataLake(String bucketName, HiveMinioDataLake hiveMinioDataLake)
     {
+        this(bucketName, hiveMinioDataLake, S3HiveQueryRunner::builder);
+    }
+
+    public BaseTestHiveOnDataLake(String bucketName, HiveMinioDataLake hiveMinioDataLake, Function<HiveMinioDataLake, S3HiveQueryRunner.Builder> queryRunnerBuilderProvider)
+    {
         this.bucketName = bucketName;
         this.hiveMinioDataLake = hiveMinioDataLake;
+        this.queryRunnerBuilderProvider = requireNonNull(queryRunnerBuilderProvider, "queryRunnerBuilderProvider is null");
     }
 
     @Override
@@ -99,7 +108,7 @@ abstract class BaseTestHiveOnDataLake
                 testingThriftHiveMetastoreBuilder()
                         .metastoreClient(hiveMinioDataLake.getHiveMetastoreEndpoint())
                         .build(this::closeAfterClass));
-        return S3HiveQueryRunner.builder(hiveMinioDataLake)
+        return queryRunnerBuilderProvider.apply(hiveMinioDataLake)
                 .addExtraProperty("sql.path", "hive.functions")
                 .addExtraProperty("sql.default-function-catalog", "hive")
                 .addExtraProperty("sql.default-function-schema", "functions")

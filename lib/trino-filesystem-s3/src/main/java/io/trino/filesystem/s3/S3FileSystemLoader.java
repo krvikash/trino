@@ -13,6 +13,7 @@
  */
 package io.trino.filesystem.s3;
 
+import com.google.common.reflect.TypeToken;
 import com.google.inject.Inject;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkTelemetry;
@@ -47,6 +48,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.filesystem.s3.S3FileSystemConfig.RetryMode.getRetryStrategy;
@@ -259,6 +261,9 @@ final class S3FileSystemLoader
             return Optional.of(StaticCredentialsProvider.create(
                     AwsBasicCredentials.create(config.getAwsAccessKey(), config.getAwsSecretKey())));
         }
+        if (config.getCustomCredentialProviderClass() != null) {
+            return Optional.of(getCustomAwsCredentialsProvider(config.getCustomCredentialProviderClass(), config.getCustomCredentialProviderArguments()));
+        }
         return Optional.empty();
     }
 
@@ -312,6 +317,24 @@ final class S3FileSystemLoader
         }
 
         return client.build();
+    }
+
+    private static AwsCredentialsProvider getCustomAwsCredentialsProvider(String providerClass, Map<String, String> customCredentialProviderArguments)
+    {
+        try {
+            Class<?> awsCredentialProvider = Class.forName(providerClass);
+            checkArgument(AwsCredentialsProvider.class.isAssignableFrom(awsCredentialProvider), "%s is not a subclass of %s", providerClass, AwsCredentialsProvider.class);
+            return awsCredentialProvider
+                    .asSubclass(AwsCredentialsProvider.class)
+                    .getConstructor(new TypeToken<Map<String, String>>(){}.getRawType())
+                    .newInstance(customCredentialProviderArguments);
+        }
+        catch (ClassNotFoundException e) {
+            throw new RuntimeException("AwsCredentialsProvider " + providerClass + " not found", e);
+        }
+        catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Unable to initialize AwsCredentialsProvider " + providerClass, e);
+        }
     }
 
     interface S3ClientFactory

@@ -14,6 +14,7 @@
 package io.trino.filesystem.s3;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Splitter.MapSplitter;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
 import io.airlift.configuration.Config;
@@ -31,6 +32,8 @@ import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.StorageClass;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -42,6 +45,8 @@ import static software.amazon.awssdk.awscore.retry.AwsRetryStrategy.standardRetr
 
 public class S3FileSystemConfig
 {
+    private static final MapSplitter MAP_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings().withKeyValueSeparator("=");
+
     public enum S3SseType
     {
         NONE, S3, KMS, CUSTOMER
@@ -125,6 +130,8 @@ public class S3FileSystemConfig
     private String region;
     private boolean pathStyleAccess;
     private StorageClassType storageClass = StorageClassType.STANDARD;
+    private String customCredentialProviderClass;
+    private Map<String, String> customCredentialProviderArguments = Collections.emptyMap();
     private String iamRole;
     private String roleSessionName = "trino-filesystem";
     private String externalId;
@@ -214,6 +221,32 @@ public class S3FileSystemConfig
     public S3FileSystemConfig setPathStyleAccess(boolean pathStyleAccess)
     {
         this.pathStyleAccess = pathStyleAccess;
+        return this;
+    }
+
+    public String getCustomCredentialProviderClass()
+    {
+        return customCredentialProviderClass;
+    }
+
+    @Config("s3.custom-credential-provider-class")
+    @ConfigDescription("Fully qualified class name of a custom implementation of software.amazon.awssdk.auth.credentials.AwsCredentialsProvider")
+    public S3FileSystemConfig setCustomCredentialProviderClass(String customCredentialProviderClass)
+    {
+        this.customCredentialProviderClass = customCredentialProviderClass;
+        return this;
+    }
+
+    public Map<String, String> getCustomCredentialProviderArguments()
+    {
+        return customCredentialProviderArguments;
+    }
+
+    @Config("s3.custom-credential-provider-class.arguments")
+    @ConfigDescription("Comma-separated list of key-value pairs to specify arguments for initializing 's3.custom-credential-provider-class'. E.g.: 'argument1=value1,argument2=value2'")
+    public S3FileSystemConfig setCustomCredentialProviderArguments(String customCredentialProviderArguments)
+    {
+        this.customCredentialProviderArguments = MAP_SPLITTER.split(customCredentialProviderArguments);
         return this;
     }
 
@@ -613,5 +646,14 @@ public class S3FileSystemConfig
     {
         this.applicationId = applicationId;
         return this;
+    }
+
+    @AssertTrue(message = "'s3.custom-credential-provider-class.arguments' must to be set only if 's3.custom-credential-provider-class' is configured")
+    public boolean isCustomCredentialProviderArgumentsValid()
+    {
+        if (!customCredentialProviderArguments.isEmpty()) {
+            return customCredentialProviderClass != null;
+        }
+        return true;
     }
 }
