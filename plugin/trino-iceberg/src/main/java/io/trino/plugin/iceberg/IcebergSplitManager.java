@@ -70,7 +70,7 @@ public class IcebergSplitManager
             TypeManager typeManager,
             IcebergFileSystemFactory fileSystemFactory,
             @ForIcebergSplitSource ListeningExecutorService splitSourceExecutor,
-            @ForIcebergScanPlanning ExecutorService icebergPlanningExecutor,
+            @ForIcebergSplitManager ExecutorService icebergPlanningExecutor,
             JsonCodec<IcebergCacheSplitId> splitIdCodec,
             CachingHostAddressProvider cachingHostAddressProvider)
     {

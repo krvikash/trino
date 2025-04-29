@@ -63,7 +63,7 @@ public class IcebergMetadataFactory
             IcebergFileSystemFactory fileSystemFactory,
             TableStatisticsWriter tableStatisticsWriter,
             @RawHiveMetastoreFactory Optional<HiveMetastoreFactory> metastoreFactory,
-            @ForIcebergScanPlanning ExecutorService icebergScanExecutor,
+            @ForIcebergSplitManager ExecutorService icebergScanExecutor,
             @ForIcebergMetadata ExecutorService metadataExecutorService,
             IcebergConfig config)
     {
