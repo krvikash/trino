@@ -23,9 +23,13 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.core.retry.conditions.RetryCondition;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClientBuilder;
+import software.amazon.awssdk.services.bedrockruntime.model.ModelErrorException;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
@@ -112,6 +116,26 @@ public class AwsBedrockClientFactory
         connectionInfo.region().ifPresent(region ->
                 clientBuilder.region(Region.of(region)));
 
-        return clientBuilder.build();
+        RetryCondition customRetryCondition = (context) -> {
+            Throwable exception = context.exception();
+            // Retry on default retryable conditions
+            // Note: this method is deprecated but there is currently no replacement in the RetryStrategy api
+            if (RetryCondition.defaultRetryCondition().shouldRetry(context)) {
+                return true;
+            }
+            // Retry on ModelErrorException with 424 status code
+            if (exception instanceof ModelErrorException modelErrorException) {
+                return modelErrorException.statusCode() == 424;
+            }
+            return false;
+        };
+
+        return clientBuilder
+                .overrideConfiguration(ClientOverrideConfiguration.builder()
+                        .retryPolicy(RetryPolicy.builder()
+                                .numRetries(10)
+                                .retryCondition(customRetryCondition)
+                                .build()).build())
+                .build();
     }
 }
