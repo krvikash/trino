@@ -24,6 +24,7 @@ import java.util.List;
 
 import static io.trino.tempto.assertions.QueryAssert.Row;
 import static io.trino.tempto.assertions.QueryAssert.Row.row;
+import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY;
@@ -66,25 +67,6 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         String tableLocation = format("%s/%s/%s", externalLocationPath, schemaName, tableName);
 
         onDelta().executeQuery("CREATE TABLE " + unityTableName + " (c1 int, c2 string) USING delta LOCATION '" + tableLocation + "'");
-        testReadWriteOperations(tableName, unityTableName);
-    }
-
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
-    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
-    public void testTableReadWriteManagedTable()
-    {
-        assertThat(onTrino().executeQuery("SHOW SCHEMAS FROM delta"))
-                .contains(row(schemaName.toLowerCase(ENGLISH)));
-
-        String tableName = "test_managed_table_managed_" + randomNameSuffix();
-        String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
-
-        onDelta().executeQuery("CREATE TABLE " + unityTableName + " (c1 int, c2 string)");
-        testReadWriteOperations(tableName, unityTableName);
-    }
-
-    private void testReadWriteOperations(String tableName, String unityTableName)
-    {
         String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
         onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES (1, 'one')");
 
@@ -133,6 +115,57 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                 .containsOnly(expectedRowsForMerge);
         assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
                 .containsOnly(expectedRowsForMerge);
+    }
+
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
+    public void testTableReadWriteManagedTable()
+    {
+        assertThat(onTrino().executeQuery("SHOW SCHEMAS FROM delta"))
+                .contains(row(schemaName.toLowerCase(ENGLISH)));
+
+        String tableName = "test_read_write_managed_" + randomNameSuffix();
+        String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
+
+        onDelta().executeQuery("CREATE TABLE " + unityTableName + " (c1 int, c2 string)");
+        String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
+        onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES (1, 'one')");
+
+        assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
+                .containsOnly(row(tableName.toLowerCase(ENGLISH)));
+
+        // select
+        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                .containsOnly(row(1, "one"));
+
+        // insert
+        assertQueryFailure(() -> onTrino().executeQuery("INSERT INTO " + deltaTableName + " VALUES (2, 'two')"))
+                .hasStackTraceContaining("Writes are not supported on managed tables for Unity metastore");
+
+        // update
+        assertQueryFailure(() -> onTrino().executeQuery("UPDATE " + deltaTableName + " SET c2 = 'two' WHERE c1 = 1"))
+                .hasStackTraceContaining("Writes are not supported on managed tables for Unity metastore");
+
+        // delete
+        assertQueryFailure(() -> onTrino().executeQuery("DELETE FROM " + deltaTableName + " WHERE c2 = 'one'"))
+                .hasStackTraceContaining("Writes are not supported on managed tables for Unity metastore");
+        assertQueryFailure(() -> onTrino().executeQuery("DELETE FROM " + deltaTableName))
+                .hasStackTraceContaining("Writes are not supported on managed tables for Unity metastore");
+
+        // truncate
+        assertQueryFailure(() -> onTrino().executeQuery("TRUNCATE TABLE " + deltaTableName))
+                .hasStackTraceContaining("Writes are not supported on managed tables for Unity metastore");
+
+        // merge
+        String sourceTableName = "test_source_" + randomNameSuffix();
+        String tableLocation2 = format("%s/%s/%s", externalLocationPath, schemaName, sourceTableName);
+        onDelta().executeQuery(format("CREATE TABLE %s.%s.%s (c1 int, c2 string) using delta location '%s'", unityCatalogName, schemaName, sourceTableName, tableLocation2));
+        onDelta().executeQuery(format("INSERT INTO %s.%s.%s values (1, 'one'), (2, 'two'), (3, 'three')", unityCatalogName, schemaName, sourceTableName));
+
+        assertQueryFailure(() -> onTrino().executeQuery(format("MERGE INTO delta.%s.%s t USING delta.%s.%s s on t.c1 = s.c1 " +
+                "WHEN MATCHED THEN UPDATE SET c2 = s.c2 " +
+                "WHEN NOT MATCHED THEN INSERT (c1, c2) VALUES (s.c1, s.c2)", schemaName, tableName, schemaName, sourceTableName)))
+                .hasStackTraceContaining("Writes are not supported on managed tables for Unity metastore");
     }
 
     @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
@@ -200,7 +233,8 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         String deltaManagedTableName = "delta.%s.%s".formatted(schemaName, managedTableName);
 
         onDelta().executeQuery("CREATE TABLE " + unityManagedTableName + " (c1 int, c2 string) PARTITIONED BY (c1)");
-        onTrino().executeQuery("INSERT INTO " + deltaManagedTableName + "(c1, c2) VALUES (1, 'one')");
+        // writes are not supported on trino for managed table on Unity
+        onDelta().executeQuery("INSERT INTO " + unityManagedTableName + "(c1, c2) VALUES (1, 'one')");
         assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
                 .contains(row(managedTableName));
         assertThat(onTrino().executeQuery("SELECT * FROM " + deltaManagedTableName))

@@ -29,6 +29,7 @@ import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFacto
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.NodeVersion;
 import io.trino.plugin.hive.TrinoViewHiveMetastore;
+import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
 import io.trino.plugin.hive.security.UsingSystemSecurity;
 import io.trino.spi.NodeManager;
 import io.trino.spi.security.ConnectorIdentity;
@@ -40,6 +41,7 @@ import java.util.concurrent.ExecutorService;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.trino.metastore.cache.CachingHiveMetastore.createPerTransactionCache;
+import static io.trino.plugin.hive.metastore.MetastoreTypeConfig.MetastoreType.UNITY;
 import static java.util.Objects.requireNonNull;
 
 public class DeltaLakeMetadataFactory
@@ -65,6 +67,7 @@ public class DeltaLakeMetadataFactory
     private final Executor metadataFetchingExecutor;
     private final boolean allowManagedTableRename;
     private final boolean usingSystemSecurity;
+    private final boolean isOperateOnUnityMetastore;
     private final String trinoVersion;
 
     @Inject
@@ -85,7 +88,8 @@ public class DeltaLakeMetadataFactory
             @UsingSystemSecurity boolean useSystemSecurity,
             NodeVersion nodeVersion,
             DeltaLakeTableMetadataScheduler metadataScheduler,
-            @ForDeltaLakeMetadata ExecutorService executorService)
+            @ForDeltaLakeMetadata ExecutorService executorService,
+            MetastoreTypeConfig metastoreTypeConfig)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.hiveMetastoreFactory = requireNonNull(hiveMetastoreFactory, "hiveMetastore is null");
@@ -114,6 +118,7 @@ public class DeltaLakeMetadataFactory
         else {
             this.metadataFetchingExecutor = new BoundedExecutor(executorService, deltaLakeConfig.getMetadataParallelism());
         }
+        this.isOperateOnUnityMetastore = metastoreTypeConfig.getMetastoreType() == UNITY;
     }
 
     public DeltaLakeMetadata create(ConnectorIdentity identity)
@@ -152,6 +157,7 @@ public class DeltaLakeMetadataFactory
                 metadataScheduler,
                 useUniqueTableLocation,
                 allowManagedTableRename,
+                isOperateOnUnityMetastore,
                 metadataFetchingExecutor);
     }
 }

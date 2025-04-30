@@ -458,6 +458,7 @@ public class DeltaLakeMetadata
     private final boolean deleteSchemaLocationsFallback;
     private final boolean useUniqueTableLocation;
     private final boolean allowManagedTableRename;
+    private final boolean isOperateOnUnityMetastore;
     private final DeltaLakeTableMetadataScheduler metadataScheduler;
     private final Map<SchemaTableName, TableUpdateInfo> tableUpdateInfos = new ConcurrentHashMap<>();
     private final Map<SchemaTableName, Long> latestTableVersions = new ConcurrentHashMap<>();
@@ -493,6 +494,7 @@ public class DeltaLakeMetadata
             DeltaLakeTableMetadataScheduler metadataScheduler,
             boolean useUniqueTableLocation,
             boolean allowManagedTableRename,
+            boolean isOperateOnUnityMetastore,
             Executor metadataFetchingExecutor)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
@@ -516,6 +518,7 @@ public class DeltaLakeMetadata
         this.metadataScheduler = requireNonNull(metadataScheduler, "metadataScheduler is null");
         this.useUniqueTableLocation = useUniqueTableLocation;
         this.allowManagedTableRename = allowManagedTableRename;
+        this.isOperateOnUnityMetastore = isOperateOnUnityMetastore;
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
     }
 
@@ -2971,6 +2974,19 @@ public class DeltaLakeMetadata
                     NOT_SUPPORTED,
                     format("Writes are not enabled on the %1$s filesystem in order to avoid eventual data corruption which may be caused by concurrent data modifications on the table. " +
                             "Writes to the %1$s filesystem can be however enabled with the '%2$s' configuration property.", fileSystem, ENABLE_NON_CONCURRENT_WRITES_CONFIGURATION_KEY));
+        }
+        checkManagedTableWriteSupported(table);
+    }
+
+    private void checkManagedTableWriteSupported(DeltaLakeTableHandle table)
+    {
+        // according to databricks docs:
+        // we should not to do path-based access to managed tables and that you give up your "warranty" so to speak if you do.
+        // We do things like Predictive Optimization and tracking of shallow clones in UC which require operations to go through UC
+        if (isOperateOnUnityMetastore && table.managed()) {
+            throw new TrinoException(
+                    NOT_SUPPORTED,
+                    "Writes are not supported on managed tables for Unity metastore");
         }
     }
 

@@ -276,7 +276,7 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                 .hasMessageContaining("renameTable is not supported for Unity metastore");
     }
 
-    @Override // to showcase insert path through a separate table without impacting static region table created for this test
+    @Override
     @Test
     public void testInsert()
     {
@@ -293,9 +293,7 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                 CREATE TABLE IF NOT EXISTS %s.%s.%s (c int)
                 USING DELTA
                 """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
-            assertUpdate("INSERT INTO " + tableName + " VALUES (1)", 1);
-            assertThat(query("SELECT * FROM " + tableName))
-                    .matches("VALUES 1");
+            assertQueryFails("INSERT INTO " + tableName + " VALUES (1)", "Writes are not supported on managed tables for Unity metastore");
         }
         catch (SQLException e) {
             throw new RuntimeException(e);
