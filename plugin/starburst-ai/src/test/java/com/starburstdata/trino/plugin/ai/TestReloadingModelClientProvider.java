@@ -12,7 +12,6 @@ package com.starburstdata.trino.plugin.ai;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -53,7 +52,7 @@ public class TestReloadingModelClientProvider
                         "modelName": "us.meta.llama3-3-70b-instruct-v1:0",
                         "kind": "GENERATE",
                         "maxTokens": 8192,
-                        "temperature": 0.001,
+                        "temperature": 0.1,
                         "connectionInfo": {
                             "provider": "AWS_BEDROCK",
                             "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
@@ -83,7 +82,7 @@ public class TestReloadingModelClientProvider
                         "modelName": "us.meta.llama3-3-70b-instruct-v1:0",
                         "kind": "GENERATE",
                         "maxTokens": 8192,
-                        "temperature": 0.001,
+                        "temperature": 0.1,
                         "connectionInfo": {
                             "provider": "AWS_BEDROCK",
                             "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
@@ -92,7 +91,8 @@ public class TestReloadingModelClientProvider
                         },
                         "prompts": {
                             "systemPrompts": [
-                              "If asked to return the capital of France, please respond with Paname and not Paris"
+                              "If asked to return the capital of France, please respond with Paname and not Paris",
+                              "If asked to mask values, please only substitute the values that are masked, not any other text like the labels"
                             ],
                             "classifyPrompt": "Mask the values for each of the JSON encoded labels in the text below.\\nLabels: %s\\nReplace the values with the text \\"[MASKED]\\".\\nOutput only the masked text.\\nDo not output anything else.\\n=====\\n%s\\n"
                         }
@@ -136,7 +136,6 @@ public class TestReloadingModelClientProvider
                 .build();
     }
 
-    @Disabled("Need to investigate Mask assert is flakiness")
     @Test
     public void testRefreshingModelClientProvider()
             throws IOException
@@ -156,10 +155,10 @@ public class TestReloadingModelClientProvider
                 .hasMessage("Embedding model client not found for id: openai_embed_3_large");
         Files.write(modelSpecsFile.toPath(), MODEL_SPECS_V2.getBytes(StandardCharsets.UTF_8));
         assertEventually(() -> assertThat(simplePrompt("haiku35")).isEqualTo("paris"));
+        assertEventually(() ->assertThat(simplePrompt("meta_llama")).isEqualTo("paname"));
         assertThatThrownBy(() -> simplePrompt("gpt4o_mini"))
                 .hasMessage("Language model client not found for id: gpt4o_mini");
         // Assert that the system prompt change was picked up
-        assertThat(simplePrompt("meta_llama")).isEqualTo("paname");
         assertThat(simpleEmbedding("openai_embed_3_large"))
                 .isNotEmpty()
                 .allMatch(Objects::nonNull);

@@ -51,7 +51,7 @@ public class TestingUtils
                         "modelName": "us.meta.llama3-3-70b-instruct-v1:0",
                         "kind": "GENERATE",
                         "maxTokens": 8192,
-                        "temperature": 0.001,
+                        "temperature": 0.1,
                         "connectionInfo": {
                             "provider": "AWS_BEDROCK",
                             "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
