@@ -71,13 +71,13 @@ public class CachingDirectoryLister
     public CachingDirectoryLister(
             Duration expireAfterWrite,
             DataSize maxSize,
-            List<String> tables,
+            List<String> includedTables,
             List<String> excludedTables,
             Predicate<FileEntry> filterPredicate)
     {
         requireNonNull(expireAfterWrite, "expireAfterWrite is null");
         requireNonNull(maxSize, "maxSize is null");
-        requireNonNull(tables, "tables is null");
+        requireNonNull(includedTables, "includedTables is null");
         requireNonNull(excludedTables, "excludedTables is null");
         requireNonNull(filterPredicate, "filterPredicate is null");
         this.cache = EvictableCacheBuilder.newBuilder()
@@ -87,7 +87,7 @@ public class CachingDirectoryLister
                 .shareNothingWhenDisabled()
                 .recordStats()
                 .build();
-        this.tablePredicate = matches(tables).and(not(matches(excludedTables)));
+        this.tablePredicate = matches(includedTables).and(not(matches(excludedTables)));
         this.filterPredicate = filterPredicate;
     }
 
@@ -250,8 +250,8 @@ public class CachingDirectoryLister
         return cached != null && cached.getFiles().isPresent();
     }
 
-    @VisibleForTesting
-    protected boolean isCacheEnabledFor(SchemaTableName schemaTableName)
+    @VisibleForTesting // for testing exclusion rules
+    boolean isCacheEnabledFor(SchemaTableName schemaTableName)
     {
         return tablePredicate.test(schemaTableName);
     }

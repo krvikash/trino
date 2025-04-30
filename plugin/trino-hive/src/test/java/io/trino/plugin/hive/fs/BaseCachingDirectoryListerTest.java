@@ -14,6 +14,8 @@
 package io.trino.plugin.hive.fs;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.trino.filesystem.Location;
 import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
@@ -21,6 +23,7 @@ import io.trino.metastore.PrincipalPrivileges;
 import io.trino.metastore.Table;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.HiveQueryRunner;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
@@ -30,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static io.trino.plugin.hive.HiveQueryRunner.TPCH_SCHEMA;
 import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
@@ -323,8 +327,70 @@ public abstract class BaseCachingDirectoryListerTest
     }
 
     @Test
-    public void testCachingWithExcludeTables()
+    public void testTableExclusion()
     {
+        CachingDirectoryLister lister = new CachingDirectoryLister(
+                new Duration(5, TimeUnit.MINUTES),
+                DataSize.of(1, DataSize.Unit.MEGABYTE),
+                ImmutableList.of("db.*", "test.*"),
+                ImmutableList.of("db.excluded", "test.excluded"),
+                _ -> true);
+
+        // Test included tables
+        assertThat(isCacheEnabled(lister, "db", "table1")).isTrue();
+        assertThat(isCacheEnabled(lister, "test", "table2")).isTrue();
+
+        // Test excluded tables
+        assertThat(isCacheEnabled(lister, "db", "excluded")).isFalse();
+        assertThat(isCacheEnabled(lister, "test", "excluded")).isFalse();
+
+        // Test non-matching tables
+        assertThat(isCacheEnabled(lister, "other", "table")).isFalse();
+    }
+
+    @Test
+    public void testWildcardExclusion()
+    {
+        CachingDirectoryLister lister = new CachingDirectoryLister(
+                new Duration(5, TimeUnit.MINUTES),
+                DataSize.of(1, DataSize.Unit.MEGABYTE),
+                ImmutableList.of("db.*"),
+                ImmutableList.of("db.*"),  // Exclude all tables in db schema
+                _ -> true);
+
+        // All tables in db schema should be excluded
+        assertThat(isCacheEnabled(lister, "db", "table1")).isFalse();
+        assertThat(isCacheEnabled(lister, "db", "production")).isFalse();
+        assertThat(isCacheEnabled(lister, "db", "temp_table")).isFalse();
+
+        // Other schemas should still not be cached
+        assertThat(isCacheEnabled(lister, "other", "table")).isFalse();
+    }
+
+    @Test
+    public void testForExcludingOneTableFromSchema()
+    {
+        CachingDirectoryLister lister = new CachingDirectoryLister(
+                new Duration(5, TimeUnit.MINUTES),
+                DataSize.of(1, DataSize.Unit.MEGABYTE),
+                ImmutableList.of("db.*"),
+                ImmutableList.of("db.a"),  // Exclude table a in db schema
+                _ -> true);
+
+        // All tables in db schema should be included except for a
+        assertThat(isCacheEnabled(lister, "db", "table1")).isTrue();
+        assertThat(isCacheEnabled(lister, "db", "production")).isTrue();
+        assertThat(isCacheEnabled(lister, "db", "temp_table")).isTrue();
+        assertThat(isCacheEnabled(lister, "db", "a")).isFalse();
+
+        // Other schemas should still not be cached
+        assertThat(isCacheEnabled(lister, "other", "table")).isFalse();
+    }
+
+    @Test
+    public void testCachingWithExcludeTablesCorkAdditional()
+    {
+        // todo merge out to OSS
         CachingDirectoryLister cachingDirectoryLister = new CachingDirectoryLister(new HiveConfig()
                 .setFileStatusCacheTables(ImmutableList.of("tpch.*"))
                 .setFileStatusCacheExcludedTables(ImmutableList.of("tpch.aa", "tpch.ab")));
@@ -396,6 +462,11 @@ public abstract class BaseCachingDirectoryListerTest
         assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "_A"))).isFalse();
         assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "b123"))).isFalse();
         assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "B123"))).isFalse();
+    }
+
+    private boolean isCacheEnabled(CachingDirectoryLister lister, String schema, String table)
+    {
+        return lister.isCacheEnabledFor(new SchemaTableName(schema, table));
     }
 
     protected Optional<Table> getTable(String schemaName, String tableName)

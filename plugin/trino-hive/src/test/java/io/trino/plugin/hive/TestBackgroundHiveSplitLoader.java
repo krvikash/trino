@@ -870,7 +870,7 @@ public class TestBackgroundHiveSplitLoader
     public void testBuildManifestFileIteratorWithCacheInvalidation()
             throws IOException
     {
-        CachingDirectoryLister directoryLister = new CachingDirectoryLister(new Duration(5, TimeUnit.MINUTES), DataSize.of(1, MEGABYTE), List.of("*"), List.of(), alwaysTrue());
+        CachingDirectoryLister directoryLister = new CachingDirectoryLister(new Duration(5, TimeUnit.MINUTES), DataSize.of(1, MEGABYTE), List.of("*"), List.of("*"), alwaysTrue());
         Map<String, String> schema = ImmutableMap.<String, String>builder()
                 .put(FILE_INPUT_FORMAT, SYMLINK_TEXT_INPUT_FORMAT_CLASS)
                 .put(SERIALIZATION_LIB, AVRO.getSerde())
