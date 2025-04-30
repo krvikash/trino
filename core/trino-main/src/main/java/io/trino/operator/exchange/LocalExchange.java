@@ -23,12 +23,12 @@ import io.airlift.units.DataSize;
 import io.trino.Session;
 import io.trino.operator.BucketPartitionFunction;
 import io.trino.operator.HashGenerator;
+import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PartitionFunction;
 import io.trino.operator.PrecomputedHashGenerator;
 import io.trino.operator.output.SkewedPartitionRebalancer;
 import io.trino.spi.Page;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeOperators;
 import io.trino.sql.planner.MergePartitioningHandle;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.PartitioningHandle;
@@ -96,7 +96,7 @@ public class LocalExchange
             List<Type> partitionChannelTypes,
             Optional<Integer> partitionHashChannel,
             DataSize maxBufferedBytes,
-            TypeOperators typeOperators,
+            NullSafeHashCompiler hashCompiler,
             DataSize writerScalingMinDataProcessed,
             Supplier<Long> totalMemoryUsed)
     {
@@ -155,7 +155,7 @@ public class LocalExchange
                 PartitionFunction partitionFunction = createPartitionFunction(
                         nodePartitioningManager,
                         session,
-                        typeOperators,
+                        hashCompiler,
                         partitioning,
                         partitionCount,
                         partitionChannels,
@@ -183,7 +183,7 @@ public class LocalExchange
                 PartitionFunction partitionFunction = createPartitionFunction(
                         nodePartitioningManager,
                         session,
-                        typeOperators,
+                        hashCompiler,
                         partitioning,
                         bufferCount,
                         partitionChannels,
@@ -238,7 +238,7 @@ public class LocalExchange
     private static PartitionFunction createPartitionFunction(
             NodePartitioningManager nodePartitioningManager,
             Session session,
-            TypeOperators typeOperators,
+            NullSafeHashCompiler hashCompiler,
             PartitioningHandle partitioning,
             int partitionCount,
             List<Integer> partitionChannels,
@@ -253,7 +253,7 @@ public class LocalExchange
                 hashGenerator = new PrecomputedHashGenerator(partitionHashChannel.get());
             }
             else {
-                hashGenerator = createChannelsHashGenerator(partitionChannelTypes, Ints.toArray(partitionChannels), typeOperators);
+                hashGenerator = createChannelsHashGenerator(partitionChannelTypes, Ints.toArray(partitionChannels), hashCompiler);
             }
             return new LocalPartitionGenerator(hashGenerator, partitionCount);
         }

@@ -26,6 +26,7 @@ import io.trino.execution.scheduler.NodeSelector;
 import io.trino.metadata.InternalNode;
 import io.trino.metadata.Split;
 import io.trino.operator.BucketPartitionFunction;
+import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PartitionFunction;
 import io.trino.operator.RetryPolicy;
 import io.trino.spi.connector.BucketFunction;
@@ -34,7 +35,6 @@ import io.trino.spi.connector.ConnectorBucketNodeMap;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeOperators;
 import io.trino.split.EmptySplit;
 import io.trino.sql.planner.SystemPartitioningHandle.SystemPartitioning;
 
@@ -63,17 +63,17 @@ import static java.util.Objects.requireNonNull;
 public class NodePartitioningManager
 {
     private final NodeScheduler nodeScheduler;
-    private final TypeOperators typeOperators;
+    private final NullSafeHashCompiler hashCompiler;
     private final CatalogServiceProvider<ConnectorNodePartitioningProvider> partitioningProvider;
 
     @Inject
     public NodePartitioningManager(
             NodeScheduler nodeScheduler,
-            TypeOperators typeOperators,
+            NullSafeHashCompiler hashCompiler,
             CatalogServiceProvider<ConnectorNodePartitioningProvider> partitioningProvider)
     {
         this.nodeScheduler = requireNonNull(nodeScheduler, "nodeScheduler is null");
-        this.typeOperators = requireNonNull(typeOperators, "typeOperators is null");
+        this.hashCompiler = requireNonNull(hashCompiler, "hashCompiler is null");
         this.partitioningProvider = requireNonNull(partitioningProvider, "partitioningProvider is null");
     }
 
@@ -91,7 +91,7 @@ public class NodePartitioningManager
                     partitionChannelTypes,
                     partitioningScheme.getHashColumn().isPresent(),
                     bucketToPartition,
-                    typeOperators);
+                    hashCompiler);
         }
 
         if (partitioningHandle.getConnectorHandle() instanceof MergePartitioningHandle handle) {
@@ -113,7 +113,7 @@ public class NodePartitioningManager
                     partitionChannelTypes,
                     partitioningScheme.getHashColumn().isPresent(),
                     bucketToPartition,
-                    typeOperators);
+                    hashCompiler);
         }
 
         BucketFunction bucketFunction = getBucketFunction(session, partitioningHandle, partitionChannelTypes, bucketToPartition.length);

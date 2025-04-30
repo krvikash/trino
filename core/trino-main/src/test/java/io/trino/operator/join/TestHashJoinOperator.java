@@ -34,6 +34,7 @@ import io.trino.execution.scheduler.UniformNodeSelectorFactory;
 import io.trino.metadata.InMemoryNodeManager;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
+import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorAssertion;
 import io.trino.operator.OperatorFactory;
@@ -114,7 +115,7 @@ public class TestHashJoinOperator
     private static final int PARTITION_COUNT = 4;
     private static final SingleStreamSpillerFactory SINGLE_STREAM_SPILLER_FACTORY = new DummySpillerFactory();
     private static final PartitioningSpillerFactory PARTITIONING_SPILLER_FACTORY = new GenericPartitioningSpillerFactory(SINGLE_STREAM_SPILLER_FACTORY);
-    private static final TypeOperators TYPE_OPERATORS = new TypeOperators();
+    private static final NullSafeHashCompiler HASH_COMPILER = new NullSafeHashCompiler(new TypeOperators());
 
     private final ExecutorService executor = newCachedThreadPool(daemonThreadsNamed("test-executor-%s"));
     private final ScheduledExecutorService scheduledExecutor = newScheduledThreadPool(2, daemonThreadsNamed(getClass().getSimpleName() + "-scheduledExecutor-%s"));
@@ -123,7 +124,7 @@ public class TestHashJoinOperator
                     new InMemoryNodeManager(),
                     new NodeSchedulerConfig().setIncludeCoordinator(true),
                     new NodeTaskMap(new FinalizerService()))),
-            TYPE_OPERATORS,
+            HASH_COMPILER,
             CatalogServiceProvider.fail());
 
     @AfterAll
@@ -260,7 +261,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.of(1),
                 PARTITIONING_SPILLER_FACTORY,
-                TYPE_OPERATORS);
+                HASH_COMPILER);
 
         instantiateBuildDrivers(buildSideSetup, taskContext);
         buildLookupSource(executor, buildSideSetup);
@@ -1299,7 +1300,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.of(1),
                 PARTITIONING_SPILLER_FACTORY,
-                TYPE_OPERATORS);
+                HASH_COMPILER);
 
         // drivers and operators
         instantiateBuildDrivers(buildSideSetup, taskContext);
@@ -1349,7 +1350,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.of(1),
                 PARTITIONING_SPILLER_FACTORY,
-                TYPE_OPERATORS);
+                HASH_COMPILER);
 
         // drivers and operators
         instantiateBuildDrivers(buildSideSetup, taskContext);
@@ -1405,7 +1406,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.of(1),
                 PARTITIONING_SPILLER_FACTORY,
-                TYPE_OPERATORS);
+                HASH_COMPILER);
 
         // build drivers and operators
         instantiateBuildDrivers(buildSideSetup, taskContext);
@@ -1464,7 +1465,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.of(1),
                 PARTITIONING_SPILLER_FACTORY,
-                TYPE_OPERATORS);
+                HASH_COMPILER);
 
         // build drivers and operators
         instantiateBuildDrivers(buildSideSetup, taskContext);
@@ -1522,7 +1523,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.of(1),
                 PARTITIONING_SPILLER_FACTORY,
-                TYPE_OPERATORS);
+                HASH_COMPILER);
 
         // build drivers and operators
         instantiateBuildDrivers(buildSideSetup, taskContext);
@@ -1659,7 +1660,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.of(1),
                 PARTITIONING_SPILLER_FACTORY,
-                TYPE_OPERATORS);
+                HASH_COMPILER);
 
         // build drivers and operators
         instantiateBuildDrivers(buildSideSetup, taskContext);
@@ -1699,7 +1700,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.of(1),
                 PARTITIONING_SPILLER_FACTORY,
-                TYPE_OPERATORS);
+                HASH_COMPILER);
     }
 
     private static <T> List<List<T>> product(List<List<T>> left, List<List<T>> right)

@@ -41,6 +41,7 @@ import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.InMemoryNodeManager;
 import io.trino.metadata.Split;
 import io.trino.operator.FlatHashStrategyCompiler;
+import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
@@ -163,13 +164,14 @@ public final class TaskTestUtils
         FinalizerService finalizerService = new FinalizerService();
 
         BlockTypeOperators blockTypeOperators = new BlockTypeOperators(PLANNER_CONTEXT.getTypeOperators());
+        NullSafeHashCompiler hashCompiler = new NullSafeHashCompiler(PLANNER_CONTEXT.getTypeOperators());
         NodeScheduler nodeScheduler = new NodeScheduler(new UniformNodeSelectorFactory(
                 new InMemoryNodeManager(),
                 new NodeSchedulerConfig().setIncludeCoordinator(true),
                 new NodeTaskMap(finalizerService)));
         NodePartitioningManager nodePartitioningManager = new NodePartitioningManager(
                 nodeScheduler,
-                PLANNER_CONTEXT.getTypeOperators(),
+                hashCompiler,
                 CatalogServiceProvider.fail());
 
         CursorProcessorCompiler cursorProcessorCompiler = new CursorProcessorCompiler(PLANNER_CONTEXT.getFunctionManager());
@@ -209,6 +211,7 @@ public final class TaskTestUtils
                 new DynamicFilterConfig(),
                 blockTypeOperators,
                 PLANNER_CONTEXT.getTypeOperators(),
+                hashCompiler,
                 new TableExecuteContextManager(),
                 new ExchangeManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of())),
                 new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats, new InMemoryNodeManager()),

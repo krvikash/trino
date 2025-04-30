@@ -20,7 +20,6 @@ import io.trino.operator.join.LookupSourceFactory;
 import io.trino.operator.join.unspilled.JoinProbe;
 import io.trino.operator.join.unspilled.PartitionedLookupSourceFactory;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeOperators;
 import io.trino.spiller.PartitioningSpillerFactory;
 import io.trino.sql.planner.plan.PlanNodeId;
 
@@ -46,7 +45,7 @@ public final class OperatorFactories
             List<Integer> probeJoinChannel,
             OptionalInt probeHashChannel,
             Optional<List<Integer>> probeOutputChannelsOptional,
-            TypeOperators typeOperators)
+            NullSafeHashCompiler hashCompiler)
     {
         List<Integer> probeOutputChannels = probeOutputChannelsOptional.orElseGet(() -> rangeList(probeTypes.size()));
         List<Type> probeOutputChannelTypes = probeOutputChannels.stream()
@@ -62,7 +61,7 @@ public final class OperatorFactories
                 lookupSourceFactory.getBuildOutputTypes(),
                 joinType,
                 new JoinProbe.JoinProbeFactory(probeOutputChannels, probeJoinChannel, probeHashChannel, hasFilter),
-                typeOperators,
+                hashCompiler,
                 probeJoinChannel,
                 probeHashChannel));
     }
@@ -78,7 +77,7 @@ public final class OperatorFactories
             Optional<List<Integer>> probeOutputChannelsOptional,
             OptionalInt totalOperatorsCount,
             PartitioningSpillerFactory partitioningSpillerFactory,
-            TypeOperators typeOperators)
+            NullSafeHashCompiler hashCompiler)
     {
         List<Integer> probeOutputChannels = probeOutputChannelsOptional.orElseGet(() -> rangeList(probeTypes.size()));
         List<Type> probeOutputChannelTypes = probeOutputChannels.stream()
@@ -94,7 +93,7 @@ public final class OperatorFactories
                 lookupSourceFactory.getBuildOutputTypes(),
                 joinType,
                 new JoinProbeFactory(probeOutputChannels.stream().mapToInt(i -> i).toArray(), probeJoinChannel, probeHashChannel),
-                typeOperators,
+                hashCompiler,
                 totalOperatorsCount,
                 probeJoinChannel,
                 probeHashChannel,

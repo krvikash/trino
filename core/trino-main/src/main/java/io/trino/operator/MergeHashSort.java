@@ -17,7 +17,6 @@ import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeOperators;
 import io.trino.util.MergeSortedPages.PageWithPosition;
 
 import java.io.Closeable;
@@ -40,12 +39,12 @@ public class MergeHashSort
         implements Closeable
 {
     private final AggregatedMemoryContext memoryContext;
-    private final TypeOperators typeOperators;
+    private final NullSafeHashCompiler hashCompiler;
 
-    public MergeHashSort(AggregatedMemoryContext memoryContext, TypeOperators typeOperators)
+    public MergeHashSort(AggregatedMemoryContext memoryContext, NullSafeHashCompiler hashCompiler)
     {
         this.memoryContext = memoryContext;
-        this.typeOperators = typeOperators;
+        this.hashCompiler = hashCompiler;
     }
 
     /**
@@ -53,7 +52,7 @@ public class MergeHashSort
      */
     public WorkProcessor<Page> merge(List<Type> keyTypes, List<Type> allTypes, List<WorkProcessor<Page>> channels, DriverYieldSignal driverYieldSignal)
     {
-        InterpretedHashGenerator hashGenerator = createPagePrefixHashGenerator(keyTypes, typeOperators);
+        InterpretedHashGenerator hashGenerator = createPagePrefixHashGenerator(keyTypes, hashCompiler);
         return mergeSortedPages(
                 channels,
                 createHashPageWithPositionComparator(hashGenerator),
