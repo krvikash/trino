@@ -54,7 +54,7 @@ public final class VariableWidthBlock
         this(0, positionCount, slice, offsets, valueIsNull.orElse(null));
     }
 
-    VariableWidthBlock(int arrayOffset, int positionCount, Slice slice, int[] offsets, boolean[] valueIsNull)
+    public VariableWidthBlock(int arrayOffset, int positionCount, Slice slice, int[] offsets, boolean[] valueIsNull)
     {
         if (arrayOffset < 0) {
             throw new IllegalArgumentException("arrayOffset is negative");
@@ -101,7 +101,7 @@ public final class VariableWidthBlock
         return getPositionOffset(position);
     }
 
-    int getPositionOffset(int position)
+    public int getPositionOffset(int position)
     {
         return offsets[position + arrayOffset];
     }

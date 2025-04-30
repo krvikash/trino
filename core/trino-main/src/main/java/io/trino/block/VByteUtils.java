@@ -48,9 +48,14 @@ public final class VByteUtils
 
     public static void vByteDecodeInts(VByteDecoder vByteDecoder, SliceInput sliceInput, int valuesCount, int[] values)
     {
+        vByteDecodeInts(vByteDecoder, sliceInput, valuesCount, values, 0);
+    }
+
+    public static void vByteDecodeInts(VByteDecoder vByteDecoder, SliceInput sliceInput, int valuesCount, int[] values, int valuesOffset)
+    {
         int vByteEncodedValuesSize = sliceInput.readInt();
         byte[] vByteEncodedValues = new byte[vByteEncodedValuesSize];
         sliceInput.read(vByteEncodedValues);
-        vByteDecoder.decodeInts(vByteEncodedValues, 0, vByteEncodedValues.length, valuesCount, values, 0);
+        vByteDecoder.decodeInts(vByteEncodedValues, 0, vByteEncodedValues.length, valuesCount, values, valuesOffset);
     }
 }
