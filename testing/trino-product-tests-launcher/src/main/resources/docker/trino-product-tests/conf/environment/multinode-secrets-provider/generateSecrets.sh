@@ -24,6 +24,22 @@ etc/password.db
 etc/password.db
 EOF
 
+# Store JDBC URL for Postgres
+keytool -importpass -storetype pkcs12 -alias postgres_jdbc_url \
+-keystore /docker/trino-product-tests/conf/trino/etc/credential.jckes \
+-storepass password<<EOF
+jdbc:postgresql://postgresql:15432/test
+jdbc:postgresql://postgresql:15432/test
+EOF
+
+# Store username for Postgres
+keytool -importpass -storetype pkcs12 -alias postgres_username \
+-keystore /docker/trino-product-tests/conf/trino/etc/credential.jckes \
+-storepass password<<EOF
+test
+test
+EOF
+
 # Store password for Postgres
 keytool -importpass -storetype pkcs12 -alias postgres_password \
 -keystore /docker/trino-product-tests/conf/trino/etc/credential.jckes \

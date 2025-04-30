@@ -21,6 +21,8 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.jdbc.credential.file.ConfigFileBasedCredentialProviderConfig;
 import io.trino.plugin.jdbc.credential.keystore.KeyStoreBasedCredentialProviderConfig;
+import io.trino.plugin.jdbc.credential.secrets.SecretsResolverCredentialProvider;
+import io.trino.plugin.jdbc.credential.secrets.SecretsResolverCredentialProviderConfig;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -35,6 +37,7 @@ import static io.airlift.configuration.ConfigurationLoader.loadPropertiesFrom;
 import static io.trino.plugin.jdbc.credential.CredentialProviderType.FILE;
 import static io.trino.plugin.jdbc.credential.CredentialProviderType.INLINE;
 import static io.trino.plugin.jdbc.credential.CredentialProviderType.KEYSTORE;
+import static io.trino.plugin.jdbc.credential.CredentialProviderType.SECRETS;
 import static io.trino.plugin.jdbc.credential.keystore.KeyStoreUtils.loadKeyStore;
 import static io.trino.plugin.jdbc.credential.keystore.KeyStoreUtils.readEntity;
 
@@ -47,6 +50,7 @@ public class CredentialProviderModule
         bindCredentialProviderModule(INLINE, new InlineCredentialProviderModule());
         bindCredentialProviderModule(FILE, new ConfigFileBasedCredentialProviderModule());
         bindCredentialProviderModule(KEYSTORE, new KeyStoreBasedCredentialProviderModule());
+        bindCredentialProviderModule(SECRETS, new SecretsResolverBasedCredentialProviderModule());
 
         configBinder(binder).bindConfig(ExtraCredentialConfig.class);
         binder.bind(CredentialProvider.class).to(ExtraCredentialProvider.class).in(SINGLETON);
@@ -118,6 +122,19 @@ public class CredentialProviderModule
             String user = readEntity(keyStore, config.getUserCredentialName(), config.getPasswordForUserCredentialName());
             String password = readEntity(keyStore, config.getPasswordCredentialName(), config.getPasswordForPasswordCredentialName());
             return new StaticCredentialProvider(Optional.of(user), Optional.of(password));
+        }
+    }
+
+    private static class SecretsResolverBasedCredentialProviderModule
+            implements Module
+    {
+        @Override
+        public void configure(Binder binder)
+        {
+            configBinder(binder).bindConfig(SecretsResolverCredentialProviderConfig.class);
+            binder.bind(CredentialProvider.class).annotatedWith(ForExtraCredentialProvider.class)
+                    .to(SecretsResolverCredentialProvider.class)
+                    .in(SINGLETON);
         }
     }
 }

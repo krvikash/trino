@@ -69,6 +69,7 @@ public class JdbcConnectorFactory
 
         Injector injector = app
                 .doNotInitializeLogging()
+                .loadSecretsPlugins()
                 .setRequiredConfigurationProperties(requiredConfig)
                 .initialize();
 
