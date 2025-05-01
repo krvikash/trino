@@ -17,6 +17,7 @@ import static java.util.Objects.requireNonNull;
 public record LanguageModelConnectionSpec(
         String id,
         String modelName,
+        Optional<String> description,
         Optional<Integer> maxTokens,
         Optional<Float> temperature,
         Optional<Float> topP,

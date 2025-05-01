@@ -16,6 +16,7 @@ import static java.util.Objects.requireNonNull;
 public record EmbeddingModelConnectionSpec(
         String id,
         String modelName,
+        Optional<String> description,
         Optional<Integer> dimensions,
         Optional<String> inferenceProfile,
         ConnectionInfo connectionInfo)
