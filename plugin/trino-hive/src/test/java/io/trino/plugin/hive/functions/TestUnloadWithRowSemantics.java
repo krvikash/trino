@@ -14,7 +14,10 @@
 package io.trino.plugin.hive.functions;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.plugin.hive.HiveStorageFormat;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.Map;
 
@@ -73,5 +76,14 @@ public class TestUnloadWithRowSemantics
     {
         assertThatThrownBy(super::testUnloadInvalidPartitionArgument)
                 .hasMessageContaining("Invalid argument INPUT. Partitioning specified for table argument with row semantics");
+    }
+
+    @Override
+    @ParameterizedTest
+    @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = "REGEX")
+    void testUnloadWithSortOrder(HiveStorageFormat format)
+    {
+        assertThatThrownBy(() -> super.testUnloadWithSortOrder(format))
+                .hasMessageContaining("Invalid argument INPUT. Ordering specified for table argument with row semantics");
     }
 }

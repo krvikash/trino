@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.functions;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveCompressionOption;
@@ -21,6 +22,7 @@ import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
+import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -612,7 +615,8 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX"}) // see testUnloadAvro
+    @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX"})
+        // see testUnloadAvro
     void testUnloadTinyInt(HiveStorageFormat format)
             throws Exception
     {
@@ -622,7 +626,8 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX"}) // see testUnloadAvro
+    @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX"})
+        // see testUnloadAvro
     void testUnloadSmallInt(HiveStorageFormat format)
             throws Exception
     {
@@ -1199,5 +1204,50 @@ abstract class BaseUnloadFunctionTest
         assertQueryFails(
                 "SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT 1 x), location => '" + location + "', format => '" + format + "', header => false))",
                 "Cannot specify header for storage format: " + format);
+    }
+
+    @ParameterizedTest
+    @EnumSource(mode = Mode.EXCLUDE, names = "REGEX")
+    void testUnloadWithSortOrder(HiveStorageFormat format)
+            throws Exception
+    {
+        testUnloadWithSortOrder(false, format);
+        testUnloadWithSortOrder(true, format);
+    }
+
+    private void testUnloadWithSortOrder(boolean partitioned, HiveStorageFormat format)
+            throws Exception
+    {
+        String tableName = "test_unload_with_sort_" + randomNameSuffix();
+        String location = directory.resolve(tableName).toUri().toString();
+        Files.createDirectory(directory.resolve(tableName));
+
+        String partition = partitioned ? "PARTITION BY part " : "";
+        MaterializedResult result = computeActual(
+                """
+                        SELECT * FROM
+                        TABLE (
+                            hive.system.unload(
+                                input => TABLE(
+                                VALUES ('1', 'val1', 'part1'), ('5', 'val2', 'part1'), ('4', 'val3', 'part2'), ('3', 'val4', 'part2'), ('2', 'val5', 'part3')
+                                ) t(sort_key, val, part) %s ORDER BY sort_key,
+                                location => '%s',
+                                format => '%s'))
+                        """.formatted(partition, location, format.name()));
+        List<String> expectedColumnNames = partitioned ? ImmutableList.of("path", "count", "part") : ImmutableList.of("path", "count");
+        int rowCount = partitioned ? 3 : 1;
+        assertThat(result.getColumnNames()).containsExactly(expectedColumnNames.toArray(new String[0]));
+        assertThat(result.getRowCount()).isEqualTo(rowCount);
+
+        assertUpdate("CREATE TABLE " + tableName + "(sort_key varchar, val varchar, part varchar) " +
+                "WITH (" + (partitioned ? "partitioned_by=ARRAY['part']," : "") +
+                "external_location = '" + location + "', " +
+                "format = '" + format.name() + "')");
+
+        // using `containsExactly` to indicate the sortorder
+        assertThat(computeActual("SELECT * FROM " + tableName).getMaterializedRows())
+                .containsExactly(computeActual("SELECT * FROM " + tableName + " ORDER BY sort_key").getMaterializedRows().toArray(new MaterializedRow[0]));
+
+        assertUpdate("DROP TABLE " + tableName);
     }
 }
