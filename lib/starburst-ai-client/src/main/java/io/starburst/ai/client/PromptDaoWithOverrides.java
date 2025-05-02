@@ -89,6 +89,18 @@ public class PromptDaoWithOverrides
     }
 
     @Override
+    public String summarizePrompt()
+    {
+        return overrides.flatMap(PromptOverrides::summarizePrompt).orElseGet(baseProvider::summarizePrompt);
+    }
+
+    @Override
+    public Optional<String> summarizeSystemPrompt()
+    {
+        return overrides.flatMap(PromptOverrides::summarizeSystemPrompt).or(baseProvider::summarizeSystemPrompt);
+    }
+
+    @Override
     public List<String> systemPrompts()
     {
         if (overrides.flatMap(PromptOverrides::systemPrompts).isEmpty() || overrides.flatMap(PromptOverrides::systemPrompts).get().isEmpty()) {

@@ -12,6 +12,7 @@ package io.starburst.ai.client;
 import com.google.common.collect.ImmutableList;
 
 import java.util.List;
+import java.util.Optional;
 
 public class StaticPromptDao
         implements PromptDao
@@ -59,6 +60,18 @@ public class StaticPromptDao
             %s
             """;
 
+    private static final String SUMMARIZE_SYSTEM_PROMPT = """
+            You are a summarization AI assistant.
+            The user will only prompt with text that they want summarized.
+            Do not respond with anything outside of the text: no opinions or insights.
+            Summarize the user prompt which will consist of text that they want you to summarize.
+            Be concise and limit to several bullet points.
+            The length of the output should be significantly shorter than the input:
+            If the input is a few sentences or a paragraph then output should be 2 sentences maximum no exceptions.
+            If the input is a few paragraphs then output a single 3 sentence paragraph.
+            For input longer than a few paragraphs, output at most a single 5 sentence paragraph.
+            """;
+
     @Override
     public String analyzeSentimentPrompt()
     {
@@ -87,6 +100,18 @@ public class StaticPromptDao
     public String translatePrompt()
     {
         return TRANSLATE;
+    }
+
+    @Override
+    public String summarizePrompt()
+    {
+        return "%s";
+    }
+
+    @Override
+    public Optional<String> summarizeSystemPrompt()
+    {
+        return Optional.of(SUMMARIZE_SYSTEM_PROMPT);
     }
 
     @Override

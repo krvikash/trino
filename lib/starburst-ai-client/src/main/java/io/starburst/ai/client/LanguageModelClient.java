@@ -26,4 +26,6 @@ public interface LanguageModelClient
     String mask(String text, List<String> labels);
 
     String translate(String text, String language);
+
+    String summarize(String text);
 }

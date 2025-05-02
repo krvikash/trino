@@ -199,6 +199,23 @@ public class TestAiFunctions
         assertThat(sanitize(result)).matches(pattern);
     }
 
+    @ParameterizedTest
+    @MethodSource("modelIds")
+    public void testSummarize(String modelId)
+    {
+        String prompt = """
+               The Amazon rainforest, often referred to as the “lungs of the Earth,” produces around 20% of the world’s oxygen and is home to an estimated 10% of all known species. Despite its crucial ecological role, it faces severe threats from deforestation driven by logging, agriculture, and mining. The loss of forest cover not only endangers biodiversity but also contributes to climate change by releasing massive amounts of carbon dioxide into the atmosphere.
+               In addition to its environmental importance, the Amazon plays a critical role in regulating global and regional weather patterns. The vast canopy of trees helps recycle moisture through a process known as transpiration, which in turn influences rainfall across South America and even affects weather as far away as North America and Africa. Disruption of this cycle due to forest loss can lead to more droughts, unpredictable weather, and changes in agricultural productivity across the continent.
+               Local and Indigenous communities who have lived in the Amazon for centuries also suffer the consequences of deforestation. Their traditional ways of life are intimately connected to the health of the forest, and many depend on it for food, medicine, and cultural practices. As land is cleared and industrial operations expand, these communities are often displaced or face conflict over land rights and access to natural resources.
+               Efforts to protect the Amazon include government regulations, international agreements, and conservation programs run by NGOs and local groups. However, enforcement remains inconsistent, and economic pressures often outweigh environmental considerations. Without stronger global cooperation and sustainable economic alternatives, the Amazon may soon reach a tipping point beyond which it cannot recover—threatening not just regional stability, but the global climate system.""";
+
+        String result = (String) computeActual(TEST_AI_SESSION,
+                "SELECT ai.summarize('%s', '%s')".formatted(prompt, modelId)).getOnlyValue();
+        assertThat(sanitize(result))
+                .contains("rainforest", "deforestation")
+                .hasSizeLessThan(prompt.length());
+    }
+
     public record LabelAndContent(String label, String content) {}
 
     private static String sanitize(String input)

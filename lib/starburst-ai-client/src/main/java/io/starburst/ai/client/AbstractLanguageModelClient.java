@@ -34,6 +34,7 @@ public abstract class AbstractLanguageModelClient
     protected final ModelWithFixedPrompt fixGrammarModelAndPrompt;
     protected final ModelWithFixedPrompt maskModelAndPrompt;
     protected final ModelWithFixedPrompt translateModelAndPrompt;
+    protected final ModelWithFixedPrompt summarizeModelAndPrompt;
     protected final String generateModel;
 
     protected AbstractLanguageModelClient(String model, PromptDao promptDao)
@@ -46,6 +47,7 @@ public abstract class AbstractLanguageModelClient
         this.fixGrammarModelAndPrompt = create("fixGrammar", generateModel, topLevelSystemPrompts, promptDao.fixGrammarPrompt(), promptDao.fixGrammarSystemPrompt());
         this.maskModelAndPrompt = create("mask", generateModel, topLevelSystemPrompts, promptDao.maskPrompt(), promptDao.maskSystemPrompt());
         this.translateModelAndPrompt = create("translate", generateModel, topLevelSystemPrompts, promptDao.translatePrompt(), promptDao.translateSystemPrompt());
+        this.summarizeModelAndPrompt = create("summarize", generateModel, topLevelSystemPrompts, promptDao.summarizePrompt(), promptDao.summarizeSystemPrompt());
     }
 
     @Override
@@ -88,6 +90,12 @@ public abstract class AbstractLanguageModelClient
     public String translate(String text, String language)
     {
         return fixedCompletion(translateModelAndPrompt, translateModelAndPrompt.prompt().formatted(STRING_CODEC.toJson(language), text));
+    }
+
+    @Override
+    public String summarize(String text)
+    {
+        return fixedCompletion(summarizeModelAndPrompt, summarizeModelAndPrompt.prompt().formatted(text));
     }
 
     private String completion(String prompt, Optional<String> system)

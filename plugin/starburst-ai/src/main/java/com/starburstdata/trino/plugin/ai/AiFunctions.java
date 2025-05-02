@@ -99,6 +99,11 @@ public class AiFunctions
                     .signature(signature(TEXT, TEXT, TEXT, TEXT))
                     .nondeterministic()
                     .build())
+            .add(function("summarize")
+                    .description("Summarize text, using the specified model")
+                    .signature(signature(TEXT, TEXT, TEXT))
+                    .nondeterministic()
+                    .build())
             .build();
 
     private static final MethodHandle GENERATE_EMBEDDING;
@@ -110,6 +115,7 @@ public class AiFunctions
     private static final MethodHandle PROMPT_SYSTEM;
     private static final MethodHandle MASK;
     private static final MethodHandle TRANSLATE;
+    private static final MethodHandle SUMMARIZE;
 
     static {
         try {
@@ -122,6 +128,7 @@ public class AiFunctions
             PROMPT_SYSTEM = lookup().findVirtual(AiFunctions.class, "promptSystem", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class, Slice.class));
             MASK = lookup().findVirtual(AiFunctions.class, "mask", methodType(Slice.class, ConnectorSession.class, Slice.class, Block.class, Slice.class));
             TRANSLATE = lookup().findVirtual(AiFunctions.class, "translate", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class, Slice.class));
+            SUMMARIZE = lookup().findVirtual(AiFunctions.class, "summarize", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
         }
         catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
@@ -170,6 +177,7 @@ public class AiFunctions
             }
             case "mask" -> MASK;
             case "translate" -> TRANSLATE;
+            case "summarize" -> SUMMARIZE;
             default -> throw new IllegalArgumentException("Invalid function ID: " + functionId);
         };
 
@@ -300,6 +308,12 @@ public class AiFunctions
         accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
 
         return utf8Slice(clientProvider.languageModelClient(modelId).translate(text.toStringUtf8(), language.toStringUtf8()));
+    }
+
+    public Slice summarize(ConnectorSession session, Slice text, Slice modelId)
+    {
+        accessControl.checkCanExecuteModel(new AiModelAccessControl.Context(session), modelId.toStringUtf8());
+        return utf8Slice(clientProvider.languageModelClient(modelId).summarize(text.toStringUtf8()));
     }
 
     private static List<String> fromSqlArray(Block block)

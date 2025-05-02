@@ -25,6 +25,8 @@ public record PromptOverrides(
         Optional<String> maskSystemPrompt,
         Optional<String> translatePrompt,
         Optional<String> translateSystemPrompt,
+        Optional<String> summarizePrompt,
+        Optional<String> summarizeSystemPrompt,
         Optional<List<String>> systemPrompts)
 {
     public PromptOverrides
@@ -39,6 +41,8 @@ public record PromptOverrides(
         requireNonNull(maskSystemPrompt, "maskSystemPrompt is null");
         requireNonNull(translatePrompt, "translatePrompt is null");
         requireNonNull(translateSystemPrompt, "translateSystemPrompt is null");
+        requireNonNull(summarizePrompt, "summarizePrompt is null");
+        requireNonNull(summarizeSystemPrompt, "summarizeSystemPrompt is null");
         requireNonNull(systemPrompts, "systemPrompts is null");
     }
 }

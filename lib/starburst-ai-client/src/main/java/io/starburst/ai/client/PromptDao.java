@@ -49,6 +49,13 @@ public interface PromptDao
         return Optional.empty();
     }
 
+    String summarizePrompt();
+
+    default Optional<String> summarizeSystemPrompt()
+    {
+        return Optional.empty();
+    }
+
     /**
      * Set guidelines on tone, formality, restrict use of offensive language, etc.
      * Note that this is called developer prompt by some providers.
