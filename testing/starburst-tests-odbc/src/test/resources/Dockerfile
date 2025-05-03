@@ -3,7 +3,7 @@ FROM 843985043183.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/almalinux:9
 RUN yum install -y epel-release
 RUN yum --enablerepo crb install -y python3{,-pip,-devel} unixODBC{,-devel} gcc gcc-c++ make
 
-RUN rpm -i https://starburstdata-downloads-v2.s3.us-east-2.amazonaws.com/odbc/2025/2.2.1.1006/starburstODBC-64bit-2.2.1.1006.el8.x86_64.rpm
+RUN rpm -i https://starburstdata-downloads-v2.s3.us-east-2.amazonaws.com/odbc/2025/2.2.2.1007/starburstODBC-64bit-2.2.2.1007.el8.x86_64.rpm
 
 RUN cat /opt/starburst/starburstodbc/Setup/odbcinst.ini >> /etc/odbcinst.ini
 
