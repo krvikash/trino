@@ -22,6 +22,7 @@ import io.trino.spi.block.Block;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -118,7 +119,12 @@ public class WarmupCacheData
 
     public List<WarmingCandidate> getWarmingCandidates()
     {
-        return isNull() ? emptyList() : connectorIndexToWarmColumns.values().stream().flatMap(Collection::stream).map(CacheWarmupElementArgs::getWarmupCandidate).collect(Collectors.toList());
+        return isNull() ? emptyList() : connectorIndexToWarmColumns.values()
+                .stream()
+                .flatMap(Collection::stream)
+                .map(CacheWarmupElementArgs::getWarmupCandidate)
+                .filter(Objects::nonNull) // warming candidate can be null when CacheWarmer:initCandidate fails
+                .collect(Collectors.toList());
     }
 
     private boolean isNull()
