@@ -79,7 +79,7 @@ public class CacheDataOperator
     private final OperatorContext operatorContext;
     private final CacheMetrics cacheMetrics;
     private final CacheStats cacheStats;
-    private final Metrics metrics;
+    private Metrics metrics;
     private final LocalMemoryContext memoryContext;
     private final CacheDriverContext cacheContext;
     private final long maxCacheSizeInBytes;
@@ -138,15 +138,17 @@ public class CacheDataOperator
         // If there is no space for a page in a cache, stop caching this split and abort pageSink
         if (pageSink.getMemoryUsage() > maxCacheSizeInBytes) {
             abort();
-            operatorContext.setLatestMetrics(metrics.mergeWith(new Metrics(ImmutableMap.of(
-                    "Too big split", new LongCount(1)))));
+            metrics = metrics.mergeWith(new Metrics(ImmutableMap.of(
+                    "Too big split", new LongCount(1))));
+            operatorContext.setLatestMetrics(metrics);
             cacheMetrics.incrementTooBigSplitCount();
             cacheStats.recordTooBigSplit();
         }
         if (thresholdExceeded(page.getPositionCount())) {
             abort();
-            operatorContext.setLatestMetrics(metrics.mergeWith(new Metrics(ImmutableMap.of(
-                    "Insufficient data reduction", new LongCount(1)))));
+            metrics = metrics.mergeWith(new Metrics(ImmutableMap.of(
+                    "Insufficient data reduction", new LongCount(1))));
+            operatorContext.setLatestMetrics(metrics);
             cacheStats.recordInsufficientDataReduction();
         }
     }
@@ -225,7 +227,12 @@ public class CacheDataOperator
     private void recordCost()
     {
         // the cost of adaptation is neglected
-        cacheStats.safeUpdateSparedCpuTime(-1 * operatorContext.getCpuNanos());
+        long cpuNanos = -1 * operatorContext.getCpuNanos();
+        cacheStats.safeUpdateSparedCpuTime(cpuNanos);
+
+        metrics = metrics.mergeWith(new Metrics(ImmutableMap.of(
+                "Spared CPU time (ns)", new LongCount(cpuNanos))));
+        operatorContext.setLatestMetrics(metrics);
     }
 
     private void recordPotentialGain()
