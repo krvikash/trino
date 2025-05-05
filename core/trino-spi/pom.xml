@@ -444,6 +444,16 @@
                                     <code>java.method.removed</code>
                                     <old>method long io.trino.spi.block.VariableWidthBlock::getPositionsSizeInBytes(boolean[], int)</old>
                                 </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.returnTypeChanged</code>
+                                    <old>method io.trino.spi.eventlistener.DoubleSymmetricDistribution io.trino.spi.eventlistener.StageTaskStatistics::getGetSplitDistribution()</old>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.parameterTypeChanged</code>
+                                    <old>method void io.trino.spi.eventlistener.StageTaskStatistics::&lt;init&gt;(int, int, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution)</old>
+                                </item>
                             </differences>
                         </revapi.differences>
                     </analysisConfiguration>
