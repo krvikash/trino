@@ -448,8 +448,12 @@ public class OpenSearchMetadata
                     }
                     catch (TrinoException e) {
                         // this may happen when table is being deleted concurrently
-                        if (e.getCause() instanceof ResponseException cause && cause.getResponse().getStatusLine().getStatusCode() == 404) {
-                            return Stream.empty();
+                        if (e.getCause() instanceof ResponseException cause) {
+                            int statusCode = cause.getResponse().getStatusLine().getStatusCode();
+                            // With 403, given credential has no access to the index.
+                            if (statusCode == 403 || statusCode == 404) {
+                                return Stream.empty();
+                            }
                         }
                         throw e;
                     }

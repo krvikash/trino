@@ -369,7 +369,8 @@ public class OpenSearchClient
             return response.getStatusLine().getStatusCode() == 200;
         }
         catch (ResponseException e) {
-            if (e.getResponse().getStatusLine().getStatusCode() == 404) {
+            int statusCode = e.getResponse().getStatusLine().getStatusCode();
+            if (statusCode == 403 || statusCode == 404) {
                 return false;
             }
             throw new TrinoException(OPENSEARCH_CONNECTION_ERROR, e);
@@ -387,21 +388,25 @@ public class OpenSearchClient
                 JsonNode root = OBJECT_MAPPER.readTree(body);
                 for (int i = 0; i < root.size(); i++) {
                     String index = root.get(i).get("index").asText();
-                    // make sure the index has mappings we can use to derive the schema
                     int docsCount = root.get(i).get("docs.count").asInt();
                     int deletedDocsCount = root.get(i).get("docs.deleted").asInt();
-                    if (docsCount == 0 && deletedDocsCount == 0) {
-                        try {
-                            // without documents, the index won't have any dynamic mappings, but maybe there are some explicit ones
-                            if (getIndexMetadata(index).schema().fields().isEmpty()) {
-                                continue;
-                            }
+                    try {
+                        // getIndexMetadata is now called for every index (fails with 403 for unauthorized access) to check for permission since
+                        // _cat/indices does not filter out the indices that the user does not have access to.
+                        // There are no bulk fetch or security api calls we can use here either
+                        if (getIndexMetadata(index).schema().fields().isEmpty() &&
+                                docsCount == 0 && deletedDocsCount == 0) { // make sure the index has mappings we can use to derive the schema
+                            continue;
                         }
-                        catch (TrinoException e) {
-                            if (e.getErrorCode().equals(OPENSEARCH_INVALID_METADATA.toErrorCode())) {
-                                continue;
-                            }
-                            if (e.getCause() instanceof ResponseException cause && cause.getResponse().getStatusLine().getStatusCode() == 404) {
+                    }
+                    catch (TrinoException e) {
+                        if (e.getErrorCode().equals(OPENSEARCH_INVALID_METADATA.toErrorCode())) {
+                            continue;
+                        }
+                        if (e.getCause() instanceof ResponseException cause) {
+                            int statusCode = cause.getResponse().getStatusLine().getStatusCode();
+                            // With 403, given credential has no access to the index.
+                            if (statusCode == 403 || statusCode == 404) {
                                 continue;
                             }
                             throw e;
