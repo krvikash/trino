@@ -24,7 +24,7 @@ import static org.testcontainers.utility.MountableFile.forClasspathResource;
 
 public final class SapHanaDockerInitializer
 {
-    public static final String SAP_HANA_DOCKER_IMAGE = "843985043183.dkr.ecr.us-east-2.amazonaws.com/testing/hanaexpress:2.00.045.00.20200121.1";
+    public static final String SAP_HANA_DOCKER_IMAGE = "843985043183.dkr.ecr.us-east-1.amazonaws.com/testing/hanaexpress:2.00.045.00.20200121.1";
     public static final int SYSTEM_PORT = 39013;
     public static final int SYSTEMDB_PORT = 39017;
 
