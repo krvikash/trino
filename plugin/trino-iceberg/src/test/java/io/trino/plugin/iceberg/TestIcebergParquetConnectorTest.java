@@ -40,6 +40,7 @@ import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestIcebergParquetConnectorTest
         extends BaseIcebergConnectorTest
@@ -190,6 +191,71 @@ public class TestIcebergParquetConnectorTest
                             FROM TABLE(system.table_changes(CURRENT_SCHEMA, '%s', %s, %s))
                             """.formatted(table.getName(), initialSnapshot, snapshotAfterInsert),
                     "SELECT orderkey, partkey, suppkey, 'insert', %s, '%s', 0 FROM lineitem".formatted(snapshotAfterInsert, snapshotAfterInsertTime));
+        }
+    }
+
+    @Test
+    @Override
+    public void testCreateTableWithDefaultColumn()
+    {
+        if (formatVersion() >= 3) {
+            super.testCreateTableWithDefaultColumn();
+        }
+        else {
+            assertThatThrownBy(super::testCreateTableWithDefaultColumn)
+                    .hasMessageContaining("Default values are not supported for format version < 3");
+        }
+    }
+
+    @Test
+    @Override
+    public void testInsertDefaultNullIntoNotNullColumn()
+    {
+        if (formatVersion() >= 3) {
+            super.testInsertDefaultNullIntoNotNullColumn();
+        }
+        else {
+            assertThatThrownBy(super::testInsertDefaultNullIntoNotNullColumn)
+                    .hasMessageContaining("Default values are not supported for format version < 3");
+        }
+    }
+
+    @Test
+    @Override
+    public void testMergeDefaultNullIntoNotNullColumn()
+    {
+        if (formatVersion() >= 3) {
+            super.testMergeDefaultNullIntoNotNullColumn();
+        }
+        else {
+            assertThatThrownBy(super::testMergeDefaultNullIntoNotNullColumn)
+                    .hasMessageContaining("Default values are not supported for format version < 3");
+        }
+    }
+
+    @Test
+    @Override
+    public void testAddDefaultColumn()
+    {
+        if (formatVersion() >= 3) {
+            super.testAddDefaultColumn();
+        }
+        else {
+            assertThatThrownBy(super::testAddDefaultColumn)
+                    .hasMessageContaining("Default values are not supported for format version < 3");
+        }
+    }
+
+    @Test
+    @Override
+    public void testMergeWithDefaultColumnValue()
+    {
+        if (formatVersion() >= 3) {
+            super.testMergeWithDefaultColumnValue();
+        }
+        else {
+            assertThatThrownBy(super::testMergeWithDefaultColumnValue)
+                    .hasMessageContaining("Default values are not supported for format version < 3");
         }
     }
 

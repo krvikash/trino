@@ -143,6 +143,16 @@ public abstract class BaseIcebergConnectorSmokeTest
         }
     }
 
+    @Test
+    public void testDefaultColumnValue()
+    {
+        try (TestTable table = newTrinoTable("test_default_value", "(id INT, data INT DEFAULT 123) WITH (format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + "(id) VALUES 1", 1);
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (1, 123)");
+        }
+    }
+
     // Repeat test with invocationCount for better test coverage, since the tested aspect is inherently non-deterministic.
     @RepeatedTest(4)
     @Timeout(120)

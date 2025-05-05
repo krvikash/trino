@@ -36,6 +36,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
 import software.amazon.awssdk.services.glue.model.StorageDescriptor;
 import software.amazon.awssdk.services.glue.model.Table;
@@ -49,6 +50,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 import java.util.List;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.MoreCollectors.onlyElement;
 import static io.trino.plugin.hive.metastore.glue.GlueConverter.getTableTypeNullable;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
@@ -171,6 +173,26 @@ public class TestIcebergGlueCatalogConnectorSmokeTest
             assertUpdate("CALL system.register_table(CURRENT_SCHEMA, '" + table.getName() + "', '" + initialLocation + "')");
             assertThat(getStorageDescriptor(getGlueTable(table.getName())).location())
                     .isEqualTo(initialLocation);
+        }
+    }
+
+    @Test
+    void testDefaultValueParameter()
+    {
+        try (TestTable table = newTrinoTable("test_column_default", "(x INT DEFAULT 123) WITH (format_version=3)")) {
+            Table glueTable = getGlueTable(table.getName());
+            Column column = glueTable.storageDescriptor().columns().stream().collect(onlyElement());
+            assertThat(column.parameters()).containsEntry("trino_default_value", "123");
+        }
+    }
+
+    @Test
+    void testTooLongDefaultValueParameter()
+    {
+        String defaultValue = "x".repeat(512001);
+        try (TestTable table = newTrinoTable("test_column_default", "(x VARCHAR DEFAULT '" + defaultValue + "') WITH (format_version=3)")) {
+            Table glueTable = getGlueTable(table.getName());
+            assertThat(glueTable.storageDescriptor().columns()).isEmpty();
         }
     }
 

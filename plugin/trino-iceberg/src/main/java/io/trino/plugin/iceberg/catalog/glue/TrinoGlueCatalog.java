@@ -136,6 +136,7 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.STORAGE_
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
 import static io.trino.plugin.iceberg.IcebergTableName.tableNameWithType;
+import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_DEFAULT_VALUE_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_NOT_NULL_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_TYPE_ID_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergUtil.TRINO_TABLE_COMMENT_CACHE_PREVENTED;
@@ -685,12 +686,14 @@ public class TrinoGlueCatalog
         for (Column glueColumn : glueColumns) {
             Map<String, String> columnParameters = glueColumn.parameters();
             String trinoTypeId = columnParameters.getOrDefault(COLUMN_TRINO_TYPE_ID_PROPERTY, glueColumn.type());
+            Optional<String> defaultValue = Optional.ofNullable(columnParameters.get(COLUMN_TRINO_DEFAULT_VALUE_PROPERTY));
             boolean notNull = parseBoolean(columnParameters.getOrDefault(COLUMN_TRINO_NOT_NULL_PROPERTY, "false"));
             Type type = typeManager.getType(TypeId.of(trinoTypeId));
             columns.add(ColumnMetadata.builder()
                     .setName(glueColumn.name())
                     .setType(type)
                     .setComment(Optional.ofNullable(glueColumn.comment()))
+                    .setDefaultValue(defaultValue)
                     .setNullable(!notNull)
                     .build());
         }

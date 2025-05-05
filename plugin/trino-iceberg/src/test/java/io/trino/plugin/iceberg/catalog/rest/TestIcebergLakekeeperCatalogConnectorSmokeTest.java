@@ -221,6 +221,15 @@ final class TestIcebergLakekeeperCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testDefaultColumnValue()
+    {
+        assertThatThrownBy(super::testDefaultColumnValue)
+                .hasMessageContaining("Failed to create transaction")
+                .hasStackTraceContaining("Invalid format version specified in table_properties: 3");
+    }
+
+    @Test
+    @Override
     public void testRegisterTableWithDroppedTable()
     {
         String tableName = "test_register_table_with_dropped_table_" + randomNameSuffix();

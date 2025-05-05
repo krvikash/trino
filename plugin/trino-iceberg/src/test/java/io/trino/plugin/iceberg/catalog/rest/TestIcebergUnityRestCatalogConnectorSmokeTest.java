@@ -271,6 +271,14 @@ final class TestIcebergUnityRestCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testDefaultColumnValue()
+    {
+        assertThatThrownBy(super::testDefaultColumnValue)
+                .hasMessageContaining("Access Denied");
+    }
+
+    @Test
+    @Override
     public void testCreateOrReplaceTable()
     {
         assertThatThrownBy(super::testCreateOrReplaceTable)

@@ -63,10 +63,22 @@ public class IcebergColumnHandle
     // The list of field ids to indicate the projected part of the top-level column represented by baseColumnIdentity
     private final List<Integer> path;
     private final Type type;
+    private final Optional<String> defaultValue;
     private final boolean nullable;
     private final Optional<String> comment;
     // Cache of ColumnIdentity#getId to ensure quick access, even with dereferences
     private final int id;
+
+    public IcebergColumnHandle(
+            ColumnIdentity baseColumnIdentity,
+            Type baseType,
+            List<Integer> path,
+            Type type,
+            boolean nullable,
+            Optional<String> comment)
+    {
+        this(baseColumnIdentity, baseType, path, type, Optional.empty(), nullable, comment);
+    }
 
     @JsonCreator
     public IcebergColumnHandle(
@@ -74,6 +86,7 @@ public class IcebergColumnHandle
             @JsonProperty("baseType") Type baseType,
             @JsonProperty("path") List<Integer> path,
             @JsonProperty("type") Type type,
+            @JsonProperty("defaultValue") Optional<String> defaultValue,
             @JsonProperty("nullable") boolean nullable,
             @JsonProperty("comment") Optional<String> comment)
     {
@@ -81,6 +94,7 @@ public class IcebergColumnHandle
         this.baseType = requireNonNull(baseType, "baseType is null");
         this.path = ImmutableList.copyOf(requireNonNull(path, "path is null"));
         this.type = requireNonNull(type, "type is null");
+        this.defaultValue = requireNonNull(defaultValue, "defaultValue is null");
         this.nullable = nullable;
         this.comment = requireNonNull(comment, "comment is null");
         this.id = path.isEmpty() ? baseColumnIdentity.getId() : Iterables.getLast(path);
@@ -117,7 +131,13 @@ public class IcebergColumnHandle
     @JsonIgnore
     public IcebergColumnHandle getBaseColumn()
     {
-        return new IcebergColumnHandle(getBaseColumnIdentity(), getBaseType(), ImmutableList.of(), getBaseType(), isNullable(), Optional.empty());
+        return new IcebergColumnHandle(getBaseColumnIdentity(), getBaseType(), ImmutableList.of(), getBaseType(), getDefaultValue(), isNullable(), Optional.empty());
+    }
+
+    @JsonProperty
+    public Optional<String> getDefaultValue()
+    {
+        return defaultValue;
     }
 
     @JsonProperty

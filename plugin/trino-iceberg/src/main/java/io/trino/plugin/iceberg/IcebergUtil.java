@@ -148,6 +148,8 @@ import static io.trino.plugin.iceberg.TrinoMetricsReporter.TRINO_METRICS_REPORTE
 import static io.trino.plugin.iceberg.TypeConverter.toIcebergType;
 import static io.trino.plugin.iceberg.TypeConverter.toIcebergTypeForNewColumn;
 import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
+import static io.trino.plugin.iceberg.util.IcebergDefaultValues.toIcebergLiteral;
+import static io.trino.plugin.iceberg.util.IcebergDefaultValues.toTrinoDefaultValue;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampFromNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromMicros;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromNanos;
@@ -208,6 +210,7 @@ public final class IcebergUtil
     public static final String TRINO_TABLE_COMMENT_CACHE_PREVENTED = "trino_table_comment_cache_prevented";
     public static final String COLUMN_TRINO_NOT_NULL_PROPERTY = "trino_not_null";
     public static final String COLUMN_TRINO_TYPE_ID_PROPERTY = "trino_type_id";
+    public static final String COLUMN_TRINO_DEFAULT_VALUE_PROPERTY = "trino_default_value";
 
     public static final String METADATA_FOLDER_NAME = "metadata";
     public static final String METADATA_FILE_EXTENSION = ".metadata.json";
@@ -413,13 +416,18 @@ public final class IcebergUtil
         ImmutableList.Builder<ColumnMetadata> columns = builderWithExpectedSize(icebergColumns.size() + 2);
 
         icebergColumns.stream()
-                .map(column ->
-                        ColumnMetadata.builder()
-                                .setName(column.name())
-                                .setType(toTrinoType(column.type(), typeManager))
-                                .setNullable(column.isOptional())
-                                .setComment(Optional.ofNullable(column.doc()))
-                                .build())
+                .map(column -> {
+                    Type trinoType = toTrinoType(column.type(), typeManager);
+                    ColumnMetadata.Builder columnMetadata = ColumnMetadata.builder()
+                            .setName(column.name())
+                            .setType(trinoType)
+                            .setNullable(column.isOptional())
+                            .setComment(Optional.ofNullable(column.doc()));
+                    if (column.writeDefault() != null) {
+                        columnMetadata.setDefaultValue(Optional.of(toTrinoDefaultValue(column.type(), column.writeDefault())));
+                    }
+                    return columnMetadata.build();
+                })
                 .forEach(columns::add);
         columns.add(partitionColumnMetadata());
         columns.add(pathColumnMetadata());
@@ -451,6 +459,7 @@ public final class IcebergUtil
                 toTrinoType(baseColumn.type(), typeManager),
                 path,
                 toTrinoType(childColumn.type(), typeManager),
+                baseColumn.writeDefault() == null ? Optional.empty() : Optional.of(toTrinoDefaultValue(childColumn.type(), childColumn.writeDefault())),
                 childColumn.isOptional(),
                 Optional.ofNullable(childColumn.doc()));
     }
@@ -850,14 +859,14 @@ public final class IcebergUtil
             if (!column.isHidden()) {
                 int index = icebergColumns.size() + 1;
                 org.apache.iceberg.types.Type type = toIcebergTypeForNewColumn(column.getType(), nextFieldId);
-                NestedField field = NestedField.builder()
+                NestedField.Builder field = NestedField.builder()
                         .withId(index)
                         .isOptional(column.isNullable())
                         .withName(column.getName())
                         .ofType(type)
-                        .withDoc(column.getComment())
-                        .build();
-                icebergColumns.add(field);
+                        .withDoc(column.getComment());
+                column.getDefaultValue().ifPresent(value -> field.withWriteDefault(toIcebergLiteral(type, value)));
+                icebergColumns.add(field.build());
             }
         }
         org.apache.iceberg.types.Type icebergSchema = StructType.of(icebergColumns);

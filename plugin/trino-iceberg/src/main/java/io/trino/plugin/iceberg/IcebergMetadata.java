@@ -395,6 +395,7 @@ import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.REMOVE_O
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.ROLLBACK_TO_SNAPSHOT;
 import static io.trino.plugin.iceberg.procedure.MigrationUtils.addFiles;
 import static io.trino.plugin.iceberg.procedure.MigrationUtils.addFilesFromTable;
+import static io.trino.plugin.iceberg.util.IcebergDefaultValues.toIcebergLiteral;
 import static io.trino.spi.StandardErrorCode.COLUMN_ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.COLUMN_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
@@ -1064,6 +1065,7 @@ public class IcebergMetadata
         return ColumnMetadata.builder()
                 .setName(column.getName())
                 .setType(column.getType())
+                .setDefaultValue(column.getDefaultValue())
                 .setNullable(column.isNullable())
                 .setComment(column.getComment())
                 .build();
@@ -1350,6 +1352,8 @@ public class IcebergMetadata
         if (!schemaExists(session, schemaName)) {
             throw new SchemaNotFoundException(schemaName);
         }
+        int formatVersion = getFormatVersion(tableMetadata.getProperties());
+        tableMetadata.getColumns().forEach(column -> checkDefaultValueCompatibility(formatVersion, column));
 
         String tableLocation = null;
         if (replace) {
@@ -1364,7 +1368,6 @@ public class IcebergMetadata
                     throw new TrinoException(INVALID_TABLE_PROPERTY, format("The provided location '%s' does not match the existing table location '%s'", providedTableLocation.get(), icebergTable.location()));
                 }
                 validateNotModifyingOldSnapshot(table, icebergTable);
-                checkDefaultColumnValue(icebergTable);
                 tableLocation = icebergTable.location();
             }
         }
@@ -3019,12 +3022,16 @@ public class IcebergMetadata
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support adding not null columns");
         }
         Table icebergTable = catalog.loadTable(session, ((IcebergTableHandle) tableHandle).getSchemaTableName());
+        checkDefaultValueCompatibility(formatVersion(icebergTable), column);
         // Start explicitly with highestFieldId + 2 to account for existing columns and the new one being
         // added - instead of relying on addColumn in iceberg library to assign Ids
         AtomicInteger nextFieldId = new AtomicInteger(icebergTable.schema().highestFieldId() + 2);
         try {
+            Type type = toIcebergTypeForNewColumn(column.getType(), nextFieldId);
             UpdateSchema updateSchema = icebergTable.updateSchema();
-            updateSchema.addColumn(null, column.getName(), toIcebergTypeForNewColumn(column.getType(), nextFieldId), column.getComment());
+            updateSchema.addColumn(null, column.getName(), type, column.getComment(), column.getDefaultValue()
+                    .map((String defaultValue) -> toIcebergLiteral(type, defaultValue))
+                    .orElse(null));
             switch (position) {
                 case ColumnPosition.First _ -> updateSchema.moveFirst(column.getName());
                 case ColumnPosition.After after -> updateSchema.moveAfter(column.getName(), after.columnName());
@@ -3034,6 +3041,13 @@ public class IcebergMetadata
         }
         catch (RuntimeException e) {
             throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to add column: " + firstNonNull(e.getMessage(), e), e);
+        }
+    }
+
+    private static void checkDefaultValueCompatibility(int formatVersion, ColumnMetadata column)
+    {
+        if (formatVersion < 3 && column.getDefaultValue().isPresent()) {
+            throw new TrinoException(NOT_SUPPORTED, "Default values are not supported for format version < 3");
         }
     }
 
@@ -3799,7 +3813,6 @@ public class IcebergMetadata
         IcebergTableHandle handle = (IcebergTableHandle) tableHandle;
 
         Table icebergTable = catalog.loadTable(session, handle.getSchemaTableName());
-        checkDefaultColumnValue(icebergTable);
 
         DeleteFiles deleteFiles = icebergTable.newDelete()
                 .deleteFromRowFilter(toIcebergExpression(handle.getEnforcedPredicate()));
@@ -3822,7 +3835,6 @@ public class IcebergMetadata
     {
         IcebergTableHandle table = checkValidTableHandle(tableHandle);
         Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
-        checkDefaultColumnValue(icebergTable);
         DeleteFiles deleteFiles = icebergTable.newDelete()
                 .deleteFromRowFilter(alwaysTrue());
         commitUpdate(deleteFiles, session, "truncate");
@@ -4736,7 +4748,6 @@ public class IcebergMetadata
     private void beginTransaction(Table icebergTable)
     {
         verify(transaction == null, "transaction already set");
-        checkDefaultColumnValue(icebergTable);
         transaction = catalog.newTransaction(icebergTable);
     }
 
@@ -4854,13 +4865,6 @@ public class IcebergMetadata
             catch (RuntimeException e) {
                 throw new TrinoException(CONFIGURATION_INVALID, "Refresh interval is not cron string", e);
             }
-        }
-    }
-
-    private static void checkDefaultColumnValue(Table table)
-    {
-        if (table.schema().columns().stream().anyMatch(column -> column.writeDefault() != null)) {
-            throw new TrinoException(NOT_SUPPORTED, "The connector does not support default column values");
         }
     }
 

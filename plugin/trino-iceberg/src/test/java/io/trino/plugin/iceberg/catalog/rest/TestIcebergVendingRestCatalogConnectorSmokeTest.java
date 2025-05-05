@@ -328,6 +328,14 @@ public class TestIcebergVendingRestCatalogConnectorSmokeTest
                 .hasMessageMatching("Unsupported format version: v3.*");
     }
 
+    @Test
+    @Override
+    public void testDefaultColumnValue()
+    {
+        assertThatThrownBy(super::testDefaultColumnValue)
+                .hasMessageMatching("Unsupported format version: v3.*");
+    }
+
     @Override
     protected boolean isFileSorted(Location path, String sortColumnName)
     {

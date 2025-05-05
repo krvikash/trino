@@ -21,7 +21,6 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.expressions.Literal;
 import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -62,23 +61,27 @@ public class TestIcebergV3
     @Test
     void testDefaultColumnValues()
     {
-        // TODO: Update this test when Trino supports default column values
-        try (TestTable table = newTrinoTable("test_default_column_values", "AS SELECT 1 id")) {
+        try (TestTable table = newTrinoTable("test_default_column_values", "(id int, data int DEFAULT 123 NOT NULL)")) {
             BaseTable icebergTable = loadTable(table.getName());
-            icebergTable.updateSchema()
-                    .addRequiredColumn("data", Types.IntegerType.get(), null, Literal.of(123))
-                    .commit();
 
-            // Unsupported operations
-            String errorMessage = "The connector does not support default column values";
-            assertQueryFails("INSERT INTO " + table.getName() + " VALUES (2, 999)", errorMessage);
-            assertQueryFails("UPDATE " + table.getName() + " SET id = 2", errorMessage);
-            assertQueryFails("DELETE FROM " + table.getName(), errorMessage);
-            assertQueryFails("TRUNCATE TABLE " + table.getName(), errorMessage);
-            assertQueryFails("MERGE INTO " + table.getName() + " USING (VALUES 42) t(dummy) ON false WHEN NOT MATCHED THEN INSERT (id) VALUES (3)", errorMessage);
-            assertQueryFails("ALTER TABLE " + table.getName() + " EXECUTE optimize", errorMessage);
-            assertQueryFails("CREATE OR REPLACE TABLE " + table.getName() + " AS SELECT 2 id", errorMessage);
-            assertQueryFails("ANALYZE " + table.getName(), errorMessage);
+            assertQuerySucceeds("INSERT INTO " + table.getName() + " (id) VALUES (1)");
+            assertThat(query("SELECT * FROM " + table.getName())).matches("VALUES (1, 123)");
+
+            assertQuerySucceeds("UPDATE " + table.getName() + " SET id = 2");
+            assertThat(query("SELECT * FROM " + table.getName())).matches("VALUES (2, 123)");
+
+            assertQuerySucceeds("DELETE FROM " + table.getName());
+            assertThat(query("SELECT * FROM " + table.getName())).returnsEmptyResult();
+
+            assertQuerySucceeds("TRUNCATE TABLE " + table.getName());
+            assertThat(query("SELECT * FROM " + table.getName())).returnsEmptyResult();
+
+            assertQuerySucceeds("MERGE INTO " + table.getName() + " USING (VALUES 42) t(dummy) ON false WHEN NOT MATCHED THEN INSERT (id) VALUES (3)");
+            assertThat(query("SELECT * FROM " + table.getName())).matches("VALUES (3, 123)");
+
+            assertQuerySucceeds("ALTER TABLE " + table.getName() + " EXECUTE optimize");
+            assertQuerySucceeds("ANALYZE " + table.getName());
+            assertThat(query("SELECT * FROM " + table.getName())).matches("VALUES (3, 123)");
 
             // Supported column operations
             assertUpdate("COMMENT ON COLUMN " + table.getName() + ".data IS 'test comment'");
@@ -113,8 +116,7 @@ public class TestIcebergV3
             assertThat(nullableColumn.isRequired()).isFalse();
             assertThat(nullableColumn.writeDefault()).isEqualTo(123L);
 
-            assertThat(query("SELECT * FROM " + table.getName()))
-                    .matches("VALUES (1, CAST(NULL AS bigint))");
+            assertThat(query("SELECT * FROM " + table.getName())).matches("VALUES (3, BIGINT '123')");
         }
     }
 

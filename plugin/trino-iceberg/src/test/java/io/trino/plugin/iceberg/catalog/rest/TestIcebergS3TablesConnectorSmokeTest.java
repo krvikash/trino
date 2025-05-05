@@ -152,6 +152,15 @@ final class TestIcebergS3TablesConnectorSmokeTest
 
     @Test
     @Override
+    public void testDefaultColumnValue()
+    {
+        assertThatThrownBy(super::testDefaultColumnValue)
+                .hasMessageContaining("Failed to create transaction")
+                .hasStackTraceContaining("Unsupported format version: v3");
+    }
+
+    @Test
+    @Override
     public void testRenameSchema()
     {
         assertThatThrownBy(super::testRenameSchema)

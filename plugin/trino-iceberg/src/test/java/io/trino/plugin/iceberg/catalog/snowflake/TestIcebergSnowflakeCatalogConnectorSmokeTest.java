@@ -268,6 +268,14 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testDefaultColumnValue()
+    {
+        assertThatThrownBy(super::testDefaultColumnValue)
+                .hasMessageContaining("Snowflake managed Iceberg tables do not support modifications");
+    }
+
+    @Test
+    @Override
     public void testDeleteRowsConcurrently()
     {
         assertThatThrownBy(super::testDeleteRowsConcurrently)
