@@ -53,6 +53,7 @@ public class ConfigurationUtils
         return config.entrySet().stream()
                 .filter(e -> !e.getKey().startsWith("warp-speed"))
                 .filter(e -> !e.getKey().startsWith("http"))
+                .filter(e -> !e.getKey().startsWith("internal-communication"))
                 .filter(e -> !e.getKey().equals("node.environment"))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
