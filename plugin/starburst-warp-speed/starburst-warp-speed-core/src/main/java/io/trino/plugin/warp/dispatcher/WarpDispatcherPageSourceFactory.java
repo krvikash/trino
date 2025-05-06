@@ -319,9 +319,8 @@ public class WarpDispatcherPageSourceFactory
                             closeHandler);
                 }
                 catch (Exception e) {
-                    if (Thread.interrupted()) {
+                    if (Thread.currentThread().isInterrupted()) {
                         closeHandler.accept(afterLockRowGroupData);
-                        Thread.currentThread().interrupt();
                         throw new TrinoException(WarpErrorCode.WARP_TX_ALLOCATION_INTERRUPTED,
                                 "interrupted while trying to create page source");
                     }

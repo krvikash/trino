@@ -19,6 +19,7 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
+import com.google.inject.matcher.Matchers;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
 import io.trino.plugin.hive.util.BlockJsonSerde;
@@ -77,6 +78,8 @@ import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterruptInterceptor;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.read.CollectTxService;
@@ -199,6 +202,7 @@ public class DispatcherCacheManagerModule
         binder.bind(WorkerTaskExecutorService.class);
 
         bindMetricsServices(binder);
+        binder.bindInterceptor(Matchers.any(), Matchers.annotatedWith(NativeInterrupt.class), new NativeInterruptInterceptor());
     }
 
     private void bindMetricsServices(Binder binder)

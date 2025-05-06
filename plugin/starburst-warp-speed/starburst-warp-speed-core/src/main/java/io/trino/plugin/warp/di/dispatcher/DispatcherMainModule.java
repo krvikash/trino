@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.di.dispatcher;
 
 import com.google.inject.Binder;
+import com.google.inject.matcher.Matchers;
 import io.trino.plugin.warp.di.ExtraModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.dictionary.AttachDictionaryService;
@@ -52,6 +53,8 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.WarpProxiedWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer;
 import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterruptInterceptor;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.MatchService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
@@ -137,6 +140,7 @@ public class DispatcherMainModule
         }
         binder.bind(DispatcherTableHandleBuilderProvider.class);
         binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
+        binder.bindInterceptor(Matchers.any(), Matchers.annotatedWith(NativeInterrupt.class), new NativeInterruptInterceptor());
     }
 
     @Override

@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.read;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
-import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.warp.storage.memory.ThreadArena;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.Page;
@@ -86,7 +85,6 @@ public class WarpReader
     /**
      * prepare buffers for filling
      */
-    @NativeInterrupt
     private void openPage(List<Integer> blocksToLoad, RecordIndexes recordIndexes)
     {
         queryState.resetNumRecordsInCurPage();
@@ -182,7 +180,6 @@ public class WarpReader
         return readResult;
     }
 
-    @NativeInterrupt
     private long closePage()
     {
         long readPages = 0;

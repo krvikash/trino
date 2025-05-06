@@ -131,6 +131,7 @@ public class StorageCollectorService
         return getStorageCollectorArgs(queryArgs);
     }
 
+    @NativeInterrupt
     public AggregatorPageArgs openPage(RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             ThreadArena pageArena,
@@ -283,6 +284,7 @@ public class StorageCollectorService
         return numChunksInRange;
     }
 
+    @NativeInterrupt
     public long closePage(QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs)
     {
@@ -290,11 +292,13 @@ public class StorageCollectorService
                 aggregatorPageArgs);
     }
 
+    @NativeInterrupt
     public void abortPage(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Exception e)
     {
         collectTxService.collectAbort(aggregatorPageArgs, e, queryArgs.dispatcherPageSourceStats());
     }
 
+    @NativeInterrupt
     public void close(QueryArgs queryArgs)
     {
         storageEngine.fileClose((int) queryArgs.fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);

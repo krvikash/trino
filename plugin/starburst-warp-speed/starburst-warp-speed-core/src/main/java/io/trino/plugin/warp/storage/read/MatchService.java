@@ -122,6 +122,7 @@ public class MatchService
         }
     }
 
+    @NativeInterrupt
     public MatcherPageArgs openPage(RecordIndexes recordIndexes,
             ThreadArena pageArena,
             QueryArgs queryArgs,
@@ -312,6 +313,7 @@ public class MatchService
                 (trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode()) || trinoException.getErrorCode().equals(WARP_NATIVE_MATCH_ERROR.toErrorCode()));
     }
 
+    @NativeInterrupt
     public void abortPage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs, Exception e)
     {
         if (matcherPageArgs.matchState().isPresent()) {
@@ -330,6 +332,7 @@ public class MatchService
         return rangeFillerService.collectRanges(matcherPageArgs.rangeData());
     }
 
+    @NativeInterrupt
     public void closePage(QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs)
     {
         // store records list if needed
