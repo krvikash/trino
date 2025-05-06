@@ -319,7 +319,7 @@ final class S3FileSystemLoader
         return client.build();
     }
 
-    private static AwsCredentialsProvider getCustomAwsCredentialsProvider(String providerClass, Map<String, String> customCredentialProviderArguments)
+    public static AwsCredentialsProvider getCustomAwsCredentialsProvider(String providerClass, Map<String, String> customCredentialProviderArguments)
     {
         try {
             Class<?> awsCredentialProvider = Class.forName(providerClass);

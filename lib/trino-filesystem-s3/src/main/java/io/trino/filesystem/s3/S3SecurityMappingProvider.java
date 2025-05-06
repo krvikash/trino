@@ -13,9 +13,11 @@
  */
 package io.trino.filesystem.s3;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.units.Duration;
 import io.trino.filesystem.Location;
+import io.trino.filesystem.s3.S3SecurityMappingResult.CustomCredentialsProviderContext;
 import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.ConnectorIdentity;
 
@@ -71,6 +73,8 @@ final class S3SecurityMappingProvider
 
         return Optional.of(new S3SecurityMappingResult(
                 mapping.credentials(),
+                mapping.getCustomCredentialProviderClass()
+                        .map(className -> new CustomCredentialsProviderContext(className, mapping.getCustomCredentialProviderArguments().orElseGet(ImmutableMap::of))),
                 selectRole(mapping, identity),
                 mapping.roleSessionName().map(name -> name.replace("${USER}", identity.getUser())),
                 selectKmsKeyId(mapping, identity),
@@ -87,7 +91,7 @@ final class S3SecurityMappingProvider
             if (!mapping.allowedIamRoles().isEmpty() && mapping.iamRole().isEmpty()) {
                 throw new AccessDeniedException("No S3 role selected and mapping has no default role");
             }
-            verify(mapping.iamRole().isPresent() || mapping.credentials().isPresent(), "mapping must have role or credential");
+            verify(mapping.iamRole().isPresent() || mapping.credentials().isPresent() || mapping.getCustomCredentialProviderClass().isPresent(), "mapping must have role or credential");
             return mapping.iamRole();
         }
 

@@ -16,6 +16,7 @@ package io.trino.filesystem.s3;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.filesystem.Location;
 import io.trino.spi.security.ConnectorIdentity;
@@ -24,6 +25,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentials;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -45,6 +47,8 @@ public final class S3SecurityMapping
     private final Optional<String> sseCustomerKey;
     private final Set<String> allowedSseCustomerKeys;
     private final Optional<AwsCredentials> credentials;
+    private final Optional<String> customCredentialProviderClass;
+    private final Optional<Map<String, String>> customCredentialProviderArguments;
     private final boolean useClusterDefault;
     private final Optional<String> endpoint;
     private final Optional<String> region;
@@ -63,6 +67,8 @@ public final class S3SecurityMapping
             @JsonProperty("allowedSseCustomerKeys") Optional<List<String>> allowedSseCustomerKeys,
             @JsonProperty("accessKey") Optional<String> accessKey,
             @JsonProperty("secretKey") Optional<String> secretKey,
+            @JsonProperty("customCredentialProviderClass") Optional<String> customCredentialProviderClass,
+            @JsonProperty("customCredentialProviderArguments") Optional<Map<String, String>> customCredentialProviderArguments,
             @JsonProperty("useClusterDefault") Optional<Boolean> useClusterDefault,
             @JsonProperty("endpoint") Optional<String> endpoint,
             @JsonProperty("region") Optional<String> region)
@@ -97,10 +103,18 @@ public final class S3SecurityMapping
         requireNonNull(accessKey, "accessKey is null");
         requireNonNull(secretKey, "secretKey is null");
         checkArgument(accessKey.isPresent() == secretKey.isPresent(), "accessKey and secretKey must be provided together");
+        checkArgument(!(accessKey.isPresent() && customCredentialProviderClass.isPresent()), "customCredentialProviderClass cannot be used together with accessKey");
+        checkArgument(
+                customCredentialProviderArguments.isEmpty() || customCredentialProviderClass.isPresent(),
+                "customCredentialProviderArguments must be configured only if customCredentialProviderClass is configured");
+
         this.credentials = accessKey.map(access -> AwsBasicCredentials.create(access, secretKey.get()));
 
+        this.customCredentialProviderClass = requireNonNull(customCredentialProviderClass, "customCredentialProviderClass is null");
+        this.customCredentialProviderArguments = requireNonNull(customCredentialProviderArguments, "customCredentialProviderArguments is null").map(ImmutableMap::copyOf);
+
         this.useClusterDefault = useClusterDefault.orElse(false);
-        boolean roleOrCredentialsArePresent = !this.allowedIamRoles.isEmpty() || iamRole.isPresent() || credentials.isPresent();
+        boolean roleOrCredentialsArePresent = !this.allowedIamRoles.isEmpty() || iamRole.isPresent() || credentials.isPresent() || customCredentialProviderClass.isPresent();
         checkArgument(this.useClusterDefault != roleOrCredentialsArePresent, "must either allow useClusterDefault role or provide role and/or credentials");
 
         checkArgument(!this.useClusterDefault || this.kmsKeyId.isEmpty(), "KMS key ID cannot be provided together with useClusterDefault");
@@ -156,6 +170,16 @@ public final class S3SecurityMapping
     public Optional<AwsCredentials> credentials()
     {
         return credentials;
+    }
+
+    public Optional<String> getCustomCredentialProviderClass()
+    {
+        return customCredentialProviderClass;
+    }
+
+    public Optional<Map<String, String>> getCustomCredentialProviderArguments()
+    {
+        return customCredentialProviderArguments;
     }
 
     public boolean useClusterDefault()

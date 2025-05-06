@@ -13,16 +13,20 @@
  */
 package io.trino.filesystem.s3;
 
+import com.google.common.collect.ImmutableMap;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 
+import java.util.Map;
 import java.util.Optional;
 
+import static io.trino.filesystem.s3.S3FileSystemLoader.getCustomAwsCredentialsProvider;
 import static java.util.Objects.requireNonNull;
 
 record S3SecurityMappingResult(
         Optional<AwsCredentials> credentials,
+        Optional<CustomCredentialsProviderContext> customCredentialsProviderContext,
         Optional<String> iamRole,
         Optional<String> roleSessionName,
         Optional<String> kmsKeyId,
@@ -33,6 +37,7 @@ record S3SecurityMappingResult(
     public S3SecurityMappingResult
     {
         requireNonNull(credentials, "credentials is null");
+        requireNonNull(customCredentialsProviderContext, "customCredentialsProviderContext is null");
         requireNonNull(iamRole, "iamRole is null");
         requireNonNull(roleSessionName, "roleSessionName is null");
         requireNonNull(kmsKeyId, "kmsKeyId is null");
@@ -43,6 +48,23 @@ record S3SecurityMappingResult(
 
     public Optional<AwsCredentialsProvider> credentialsProvider()
     {
-        return credentials.map(StaticCredentialsProvider::create);
+        if (credentials.isPresent()) {
+            return credentials.map(StaticCredentialsProvider::create);
+        }
+        return customCredentialsProviderContext.map(CustomCredentialsProviderContext::createCredentialProvider);
+    }
+
+    public record CustomCredentialsProviderContext(String customCredentialsClass, Map<String, String> customCredentialsClassArguments)
+    {
+        public CustomCredentialsProviderContext
+        {
+            requireNonNull(customCredentialsClass, "customCredentialsClass is null");
+            customCredentialsClassArguments = ImmutableMap.copyOf(requireNonNull(customCredentialsClassArguments, "customCredentialsClassArguments is null"));
+        }
+
+        public AwsCredentialsProvider createCredentialProvider()
+        {
+            return getCustomAwsCredentialsProvider(customCredentialsClass, customCredentialsClassArguments);
+        }
     }
 }

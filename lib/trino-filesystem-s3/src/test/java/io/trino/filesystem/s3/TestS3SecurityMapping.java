@@ -13,11 +13,13 @@
  */
 package io.trino.filesystem.s3;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.filesystem.Location;
 import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.ConnectorIdentity;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 
 import java.io.File;
@@ -303,6 +305,18 @@ public class TestS3SecurityMapping
                 path("s3://somebucket/"),
                 MappingResult.iamRole("arn:aws:iam::1234567891012:role/default")
                         .withRoleSessionName("iam-trino-session"));
+
+        // matches prefix -- mapping provides based on CustomCredentialProvider
+        assertMapping(
+                provider,
+                path("s3://baz_with_custom_credential_provider/bar"),
+                credentials("accesskey", "secretkey"));
+
+        // matches prefix -- mapping provides based on CustomCredentialProvider with arguments
+        assertMapping(
+                provider,
+                path("s3://baz_with_custom_credential_provider_and_arguments/bar"),
+                credentials("mapped_accesskey", "mapped_secretkey"));
     }
 
     @Test
@@ -363,6 +377,8 @@ public class TestS3SecurityMapping
                         Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
                         Optional.empty()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("must either allow useClusterDefault role or provide role and/or credentials");
@@ -380,6 +396,8 @@ public class TestS3SecurityMapping
                         Optional.empty(),
                         Optional.empty(),
                         iamRole,
+                        Optional.empty(),
+                        Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
@@ -415,6 +433,8 @@ public class TestS3SecurityMapping
                         Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
                         useClusterDefault,
                         Optional.empty(),
                         Optional.empty()))
@@ -439,6 +459,8 @@ public class TestS3SecurityMapping
                         Optional.empty(),
                         Optional.empty(),
                         sseCustomerKey,
+                        Optional.empty(),
+                        Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
@@ -471,6 +493,8 @@ public class TestS3SecurityMapping
                         Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
                         Optional.empty()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("SSE Customer key cannot be provided together with KMS key ID");
@@ -497,9 +521,63 @@ public class TestS3SecurityMapping
                         Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
                         Optional.empty()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("iamRole must be provided when roleSessionName is provided");
+    }
+
+    @Test
+    public void testMappingWithAccessKeyAndCustomCredentialProviderShouldFail()
+    {
+        assertThatThrownBy(() ->
+                new S3SecurityMapping(
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.of("accessKey"),
+                        Optional.of("secretKey"),
+                        Optional.of("io.trino.filesystem.s3.CustomCredentialProviders$MapBasedAwsCredentialsProvider"),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("customCredentialProviderClass cannot be used together with accessKey");
+    }
+
+    @Test
+    public void testMappingWithOnlyCredentialProviderArgumentsShouldFail()
+    {
+        assertThatThrownBy(() ->
+                new S3SecurityMapping(
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.of(ImmutableMap.of("key", "value")),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("customCredentialProviderArguments must be configured only if customCredentialProviderClass is configured");
     }
 
     private File getResourceFile(String name)
@@ -512,8 +590,8 @@ public class TestS3SecurityMapping
         Optional<S3SecurityMappingResult> mapping = getMapping(provider, selector);
 
         assertThat(mapping).isPresent().get().satisfies(actual -> {
-            assertThat(actual.credentials().map(AwsCredentialsIdentity::accessKeyId)).isEqualTo(expected.accessKey());
-            assertThat(actual.credentials().map(AwsCredentialsIdentity::secretAccessKey)).isEqualTo(expected.secretKey());
+            assertThat(actual.credentialsProvider().map(AwsCredentialsProvider::resolveCredentials).map(AwsCredentialsIdentity::accessKeyId)).isEqualTo(expected.accessKey());
+            assertThat(actual.credentialsProvider().map(AwsCredentialsProvider::resolveCredentials).map(AwsCredentialsIdentity::secretAccessKey)).isEqualTo(expected.secretKey());
             assertThat(actual.iamRole()).isEqualTo(expected.iamRole());
             assertThat(actual.roleSessionName()).isEqualTo(expected.roleSessionName());
             assertThat(actual.kmsKeyId()).isEqualTo(expected.kmsKeyId());
