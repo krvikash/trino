@@ -75,6 +75,7 @@ public class CacheDriverFactory
 
     public static final float TOO_BIG_SPLITS_THRESHOLD = 0.3f;
     public static final int MIN_PROCESSED_SPLITS = 16;
+    public static final int MIN_PROCESSED_BYTES = 5 * 1024 * 1024; // 5 MB (total across all splits)
 
     private final Session session;
     private final PageSourceProvider pageSourceProvider;
@@ -212,7 +213,7 @@ public class CacheDriverFactory
         // try storing results instead
         // if splits are too large to be cached then do not try caching data as it adds extra computational cost
         if (tooBigSplitsRatio <= TOO_BIG_SPLITS_THRESHOLD) {
-            double dataReductionRatio = processedSplitCount > MIN_PROCESSED_SPLITS && cacheMetrics.getSourceBytes() > 0
+            double dataReductionRatio = processedSplitCount > MIN_PROCESSED_SPLITS && cacheMetrics.getInputCacheBytes() > MIN_PROCESSED_BYTES && cacheMetrics.getSourceBytes() > 0
                     ? cacheMetrics.getInputCacheBytes() / (double) cacheMetrics.getSourceBytes()
                     : 0d;
             if (dataReductionRatio <= getCacheDataReductionThreshold(session)) {

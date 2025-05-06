@@ -72,6 +72,7 @@ import java.util.stream.IntStream;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.SystemSessionProperties.getCacheDataReductionThreshold;
 import static io.trino.block.BlockAssertions.createLongSequenceBlock;
+import static io.trino.cache.CacheDataOperator.MIN_PROCESSED_BYTES;
 import static io.trino.cache.CacheDataOperator.MIN_PROCESSED_POSITIONS;
 import static io.trino.cache.CacheDriverFactory.MIN_PROCESSED_SPLITS;
 import static io.trino.cache.CacheDriverFactory.TOO_BIG_SPLITS_THRESHOLD;
@@ -241,7 +242,7 @@ public class TestCacheDataOperator
     public void testDataReductionThreshold()
     {
         PlanSignature signature = createPlanSignature("sig");
-        Page bigPage = createPage(ImmutableList.of(BIGINT), MIN_PROCESSED_POSITIONS + 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 128)));
+        Page bigPage = createPage(ImmutableList.of(BIGINT), MIN_PROCESSED_POSITIONS + 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, (MIN_PROCESSED_BYTES / BIGINT.getFixedSize()) + 1)));
         Page smallPage = createPage(ImmutableList.of(BIGINT), 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 16)));
         Split split = new Split(TEST_CATALOG_HANDLE, createRemoteSplit(), Optional.empty(), true);
         AtomicInteger operatorIdAllocator = new AtomicInteger();

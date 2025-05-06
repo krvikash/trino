@@ -35,6 +35,7 @@ public class CacheDataOperator
         implements Operator
 {
     public static final int MIN_PROCESSED_POSITIONS = 16_384;
+    public static final int MIN_PROCESSED_BYTES = 1024 * 1024; // 1MB
 
     public static class CacheDataOperatorFactory
             implements OperatorFactory
@@ -155,7 +156,8 @@ public class CacheDataOperator
 
     private boolean thresholdExceeded(long currentPagePositions)
     {
-        if (operatorContext.getOperatorStats().getInputPositions() + currentPagePositions < MIN_PROCESSED_POSITIONS) {
+        if (operatorContext.getOperatorStats().getInputPositions() + currentPagePositions < MIN_PROCESSED_POSITIONS
+                || cachedDataSize < MIN_PROCESSED_BYTES) {
             return false;
         }
         long sourceBytes = getSourceBytes();
