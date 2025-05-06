@@ -168,14 +168,16 @@ public class TestCacheDataOperator
     public void testCachingThreshold()
     {
         PlanSignature signature = createPlanSignature("sig");
-        Page bigPage = createPage(ImmutableList.of(BIGINT), 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 128)));
-        Page smallPage = createPage(ImmutableList.of(BIGINT), 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 16)));
+        int maxSplitSizeInBytes = 1024;
+        int bigPagePositions = (maxSplitSizeInBytes / BIGINT.getFixedSize()) + 1;
+        Page bigPage = createPage(ImmutableList.of(BIGINT), bigPagePositions, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, bigPagePositions)));
+        Page smallPage = createPage(ImmutableList.of(BIGINT), 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 1)));
         Split split = new Split(TEST_CATALOG_HANDLE, createRemoteSplit(), Optional.empty(), true);
         AtomicInteger operatorIdAllocator = new AtomicInteger();
         CacheDataOperator.CacheDataOperatorFactory cacheDataOperatorFactory = new CacheDataOperator.CacheDataOperatorFactory(
                 operatorIdAllocator.incrementAndGet(),
                 planNodeIdAllocator.getNextId(),
-                DataSize.of(1024, DataSize.Unit.BYTE).toBytes());
+                DataSize.of(maxSplitSizeInBytes, DataSize.Unit.BYTE).toBytes());
 
         PassThroughOperator.PassThroughOperatorFactory passThroughOperatorFactory =
                 new PassThroughOperator.PassThroughOperatorFactory(operatorIdAllocator.incrementAndGet(), planNodeIdAllocator.getNextId(), smallPage);
@@ -242,8 +244,9 @@ public class TestCacheDataOperator
     public void testDataReductionThreshold()
     {
         PlanSignature signature = createPlanSignature("sig");
-        Page bigPage = createPage(ImmutableList.of(BIGINT), MIN_PROCESSED_POSITIONS + 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, (MIN_PROCESSED_BYTES / BIGINT.getFixedSize()) + 1)));
-        Page smallPage = createPage(ImmutableList.of(BIGINT), 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 16)));
+        int bigPagePositions = Math.max(MIN_PROCESSED_POSITIONS, MIN_PROCESSED_BYTES / BIGINT.getFixedSize()) + 1;
+        Page bigPage = createPage(ImmutableList.of(BIGINT), bigPagePositions, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, bigPagePositions)));
+        Page smallPage = createPage(ImmutableList.of(BIGINT), 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 1)));
         Split split = new Split(TEST_CATALOG_HANDLE, createRemoteSplit(), Optional.empty(), true);
         AtomicInteger operatorIdAllocator = new AtomicInteger();
         CacheDataOperator.CacheDataOperatorFactory cacheDataOperatorFactory = new CacheDataOperator.CacheDataOperatorFactory(
