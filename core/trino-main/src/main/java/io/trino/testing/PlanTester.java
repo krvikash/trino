@@ -888,7 +888,7 @@ public class PlanTester
         }
 
         // add split assignments to the drivers
-        ImmutableSet<PlanNodeId> partitionedSources = ImmutableSet.copyOf(subplan.getFragment().getPartitionedSources());
+        Set<PlanNodeId> partitionedSources = ImmutableSet.copyOf(subplan.getFragment().getPartitionedSources());
         for (SplitAssignment splitAssignment : splitAssignments) {
             SplitDriverFactory driverFactory = driverFactoriesBySource.get(splitAssignment.getPlanNodeId());
             checkState(driverFactory != null);

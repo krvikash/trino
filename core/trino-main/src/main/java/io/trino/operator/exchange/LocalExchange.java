@@ -321,7 +321,7 @@ public class LocalExchange
         }
 
         // all sources are finished, so finish the sinks
-        ImmutableList<LocalExchangeSink> openSinks;
+        List<LocalExchangeSink> openSinks;
         synchronized (this) {
             allSourcesFinished = true;
 

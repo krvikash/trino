@@ -61,7 +61,7 @@ public class TestingExchangeHttpClientHandler
     @Override
     public Response handle(Request request)
     {
-        ImmutableList<String> parts = ImmutableList.copyOf(Splitter.on("/").omitEmptyStrings().split(request.getUri().getPath()));
+        List<String> parts = ImmutableList.copyOf(Splitter.on("/").omitEmptyStrings().split(request.getUri().getPath()));
         if (request.getMethod().equals("DELETE")) {
             assertThat(parts).hasSize(1);
             return new TestingResponse(HttpStatus.NO_CONTENT, ImmutableListMultimap.of(), new byte[0]);

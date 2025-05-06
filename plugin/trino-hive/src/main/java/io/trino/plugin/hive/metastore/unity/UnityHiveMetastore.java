@@ -242,7 +242,7 @@ public class UnityHiveMetastore
     }
 
     @Override
-    public List<String> getTableNamesWithParameters(String databaseName, String parameterKey, ImmutableSet<String> parameterValues)
+    public List<String> getTableNamesWithParameters(String databaseName, String parameterKey, Set<String> parameterValues)
     {
         throw new TrinoException(NOT_SUPPORTED, "getTableNamesWithParameters is not supported for Unity metastore");
     }
