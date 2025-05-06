@@ -92,7 +92,7 @@ public class TestReloadingModelClientProvider
                         "prompts": {
                             "systemPrompts": [
                               "If asked to return the capital of France, please respond with Paname and not Paris",
-                              "If asked to mask values, please only substitute the values that are masked, not any other text like the labels"
+                              "If asked to mask values, only substitute the values that are masked, never substitute [MASKED] for the labels."
                             ],
                             "classifyPrompt": "Mask the values for each of the JSON encoded labels in the text below.\\nLabels: %s\\nReplace the values with the text \\"[MASKED]\\".\\nOutput only the masked text.\\nDo not output anything else.\\n=====\\n%s\\n"
                         }
@@ -155,7 +155,7 @@ public class TestReloadingModelClientProvider
                 .hasMessage("Embedding model client not found for id: openai_embed_3_large");
         Files.write(modelSpecsFile.toPath(), MODEL_SPECS_V2.getBytes(StandardCharsets.UTF_8));
         assertEventually(() -> assertThat(simplePrompt("haiku35")).isEqualTo("paris"));
-        assertEventually(() ->assertThat(simplePrompt("meta_llama")).isEqualTo("paname"));
+        assertEventually(() -> assertThat(simplePrompt("meta_llama")).isEqualTo("paname"));
         assertThatThrownBy(() -> simplePrompt("gpt4o_mini"))
                 .hasMessage("Language model client not found for id: gpt4o_mini");
         // Assert that the system prompt change was picked up
@@ -166,10 +166,10 @@ public class TestReloadingModelClientProvider
                 .hasMessage("Embedding model client not found for id: titan_v2");
         // Verify that the updated classify prompt is set to the mask prompt.
         String prompt = "My credit card number is 1234-5678-9012-3456 and my password is hunter2";
-        result = (String) computeActual(TEST_AI_SESSION,
+        String modifiedPromptResult = (String) computeActual(TEST_AI_SESSION,
                 "SELECT ai.classify('%s', ARRAY['credit card number', 'password'], '%s')".formatted(prompt, "meta_llama")).getOnlyValue();
-        assertThat(result.strip())
-                .isEqualTo("My credit card number is [MASKED] and my password is [MASKED]");
+        assertEventually(() -> assertThat(modifiedPromptResult.strip())
+                .isEqualTo("My credit card number is [MASKED] and my password is [MASKED]"));
     }
 
     private String simplePrompt(String modelId)
