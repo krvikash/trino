@@ -25,12 +25,6 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.jspecify</groupId>
-                    <artifactId>jspecify</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
@@ -402,6 +396,9 @@
                         <!-- Duplicate in com.google.api:gax:2.17.0 and com.google.cloud.bigdataoss:gcs-connector:hadoop2-2.2.8:jar:shaded -->
                         <ignoredResourcePattern>dependencies.properties</ignoredResourcePattern>
                     </ignoredResourcePatterns>
+                    <ignoredClassPatterns>
+                        <ignoredClassPattern>org.apache.iceberg.variants.ValueArray</ignoredClassPattern>
+                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
         </plugins>

@@ -1419,7 +1419,9 @@ public class IcebergPageSourceProvider
                     columnNames.build(),
                     columnTypes.build(),
                     appendRowNumberColumn,
-                    newSimpleAggregatedMemoryContext());
+                    newSimpleAggregatedMemoryContext(),
+                    firstRowId,
+                    dataSequenceNumber);
             pageSource = transforms.build(pageSource);
 
             return new ReaderPageSourceWithRowPositions(

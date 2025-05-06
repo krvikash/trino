@@ -14,6 +14,7 @@
 package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
@@ -39,6 +40,8 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.plugin.iceberg.IcebergAvroDataConversion.serializeToTrinoBlock;
+import static io.trino.plugin.iceberg.IcebergMetadataColumn.LAST_UPDATED_SEQUENCE_NUMBER;
+import static io.trino.plugin.iceberg.IcebergMetadataColumn.ROW_ID;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static java.util.Objects.requireNonNull;
 
@@ -67,7 +70,9 @@ public class IcebergAvroPageSource
             List<String> columnNames,
             List<Type> columnTypes,
             boolean appendRowNumberColumn,
-            AggregatedMemoryContext memoryUsage)
+            AggregatedMemoryContext memoryUsage,
+            Long firstRowId,
+            Long dataSequenceNumber)
     {
         this.columnNames = ImmutableList.copyOf(requireNonNull(columnNames, "columnNames is null"));
         this.columnTypes = ImmutableList.copyOf(requireNonNull(columnTypes, "columnTypes is null"));
@@ -79,9 +84,16 @@ public class IcebergAvroPageSource
 
         // The column orders in the generated schema might be different from the original order
         Schema readSchema = fileSchema.select(columnNames);
+        ImmutableMap.Builder<Integer, Long> idToConstant = ImmutableMap.builder();
+        if (firstRowId != null) {
+            idToConstant.put(ROW_ID.getId(), firstRowId);
+        }
+        if (dataSequenceNumber != null) {
+            idToConstant.put(LAST_UPDATED_SEQUENCE_NUMBER.getId(), dataSequenceNumber);
+        }
         Avro.ReadBuilder builder = Avro.read(file)
                 .project(readSchema)
-                .createReaderFunc(_ -> PlannedDataReader.create(readSchema))
+                .createReaderFunc(_ -> PlannedDataReader.create(readSchema, idToConstant.buildOrThrow()))
                 .split(start, length);
         nameMapping.ifPresent(builder::withNameMapping);
         AvroIterable<Record> avroReader = builder.build();
