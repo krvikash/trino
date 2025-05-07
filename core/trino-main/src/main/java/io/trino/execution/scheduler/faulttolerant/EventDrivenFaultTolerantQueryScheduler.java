@@ -1480,7 +1480,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                         fragment,
                         sourceExchanges,
                         partitioningSchemeFactory.get(fragment.getPartitioning(), fragment.getPartitionCount()),
-                        stage::recordGetSplitTime,
+                        stage::recordSplitSourceMetrics,
                         outputDataSizeEstimates.buildOrThrow(),
                         splitAdmissionControllerProvider));
 

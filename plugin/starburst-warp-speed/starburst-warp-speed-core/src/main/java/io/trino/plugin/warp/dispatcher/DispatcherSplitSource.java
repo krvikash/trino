@@ -18,6 +18,7 @@ import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
+import io.trino.spi.metrics.Metrics;
 
 import java.util.List;
 import java.util.Objects;
@@ -77,6 +78,12 @@ public class DispatcherSplitSource
     public Optional<List<Object>> getTableExecuteSplitsInfo()
     {
         return proxiedConnectorSplitSource.getTableExecuteSplitsInfo();
+    }
+
+    @Override
+    public Metrics getMetrics()
+    {
+        return proxiedConnectorSplitSource.getMetrics();
     }
 
     @Override

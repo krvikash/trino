@@ -24,6 +24,7 @@ import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorSplitManager;
+import io.trino.spi.metrics.Metrics;
 import io.trino.split.SplitSource;
 
 import java.util.ArrayList;
@@ -248,5 +249,12 @@ public class CacheSplitSource
     public Optional<List<Object>> getTableExecuteSplitsInfo()
     {
         return delegate.getTableExecuteSplitsInfo();
+    }
+
+    @Override
+    public Metrics getMetrics()
+    {
+        // todo add some cache specific metrics
+        return delegate.getMetrics();
     }
 }
