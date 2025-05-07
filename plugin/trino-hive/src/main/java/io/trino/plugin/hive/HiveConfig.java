@@ -140,7 +140,7 @@ public class HiveConfig
     private Duration fileStatusCacheExpireAfterWrite = new Duration(1, MINUTES);
     private DataSize fileStatusCacheMaxRetainedSize = DataSize.of(1, GIGABYTE);
     private List<String> fileStatusCacheTables = ImmutableList.of();
-    private List<String> fileStatusCacheTablesExcluded = ImmutableList.of();
+    private List<String> fileStatusCacheExcludedTables = ImmutableList.of();
     private DataSize perTransactionFileStatusCacheMaxRetainedSize = DataSize.of(100, MEGABYTE);
 
     private boolean translateHiveViews;
@@ -772,16 +772,17 @@ public class HiveConfig
         return this;
     }
 
-    public List<String> getFileStatusCacheTablesExcluded()
+    public List<String> getFileStatusCacheExcludedTables()
     {
-        return fileStatusCacheTablesExcluded;
+        return fileStatusCacheExcludedTables;
     }
 
-    @Config("hive.file-status-cache-tables.excluded")
-    @ConfigDescription("Listing of tables that should be excluded from caching")
-    public HiveConfig setFileStatusCacheTablesExcluded(List<String> fileStatusCacheTablesExcluded)
+    @Config("hive.file-status-cache.excluded-tables")
+    @LegacyConfig(value = "hive.file-status-cache-tables.excluded")
+    @ConfigDescription("List of tables that should be excluded from file status caching")
+    public HiveConfig setFileStatusCacheExcludedTables(List<String> fileStatusCacheExcludedTables)
     {
-        this.fileStatusCacheTablesExcluded = ImmutableList.copyOf(fileStatusCacheTablesExcluded);
+        this.fileStatusCacheExcludedTables = ImmutableList.copyOf(fileStatusCacheExcludedTables);
         return this;
     }
 
