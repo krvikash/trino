@@ -96,7 +96,7 @@ public class UiQueryResource
         if (queryInfo.isPresent()) {
             try {
                 checkCanViewQueryOwnedBy(sessionContextFactory.extractAuthorizedIdentity(servletRequest, httpHeaders), queryInfo.get().getSession().toIdentity(), accessControl);
-                return Response.ok(queryInfo.get().pruneDigests()).build();
+                return Response.ok(queryInfo.get().pruneDigests().pruneCatalogProperties()).build();
             }
             catch (AccessDeniedException e) {
                 throw new ForbiddenException();

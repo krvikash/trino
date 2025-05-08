@@ -489,4 +489,45 @@ public class QueryInfo
                 pruned,
                 version);
     }
+
+    public QueryInfo pruneCatalogProperties()
+    {
+        return new QueryInfo(
+                queryId,
+                session,
+                state,
+                self,
+                fieldNames,
+                query,
+                preparedQuery,
+                queryStats,
+                setCatalog,
+                setSchema,
+                setPath,
+                setAuthorizationUser,
+                resetAuthorizationUser,
+                setOriginalRoles,
+                setSessionProperties,
+                resetSessionProperties,
+                setRoles,
+                addedPreparedStatements,
+                deallocatedPreparedStatements,
+                startedTransactionId,
+                clearTransactionId,
+                updateType,
+                outputStage.map(StageInfo::pruneCatalogProperties),
+                failureInfo,
+                errorCode,
+                warnings,
+                inputs,
+                output,
+                referencedTables,
+                routines,
+                finalQueryInfo,
+                resourceGroupId,
+                queryType,
+                retryPolicy,
+                pruned,
+                version);
+    }
 }
