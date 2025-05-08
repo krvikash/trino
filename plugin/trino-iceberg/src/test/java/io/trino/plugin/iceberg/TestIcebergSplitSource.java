@@ -58,6 +58,7 @@ import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.deletes.PositionDelete;
 import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.metrics.InMemoryMetricsReporter;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
@@ -217,6 +218,7 @@ public class TestIcebergSplitSource
                 false,
                 new IcebergConfig().getMinimumAssignedSplitWeight(),
                 new DefaultCachingHostAddressProvider(),
+                new InMemoryMetricsReporter(),
                 newDirectExecutorService())) {
             ImmutableList.Builder<IcebergSplit> splits = ImmutableList.builder();
             while (!splitSource.isFinished()) {
@@ -468,6 +470,7 @@ public class TestIcebergSplitSource
                 false,
                 0,
                 new DefaultCachingHostAddressProvider(),
+                new InMemoryMetricsReporter(),
                 newDirectExecutorService())) {
             ImmutableList.Builder<IcebergSplit> builder = ImmutableList.builder();
             while (!splitSource.isFinished()) {

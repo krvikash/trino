@@ -9024,6 +9024,14 @@ public abstract class BaseIcebergConnectorTest
         }
     }
 
+    @Test
+    void testExplainAnalyzeSplitSourceMetrics()
+    {
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE VERBOSE SELECT * FROM nation a",
+                "splits generation metrics");
+    }
+
     // regression test for https://github.com/trinodb/trino/issues/22922
     @Test
     void testArrayElementChange()
