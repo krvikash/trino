@@ -98,6 +98,7 @@ public class QueryResource
         requireNonNull(queryId, "queryId is null");
 
         Optional<QueryInfo> queryInfo = dispatchManager.getFullQueryInfo(queryId)
+                .map(QueryInfo::pruneCatalogProperties)
                 .map(info -> pruned ? pruneQueryInfo(info, info.getVersion()) : info);
         if (queryInfo.isEmpty()) {
             throw new GoneException();
