@@ -332,6 +332,7 @@ public class PlanPrinter
         List<PlanFragment> planFragments = allStages.stream()
                 .map(StageInfo::getPlan)
                 .filter(Objects::nonNull)
+                .map(PlanFragment::removeCatalogProperties)
                 .collect(toImmutableList());
 
         return jsonDistributedPlan(
@@ -359,6 +360,7 @@ public class PlanPrinter
             Anonymizer anonymizer)
     {
         Map<PlanFragmentId, JsonRenderedNode> anonymizedPlan = fragments.stream()
+                .map(PlanFragment::removeCatalogProperties)
                 .collect(toImmutableMap(
                         PlanFragment::getId,
                         planFragment -> new PlanPrinter(

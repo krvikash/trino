@@ -338,4 +338,25 @@ public class PlanFragment
     {
         return containsTableScanNode;
     }
+
+    public PlanFragment removeCatalogProperties()
+    {
+        return new PlanFragment(
+                id,
+                root,
+                symbols,
+                partitioning,
+                partitionCount,
+                partitionedSources,
+                partitionedSourcesSet,
+                types,
+                partitionedSourceNodes,
+                remoteSourceNodes,
+                outputPartitioningScheme,
+                statsAndCosts,
+                activeCatalogs.stream()
+                        .map(activeCatalog -> new CatalogProperties(activeCatalog.catalogHandle(), activeCatalog.connectorName(), ImmutableMap.of()))
+                        .collect(toImmutableList()),
+                languageFunctions);
+    }
 }
