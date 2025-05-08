@@ -9,8 +9,6 @@
  */
 package io.starburst.ai.client;
 
-import com.google.common.collect.ImmutableMap;
-import io.airlift.configuration.secrets.SecretsResolver;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -45,8 +43,7 @@ public class TestCreateModelConnectionSpecs
         File file = createModelConnectionSpecsFile(json);
 
         FileBackedModelConnectionSpecsLoader reader = new FileBackedModelConnectionSpecsLoader(
-                new AiFileStorageConfig().setModelConnectionSpecsFile(file.getPath()),
-                new SecretsResolver(ImmutableMap.of()));
+                new AiFileStorageConfig().setModelConnectionSpecsFile(file.getPath()));
         assertThatThrownBy(reader::load)
                 .satisfies(exception -> assertThat(getCausalChain(exception)
                         .stream()

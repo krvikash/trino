@@ -10,9 +10,7 @@
 package io.starburst.ai.client;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import io.airlift.configuration.secrets.SecretsResolver;
 import io.trino.spi.TrinoException;
 
 import java.io.IOException;
@@ -29,14 +27,12 @@ public class FileBackedModelConnectionSpecsLoader
         implements ModelConnectionSpecsLoader
 {
     private final Path path;
-    private final SecretsResolver secretsResolver;
 
     @Inject
-    public FileBackedModelConnectionSpecsLoader(AiFileStorageConfig config, SecretsResolver secretsResolver)
+    public FileBackedModelConnectionSpecsLoader(AiFileStorageConfig config)
     {
         requireNonNull(config, "config is null");
         this.path = Path.of(config.getModelConnectionSpecsFile());
-        this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
     }
 
     @Override
@@ -44,8 +40,7 @@ public class FileBackedModelConnectionSpecsLoader
     {
         try {
             String json = Files.readString(path);
-            String resolvedJson = secretsResolver.getResolvedConfiguration(ImmutableMap.of("json", json)).get("json");
-            return parseJson(resolvedJson, ModelConnectionSpecs.class);
+            return parseJson(json, ModelConnectionSpecs.class);
         }
         catch (RuntimeException e) {
             // the error message can contain sensitive information, so just include the location of the parsing error

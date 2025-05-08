@@ -139,9 +139,7 @@ public class TestingUtils
     private static ReloadingModelClientProvider createModelClientProvider(File modelsFile, boolean clientCacheRefreshEnabled)
     {
         AiFileStorageConfig config = new AiFileStorageConfig().setModelConnectionSpecsFile(modelsFile.getAbsolutePath());
-        FileBackedModelConnectionSpecsLoader modelSpecsLoader = new FileBackedModelConnectionSpecsLoader(
-                config,
-                new SecretsResolver(ImmutableMap.of("env", new EnvironmentVariableSecretProvider())));
+        FileBackedModelConnectionSpecsLoader modelSpecsLoader = new FileBackedModelConnectionSpecsLoader(config);
 
         PromptDao promptDao = new StaticPromptDao();
         Tracer tracer = Tracing.noopTracer();
@@ -150,9 +148,9 @@ public class TestingUtils
                 .put(CohereEmbedMultilingualV3Codec.MODEL_NAME, new CohereEmbedMultilingualV3Codec.Factory())
                 .buildOrThrow();
 
-        AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories);
-
-        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory();
+        SecretsResolver secretsResolver = new SecretsResolver(ImmutableMap.of("env", new EnvironmentVariableSecretProvider()));
+        AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver);
+        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver);
         return new ReloadingModelClientProvider(
                 tracer,
                 promptDao,

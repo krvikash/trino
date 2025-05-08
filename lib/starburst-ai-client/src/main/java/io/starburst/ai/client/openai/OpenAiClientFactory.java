@@ -9,8 +9,11 @@
  */
 package io.starburst.ai.client.openai;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
+import io.airlift.configuration.secrets.SecretsResolver;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.ConnectionInfo.OpenAiConnectionInfo;
 import io.starburst.ai.client.EmbeddingModelClient;
@@ -20,11 +23,21 @@ import io.starburst.ai.client.LanguageModelConnectionSpec;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
 
+import java.util.Map;
+
 import static java.util.Objects.requireNonNull;
 
 public class OpenAiClientFactory
         implements ModelClientFactory<OpenAiConnectionInfo>
 {
+    private final SecretsResolver secretsResolver;
+
+    @Inject
+    public OpenAiClientFactory(SecretsResolver secretsResolver)
+    {
+        this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
+    }
+
     @Override
     public LanguageModelClient createLanguageModelClient(LanguageModelConnectionSpec spec, OpenAiConnectionInfo connectionInfo, PromptDao promptDao, Tracer tracer)
     {
@@ -48,10 +61,14 @@ public class OpenAiClientFactory
         return new OpenAiEmbeddingModelClient(spec, createOpenAiClient(connectionInfo));
     }
 
-    private static OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo)
+    private OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo)
     {
         OpenAIOkHttpClient.Builder builder = OpenAIOkHttpClient.builder();
-        connectionInfo.apiKey().ifPresent(builder::apiKey);
+        if (connectionInfo.apiKey().isPresent()) {
+            Map<String, String> resolvedSecrets = secretsResolver.getResolvedConfiguration(ImmutableMap.of("apiKey", connectionInfo.apiKey().orElseThrow()));
+            String apiKey = resolvedSecrets.get("apiKey");
+            builder.apiKey(apiKey);
+        }
         connectionInfo.endpoint().ifPresent(builder::baseUrl);
         return builder.build();
     }

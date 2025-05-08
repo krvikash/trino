@@ -9,7 +9,9 @@
  */
 package io.starburst.ai.client.bedrock;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.airlift.configuration.secrets.SecretsResolver;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.ConnectionInfo.AwsBedrockConnectionInfo;
 import io.starburst.ai.client.EmbeddingModelClient;
@@ -44,11 +46,13 @@ public class AwsBedrockClientFactory
         implements ModelClientFactory<AwsBedrockConnectionInfo>
 {
     private final Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories;
+    private final SecretsResolver secretsResolver;
 
     @Inject
-    public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories)
+    public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories, SecretsResolver secretsResolver)
     {
         this.awsEmbeddingCodecFactories = requireNonNull(awsEmbeddingCodecFactories, "awsEmbeddingCodecFactories is null");
+        this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
     }
 
     @Override
@@ -87,13 +91,15 @@ public class AwsBedrockClientFactory
         return factory.create(spec);
     }
 
-    private static BedrockRuntimeClient createBedrockClient(AwsBedrockConnectionInfo connectionInfo)
+    private BedrockRuntimeClient createBedrockClient(AwsBedrockConnectionInfo connectionInfo)
     {
         BedrockRuntimeClientBuilder clientBuilder = BedrockRuntimeClient.builder();
-
         AwsCredentialsProvider awsCredentialsProvider = DefaultCredentialsProvider.create();
         if (connectionInfo.awsAccessKey().isPresent() && connectionInfo.awsSecretKey().isPresent()) {
-            awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(connectionInfo.awsAccessKey().orElseThrow(), connectionInfo.awsSecretKey().orElseThrow()));
+            Map<String, String> resolvedSecrets = secretsResolver.getResolvedConfiguration(ImmutableMap.of("awsAccessKey", connectionInfo.awsAccessKey().orElseThrow(), "awsSecretKey", connectionInfo.awsSecretKey().orElseThrow()));
+            String awsAccessKey = resolvedSecrets.get("awsAccessKey");
+            String awsSecretKey = resolvedSecrets.get("awsSecretKey");
+            awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(awsAccessKey, awsSecretKey));
         }
         if (connectionInfo.iamRole().isPresent()) {
             StsAssumeRoleCredentialsProvider.Builder assumeRoleCredentialsProvider = StsAssumeRoleCredentialsProvider.builder();
