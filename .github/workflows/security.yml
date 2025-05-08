@@ -29,10 +29,10 @@ env:
   JAVA_DISTRO: "temurin"
   JAVA_VERSION: "23"
   MAVEN_OPTS: "-Xmx3G -XX:+ExitOnOutOfMemoryError"
-  mavenReleaseUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
-  mavenReleasePassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
-  mavenSnapshotsUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
-  mavenSnapshotsPassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
+  mavenUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
+  mavenPassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
+  mavenPublicUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
+  mavenPublicPassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
 
 # Cancel previous PR builds.
 concurrency:

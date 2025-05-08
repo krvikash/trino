@@ -73,6 +73,20 @@ runs:
           key: ${{ runner.os }}-nodejs-${{ env.NODE_VERSION }}
           restore-keys: |
             ${{ runner.os }}-nodejs-
+      - name: "Login to maven registry"
+        uses: starburstdata/codeartifact-login-action@v1
+        with:
+          domain: starburst-domain
+          owner: 843985043183
+          region: us-east-1
+      - name: "Login to maven registry us-east-2"
+        uses: starburstdata/codeartifact-login-action@v1
+        with:
+          domain: starburstdata-sep-cicd
+          owner: 843985043183
+          region: us-east-2
+          user-variable: mavenUserUsEast2
+          password-variable: mavenCredentialsUsEast2
       - name: Cache and Restore local Maven repo
         id: cache
         if: ${{ format('{0}', inputs.cache) == 'true' }}

@@ -202,12 +202,12 @@
         <!-- starburst specific configuration -->
         <starburst-license.header-file>${air.main.basedir}/.mvn/license/starburst-header.txt</starburst-license.header-file>
 
-        <air.repository.snapshot.id>starburstdata-sep.snapshots</air.repository.snapshot.id>
-        <air.repository.snapshot.name>Starburstdata Snapshots</air.repository.snapshot.name>
-        <air.repository.snapshot.url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/snapshots/</air.repository.snapshot.url>
-        <air.repository.release.id>starburstdata-sep.releases</air.repository.release.id>
+        <air.repository.public.id>starburst-domain-maven-public</air.repository.public.id>
+        <air.repository.public.name>Starburstdata Maven Public</air.repository.public.name>
+        <air.repository.public.url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/maven-public/</air.repository.public.url>
+        <air.repository.release.id>starburst-domain-releases</air.repository.release.id>
         <air.repository.release.name>Starburstdata Releases</air.repository.release.name>
-        <air.repository.release.url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</air.repository.release.url>
+        <air.repository.release.url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/releases/</air.repository.release.url>
         <extraJavaVectorArgs>--add-modules=jdk.incubator.vector</extraJavaVectorArgs>
 
         <dep.databricks.jdbc.version>2.7.1</dep.databricks.jdbc.version>
@@ -215,7 +215,7 @@
         <dep.sap-hana-jdbc.version>2.17.12</dep.sap-hana-jdbc.version>
 
         <!-- released from https://github.com/starburstdata/starburst-dataframe -->
-        <dep.starburst-dataframe.version>0.8.0.pr74-fbdfcb6</dep.starburst-dataframe.version>
+        <dep.starburst-dataframe.version>0.8.0.pr88-d5eb2de</dep.starburst-dataframe.version>
 
         <!-- keep dependency properties sorted -->
         <dep.airlift.version>332</dep.airlift.version>
@@ -2606,8 +2606,8 @@
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
-            <id>${air.repository.snapshot.id}</id>
-            <url>${air.repository.snapshot.url}</url>
+            <id>${air.repository.public.id}</id>
+            <url>${air.repository.public.url}</url>
         </repository>
         <repository>
             <releases>

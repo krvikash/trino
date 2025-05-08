@@ -928,6 +928,11 @@ jobs:
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN clean install ${MAVEN_FAST_INSTALL} ${MAVEN_GIB} -pl '!:trino-docs,!:trino-server'
+          echo "Maven effective settings"
+          ./mvnw -s .github/settings.xml -B help:effective-settings
+          echo "Maven effective pom"
+          ./mvnw -s .github/settings.xml -B help:effective-pom
+          echo "End of maven effective settings"
       - name: Maven Tests
         id: tests
         run: |

@@ -43,14 +43,14 @@ As we get new JARs for a particular year, we can increment the suffixed version 
 View the `pom.xml` file for what version that is currently in use, then deploy the next version using the below command as an example.
 
 ```bash
-# Authenticate to AWS starburstdata-sep-cicd account (843985043183) and the run the following
+# Authenticate to AWS starburst-domain account (843985043183) and the run the following
 
 export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token \
-    --domain starburstdata-sep-cicd \
+    --domain starburst-domain \
     --domain-owner 843985043183 \
     --query authorizationToken \
     --output text \
-    --region us-east-2)
+    --region us-east-1)
 
 mvn deploy:deploy-file \
 -Dfile=/path/to/cdata-dynamodb-jdbc.jar \
@@ -59,7 +59,7 @@ mvn deploy:deploy-file \
 -Dversion=2020-4 \
 -Dpackaging=jar \
 -DrepositoryId=starburstdata.releases \
--Durl=https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/
+-Durl=https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/releases/
 ```
 
 ## CData Metadata Cache
