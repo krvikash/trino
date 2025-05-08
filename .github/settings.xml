@@ -2,11 +2,107 @@
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
                               https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+
+    <mirrors>
+        <mirror>
+            <id>starburst-domain-maven-public</id>
+            <name>starburst-domain-maven-public</name>
+            <url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/maven-public/</url>
+            <mirrorOf>*,!starburst-domain-releases,!starburstdata-sep.releases,!confluent</mirrorOf>
+        </mirror>
+        <mirror>
+            <id>starburst-domain-releases</id>
+            <name>starburst-domain-releases</name>
+            <url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/releases/</url>
+            <mirrorOf>starburst-domain-releases</mirrorOf>
+        </mirror>
+        <mirror>
+            <id>starburstdata-sep.releases</id>
+            <name>Starburstdata Releases us-east-2 Fallback</name>
+            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</url>
+            <mirrorOf>starburstdata-sep.releases</mirrorOf>
+        </mirror>
+    </mirrors>
+
+    <profiles>
+        <profile>
+            <id>starburst</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <gpg.skip>true</gpg.skip>
+                <air.release.release-profiles>starburst</air.release.release-profiles>
+                <air.repository.release.id>starburst-domain-releases</air.repository.release.id>
+                <air.repository.release.name>starburst-domain-releases</air.repository.release.name>
+                <air.repository.release.url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/releases/</air.repository.release.url>
+            </properties>
+            <repositories>
+                <repository>
+                    <id>starburst-domain-maven-public</id>
+                    <url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/maven-public/</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+                <repository>
+                    <id>starburst-domain-releases</id>
+                    <url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/releases/</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+                <repository>
+                    <id>starburstdata-sep.releases</id>
+                    <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>starburst-domain-maven-public</id>
+                    <name>starburst-domain-maven-public</name>
+                    <url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/maven-public/</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </pluginRepository>
+                <pluginRepository>
+                    <id>starburst-domain-releases</id>
+                    <name>CodeArtifact Releases Plugins</name>
+                    <url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/releases/</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </pluginRepository>
+            </pluginRepositories>
+        </profile>
+    </profiles>
+
     <servers>
 
-        <!-- Starburst Maven Snapshot Repository -->
+        <!-- Starburst Maven Central Public Repository -->
         <server>
-            <id>starburstdata-sep.snapshots</id>
+            <id>starburst-domain-maven-public</id>
             <username>${env.mavenUser}</username>
             <password>${env.mavenCredentials}</password>
             <configuration>
@@ -20,7 +116,7 @@
 
         <!-- Starburst Maven Release Repository -->
         <server>
-            <id>starburstdata-sep.releases</id>
+            <id>starburst-domain-releases</id>
             <username>${env.mavenUser}</username>
             <password>${env.mavenCredentials}</password>
             <configuration>
@@ -32,5 +128,23 @@
             </configuration>
         </server>
 
+        <!-- Starburst Maven Release Repository Fallback in us-east-2 -->
+        <server>
+            <id>starburstdata-sep.releases</id>
+            <username>${env.mavenUserUsEast2}</username>
+            <password>${env.mavenCredentialsUsEast2}</password>
+            <configuration>
+                <httpConfiguration>
+                    <all>
+                        <usePreemptive>true</usePreemptive>
+                    </all>
+                </httpConfiguration>
+            </configuration>
+        </server>
+
     </servers>
+
+    <activeProfiles>
+        <activeProfile>starburst</activeProfile>
+    </activeProfiles>
 </settings>

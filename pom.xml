@@ -202,12 +202,15 @@
         <!-- starburst specific configuration -->
         <starburst-license.header-file>${air.main.basedir}/.mvn/license/starburst-header.txt</starburst-license.header-file>
 
-        <air.repository.snapshot.id>starburstdata-sep.snapshots</air.repository.snapshot.id>
-        <air.repository.snapshot.name>Starburstdata Snapshots</air.repository.snapshot.name>
-        <air.repository.snapshot.url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/snapshots/</air.repository.snapshot.url>
-        <air.repository.release.id>starburstdata-sep.releases</air.repository.release.id>
+        <air.repository.public.id>starburst-domain-maven-public</air.repository.public.id>
+        <air.repository.public.name>Starburstdata Maven Public</air.repository.public.name>
+        <air.repository.public.url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/maven-public/</air.repository.public.url>
+        <air.repository.release.id>starburst-domain-releases</air.repository.release.id>
         <air.repository.release.name>Starburstdata Releases</air.repository.release.name>
-        <air.repository.release.url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</air.repository.release.url>
+        <air.repository.release.url>https://starburst-domain-843985043183.d.codeartifact.us-east-1.amazonaws.com/maven/releases/</air.repository.release.url>
+        <air.repository.old-release.id>starburstdata-sep.releases</air.repository.old-release.id>
+        <air.repository.old-release.name>Starburstdata Releases</air.repository.old-release.name>
+        <air.repository.old-release.url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</air.repository.old-release.url>
         <extraJavaVectorArgs>--add-modules=jdk.incubator.vector</extraJavaVectorArgs>
 
         <dep.databricks.jdbc.version>2.7.1</dep.databricks.jdbc.version>
@@ -2600,8 +2603,8 @@
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
-            <id>${air.repository.snapshot.id}</id>
-            <url>${air.repository.snapshot.url}</url>
+            <id>${air.repository.public.id}</id>
+            <url>${air.repository.public.url}</url>
         </repository>
         <repository>
             <releases>
@@ -2612,6 +2615,16 @@
             </snapshots>
             <id>${air.repository.release.id}</id>
             <url>${air.repository.release.url}</url>
+        </repository>
+        <repository>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>${air.repository.old-release.id}</id>
+            <url>${air.repository.old-release.url}</url>
         </repository>
     </repositories>
 
