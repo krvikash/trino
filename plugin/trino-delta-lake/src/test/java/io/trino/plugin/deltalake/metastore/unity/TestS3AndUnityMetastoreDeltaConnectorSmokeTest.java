@@ -280,14 +280,11 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
     @Test
     public void testInsert()
     {
-        Properties properties = new Properties();
-        properties.put("user", DATABRICKS_LOGIN);
-        properties.put("password", DATABRICKS_TOKEN);
         String tableName = "delta_table_" + randomNameSuffix();
         Connection connection = null;
         Statement statement = null;
         try {
-            connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, properties);
+            connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, getDatabricksProperties());
             statement = connection.createStatement();
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS %s.%s.%s (c int)
@@ -297,6 +294,41 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
         }
         catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+        finally {
+            if (statement != null) {
+                try {
+                    statement.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
+                    statement.close();
+                    connection.close();
+                }
+                catch (SQLException ignore) {}
+            }
+        }
+    }
+
+    @Test
+    void testDisallowOtherWriteOperations()
+            throws Exception
+    {
+        String tableName = "delta_table_disallow_" + randomNameSuffix();
+        Connection connection = null;
+        Statement statement = null;
+        try {
+            connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, getDatabricksProperties());
+            statement = connection.createStatement();
+            statement.execute("""
+                CREATE TABLE %s.%s.%s (c int, d int NOT NULL)
+                USING DELTA
+                """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
+            assertQueryFails("COMMENT ON TABLE " + tableName + " IS 'comment'", "Writes are not supported on managed tables for Unity metastore");
+            assertQueryFails("COMMENT ON COLUMN " + tableName + ".c IS 'comment'", "Writes are not supported on managed tables for Unity metastore");
+            assertQueryFails("ALTER TABLE " + tableName + " ADD COLUMN x int", "Writes are not supported on managed tables for Unity metastore");
+            assertQueryFails("ALTER TABLE " + tableName + " DROP COLUMN c", "Writes are not supported on managed tables for Unity metastore");
+            assertQueryFails("ALTER TABLE " + tableName + " RENAME COLUMN c TO b", "Writes are not supported on managed tables for Unity metastore");
+            assertQueryFails("ALTER TABLE " + tableName + " ALTER COLUMN d DROP NOT NULL", "Writes are not supported on managed tables for Unity metastore");
+            assertQueryFails("ALTER TABLE " + tableName + " SET PROPERTIES change_data_feed_enabled = false", "Writes are not supported on managed tables for Unity metastore");
+            assertQueryFails("ALTER TABLE " + tableName + " EXECUTE OPTIMIZE", "Writes are not supported on managed tables for Unity metastore");
         }
         finally {
             if (statement != null) {
@@ -345,5 +377,13 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
     public void testRowLevelUpdate()
     {
         abort("io.trino.testing.BaseConnectorSmokeTest.testMerge updates the static table used in the test");
+    }
+
+    private static Properties getDatabricksProperties()
+    {
+        Properties properties = new Properties();
+        properties.put("user", DATABRICKS_LOGIN);
+        properties.put("password", DATABRICKS_TOKEN);
+        return properties;
     }
 }

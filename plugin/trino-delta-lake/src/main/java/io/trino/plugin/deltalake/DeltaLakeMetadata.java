@@ -1743,6 +1743,7 @@ public class DeltaLakeMetadata
         MetadataEntry metadataEntry = handle.getMetadataEntry();
         ProtocolEntry protocolEntry = handle.getProtocolEntry();
         checkUnsupportedWriterFeatures(protocolEntry);
+        checkManagedTableWriteSupported(handle);
 
         try {
             long commitVersion = handle.getReadVersion() + 1;
@@ -1777,6 +1778,7 @@ public class DeltaLakeMetadata
         }
         ProtocolEntry protocolEntry = deltaLakeTableHandle.getProtocolEntry();
         checkUnsupportedWriterFeatures(protocolEntry);
+        checkManagedTableWriteSupported(deltaLakeTableHandle);
 
         try {
             long commitVersion = deltaLakeTableHandle.getReadVersion() + 1;
@@ -1842,6 +1844,7 @@ public class DeltaLakeMetadata
         }
         boolean deletionVectorEnabled = isDeletionVectorEnabled(handle.getMetadataEntry(), protocolEntry);
         checkUnsupportedWriterFeatures(protocolEntry);
+        checkManagedTableWriteSupported(handle);
 
         if (!newColumnMetadata.isNullable()) {
             boolean tableHasDataFiles;
@@ -1922,6 +1925,7 @@ public class DeltaLakeMetadata
         MetadataEntry metadataEntry = table.getMetadataEntry();
         ProtocolEntry protocolEntry = table.getProtocolEntry();
         checkUnsupportedWriterFeatures(protocolEntry);
+        checkManagedTableWriteSupported(table);
 
         checkSupportedWriterVersion(table);
         ColumnMappingMode columnMappingMode = getColumnMappingMode(metadataEntry, protocolEntry);
@@ -2003,6 +2007,7 @@ public class DeltaLakeMetadata
         String sourceColumnName = deltaLakeColumn.baseColumnName();
         ProtocolEntry protocolEntry = table.getProtocolEntry();
         checkUnsupportedWriterFeatures(protocolEntry);
+        checkManagedTableWriteSupported(table);
 
         checkSupportedWriterVersion(table);
         if (changeDataFeedEnabled(table.getMetadataEntry(), protocolEntry).orElse(false)) {
@@ -2059,6 +2064,7 @@ public class DeltaLakeMetadata
 
         checkUnsupportedWriterFeatures(protocolEntry);
         checkSupportedWriterVersion(table);
+        checkManagedTableWriteSupported(table);
 
         DeltaLakeTable deltaTable = DeltaLakeTable.builder(metadataEntry, protocolEntry)
                 .dropNotNullConstraint(columnName)
@@ -3217,6 +3223,7 @@ public class DeltaLakeMetadata
         if (!unsupportedProperties.isEmpty()) {
             throw new TrinoException(NOT_SUPPORTED, "The following properties cannot be updated: " + String.join(", ", unsupportedProperties));
         }
+        checkManagedTableWriteSupported(handle);
 
         ProtocolEntry currentProtocolEntry = handle.getProtocolEntry();
 
