@@ -301,7 +301,7 @@ public class QueryMonitor
                 queryInfo.getSelf(),
                 createTextQueryPlan(queryInfo, anonymizer),
                 createJsonQueryPlan(queryInfo, anonymizer),
-                memoize(() -> queryInfo.getOutputStage().flatMap(stage -> stageInfoCodec.toJsonWithLengthLimit(stage, maxJsonLimit))));
+                memoize(() -> queryInfo.getOutputStage().map(StageInfo::pruneCatalogProperties).flatMap(stage -> stageInfoCodec.toJsonWithLengthLimit(stage, maxJsonLimit))));
     }
 
     private QueryStatistics createQueryStatistics(QueryInfo queryInfo)

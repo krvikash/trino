@@ -339,7 +339,7 @@ public class PlanFragment
         return containsTableScanNode;
     }
 
-    public PlanFragment removeCatalogProperties()
+    public PlanFragment pruneCatalogProperties()
     {
         return new PlanFragment(
                 id,

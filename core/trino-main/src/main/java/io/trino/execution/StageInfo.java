@@ -183,6 +183,23 @@ public class StageInfo
                 failureCause);
     }
 
+    public StageInfo pruneCatalogProperties()
+    {
+        return new StageInfo(
+                stageId,
+                state,
+                plan.pruneCatalogProperties(),
+                coordinatorOnly,
+                types,
+                stageStats,
+                tasks,
+                subStages.stream()
+                        .map(StageInfo::pruneCatalogProperties)
+                        .collect(toImmutableList()),
+                tables,
+                failureCause);
+    }
+
     public static StageInfo createInitial(QueryId queryId, StageState state, PlanFragment fragment)
     {
         return new StageInfo(
