@@ -406,7 +406,7 @@ public class QueryMonitor
         try {
             if (queryInfo.getOutputStage().isPresent()) {
                 return Optional.of(textDistributedPlan(
-                        queryInfo.getOutputStage().get(),
+                        queryInfo.getOutputStage().get().pruneCatalogProperties(),
                         queryInfo.getQueryStats(),
                         new ValuePrinter(metadata, functionManager, queryInfo.getSession().toSession(sessionPropertyManager)),
                         false,
