@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.Multiset;
 import io.trino.Session;
 import io.trino.filesystem.Location;
+import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.spi.security.ConnectorIdentity;
@@ -41,7 +42,9 @@ import static io.trino.plugin.hive.metastore.glue.GlueMetastoreMethod.GET_TABLE;
 import static io.trino.testing.MultisetAssertions.assertMultisetsEqual;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @Execution(SAME_THREAD) // glueStats is shared mutable state
@@ -67,6 +70,7 @@ public class TestCachedHiveGlueMetastore
                 .addHiveProperty("hive.metastore.glue.default-warehouse-dir", "local:///glue")
                 .addHiveProperty("hive.metastore-cache-ttl", "1d")
                 .addHiveProperty("hive.metastore-refresh-interval", "1h")
+                .addHiveProperty("hive.allow-register-partition-procedure", "true")
                 .addHiveProperty("hive.security", "allow-all")
                 .setCreateTpchSchemas(false)
                 .build();
@@ -187,10 +191,45 @@ public class TestCachedHiveGlueMetastore
             assertQueryFails(select, "Partition location does not exist: " + partitionLocation);
             // flush cache
             assertQuerySucceeds("CALL system.flush_metadata_cache(schema_name => CURRENT_SCHEMA, table_name => 'test_flush_partition', partition_columns => ARRAY['regionkey'], partition_values => ARRAY['2'])");
-            assertQueryFails(select, "Partition regionkey=2 no longer exists for %s.test_flush_partition".formatted(testSchema));
+            assertQuerySucceeds(select);
         }
         finally {
             getQueryRunner().execute("DROP TABLE IF EXISTS test_select_from_partitioned_where");
+        }
+    }
+
+    @Test
+    void testRegisterPartition()
+            throws Exception
+    {
+        try {
+            TrinoFileSystem fileSystem = getConnectorService(getQueryRunner(), TrinoFileSystemFactory.class).create(ConnectorIdentity.ofUser("test"));
+
+            String tableLocation = "local:///glue/" + testSchema + "/test_register_partition";
+            fileSystem.createDirectory(Location.of(tableLocation));
+
+            assertUpdate("CREATE TABLE test_register_partition(id varchar, part int) " +
+                    "WITH (external_location = '" + tableLocation + "', partitioned_by = ARRAY['part'], format = 'CSV')");
+            fileSystem.newOutputFile(Location.of(tableLocation + "/part=10/file.csv"))
+                    .createOrOverwrite("\"1\"".getBytes(UTF_8));
+
+            // Populate cache with empty partition
+            assertQueryReturnsEmptyResult("SELECT * FROM test_register_partition");
+
+            // Registering partitions should invalidate cache
+            assertUpdate("CALL system.register_partition(CURRENT_SCHEMA, 'test_register_partition', ARRAY['part'], ARRAY['10'])");
+            assertInvocations("SELECT * FROM test_register_partition", ImmutableMultiset.<GlueMetastoreMethod>builder()
+                    .addCopies(GET_PARTITION_NAMES, 5)
+                    .build());
+            assertThat(query("SELECT * FROM test_register_partition"))
+                    .matches("VALUES (VARCHAR '1', 10)");
+
+            // Unregistering partitions should invalidate cache
+            assertUpdate("CALL system.unregister_partition(CURRENT_SCHEMA, 'test_register_partition', ARRAY['part'], ARRAY['10'])");
+            assertQueryReturnsEmptyResult("SELECT * FROM test_register_partition");
+        }
+        finally {
+            getQueryRunner().execute("DROP TABLE IF EXISTS test_register_partition");
         }
     }
 

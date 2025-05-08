@@ -287,6 +287,7 @@ class InMemoryGlueCache
     {
         partitionInvalidationCounter.incrementAndGet();
         partitionCache.invalidate(partitionKey);
+        invalidatePartitionNames(partitionKey.databaseName, partitionKey.tableName);
         partitionColumnStatsCache.invalidate(partitionKey);
     }
 

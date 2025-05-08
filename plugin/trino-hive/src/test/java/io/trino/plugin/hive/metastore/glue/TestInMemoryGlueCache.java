@@ -450,10 +450,10 @@ class TestInMemoryGlueCache
         assertThat(glueCache.getPartition("db1", "table1", testPartitionName("part3"), () -> { throw new RuntimeException(); })).contains(testPartition("part3", "initial"));
         assertThat(glueCache.getPartition("db1", "table1", testPartitionName("part4"), () -> { throw new RuntimeException(); })).contains(testPartition("part4", "initial"));
 
-        // partition invalidation does not invalidate the partition names
+        // partition invalidation invalidates the partition names
         glueCache.invalidatePartition("db1", "table1", testPartitionName("unknown"));
-        assertThat(glueCache.getPartitionNames("db1", "table1", "", cachePartition -> { throw new RuntimeException(); }))
-                .containsExactlyInAnyOrder(testPartitionName("part2"), testPartitionName("part3"));
+        assertThat(glueCache.getPartitionNames("db1", "table1", "", _ -> Set.of(testPartitionName("invalidated"))))
+                .containsExactlyInAnyOrder(testPartitionName("invalidated"));
 
         glueCache.invalidateTable("db1", "table1", true);
 

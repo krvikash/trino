@@ -1103,6 +1103,9 @@ public class GlueHiveMetastore
             }
             throw new TrinoException(HIVE_METASTORE_ERROR, "Failed creating partitions for %s.%s: %s".formatted(databaseName, tableName, e.getCause().getMessage()));
         }
+        finally {
+            updatedPartitions.forEach(partition -> glueCache.invalidatePartition(databaseName, tableName, new PartitionName(partition.getValues())));
+        }
 
         // statistics are created after partitions because it is not clear if ordering matters in Glue
         var createStatisticsTasks = partitionsWithStatistics.stream()
@@ -1117,6 +1120,9 @@ public class GlueHiveMetastore
         }
         catch (ExecutionException e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, "Failed creating partition column statistics for %s.%s".formatted(databaseName, tableName), e.getCause());
+        }
+        finally {
+            updatedPartitions.forEach(partition -> glueCache.invalidatePartition(databaseName, tableName, new PartitionName(partition.getValues())));
         }
     }
 
