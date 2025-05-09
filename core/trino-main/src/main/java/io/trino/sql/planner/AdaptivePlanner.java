@@ -137,6 +137,12 @@ public class AdaptivePlanner
         PlanFragmentIdAllocator fragmentIdAllocator = new PlanFragmentIdAllocator(getMaxPlanFragmentId(subPlans) + 1);
         SymbolAllocator symbolAllocator = createSymbolAllocator(subPlans);
 
+        if (debugEnabled) {
+            root.getAllFragments().forEach(fragment -> {
+                log.info("Initial fragment %s.%s: %s; %s", session.getQueryId(), fragment.getId(), fragment, planToString(fragment.getRoot()));
+            });
+        }
+
         // rewrite remote source nodes to exchange nodes, except for fragments which are finisher or whose stats are
         // estimated by progress.
         ReplaceRemoteSourcesWithExchanges rewriter = new ReplaceRemoteSourcesWithExchanges(runtimeInfoProvider);
@@ -200,7 +206,7 @@ public class AdaptivePlanner
         }
 
         // Fragment the adaptive plan
-        return planFragmenter.createSubPlans(
+        SubPlan finalPlan = planFragmenter.createSubPlans(
                 session,
                 new Plan(adaptivePlan, StatsAndCosts.empty()),
                 false,
@@ -211,6 +217,14 @@ public class AdaptivePlanner
                 // changed plan nodes. This optimization is done to avoid unnecessary stage restart due to speculative
                 // execution.
                 getUnchangedSubPlans(adaptivePlan, optimizationResult.changedPlanNodes(), exchangeSourceIdToSubPlan));
+
+        if (debugEnabled) {
+            finalPlan.getAllFragments().forEach(fragment -> {
+                log.info("Final fragment %s.%s: %s; %s", session.getQueryId(), fragment.getId(), fragment, planToString(fragment.getRoot()));
+            });
+        }
+
+        return finalPlan;
     }
 
     private String planToString(PlanNode plan)
