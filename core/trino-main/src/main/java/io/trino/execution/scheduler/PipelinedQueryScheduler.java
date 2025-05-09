@@ -1022,8 +1022,13 @@ public class PipelinedQueryScheduler
         {
             ImmutableMap.Builder<PlanFragmentId, PipelinedOutputBufferManager> result = ImmutableMap.builder();
             result.putAll(outputBuffersForStagesConsumedByCoordinator);
-            for (SqlStage parentStage : stageManager.getDistributedStagesInTopologicalOrder()) {
-                for (SqlStage childStage : stageManager.getChildren(parentStage.getStageId())) {
+            for (SqlStage childStage : stageManager.getDistributedStagesInTopologicalOrder()) {
+                Set<SqlStage> parents = stageManager.getParents(childStage.getStageId());
+                if (parents.isEmpty() || outputBuffersForStagesConsumedByCoordinator.containsKey(childStage.getFragment().getId())) {
+                    continue;
+                }
+
+                if (parents.size() == 1) {
                     PlanFragmentId fragmentId = childStage.getFragment().getId();
                     PartitioningHandle partitioningHandle = childStage.getFragment().getOutputPartitioningScheme().getPartitioning().getHandle();
 
@@ -1041,6 +1046,11 @@ public class PipelinedQueryScheduler
                         outputBufferManager = new PartitionedPipelinedOutputBufferManager(partitioningHandle, partitionCount);
                     }
                     result.put(fragmentId, outputBufferManager);
+                }
+
+                if (parents.size() > 1) {
+                    // todo
+                    throw new IllegalArgumentException("todo");
                 }
             }
             return result.buildOrThrow();

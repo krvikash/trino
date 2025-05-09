@@ -15,7 +15,8 @@ package io.trino.execution.scheduler;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.graph.Traverser;
+import com.google.common.collect.ImmutableSetMultimap;
+import com.google.common.collect.SetMultimap;
 import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
@@ -46,8 +47,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.execution.BasicStageStats.aggregateBasicStageStats;
 import static io.trino.execution.SqlStage.createSqlStage;
+import static io.trino.sql.planner.TopologicalOrderSubPlanVisitor.sortPlanInTopologicalOrder;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -61,8 +64,8 @@ class StageManager
     private final List<SqlStage> coordinatorStagesInTopologicalOrder;
     private final List<SqlStage> distributedStagesInTopologicalOrder;
     private final StageId rootStageId;
-    private final Map<StageId, Set<StageId>> children;
-    private final Map<StageId, StageId> parents;
+    private final SetMultimap<StageId, StageId> children;
+    private final SetMultimap<StageId, StageId> parents;
 
     static StageManager create(
             QueryStateMachine queryStateMachine,
@@ -72,7 +75,7 @@ class StageManager
             Tracer tracer,
             Span schedulerSpan,
             SplitSchedulerStats schedulerStats,
-            SubPlan planTree,
+            SubPlan planGraph,
             boolean summarizeTaskInfo,
             SplitAdmissionControllerProvider splitAdmissionControllerProvider)
     {
@@ -82,9 +85,10 @@ class StageManager
         ImmutableList.Builder<SqlStage> coordinatorStagesInTopologicalOrder = ImmutableList.builder();
         ImmutableList.Builder<SqlStage> distributedStagesInTopologicalOrder = ImmutableList.builder();
         StageId rootStageId = null;
-        ImmutableMap.Builder<StageId, Set<StageId>> children = ImmutableMap.builder();
-        ImmutableMap.Builder<StageId, StageId> parents = ImmutableMap.builder();
-        for (SubPlan planNode : Traverser.forTree(SubPlan::getChildren).breadthFirst(planTree)) {
+        ImmutableSetMultimap.Builder<StageId, StageId> children = ImmutableSetMultimap.builder();
+        ImmutableSetMultimap.Builder<StageId, StageId> parents = ImmutableSetMultimap.builder();
+
+        for (SubPlan planNode : sortPlanInTopologicalOrder(planGraph).reversed()) {
             PlanFragment fragment = planNode.getFragment();
             SqlStage stage = createSqlStage(
                     getStageId(session.getQueryId(), fragment.getId()),
@@ -114,7 +118,7 @@ class StageManager
             Set<StageId> childStageIds = planNode.getChildren().stream()
                     .map(childStage -> getStageId(session.getQueryId(), childStage.getFragment().getId()))
                     .collect(toImmutableSet());
-            children.put(stageId, childStageIds);
+            children.putAll(stageId, childStageIds);
             childStageIds.forEach(child -> parents.put(child, stageId));
         }
         StageManager stageManager = new StageManager(
@@ -124,8 +128,8 @@ class StageManager
                 coordinatorStagesInTopologicalOrder.build(),
                 distributedStagesInTopologicalOrder.build(),
                 rootStageId,
-                children.buildOrThrow(),
-                parents.buildOrThrow());
+                children.build(),
+                parents.build());
         stageManager.initialize();
         return stageManager;
     }
@@ -143,8 +147,8 @@ class StageManager
             List<SqlStage> coordinatorStagesInTopologicalOrder,
             List<SqlStage> distributedStagesInTopologicalOrder,
             StageId rootStageId,
-            Map<StageId, Set<StageId>> children,
-            Map<StageId, StageId> parents)
+            SetMultimap<StageId, StageId> children,
+            SetMultimap<StageId, StageId> parents)
     {
         this.queryStateMachine = requireNonNull(queryStateMachine, "queryStateMachine is null");
         this.stages = ImmutableMap.copyOf(requireNonNull(stages, "stages is null"));
@@ -152,8 +156,8 @@ class StageManager
         this.coordinatorStagesInTopologicalOrder = ImmutableList.copyOf(requireNonNull(coordinatorStagesInTopologicalOrder, "coordinatorStagesInTopologicalOrder is null"));
         this.distributedStagesInTopologicalOrder = ImmutableList.copyOf(requireNonNull(distributedStagesInTopologicalOrder, "distributedStagesInTopologicalOrder is null"));
         this.rootStageId = requireNonNull(rootStageId, "rootStageId is null");
-        this.children = ImmutableMap.copyOf(requireNonNull(children, "children is null"));
-        this.parents = ImmutableMap.copyOf(requireNonNull(parents, "parents is null"));
+        this.children = ImmutableSetMultimap.copyOf(requireNonNull(children, "children is null"));
+        this.parents = ImmutableSetMultimap.copyOf(requireNonNull(parents, "parents is null"));
     }
 
     // this is a separate method to ensure that the `this` reference is not leaked during construction
@@ -229,7 +233,24 @@ class StageManager
 
     public Optional<SqlStage> getParent(StageId stageId)
     {
-        return Optional.ofNullable(parents.get(stageId)).map(stages::get);
+        Set<SqlStage> parentStages = getParents(stageId);
+        return switch (parentStages.size()) {
+            case 0 -> Optional.empty();
+            case 1 -> Optional.of(getOnlyElement(parentStages));
+            default -> throw new IllegalStateException("more than one parent for stage " + stageId);
+        };
+    }
+
+    public Set<SqlStage> getParents(PlanFragmentId fragmentId)
+    {
+        return getParents(getStageId(queryStateMachine.getQueryId(), fragmentId));
+    }
+
+    public Set<SqlStage> getParents(StageId stageId)
+    {
+        return parents.get(stageId).stream()
+                .map(this::get)
+                .collect(toImmutableSet());
     }
 
     public BasicStageStats getBasicStageStats()
