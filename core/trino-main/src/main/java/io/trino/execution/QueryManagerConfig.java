@@ -165,6 +165,7 @@ public class QueryManagerConfig
     // above this threshold.
     // TODO: Consider the cost of restarting the stage as part of adaptive planning.
     private DataSize faultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold = DataSize.of(5, GIGABYTE);
+    private boolean faultTolerantExecutionDebugAdaptivePlanner;
 
     @Min(1)
     public int getScheduleSplitBatchSize()
@@ -1226,6 +1227,19 @@ public class QueryManagerConfig
     public QueryManagerConfig setFaultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold(DataSize faultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold)
     {
         this.faultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold = faultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold;
+        return this;
+    }
+
+    public boolean isFaultTolerantExecutionDebugAdaptivePlanner()
+    {
+        return faultTolerantExecutionDebugAdaptivePlanner;
+    }
+
+    @Config("fault-tolerant-execution-debug-adaptive-planner")
+    @ConfigDescription("The minimum size of the right side of join to consider reordering")
+    public QueryManagerConfig setFaultTolerantExecutionDebugAdaptivePlanner(boolean faultTolerantExecutionDebugAdaptivePlanner)
+    {
+        this.faultTolerantExecutionDebugAdaptivePlanner = faultTolerantExecutionDebugAdaptivePlanner;
         return this;
     }
 }

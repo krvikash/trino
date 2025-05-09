@@ -1251,7 +1251,7 @@ public final class SystemSessionProperties
                 booleanProperty(
                         DEBUG_ADAPTIVE_PLANNER,
                         "Enable debug information for the adaptive planner",
-                        false,
+                        queryManagerConfig.isFaultTolerantExecutionDebugAdaptivePlanner(),
                         true),
                 booleanProperty(
                         SUPERSET_PREDICATE_PUSHDOWN_ENABLED,
