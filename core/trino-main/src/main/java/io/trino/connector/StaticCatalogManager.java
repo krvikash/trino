@@ -56,6 +56,7 @@ import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.util.Executors.executeUntilFailure;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
+import static java.util.function.Predicate.not;
 
 @ThreadSafe
 public class StaticCatalogManager
@@ -183,8 +184,9 @@ public class StaticCatalogManager
     @Override
     public void ensureCatalogsLoaded(List<CatalogProperties> catalogs)
     {
-        List<CatalogProperties> missingCatalogs = catalogs.stream()
-                .filter(catalog -> !this.catalogs.containsKey(catalog.name()))
+        List<CatalogName> missingCatalogs = catalogs.stream()
+                .map(CatalogProperties::name)
+                .filter(not(this.catalogs::containsKey))
                 .collect(toImmutableList());
 
         if (!missingCatalogs.isEmpty()) {
