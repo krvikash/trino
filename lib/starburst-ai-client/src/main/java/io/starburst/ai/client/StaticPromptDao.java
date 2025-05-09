@@ -42,6 +42,7 @@ public class StaticPromptDao
             Mask the values for each of the JSON encoded labels in the text below.
             Labels: %s
             Replace the values with the text "[MASKED]".
+            Never replace the labels with "[MASKED]", only replace the values.
             Output only the masked text.
             Do not output anything else.
             =====
