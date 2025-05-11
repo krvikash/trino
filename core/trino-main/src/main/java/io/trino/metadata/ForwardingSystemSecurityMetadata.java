@@ -19,10 +19,13 @@ import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.EntityKindAndName;
 import io.trino.spi.connector.EntityPrivilege;
 import io.trino.spi.function.CatalogSchemaFunctionName;
+import io.trino.spi.security.FunctionAuthorization;
 import io.trino.spi.security.GrantInfo;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.Privilege;
 import io.trino.spi.security.RoleGrant;
+import io.trino.spi.security.SchemaAuthorization;
+import io.trino.spi.security.TableAuthorization;
 import io.trino.spi.security.TrinoPrincipal;
 
 import java.util.Optional;
@@ -277,5 +280,23 @@ public abstract class ForwardingSystemSecurityMetadata
     public void setEntityOwner(Session session, EntityKindAndName entityKindAndName, TrinoPrincipal principal)
     {
         delegate().setEntityOwner(session, entityKindAndName, principal);
+    }
+
+    @Override
+    public Set<SchemaAuthorization> getSchemasAuthorizationInfo(Session session, QualifiedSchemaPrefix prefix)
+    {
+        return delegate().getSchemasAuthorizationInfo(session, prefix);
+    }
+
+    @Override
+    public Set<TableAuthorization> getTablesAuthorizationInfo(Session session, QualifiedTablePrefix prefix)
+    {
+        return delegate().getTablesAuthorizationInfo(session, prefix);
+    }
+
+    @Override
+    public Set<FunctionAuthorization> getFunctionsAuthorizationInfo(Session session, QualifiedObjectPrefix prefix)
+    {
+        return delegate().getFunctionsAuthorizationInfo(session, prefix);
     }
 }
