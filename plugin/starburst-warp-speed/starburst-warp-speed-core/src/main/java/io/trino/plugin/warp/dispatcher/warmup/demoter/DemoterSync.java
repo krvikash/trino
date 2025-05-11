@@ -145,25 +145,28 @@ public class DemoterSync
             throw new RuntimeException(e);
         }
 
-        callConnectorSyncStartDemote(
-                demoteKey,
-                maxUsageThresholdPercentage,
-                cleanupUsageThresholdPercentage,
-                batchSize,
-                maxElementsToDemoteInIteration,
-                epsilon,
-                isDeleteEmptyRowGroups,
-                isForceDeleteFailedObjects,
-                isResetHighestPriority);
+        try {
+            callConnectorSyncStartDemote(
+                    demoteKey,
+                    maxUsageThresholdPercentage,
+                    cleanupUsageThresholdPercentage,
+                    batchSize,
+                    maxElementsToDemoteInIteration,
+                    epsilon,
+                    isDeleteEmptyRowGroups,
+                    isForceDeleteFailedObjects,
+                    isResetHighestPriority);
 
-        loopUntilNothingToDemote(demoteKey);
+            loopUntilNothingToDemote(demoteKey);
 
-        // everyone is done
-        logger.debug("catalog[%s]: all connectors are done", catalogName);
+            // everyone is done
+            logger.debug("catalog[%s]: all connectors are done", catalogName);
 
-        callConnectorSyncDemoteEnd(demoteKey);
-
-        cleanupAfterDemoteProcess(catalogName, isResetHighestPriority);
+            callConnectorSyncDemoteEnd(demoteKey);
+        }
+        finally {
+            cleanupAfterDemoteProcess(catalogName, isResetHighestPriority);
+        }
 
         logger.debug("catalog[%s]: startDemoteProcess finish demoteKey[%d]", catalogName, demoteKey);
     }
@@ -349,7 +352,9 @@ public class DemoterSync
     {
         logger.debug("catalog[%s] finished demote flow, cleaning up", catalogName);
 
-        demoterServiceContextMap.keySet().forEach(this::flowFinish);
+        demoterServiceContextMap.entrySet().stream()
+                .filter(entry -> entry.getValue().flowId() != INVALID_FLOW_ID)
+                .forEach(entry -> flowFinish(entry.getKey()));
 
         if (isResetHighestPriority) {
             highestPriorityDemoted.set(0);
@@ -395,10 +400,6 @@ public class DemoterSync
         DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
         CatalogName catalogName = demoteContext.catalogName();
         logger.debug("catalog[%s]: flowFinish start for flowId[%s]", catalogName, demoteContext.flowId());
-
-        if (demoteContext.flowId() == INVALID_FLOW_ID) {
-            return;
-        }
 
         demoteContext.flowsSequencer()
                 .flowFinished(
