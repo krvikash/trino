@@ -471,11 +471,6 @@ public class OperatorStats
         return add(operators, Optional.of(pipelineMetrics));
     }
 
-    public OperatorStats add(OperatorStats operators)
-    {
-        return add(ImmutableList.of(operators), Optional.empty());
-    }
-
     public OperatorStats add(Iterable<OperatorStats> operators)
     {
         return add(operators, Optional.empty());
