@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.ImmutableSet;
 import io.trino.Session;
 import io.trino.metadata.DisabledSystemSecurityMetadata;
 import io.trino.metadata.SystemSecurityMetadata;
@@ -23,7 +24,6 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
 
 import java.util.Set;
 

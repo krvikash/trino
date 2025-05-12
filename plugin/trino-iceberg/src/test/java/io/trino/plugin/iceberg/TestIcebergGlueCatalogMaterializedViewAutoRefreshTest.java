@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.iceberg;
 
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
 
