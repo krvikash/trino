@@ -15,9 +15,14 @@ package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.dispatcher.DispatcherMetadata;
+import io.trino.plugin.warp.dispatcher.WarpMDCContext;
+import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.tools.util.StopWatch;
@@ -31,31 +36,34 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.DemoteStatus.NOT_COMPLETED;
 import static io.trino.plugin.warp.dispatcher.warmup.demoter.DemoteStatus.UNKNOWN;
 import static io.trino.plugin.warp.storage.flows.FlowsSequencer.INVALID_FLOW_ID;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 @Singleton
 public class DemoterSync
 {
     private static final Logger logger = Logger.get(DemoterSync.class);
+    private final ShapingLogger shapingLogger;
 
     private final Map<Long, DemoteContext> demoterServiceContextMap;
     private final AtomicLong initiator;
-    private final ExecutorService executorService;
 
     private final AtomicDouble highestPriorityDemoted = new AtomicDouble(0D);
 
     @Inject
-    public DemoterSync()
+    public DemoterSync(ShapingLoggerFactory shapingLoggerFactory)
     {
-        executorService = Executors.newThreadPerTaskExecutor(daemonThreadsNamed("warp-speed-demoter-sync-%s"));
         demoterServiceContextMap = new ConcurrentHashMap<>();
         initiator = new AtomicLong(Long.MIN_VALUE);
+        this.shapingLogger = shapingLoggerFactory.getInstance(DispatcherMetadata.class);
     }
 
     public long registerCatalog(
@@ -73,7 +81,45 @@ public class DemoterSync
 
     public void unregisterCatalog(long demoteKey)
     {
-        demoterServiceContextMap.remove(demoteKey);
+        DemoteContext demoteContext = demoterServiceContextMap.remove(demoteKey);
+        if (demoteContext != null) {
+            logger.debug("catalog[%s]: Unregistering. demoteKey[%d]", demoteContext.catalogName, demoteKey);
+
+            ExecutorService executorService = demoteContext.executorService();
+            executorService.shutdown();
+            try (WarpMDCContext _ = new WarpMDCContext(demoteContext.catalogName.toString(), Optional.of("DEMOTER_SYNC"))) {
+                if (!executorService.awaitTermination(5, MINUTES)) {
+                    shapingLogger.warn("Executor did not terminate after 5 minutes, forcing termination. demoteKey[%d]", demoteKey);
+                    executorService.shutdownNow();
+                }
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            logger.debug("catalog[%s]: Finished unregistering. demoteKey[%d]", demoteContext.catalogName, demoteKey);
+        }
+    }
+
+    private ListenableFuture<Void> submit(Runnable task, long demoteKey)
+    {
+        DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
+        if (demoteContext == null) {
+            logger.debug("Skipping task - demoteKey doesn't exists. demoteKey[%d]", demoteKey);
+            return Futures.immediateFuture(null);
+        }
+
+        try {
+            return Futures.submit(task, demoteContext.executorService());
+        }
+        catch (RejectedExecutionException e) {
+            if (demoterServiceContextMap.containsKey(demoteKey)) {
+                shapingLogger.error(e, "Task rejected. demoteKey[%d]", demoteKey);
+                throw e;
+            }
+            logger.debug(e, "Task rejected. Probably because demoteKey doesn't exists. demoteKey[%d]", demoteKey);
+            return Futures.immediateFuture(null);
+        }
     }
 
     public AtomicDouble getHighestPriorityDemoted()
@@ -94,7 +140,12 @@ public class DemoterSync
             boolean isForceDeleteFailedObjects,
             boolean isResetHighestPriority)
     {
-        CatalogName catalogName = demoterServiceContextMap.get(demoteKey).catalogName();
+        DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
+        if (demoteContext == null) {
+            logger.debug("Skipping tryStartDemoteProcess - demoteKey doesn't exists. demoteKey[%d]", demoteKey);
+            return false;
+        }
+        CatalogName catalogName = demoteContext.catalogName();
 
         logger.debug("catalog[%s]: tryStartDemoteProcess start - demoteKey[%d], epsilon[%s], isResetHighestPriority=%s",
                 catalogName,
@@ -131,11 +182,16 @@ public class DemoterSync
             boolean isResetHighestPriority)
     {
         if (initiator.get() != demoteKey) {
-            logger.warn("demote process not allowed since this is not the not initiator");
+            shapingLogger.warn("demote process not allowed since this is not the initiator");
             return;
         }
 
-        CatalogName catalogName = demoterServiceContextMap.get(demoteKey).catalogName();
+        DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
+        if (demoteContext == null) {
+            logger.debug("demote process not allowed since demoteKey doesnt exists. demoteKey[%d]", demoteKey);
+            return;
+        }
+        CatalogName catalogName = demoteContext.catalogName();
         logger.debug("catalog[%s]: startDemoteProcess start demoteKey[%d]", catalogName, demoteKey);
 
         try {
@@ -177,17 +233,22 @@ public class DemoterSync
             double highestPriorityDemoted,
             DemoteStatus demoteStatus)
     {
-        CatalogName catalogName = demoterServiceContextMap.get(demoteKey).catalogName();
+        DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
+        if (demoteContext == null) {
+            logger.debug("Skipping finishDemoteProcess - demoteKey doesn't exists. demoteKey[%d]", demoteKey);
+            return;
+        }
+        CatalogName catalogName = demoteContext.catalogName();
         logger.debug("catalog[%s]: finishDemoteProcess start demoteStatus[%s] lowestPriorityExist[%s] highestPriorityDemoted[%s]",
                 catalogName, demoteStatus, lowestPriorityExist, highestPriorityDemoted);
 
         demoterServiceContextMap
                 .computeIfPresent(demoteKey,
-                        (_, demoteContext) -> new DemoteContext(
+                        (_, context) -> new DemoteContext(
                                 lowestPriorityExist,
                                 highestPriorityDemoted,
                                 demoteStatus,
-                                demoteContext));
+                                context));
 
         logger.debug("catalog[%s]: finishDemoteProcess finish", catalogName);
     }
@@ -199,7 +260,7 @@ public class DemoterSync
         Futures.allAsList(demoterServiceContextMap
                         .keySet()
                         .stream()
-                        .map(demoteKeyTmp -> Futures.submit(() -> this.flowStart(demoteKeyTmp), executorService))
+                        .map(demoteKeyTmp -> submit(() -> this.flowStart(demoteKeyTmp), demoteKeyTmp))
                         .toList())
                 .get();
     }
@@ -215,7 +276,12 @@ public class DemoterSync
             boolean isForceDeleteFailedObjects,
             boolean isResetHighestPriority)
     {
-        CatalogName catalogName = demoterServiceContextMap.get(demoteKey).catalogName();
+        DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
+        if (demoteContext == null) {
+            logger.debug("Skipping callConnectorSyncStartDemote - demoteKey doesn't exists. demoteKey[%d]", demoteKey);
+            return;
+        }
+        CatalogName catalogName = demoteContext.catalogName();
         logger.debug("catalog[%s]: callConnectorSyncStartDemote start ", catalogName);
 
         try {
@@ -226,9 +292,9 @@ public class DemoterSync
                             .map(entry -> {
                                 logger.debug("catalog[%s]: callConnectorSyncStartDemote start calling connectorSyncStartDemote catalog[%s]",
                                         catalogName,
-                                        demoterServiceContextMap.get(entry.getKey()).catalogName);
+                                        entry.getValue().catalogName);
 
-                                return Futures.submit(
+                                return submit(
                                         () -> {
                                             markDemoteCycleStart(entry);
                                             entry.getValue().warmupDemoterService.connectorSyncStartDemote(
@@ -241,7 +307,7 @@ public class DemoterSync
                                                     isForceDeleteFailedObjects,
                                                     isResetHighestPriority);
                                         },
-                                        executorService);
+                                        entry.getKey());
                             })
                             .toList())
                     .get();
@@ -265,7 +331,12 @@ public class DemoterSync
 
     private void loopUntilNothingToDemote(long demoteKey)
     {
-        CatalogName catalogName = demoterServiceContextMap.get(demoteKey).catalogName();
+        DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
+        if (demoteContext == null) {
+            logger.debug("Skipping loopUntilNothingToDemote - demoteKey doesn't exists. demoteKey[%d]", demoteKey);
+            return;
+        }
+        CatalogName catalogName = demoteContext.catalogName();
         logger.debug("catalog[%s]: loopUntilNothingToDemote start ", catalogName);
 
         //check the status of all demoter calls
@@ -289,14 +360,20 @@ public class DemoterSync
                                 .map(entry -> {
                                     logger.debug("catalog[%s]: loopUntilNothingToDemote before calling future connectorSyncStartDemoteCycle on catalog[%s]",
                                             catalogName,
-                                            demoterServiceContextMap.get(entry.getKey()).catalogName);
+                                            entry.getValue().catalogName);
                                     markDemoteCycleStart(entry);
-                                    return Futures.submit(() ->
-                                                    entry.getValue()
-                                                            .warmupDemoterService.connectorSyncStartDemoteCycle(
-                                                                    minLowestPriorityExist + demoterServiceContextMap.get(demoteKey).warmupDemoterService.getEpsilon(),
-                                                                    demoterServiceContextMap.size() == 1),
-                                            executorService);
+                                    return submit(
+                                            () -> {
+                                                DemoteContext context = demoterServiceContextMap.get(demoteKey);
+                                                if (context == null) {
+                                                    return;
+                                                }
+                                                entry.getValue()
+                                                        .warmupDemoterService.connectorSyncStartDemoteCycle(
+                                                                minLowestPriorityExist + context.warmupDemoterService.getEpsilon(),
+                                                                demoterServiceContextMap.size() == 1);
+                                            },
+                                            entry.getKey());
                                 })
                                 .toList())
                         .get();
@@ -306,11 +383,16 @@ public class DemoterSync
             }
 
             //run initiator
+            demoteContext = demoterServiceContextMap.get(demoteKey);
+            if (demoteContext == null) {
+                logger.debug("aborting loopUntilNothingToDemote, demoteKey doesnt exists anymore. demoteKey[%d]", demoteKey);
+                return;
+            }
             logger.debug("catalog[%s]: loopUntilNothingToDemote before calling initiator connectorSyncStartDemoteCycle", catalogName);
             demoterServiceContextMap
                     .get(demoteKey)
                     .warmupDemoterService.connectorSyncStartDemoteCycle(
-                            minLowestPriorityExist + demoterServiceContextMap.get(demoteKey).warmupDemoterService.getEpsilon(),
+                            minLowestPriorityExist + demoteContext.warmupDemoterService.getEpsilon(),
                             demoterServiceContextMap.size() == 1);
         }
         logger.debug("catalog[%s]: loopUntilNothingToDemote finish", catalogName);
@@ -318,6 +400,12 @@ public class DemoterSync
 
     private void callConnectorSyncDemoteEnd(long demoteKey)
     {
+        DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
+        if (demoteContext == null) {
+            logger.debug("Skipping callConnectorSyncDemoteEnd - demoteKey doesn't exists. demoteKey[%d]", demoteKey);
+            return;
+        }
+
         //find the highest priority that was demoted and set all on that value
         highestPriorityDemoted.set(getMaxHighestPriorityDemoted());
 
@@ -329,12 +417,12 @@ public class DemoterSync
                             .filter(entry -> !entry.getKey().equals(demoteKey))
                             .map(entry -> {
                                 logger.debug("catalog[%s]: callConnectorSyncDemoteEnd before calling future connectorSyncDemoteEnd on catalog[%s] with maxHighestPriorityDemoted=%s",
-                                        demoterServiceContextMap.get(demoteKey).catalogName,
-                                        demoterServiceContextMap.get(entry.getKey()).catalogName,
+                                        demoteContext.catalogName,
+                                        entry.getValue().catalogName,
                                         highestPriorityDemoted.get());
-                                return Futures.submit(() ->
+                                return submit(() ->
                                                 entry.getValue().warmupDemoterService.connectorSyncDemoteEnd(highestPriorityDemoted.get(), false),
-                                        executorService);
+                                        entry.getKey());
                             })
                             .toList())
                     .get();
@@ -366,6 +454,10 @@ public class DemoterSync
     private void flowStart(long demoteKey)
     {
         DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
+        if (demoteContext == null) {
+            logger.debug("Skipping flowStart - demoteKey doesn't exists. demoteKey[%d]", demoteKey);
+            return;
+        }
         CatalogName catalogName = demoteContext.catalogName();
         logger.debug("catalog[%s]: flowStart start", catalogName);
 
@@ -398,6 +490,10 @@ public class DemoterSync
     private void flowFinish(long demoteKey)
     {
         DemoteContext demoteContext = demoterServiceContextMap.get(demoteKey);
+        if (demoteContext == null) {
+            logger.debug("Skipping flowFinish - demoteKey doesn't exists. demoteKey[%d]", demoteKey);
+            return;
+        }
         CatalogName catalogName = demoteContext.catalogName();
         logger.debug("catalog[%s]: flowFinish start for flowId[%s]", catalogName, demoteContext.flowId());
 
@@ -462,6 +558,7 @@ public class DemoterSync
 
     record DemoteContext(
             CatalogName catalogName,
+            ExecutorService executorService,
             WarmupDemoterService warmupDemoterService,
             FlowsSequencer flowsSequencer,
             double lowestPriorityExist,
@@ -476,6 +573,7 @@ public class DemoterSync
                 FlowsSequencer flowsSequencer)
         {
             this(catalogName,
+                    Executors.newThreadPerTaskExecutor(daemonThreadsNamed(format("warp-speed-demoter-sync-%s", catalogName) + "-%s")),
                     warmupDemoterService,
                     flowsSequencer,
                     -1,
@@ -489,6 +587,7 @@ public class DemoterSync
         DemoteContext(DemoteStatus demoteStatus, DemoteContext demoteContext)
         {
             this(demoteContext.catalogName(),
+                    demoteContext.executorService(),
                     demoteContext.warmupDemoterService(),
                     demoteContext.flowsSequencer(),
                     demoteContext.lowestPriorityExist(),
@@ -505,6 +604,7 @@ public class DemoterSync
                 DemoteContext demoteContext)
         {
             this(demoteContext.catalogName(),
+                    demoteContext.executorService(),
                     demoteContext.warmupDemoterService(),
                     demoteContext.flowsSequencer(),
                     lowestPriorityExist,
@@ -518,6 +618,7 @@ public class DemoterSync
         DemoteContext(long flowId, DemoteContext demoteContext)
         {
             this(demoteContext.catalogName(),
+                    demoteContext.executorService(),
                     demoteContext.warmupDemoterService(),
                     demoteContext.flowsSequencer(),
                     demoteContext.lowestPriorityExist(),
