@@ -1146,12 +1146,6 @@ public class MockConnector
         MOCK_CONNECTOR_SPLIT;
 
         @Override
-        public Map<String, String> getSplitInfo()
-        {
-            return ImmutableMap.of("info", "mock connector split");
-        }
-
-        @Override
         public long getRetainedSizeInBytes()
         {
             return 0;

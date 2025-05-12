@@ -22,7 +22,6 @@ import io.trino.spi.connector.ConnectorSplit;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
@@ -139,12 +138,6 @@ public class DispatcherSplit
     public List<HostAddress> getAddresses()
     {
         return addresses;
-    }
-
-    @Override
-    public Map<String, String> getSplitInfo()
-    {
-        return proxyConnectorSplit.getSplitInfo();
     }
 
     @Override

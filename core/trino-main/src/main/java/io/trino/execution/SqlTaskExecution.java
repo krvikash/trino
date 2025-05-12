@@ -13,7 +13,6 @@
  */
 package io.trino.execution;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -818,7 +817,6 @@ public class SqlTaskExecution
     private static class DriverSplitRunner
             implements SplitRunner
     {
-        private static final Joiner.MapJoiner JOINER = Joiner.on(";").withKeyValueSeparator("=");
         private final DriverSplitRunnerFactory driverSplitRunnerFactory;
         private final DriverContext driverContext;
 
@@ -896,7 +894,7 @@ public class SqlTaskExecution
         @Override
         public String getInfo()
         {
-            return (partitionedSplit == null) ? "" : formatSplitInfo(partitionedSplit.getSplit());
+            return (partitionedSplit == null) ? "" : partitionedSplit.getSplit().toString();
         }
 
         @Override
@@ -924,11 +922,6 @@ public class SqlTaskExecution
         private Optional<CatalogName> getCatalogName()
         {
             return partitionedSplit == null ? Optional.empty() : Optional.of(partitionedSplit.getSplit().getCatalogHandle().getCatalogName());
-        }
-
-        private static String formatSplitInfo(Split split)
-        {
-            return split.getConnectorSplit().getClass().getSimpleName() + "{" + JOINER.join(split.getInfo()) + "}";
         }
     }
 

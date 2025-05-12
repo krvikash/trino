@@ -16,7 +16,6 @@ package io.trino.metadata;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.HostAddress;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.cache.CacheSplitId;
@@ -24,10 +23,8 @@ import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorSplit;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
@@ -92,12 +89,6 @@ public final class Split
     public Optional<CacheSplitId> getCacheSplitId()
     {
         return cacheSplitId;
-    }
-
-    @JsonIgnore
-    public Map<String, String> getInfo()
-    {
-        return firstNonNull(connectorSplit.getSplitInfo(), ImmutableMap.of());
     }
 
     // do not serialize addresses as they are not needed on workers
