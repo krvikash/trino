@@ -19,11 +19,14 @@ import com.google.common.collect.ImmutableSet;
 import io.trino.cost.StatsAndCosts;
 import io.trino.operator.RetryPolicy;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.BooleanType;
+import io.trino.sql.ir.Constant;
 import io.trino.sql.planner.Partitioning;
 import io.trino.sql.planner.PartitioningScheme;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinType;
 import io.trino.sql.planner.plan.PlanFragmentId;
@@ -38,6 +41,7 @@ import java.util.Optional;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SOURCE_DISTRIBUTION;
 import static io.trino.sql.planner.plan.AggregationNode.Step.FINAL;
+import static io.trino.sql.planner.plan.AggregationNode.Step.PARTIAL;
 import static io.trino.sql.planner.plan.AggregationNode.singleGroupingSet;
 import static io.trino.sql.planner.plan.ExchangeNode.Type.REPARTITION;
 import static io.trino.sql.planner.plan.ExchangeNode.Type.REPLICATE;
@@ -53,6 +57,16 @@ final class PlanUtils
 
     static PlanFragment createAggregationFragment(String name, PlanFragment sourceFragment)
     {
+        return createAggregationFragment(name, sourceFragment, FINAL);
+    }
+
+    static PlanFragment createPartialAggregationFragment(String name, PlanFragment sourceFragment)
+    {
+        return createAggregationFragment(name, sourceFragment, PARTIAL);
+    }
+
+    private static PlanFragment createAggregationFragment(String name, PlanFragment sourceFragment, AggregationNode.Step step)
+    {
         RemoteSourceNode source = new RemoteSourceNode(new PlanNodeId("source_id"), sourceFragment.getId(), ImmutableList.of(), Optional.empty(), REPARTITION, RetryPolicy.NONE);
         PlanNode planNode = new AggregationNode(
                 new PlanNodeId(name + "_id"),
@@ -60,10 +74,20 @@ final class PlanUtils
                 ImmutableMap.of(),
                 singleGroupingSet(ImmutableList.of()),
                 ImmutableList.of(),
-                FINAL,
+                step,
                 Optional.empty(),
                 Optional.empty());
 
+        return createFragment(planNode);
+    }
+
+    static PlanFragment createFilterFragment(String name, PlanFragment sourceFragment)
+    {
+        RemoteSourceNode source = new RemoteSourceNode(new PlanNodeId("source_id"), sourceFragment.getId(), ImmutableList.of(), Optional.empty(), REPARTITION, RetryPolicy.NONE);
+        PlanNode planNode = new FilterNode(
+                new PlanNodeId(name),
+                source,
+                new Constant(BooleanType.BOOLEAN, true));
         return createFragment(planNode);
     }
 

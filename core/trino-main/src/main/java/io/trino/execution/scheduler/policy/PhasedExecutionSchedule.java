@@ -42,7 +42,7 @@ import io.trino.sql.planner.plan.SpatialJoinNode;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -311,7 +311,7 @@ public class PhasedExecutionSchedule
         private final QueryId queryId;
         private final Map<PlanFragmentId, PlanFragment> fragments;
         private final ImmutableSet.Builder<PlanFragmentId> nonLazyFragments = ImmutableSet.builder();
-        private final Set<PlanFragmentId> processedFragments = new HashSet<>();
+        private final Map<PlanFragmentId, FragmentSubGraph> processedFragments = new HashMap<>();
 
         public Visitor(QueryId queryId, Collection<PlanFragment> fragments)
         {
@@ -349,9 +349,13 @@ public class PhasedExecutionSchedule
 
         public FragmentSubGraph processFragment(PlanFragmentId planFragmentId)
         {
-            verify(processedFragments.add(planFragmentId), "fragment %s was already processed", planFragmentId);
-            FragmentSubGraph subGraph = processFragment(fragments.get(planFragmentId));
+            FragmentSubGraph subGraph = processedFragments.get(planFragmentId);
+            if (subGraph != null) {
+                return processedFragments.get(planFragmentId);
+            }
+            subGraph = processFragment(fragments.get(planFragmentId));
             sortedFragments.add(planFragmentId);
+            processedFragments.put(planFragmentId, subGraph);
             return subGraph;
         }
 
@@ -440,6 +444,9 @@ public class PhasedExecutionSchedule
                 // will be started automatically regardless od dependency. This is handled by
                 // unblockStagesWithFullOutputBuffer method.
                 addDependencyEdges(buildSubGraph.getUpstreamFragments(), ImmutableSet.of(currentFragmentId));
+
+                // todo - we may want to start replicated join immediately if build side is backed by spooling exchange, as there will not be any
+                //        task blocked - buffers are effectively infinite and will wait for whole build side computation before starting join
             }
             else {
                 // start current fragment immediately since for partitioned join
@@ -523,6 +530,9 @@ public class PhasedExecutionSchedule
         private void addDependencyEdges(Set<PlanFragmentId> sourceFragments, Set<PlanFragmentId> targetFragments)
         {
             for (PlanFragmentId targetFragment : targetFragments) {
+                if (sourceFragments.contains(targetFragment)) {
+                    continue; // avoid dependency loop in case same fragment on both sides of join; possible with CTE reuse
+                }
                 for (PlanFragmentId sourceFragment : sourceFragments) {
                     fragmentDependency.putEdge(sourceFragment, targetFragment);
                 }

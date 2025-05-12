@@ -52,6 +52,7 @@ import static io.trino.execution.scheduler.policy.PlanUtils.createAggregationFra
 import static io.trino.execution.scheduler.policy.PlanUtils.createBroadcastAndPartitionedJoinPlanFragment;
 import static io.trino.execution.scheduler.policy.PlanUtils.createBroadcastJoinPlanFragment;
 import static io.trino.execution.scheduler.policy.PlanUtils.createJoinPlanFragment;
+import static io.trino.execution.scheduler.policy.PlanUtils.createPartialAggregationFragment;
 import static io.trino.execution.scheduler.policy.PlanUtils.createTableScanPlanFragment;
 import static io.trino.metadata.FunctionManager.createTestingFunctionManager;
 import static io.trino.metadata.TestMetadataManager.createTestMetadataManager;
@@ -265,6 +266,79 @@ public class TestPhasedExecutionSchedule
         nestedJoinProbeStage.setState(FINISHED);
         schedule.schedule();
         assertThat(getSchedulingFragments(schedule)).containsExactly(joinSourceFragment.getId());
+    }
+
+    @Test
+    public void testSimpleSelfJoinWithReuse()
+    {
+        PlanFragment buildProbeFragment = createTableScanPlanFragment("some_table");
+        PlanFragment joinFragment = createJoinPlanFragment(INNER, REPLICATED, "join", buildProbeFragment, buildProbeFragment);
+
+        TestingStageExecution buildProbeStage = new TestingStageExecution(buildProbeFragment);
+        TestingStageExecution joinStage = new TestingStageExecution(joinFragment);
+
+        PhasedExecutionSchedule schedule = PhasedExecutionSchedule.forStages(ImmutableSet.of(buildProbeStage, joinStage), dynamicFilterService);
+        assertThat(schedule.getSortedFragments()).containsExactly(buildProbeFragment.getId(), joinFragment.getId());
+
+        // initially only source starts
+        assertThat(getSchedulingFragments(schedule)).containsExactly(buildProbeFragment.getId());
+
+        // Mark nestedJoinFragment and nestedJoinBuildFragment as scheduled.
+        // joinSourceFragment still has dependency on nestedJoinProbeFragment
+        buildProbeStage.setState(SCHEDULED);
+        buildProbeStage.setState(FINISHED);
+        schedule.schedule();
+        assertThat(getSchedulingFragments(schedule)).containsExactly(joinFragment.getId());
+    }
+
+    @Test
+    public void testBuildIndirectSelfJoinWithReuse()
+    {
+        PlanFragment scanFragment = createTableScanPlanFragment("some_table");
+        PlanFragment aggregationFragment = createPartialAggregationFragment("agg", scanFragment);
+        PlanFragment joinFragment = createJoinPlanFragment(INNER, REPLICATED, "join", aggregationFragment, scanFragment);
+
+        TestingStageExecution scanStage = new TestingStageExecution(scanFragment);
+        TestingStageExecution aggregationStage = new TestingStageExecution(aggregationFragment);
+        TestingStageExecution joinStage = new TestingStageExecution(joinFragment);
+
+        PhasedExecutionSchedule schedule = PhasedExecutionSchedule.forStages(ImmutableSet.of(scanStage, aggregationStage, joinStage), dynamicFilterService);
+        assertThat(schedule.getSortedFragments()).containsExactly(scanFragment.getId(), aggregationFragment.getId(), joinFragment.getId());
+
+        // Initially only build side starts
+        assertThat(getSchedulingFragments(schedule)).containsExactly(scanFragment.getId(), aggregationFragment.getId());
+
+        // when scan on build side (shared) completes and aggregation above gets blocked join starts
+        scanStage.setState(SCHEDULED);
+        scanStage.setState(FINISHED);
+        aggregationStage.setState(SCHEDULED);
+        aggregationStage.setAnyTaskBlocked(true);
+        schedule.schedule();
+        assertThat(getSchedulingFragments(schedule)).containsExactly(joinFragment.getId());
+    }
+
+    @Test
+    public void testProbeIndirectSelfJoinWithReuse()
+    {
+        PlanFragment scanFragment = createTableScanPlanFragment("some_table");
+        PlanFragment aggregationFragment = createPartialAggregationFragment("agg", scanFragment);
+        PlanFragment joinFragment = createJoinPlanFragment(INNER, REPLICATED, "join", scanFragment, aggregationFragment);
+
+        TestingStageExecution scanStage = new TestingStageExecution(scanFragment);
+        TestingStageExecution aggregationStage = new TestingStageExecution(aggregationFragment);
+        TestingStageExecution joinStage = new TestingStageExecution(joinFragment);
+
+        PhasedExecutionSchedule schedule = PhasedExecutionSchedule.forStages(ImmutableSet.of(scanStage, aggregationStage, joinStage), dynamicFilterService);
+        assertThat(schedule.getSortedFragments()).containsExactly(scanFragment.getId(), aggregationFragment.getId(), joinFragment.getId());
+
+        // Initially only build side starts
+        assertThat(getSchedulingFragments(schedule)).containsExactly(scanFragment.getId());
+
+        // when build side completes probe side and join start
+        scanStage.setState(SCHEDULED);
+        scanStage.setState(FINISHED);
+        schedule.schedule();
+        assertThat(getSchedulingFragments(schedule)).containsExactly(aggregationFragment.getId(), joinFragment.getId());
     }
 
     private Set<PlanFragmentId> getSchedulingFragments(PhasedExecutionSchedule schedule)
