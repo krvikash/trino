@@ -116,6 +116,11 @@ public class DriverContext
 
     public OperatorContext addOperatorContext(int operatorId, PlanNodeId planNodeId, String operatorType)
     {
+        return addOperatorContext(operatorId, planNodeId, Optional.empty(), operatorType);
+    }
+
+    public OperatorContext addOperatorContext(int operatorId, PlanNodeId planNodeId, Optional<PlanNodeId> sourceId, String operatorType)
+    {
         checkArgument(operatorId >= 0, "operatorId is negative");
 
         for (OperatorContext operatorContext : operatorContexts) {
@@ -125,6 +130,7 @@ public class DriverContext
         OperatorContext operatorContext = new OperatorContext(
                 operatorId,
                 planNodeId,
+                sourceId,
                 operatorType,
                 this,
                 notificationExecutor,

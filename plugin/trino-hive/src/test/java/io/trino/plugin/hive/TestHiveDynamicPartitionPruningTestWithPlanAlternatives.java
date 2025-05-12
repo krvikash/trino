@@ -200,6 +200,7 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
                 0,
                 left.getOperatorId(),
                 left.getPlanNodeId(),
+                left.getSourceId(),
                 left.getOperatorType(),
 
                 totalDrivers,

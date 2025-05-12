@@ -42,6 +42,7 @@ public class OperatorStats
     private final int operatorId;
     private final int alternativeId;
     private final PlanNodeId planNodeId;
+    private final Optional<PlanNodeId> sourceId;
     private final String operatorType;
 
     private final long totalDrivers;
@@ -98,6 +99,7 @@ public class OperatorStats
             @JsonProperty("alternativeId") int alternativeId,
             @JsonProperty("operatorId") int operatorId,
             @JsonProperty("planNodeId") PlanNodeId planNodeId,
+            @JsonProperty("sourceId") Optional<PlanNodeId> sourceId,
             @JsonProperty("operatorType") String operatorType,
 
             @JsonProperty("totalDrivers") long totalDrivers,
@@ -153,6 +155,7 @@ public class OperatorStats
         checkArgument(operatorId >= 0, "operatorId is negative");
         this.operatorId = operatorId;
         this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
+        this.sourceId = requireNonNull(sourceId, "sourceId is null");
         this.operatorType = requireNonNull(operatorType, "operatorType is null");
 
         this.totalDrivers = totalDrivers;
@@ -233,6 +236,12 @@ public class OperatorStats
     public PlanNodeId getPlanNodeId()
     {
         return planNodeId;
+    }
+
+    @JsonProperty
+    public Optional<PlanNodeId> getSourceId()
+    {
+        return sourceId;
     }
 
     @JsonProperty
@@ -585,6 +594,7 @@ public class OperatorStats
                 alternativeId,
                 operatorId,
                 planNodeId,
+                sourceId,
                 operatorType,
 
                 totalDrivers,
@@ -661,6 +671,7 @@ public class OperatorStats
                 alternativeId,
                 operatorId,
                 planNodeId,
+                sourceId,
                 operatorType,
                 totalDrivers,
                 addInputCalls,
@@ -711,6 +722,7 @@ public class OperatorStats
                 alternativeId,
                 operatorId,
                 planNodeId,
+                sourceId,
                 operatorType,
                 totalDrivers,
                 addInputCalls,
@@ -757,6 +769,7 @@ public class OperatorStats
                 alternativeId,
                 operatorId,
                 planNodeId,
+                sourceId,
                 operatorType,
                 totalDrivers,
                 addInputCalls,
@@ -779,6 +792,53 @@ public class OperatorStats
                 dynamicFilterSplitsProcessed,
                 metrics,
                 connectorMetrics,
+                pipelineMetrics,
+                physicalWrittenDataSize,
+                blockedWall,
+                finishCalls,
+                finishWall,
+                finishCpu,
+                userMemoryReservation,
+                revocableMemoryReservation,
+                peakUserMemoryReservation,
+                peakRevocableMemoryReservation,
+                peakTotalMemoryReservation,
+                spilledDataSize,
+                blockedReason,
+                info);
+    }
+
+    public OperatorStats withConnectorSplitSourceMetrics(Metrics splitSourceMetrics)
+    {
+        return new OperatorStats(
+                stageId,
+                pipelineId,
+                alternativeId,
+                operatorId,
+                planNodeId,
+                sourceId,
+                operatorType,
+                totalDrivers,
+                addInputCalls,
+                addInputWall,
+                addInputCpu,
+                physicalInputDataSize,
+                physicalInputPositions,
+                physicalInputReadTime,
+                internalNetworkInputDataSize,
+                internalNetworkInputPositions,
+                rawInputDataSize,
+                inputDataSize,
+                inputPositions,
+                sumSquaredInputPositions,
+                getOutputCalls,
+                getOutputWall,
+                getOutputCpu,
+                outputDataSize,
+                outputPositions,
+                dynamicFilterSplitsProcessed,
+                metrics,
+                connectorMetrics.mergeWith(splitSourceMetrics),
                 pipelineMetrics,
                 physicalWrittenDataSize,
                 blockedWall,
