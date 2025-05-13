@@ -6,14 +6,6 @@ ARG PROJECT_NAME=discovery-server
 ARG PROJECT_VERSION
 ARG CHOWN="${PROJECT_NAME}:${PROJECT_NAME}"
 
-# Install python (needed by Airlift launcher)
-RUN \
-    set -xeu && \
-    apt-get update -q && \
-    apt-get install -q -y python3 && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
-    rm -rf /var/lib/apt/lists/*
-
 # Add project files
 ADD target/${MODULE_NAME}-${PROJECT_VERSION}.tar.gz /tmp/${PROJECT_NAME}
 RUN \
