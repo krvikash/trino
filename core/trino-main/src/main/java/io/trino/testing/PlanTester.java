@@ -432,6 +432,7 @@ public class PlanTester
                 nodeSchedulerConfig,
                 AiModelAccessControl.ALLOW_ALL,
                 optimizerConfig,
+                new LocalMemoryManager(new NodeMemoryConfig()),
                 secretsResolver));
         this.splitManager = new SplitManager(createSplitManagerProvider(catalogManager), tracer, new QueryManagerConfig());
         this.pageSourceManager = new PageSourceManager(createPageSourceProviderFactory(catalogManager));

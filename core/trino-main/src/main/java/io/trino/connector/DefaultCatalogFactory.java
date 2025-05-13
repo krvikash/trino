@@ -25,6 +25,7 @@ import io.trino.connector.system.StaticSystemTablesProvider;
 import io.trino.connector.system.SystemConnector;
 import io.trino.connector.system.SystemTablesProvider;
 import io.trino.execution.scheduler.NodeSchedulerConfig;
+import io.trino.memory.LocalMemoryManager;
 import io.trino.metadata.InternalNodeManager;
 import io.trino.metadata.Metadata;
 import io.trino.security.AccessControl;
@@ -74,6 +75,7 @@ public class DefaultCatalogFactory
     private final AiModelAccessControl aiModelAccessControl;
 
     private final ConcurrentMap<ConnectorName, ConnectorFactory> connectorFactories = new ConcurrentHashMap<>();
+    private final LocalMemoryManager localMemoryManager;
     private final SecretsResolver secretsResolver;
 
     @Inject
@@ -91,6 +93,7 @@ public class DefaultCatalogFactory
             NodeSchedulerConfig nodeSchedulerConfig,
             AiModelAccessControl aiModelAccessControl,
             OptimizerConfig optimizerConfig,
+            LocalMemoryManager localMemoryManager,
             SecretsResolver secretsResolver)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
@@ -106,6 +109,7 @@ public class DefaultCatalogFactory
         this.schedulerIncludeCoordinator = nodeSchedulerConfig.isIncludeCoordinator();
         this.maxPrefetchedInformationSchemaPrefixes = optimizerConfig.getMaxPrefetchedInformationSchemaPrefixes();
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
+        this.localMemoryManager = requireNonNull(localMemoryManager, "localMemoryManager is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
     }
 
@@ -188,6 +192,7 @@ public class DefaultCatalogFactory
                 catalogConnector,
                 informationSchemaConnector,
                 systemConnector,
+                localMemoryManager,
                 catalogProperties);
     }
 

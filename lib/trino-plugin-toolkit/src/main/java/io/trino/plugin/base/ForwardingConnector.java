@@ -130,6 +130,12 @@ public abstract class ForwardingConnector
     }
 
     @Override
+    public long getInitialMemoryRequirement()
+    {
+        return delegate().getInitialMemoryRequirement();
+    }
+
+    @Override
     public Optional<FunctionProvider> getFunctionProvider()
     {
         return delegate().getFunctionProvider();
