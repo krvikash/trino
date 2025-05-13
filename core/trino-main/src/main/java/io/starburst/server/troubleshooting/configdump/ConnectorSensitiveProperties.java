@@ -890,6 +890,26 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret"))
+            .put("sep_ai",
+                    ImmutableSet.of(
+                            "auth-to-local.ldap.bind-password",
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "http-server.authentication.oauth2.client-secret",
+                            "http-server.authentication.oauth2.refresh-tokens.secret-key",
+                            "http-server.https.automatic-shared-secret",
+                            "http-server.https.keymanager.password",
+                            "http-server.https.keystore.key",
+                            "http-server.https.truststore.key",
+                            "internal-communication.https.keystore.key",
+                            "internal-communication.https.truststore.key",
+                            "internal-communication.shared-secret",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password",
+                            "protocol.spooling.shared-secret-key",
+                            "web-ui.shared-secret"))
             .put("singlestore",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
