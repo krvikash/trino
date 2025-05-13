@@ -1368,7 +1368,7 @@ public class DeltaLakeMetadata
             throw new TrinoException(DELTA_LAKE_BAD_WRITE, "Unable to access file system for: " + location, e);
         }
 
-        Table table = buildTable(session, schemaTableName, location, external, tableMetadata.getComment(), commitVersion, schemaString);
+        Table table = buildTable(session, schemaTableName, location, external, commitVersion, schemaString, tableMetadata);
 
         PrincipalPrivileges principalPrivileges = buildInitialPrivilegeSet(table.getOwner().orElseThrow());
         // As a precaution, clear the caches
@@ -1418,14 +1418,79 @@ public class DeltaLakeMetadata
         return OptionalLong.of(Math.max(preVersionTimestamp + 1, System.currentTimeMillis()));
     }
 
+    private Table buildTable(ConnectorSession session, SchemaTableName schemaTableName, String location, boolean isExternal, long version, String schemaString, ConnectorTableMetadata tableMetadata)
+    {
+        if (!isOperateOnUnityMetastore) {
+            // real column representations required only on Unity
+            return buildTable(session, schemaTableName, location, isExternal, tableMetadata.getComment(), version, schemaString, DUMMY_DATA_COLUMNS, ImmutableList.of());
+        }
+        Set<String> partitionedColumnNames = ImmutableSet.copyOf(getPartitionedBy(tableMetadata.getProperties()));
+        ImmutableList.Builder<Column> dataColumns = ImmutableList.builder();
+        ImmutableList.Builder<Column> partitionedColumns = ImmutableList.builder();
+        for (ColumnMetadata column : tableMetadata.getColumns()) {
+            Column metastoreColumn = new Column(column.getName(), toHiveType(column.getType()), Optional.ofNullable(column.getComment()), ImmutableMap.of());
+            if (!column.isNullable()) {
+                // TODO https://starburstdata.atlassian.net/browse/CONNECT-612
+                throw new TrinoException(NOT_SUPPORTED, "Creating table with non-nullable columns is not supported for Unity metastore");
+            }
+            if (partitionedColumnNames.contains(column.getName())) {
+                partitionedColumns.add(metastoreColumn);
+            }
+            else {
+                dataColumns.add(metastoreColumn);
+            }
+        }
+        return buildTable(session, schemaTableName, location, isExternal, tableMetadata.getComment(), version, schemaString, dataColumns.build(), partitionedColumns.build());
+    }
+
+    private Table buildTable(ConnectorSession session, SchemaTableName schemaTableName, String location, long version, DeltaLakeOutputTableHandle handle, boolean containsNonNullableColumns)
+    {
+        if (!isOperateOnUnityMetastore) {
+            // real column representations required only on Unity
+            return buildTable(session, schemaTableName, location, handle.external(), handle.comment(), version, handle.schemaString(), DUMMY_DATA_COLUMNS, ImmutableList.of());
+        }
+        if (containsNonNullableColumns) {
+            // TODO https://starburstdata.atlassian.net/browse/CONNECT-612
+            throw new TrinoException(NOT_SUPPORTED, "Creating table with non-nullable columns is not supported for Unity metastore");
+        }
+        ImmutableList.Builder<Column> dataColumns = ImmutableList.builder();
+        ImmutableList.Builder<Column> partitionedColumns = ImmutableList.builder();
+        for (DeltaLakeColumnHandle deltaLakeColumnHandle : handle.inputColumns()) {
+            Column metastoreColumn = new Column(deltaLakeColumnHandle.columnName(), toHiveType(deltaLakeColumnHandle.baseType()), Optional.empty(), ImmutableMap.of());
+            if (deltaLakeColumnHandle.columnType() == PARTITION_KEY) {
+                partitionedColumns.add(metastoreColumn);
+            }
+            else {
+                dataColumns.add(metastoreColumn);
+            }
+        }
+        return buildTable(session, schemaTableName, location, handle.external(), handle.comment(), version, handle.schemaString(), dataColumns.build(), partitionedColumns.build());
+    }
+
     public Table buildTable(ConnectorSession session, SchemaTableName schemaTableName, String location, boolean isExternal, Optional<String> tableComment, long version, String schemaString)
     {
+        if (isOperateOnUnityMetastore) {
+            // TODO parse colum info from schema string
+            //  https://starburstdata.atlassian.net/browse/CONNECT-602
+            throw new TrinoException(NOT_SUPPORTED, "Unity metastore require real colum representation");
+        }
+        return buildTable(session, schemaTableName, location, isExternal, tableComment, version, schemaString, DUMMY_DATA_COLUMNS, ImmutableList.of());
+    }
+
+    private Table buildTable(ConnectorSession session, SchemaTableName schemaTableName, String location, boolean isExternal, Optional<String> tableComment, long version, String schemaString, List<Column> dataColumns, List<Column> partitionedColumns)
+    {
+        if (isOperateOnUnityMetastore && !isExternal) {
+            throw new TrinoException(
+                    NOT_SUPPORTED,
+                    "Writes are not supported on managed tables for Unity metastore");
+        }
         Table.Builder tableBuilder = Table.builder()
                 .setDatabaseName(schemaTableName.getSchemaName())
                 .setTableName(schemaTableName.getTableName())
                 .setOwner(Optional.of(session.getUser()))
                 .setTableType(isExternal ? EXTERNAL_TABLE.name() : MANAGED_TABLE.name())
-                .setDataColumns(DUMMY_DATA_COLUMNS)
+                .setDataColumns(dataColumns)
+                .setPartitionColumns(partitionedColumns)
                 .setParameters(deltaTableProperties(session, location, isExternal, tableComment, version, schemaString));
 
         setDeltaStorageFormat(tableBuilder, location);
@@ -1808,7 +1873,15 @@ public class DeltaLakeMetadata
                         true);
             }
 
-            Table table = buildTable(session, schemaTableName, location, handle.external(), handle.comment(), commitVersion, handle.schemaString());
+            Table table = buildTable(
+                    session,
+                    schemaTableName,
+                    location,
+                    commitVersion,
+                    handle,
+                    DeltaLakeSchemaSupport.getColumnMetadata(schemaString, typeManager, columnMappingMode, handle.partitionedBy())
+                            .stream()
+                            .anyMatch(column -> !column.columnMetadata().isNullable()));
             PrincipalPrivileges principalPrivileges = buildInitialPrivilegeSet(table.getOwner().orElseThrow());
 
             // As a precaution, clear the caches

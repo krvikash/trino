@@ -50,7 +50,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
     {
         unityCatalogName = requireEnv("DATABRICKS_UNITY_CATALOG_NAME");
         externalLocationPath = requireEnv("DATABRICKS_UNITY_EXTERNAL_LOCATION");
-        onDelta().executeQuery(format("CREATE SCHEMA %s.%s", unityCatalogName, schemaName));
+        onTrino().executeQuery(format("CREATE SCHEMA delta.%s", schemaName));
     }
 
     @AfterMethodWithContext
@@ -67,15 +67,24 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
         String tableLocation = format("%s/%s/%s", externalLocationPath, schemaName, tableName);
 
-        onDelta().executeQuery("CREATE TABLE " + unityTableName + " (c1 int, c2 string) USING delta LOCATION '" + tableLocation + "'");
         String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
-        onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES (1, 'one')");
+        onTrino().executeQuery("CREATE TABLE " + deltaTableName + "(c1 integer, c2 varchar) WITH (location = '" + tableLocation + "')");
+        onTrino().executeQuery("INSERT INTO " + deltaTableName + " VALUES (1, 'one')");
 
         assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
                 .containsOnly(row(tableName.toLowerCase(ENGLISH)));
 
         // select
         assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                .containsOnly(row(1, "one"));
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                .containsOnly(row(1, "one"));
+
+        // test view
+        String viewName = "test_view_" + randomNameSuffix();
+        String unityViewName = "%s.%s.%s".formatted(unityCatalogName, schemaName, viewName);
+        onDelta().executeQuery("CREATE VIEW " + unityViewName + " AS SELECT * FROM " + unityTableName);
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityViewName))
                 .containsOnly(row(1, "one"));
 
         // insert

@@ -49,7 +49,7 @@ public class TestHiveDatabricksUnityCompatibility
         unityCatalogName = requireEnv("DATABRICKS_UNITY_CATALOG_NAME");
         externalLocationPath = requireEnv("DATABRICKS_UNITY_EXTERNAL_LOCATION");
         String schemaLocation = format("%s/%s", externalLocationPath, schemaName);
-        onDelta().executeQuery("CREATE SCHEMA " + unityCatalogName + "." + schemaName + " MANAGED LOCATION '" + schemaLocation + "'");
+        onTrino().executeQuery("CREATE SCHEMA hive." + schemaName + " WITH (location = '" + schemaLocation + "')");
     }
 
     @AfterMethodWithContext
@@ -67,8 +67,8 @@ public class TestHiveDatabricksUnityCompatibility
         String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
         String tableLocation = format("%s/%s/%s", externalLocationPath, schemaName, tableName);
 
-        onDelta().executeQuery("CREATE TABLE " + unityTableName + "(c1 int, c2 string) USING PARQUET LOCATION '" + tableLocation + "'");
-        onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES (1, 'one')");
+        onTrino().executeQuery("CREATE TABLE " + hiveTableName + "(c1 integer, c2 varchar) WITH (external_location = '" + tableLocation + "', format = 'PARQUET')");
+        onTrino().executeQuery("INSERT INTO " + hiveTableName + " VALUES (1, 'one')");
 
         assertThat(onTrino().executeQuery("SHOW SCHEMAS FROM hive"))
                 .contains(row(schemaName));
@@ -79,6 +79,8 @@ public class TestHiveDatabricksUnityCompatibility
 
         assertQueryFailure(() -> onTrino().executeQuery("SELECT * FROM " + schemaName + "." + viewName))
                 .hasRootCauseMessage("Unsupported table type: VIEW");
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityViewName))
+                .containsOnly(row(1, "one"));
 
         assertThat(onTrino().executeQuery("SHOW TABLES IN hive." + schemaName).column(1))
                 .contains(tableName)
@@ -170,8 +172,10 @@ public class TestHiveDatabricksUnityCompatibility
         String hiveAvroTableName = "hive.%s.%s".formatted(schemaName, avroTableName);
         String unityAvroTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, avroTableName);
         String avroTableLocation = format("%s/%s/%s", externalLocationPath, schemaName, avroTableName);
-        onDelta().executeQuery("CREATE TABLE " + unityAvroTableName + " USING AVRO LOCATION '" + avroTableLocation + "'" + " AS SELECT 1 AS c1, 'one' AS c2");
+        onTrino().executeQuery("CREATE TABLE " + hiveAvroTableName + " WITH (external_location = '" + avroTableLocation + "', format = 'AVRO') AS SELECT 1 AS c1, 'one' AS c2");
         assertThat(onTrino().executeQuery("SELECT * FROM " + hiveAvroTableName))
+                .containsOnly(row(1, "one"));
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityAvroTableName))
                 .containsOnly(row(1, "one"));
 
         // ORC
@@ -179,8 +183,10 @@ public class TestHiveDatabricksUnityCompatibility
         String hiveOrcTableName = "hive.%s.%s".formatted(schemaName, orcTableName);
         String unityOrcTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, orcTableName);
         String orcTableLocation = format("%s/%s/%s", externalLocationPath, schemaName, orcTableName);
-        onDelta().executeQuery("CREATE TABLE " + unityOrcTableName + " USING ORC LOCATION '" + orcTableLocation + "'" + " AS SELECT 2 AS c1, 'two' AS c2");
+        onTrino().executeQuery("CREATE TABLE " + hiveOrcTableName + " WITH (external_location = '" + orcTableLocation + "', format = 'ORC') AS SELECT 2 AS c1, 'two' AS c2");
         assertThat(onTrino().executeQuery("SELECT * FROM " + hiveOrcTableName))
+                .containsOnly(row(2, "two"));
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityOrcTableName))
                 .containsOnly(row(2, "two"));
 
         // JSON
@@ -188,8 +194,10 @@ public class TestHiveDatabricksUnityCompatibility
         String hiveJsonTableName = "hive.%s.%s".formatted(schemaName, jsonTableName);
         String unityJsonTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, jsonTableName);
         String jsonTableLocation = format("%s/%s/%s", externalLocationPath, schemaName, jsonTableName);
-        onDelta().executeQuery("CREATE TABLE " + unityJsonTableName + " USING JSON LOCATION '" + jsonTableLocation + "'" + " AS SELECT 3 AS c1, 'three' AS c2");
+        onTrino().executeQuery("CREATE TABLE " + hiveJsonTableName + " WITH (external_location = '" + jsonTableLocation + "', format = 'JSON') AS SELECT 3 AS c1, 'three' AS c2");
         assertThat(onTrino().executeQuery("SELECT * FROM " + hiveJsonTableName))
+                .containsOnly(row(3, "three"));
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityJsonTableName))
                 .containsOnly(row(3, "three"));
 
         // CSV
@@ -197,8 +205,11 @@ public class TestHiveDatabricksUnityCompatibility
         String hiveCsvTableName = "hive.%s.%s".formatted(schemaName, csvTableName);
         String unityCsvTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, csvTableName);
         String csvTableLocation = format("%s/%s/%s", externalLocationPath, schemaName, csvTableName);
-        onDelta().executeQuery("CREATE TABLE " + unityCsvTableName + " USING CSV LOCATION '" + csvTableLocation + "'" + " AS SELECT '4' AS c1, 'four' AS c2");
+        // Hive CSV storage format only supports VARCHAR (unbounded)
+        onTrino().executeQuery("CREATE TABLE " + hiveCsvTableName + " WITH (external_location = '" + csvTableLocation + "', format = 'CSV') AS SELECT VARCHAR '4' AS c1, VARCHAR 'four' AS c2");
         assertThat(onTrino().executeQuery("SELECT * FROM " + hiveCsvTableName))
+                .containsOnly(row("4", "four"));
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityCsvTableName))
                 .containsOnly(row("4", "four"));
 
         // TEXT
@@ -206,8 +217,10 @@ public class TestHiveDatabricksUnityCompatibility
         String hiveTextTableName = "hive.%s.%s".formatted(schemaName, textTableName);
         String unityTextTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, textTableName);
         String textTableLocation = format("%s/%s/%s", externalLocationPath, schemaName, textTableName);
-        onDelta().executeQuery("CREATE TABLE " + unityTextTableName + " USING TEXT LOCATION '" + textTableLocation + "'" + " AS SELECT '5-five' AS c1");
+        onTrino().executeQuery("CREATE TABLE " + hiveTextTableName + " WITH (external_location = '" + textTableLocation + "', format = 'TEXTFILE') AS SELECT '5-five' AS c1");
         assertThat(onTrino().executeQuery("SELECT * FROM " + hiveTextTableName))
+                .containsOnly(row("5-five"));
+        assertThat(onDelta().executeQuery("SELECT * FROM " + unityTextTableName))
                 .containsOnly(row("5-five"));
 
         assertThat(onTrino().executeQuery("SHOW TABLES IN hive." + schemaName).column(1))

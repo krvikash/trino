@@ -147,6 +147,18 @@ public class TestDeltaLakePlugin
     }
 
     @Test
+    public void testRegisterProcedureDisabledForUnity()
+    {
+        ConnectorFactory factory = getConnectorFactory();
+        assertThatThrownBy(() -> factory.create("test",
+                ImmutableMap.of(
+                        "hive.metastore", "unity",
+                        "delta.register-table-procedure.enabled", "true"),
+                new TestingConnectorContext()))
+                .hasMessageContaining("Register procedure is not supported for Unity");
+    }
+
+    @Test
     public void testReadOnlyAllAccessControl()
     {
         ConnectorFactory factory = getConnectorFactory();

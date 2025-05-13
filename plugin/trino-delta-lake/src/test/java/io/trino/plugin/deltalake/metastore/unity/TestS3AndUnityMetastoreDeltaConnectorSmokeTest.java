@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.deltalake.metastore.unity;
 
+import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.plugin.deltalake.DeltaLakeQueryRunner;
 import io.trino.testing.BaseConnectorSmokeTest;
@@ -27,6 +28,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,6 +40,7 @@ import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.tpch.TpchTable.REGION;
 import static java.lang.String.format;
+import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
@@ -188,7 +191,6 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                  SUPPORTS_COMMENT_ON_VIEW_COLUMN,
                  SUPPORTS_CREATE_FUNCTION ,
                  SUPPORTS_CREATE_MATERIALIZED_VIEW,
-                 SUPPORTS_CREATE_SCHEMA,
                  SUPPORTS_CREATE_TABLE,
                  SUPPORTS_CREATE_TABLE_WITH_DATA,
                  SUPPORTS_CREATE_VIEW,
@@ -224,24 +226,12 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                 .doesNotContain(HIVE_TABLE_NAME);
     }
 
-    @Test
-    void testDropSchema()
-    {
-        assertQueryFails("DROP SCHEMA " + SCHEMA_NAME + " CASCADE", "dropTable is not supported for Unity metastore");
-    }
-
-    @Test
-    void testDropTable()
-    {
-        assertQueryFails("DROP TABLE " + "nation", "dropTable is not supported for Unity metastore");
-    }
-
     @Override
     @Test
     public void testCreateTable()
     {
         assertThatThrownBy(super::testCreateTable)
-                .hasMessageContaining("createTable is not supported for Unity metastore");
+                .hasMessageContaining("Writes are not supported on managed tables for Unity metastore");
     }
 
     @Override
@@ -252,12 +242,54 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                 .hasMessageContaining("Failed to write Delta Lake transaction log entry");
     }
 
-    @Override
     @Test
-    public void testCreateSchema()
+    void testCreateExternalTable()
     {
-        assertThatThrownBy(super::testCreateSchema)
-                .hasMessageContaining("createDatabase is not supported for Unity metastore");
+        String tableName = "test_create_" + randomNameSuffix();
+        String tableLocation = format("%s/%s/%s", DATABRICKS_UNITY_EXTERNAL_LOCATION, SCHEMA_NAME, tableName);
+        assertUpdate("CREATE TABLE " + tableName +
+                " (col_boolean boolean, " +
+                "col_tinyint tinyint, " +
+                "col_smallint smallint, " +
+                "col_integer integer, " +
+                "col_bigint bigint, " +
+                "col_real real, " +
+                "col_double double, " +
+                "col_decimal decimal(10,0), " +
+                "col_decimal_prec_short decimal(4,2), " +
+                "col_decimal_prec_long decimal(19,9), " +
+                "col_char char," +
+                "col_varchar varchar, " +
+                "col_varbinary varbinary, " +
+                "col_date date, " +
+                "col_timestamp timestamp(3), " +
+                "col_array array(integer), " +
+                "col_map map(timestamp(3), integer), " +
+                "col_row row(a bigint, b varchar)) WITH (location='" + tableLocation + "')");
+        try {
+            assertThat(query("SELECT * FROM " + tableName))
+                    .returnsEmptyResult();
+        }
+        finally {
+            assertUpdate("DROP TABLE " + tableName);
+        }
+    }
+
+    @Test
+    void testCreateExternalTableAsSelect()
+    {
+        String tableName = "test_create_" + randomNameSuffix();
+        String tableLocation = format("%s/%s/%s", DATABRICKS_UNITY_EXTERNAL_LOCATION, SCHEMA_NAME, tableName);
+        assertUpdate("CREATE TABLE " + tableName + " WITH (location='" + tableLocation + "') " +
+                "AS SELECT CAST(array[row(1, row(10), array[row(11)], map(array[2], array[row(1)]))] " +
+                "AS array(row(a integer, b row(x integer), c array(row(v integer)), d map(integer, row(field integer))))) AS col_1", 1);
+        try {
+            assertThat(query("SELECT * FROM " + tableName)).matches("SELECT CAST(array[row(1, row(10), array[row(11)], map(array[2], array[row(1)]))] " +
+                    "AS array(row(a integer, b row(x integer), c array(row(v integer)), d map(integer, row(field integer)))))");
+        }
+        finally {
+            assertUpdate("DROP TABLE " + tableName);
+        }
     }
 
     @Override
@@ -265,7 +297,7 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
     public void testView()
     {
         assertThatThrownBy(super::testView)
-                .hasMessageContaining("createTable is not supported for Unity metastore");
+                .hasMessageContaining("Invalid table type: VIRTUAL_VIEW, create table is supported only for external tables");
     }
 
     @Override
@@ -379,11 +411,86 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
         abort("io.trino.testing.BaseConnectorSmokeTest.testMerge updates the static table used in the test");
     }
 
+    @Test
+    public void testColumnNameExternalTable()
+    {
+        for (String columnName : testColumnNameTestData()) {
+            testColumnName(columnName, requiresDelimiting(columnName));
+        }
+    }
+
     private static Properties getDatabricksProperties()
     {
         Properties properties = new Properties();
         properties.put("user", DATABRICKS_LOGIN);
         properties.put("password", DATABRICKS_TOKEN);
         return properties;
+    }
+
+    private void testColumnName(String columnName, boolean delimited)
+    {
+        String nameInSql = toColumnNameInSql(columnName, delimited);
+        String tableName = "tcn_" + nameInSql.toLowerCase(ENGLISH).replaceAll("[^a-z0-9]", "") + randomNameSuffix();
+        String tableLocation = format("%s/%s/%s", DATABRICKS_UNITY_EXTERNAL_LOCATION, SCHEMA_NAME, tableName);
+
+        assertUpdate("CREATE TABLE " + tableName + "(key varchar(50), " + nameInSql + " varchar(50))" + " WITH (location='" + tableLocation + "') ");
+
+        try {
+            assertUpdate("INSERT INTO " + tableName + " VALUES ('null value', NULL), ('sample value', 'abc'), ('other value', 'xyz')", 3);
+
+            // SELECT *
+            assertQuery("SELECT * FROM " + tableName, "VALUES ('null value', NULL), ('sample value', 'abc'), ('other value', 'xyz')");
+
+            // projection
+            assertQuery("SELECT " + nameInSql + " FROM " + tableName, "VALUES (NULL), ('abc'), ('xyz')");
+
+            // predicate
+            assertQuery("SELECT key FROM " + tableName + " WHERE " + nameInSql + " IS NULL", "VALUES ('null value')");
+            assertQuery("SELECT key FROM " + tableName + " WHERE " + nameInSql + " = 'abc'", "VALUES ('sample value')");
+        }
+        finally {
+            assertUpdate("DROP TABLE " + tableName);
+        }
+    }
+
+    private static String toColumnNameInSql(String columnName, boolean delimited)
+    {
+        String nameInSql = columnName;
+        if (delimited) {
+            nameInSql = "\"" + columnName.replace("\"", "\"\"") + "\"";
+        }
+        return nameInSql;
+    }
+
+    private static boolean requiresDelimiting(String identifierName)
+    {
+        return !identifierName.matches("[a-zA-Z][a-zA-Z0-9_]*");
+    }
+
+    private List<String> testColumnNameTestData()
+    {
+        return ImmutableList.<String>builder()
+                .add("lowercase")
+                .add("UPPERCASE")
+                .add("MixedCase")
+                .add("an_underscore")
+                .add("a-hyphen-minus") // ASCII '-' is HYPHEN-MINUS in Unicode
+                .add("a space")
+                .add("atrailingspace ")
+                .add(" aleadingspace")
+                .add("a.dot")
+                .add("a,comma")
+                .add("a:colon")
+                .add("a;semicolon")
+                .add("an@at")
+                .add("a\"quote")
+                .add("an'apostrophe")
+                .add("a`backtick`")
+                .add("a/slash`")
+                .add("a\\backslash`")
+                .add("adigit0")
+                .add("0startwithdigit")
+                .add("カラム")
+                .build();
     }
 }

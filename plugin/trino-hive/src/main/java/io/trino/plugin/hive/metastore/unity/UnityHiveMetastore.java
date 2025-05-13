@@ -17,8 +17,12 @@ import com.databricks.sdk.core.ApiClient;
 import com.databricks.sdk.core.DatabricksConfig;
 import com.databricks.sdk.core.DatabricksError;
 import com.databricks.sdk.core.DatabricksException;
+import com.databricks.sdk.core.error.platform.BadRequest;
+import com.databricks.sdk.core.error.platform.NotFound;
 import com.databricks.sdk.core.http.Request;
 import com.databricks.sdk.service.catalog.ColumnInfo;
+import com.databricks.sdk.service.catalog.ColumnTypeName;
+import com.databricks.sdk.service.catalog.CreateSchema;
 import com.databricks.sdk.service.catalog.DataSourceFormat;
 import com.databricks.sdk.service.catalog.SchemaInfo;
 import com.databricks.sdk.service.catalog.SchemasAPI;
@@ -42,13 +46,23 @@ import io.trino.metastore.Partition;
 import io.trino.metastore.PartitionStatistics;
 import io.trino.metastore.PartitionWithStatistics;
 import io.trino.metastore.PrincipalPrivileges;
+import io.trino.metastore.SchemaAlreadyExistsException;
 import io.trino.metastore.StatisticsUpdateMode;
 import io.trino.metastore.StorageFormat;
 import io.trino.metastore.Table;
 import io.trino.metastore.TableInfo;
+import io.trino.metastore.type.CharTypeInfo;
+import io.trino.metastore.type.DecimalTypeInfo;
+import io.trino.metastore.type.ListTypeInfo;
+import io.trino.metastore.type.MapTypeInfo;
+import io.trino.metastore.type.StructTypeInfo;
+import io.trino.metastore.type.TypeInfo;
+import io.trino.metastore.type.VarcharTypeInfo;
 import io.trino.plugin.hive.TableType;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.RoleGrant;
@@ -61,12 +75,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.StringJoiner;
+import java.util.stream.LongStream;
 
 import static com.databricks.sdk.core.PatCredentialsProvider.PAT;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
 import static com.databricks.sdk.service.catalog.TableType.EXTERNAL;
 import static com.databricks.sdk.service.catalog.TableType.MANAGED;
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.hive.thrift.metastore.hive_metastoreConstants.META_TABLE_LOCATION;
 import static io.trino.metastore.TableInfo.ExtendedRelationType.TABLE;
@@ -233,13 +250,35 @@ public class UnityHiveMetastore
     @Override
     public void createDatabase(Database database)
     {
-        throw new TrinoException(NOT_SUPPORTED, "createDatabase is not supported for Unity metastore");
+        CreateSchema createSchema = new CreateSchema();
+        database.getLocation().ifPresent(createSchema::setStorageRoot);
+        createSchema.setCatalogName(catalogName);
+        createSchema.setName(database.getDatabaseName());
+        createSchema.setProperties(database.getParameters());
+        database.getComment().ifPresent(createSchema::setComment);
+        try {
+            schemasApi.create(createSchema);
+        }
+        catch (BadRequest ex) {
+            if (ex.getErrorCode().equals("SCHEMA_ALREADY_EXISTS")) {
+                throw new SchemaAlreadyExistsException(database.getDatabaseName(), ex);
+            }
+            throw new TrinoException(HIVE_METASTORE_ERROR, ex);
+        }
+        catch (DatabricksException ex) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, ex);
+        }
     }
 
     @Override
     public void dropDatabase(String databaseName, boolean deleteData)
     {
-        throw new TrinoException(NOT_SUPPORTED, "dropDatabase is not supported for Unity metastore");
+        try {
+            schemasApi.delete(catalogName + "." + databaseName);
+        }
+        catch (DatabricksException ex) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, ex);
+        }
     }
 
     @Override
@@ -257,13 +296,78 @@ public class UnityHiveMetastore
     @Override
     public void createTable(Table table, PrincipalPrivileges principalPrivileges)
     {
-        throw new TrinoException(NOT_SUPPORTED, "createTable is not supported for Unity metastore");
+        // TODO refactor this with official databricks sdk support of createTable
+        //  https://starburstdata.atlassian.net/browse/CONNECT-592
+        String path = "/api/2.1/unity-catalog/tables";
+        TableType tableType = TableType.valueOf(table.getTableType());
+        checkArgument(EXTERNAL_TABLE.equals(tableType), "Invalid table type: %s, create table is supported only for external tables", tableType);
+        CreateTable.Builder createTable = CreateTable.builder()
+                .setCatalogName(catalogName)
+                .setSchemaName(table.getDatabaseName())
+                .setName(table.getTableName())
+                .setTableType(EXTERNAL)
+                .setStorageLocation(table.getStorage().getLocation())
+                .setProperties(table.getParameters());
+        table.getOwner().ifPresent(createTable::setOwner);
+
+        if (DELTA_TABLE_PROVIDER_VALUE.equals(table.getParameters().get(DELTA_TABLE_PROVIDER_PROPERTY))) {
+            createTable.setDataSourceFormat(DELTA);
+        }
+        else {
+            createTable.setDataSourceFormat(getDataSourceFormat(table.getStorage().getStorageFormat()));
+        }
+
+        if (!table.getPartitionColumns().isEmpty()) {
+            throw new TrinoException(NOT_SUPPORTED, "Create table with partitioned columns are not supported for Unity metastore");
+        }
+        checkArgument(!table.getDataColumns().isEmpty(), "Cannot create table: No columns defined. Tables must have at least one column to be compatible with Databricks Unity Catalog");
+
+        createTable.setColumns(
+                LongStream.range(0, table.getDataColumns().size())
+                        .mapToObj(i -> {
+                            Column column = table.getDataColumns().get((int) i);
+                            ColumnInfo columnInfo = new ColumnInfo();
+                            columnInfo.setName(column.getName());
+                            columnInfo.setPosition(i);
+                            columnInfo.setTypeName(toColumTypeName(column.getType()));
+                            columnInfo.setTypeText(column.getType().toString());
+                            columnInfo.setTypeJson(buildColumnTypeJson(column.getName(), column.getType()));
+                            column.getComment().ifPresent(columnInfo::setComment);
+
+                            return columnInfo;
+                        })
+                        .collect(toImmutableList()));
+
+        try {
+            Request createTableRequest = new Request("POST", path, apiClient.serialize(createTable.build()));
+            createTableRequest.withHeader("Accept", "application/json");
+            createTableRequest.withHeader("Content-Type", "application/json");
+            apiClient.execute(createTableRequest, com.databricks.sdk.service.catalog.TableInfo.class);
+        }
+        catch (NotFound ex) {
+            if (ex.getErrorCode().equals("SCHEMA_DOES_NOT_EXIST")) {
+                throw new SchemaNotFoundException(table.getDatabaseName());
+            }
+            throw new TrinoException(HIVE_METASTORE_ERROR, ex);
+        }
+        catch (DatabricksException | IOException ex) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, ex);
+        }
     }
 
     @Override
     public void dropTable(String databaseName, String tableName, boolean deleteData)
     {
-        throw new TrinoException(NOT_SUPPORTED, "dropTable is not supported for Unity metastore");
+        Table table = getTable(databaseName, tableName)
+                .orElseThrow(() -> new TableNotFoundException(new SchemaTableName(databaseName, tableName)));
+        TableType tableType = TableType.valueOf(table.getTableType());
+        checkArgument(EXTERNAL_TABLE.equals(tableType), "Invalid table type: %s, drop table is supported only for external tables", tableType);
+        try {
+            tablesApi.delete(catalogName + "." + databaseName + "." + tableName);
+        }
+        catch (DatabricksException ex) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, ex);
+        }
     }
 
     @Override
@@ -587,6 +691,172 @@ public class UnityHiveMetastore
             case TEXT -> TEXTFILE.toStorageFormat();
             default -> throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + dataSourceFormat);
         };
+    }
+
+    private static ColumnTypeName toColumTypeName(HiveType hiveType)
+    {
+        if (hiveType.equals(HiveType.HIVE_BOOLEAN)) {
+            return ColumnTypeName.BOOLEAN;
+        }
+        if (hiveType.equals(HiveType.HIVE_BYTE)) {
+            return ColumnTypeName.BYTE;
+        }
+        if (hiveType.equals(HiveType.HIVE_SHORT)) {
+            return ColumnTypeName.SHORT;
+        }
+        if (hiveType.equals(HiveType.HIVE_INT)) {
+            return ColumnTypeName.INT;
+        }
+        if (hiveType.equals(HiveType.HIVE_LONG)) {
+            return ColumnTypeName.LONG;
+        }
+        if (hiveType.equals(HiveType.HIVE_FLOAT)) {
+            return ColumnTypeName.FLOAT;
+        }
+        if (hiveType.equals(HiveType.HIVE_DOUBLE)) {
+            return ColumnTypeName.DOUBLE;
+        }
+        if (hiveType.equals(HiveType.HIVE_STRING)) {
+            return ColumnTypeName.STRING;
+        }
+        if (hiveType.equals(HiveType.HIVE_TIMESTAMP)) {
+            return ColumnTypeName.TIMESTAMP;
+        }
+        if (hiveType.equals(HiveType.HIVE_DATE)) {
+            return ColumnTypeName.DATE;
+        }
+        if (hiveType.equals(HiveType.HIVE_BINARY)) {
+            return ColumnTypeName.BINARY;
+        }
+        if (hiveType.equals(HiveType.HIVE_VARIANT)) {
+            return ColumnTypeName.VARIANT;
+        }
+        if (hiveType.getTypeInfo() instanceof DecimalTypeInfo) {
+            return ColumnTypeName.DECIMAL;
+        }
+        if (hiveType.getTypeInfo() instanceof CharTypeInfo) {
+            return ColumnTypeName.CHAR;
+        }
+        if (hiveType.getTypeInfo() instanceof VarcharTypeInfo) {
+            return ColumnTypeName.STRING;
+        }
+        if (hiveType.getTypeInfo() instanceof ListTypeInfo) {
+            return ColumnTypeName.ARRAY;
+        }
+        if (hiveType.getTypeInfo() instanceof MapTypeInfo) {
+            return ColumnTypeName.MAP;
+        }
+        if (hiveType.getTypeInfo() instanceof StructTypeInfo) {
+            return ColumnTypeName.STRUCT;
+        }
+        // TODO https://starburstdata.atlassian.net/browse/CONNECT-603
+        //  some types like timestamp_ntz is not supported by trino hive globally
+        throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + hiveType);
+    }
+
+    private static String buildColumnTypeJson(String columnName, HiveType hiveType)
+    {
+        return "{\"name\":\"%s\",\"type\":%s,\"nullable\":true,\"metadata\":{}}".formatted(columnName, getTypeJson(hiveType));
+    }
+
+    private static String getTypeJson(HiveType hiveType)
+    {
+        if (hiveType.equals(HiveType.HIVE_BOOLEAN)) {
+            return "\"boolean\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_BYTE)) {
+            return "\"byte\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_SHORT)) {
+            return "\"short\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_INT)) {
+            return "\"integer\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_LONG)) {
+            return "\"long\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_FLOAT)) {
+            return "\"float\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_DOUBLE)) {
+            return "\"double\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_STRING)) {
+            return "\"string\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_TIMESTAMP)) {
+            return "\"timestamp\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_TIMESTAMPLOCALTZ)) {
+            return "\"timestamp_ntz\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_DATE)) {
+            return "\"date\"";
+        }
+        if (hiveType.equals(HiveType.HIVE_BINARY)) {
+            return "\"binary\"";
+        }
+
+        if (hiveType.getTypeInfo() instanceof DecimalTypeInfo) {
+            return "\"%s\"".formatted(hiveType.toString());
+        }
+
+        if (hiveType.getTypeInfo() instanceof CharTypeInfo) {
+            return "\"%s\"".formatted(hiveType.toString());
+        }
+
+        if (hiveType.getTypeInfo() instanceof VarcharTypeInfo) {
+            return "\"%s\"".formatted(hiveType.toString());
+        }
+
+        if (hiveType.getTypeInfo() instanceof ListTypeInfo listTypeInfo) {
+            TypeInfo elementsTypeInfo = listTypeInfo.getListElementTypeInfo();
+            return "{\"type\":\"array\",\"elementType\":%s,\"containsNull\":true}".formatted(getTypeJson(HiveType.fromTypeInfo(elementsTypeInfo)));
+        }
+        if (hiveType.getTypeInfo() instanceof MapTypeInfo mapTypeInfo) {
+            TypeInfo keyTypeInfo = mapTypeInfo.getMapKeyTypeInfo();
+            TypeInfo valueTypeInfo = mapTypeInfo.getMapValueTypeInfo();
+            return "{\"type\":\"map\",\"keyType\":%s,\"valueType\":%s,\"valueContainsNull\":true}".formatted(getTypeJson(HiveType.fromTypeInfo(keyTypeInfo)), getTypeJson(HiveType.fromTypeInfo(valueTypeInfo)));
+        }
+        if (hiveType.getTypeInfo() instanceof StructTypeInfo structTypeInfo) {
+            List<String> names = structTypeInfo.getAllStructFieldNames();
+            List<TypeInfo> typeInfos = structTypeInfo.getAllStructFieldTypeInfos();
+
+            StringJoiner fields = new StringJoiner(",");
+            for (int i = 0; i < names.size(); i++) {
+                String fieldName = names.get(i);
+                TypeInfo fieldTypeInfo = typeInfos.get(i);
+                fields.add(buildColumnTypeJson(fieldName, HiveType.fromTypeInfo(fieldTypeInfo)));
+            }
+
+            return "{\"type\":\"struct\",\"fields\":[%s]}".formatted(fields.toString());
+        }
+
+        throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + hiveType);
+    }
+
+    private static DataSourceFormat getDataSourceFormat(StorageFormat storageFormat)
+    {
+        if (AVRO.toStorageFormat().equals(storageFormat)) {
+            return com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
+        }
+        if (ORC.toStorageFormat().equals(storageFormat)) {
+            return com.databricks.sdk.service.catalog.DataSourceFormat.ORC;
+        }
+        if (PARQUET.toStorageFormat().equals(storageFormat)) {
+            return com.databricks.sdk.service.catalog.DataSourceFormat.PARQUET;
+        }
+        if (CSV.toStorageFormat().equals(storageFormat)) {
+            return com.databricks.sdk.service.catalog.DataSourceFormat.CSV;
+        }
+        if (JSON.toStorageFormat().equals(storageFormat)) {
+            return com.databricks.sdk.service.catalog.DataSourceFormat.JSON;
+        }
+        if (TEXTFILE.toStorageFormat().equals(storageFormat)) {
+            return com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
+        }
+        throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + storageFormat);
     }
 
     /// /////////////////////////////////////////

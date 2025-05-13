@@ -32,6 +32,7 @@ import io.trino.plugin.hive.AllowHiveTableRename;
 import io.trino.plugin.hive.metastore.unity.SupportedUnityTableFormatsProvider;
 import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
+import io.trino.spi.TrinoException;
 
 import static com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.CSV;
@@ -43,6 +44,7 @@ import static com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 
 public class DeltaLakeUnityMetastoreModule
         extends AbstractConfigurationAwareModule
@@ -51,6 +53,11 @@ public class DeltaLakeUnityMetastoreModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(UnityMetastoreConfig.class);
+
+        // TODO https://starburstdata.atlassian.net/browse/CONNECT-602
+        if (buildConfigObject(DeltaLakeConfig.class).isRegisterTableProcedureEnabled()) {
+            binder.addError(new TrinoException(NOT_SUPPORTED, "Register procedure is not supported for Unity"));
+        }
 
         binder.bind(UnityHiveMetastoreFactory.class).in(Scopes.SINGLETON);
 
