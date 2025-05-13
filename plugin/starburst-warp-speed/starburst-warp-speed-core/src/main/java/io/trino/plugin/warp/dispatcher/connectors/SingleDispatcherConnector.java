@@ -18,6 +18,7 @@ import com.google.inject.Singleton;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.DispatcherNodePartitioningProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -46,6 +47,7 @@ public class SingleDispatcherConnector
 
     @Inject
     public SingleDispatcherConnector(@ForWarp Connector proxiedConnector,
+            GlobalConfig globalConfig,
             WarpSessionProperties warpSessionProperties,
             LifeCycleManager lifeCycleManager,
             ConnectorTaskExecutor connectorTaskExecutor,
@@ -56,7 +58,7 @@ public class SingleDispatcherConnector
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             WorkerCapacityManager workerCapacityManager)
     {
-        super(proxiedConnector, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
+        super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
         this.coordinatorDispatcherConnector = coordinatorDispatcherConnector;
         this.workerDispatcherConnector = workerDispatcherConnector;
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);

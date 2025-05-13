@@ -18,6 +18,7 @@ import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherIndexProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -51,6 +52,7 @@ public abstract class DispatcherConnectorBase
     private static final Logger logger = Logger.get(DispatcherConnectorBase.class);
 
     protected final Connector proxiedConnector;
+    private final GlobalConfig globalConfig;
     private final ImmutableList<PropertyMetadata<?>> sessionProperties;
     private final LifeCycleManager lifeCycleManager;
     private final ConnectorTaskExecutor connectorTaskExecutor;
@@ -58,12 +60,14 @@ public abstract class DispatcherConnectorBase
 
     public DispatcherConnectorBase(
             @ForWarp Connector proxiedConnector,
+            GlobalConfig globalConfig,
             WarpSessionProperties warpSessionProperties,
             LifeCycleManager lifeCycleManager,
             ConnectorTaskExecutor connectorTaskExecutor,
             NativeStorageStateHandler nativeStorageStateHandler)
     {
         this.proxiedConnector = requireNonNull(proxiedConnector);
+        this.globalConfig = requireNonNull(globalConfig);
         this.sessionProperties = ImmutableList.copyOf(requireNonNull(warpSessionProperties.getSessionProperties()));
         this.lifeCycleManager = requireNonNull(lifeCycleManager);
         this.connectorTaskExecutor = requireNonNull(connectorTaskExecutor);
@@ -152,6 +156,12 @@ public abstract class DispatcherConnectorBase
     public Set<TableProcedureMetadata> getTableProcedures()
     {
         return proxiedConnector.getTableProcedures();
+    }
+
+    @Override
+    public long getInitialMemoryRequirement()
+    {
+        return globalConfig.getPreAllocMemorySize() + proxiedConnector.getInitialMemoryRequirement();
     }
 
     @Override

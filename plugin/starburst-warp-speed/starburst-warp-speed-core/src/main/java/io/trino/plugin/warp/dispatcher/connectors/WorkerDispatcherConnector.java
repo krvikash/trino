@@ -18,6 +18,7 @@ import com.google.inject.Singleton;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.WorkerNodePartitioningProvider;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
@@ -37,6 +38,7 @@ public class WorkerDispatcherConnector
     @Inject
     public WorkerDispatcherConnector(
             @ForWarp Connector proxiedConnector,
+            GlobalConfig globalConfig,
             WarpSessionProperties warpSessionProperties,
             DispatcherAlternativeChooser dispatcherAlternativeChooser,
             LifeCycleManager lifeCycleManager,
@@ -44,7 +46,7 @@ public class WorkerDispatcherConnector
             NativeStorageStateHandler nativeStorageStateHandler,
             WorkerCapacityManager workerCapacityManager)
     {
-        super(proxiedConnector, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
+        super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
         this.dispatcherAlternativeChooser = requireNonNull(dispatcherAlternativeChooser);
         this.workerCapacityManager = workerCapacityManager;
     }

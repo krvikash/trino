@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.config;
 
 import io.airlift.configuration.Config;
+import io.airlift.units.DataSize;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
@@ -44,6 +45,7 @@ public class GlobalConfig
     private int cloudExecutorPoolSize = Runtime.getRuntime().availableProcessors() * 100;
     private int prioritizeExecutorPoolSize = 1000;
     private String cardinalityBuckets = "1000,1000000"; // allows applying most selective predicate first when using predicate push-down
+    private long preAllocMemorySize;
     private boolean enableDefaultWarming = true;
     private boolean createIndexInDefaultWarming;
     private boolean dataOnlyWarming;
@@ -436,6 +438,17 @@ public class GlobalConfig
     public long getEmptyPageIterations()
     {
         return emptyPageIterations;
+    }
+
+    public long getPreAllocMemorySize()
+    {
+        return preAllocMemorySize;
+    }
+
+    @Config("warp-speed.config.pre-alloc-memory-size-mb")
+    public void setPreAllocMemorySize(int preAllocMemorySizeInMegaBytes)
+    {
+        this.preAllocMemorySize = DataSize.of(preAllocMemorySizeInMegaBytes, DataSize.Unit.MEGABYTE).toBytes();
     }
 
     @Override
