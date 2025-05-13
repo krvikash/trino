@@ -610,6 +610,37 @@ public final class IcebergQueryRunner
         }
     }
 
+    public static final class IcebergQueryRunnerWithSpoolingExchangeMain
+    {
+        private IcebergQueryRunnerWithSpoolingExchangeMain() {}
+
+        public static void main(String[] args)
+                throws Exception
+        {
+            File exchangeManagerDirectory = createTempDirectory("exchange_manager").toFile();
+            Map<String, String> exchangeManagerProperties = ImmutableMap.<String, String>builder()
+                    .put("exchange.base-directories", exchangeManagerDirectory.getAbsolutePath())
+                    .buildOrThrow();
+            exchangeManagerDirectory.deleteOnExit();
+
+            Logger log = Logger.get(DefaultIcebergQueryRunnerMain.class);
+            File metastoreDir = createTempDirectory("iceberg_query_runner").toFile();
+            metastoreDir.deleteOnExit();
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
+                    .addIcebergProperty("hive.metastore.catalog.dir", metastoreDir.toURI().toString())
+                    .setInitialTables(TpchTable.getTables())
+                    .setAdditionalSetup(runner -> {
+                        runner.installPlugin(new FileSystemExchangePlugin());
+                        runner.loadExchangeManager("filesystem", exchangeManagerProperties);
+                    })
+                    .build();
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
     public static final class IcebergQueryRunnerWithTaskRetries
     {
         private IcebergQueryRunnerWithTaskRetries() {}
