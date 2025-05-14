@@ -743,12 +743,13 @@ public class EventDrivenFaultTolerantQueryScheduler
 
         private SubPlan plan;
         private List<SubPlan> planInTopologicalOrder;
+        private SetMultimap<StageId, StageId> parents; // child->parent references for plan fragments
 
         private final Optional<AdaptivePlanner> adaptivePlanner;
 
         private final Map<StageId, StageExecution> stageExecutions = new HashMap<>();
         private final Map<SubPlan, IsReadyForExecutionResult> isReadyForExecutionCache = new HashMap<>();
-        private final SetMultimap<StageId, StageId> stageConsumers = HashMultimap.create();
+        private final SetMultimap<StageId, StageId> stageConsumers = HashMultimap.create(); // contains entries for created stages
 
         private final SchedulingQueue schedulingQueue = new SchedulingQueue();
         private int nextSchedulingPriority;
@@ -845,6 +846,8 @@ public class EventDrivenFaultTolerantQueryScheduler
             }
 
             planInTopologicalOrder = sortPlanInTopologicalOrder(plan);
+            parents = computeStageParents(planInTopologicalOrder);
+
             splitAdmissionControllerProvider = new SplitAdmissionControllerProvider(
                     planInTopologicalOrder.stream().map(SubPlan::getFragment).collect(toImmutableList()),
                     queryStateMachine.getSession());
@@ -1117,8 +1120,18 @@ public class EventDrivenFaultTolerantQueryScheduler
             plan = optimizePlan(plan);
             if (plan != oldPlan) {
                 planInTopologicalOrder = sortPlanInTopologicalOrder(plan);
+                parents = computeStageParents(planInTopologicalOrder);
                 stageRegistry.updatePlan(plan);
             }
+        }
+
+        private SetMultimap<StageId, StageId> computeStageParents(List<SubPlan> planFragments)
+        {
+            SetMultimap<StageId, StageId> parentsMap = HashMultimap.create();
+            planFragments.forEach(parent ->
+                    parent.getChildren().forEach(child ->
+                            parentsMap.put(getStageId(child.getFragment().getId()), getStageId(parent.getFragment().getId()))));
+            return parentsMap;
         }
 
         private SubPlan optimizePlan(SubPlan plan)
@@ -1208,9 +1221,20 @@ public class EventDrivenFaultTolerantQueryScheduler
                                 result.isEager());
                     }
                 }
-                if (stageExecution != null && stageExecution.getState().equals(StageState.FINISHED) && !stageExecution.isExchangeClosed()) {
-                    // we are ready to close its source exchanges
-                    closeSourceExchanges(subPlan);
+
+                if (stageExecution != null
+                        && stageExecution.getState().isDone()
+                        && !stageExecution.isExchangeClosed()
+                        && !stageExecution.getStageId().equals(getStageId(rootFragmentId))
+                        // check if all current consumers and future consumers based on current plan are already done with reading exchange data
+                        && Sets.union(stageConsumers.get(stageId), parents.get(stageId)).stream().allMatch(parentStageId -> {
+                            StageExecution parentStage = stageExecutions.get(parentStageId);
+                            return parentStage != null && parentStage.getState().isDone();
+                        })) {
+                    // close source exchange if source stage writing to it is already done and all consumers are done.
+                    // Situation when source is running and all consumers are done is valid in case of e.g. early limit termination
+                    // E.g. this may happen in case of early limit termination.
+                    stageExecution.closeExchange();
                 }
             }
             stageExecutions.forEach((stageId, stageExecution) -> {
@@ -1400,20 +1424,6 @@ public class EventDrivenFaultTolerantQueryScheduler
             }
             // todo filter out more (window?)
             return node.getSources().stream().allMatch(this::canOutputDataEarly);
-        }
-
-        private void closeSourceExchanges(SubPlan subPlan)
-        {
-            for (SubPlan source : subPlan.getChildren()) {
-                StageExecution sourceStageExecution = stageExecutions.get(getStageId(source.getFragment().getId()));
-                if (sourceStageExecution != null && sourceStageExecution.getState().isDone()) {
-                    // Only close source exchange if source stage writing to it is already done.
-                    // It could be that closeSourceExchanges was called because downstream stage already
-                    // finished while some upstream stages are still running.
-                    // E.g this may happen in case of early limit termination.
-                    sourceStageExecution.closeExchange();
-                }
-            }
         }
 
         private void createStageExecution(
