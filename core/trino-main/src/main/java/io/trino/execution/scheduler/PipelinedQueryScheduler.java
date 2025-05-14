@@ -923,23 +923,28 @@ public class PipelinedQueryScheduler
             // Preserve topological ordering in stageExecutionsMap
             Map<StageId, StageExecution> stageExecutions = new LinkedHashMap<>();
             for (SqlStage stage : stageManager.getDistributedStagesInTopologicalOrder()) {
-                Optional<SqlStage> parentStage = stageManager.getParent(stage.getStageId());
-                TaskLifecycleListener taskLifecycleListener;
-                if (parentStage.isEmpty() || parentStage.get().getFragment().getPartitioning().isCoordinatorOnly()) {
+                Set<SqlStage> parentStages = stageManager.getParents(stage.getStageId());
+                ImmutableList.Builder<TaskLifecycleListener> taskLifecycleListeners = ImmutableList.builder();
+                if (parentStages.isEmpty()) {
                     // output will be consumed by coordinator
-                    taskLifecycleListener = coordinatorTaskLifecycleListener;
+                    taskLifecycleListeners.add(coordinatorTaskLifecycleListener);
                 }
-                else {
-                    StageId parentStageId = parentStage.get().getStageId();
-                    StageExecution parentStageExecution = requireNonNull(stageExecutions.get(parentStageId), () -> "execution is null for stage: " + parentStageId);
-                    taskLifecycleListener = parentStageExecution.getTaskLifecycleListener();
+                for (SqlStage parentStage : parentStages) {
+                    if (parentStage.getFragment().getPartitioning().isCoordinatorOnly()) {
+                        // output will be consumed by coordinator
+                        taskLifecycleListeners.add(coordinatorTaskLifecycleListener);
+                    }
+                    else {
+                        StageId parentStageId = parentStage.getStageId();
+                        StageExecution parentStageExecution = requireNonNull(stageExecutions.get(parentStageId), () -> "execution is null for stage: " + parentStageId);
+                        taskLifecycleListeners.add(parentStageExecution.getTaskLifecycleListener());
+                    }
                 }
-
                 PlanFragment fragment = stage.getFragment();
                 StageExecution stageExecution = createPipelinedStageExecution(
                         stageManager.get(fragment.getId()),
                         outputBufferManagers,
-                        taskLifecycleListener,
+                        createTaskLifecycleListener(taskLifecycleListeners.build()),
                         failureDetector,
                         executor,
                         bucketToPartitionMap.get(fragment.getId()),
@@ -979,6 +984,15 @@ public class PipelinedQueryScheduler
                     dynamicFilterService);
             distributedStagesScheduler.initialize();
             return distributedStagesScheduler;
+        }
+
+        private static TaskLifecycleListener createTaskLifecycleListener(List<TaskLifecycleListener> delegates)
+        {
+            verify(!delegates.isEmpty(), "empty delegates");
+            if (delegates.size() == 1) {
+                return getOnlyElement(delegates);
+            }
+            return new DelegatingTaskLifecycleListener(delegates);
         }
 
         private static Map<PlanFragmentId, Optional<int[]>> createBucketToPartitionMap(
@@ -1437,6 +1451,29 @@ public class PipelinedQueryScheduler
         public Optional<StageFailureInfo> getFailureCause()
         {
             return stateMachine.getFailureCause();
+        }
+
+        private static class DelegatingTaskLifecycleListener
+                implements TaskLifecycleListener
+        {
+            private final List<TaskLifecycleListener> delegates;
+
+            public DelegatingTaskLifecycleListener(List<TaskLifecycleListener> delegates)
+            {
+                this.delegates = ImmutableList.copyOf(delegates);
+            }
+
+            @Override
+            public void taskCreated(PlanFragmentId fragmentId, RemoteTask task)
+            {
+                delegates.forEach(delegate -> delegate.taskCreated(fragmentId, task));
+            }
+
+            @Override
+            public void noMoreTasks(PlanFragmentId fragmentId)
+            {
+                delegates.forEach(delegate -> delegate.noMoreTasks(fragmentId));
+            }
         }
     }
 
