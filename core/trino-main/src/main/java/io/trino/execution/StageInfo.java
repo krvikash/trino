@@ -24,9 +24,11 @@ import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.Nullable;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -220,18 +222,23 @@ public class StageInfo
         if (stageInfo.isEmpty()) {
             return ImmutableList.of();
         }
-        ImmutableList.Builder<StageInfo> collector = ImmutableList.builder();
-        addAllStages(stageInfo.get(), collector);
-        return collector.build();
+
+        ImmutableList.Builder<StageInfo> builder = ImmutableList.builder();
+        getAllStagesDeduplicated(stageInfo.get(), builder, new HashSet<>());
+
+        return builder.build().reverse();
     }
 
-    private static void addAllStages(@Nullable StageInfo stage, ImmutableList.Builder<StageInfo> collector)
+    private static void getAllStagesDeduplicated(@Nullable StageInfo stage, ImmutableList.Builder<StageInfo> builder, Set<StageId> visitedStages)
     {
-        if (stage != null) {
-            collector.add(stage);
-            for (StageInfo subStage : stage.getSubStages()) {
-                addAllStages(subStage, collector);
-            }
+        if (stage == null || visitedStages.contains(stage.stageId)) {
+            return;
         }
+
+        for (StageInfo subStage : stage.getSubStages().reversed()) {
+            getAllStagesDeduplicated(subStage, builder, visitedStages);
+        }
+        builder.add(stage);
+        visitedStages.add(stage.stageId);
     }
 }
