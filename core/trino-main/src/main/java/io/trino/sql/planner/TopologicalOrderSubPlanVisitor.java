@@ -32,7 +32,7 @@ public final class TopologicalOrderSubPlanVisitor
 
     public static List<SubPlan> sortPlanInTopologicalOrder(SubPlan subPlan)
     {
-        return ImmutableList.copyOf(Traverser.forTree(getChildren).depthFirstPostOrder(subPlan));
+        return ImmutableList.copyOf(Traverser.forGraph(getChildren).depthFirstPostOrder(subPlan));
     }
 
     private static final SuccessorsFunction<SubPlan> getChildren = subPlan -> {
