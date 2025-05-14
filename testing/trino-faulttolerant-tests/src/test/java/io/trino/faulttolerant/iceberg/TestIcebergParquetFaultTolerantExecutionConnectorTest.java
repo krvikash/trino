@@ -16,8 +16,8 @@ package io.trino.faulttolerant.iceberg;
 import io.trino.filesystem.Location;
 import io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin;
 import io.trino.plugin.exchange.filesystem.containers.MinioStorage;
-import io.trino.plugin.iceberg.BaseIcebergParquetConnectorTest;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
+import io.trino.plugin.iceberg.TestIcebergParquetConnectorTest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -35,13 +35,14 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 @Isolated
 @TestInstance(PER_CLASS)
 public class TestIcebergParquetFaultTolerantExecutionConnectorTest
-        extends BaseIcebergParquetConnectorTest
+        extends TestIcebergParquetConnectorTest
 {
     private MinioStorage minioStorage;
 
-    public TestIcebergParquetFaultTolerantExecutionConnectorTest()
+    @Override
+    protected int formatVersion()
     {
-        super(FORMAT_VERSION_SUPPORT_MAX);
+        return FORMAT_VERSION_SUPPORT_MAX;
     }
 
     @Override

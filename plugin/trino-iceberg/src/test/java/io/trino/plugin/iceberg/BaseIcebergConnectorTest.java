@@ -189,10 +189,15 @@ public abstract class BaseIcebergConnectorTest
     protected TrinoFileSystem fileSystem;
     protected TimeUnit storageTimePrecision;
 
-    protected BaseIcebergConnectorTest(IcebergFileFormat format, int formatVersion)
+    protected BaseIcebergConnectorTest(IcebergFileFormat format)
     {
         this.format = requireNonNull(format, "format is null");
-        this.formatVersion = formatVersion;
+        this.formatVersion = formatVersion();
+    }
+
+    protected int formatVersion()
+    {
+        return 3;
     }
 
     @Override

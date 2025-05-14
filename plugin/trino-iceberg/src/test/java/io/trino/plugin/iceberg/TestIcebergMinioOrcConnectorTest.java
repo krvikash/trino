@@ -29,7 +29,6 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.io.Resources.getResource;
-import static io.trino.plugin.iceberg.IcebergConfig.FORMAT_VERSION_SUPPORT_MAX;
 import static io.trino.plugin.iceberg.IcebergFileFormat.ORC;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -51,7 +50,7 @@ public class TestIcebergMinioOrcConnectorTest
 
     public TestIcebergMinioOrcConnectorTest()
     {
-        super(ORC, FORMAT_VERSION_SUPPORT_MAX);
+        super(ORC);
     }
 
     @Override
