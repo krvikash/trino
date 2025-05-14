@@ -292,13 +292,11 @@ public class StorageCollectorService
                 aggregatorPageArgs);
     }
 
-    @NativeInterrupt
     public void abortPage(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Exception e)
     {
         collectTxService.collectAbort(aggregatorPageArgs, e, queryArgs.dispatcherPageSourceStats());
     }
 
-    @NativeInterrupt
     public void close(QueryArgs queryArgs)
     {
         storageEngine.fileClose((int) queryArgs.fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);

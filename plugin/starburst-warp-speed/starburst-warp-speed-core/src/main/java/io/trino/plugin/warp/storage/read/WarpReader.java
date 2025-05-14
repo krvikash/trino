@@ -188,24 +188,37 @@ public class WarpReader
             if (matcherPageArgs != null) {
                 matcher.closePage(queryArgs, matcherArgs, matcherPageArgs);
             }
+        }
+        catch (Exception e) {
+            if (!(e instanceof InterruptedException)) {
+                shapingLogger.error(e, "matcher failed to close page");
+            }
+        }
 
+        try {
             if (aggregatorPageArgs != null) {
                 queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
                 readPages = blocksAggregator.closePage(queryArgs, aggregatorPageArgs);
             }
+        }
+        catch (Exception e) {
+            if (!(e instanceof InterruptedException)) {
+                shapingLogger.error(e, "aggregator failed to close page");
+            }
+        }
 
+        try {
             if (pageArena != null) {
                 pageArena.close();
             }
         }
         catch (Exception e) {
-            shapingLogger.error(e, "failed to close page");
+            shapingLogger.error(e, "failed to close pageArena");
         }
-        finally {
-            pageArena = null;
-            matcherPageArgs = null;
-            aggregatorPageArgs = null;
-        }
+
+        pageArena = null;
+        matcherPageArgs = null;
+        aggregatorPageArgs = null;
 
         return readPages;
     }
@@ -216,21 +229,36 @@ public class WarpReader
             if (matcherPageArgs != null) {
                 matcher.abortPage(queryArgs, matcherPageArgs, e);
             }
+        }
+        catch (Exception e2) {
+            if (!(e2 instanceof InterruptedException)) {
+                shapingLogger.error(e2, "matcher failed to abort page");
+            }
+        }
+
+        try {
             if (aggregatorPageArgs != null) {
                 blocksAggregator.abortPage(queryArgs, aggregatorPageArgs, e);
             }
+        }
+        catch (Exception e2) {
+            if (!(e instanceof InterruptedException)) {
+                shapingLogger.error(e2, "aggregator failed to abort page");
+            }
+        }
+
+        try {
             if (pageArena != null) {
                 pageArena.close();
             }
         }
         catch (Exception e2) {
-            shapingLogger.error(e2, "failed to abort page");
+            shapingLogger.error(e2, "failed to close pageArena");
         }
-        finally {
-            pageArena = null;
-            matcherPageArgs = null;
-            aggregatorPageArgs = null;
-        }
+
+        pageArena = null;
+        matcherPageArgs = null;
+        aggregatorPageArgs = null;
     }
 
     public class WarpSourcePage
