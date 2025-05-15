@@ -32,6 +32,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.EnumSource.Mode;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,6 +43,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static io.trino.plugin.hive.HiveCompressionCodecs.toCompressionCodec;
 import static io.trino.plugin.hive.HiveStorageFormat.AVRO;
 import static io.trino.plugin.hive.HiveStorageFormat.JSON;
 import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
@@ -1249,5 +1251,34 @@ abstract class BaseUnloadFunctionTest
                 .containsExactly(computeActual("SELECT * FROM " + tableName + " ORDER BY sort_key").getMaterializedRows().toArray(new MaterializedRow[0]));
 
         assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @ParameterizedTest
+    @MethodSource("testUnloadCompressionSource")
+    void testUnloadOutputFileExtension(HiveStorageFormat format, HiveCompressionOption compression)
+            throws IOException
+    {
+        String tableName = "test_unload_output_file_extension_" + randomNameSuffix();
+        String location = directory.resolve(tableName).toUri().toString();
+        Files.createDirectory(directory.resolve(tableName));
+
+        String unload = "SELECT * FROM TABLE(hive.system.unload(" +
+                "input => TABLE(SELECT '1' x), " +
+                "location => '" + location + "'," +
+                "format => '" + format.name() + "'," +
+                "compression => '" + compression.name() + "'))";
+
+        if ((format == PARQUET) && compression == HiveCompressionOption.LZ4) {
+            assertThat(query(unload))
+                    .nonTrinoExceptionFailure().hasMessageMatching("Unsupported compression codec for Parquet: LZ4");
+            abort();
+        }
+
+        MaterializedResult result = computeActual(unload);
+        assertThat(result.getColumnNames()).containsExactly("path", "count");
+        assertThat(result.getRowCount()).isEqualTo(1);
+
+        String fileExtension = UnloadWriterFactory.getFileExtension(toCompressionCodec(compression), format);
+        assertThat((String) result.getMaterializedRows().getFirst().getField(0)).endsWith(fileExtension);
     }
 }

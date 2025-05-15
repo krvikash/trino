@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.functions;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -22,6 +23,7 @@ import io.trino.plugin.hive.HiveCompressionCodec;
 import io.trino.plugin.hive.HiveFileWriterFactory;
 import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.plugin.hive.HiveWriter;
+import io.trino.plugin.hive.HiveWriterFactory;
 import io.trino.plugin.hive.HiveWriterStats;
 import io.trino.plugin.hive.PartitionUpdate;
 import io.trino.plugin.hive.WriterFactory;
@@ -41,7 +43,6 @@ import java.util.function.Consumer;
 
 import static io.trino.metastore.Partitions.makePartName;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
-import static io.trino.plugin.hive.HiveWriterFactory.getFileExtension;
 import static io.trino.plugin.hive.WriterKind.INSERT;
 import static io.trino.plugin.hive.acid.AcidTransaction.NO_ACID_TRANSACTION;
 import static io.trino.plugin.hive.util.HiveWriteUtils.createPartitionValues;
@@ -103,7 +104,8 @@ public class UnloadWriterFactory
             partitionName = Optional.empty();
         }
 
-        String fileName = session.getQueryId() + "_" + UUID.randomUUID() + getFileExtension(compression, format.toStorageFormat());
+        // TODO: use HiveFileWriterFactory#getFilerExtension directly once https://github.com/trinodb/trino/pull/25787 is merged
+        String fileName = session.getQueryId() + "_" + UUID.randomUUID() + getFileExtension(compression, format);
         FileWriter hiveFileWriter = null;
         for (HiveFileWriterFactory fileWriterFactory : fileWriterFactories) {
             Optional<FileWriter> fileWriter = fileWriterFactory.createFileWriter(
@@ -143,6 +145,27 @@ public class UnloadWriterFactory
                 onCommit.accept(this);
                 return rollbackAction;
             }
+        };
+    }
+
+    @VisibleForTesting
+    static String getFileExtension(HiveCompressionCodec compression, HiveStorageFormat format)
+    {
+        return getFileExtension(format) + HiveWriterFactory.getFileExtension(compression, format.toStorageFormat());
+    }
+
+    private static String getFileExtension(HiveStorageFormat format)
+    {
+        return switch (format) {
+            case ORC -> ".orc";
+            case PARQUET -> ".parquet";
+            case AVRO -> ".avro";
+            case RCBINARY, RCTEXT -> ".rc";
+            case SEQUENCEFILE -> ".seq";
+            case JSON, OPENX_JSON -> ".json";
+            case TEXTFILE -> ".txt";
+            case CSV -> ".csv";
+            case REGEX -> "";
         };
     }
 }
