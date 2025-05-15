@@ -1236,7 +1236,7 @@ public class QueryManagerConfig
     }
 
     @Config("fault-tolerant-execution-debug-adaptive-planner")
-    @ConfigDescription("The minimum size of the right side of join to consider reordering")
+    @ConfigDescription("Enable debug information for the adaptive planner")
     public QueryManagerConfig setFaultTolerantExecutionDebugAdaptivePlanner(boolean faultTolerantExecutionDebugAdaptivePlanner)
     {
         this.faultTolerantExecutionDebugAdaptivePlanner = faultTolerantExecutionDebugAdaptivePlanner;
