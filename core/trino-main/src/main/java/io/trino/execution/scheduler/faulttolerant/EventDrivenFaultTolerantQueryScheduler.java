@@ -481,14 +481,17 @@ public class EventDrivenFaultTolerantQueryScheduler
                     .collect(toImmutableMap(stage -> stage.getFragment().getId(), SqlStage::getStageInfo));
             // make sure that plan is not staler than stageInfos since `getStageInfo` is called asynchronously
             SubPlan plan = requireNonNull(this.plan.get(), "plan is null");
-            Set<PlanFragmentId> reportedFragments = new HashSet<>();
+            Map<PlanFragmentId, StageInfo> reportedFragments = new HashMap<>();
             return getStageInfo(plan, stageInfos, reportedFragments);
         }
 
-        private StageInfo getStageInfo(SubPlan plan, Map<PlanFragmentId, StageInfo> infos, Set<PlanFragmentId> reportedFragments)
+        private StageInfo getStageInfo(SubPlan plan, Map<PlanFragmentId, StageInfo> infos, Map<PlanFragmentId, StageInfo> reportedFragments)
         {
             PlanFragmentId fragmentId = plan.getFragment().getId();
-            reportedFragments.add(fragmentId);
+            StageInfo alreadyProcessed = reportedFragments.get(fragmentId);
+            if (alreadyProcessed != null) {
+                return alreadyProcessed;
+            }
             StageInfo info = infos.get(fragmentId);
             if (info == null) {
                 info = StageInfo.createInitial(
@@ -499,7 +502,9 @@ public class EventDrivenFaultTolerantQueryScheduler
             List<StageInfo> sourceStages = plan.getChildren().stream()
                     .map(source -> getStageInfo(source, infos, reportedFragments))
                     .collect(toImmutableList());
-            return info.withSubStages(sourceStages);
+            StageInfo infoWithSubStages = info.withSubStages(sourceStages);
+            reportedFragments.put(fragmentId, infoWithSubStages);
+            return infoWithSubStages;
         }
 
         public BasicStageStats getBasicStageStats()
