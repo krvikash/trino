@@ -12,6 +12,8 @@ package io.starburst.ai.client;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import java.util.Optional;
+
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.PROPERTY,
@@ -38,4 +40,11 @@ public sealed interface ModelConnectionSpec
     String modelName();
 
     ConnectionInfo connectionInfo();
+
+    /**
+     * Returns the description of the model.
+     *
+     * @return description
+     */
+    Optional<String> description();
 }

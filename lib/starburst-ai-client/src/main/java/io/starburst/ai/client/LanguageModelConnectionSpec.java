@@ -30,6 +30,7 @@ public record LanguageModelConnectionSpec(
     {
         requireNonNull(id, "id is null");
         requireNonNull(modelName, "modelName is null");
+        requireNonNull(description, "description is null");
         requireNonNull(maxTokens, "maxTokens is null");
         requireNonNull(temperature, "temperature is null");
         requireNonNull(topP, "topP is null");

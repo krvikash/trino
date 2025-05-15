@@ -26,6 +26,7 @@ public record EmbeddingModelConnectionSpec(
     {
         requireNonNull(id, "id is null");
         requireNonNull(modelName, "modelName is null");
+        requireNonNull(description, "description is null");
         requireNonNull(dimensions, "dimensions is null");
         requireNonNull(inferenceProfile, "inferenceProfile is null");
         requireNonNull(connectionInfo, "connectionInfo is null");
