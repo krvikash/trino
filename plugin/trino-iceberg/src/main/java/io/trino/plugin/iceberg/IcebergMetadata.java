@@ -2369,7 +2369,7 @@ public class IcebergMetadata
         checkArgument(executeHandle.procedureHandle() instanceof IcebergOptimizeManifestsHandle, "Unexpected procedure handle %s", executeHandle.procedureHandle());
 
         BaseTable icebergTable = catalog.loadTable(session, executeHandle.schemaTableName());
-        List<ManifestFile> manifests = icebergTable.currentSnapshot().allManifests(icebergTable.io());
+        List<ManifestFile> manifests = loadAllManifestsFromSnapshot(icebergTable, icebergTable.currentSnapshot());
         if (manifests.isEmpty()) {
             return;
         }
@@ -2506,7 +2506,7 @@ public class IcebergMetadata
                 validMetadataFileNames.add(fileName(snapshot.manifestListLocation()));
             }
 
-            for (ManifestFile manifest : snapshot.allManifests(table.io())) {
+            for (ManifestFile manifest : loadAllManifestsFromSnapshot(table, snapshot)) {
                 if (!processedManifestFilePaths.add(manifest.path())) {
                     // Already read this manifest
                     continue;
@@ -3668,16 +3668,9 @@ public class IcebergMetadata
             Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
 
             Set<Integer> partitionSpecIds = table.getSnapshotId().map(
-                            snapshot -> {
-                                try {
-                                    return icebergTable.snapshot(snapshot).allManifests(icebergTable.io()).stream()
-                                            .map(ManifestFile::partitionSpecId)
-                                            .collect(toImmutableSet());
-                                }
-                                catch (NotFoundException | UncheckedIOException e) {
-                                    throw new TrinoException(ICEBERG_INVALID_METADATA, "Error accessing manifest file for table %s".formatted(icebergTable.name()), e);
-                                }
-                            })
+                            snapshot -> loadAllManifestsFromSnapshot(icebergTable, icebergTable.snapshot(snapshot)).stream()
+                                    .map(ManifestFile::partitionSpecId)
+                                    .collect(toImmutableSet()))
                     // No snapshot, so no data. This case doesn't matter.
                     .orElseGet(() -> ImmutableSet.copyOf(icebergTable.specs().keySet()));
 
@@ -3748,6 +3741,16 @@ public class IcebergMetadata
                 remainingConstraint.transformKeys(ColumnHandle.class::cast),
                 extractionResult.remainingExpression(),
                 false));
+    }
+
+    private static List<ManifestFile> loadAllManifestsFromSnapshot(Table icebergTable, Snapshot snapshot)
+    {
+        try {
+            return snapshot.allManifests(icebergTable.io());
+        }
+        catch (NotFoundException | UncheckedIOException e) {
+            throw new TrinoException(ICEBERG_INVALID_METADATA, "Error accessing manifest file for table %s".formatted(icebergTable.name()), e);
+        }
     }
 
     private static Set<Integer> identityPartitionColumnsInAllSpecs(Table table)
