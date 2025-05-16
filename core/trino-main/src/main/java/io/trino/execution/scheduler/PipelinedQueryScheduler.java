@@ -79,6 +79,7 @@ import io.trino.tracing.TrinoAttributes;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -87,6 +88,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -1001,17 +1003,27 @@ public class PipelinedQueryScheduler
                 StageManager stageManager,
                 Function<PartitioningKey, NodePartitionMap> partitioningCache)
         {
-            ImmutableMap.Builder<PlanFragmentId, Optional<int[]>> result = ImmutableMap.builder();
+            Map<PlanFragmentId, Optional<int[]>> result = new HashMap<>();
             result.putAll(bucketToPartitionForStagesConsumedByCoordinator);
             for (SqlStage stage : stageManager.getDistributedStagesInTopologicalOrder()) {
                 PlanFragment fragment = stage.getFragment();
                 BucketToPartitionKey bucketToPartitionKey = getKeyForFragment(fragment, session);
                 Optional<int[]> bucketToPartition = getBucketToPartition(bucketToPartitionKey, partitioningCache);
                 for (SqlStage childStage : stageManager.getChildren(stage.getStageId())) {
-                    result.put(childStage.getFragment().getId(), bucketToPartition);
+                    // sanity check that bucketToPartition mapping matches for all stages consuming spooled exchange.
+                    result.compute(childStage.getFragment().getId(), (_, previous) -> {
+                        if (previous == null) {
+                            return bucketToPartition;
+                        }
+                        checkState(previous.isPresent() == bucketToPartition.isPresent() && previous.isEmpty() || Objects.deepEquals(bucketToPartition.orElseThrow(), previous.orElseThrow()),
+                                "bucketToPartition map inconsistency; %s vs %s",
+                                previous.map(Arrays::toString),
+                                bucketToPartition.map(Arrays::toString));
+                        return previous;
+                    });
                 }
             }
-            return result.buildOrThrow();
+            return ImmutableMap.copyOf(result);
         }
 
         private static Optional<int[]> getBucketToPartition(BucketToPartitionKey bucketToPartitionKey, Function<PartitioningKey, NodePartitionMap> partitioningCache)
