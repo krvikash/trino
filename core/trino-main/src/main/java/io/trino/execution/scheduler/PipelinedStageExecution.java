@@ -19,10 +19,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.opentelemetry.api.trace.Span;
 import io.trino.exchange.DirectExchangeInput;
+import io.trino.exchange.SpoolingExchangeInput;
 import io.trino.execution.ExecutionFailureInfo;
 import io.trino.execution.RemoteTask;
 import io.trino.execution.SqlStage;
@@ -35,10 +37,16 @@ import io.trino.execution.TaskStatus;
 import io.trino.execution.buffer.OutputBufferStatus;
 import io.trino.execution.buffer.OutputBuffers;
 import io.trino.execution.buffer.PipelinedOutputBuffers.OutputBufferId;
+import io.trino.execution.buffer.SpoolingOutputBuffers;
 import io.trino.failuredetector.FailureDetector;
 import io.trino.metadata.InternalNode;
 import io.trino.metadata.Split;
 import io.trino.spi.TrinoException;
+import io.trino.spi.exchange.Exchange;
+import io.trino.spi.exchange.ExchangeId;
+import io.trino.spi.exchange.ExchangeSinkHandle;
+import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
+import io.trino.spi.exchange.ExchangeSourceOutputSelector;
 import io.trino.spi.metrics.Metrics;
 import io.trino.split.RemoteSplit;
 import io.trino.sql.planner.PlanFragment;
@@ -46,15 +54,19 @@ import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.RemoteSourceNode;
 import io.trino.util.Failures;
+import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -62,6 +74,7 @@ import java.util.stream.Stream;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
@@ -110,6 +123,7 @@ public class PipelinedStageExecution
     private final PipelinedStageStateMachine stateMachine;
     private final SqlStage stage;
     private final Map<PlanFragmentId, PipelinedOutputBufferManager> outputBufferManagers;
+    private final Map<PlanFragmentId, Exchange> spoolingOutputExchanges;
     private final TaskLifecycleListener taskLifecycleListener;
     private final FailureDetector failureDetector;
     private final Optional<int[]> bucketToPartition;
@@ -123,18 +137,31 @@ public class PipelinedStageExecution
     private final Set<TaskId> allTasks = new HashSet<>();
     private final Set<TaskId> finishedTasks = ConcurrentHashMap.newKeySet();
     private final Set<TaskId> flushingTasks = ConcurrentHashMap.newKeySet();
+    private final Map<TaskId, ExchangeSinkHandle> exchangeSinkHandles = new ConcurrentHashMap<>();
+
+    @GuardedBy("this")
+    private final Map<PlanNodeId, Split> spoolingExchangeSourcesOutputSelectorSplits = new HashMap<>();
+    @GuardedBy("this")
+    private final Set<PlanNodeId> spoolingExchangeSourcesSchedulingComplete = new HashSet<>();
 
     // source task tracking
     @GuardedBy("this")
-    private final Multimap<PlanFragmentId, RemoteTask> sourceTasks = HashMultimap.create();
+    private final Multimap<PlanFragmentId, RemoteTask> pipelinedSourceTasks = HashMultimap.create();
+    @GuardedBy("this")
+    private final Multimap<PlanFragmentId, RemoteTask> spoolingExchangeSourceTasks = HashMultimap.create();
     @GuardedBy("this")
     private final Set<PlanFragmentId> completeSourceFragments = new HashSet<>();
+
     @GuardedBy("this")
     private final Set<PlanNodeId> completeSources = new HashSet<>();
+
+    @GuardedBy("this")
+    private boolean allRequiredSinksFinishedSent;
 
     public static PipelinedStageExecution createPipelinedStageExecution(
             SqlStage stage,
             Map<PlanFragmentId, PipelinedOutputBufferManager> outputBufferManagers,
+            Map<PlanFragmentId, Exchange> spoolingOutputExchanges,
             TaskLifecycleListener taskLifecycleListener,
             FailureDetector failureDetector,
             Executor executor,
@@ -145,6 +172,7 @@ public class PipelinedStageExecution
         ImmutableMap.Builder<PlanFragmentId, RemoteSourceNode> exchangeSources = ImmutableMap.builder();
         for (RemoteSourceNode remoteSourceNode : stage.getFragment().getRemoteSourceNodes()) {
             for (PlanFragmentId planFragmentId : remoteSourceNode.getSourceFragmentIds()) {
+                // todo handle case when we read from same fragment twice (cte self-union/self-join)
                 exchangeSources.put(planFragmentId, remoteSourceNode);
             }
         }
@@ -152,6 +180,7 @@ public class PipelinedStageExecution
                 stateMachine,
                 stage,
                 outputBufferManagers,
+                spoolingOutputExchanges,
                 taskLifecycleListener,
                 failureDetector,
                 bucketToPartition,
@@ -165,6 +194,7 @@ public class PipelinedStageExecution
             PipelinedStageStateMachine stateMachine,
             SqlStage stage,
             Map<PlanFragmentId, PipelinedOutputBufferManager> outputBufferManagers,
+            Map<PlanFragmentId, Exchange> spoolingOutputExchanges,
             TaskLifecycleListener taskLifecycleListener,
             FailureDetector failureDetector,
             Optional<int[]> bucketToPartition,
@@ -174,6 +204,7 @@ public class PipelinedStageExecution
         this.stateMachine = requireNonNull(stateMachine, "stateMachine is null");
         this.stage = requireNonNull(stage, "stage is null");
         this.outputBufferManagers = ImmutableMap.copyOf(requireNonNull(outputBufferManagers, "outputBufferManagers is null"));
+        this.spoolingOutputExchanges = ImmutableMap.copyOf(requireNonNull(spoolingOutputExchanges, "outputExchanges is null"));
         this.taskLifecycleListener = requireNonNull(taskLifecycleListener, "taskLifecycleListener is null");
         this.failureDetector = requireNonNull(failureDetector, "failureDetector is null");
         this.bucketToPartition = requireNonNull(bucketToPartition, "bucketToPartition is null");
@@ -187,8 +218,40 @@ public class PipelinedStageExecution
             if (!state.canScheduleMoreTasks()) {
                 taskLifecycleListener.noMoreTasks(stage.getFragment().getId());
                 updateSourceTasksOutputBuffers(PipelinedOutputBufferManager::noMoreBuffers);
+
+                if (hasSpoolingExchangeOutput()) {
+                    synchronized (PipelinedStageExecution.this) {
+                        getOutputSpoolingExchange().noMoreSinks();
+                        checkAllExchangeSinksFinished();
+                    }
+                }
             }
         });
+    }
+
+    private synchronized void checkAllExchangeSinksFinished()
+    {
+        verify(hasSpoolingExchangeOutput(), "stage %s does not have spooling exchange output", stage.getStageId());
+        if (stateMachine.getState().canScheduleMoreTasks()) {
+            return;
+        }
+        if (finishedTasks.size() == allTasks.size()) {
+            if (!allRequiredSinksFinishedSent) {
+                getOutputSpoolingExchange().allRequiredSinksFinished();
+                allRequiredSinksFinishedSent = true;
+            }
+        }
+    }
+
+    private Exchange getOutputSpoolingExchange()
+    {
+        verify(hasSpoolingExchangeOutput(), "stage %s does not have spooling exchange output", stage.getStageId());
+        return spoolingOutputExchanges.get(getFragment().getId());
+    }
+
+    private boolean hasSpoolingExchangeOutput()
+    {
+        return spoolingOutputExchanges.containsKey(getFragment().getId());
     }
 
     @Override
@@ -239,12 +302,46 @@ public class PipelinedStageExecution
     }
 
     @Override
-    public synchronized void schedulingComplete(PlanNodeId partitionedSource)
+    public synchronized void schedulingComplete(PlanNodeId sourceNodeId)
+    {
+        Optional<PlanFragmentId> sourceFragment = getExchangeSourceFragment(sourceNodeId);
+        if (sourceFragment.isPresent() && spoolingOutputExchanges.containsKey(sourceFragment.orElseThrow())) {
+            // remote source referencing fragment using spooled exchanges
+            spoolingExchangeSourcesSchedulingComplete.add(sourceNodeId);
+            checkExchangeSourceComplete(sourceNodeId);
+        }
+        else {
+            markSourceComplete(sourceNodeId);
+        }
+    }
+
+    @GuardedBy("this")
+    private void markSourceComplete(PlanNodeId sourceNodeId)
     {
         for (RemoteTask task : getAllTasks()) {
-            task.noMoreSplits(partitionedSource);
+            task.noMoreSplits(sourceNodeId);
         }
-        completeSources.add(partitionedSource);
+
+        completeSources.add(sourceNodeId);
+    }
+
+    @GuardedBy("this")
+    private void checkExchangeSourceComplete(PlanNodeId sourceNodeId)
+    {
+        if (spoolingExchangeSourcesSchedulingComplete.contains(sourceNodeId) && spoolingExchangeSourcesOutputSelectorSplits.containsKey(sourceNodeId)) {
+            markSourceComplete(sourceNodeId);
+        }
+    }
+
+    public Optional<PlanFragmentId> getExchangeSourceFragment(PlanNodeId sourceNodeId)
+    {
+        for (Map.Entry<PlanFragmentId, RemoteSourceNode> entry : exchangeSources.entrySet()) {
+            if (entry.getValue().getId().equals(sourceNodeId)) {
+                return Optional.of(entry.getKey());
+            }
+        }
+        // sourceNodeId does not correspond to RemoteSourceNode
+        return Optional.empty();
     }
 
     @Override
@@ -286,10 +383,36 @@ public class PipelinedStageExecution
         if (stateMachine.getState().isDone()) {
             return Optional.empty();
         }
-
         checkArgument(!tasks.containsKey(partition), "A task for partition %s already exists", partition);
 
-        OutputBuffers outputBuffers = outputBufferManagers.get(stage.getFragment().getId()).getOutputBuffers();
+        PlanFragmentId fragmentId = stage.getFragment().getId();
+
+        OutputBuffers outputBuffers;
+        ExchangeSinkHandle exchangeSinkHandle = null;
+        if (hasSpoolingExchangeOutput()) {
+            Exchange exchange = getOutputSpoolingExchange();
+
+            int[] bucketToPartitionMap = bucketToPartition.orElseThrow();
+            verify(IntSet.of(bucketToPartitionMap).size() == bucketToPartitionMap.length, "Expected number of buckets to be equal to number of partitions");
+            int numberOfPartitions = bucketToPartitionMap.length;
+
+            exchangeSinkHandle = exchange.addSink(partition);
+            CompletableFuture<ExchangeSinkInstanceHandle> sinkInstanceHandleFuture = exchange.instantiateSink(exchangeSinkHandle, 0);
+            ExchangeSinkInstanceHandle sinkInstanceHandle;
+            try {
+                // todo make waiting for instantiation async
+                sinkInstanceHandle = sinkInstanceHandleFuture.get(10, TimeUnit.SECONDS);
+            }
+            catch (Exception e) {
+                throw new TrinoException(GENERIC_INTERNAL_ERROR, "Could not instantiate sink", e);
+            }
+
+            outputBuffers = SpoolingOutputBuffers.createInitial(sinkInstanceHandle, numberOfPartitions);
+        }
+        else {
+            verify(outputBufferManagers.containsKey(fragmentId), "No buffer manager found for fragment %s", fragmentId);
+            outputBuffers = outputBufferManagers.get(fragmentId).getOutputBuffers();
+        }
 
         Optional<RemoteTask> optionalTask = stage.createTask(
                 node,
@@ -309,9 +432,15 @@ public class PipelinedStageExecution
         RemoteTask task = optionalTask.get();
 
         tasks.put(partition, task);
+        if (exchangeSinkHandle != null) {
+            exchangeSinkHandles.put(task.getTaskId(), exchangeSinkHandle);
+        }
+
+        // add split with sourceOutputSelectors; relevant for tasks which are reading from stages via spoolingExchange
+        task.addSplits(Multimaps.forMap(spoolingExchangeSourcesOutputSelectorSplits));
 
         ImmutableMultimap.Builder<PlanNodeId, Split> exchangeSplits = ImmutableMultimap.builder();
-        sourceTasks.forEach((sourceFragmentId, sourceTask) -> {
+        pipelinedSourceTasks.forEach((sourceFragmentId, sourceTask) -> {
             TaskStatus status = sourceTask.getTaskStatus();
             if (status.getState() != TaskState.FINISHED) {
                 PlanNodeId planNodeId = exchangeSources.get(sourceFragmentId).getId();
@@ -328,7 +457,7 @@ public class PipelinedStageExecution
 
         task.start();
 
-        taskLifecycleListener.taskCreated(stage.getFragment().getId(), task);
+        taskLifecycleListener.taskCreated(fragmentId, task);
 
         // update output buffers
         OutputBufferId outputBufferId = new OutputBufferId(task.getTaskId().getPartitionId());
@@ -339,6 +468,10 @@ public class PipelinedStageExecution
 
     private void updateTaskStatus(TaskStatus taskStatus)
     {
+        if (taskStatus.getOutputBufferStatus() != null && taskStatus.getOutputBufferStatus().isExchangeSinkInstanceHandleUpdateRequired()) {
+            fail(new RuntimeException("todo: handle isExchangeSinkInstanceHandleUpdateRequired"));
+        }
+
         if (stateMachine.getState().isDone()) {
             return;
         }
@@ -367,7 +500,14 @@ public class PipelinedStageExecution
                 newFlushingOrFinishedTaskObserved = addFlushingTask(taskStatus.getTaskId());
                 break;
             case FINISHED:
-                newFlushingOrFinishedTaskObserved = addFinishedTask(taskStatus.getTaskId());
+                if (hasSpoolingExchangeOutput()) {
+                    ExchangeSinkHandle exchangeSinkHandle = exchangeSinkHandles.get(taskStatus.getTaskId());
+                    getOutputSpoolingExchange().sinkFinished(exchangeSinkHandle, taskStatus.getTaskId().getPartitionId());
+                }
+                else {
+                    newFlushingOrFinishedTaskObserved = addFinishedTask(taskStatus.getTaskId());
+                }
+
                 break;
             default:
         }
@@ -477,13 +617,17 @@ public class PipelinedStageExecution
         RemoteSourceNode remoteSource = exchangeSources.get(fragmentId);
         checkArgument(remoteSource != null, "Unknown remote source %s. Known sources are %s", fragmentId, exchangeSources.keySet());
 
-        sourceTasks.put(fragmentId, sourceTask);
+        if (spoolingOutputExchanges.containsKey(fragmentId)) {
+            spoolingExchangeSourceTasks.put(fragmentId, sourceTask);
+        }
+        else {
+            pipelinedSourceTasks.put(fragmentId, sourceTask);
+            PipelinedOutputBufferManager outputBufferManager = outputBufferManagers.get(fragmentId);
+            sourceTask.setOutputBuffers(outputBufferManager.getOutputBuffers());
 
-        PipelinedOutputBufferManager outputBufferManager = outputBufferManagers.get(fragmentId);
-        sourceTask.setOutputBuffers(outputBufferManager.getOutputBuffers());
-
-        for (RemoteTask destinationTask : getAllTasks()) {
-            destinationTask.addSplits(ImmutableMultimap.of(remoteSource.getId(), createExchangeSplit(sourceTask, destinationTask)));
+            for (RemoteTask destinationTask : getAllTasks()) {
+                destinationTask.addSplits(ImmutableMultimap.of(remoteSource.getId(), createExchangeSplit(sourceTask, destinationTask)));
+            }
         }
     }
 
@@ -492,23 +636,58 @@ public class PipelinedStageExecution
         RemoteSourceNode remoteSource = exchangeSources.get(fragmentId);
         checkArgument(remoteSource != null, "Unknown remote source %s. Known sources are %s", fragmentId, exchangeSources.keySet());
 
-        completeSourceFragments.add(fragmentId);
+        if (spoolingOutputExchanges.containsKey(fragmentId)) {
+            updateSourceOutputSelectorSplit(fragmentId);
+            checkExchangeSourceComplete(remoteSource.getId());
+        }
+        else {
+            completeSourceFragments.add(fragmentId);
 
-        // is the source now complete?
-        if (completeSourceFragments.containsAll(remoteSource.getSourceFragmentIds())) {
-            completeSources.add(remoteSource.getId());
-            for (RemoteTask task : getAllTasks()) {
-                task.noMoreSplits(remoteSource.getId());
+            // is the source now complete?
+            if (completeSourceFragments.containsAll(remoteSource.getSourceFragmentIds())) {
+                markSourceComplete(remoteSource.getId());
             }
         }
+    }
+
+    @GuardedBy("this")
+    private void updateSourceOutputSelectorSplit(PlanFragmentId fragmentId)
+    {
+        PlanNodeId remoteSourceNodeId = exchangeSources.get(fragmentId).getId();
+        Split sourceOutputSelectorSplit = buildFinaleSourceOutputSelectorSplit(fragmentId);
+        spoolingExchangeSourcesOutputSelectorSplits.put(remoteSourceNodeId, sourceOutputSelectorSplit);
+
+        for (RemoteTask task : getAllTasks()) {
+            task.addSplits(ImmutableMultimap.of(remoteSourceNodeId, sourceOutputSelectorSplit));
+        }
+    }
+
+    @GuardedBy("this")
+    private Split buildFinaleSourceOutputSelectorSplit(PlanFragmentId sourceFragmentId)
+    {
+        ExchangeId exchangeId = spoolingOutputExchanges.get(sourceFragmentId).getId();
+        ExchangeSourceOutputSelector.Builder sourceOutputSelector = ExchangeSourceOutputSelector.builder(ImmutableSet.of(exchangeId));
+
+        sourceOutputSelector.setPartitionCount(exchangeId, spoolingExchangeSourceTasks.get(sourceFragmentId).size());
+        for (RemoteTask sourceTask : spoolingExchangeSourceTasks.get(sourceFragmentId)) {
+            sourceOutputSelector.include(exchangeId, sourceTask.getTaskId().getPartitionId(), sourceTask.getTaskId().getAttemptId());
+        }
+        sourceOutputSelector.setFinal();
+
+        return new Split(REMOTE_CATALOG_HANDLE,
+                new RemoteSplit(new SpoolingExchangeInput(ImmutableList.of(),
+                        Optional.of(sourceOutputSelector.build()))));
     }
 
     private synchronized void updateSourceTasksOutputBuffers(Consumer<PipelinedOutputBufferManager> updater)
     {
         for (PlanFragmentId sourceFragment : exchangeSources.keySet()) {
+            if (spoolingOutputExchanges.containsKey(sourceFragment)) {
+                continue;
+            }
             PipelinedOutputBufferManager outputBufferManager = outputBufferManagers.get(sourceFragment);
             updater.accept(outputBufferManager);
-            for (RemoteTask sourceTask : sourceTasks.get(sourceFragment)) {
+            for (RemoteTask sourceTask : pipelinedSourceTasks.get(sourceFragment)) {
                 sourceTask.setOutputBuffers(outputBufferManager.getOutputBuffers());
             }
         }

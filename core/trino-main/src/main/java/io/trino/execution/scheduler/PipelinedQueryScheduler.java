@@ -33,6 +33,8 @@ import io.opentelemetry.context.Context;
 import io.trino.Session;
 import io.trino.cache.SplitAdmissionControllerProvider;
 import io.trino.exchange.DirectExchangeInput;
+import io.trino.exchange.ExchangeContextInstance;
+import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.BasicStageInfo;
 import io.trino.execution.BasicStageStats;
 import io.trino.execution.ExecutionFailureInfo;
@@ -63,6 +65,9 @@ import io.trino.spi.ErrorCode;
 import io.trino.spi.QueryId;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.CatalogHandle;
+import io.trino.spi.exchange.Exchange;
+import io.trino.spi.exchange.ExchangeContext;
+import io.trino.spi.exchange.ExchangeId;
 import io.trino.split.SplitSource;
 import io.trino.sql.planner.NodePartitionMap;
 import io.trino.sql.planner.NodePartitioningManager;
@@ -76,6 +81,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TableWriterNode;
 import io.trino.tracing.TrinoAttributes;
+import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -137,6 +143,7 @@ import static io.trino.execution.scheduler.StageExecution.State.FINISHED;
 import static io.trino.execution.scheduler.StageExecution.State.FLUSHING;
 import static io.trino.execution.scheduler.StageExecution.State.RUNNING;
 import static io.trino.execution.scheduler.StageExecution.State.SCHEDULED;
+import static io.trino.operator.ExchangeOperator.REMOTE_CATALOG_HANDLE;
 import static io.trino.operator.RetryPolicy.NONE;
 import static io.trino.operator.RetryPolicy.QUERY;
 import static io.trino.spi.ErrorType.EXTERNAL;
@@ -180,6 +187,7 @@ public class PipelinedQueryScheduler
     private final DynamicFilterService dynamicFilterService;
     private final TableExecuteContextManager tableExecuteContextManager;
     private final SplitSourceFactory splitSourceFactory;
+    private final ExchangeManagerRegistry exchangeManagerRegistry;
 
     private final StageManager stageManager;
     private final CoordinatorStagesScheduler coordinatorStagesScheduler;
@@ -221,6 +229,7 @@ public class PipelinedQueryScheduler
             TableExecuteContextManager tableExecuteContextManager,
             Metadata metadata,
             SplitSourceFactory splitSourceFactory,
+            ExchangeManagerRegistry exchangeManagerRegistry,
             SqlTaskManager coordinatorTaskManager)
     {
         this.queryStateMachine = requireNonNull(queryStateMachine, "queryStateMachine is null");
@@ -235,6 +244,7 @@ public class PipelinedQueryScheduler
         this.dynamicFilterService = requireNonNull(dynamicFilterService, "dynamicFilterService is null");
         this.tableExecuteContextManager = requireNonNull(tableExecuteContextManager, "tableExecuteContextManager is null");
         this.splitSourceFactory = requireNonNull(splitSourceFactory, "splitSourceFactory is null");
+        this.exchangeManagerRegistry = requireNonNull(exchangeManagerRegistry, "exchangeManagerRegistry is null");
         this.schedulerSpan = tracer.spanBuilder("scheduler")
                 .setParent(Context.current().with(queryStateMachine.getSession().getQuerySpan()))
                 .setAttribute(TrinoAttributes.QUERY_ID, queryStateMachine.getQueryId().toString())
@@ -354,6 +364,8 @@ public class PipelinedQueryScheduler
                         splitSourceFactory,
                         splitBatchSize,
                         dynamicFilterService,
+                        schedulerSpan,
+                        exchangeManagerRegistry,
                         tableExecuteContextManager,
                         splitAdmissionControllerProvider,
                         retryPolicy,
@@ -584,6 +596,7 @@ public class PipelinedQueryScheduler
                 StageExecution stageExecution = createPipelinedStageExecution(
                         stage,
                         outputBuffersForStagesConsumedByCoordinator,
+                        ImmutableMap.of(), // no tasks using spooling exchange output
                         taskLifecycleListener,
                         failureDetector,
                         executor,
@@ -885,6 +898,8 @@ public class PipelinedQueryScheduler
                 SplitSourceFactory splitSourceFactory,
                 int splitBatchSize,
                 DynamicFilterService dynamicFilterService,
+                Span schedulerSpan,
+                ExchangeManagerRegistry exchangeManagerRegistry,
                 TableExecuteContextManager tableExecuteContextManager,
                 SplitAdmissionControllerProvider splitAdmissionControllerProvider,
                 RetryPolicy retryPolicy,
@@ -909,6 +924,13 @@ public class PipelinedQueryScheduler
                     coordinatorStagesScheduler.getOutputBuffersForStagesConsumedByCoordinator(),
                     stageManager,
                     bucketToPartitionMap);
+
+            Map<PlanFragmentId, Exchange> spoolingOutputExchanges = createOutputExchanges(
+                    queryStateMachine.getQueryId(),
+                    stageManager,
+                    bucketToPartitionMap,
+                    exchangeManagerRegistry,
+                    schedulerSpan);
 
             TaskLifecycleListener coordinatorTaskLifecycleListener = coordinatorStagesScheduler.getTaskLifecycleListener();
             if (retryPolicy != RetryPolicy.NONE) {
@@ -946,6 +968,7 @@ public class PipelinedQueryScheduler
                 StageExecution stageExecution = createPipelinedStageExecution(
                         stageManager.get(fragment.getId()),
                         outputBufferManagers,
+                        spoolingOutputExchanges,
                         createTaskLifecycleListener(taskLifecycleListeners.build()),
                         failureDetector,
                         executor,
@@ -959,10 +982,12 @@ public class PipelinedQueryScheduler
                 List<StageExecution> children = stageManager.getChildren(stageExecution.getStageId()).stream()
                         .map(stage -> requireNonNull(stageExecutions.get(stage.getStageId()), () -> "stage execution not found for stage: " + stage))
                         .collect(toImmutableList());
+
                 StageScheduler scheduler = createStageScheduler(
                         queryStateMachine,
                         stageExecution,
                         splitSourceFactory,
+                        spoolingOutputExchanges,
                         children,
                         partitioningCache,
                         nodeScheduler,
@@ -1073,10 +1098,36 @@ public class PipelinedQueryScheduler
                     }
                     result.put(fragmentId, outputBufferManager);
                 }
+            }
+            return result.buildOrThrow();
+        }
+
+        private static Map<PlanFragmentId, Exchange> createOutputExchanges(
+                QueryId queryId,
+                StageManager stageManager,
+                Map<PlanFragmentId, Optional<int[]>> bucketToPartitionMaps,
+                ExchangeManagerRegistry exchangeManagerRegistry,
+                Span schedulerSpan)
+        {
+            ImmutableMap.Builder<PlanFragmentId, Exchange> result = ImmutableMap.builder();
+            for (SqlStage childStage : stageManager.getDistributedStagesInTopologicalOrder()) {
+                Set<SqlStage> parents = stageManager.getParents(childStage.getStageId());
 
                 if (parents.size() > 1) {
-                    // todo
-                    throw new IllegalArgumentException("todo");
+                    // if fragment has more than one parent we use spooling exchange for its output.
+                    // todo: consider dressing it in nicer abstraction
+                    PlanFragmentId fragmentId = childStage.getFragment().getId();
+                    int[] bucketToPartitionMap = bucketToPartitionMaps.get(fragmentId).orElseThrow();
+                    verify(IntSet.of(bucketToPartitionMap).size() == bucketToPartitionMap.length, "Expected number of buckets to be equal to number of partitions");
+                    int numberOfPartitions = bucketToPartitionMap.length;
+
+                    ExchangeContext exchangeContext = new ExchangeContextInstance(
+                            queryId,
+                            new ExchangeId("external-exchange-" + fragmentId),
+                            schedulerSpan);
+                    Exchange exchange = exchangeManagerRegistry.getExchangeManager().createExchange(exchangeContext, numberOfPartitions, false); // todo preserverOrderInPartition
+
+                    result.put(fragmentId, exchange);
                 }
             }
             return result.buildOrThrow();
@@ -1086,6 +1137,7 @@ public class PipelinedQueryScheduler
                 QueryStateMachine queryStateMachine,
                 StageExecution stageExecution,
                 SplitSourceFactory splitSourceFactory,
+                Map<PlanFragmentId, Exchange> outputExchanges,
                 List<StageExecution> childStageExecutions,
                 Function<PartitioningKey, NodePartitionMap> partitioningCache,
                 NodeScheduler nodeScheduler,
@@ -1101,7 +1153,8 @@ public class PipelinedQueryScheduler
             PlanFragment fragment = stageExecution.getFragment();
             PartitioningHandle partitioningHandle = fragment.getPartitioning();
             int partitionCount = getFragmentMaxPartitionCount(session, fragment);
-            Map<PlanNodeId, SplitSource> splitSources = splitSourceFactory.createSplitSources(session, stageSpan, fragment, splitAdmissionControllerProvider);
+            Map<PlanNodeId, SplitSource> splitSources = splitSourceFactory.createSplitSources(session, stageSpan, fragment, outputExchanges, splitAdmissionControllerProvider);
+
             if (!splitSources.isEmpty()) {
                 queryStateMachine.addStateChangeListener(new StateChangeListener<>()
                 {
@@ -1146,9 +1199,9 @@ public class PipelinedQueryScheduler
                         .stream()
                         .map(SplitSource::getCatalogHandle)
                         .filter(catalog -> !catalog.getType().isInternal())
+                        .filter(catalog -> catalog != REMOTE_CATALOG_HANDLE)
                         .collect(toImmutableSet());
                 checkState(allCatalogHandles.size() <= 1, "table scans that are within one stage should read from same catalog");
-
                 Optional<CatalogHandle> catalogHandle = allCatalogHandles.size() == 1 ? Optional.of(getOnlyElement(allCatalogHandles)) : Optional.empty();
 
                 NodeSelector nodeSelector = nodeScheduler.createNodeSelector(session, catalogHandle);

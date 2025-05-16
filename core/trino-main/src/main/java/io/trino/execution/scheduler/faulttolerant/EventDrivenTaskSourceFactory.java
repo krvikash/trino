@@ -13,6 +13,7 @@
  */
 package io.trino.execution.scheduler.faulttolerant;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.inject.Inject;
@@ -133,7 +134,7 @@ public class EventDrivenTaskSourceFactory
                 tableExecuteContextManager,
                 sourceExchanges,
                 remoteSources.build(),
-                () -> splitSourceFactory.createSplitSources(session, stageSpan, fragment, splitAdmissionControllerProvider),
+                () -> splitSourceFactory.createSplitSources(session, stageSpan, fragment, ImmutableMap.of(), splitAdmissionControllerProvider),
                 createSplitAssigner(
                         session,
                         fragment,

@@ -18,18 +18,23 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.node.NodeInfo;
+import io.airlift.units.DataSize;
 import io.opentelemetry.api.trace.Span;
 import io.trino.Session;
 import io.trino.cache.ConnectorAwareAddressProvider;
 import io.trino.cache.SplitAdmissionControllerProvider;
 import io.trino.execution.QueryManagerConfig;
+import io.trino.execution.scheduler.ExchangeSplitSource;
 import io.trino.execution.scheduler.NodeSchedulerConfig;
 import io.trino.metadata.TableHandle;
 import io.trino.server.DynamicFilterService;
+import io.trino.spi.TrinoException;
 import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.exchange.Exchange;
+import io.trino.spi.exchange.ExchangeSourceHandleSource;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.split.SampledSplitSource;
 import io.trino.split.SplitManager;
@@ -57,6 +62,7 @@ import io.trino.sql.planner.plan.MergeProcessorNode;
 import io.trino.sql.planner.plan.MergeWriterNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PatternRecognitionNode;
+import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.PlanVisitor;
@@ -88,13 +94,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.cache.CacheCommonSubqueries.getLoadCachedDataPlanNode;
 import static io.trino.cache.CacheCommonSubqueries.isCacheChooseAlternativeNode;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.connector.DynamicFilter.EMPTY;
 import static io.trino.sql.ir.IrUtils.filterConjuncts;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Predicate.not;
 
 public class SplitSourceFactory
 {
@@ -131,13 +142,14 @@ public class SplitSourceFactory
             Session session,
             Span stageSpan,
             PlanFragment fragment,
+            Map<PlanFragmentId, Exchange> outputExchanges,
             SplitAdmissionControllerProvider splitAdmissionControllerProvider)
     {
         ImmutableList.Builder<SplitSource> allSplitSources = ImmutableList.builder();
         try {
             // get splits for this fragment, this is lazy so split assignments aren't actually calculated here
             return fragment.getRoot().accept(
-                    new Visitor(session, stageSpan, allSplitSources, splitAdmissionControllerProvider),
+                    new Visitor(session, stageSpan, allSplitSources, outputExchanges, splitAdmissionControllerProvider),
                     null);
         }
         catch (Throwable t) {
@@ -162,17 +174,20 @@ public class SplitSourceFactory
         private final Session session;
         private final Span stageSpan;
         private final ImmutableList.Builder<SplitSource> splitSources;
+        private final Map<PlanFragmentId, Exchange> outputExchanges;
         private final SplitAdmissionControllerProvider splitAdmissionControllerProvider;
 
         private Visitor(
                 Session session,
                 Span stageSpan,
                 ImmutableList.Builder<SplitSource> allSplitSources,
+                Map<PlanFragmentId, Exchange> outputExchanges,
                 SplitAdmissionControllerProvider splitAdmissionControllerProvider)
         {
             this.session = session;
             this.stageSpan = stageSpan;
             this.splitSources = allSplitSources;
+            this.outputExchanges = ImmutableMap.copyOf(outputExchanges);
             this.splitAdmissionControllerProvider = splitAdmissionControllerProvider;
         }
 
@@ -274,8 +289,23 @@ public class SplitSourceFactory
         @Override
         public Map<PlanNodeId, SplitSource> visitRemoteSource(RemoteSourceNode node, Void context)
         {
-            // remote source node does not have splits
-            return ImmutableMap.of();
+            List<PlanFragmentId> exchangeSources = node.getSourceFragmentIds().stream().filter(outputExchanges::containsKey).collect(toImmutableList());
+            List<PlanFragmentId> pipelineSources = node.getSourceFragmentIds().stream().filter(not(outputExchanges::containsKey)).collect(toImmutableList());
+
+            // todo support unsupported configurations:
+            // * more than one remote stage using exchange
+            // * mixed exchange and non-exchange remote stages
+            if (pipelineSources.isEmpty() && exchangeSources.size() == 1) {
+                PlanFragmentId sourceFragmentId = getOnlyElement(exchangeSources);
+                Exchange sourceOutputExchange = outputExchanges.get(sourceFragmentId);
+                ExchangeSourceHandleSource sourceHandles = sourceOutputExchange.getSourceHandles();
+                ExchangeSplitSource exchangeSplitSource = new ExchangeSplitSource(sourceHandles, DataSize.of(64, MEGABYTE).toBytes()); // todo config?
+                return ImmutableMap.of(node.getId(), exchangeSplitSource);
+            }
+            if (exchangeSources.isEmpty()) {
+                return ImmutableMap.of();
+            }
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Not supported configuration of %s pipelined and %s exchange sources", pipelineSources.size(), exchangeSources.size()));
         }
 
         @Override

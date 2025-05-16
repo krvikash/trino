@@ -584,6 +584,7 @@ public class SqlQueryExecution
                     tableExecuteContextManager,
                     plannerContext.getMetadata(),
                     splitSourceFactory,
+                    exchangeManagerRegistry,
                     coordinatorTaskManager);
             case TASK -> new EventDrivenFaultTolerantQueryScheduler(
                     stateMachine,
