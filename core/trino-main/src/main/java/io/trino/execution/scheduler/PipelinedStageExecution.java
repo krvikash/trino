@@ -507,7 +507,9 @@ public class PipelinedStageExecution
             case FINISHED:
                 if (hasSpoolingExchangeOutput()) {
                     ExchangeSinkHandle exchangeSinkHandle = exchangeSinkHandles.get(taskStatus.getTaskId());
-                    getOutputSpoolingExchange().sinkFinished(exchangeSinkHandle, taskStatus.getTaskId().getPartitionId());
+                    getOutputSpoolingExchange().sinkFinished(exchangeSinkHandle, taskStatus.getTaskId().getAttemptId());
+                    newFlushingOrFinishedTaskObserved = addFinishedTask(taskStatus.getTaskId());
+                    checkAllExchangeSinksFinished();
                 }
                 else {
                     newFlushingOrFinishedTaskObserved = addFinishedTask(taskStatus.getTaskId());

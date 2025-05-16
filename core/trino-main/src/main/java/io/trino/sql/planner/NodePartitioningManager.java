@@ -20,6 +20,7 @@ import com.google.inject.Inject;
 import io.airlift.slice.XxHash64;
 import io.trino.Session;
 import io.trino.connector.CatalogServiceProvider;
+import io.trino.exchange.SpoolingExchangeInput;
 import io.trino.execution.scheduler.BucketNodeMap;
 import io.trino.execution.scheduler.NodeScheduler;
 import io.trino.execution.scheduler.NodeSelector;
@@ -34,14 +35,17 @@ import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorBucketNodeMap;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.type.Type;
 import io.trino.split.EmptySplit;
+import io.trino.split.RemoteSplit;
 import io.trino.sql.planner.SystemPartitioningHandle.SystemPartitioning;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToIntFunction;
@@ -140,6 +144,16 @@ public class NodePartitioningManager
         return getNodePartitioningMap(session, partitioningHandle, new HashMap<>(), new AtomicReference<>(), partitionCount);
     }
 
+    private OptionalInt getSplitPartition(Split split)
+    {
+        if (split.getConnectorSplit() instanceof RemoteSplit remoteSplit && remoteSplit.getExchangeInput() instanceof SpoolingExchangeInput spoolingExchangeInput) {
+            List<ExchangeSourceHandle> handles = spoolingExchangeInput.getExchangeSourceHandles();
+            OptionalInt partitionId = OptionalInt.of(handles.get(0).getPartitionId());
+            return partitionId;
+        }
+        return OptionalInt.empty();
+    }
+
     /**
      * This method is recursive for MergePartitioningHandle. It caches the node mappings
      * to ensure that both the insert and update layouts use the same mapping.
@@ -155,9 +169,8 @@ public class NodePartitioningManager
         requireNonNull(partitioningHandle, "partitioningHandle is null");
 
         if (partitioningHandle.getConnectorHandle() instanceof SystemPartitioningHandle) {
-            return new NodePartitionMap(systemBucketToNode(session, partitioningHandle, systemPartitioningCache, partitionCount), _ -> {
-                throw new UnsupportedOperationException("System distribution does not support source splits " + partitioningHandle);
-            });
+            return new NodePartitionMap(systemBucketToNode(session, partitioningHandle, systemPartitioningCache, partitionCount),
+                    split -> getSplitPartition(split).orElseThrow(() -> new UnsupportedOperationException("System distribution does not support source splits " + partitioningHandle)));
         }
 
         if (partitioningHandle.getConnectorHandle() instanceof MergePartitioningHandle mergeHandle) {

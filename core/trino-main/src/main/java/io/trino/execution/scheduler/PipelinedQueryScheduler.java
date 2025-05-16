@@ -172,6 +172,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.function.Function.identity;
+import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.toCollection;
 
 public class PipelinedQueryScheduler
@@ -1272,10 +1273,30 @@ public class PipelinedQueryScheduler
             }
 
             // contains local source
-            List<PlanNodeId> schedulingOrder = fragment.getPartitionedSources();
-            Optional<CatalogHandle> catalogHandle = partitioningHandle.getCatalogHandle();
-            checkArgument(catalogHandle.isPresent(), "No catalog handle for partitioning handle: %s", partitioningHandle);
+            List<PlanNodeId> schedulingOrder = new ArrayList<>();
+            schedulingOrder.addAll(fragment.getPartitionedSources());
 
+            for (RemoteSourceNode node : fragment.getRemoteSourceNodes()) {
+                List<PlanFragmentId> exchangeSources = node.getSourceFragmentIds().stream().filter(outputExchanges::containsKey).toList();
+                List<PlanFragmentId> pipelineSources = node.getSourceFragmentIds().stream().filter(not(outputExchanges::containsKey)).toList();
+
+                // todo support unsupported configurations:
+                // * more than one remote stage using exchange
+                // * mixed exchange and non-exchange remote stages
+                if (pipelineSources.isEmpty() && exchangeSources.size() == 1) {
+                    switch (node.getExchangeType()) {
+                        case REPLICATE -> throw new TrinoException(GENERIC_INTERNAL_ERROR, "exchange type " + node.getExchangeType() + " not supported");
+                        case GATHER, REPARTITION ->
+                                // TODO - should we be adding those nodes to the end in scheduling order
+                                schedulingOrder.add(node.getId());
+                    }
+                }
+                else if (!exchangeSources.isEmpty()) {
+                    throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Not supported configuration of %s pipelined and %s exchange sources", pipelineSources.size(), exchangeSources.size()));
+                }
+            }
+
+            Optional<CatalogHandle> catalogHandle = partitioningHandle.getCatalogHandle();
             BucketNodeMap bucketNodeMap;
             List<InternalNode> stageNodeList;
             if (fragment.getRemoteSourceNodes().stream().allMatch(node -> node.getExchangeType() == REPLICATE)) {
