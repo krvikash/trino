@@ -13,6 +13,7 @@
  */
 package io.trino.execution.scheduler;
 
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import io.opentelemetry.api.trace.Span;
 import io.trino.execution.ExecutionFailureInfo;
@@ -76,6 +77,8 @@ public interface StageExecution
     List<TaskStatus> getTaskStatuses();
 
     Optional<ExecutionFailureInfo> getFailureCause();
+
+    void addReplicatedSplits(ListMultimap<PlanNodeId, Split> newReplicatedSplits);
 
     enum State
     {

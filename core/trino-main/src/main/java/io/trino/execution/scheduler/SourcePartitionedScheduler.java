@@ -13,6 +13,7 @@
  */
 package io.trino.execution.scheduler;
 
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
@@ -361,7 +362,8 @@ public class SourcePartitionedScheduler
                 overallNewTasks.build(),
                 nonCancellationPropagating(blockedFuture.get()),
                 blockedReason,
-                overallSplitAssignmentCount);
+                overallSplitAssignmentCount,
+                ImmutableListMultimap.of());
     }
 
     private static <T> ListenableFuture<Void> asVoid(ListenableFuture<T> future)

@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
@@ -143,6 +144,9 @@ public class PipelinedStageExecution
     private final Map<PlanNodeId, Split> spoolingExchangeSourcesOutputSelectorSplits = new HashMap<>();
     @GuardedBy("this")
     private final Set<PlanNodeId> spoolingExchangeSourcesSchedulingComplete = new HashSet<>();
+
+    @GuardedBy("this")
+    private final Multimap<PlanNodeId, Split> replicatedSplits = HashMultimap.create();
 
     // source task tracking
     @GuardedBy("this")
@@ -451,6 +455,7 @@ public class PipelinedStageExecution
         allTasks.add(task.getTaskId());
 
         task.addSplits(exchangeSplits.build());
+        task.addSplits(replicatedSplits);
         completeSources.forEach(task::noMoreSplits);
 
         task.addStateChangeListener(this::updateTaskStatus);
@@ -749,6 +754,12 @@ public class PipelinedStageExecution
     public Optional<ExecutionFailureInfo> getFailureCause()
     {
         return stateMachine.getFailureCause();
+    }
+
+    @Override
+    public synchronized void addReplicatedSplits(ListMultimap<PlanNodeId, Split> newReplicatedSplits)
+    {
+        replicatedSplits.putAll(newReplicatedSplits);
     }
 
     @Override

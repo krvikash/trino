@@ -16,6 +16,7 @@ package io.trino.execution.scheduler;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
@@ -377,6 +378,12 @@ public class TestScaledWriterScheduler
 
         @Override
         public Optional<ExecutionFailureInfo> getFailureCause()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void addReplicatedSplits(ListMultimap<PlanNodeId, Split> newReplicatedSplits)
         {
             throw new UnsupportedOperationException();
         }

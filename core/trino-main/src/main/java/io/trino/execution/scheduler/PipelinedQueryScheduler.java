@@ -77,7 +77,9 @@ import io.trino.sql.planner.SplitSourceFactory;
 import io.trino.sql.planner.SubPlan;
 import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.plan.PlanFragmentId;
+import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.RemoteSourceNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TableWriterNode;
 import io.trino.tracing.TrinoAttributes;
@@ -114,6 +116,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getFirst;
 import static com.google.common.collect.Iterables.getLast;
@@ -168,6 +171,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toCollection;
 
 public class PipelinedQueryScheduler
@@ -1174,6 +1178,26 @@ public class PipelinedQueryScheduler
                 });
             }
 
+            Map<PlanNodeId, RemoteSourceNode> replicatedRemoteSourceNodes =
+                    stageExecution.getFragment().getRemoteSourceNodes().stream()
+                            .filter(node -> node.getExchangeType() == REPLICATE)
+                            .collect(toImmutableMap(PlanNode::getId, identity()));
+
+            Map<PlanNodeId, SplitSource> partitionedSplitSources = splitSources.entrySet().stream()
+                    .filter(entry -> !replicatedRemoteSourceNodes.containsKey(entry.getKey()))
+                    .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+
+            Map<PlanNodeId, SplitSource> replicatedSplitSources = splitSources.entrySet().stream()
+                    .filter(entry -> replicatedRemoteSourceNodes.containsKey(entry.getKey()))
+                    .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+
+            // sanity check that all the replicated source nodes which use split source are coming reading from spooling exchanges
+            replicatedSplitSources.keySet().forEach(nodeId -> {
+                RemoteSourceNode node = replicatedRemoteSourceNodes.get(nodeId);
+                verify(node != null);
+                node.getSourceFragmentIds().forEach(sourceFragmentId -> verify(outputExchanges.containsKey(sourceFragmentId), "Expected replicated splitSource %s to read from a spooling exchange %s", node.getId(), sourceFragmentId));
+            });
+
             if (partitioningHandle.equals(SOURCE_DISTRIBUTION)) {
                 // nodes are selected dynamically based on the constraints of the splits and the system load
                 if (splitSources.size() == 1) {
@@ -1207,7 +1231,8 @@ public class PipelinedQueryScheduler
                 NodeSelector nodeSelector = nodeScheduler.createNodeSelector(session, catalogHandle);
                 return new MultiSourcePartitionedScheduler(
                         stageExecution,
-                        splitSources,
+                        partitionedSplitSources,
+                        replicatedSplitSources,
                         new DynamicSplitPlacementPolicy(nodeSelector, stageExecution::getAllTasks),
                         splitBatchSize,
                         dynamicFilterService,

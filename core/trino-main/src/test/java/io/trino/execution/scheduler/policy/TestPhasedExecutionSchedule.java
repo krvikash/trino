@@ -14,6 +14,7 @@
 package io.trino.execution.scheduler.policy;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.Graph;
@@ -490,6 +491,12 @@ public class TestPhasedExecutionSchedule
 
         @Override
         public Optional<ExecutionFailureInfo> getFailureCause()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void addReplicatedSplits(ListMultimap<PlanNodeId, Split> newReplicatedSplits)
         {
             throw new UnsupportedOperationException();
         }

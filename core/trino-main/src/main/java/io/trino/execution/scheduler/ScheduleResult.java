@@ -13,9 +13,13 @@
  */
 package io.trino.execution.scheduler;
 
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.execution.RemoteTask;
+import io.trino.metadata.Split;
+import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.util.Optional;
 import java.util.Set;
@@ -39,24 +43,36 @@ public class ScheduleResult
     private final Optional<BlockedReason> blockedReason;
     private final boolean finished;
     private final int splitsScheduled;
+    private final ListMultimap<PlanNodeId, Split> newReplicatedSplits;
 
     public ScheduleResult(boolean finished, Iterable<? extends RemoteTask> newTasks, int splitsScheduled)
     {
-        this(finished, newTasks, immediateVoidFuture(), Optional.empty(), splitsScheduled);
+        this(finished, newTasks, splitsScheduled, ImmutableListMultimap.of());
+    }
+
+    public ScheduleResult(boolean finished, Iterable<? extends RemoteTask> newTasks, int splitsScheduled, ListMultimap<PlanNodeId, Split> newReplicatedSplits)
+    {
+        this(finished, newTasks, immediateVoidFuture(), Optional.empty(), splitsScheduled, newReplicatedSplits);
     }
 
     public ScheduleResult(boolean finished, Iterable<? extends RemoteTask> newTasks, ListenableFuture<Void> blocked, BlockedReason blockedReason, int splitsScheduled)
     {
-        this(finished, newTasks, blocked, Optional.of(requireNonNull(blockedReason, "blockedReason is null")), splitsScheduled);
+        this(finished, newTasks, blocked, Optional.of(requireNonNull(blockedReason, "blockedReason is null")), splitsScheduled, ImmutableListMultimap.of());
     }
 
-    private ScheduleResult(boolean finished, Iterable<? extends RemoteTask> newTasks, ListenableFuture<Void> blocked, Optional<BlockedReason> blockedReason, int splitsScheduled)
+    public ScheduleResult(boolean finished, Iterable<? extends RemoteTask> newTasks, ListenableFuture<Void> blocked, BlockedReason blockedReason, int splitsScheduled, ListMultimap<PlanNodeId, Split> newReplicatedSplits)
+    {
+        this(finished, newTasks, blocked, Optional.of(requireNonNull(blockedReason, "blockedReason is null")), splitsScheduled, newReplicatedSplits);
+    }
+
+    private ScheduleResult(boolean finished, Iterable<? extends RemoteTask> newTasks, ListenableFuture<Void> blocked, Optional<BlockedReason> blockedReason, int splitsScheduled, ListMultimap<PlanNodeId, Split> newReplicatedSplits)
     {
         this.finished = finished;
         this.newTasks = ImmutableSet.copyOf(requireNonNull(newTasks, "newTasks is null"));
         this.blocked = requireNonNull(blocked, "blocked is null");
         this.blockedReason = requireNonNull(blockedReason, "blockedReason is null");
         this.splitsScheduled = splitsScheduled;
+        this.newReplicatedSplits = ImmutableListMultimap.copyOf(newReplicatedSplits);
     }
 
     public boolean isFinished()
@@ -84,6 +100,11 @@ public class ScheduleResult
         return blockedReason;
     }
 
+    public ListMultimap<PlanNodeId, Split> getNewReplicatedSplits()
+    {
+        return newReplicatedSplits;
+    }
+
     @Override
     public String toString()
     {
@@ -93,6 +114,7 @@ public class ScheduleResult
                 .add("blocked", !blocked.isDone())
                 .add("splitsScheduled", splitsScheduled)
                 .add("blockedReason", blockedReason)
+                .add("newReplicatedSplits", newReplicatedSplits.size())
                 .toString();
     }
 }

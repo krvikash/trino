@@ -507,6 +507,7 @@ public class TestMultiSourcePartitionedScheduler
         return new MultiSourcePartitionedScheduler(
                 stage,
                 sources,
+                ImmutableMap.of(), // todo test with non-empty
                 splitPlacementPolicy,
                 splitBatchSize,
                 dynamicFilterService,
