@@ -13,6 +13,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
@@ -59,6 +60,7 @@ public class ReloadingModelClientProvider
     private final AtomicReference<State> state = new AtomicReference<>(EMPTY_STATE);
     private final CounterStat refreshFailures = new CounterStat();
     private final CounterStat clientCreationFailures = new CounterStat();
+    private final SecretsResolver secretsResolver;
 
     private record State(
             ModelConnectionSpecs modelConnectionSpecs,
@@ -82,7 +84,8 @@ public class ReloadingModelClientProvider
             ModelConnectionSpecsLoader modelSpecsLoader,
             AwsBedrockClientFactory awsBedrockClientFactory,
             OpenAiClientFactory openAiClientFactory,
-            AiClientConfig config)
+            AiClientConfig config,
+            SecretsResolver secretsResolver)
     {
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.defaultPromptDao = requireNonNull(defaultPromptDao, "defaultPromptDao is null");
@@ -92,6 +95,7 @@ public class ReloadingModelClientProvider
         this.clientTtlMillis = config.getClientCacheTtl().toMillis();
         this.clientCacheRefreshIntervalMillis = config.getClientCacheRefreshInterval().toMillis();
         this.clientCacheRefreshEnabled = config.isClientCacheRefreshEnabled();
+        this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         load();
     }
 
@@ -219,7 +223,9 @@ public class ReloadingModelClientProvider
                     .allMatch(newModelConnectionSpec -> {
                         Slice id = Slices.utf8Slice(newModelConnectionSpec.id());
                         return currentSpecs().getLanguageModelConnectionSpecById(newModelConnectionSpec.id())
-                                .map(spec -> spec.equals(newModelConnectionSpec) && !isExpired(id))
+                                .map(spec -> spec.equals(newModelConnectionSpec) &&
+                                        spec.connectionInfo().resolvedConnectionInfo(secretsResolver).equals(newModelConnectionSpec.connectionInfo().resolvedConnectionInfo(secretsResolver)) &&
+                                        !isExpired(id))
                                 .orElse(false);
                     });
         }
@@ -234,7 +240,9 @@ public class ReloadingModelClientProvider
                     .allMatch(newModelConnectionSpec -> {
                         Slice id = Slices.utf8Slice(newModelConnectionSpec.id());
                         return currentSpecs().getEmbeddingModelConnectionSpecById(newModelConnectionSpec.id())
-                                .map(spec -> spec.equals(newModelConnectionSpec) && !isExpired(id))
+                                .map(spec -> spec.equals(newModelConnectionSpec) &&
+                                        spec.connectionInfo().resolvedConnectionInfo(secretsResolver).equals(newModelConnectionSpec.connectionInfo().resolvedConnectionInfo(secretsResolver)) &&
+                                        !isExpired(id))
                                 .orElse(false);
                     });
         }

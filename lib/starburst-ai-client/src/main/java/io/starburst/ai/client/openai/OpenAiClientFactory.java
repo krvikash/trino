@@ -9,7 +9,6 @@
  */
 package io.starburst.ai.client.openai;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
@@ -22,8 +21,6 @@ import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.LanguageModelConnectionSpec;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
-
-import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -65,9 +62,8 @@ public class OpenAiClientFactory
     {
         OpenAIOkHttpClient.Builder builder = OpenAIOkHttpClient.builder();
         if (connectionInfo.apiKey().isPresent()) {
-            Map<String, String> resolvedSecrets = secretsResolver.getResolvedConfiguration(ImmutableMap.of("apiKey", connectionInfo.apiKey().orElseThrow()));
-            String apiKey = resolvedSecrets.get("apiKey");
-            builder.apiKey(apiKey);
+            OpenAiConnectionInfo resolvedConnectionInfo = connectionInfo.resolvedConnectionInfo(secretsResolver);
+            builder.apiKey(resolvedConnectionInfo.apiKey().orElseThrow());
         }
         connectionInfo.endpoint().ifPresent(builder::baseUrl);
         return builder.build();

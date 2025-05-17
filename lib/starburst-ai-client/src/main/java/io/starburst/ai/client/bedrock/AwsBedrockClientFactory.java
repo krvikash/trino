@@ -9,7 +9,6 @@
  */
 package io.starburst.ai.client.bedrock;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.opentelemetry.api.trace.Tracer;
@@ -96,10 +95,8 @@ public class AwsBedrockClientFactory
         BedrockRuntimeClientBuilder clientBuilder = BedrockRuntimeClient.builder();
         AwsCredentialsProvider awsCredentialsProvider = DefaultCredentialsProvider.create();
         if (connectionInfo.awsAccessKey().isPresent() && connectionInfo.awsSecretKey().isPresent()) {
-            Map<String, String> resolvedSecrets = secretsResolver.getResolvedConfiguration(ImmutableMap.of("awsAccessKey", connectionInfo.awsAccessKey().orElseThrow(), "awsSecretKey", connectionInfo.awsSecretKey().orElseThrow()));
-            String awsAccessKey = resolvedSecrets.get("awsAccessKey");
-            String awsSecretKey = resolvedSecrets.get("awsSecretKey");
-            awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(awsAccessKey, awsSecretKey));
+            AwsBedrockConnectionInfo resolvedConnectionInfo = connectionInfo.resolvedConnectionInfo(secretsResolver);
+            awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(resolvedConnectionInfo.awsAccessKey().orElseThrow(), resolvedConnectionInfo.awsSecretKey().orElseThrow()));
         }
         if (connectionInfo.iamRole().isPresent()) {
             StsAssumeRoleCredentialsProvider.Builder assumeRoleCredentialsProvider = StsAssumeRoleCredentialsProvider.builder();

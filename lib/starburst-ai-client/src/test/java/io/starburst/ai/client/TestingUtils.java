@@ -158,7 +158,8 @@ public class TestingUtils
                 bedrockClientFactory,
                 openAiClientFactory,
                 new AiClientConfig()
-                        .setClientCacheRefreshEnabled(clientCacheRefreshEnabled));
+                        .setClientCacheRefreshEnabled(clientCacheRefreshEnabled),
+                secretsResolver);
     }
 
     public static File createModelConnectionSpecsFile(String content)
