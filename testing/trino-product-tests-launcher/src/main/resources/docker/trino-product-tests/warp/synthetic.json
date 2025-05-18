@@ -893,6 +893,30 @@
           "external_match_columns": 1,
           "external_collect_columns": 0
         }
+      },
+      {
+        "query": "select id from mac_paramsj limit 5",
+        "query_id": "mac_paramsj_40",
+        "expected_result": [
+          [
+            1
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ],
+          [
+            4
+          ]
+        ],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
       }
     ],
     "expected_dictionary_counters": {

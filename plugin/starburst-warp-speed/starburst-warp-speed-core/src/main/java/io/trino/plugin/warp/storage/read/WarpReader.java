@@ -168,6 +168,7 @@ public class WarpReader
                 }
                 queryArgs.dispatcherPageSourceStats().addlazy_collect_total_blocks(blocks.length - preLoadedBlocks.size());
             }
+            queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
             long numReadPages = closePage();
 
             WarpSourcePage warpSourcePage = new WarpSourcePage(recordIndexes, pageChunksList, queryState.getNumRecordsInCurPage(), blocks);
@@ -197,7 +198,6 @@ public class WarpReader
 
         try {
             if (aggregatorPageArgs != null) {
-                queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
                 readPages = blocksAggregator.closePage(queryArgs, aggregatorPageArgs);
             }
         }
