@@ -44,7 +44,7 @@ import java.util.OptionalInt;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
-import static io.trino.execution.buffer.PageSplitterUtil.splitPage;
+import static io.trino.execution.buffer.PageSplitterUtil.splitAndSerializePage;
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -476,17 +476,7 @@ public class PagePartitioner
 
     private void enqueuePage(Page pagePartition, int partition)
     {
-        outputBuffer.enqueue(partition, splitAndSerializePage(pagePartition));
-    }
-
-    private List<Slice> splitAndSerializePage(Page page)
-    {
-        List<Page> split = splitPage(page, DEFAULT_MAX_PAGE_SIZE_IN_BYTES);
-        ImmutableList.Builder<Slice> builder = ImmutableList.builderWithExpectedSize(split.size());
-        for (Page chunk : split) {
-            builder.add(serializer.serialize(chunk, sourceTypes));
-        }
-        return builder.build();
+        outputBuffer.enqueue(partition, splitAndSerializePage(pagePartition, serializer, sourceTypes));
     }
 
     private void updateMemoryUsage()
