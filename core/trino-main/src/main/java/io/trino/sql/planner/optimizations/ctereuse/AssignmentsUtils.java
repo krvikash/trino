@@ -48,6 +48,7 @@ import static io.trino.sql.dialect.trino.Attributes.CONSTANT_RESULT;
 import static io.trino.sql.dialect.trino.Attributes.FIELD_INDEX;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
 import static io.trino.sql.planner.optimizations.ctereuse.FieldMapping.EMPTY;
 
@@ -118,6 +119,22 @@ public class AssignmentsUtils
     {
         if (block.parameters().stream()
                 .anyMatch(parameter -> !IS_RELATION_ROW.test(trinoType(parameter.type())))) {
+            return false;
+        }
+
+        return trinoType(block.getReturnedType()).equals(EMPTY_ROW) &&
+                // empty field selector returns constant null of EmptyRowType
+                block.operations().size() == 2 &&
+                block.operations().get(0) instanceof Constant constantOperation &&
+                block.operations().get(1) instanceof Return returnOperation &&
+                returnOperation.argument().equals(constantOperation.result()) &&
+                CONSTANT_RESULT.getAttribute(constantOperation.attributes()).equals(NullableValue.asNull(EMPTY_ROW));
+    }
+
+    public static boolean isEmptyRelationalComputation(Block block)
+    {
+        if (block.parameters().stream()
+                .anyMatch(parameter -> !IS_RELATION.test(trinoType(parameter.type())))) {
             return false;
         }
 
