@@ -113,4 +113,10 @@ public final class Array
     {
         return new Array(newName, ((ArrayType) trinoType(result.type())).getElementType(), elements, ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitArray(this, context);
+    }
 }

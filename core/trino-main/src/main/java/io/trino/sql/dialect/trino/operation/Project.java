@@ -132,4 +132,10 @@ public final class Project
     {
         return isPruningAssignments(assignments());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitProject(this, context);
+    }
 }

@@ -110,4 +110,15 @@ public final class Lambda
     {
         return new Lambda(newName, lambda.getOnlyBlock());
     }
+
+    public Block lambdaBody()
+    {
+        return lambda.getOnlyBlock();
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitLambda(this, context);
+    }
 }

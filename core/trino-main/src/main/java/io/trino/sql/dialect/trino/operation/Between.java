@@ -116,4 +116,10 @@ public final class Between
     {
         return new Between(newName, input, min, max, ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitBetween(this, context);
+    }
 }

@@ -116,4 +116,15 @@ public class ExplainAnalyze
                 VERBOSE.getAttribute(attributes),
                 ImmutableMap.of());
     }
+
+    public Block fieldSelector()
+    {
+        return fieldSelector.getOnlyBlock();
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitExplainAnalyze(this, context);
+    }
 }

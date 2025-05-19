@@ -270,4 +270,32 @@ public class Exchange
                 Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
                 ImmutableList.of());
     }
+
+    public List<Block> inputFieldSelectors()
+    {
+        return inputFieldSelectors.stream()
+                .map(Region::getOnlyBlock)
+                .collect(toImmutableList());
+    }
+
+    public Block partitioningBoundArguments()
+    {
+        return partitioningBoundArguments.getOnlyBlock();
+    }
+
+    public Block partitioningHashSelector()
+    {
+        return partitioningHashSelector.getOnlyBlock();
+    }
+
+    public Block orderingSelector()
+    {
+        return orderingSelector.getOnlyBlock();
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitExchange(this, context);
+    }
 }

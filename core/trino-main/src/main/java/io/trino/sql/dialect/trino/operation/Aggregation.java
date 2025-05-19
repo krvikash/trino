@@ -200,4 +200,25 @@ public class Aggregation
                 INPUT_REDUCING.getAttribute(attributes),
                 ImmutableMap.of());
     }
+
+    public Block aggregateCalls()
+    {
+        return aggregateCalls.getOnlyBlock();
+    }
+
+    public Block groupingKeysSelector()
+    {
+        return groupingKeysSelector.getOnlyBlock();
+    }
+
+    public Block hashSelector()
+    {
+        return hashSelector.getOnlyBlock();
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitAggregation(this, context);
+    }
 }

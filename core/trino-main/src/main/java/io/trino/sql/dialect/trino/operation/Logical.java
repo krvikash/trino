@@ -115,4 +115,10 @@ public final class Logical
     {
         return new Logical(newName, terms, LOGICAL_OPERATOR.getAttribute(attributes), ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitLogical(this, context);
+    }
 }

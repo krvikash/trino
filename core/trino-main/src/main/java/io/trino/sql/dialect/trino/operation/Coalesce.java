@@ -116,4 +116,10 @@ public final class Coalesce
     {
         return new Coalesce(newName, operands, ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitCoalesce(this, context);
+    }
 }

@@ -100,4 +100,10 @@ public final class Return
     {
         return input;
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitReturn(this, context);
+    }
 }

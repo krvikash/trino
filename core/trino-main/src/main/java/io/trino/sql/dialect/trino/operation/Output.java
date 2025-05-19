@@ -122,4 +122,15 @@ public final class Output
                 fieldSelector.getOnlyBlock(),
                 OUTPUT_NAMES.getAttribute(attributes));
     }
+
+    public Block outputFieldSelector()
+    {
+        return fieldSelector.getOnlyBlock();
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitOutput(this, context);
+    }
 }

@@ -126,4 +126,10 @@ public final class Bind
     {
         return new Bind(newName, values, lambda, ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitBind(this, context);
+    }
 }

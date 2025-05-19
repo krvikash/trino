@@ -239,4 +239,24 @@ public class AggregateCall
                 DISTINCT.getAttribute(attributes),
                 AGGREGATION_STEP.getAttribute(attributes));
     }
+
+    public Block argumentsBlock()
+    {
+        return arguments.getOnlyBlock();
+    }
+
+    public Block filterSelector()
+    {
+        return filterSelector.getOnlyBlock();
+    }
+
+    public Block maskSelector()
+    {
+        return maskSelector.getOnlyBlock();
+    }
+
+    public Block orderingSelector()
+    {
+        return orderingSelector.getOnlyBlock();
+    }
 }

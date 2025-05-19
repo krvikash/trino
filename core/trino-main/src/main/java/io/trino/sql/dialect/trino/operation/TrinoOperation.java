@@ -66,4 +66,9 @@ public abstract class TrinoOperation
     {
         throw new UnsupportedOperationException(name() + " does not support result name substitution");
     }
+
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitOperation(this, context);
+    }
 }

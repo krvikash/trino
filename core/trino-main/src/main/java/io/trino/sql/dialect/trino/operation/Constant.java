@@ -83,4 +83,10 @@ public final class Constant
         NullableValue constantResult = CONSTANT_RESULT.getAttribute(attributes);
         return new Constant(newName, constantResult.getType(), constantResult.getValue());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitConstant(this, context);
+    }
 }

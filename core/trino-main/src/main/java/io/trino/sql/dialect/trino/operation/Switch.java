@@ -158,4 +158,10 @@ public final class Switch
     {
         return new Switch(newName, operand, when, then, defaultValue, ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitSwitch(this, context);
+    }
 }

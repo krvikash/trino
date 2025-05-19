@@ -158,4 +158,15 @@ public class Limit
     {
         return SORT_ORDERS.getAttribute(attributes()) != null;
     }
+
+    public Block orderingSelector()
+    {
+        return orderingSelector.getOnlyBlock();
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitLimit(this, context);
+    }
 }

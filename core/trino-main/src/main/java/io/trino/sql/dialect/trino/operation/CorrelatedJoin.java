@@ -163,4 +163,10 @@ public final class CorrelatedJoin
                 ImmutableMap.of(),
                 ImmutableMap.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitCorrelatedJoin(this, context);
+    }
 }

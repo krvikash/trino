@@ -133,4 +133,17 @@ public final class Values
     {
         return "pretty values";
     }
+
+    public List<Block> rows()
+    {
+        return rows.stream()
+                .map(Region::getOnlyBlock)
+                .collect(toImmutableList());
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitValues(this, context);
+    }
 }

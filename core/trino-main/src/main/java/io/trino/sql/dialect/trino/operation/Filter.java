@@ -122,4 +122,10 @@ public final class Filter
     {
         return predicate.getOnlyBlock();
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitFilter(this, context);
+    }
 }

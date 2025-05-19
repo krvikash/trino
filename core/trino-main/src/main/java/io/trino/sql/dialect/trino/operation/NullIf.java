@@ -101,4 +101,10 @@ public final class NullIf
     {
         return new NullIf(newName, first, second, ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitNullIf(this, context);
+    }
 }

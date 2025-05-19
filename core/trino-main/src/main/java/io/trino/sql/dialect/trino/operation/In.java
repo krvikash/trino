@@ -123,4 +123,10 @@ public final class In
     {
         return new In(newName, input, inputList, ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitIn(this, context);
+    }
 }

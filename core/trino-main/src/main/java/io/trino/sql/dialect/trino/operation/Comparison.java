@@ -113,4 +113,10 @@ public final class Comparison
     {
         return new Comparison(newName, left, right, COMPARISON_OPERATOR.getAttribute(attributes), ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitComparison(this, context);
+    }
 }

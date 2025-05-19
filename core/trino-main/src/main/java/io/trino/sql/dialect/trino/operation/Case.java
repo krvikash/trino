@@ -152,4 +152,10 @@ public final class Case
     {
         return new Case(newName, when, then, defaultValue, ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitCase(this, context);
+    }
 }

@@ -100,4 +100,15 @@ public final class Cast
     {
         return new Cast(newName, input, trinoType(result.type()), ImmutableMap.of());
     }
+
+    public Value argument()
+    {
+        return input;
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitCast(this, context);
+    }
 }

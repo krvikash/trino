@@ -261,4 +261,60 @@ public final class Join
                 ImmutableMap.of(),
                 ImmutableMap.of());
     }
+
+    public Value left()
+    {
+        return left;
+    }
+
+    public Value right()
+    {
+        return right;
+    }
+
+    public Block leftCriteriaSelector()
+    {
+        return leftCriteriaSelector.getOnlyBlock();
+    }
+
+    public Block rightCriteriaSelector()
+    {
+        return rightCriteriaSelector.getOnlyBlock();
+    }
+
+    public Block filter()
+    {
+        return filter.getOnlyBlock();
+    }
+
+    public Block leftHashSelector()
+    {
+        return leftHashSelector.getOnlyBlock();
+    }
+
+    public Block rightHashSelector()
+    {
+        return rightHashSelector.getOnlyBlock();
+    }
+
+    public Block leftOutputSelector()
+    {
+        return leftOutputSelector.getOnlyBlock();
+    }
+
+    public Block rightOutputSelector()
+    {
+        return rightOutputSelector.getOnlyBlock();
+    }
+
+    public Block dynamicFilterTargetSelector()
+    {
+        return dynamicFilterTargetSelector.getOnlyBlock();
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitJoin(this, context);
+    }
 }

@@ -128,4 +128,15 @@ public class TopN
                 TOP_N_STEP.getAttribute(attributes),
                 ImmutableMap.of());
     }
+
+    public Block orderingSelector()
+    {
+        return orderingSelector.getOnlyBlock();
+    }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitTopN(this, context);
+    }
 }

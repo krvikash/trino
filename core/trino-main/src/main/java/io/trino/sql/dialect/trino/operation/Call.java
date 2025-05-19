@@ -118,4 +118,10 @@ public final class Call
     {
         return new Call(newName, arguments, RESOLVED_FUNCTION.getAttribute(attributes), ImmutableList.of());
     }
+
+    @Override
+    public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
+    {
+        return visitor.visitCall(this, context);
+    }
 }
