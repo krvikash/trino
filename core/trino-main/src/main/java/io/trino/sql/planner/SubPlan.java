@@ -19,7 +19,9 @@ import com.google.errorprone.annotations.Immutable;
 import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.RemoteSourceNode;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableMultiset.toImmutableMultiset;
@@ -51,18 +53,27 @@ public class SubPlan
     }
 
     /**
-     * Flattens the subplan and returns all PlanFragments in the tree
+     * Flattens the subplan and returns all PlanFragments in the DAG
      */
     public List<PlanFragment> getAllFragments()
     {
-        ImmutableList.Builder<PlanFragment> fragments = ImmutableList.builder();
+        ImmutableList.Builder<PlanFragment> builder = ImmutableList.builder();
+        getAllFragmentsDeduplicated(builder, new HashSet<>());
 
-        fragments.add(getFragment());
-        for (SubPlan child : getChildren()) {
-            fragments.addAll(child.getAllFragments());
+        return builder.build().reverse();
+    }
+
+    private void getAllFragmentsDeduplicated(ImmutableList.Builder<PlanFragment> builder, Set<PlanFragmentId> visitedFragments)
+    {
+        if (visitedFragments.contains(getFragment().getId())) {
+            return;
         }
 
-        return fragments.build();
+        for (SubPlan child : getChildren().reversed()) {
+            child.getAllFragmentsDeduplicated(builder, visitedFragments);
+        }
+        builder.add(getFragment());
+        visitedFragments.add(getFragment().getId());
     }
 
     public void sanityCheck()
