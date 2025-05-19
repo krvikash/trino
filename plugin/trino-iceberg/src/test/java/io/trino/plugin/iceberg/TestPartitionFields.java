@@ -95,6 +95,10 @@ public class TestPartitionFields
         assertParse("month(ts_nano)", partitionSpec(builder -> builder.month("ts_nano")));
         assertParse("day(ts_nano)", partitionSpec(builder -> builder.day("ts_nano")));
         assertParse("hour(ts_nano)", partitionSpec(builder -> builder.hour("ts_nano")));
+        assertParse("year(tstz_nano)", partitionSpec(builder -> builder.year("tstz_nano")));
+        assertParse("month(tstz_nano)", partitionSpec(builder -> builder.month("tstz_nano")));
+        assertParse("day(tstz_nano)", partitionSpec(builder -> builder.day("tstz_nano")));
+        assertParse("hour(tstz_nano)", partitionSpec(builder -> builder.hour("tstz_nano")));
 
         assertInvalid("bucket()", "Invalid partition field declaration: bucket()");
         assertInvalid(".nested", "Invalid partition field declaration: .nested");
@@ -195,7 +199,8 @@ public class TestPartitionFields
                 NestedField.optional(20, "MixedString", StringType.get()),
                 NestedField.required(21, "MixedNested", Types.StructType.of(
                         NestedField.required(22, "MixedValue", StringType.get()))),
-                NestedField.required(23, "ts_nano", TimestampNanoType.withoutZone()));
+                NestedField.required(23, "ts_nano", TimestampNanoType.withoutZone()),
+                NestedField.required(24, "tstz_nano", TimestampNanoType.withZone()));
 
         PartitionSpec.Builder builder = PartitionSpec.builderFor(schema);
         consumer.accept(builder);

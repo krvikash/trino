@@ -395,6 +395,7 @@ import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -1267,8 +1268,10 @@ public class IcebergMetadata
         if (type == TINYINT || type == SMALLINT) {
             return INTEGER;
         }
-        if (type instanceof TimestampWithTimeZoneType) {
-            // TODO https://starburstdata.atlassian.net/browse/CONNECT-576 Coerce to TIMESTAMP_TZ_NANOS in case of V3 table
+        if (type instanceof TimestampWithTimeZoneType timestampWithTimeZoneType) {
+            if (formatVersion >= TIMESTAMP_NANOS_SUPPORTED_MIN_VERSION && timestampWithTimeZoneType.getPrecision() > TIMESTAMP_TZ_MICROS.getPrecision()) {
+                return TIMESTAMP_TZ_NANOS;
+            }
             return TIMESTAMP_TZ_MICROS;
         }
         if (type instanceof TimestampType timestampType) {

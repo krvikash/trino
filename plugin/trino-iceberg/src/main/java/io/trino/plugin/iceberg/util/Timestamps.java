@@ -20,8 +20,10 @@ import io.trino.spi.type.LongTimestampWithTimeZone;
 
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static java.lang.Math.floorDiv;
@@ -44,6 +46,12 @@ public final class Timestamps
                 LongMath.divide(timestamp.getPicosOfMilli(), PICOSECONDS_PER_MICROSECOND, UNNECESSARY);
     }
 
+    public static long timestampTzToNanos(LongTimestampWithTimeZone timestamp)
+    {
+        return (timestamp.getEpochMillis() * NANOSECONDS_PER_MILLISECOND) +
+                LongMath.divide(timestamp.getPicosOfMilli(), PICOSECONDS_PER_NANOSECOND, UNNECESSARY);
+    }
+
     public static LongTimestamp timestampFromNanos(long epochNanos)
     {
         long epochMicros = floorDiv(epochNanos, NANOSECONDS_PER_MICROSECOND);
@@ -58,8 +66,21 @@ public final class Timestamps
         return LongTimestampWithTimeZone.fromEpochMillisAndFraction(epochMillis, picosOfMillis, UTC_KEY);
     }
 
+    public static LongTimestampWithTimeZone timestampTzFromNanos(long epochNanos)
+    {
+        long epochMicros = floorDiv(epochNanos, NANOSECONDS_PER_MICROSECOND);
+        long epochMillis = floorDiv(epochMicros, MICROSECONDS_PER_MILLISECOND);
+        int picosOfMillis = floorMod(epochNanos, NANOSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_NANOSECOND;
+        return LongTimestampWithTimeZone.fromEpochMillisAndFraction(epochMillis, picosOfMillis, UTC_KEY);
+    }
+
     public static LongTimestampWithTimeZone getTimestampTz(Block block, int position)
     {
         return (LongTimestampWithTimeZone) TIMESTAMP_TZ_MICROS.getObject(block, position);
+    }
+
+    public static LongTimestampWithTimeZone getTimestampTzNanos(Block block, int position)
+    {
+        return (LongTimestampWithTimeZone) TIMESTAMP_TZ_NANOS.getObject(block, position);
     }
 }

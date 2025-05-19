@@ -37,6 +37,7 @@ public class TestPartitionTransforms
     private static final DateType ICEBERG_DATE = DateType.get();
     private static final TimestampType ICEBERG_TIMESTAMP = TimestampType.withoutZone();
     private static final TimestampNanoType ICEBERG_TIMESTAMP_NANOS = TimestampNanoType.withoutZone();
+    private static final TimestampNanoType ICEBERG_TIMESTAMPTZ_NANOS = TimestampNanoType.withZone();
 
     @Test
     public void testToStringMatchesSpecification()
@@ -105,6 +106,19 @@ public class TestPartitionTransforms
             assertThat(actualHour)
                     .describedAs(time.toString())
                     .isEqualTo((int) Transforms.hour().bind(ICEBERG_TIMESTAMP_NANOS).apply(epochNano));
+
+            assertThat(actualYear)
+                    .describedAs(time.toString())
+                    .isEqualTo((int) Transforms.year().bind(ICEBERG_TIMESTAMPTZ_NANOS).apply(epochNano));
+            assertThat(actualMonth)
+                    .describedAs(time.toString())
+                    .isEqualTo((int) Transforms.month().bind(ICEBERG_TIMESTAMPTZ_NANOS).apply(epochNano));
+            assertThat(actualDay)
+                    .describedAs(time.toString())
+                    .isEqualTo((int) Transforms.day().bind(ICEBERG_TIMESTAMPTZ_NANOS).apply(epochNano));
+            assertThat(actualHour)
+                    .describedAs(time.toString())
+                    .isEqualTo((int) Transforms.hour().bind(ICEBERG_TIMESTAMPTZ_NANOS).apply(epochNano));
         }
     }
 }

@@ -8811,6 +8811,7 @@ public abstract class BaseIcebergConnectorTest
         testAddColumnWithTypeCoercion("tinyint", "integer");
         testAddColumnWithTypeCoercion("smallint", "integer");
 
+        int maxTimestampPrecision = formatVersion < 3 ? 6 : 9;
         testAddColumnWithTypeCoercion("timestamp with time zone", "timestamp(6) with time zone");
         testAddColumnWithTypeCoercion("timestamp(0) with time zone", "timestamp(6) with time zone");
         testAddColumnWithTypeCoercion("timestamp(1) with time zone", "timestamp(6) with time zone");
@@ -8819,14 +8820,13 @@ public abstract class BaseIcebergConnectorTest
         testAddColumnWithTypeCoercion("timestamp(4) with time zone", "timestamp(6) with time zone");
         testAddColumnWithTypeCoercion("timestamp(5) with time zone", "timestamp(6) with time zone");
         testAddColumnWithTypeCoercion("timestamp(6) with time zone", "timestamp(6) with time zone");
-        testAddColumnWithTypeCoercion("timestamp(7) with time zone", "timestamp(6) with time zone");
-        testAddColumnWithTypeCoercion("timestamp(8) with time zone", "timestamp(6) with time zone");
-        testAddColumnWithTypeCoercion("timestamp(9) with time zone", "timestamp(6) with time zone");
-        testAddColumnWithTypeCoercion("timestamp(10) with time zone", "timestamp(6) with time zone");
-        testAddColumnWithTypeCoercion("timestamp(11) with time zone", "timestamp(6) with time zone");
-        testAddColumnWithTypeCoercion("timestamp(12) with time zone", "timestamp(6) with time zone");
+        testAddColumnWithTypeCoercion("timestamp(7) with time zone", "timestamp(%d) with time zone".formatted(maxTimestampPrecision));
+        testAddColumnWithTypeCoercion("timestamp(8) with time zone", "timestamp(%d) with time zone".formatted(maxTimestampPrecision));
+        testAddColumnWithTypeCoercion("timestamp(9) with time zone", "timestamp(%d) with time zone".formatted(maxTimestampPrecision));
+        testAddColumnWithTypeCoercion("timestamp(10) with time zone", "timestamp(%d) with time zone".formatted(maxTimestampPrecision));
+        testAddColumnWithTypeCoercion("timestamp(11) with time zone", "timestamp(%d) with time zone".formatted(maxTimestampPrecision));
+        testAddColumnWithTypeCoercion("timestamp(12) with time zone", "timestamp(%d) with time zone".formatted(maxTimestampPrecision));
 
-        int maxTimestampPrecision = formatVersion < 3 ? 6 : 9;
         testAddColumnWithTypeCoercion("timestamp", "timestamp(6)");
         testAddColumnWithTypeCoercion("timestamp(0)", "timestamp(6)");
         testAddColumnWithTypeCoercion("timestamp(1)", "timestamp(6)");

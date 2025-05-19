@@ -37,7 +37,9 @@ import static io.trino.plugin.base.io.ByteBuffers.getWrappedBytes;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampFromNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampToNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromMicros;
+import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzToMicros;
+import static io.trino.plugin.iceberg.util.Timestamps.timestampTzToNanos;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -48,6 +50,7 @@ import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.UuidType.javaUuidToTrinoUuid;
 import static io.trino.spi.type.UuidType.trinoUuidToJavaUuid;
@@ -58,6 +61,7 @@ import static java.lang.Math.toIntExact;
 import static java.math.RoundingMode.UNNECESSARY;
 import static java.util.Objects.requireNonNull;
 import static org.apache.iceberg.util.DateTimeUtil.nanosToIsoTimestamp;
+import static org.apache.iceberg.util.DateTimeUtil.nanosToIsoTimestamptz;
 
 public final class IcebergTypes
 {
@@ -122,6 +126,11 @@ public final class IcebergTypes
 
         if (type.equals(TIMESTAMP_TZ_MICROS)) {
             return timestampTzToMicros((LongTimestampWithTimeZone) trinoNativeValue);
+        }
+
+        if (type.equals(TIMESTAMP_TZ_NANOS)) {
+            long nanos = timestampTzToNanos((LongTimestampWithTimeZone) trinoNativeValue);
+            return nanosToIsoTimestamptz(nanos);
         }
 
         if (type instanceof VarcharType) {
@@ -198,8 +207,7 @@ public final class IcebergTypes
         if (icebergType instanceof Types.TimestampNanoType icebergTimestampNanoType) {
             long epochNanos = (long) value;
             if (icebergTimestampNanoType.shouldAdjustToUTC()) {
-                // TODO https://starburstdata.atlassian.net/browse/CONNECT-576 Support Iceberg timestamptz_ns type type
-                throw new UnsupportedOperationException("Unsupported type: timestamptz_ns");
+                return timestampTzFromNanos(epochNanos);
             }
             return timestampFromNanos(epochNanos);
         }

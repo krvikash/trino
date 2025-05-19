@@ -36,6 +36,7 @@ import static io.trino.plugin.hive.util.HiveUtil.isStructuralType;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
 import static io.trino.plugin.iceberg.IcebergTypes.convertTrinoValueToIceberg;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.UuidType.UUID;
 import static java.lang.String.format;
 import static org.apache.iceberg.expressions.Expressions.alwaysFalse;
@@ -65,7 +66,7 @@ public final class ExpressionConverter
             return domain.isOnlyNull() || domain.getValues().isAll();
         }
 
-        if (domain.getType() == TIMESTAMP_NANOS) {
+        if (domain.getType() == TIMESTAMP_NANOS || domain.getType() == TIMESTAMP_TZ_NANOS) {
             // TODO https://starburstdata.atlassian.net/browse/CONNECT-567 Enable predicate pushdown on timestamp_ns partition column
             // Iceberg library has an overflow issue https://github.com/apache/iceberg/pull/11775
             return domain.isOnlyNull() || domain.getValues().isAll();

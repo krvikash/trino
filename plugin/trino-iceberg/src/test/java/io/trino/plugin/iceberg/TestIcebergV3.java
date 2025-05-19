@@ -17,6 +17,7 @@ import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -25,6 +26,7 @@ import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.apache.iceberg.TableProperties.ENCRYPTION_TABLE_KEY;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -47,6 +49,44 @@ public class TestIcebergV3
         fileSystemFactory = getFileSystemFactory(queryRunner);
 
         return queryRunner;
+    }
+
+    @Test
+    void testTimestampNanoWithTimeZone()
+    {
+        testTimestampNanoWithTimeZone("PARQUET");
+        testTimestampNanoWithTimeZone("ORC");
+        testTimestampNanoWithTimeZone("AVRO");
+    }
+
+    private void testTimestampNanoWithTimeZone(String format)
+    {
+        try (TestTable table = newTrinoTable("test_nano", "(id int, x timestamp(9) with time zone) WITH (format = '" + format + "', format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, timestamp '2022-07-26 12:13:14.123456789 America/Los_Angeles')", 1);
+
+            assertThat(query("SELECT x FROM " + table.getName()))
+                    .matches("VALUES timestamp '2022-07-26 19:13:14.123456789 UTC'");
+            assertThat(query("SELECT 1 FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456789 America/Los_Angeles'"))
+                    .matches("VALUES 1");
+            assertThat(query("SELECT 1 FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456 America/Los_Angeles'"))
+                    .returnsEmptyResult();
+        }
+    }
+
+    @Test
+    void testTimestampNanoWithTimeZonePartition()
+    {
+        try (TestTable table = newTrinoTable("test_nano", "(id int, x timestamp(9) with time zone) WITH (partitioning = ARRAY['x'], format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, timestamp '2022-07-26 12:13:14.123456789 America/Los_Angeles')", 1);
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (2, timestamp '2022-07-26 12:13:14.012345 America/Los_Angeles')", 1);
+
+            assertThat(query("SELECT x FROM " + table.getName()))
+                    .matches("VALUES timestamp '2022-07-26 19:13:14.123456789 UTC', timestamp '2022-07-26 19:13:14.012345 UTC'");
+            assertThat(query("SELECT 1 FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456789 America/Los_Angeles'"))
+                    .matches("VALUES 1");
+            assertThat(query("SELECT 2 FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.012345 America/Los_Angeles'"))
+                    .matches("VALUES 2");
+        }
     }
 
     @Test

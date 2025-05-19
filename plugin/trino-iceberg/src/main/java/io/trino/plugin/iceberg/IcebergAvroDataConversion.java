@@ -61,9 +61,12 @@ import java.util.stream.IntStream;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTz;
+import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTzNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampToNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromMicros;
+import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzToMicros;
+import static io.trino.plugin.iceberg.util.Timestamps.timestampTzToNanos;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -75,6 +78,7 @@ import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static io.trino.spi.type.UuidType.UUID;
@@ -87,10 +91,12 @@ import static org.apache.iceberg.types.Type.TypeID.FIXED;
 import static org.apache.iceberg.util.DateTimeUtil.microsFromTimestamp;
 import static org.apache.iceberg.util.DateTimeUtil.microsFromTimestamptz;
 import static org.apache.iceberg.util.DateTimeUtil.nanosFromTimestamp;
+import static org.apache.iceberg.util.DateTimeUtil.nanosFromTimestamptz;
 import static org.apache.iceberg.util.DateTimeUtil.timeFromMicros;
 import static org.apache.iceberg.util.DateTimeUtil.timestampFromMicros;
 import static org.apache.iceberg.util.DateTimeUtil.timestampFromNanos;
 import static org.apache.iceberg.util.DateTimeUtil.timestamptzFromMicros;
+import static org.apache.iceberg.util.DateTimeUtil.timestamptzFromNanos;
 
 public final class IcebergAvroDataConversion
 {
@@ -199,6 +205,10 @@ public final class IcebergAvroDataConversion
         if (type.equals(TIMESTAMP_TZ_MICROS)) {
             long epochUtcMicros = timestampTzToMicros(getTimestampTz(block, position));
             return timestamptzFromMicros(epochUtcMicros);
+        }
+        if (type.equals(TIMESTAMP_TZ_NANOS)) {
+            long epochUtcNanos = timestampTzToNanos(getTimestampTzNanos(block, position));
+            return timestamptzFromNanos(epochUtcNanos);
         }
         if (type.equals(UUID)) {
             return trinoUuidToJavaUuid(UUID.getSlice(block, position));
@@ -326,6 +336,11 @@ public final class IcebergAvroDataConversion
         if (type.equals(TIMESTAMP_TZ_MICROS)) {
             long epochUtcMicros = microsFromTimestamptz((OffsetDateTime) object);
             type.writeObject(builder, timestampTzFromMicros(epochUtcMicros));
+            return;
+        }
+        if (type.equals(TIMESTAMP_TZ_NANOS)) {
+            long epochUtcNanos = nanosFromTimestamptz((OffsetDateTime) object);
+            type.writeObject(builder, timestampTzFromNanos(epochUtcNanos));
             return;
         }
         if (type.equals(UUID)) {

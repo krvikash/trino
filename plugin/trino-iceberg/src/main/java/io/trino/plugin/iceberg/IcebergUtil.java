@@ -148,6 +148,7 @@ import static io.trino.plugin.iceberg.TypeConverter.toIcebergTypeForNewColumn;
 import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampFromNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromMicros;
+import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromNanos;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
 import static io.trino.spi.StandardErrorCode.INVALID_TABLE_PROPERTY;
@@ -166,6 +167,7 @@ import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.UuidType.javaUuidToTrinoUuid;
 import static java.lang.Boolean.parseBoolean;
@@ -716,6 +718,9 @@ public final class IcebergUtil
             }
             if (type.equals(TIMESTAMP_TZ_MICROS)) {
                 return timestampTzFromMicros(parseLong(valueString));
+            }
+            if (type.equals(TIMESTAMP_TZ_NANOS)) {
+                return timestampTzFromNanos(parseLong(valueString));
             }
             if (type instanceof VarcharType varcharType) {
                 Slice value = utf8Slice(valueString);

@@ -168,6 +168,9 @@ public final class TypeConverter
         if (type.equals(TIMESTAMP_TZ_MICROS)) {
             return Types.TimestampType.withZone();
         }
+        if (type.equals(TIMESTAMP_TZ_NANOS)) {
+            return Types.TimestampNanoType.withZone();
+        }
         if (type.equals(UUID)) {
             return Types.UUIDType.get();
         }
