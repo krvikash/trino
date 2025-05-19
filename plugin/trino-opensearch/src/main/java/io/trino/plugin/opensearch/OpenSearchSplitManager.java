@@ -51,7 +51,7 @@ public class OpenSearchSplitManager
     {
         OpenSearchTableHandle tableHandle = (OpenSearchTableHandle) table;
 
-        if (tableHandle.type().equals(OpenSearchTableHandle.Type.QUERY)) {
+        if (tableHandle.type().equals(OpenSearchTableHandle.Type.QUERY) || client.isServerlessDeployment()) {
             return new FixedSplitSource(new OpenSearchSplit(tableHandle.index(), 0, Optional.empty()));
         }
         List<OpenSearchSplit> splits = client.getSearchShards(tableHandle.index()).stream()

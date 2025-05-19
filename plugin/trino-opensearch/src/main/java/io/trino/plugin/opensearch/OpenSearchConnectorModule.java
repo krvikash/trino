@@ -21,10 +21,12 @@ import io.trino.plugin.opensearch.client.OpenSearchClient;
 import io.trino.plugin.opensearch.ptf.RawQuery;
 import io.trino.spi.function.table.ConnectorTableFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.plugin.opensearch.OpenSearchConfig.SearchStrategy.SEARCH_AFTER;
 import static java.util.function.Predicate.isEqual;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
@@ -57,6 +59,15 @@ public class OpenSearchConnectorModule
                         .filter(isEqual(OpenSearchConfig.Security.AWS))
                         .isPresent(),
                 conditionalBinder -> configBinder(conditionalBinder).bindConfig(AwsSecurityConfig.class)));
+
+        OpenSearchConfig openSearchConfig = buildConfigObject(OpenSearchConfig.class);
+        if (openSearchConfig.getSecurity().isPresent()
+                && openSearchConfig.getSecurity().get() == OpenSearchConfig.Security.AWS) {
+            AwsSecurityConfig awsSecurityConfig = buildConfigObject(AwsSecurityConfig.class);
+            boolean isOpenSearchServerless = awsSecurityConfig.getDeploymentType() == AwsSecurityConfig.DeploymentType.SERVERLESS;
+            checkArgument(!isOpenSearchServerless || openSearchConfig.getSearchStrategy() == SEARCH_AFTER,
+                    "When using OpenSearch Serverless, the search strategy must be SEARCH_AFTER.");
+        }
 
         install(conditionalModule(
                 OpenSearchConfig.class,

@@ -34,6 +34,7 @@ import io.airlift.log.Logger;
 import io.airlift.stats.TimeStat;
 import io.airlift.units.Duration;
 import io.trino.plugin.opensearch.AwsSecurityConfig;
+import io.trino.plugin.opensearch.AwsSecurityConfig.DeploymentType;
 import io.trino.plugin.opensearch.OpenSearchConfig;
 import io.trino.plugin.opensearch.PasswordConfig;
 import io.trino.spi.TrinoException;
@@ -135,6 +136,7 @@ public class OpenSearchClient
     private final TimeStat countStats = new TimeStat(MILLISECONDS);
     private final TimeStat backpressureStats = new TimeStat(MILLISECONDS);
     private final OpenSearchConfig.SearchStrategy searchStrategy;
+    private final boolean isServerlessDeployment;
 
     @Inject
     public OpenSearchClient(
@@ -142,6 +144,8 @@ public class OpenSearchClient
             Optional<AwsSecurityConfig> awsSecurityConfig,
             Optional<PasswordConfig> passwordConfig)
     {
+        this.isServerlessDeployment = awsSecurityConfig.map(awsConfig -> awsConfig.getDeploymentType() == DeploymentType.SERVERLESS)
+                .orElse(false);
         client = createClient(config, awsSecurityConfig, passwordConfig, backpressureStats);
 
         this.ignorePublishAddress = config.isIgnorePublishAddress();
@@ -174,6 +178,11 @@ public class OpenSearchClient
 
     private void refreshNodes()
     {
+        // Opensearch serverless has no concept of nodes and hence do not expose _nodes api endpoint.
+        // We should ignore this call since we are considering only a single logical shard for the index during split generation
+        if (isServerlessDeployment()) {
+            return;
+        }
         // discover other nodes in the cluster and add them to the client
         try {
             Set<OpenSearchNode> nodes = fetchNodes();
@@ -250,6 +259,11 @@ public class OpenSearchClient
         });
 
         return new BackpressureRestHighLevelClient(builder, config, backpressureStats);
+    }
+
+    public boolean isServerlessDeployment()
+    {
+        return isServerlessDeployment;
     }
 
     public boolean isSearchAfterStrategy()
