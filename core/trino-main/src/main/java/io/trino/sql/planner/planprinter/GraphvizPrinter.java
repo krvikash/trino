@@ -64,9 +64,11 @@ import io.trino.sql.planner.plan.WindowNode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -167,21 +169,25 @@ public final class GraphvizPrinter
         StringBuilder output = new StringBuilder();
         output.append("digraph distributed_plan {\n");
 
-        printSubPlan(plan, fragmentsById, idGenerator, output);
+        printSubPlan(plan, fragmentsById, idGenerator, output, new HashSet<>());
 
         output.append("}\n");
 
         return output.toString();
     }
 
-    private static void printSubPlan(SubPlan plan, Map<PlanFragmentId, PlanFragment> fragmentsById, PlanNodeIdGenerator idGenerator, StringBuilder output)
+    private static void printSubPlan(SubPlan plan, Map<PlanFragmentId, PlanFragment> fragmentsById, PlanNodeIdGenerator idGenerator, StringBuilder output, Set<PlanFragmentId> visitedFragments)
     {
         PlanFragment fragment = plan.getFragment();
+        if (visitedFragments.contains(fragment.getId())) {
+            return;
+        }
         printFragmentNodes(output, fragment, idGenerator);
         fragment.getRoot().accept(new EdgePrinter(output, fragmentsById, idGenerator), null);
+        visitedFragments.add(fragment.getId());
 
         for (SubPlan child : plan.getChildren()) {
-            printSubPlan(child, fragmentsById, idGenerator, output);
+            printSubPlan(child, fragmentsById, idGenerator, output, visitedFragments);
         }
     }
 
