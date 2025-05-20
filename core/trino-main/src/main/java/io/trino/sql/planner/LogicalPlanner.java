@@ -72,9 +72,12 @@ import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Row;
+import io.trino.sql.newir.FormatOptions;
+import io.trino.sql.newir.Program;
 import io.trino.sql.planner.StatisticsAggregationPlanner.TableStatisticAggregation;
 import io.trino.sql.planner.iterative.IterativeOptimizer;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
+import io.trino.sql.planner.optimizations.ctereuse.CteReuse;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
@@ -135,6 +138,7 @@ import static io.trino.SystemSessionProperties.getMaxWriterTaskCount;
 import static io.trino.SystemSessionProperties.getRetryPolicy;
 import static io.trino.SystemSessionProperties.isCacheEnabled;
 import static io.trino.SystemSessionProperties.isCollectPlanStatisticsForAllQueries;
+import static io.trino.SystemSessionProperties.isReuseCommonSubqueriesEnabled;
 import static io.trino.SystemSessionProperties.isUsePreferredWritePartitioning;
 import static io.trino.SystemSessionProperties.isUseSubPlanAlternatives;
 import static io.trino.metadata.MetadataUtil.createQualifiedObjectName;
@@ -195,6 +199,7 @@ public class LogicalPlanner
     private final WarningCollector warningCollector;
     private final PlanOptimizersStatsCollector planOptimizersStatsCollector;
     private final CachingTableStatsProvider tableStatsProvider;
+    private final FormatOptions formatOptions;
 
     public LogicalPlanner(
             Session session,
@@ -206,9 +211,10 @@ public class LogicalPlanner
             CostCalculator costCalculator,
             WarningCollector warningCollector,
             PlanOptimizersStatsCollector planOptimizersStatsCollector,
-            CachingTableStatsProvider tableStatsProvider)
+            CachingTableStatsProvider tableStatsProvider,
+            FormatOptions formatOptions)
     {
-        this(session, planOptimizers, alternativeOptimizers, DISTRIBUTED_PLAN_SANITY_CHECKER, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider);
+        this(session, planOptimizers, alternativeOptimizers, DISTRIBUTED_PLAN_SANITY_CHECKER, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, formatOptions);
     }
 
     public LogicalPlanner(
@@ -222,7 +228,8 @@ public class LogicalPlanner
             CostCalculator costCalculator,
             WarningCollector warningCollector,
             PlanOptimizersStatsCollector planOptimizersStatsCollector,
-            CachingTableStatsProvider tableStatsProvider)
+            CachingTableStatsProvider tableStatsProvider,
+            FormatOptions formatOptions)
     {
         this.session = requireNonNull(session, "session is null");
         this.planOptimizers = requireNonNull(planOptimizers, "planOptimizers is null");
@@ -244,20 +251,28 @@ public class LogicalPlanner
         this.warningCollector = requireNonNull(warningCollector, "warningCollector is null");
         this.planOptimizersStatsCollector = requireNonNull(planOptimizersStatsCollector, "planOptimizersStatsCollector is null");
         this.tableStatsProvider = requireNonNull(tableStatsProvider, "tableStatsProvider is null");
+        this.formatOptions = requireNonNull(formatOptions, "formatOptions is null");
     }
 
-    public Plan plan(Analysis analysis)
+    public PlanOptions plan(Analysis analysis)
     {
-        return plan(analysis, OPTIMIZED_AND_VALIDATED);
+        return plan(analysis, OPTIMIZED_AND_VALIDATED, true);
     }
 
-    public Plan plan(Analysis analysis, Stage stage)
+    public Plan planToOldIr(Analysis analysis, Stage stage)
     {
-        return plan(analysis, stage, analysis.getStatement() instanceof ExplainAnalyze || isCollectPlanStatisticsForAllQueries(session));
+        return plan(analysis, stage, false).oldIrPlan();
     }
 
-    public Plan plan(Analysis analysis, Stage stage, boolean collectPlanStatistics)
+    private PlanOptions plan(Analysis analysis, Stage stage, boolean reuseCommonSubqueriesAllowed)
     {
+        return plan(analysis, stage, analysis.getStatement() instanceof ExplainAnalyze || isCollectPlanStatisticsForAllQueries(session), reuseCommonSubqueriesAllowed);
+    }
+
+    public PlanOptions plan(Analysis analysis, Stage stage, boolean collectPlanStatistics, boolean reuseCommonSubqueriesAllowed)
+    {
+        checkState(reuseCommonSubqueriesAllowed || !isReuseCommonSubqueriesEnabled(session), "This context does not allow reuse_common_subqueries set to true.");
+
         PlanNode root;
         try (var _ = scopedSpan(plannerContext.getTracer(), "plan")) {
             root = planStatement(analysis, analysis.getStatement());
@@ -338,7 +353,15 @@ public class LogicalPlanner
         try (var _ = scopedSpan(plannerContext.getTracer(), "plan-stats")) {
             statsAndCosts = StatsAndCosts.create(root, statsProvider, costProvider);
         }
-        return new Plan(root, statsAndCosts);
+
+        Plan plan = new Plan(root, statsAndCosts);
+        Optional<Program> optimizedProgram = Optional.empty();
+        if (isReuseCommonSubqueriesEnabled(session)) {
+            try (var _ = scopedSpan(plannerContext.getTracer(), "reuse-common-subqueries")) {
+                optimizedProgram = CteReuse.reuseCommonSubqueries(plan, plannerContext, session, formatOptions);
+            }
+        }
+        return new PlanOptions(plan, optimizedProgram);
     }
 
     private PlanNode runOptimizer(PlanNode root, TableStatsProvider tableStatsProvider, PlanOptimizer optimizer)
@@ -1117,6 +1140,21 @@ public class LogicalPlanner
         public int hashCode()
         {
             return Objects.hash(argument, type);
+        }
+    }
+
+    /**
+     * A structure to contain two versions of the query plan.
+     *
+     * @param oldIrPlan -- the plan based on the old IR
+     * @param newIrProgram -- the plan rewritten to the new IR, and optionally further optimized by CTE reuse
+     */
+    public record PlanOptions(Plan oldIrPlan, Optional<Program> newIrProgram)
+    {
+        public PlanOptions
+        {
+            requireNonNull(oldIrPlan, "oldIrPlan is null");
+            requireNonNull(newIrProgram, "newIrProgram is null");
         }
     }
 }

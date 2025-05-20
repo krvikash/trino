@@ -231,7 +231,7 @@ public class CteReuse
             log.info("CTE reuse applied for query %s.\nQuery program before: %s\n\nQuery program after: %s", session.getQueryId(), program.print(1, formatOptions), newProgram.print(1, formatOptions));
         }
 
-        return Optional.empty();
+        return Optional.of(newProgram);
     }
 
     private static boolean hasUpdateTarget(Program program)

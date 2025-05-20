@@ -178,6 +178,7 @@ import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.analyzer.QueryExplainerFactory;
 import io.trino.sql.analyzer.SessionTimeProvider;
 import io.trino.sql.analyzer.StatementAnalyzerFactory;
+import io.trino.sql.dialect.trino.TrinoDialect;
 import io.trino.sql.gen.CursorProcessorCompiler;
 import io.trino.sql.gen.ExpressionCompiler;
 import io.trino.sql.gen.JoinCompiler;
@@ -185,6 +186,8 @@ import io.trino.sql.gen.JoinFilterFunctionCompiler;
 import io.trino.sql.gen.OrderingCompiler;
 import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
+import io.trino.sql.newir.DialectRegistry;
+import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.parser.SqlParser;
 import io.trino.sql.planner.AdaptivePlanner;
 import io.trino.sql.planner.AlternativesOptimizers;
@@ -271,6 +274,7 @@ import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.connector.DynamicFilter.EMPTY;
 import static io.trino.spiller.PartitioningSpillerFactory.unsupportedPartitioningSpillerFactory;
 import static io.trino.spiller.SingleStreamSpillerFactory.unsupportedSingleStreamSpillerFactory;
+import static io.trino.sql.dialect.trino.TrinoAttributeRegistry.TESTING_TRINO_ATTRIBUTE_REGISTRY;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED_AND_VALIDATED;
 import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
 import static io.trino.sql.testing.TreeAssertions.assertFormattedSql;
@@ -318,6 +322,7 @@ public class PlanTester
     private final ViewPropertyManager viewPropertyManager;
     private final MaterializedViewPropertyManager materializedViewPropertyManager;
     private final AnalyzePropertyManager analyzePropertyManager;
+    private final FormatOptions formatOptions;
 
     private final PageFunctionCompiler pageFunctionCompiler;
     private final ColumnarFilterCompiler filterCompiler;
@@ -451,6 +456,7 @@ public class PlanTester
         this.materializedViewPropertyManager = createMaterializedViewPropertyManager(catalogManager);
         this.analyzePropertyManager = createAnalyzePropertyManager(catalogManager);
         TableProceduresPropertyManager tableProceduresPropertyManager = createTableProceduresPropertyManager(catalogManager);
+        this.formatOptions = new FormatOptions(new DialectRegistry(new TrinoDialect(typeManager, TESTING_TRINO_ATTRIBUTE_REGISTRY)));
 
         accessControl.setConnectorAccessControlProvider(createAccessControlProvider(catalogManager));
 
@@ -990,11 +996,12 @@ public class PlanTester
                 costCalculator,
                 warningCollector,
                 planOptimizersStatsCollector,
-                new CachingTableStatsProvider(getPlannerContext().getMetadata(), session));
+                new CachingTableStatsProvider(getPlannerContext().getMetadata(), session),
+                formatOptions);
 
         Analysis analysis = analyzer.analyze(preparedQuery.getStatement());
         // make PlanTester always compute plan statistics for test purposes
-        return logicalPlanner.plan(analysis, stage);
+        return logicalPlanner.planToOldIr(analysis, stage);
     }
 
     public SubPlan createAdaptivePlan(Session session, SubPlan subPlan, List<AdaptivePlanOptimizer> optimizers, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector, RuntimeInfoProvider runtimeInfoProvider)
@@ -1020,7 +1027,8 @@ public class PlanTester
                 plannerContext,
                 statsCalculator,
                 costCalculator,
-                new NodeVersion("test"));
+                new NodeVersion("test"),
+                formatOptions);
     }
 
     private PlanOptimizersFactory createPlanOptimizersFactory(List<PlanOptimizer> optimizers)

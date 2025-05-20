@@ -244,6 +244,7 @@ public final class SystemSessionProperties
     public static final String DEBUG_ADAPTIVE_PLANNER = "debug_adaptive_planner";
     public static final String DEBUG_CTE_REUSE = "debug_cte_reuse";
     public static final String SUPERSET_PREDICATE_PUSHDOWN_ENABLED = "superset_predicate_pushdown_enabled";
+    public static final String REUSE_COMMON_SUBQUERIES = "reuse_common_subqueries";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -1204,6 +1205,11 @@ public final class SystemSessionProperties
                         "Enables columnar evaluation of filters",
                         featuresConfig.isColumnarFilterEvaluationEnabled(),
                         false),
+                booleanProperty(
+                        REUSE_COMMON_SUBQUERIES,
+                        "Allow optimizing queries by common subquery reuse",
+                        false,
+                        true),
                 booleanProperty(
                         CACHE_ENABLED,
                         "Enables subquery caching",
@@ -2294,5 +2300,10 @@ public final class SystemSessionProperties
     public static boolean isSuperSetPredicatePushdownEnabled(Session session)
     {
         return session.getSystemProperty(SUPERSET_PREDICATE_PUSHDOWN_ENABLED, Boolean.class);
+    }
+
+    public static boolean isReuseCommonSubqueriesEnabled(Session session)
+    {
+        return session.getSystemProperty(REUSE_COMMON_SUBQUERIES, Boolean.class);
     }
 }

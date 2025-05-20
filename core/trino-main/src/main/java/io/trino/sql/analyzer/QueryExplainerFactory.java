@@ -18,6 +18,7 @@ import io.trino.client.NodeVersion;
 import io.trino.cost.CostCalculator;
 import io.trino.cost.StatsCalculator;
 import io.trino.sql.PlannerContext;
+import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.planner.PlanFragmenter;
 import io.trino.sql.planner.PlanOptimizersFactory;
 import io.trino.sql.planner.sanity.ForAlternatives;
@@ -33,6 +34,7 @@ public class QueryExplainerFactory
     private final StatsCalculator statsCalculator;
     private final CostCalculator costCalculator;
     private final NodeVersion version;
+    private final FormatOptions formatOptions;
 
     @Inject
     public QueryExplainerFactory(
@@ -42,7 +44,8 @@ public class QueryExplainerFactory
             PlannerContext plannerContext,
             StatsCalculator statsCalculator,
             CostCalculator costCalculator,
-            NodeVersion version)
+            NodeVersion version,
+            FormatOptions formatOptions)
     {
         this.planOptimizersFactory = requireNonNull(planOptimizersFactory, "planOptimizersFactory is null");
         this.alternativesOptimizersFactory = requireNonNull(alternativesOptimizersFactory, "alternativesOptimizersFactory is null");
@@ -51,6 +54,7 @@ public class QueryExplainerFactory
         this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
         this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
         this.version = requireNonNull(version, "version is null");
+        this.formatOptions = requireNonNull(formatOptions, "formatOptions is null");
     }
 
     public QueryExplainer createQueryExplainer(AnalyzerFactory analyzerFactory)
@@ -63,6 +67,7 @@ public class QueryExplainerFactory
                 analyzerFactory,
                 statsCalculator,
                 costCalculator,
-                version);
+                version,
+                formatOptions);
     }
 }

@@ -35,6 +35,13 @@ import io.trino.spi.TrinoWarning;
 import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.connector.ConnectorPartitioningHandle;
 import io.trino.spi.function.FunctionId;
+import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.ProgramBuilder;
+import io.trino.sql.dialect.trino.operation.Output;
+import io.trino.sql.dialect.trino.operation.Query;
+import io.trino.sql.newir.Program;
+import io.trino.sql.planner.newirtoold.NewIrFragmenter;
+import io.trino.sql.planner.newirtoold.NewIrFragmenter.NewIrPartitioningScheme;
 import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.plan.AdaptivePlanNode;
 import io.trino.sql.planner.plan.ChooseAlternativeNode;
@@ -63,6 +70,7 @@ import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.transaction.TransactionManager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -79,6 +87,7 @@ import static io.trino.SystemSessionProperties.isForceSingleNodeOutput;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.QUERY_HAS_TOO_MANY_STAGES;
 import static io.trino.spi.connector.StandardWarningCode.TOO_MANY_STAGES;
+import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.planner.AdaptivePlanner.ExchangeSourceId;
 import static io.trino.sql.planner.SchedulingOrderVisitor.scheduleOrder;
 import static io.trino.sql.planner.SystemPartitioningHandle.COORDINATOR_DISTRIBUTION;
@@ -86,6 +95,8 @@ import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUT
 import static io.trino.sql.planner.SystemPartitioningHandle.SCALED_WRITER_HASH_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SOURCE_DISTRIBUTION;
+import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getEmptyFieldSelector;
+import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getFullPassthroughFieldSelector;
 import static io.trino.sql.planner.plan.ExchangeNode.Scope.REMOTE;
 import static io.trino.sql.planner.planprinter.PlanPrinter.jsonFragmentPlan;
 import static java.lang.String.format;
@@ -165,7 +176,7 @@ public class PlanFragmenter
         PlanNode root = SimplePlanRewriter.rewriteWith(fragmenter, plan.getRoot(), properties);
 
         SubPlan subPlan = fragmenter.buildRootFragment(root, properties);
-        subPlan = reassignPartitioningHandleIfNecessary(session, subPlan);
+        subPlan = reassignPartitioningHandleIfNecessary(session, subPlan).orElseThrow(() -> new IllegalStateException("Failed to reassign partitioning handles for non-diamond plan"));
 
         checkState(!isForceSingleNodeOutput(session) || subPlan.getFragment().getPartitioning().isSingleNode(), "Root of PlanFragment is not single node");
 
@@ -173,6 +184,56 @@ public class PlanFragmenter
         sanityCheckFragmentedPlan(subPlan, warningCollector, getQueryMaxStageCount(session), stageCountWarningThreshold);
 
         return subPlan;
+    }
+
+    /**
+     * Fragment the plan which is represented in the new IR, and potentially involves diamond shape.
+     * The returned representation of the fragmented plan uses the old IR.
+     */
+    public Optional<SubPlan> createSubPlans(Session session, Program program, boolean forceSingleNode, WarningCollector warningCollector)
+    {
+        List<CatalogProperties> activeCatalogs = transactionManager.getActiveCatalogs(session.getTransactionId().orElseThrow()).stream()
+                .map(CatalogInfo::catalogHandle)
+                .flatMap(catalogHandle -> catalogManager.getCatalogProperties(catalogHandle).stream())
+                .collect(toImmutableList());
+
+        // build output partitioning scheme using new ValueNameAllocator.
+        // The created NewIrPartitioningScheme will not be used in the context of the existing program, so there cannot be value name clashes.
+        // The NewIrPartitioningScheme will be translated to old IR before it is incorporated into the fragmented plan.
+        ProgramBuilder.ValueNameAllocator nameAllocator = new ProgramBuilder.ValueNameAllocator();
+        Output outputOperation = (Output) ((Query) program.getRoot()).query().getTerminalOperation();
+        Type outputRowType = trinoType(outputOperation.outputFieldSelector().getReturnedType());
+        NewIrPartitioningScheme outputPartitioningScheme = new NewIrPartitioningScheme(
+                getFullPassthroughFieldSelector("^outputLayoutSelector", outputRowType, nameAllocator),
+                SINGLE_DISTRIBUTION,
+                getEmptyFieldSelector("^boundArguments", outputRowType, nameAllocator),
+                getEmptyFieldSelector("^hashSelector", outputRowType, nameAllocator),
+                false,
+                Optional.empty(),
+                Optional.empty());
+
+        FragmentProperties properties = new FragmentProperties(outputPartitioningScheme);
+        if (forceSingleNode || isForceSingleNodeOutput(session)) {
+            properties = properties.setSingleNodeDistribution();
+        }
+
+        // The old IR fragmenter takes the unchangedSubPlans map. It is used for adaptive re-planning. The new IR fragmenter is only used for initial plan fragmenting, so it does not need this map.
+        // The old IR fragmenter takes StatsAndCosts. We do not pass StatsAndCosts to the new IR fragmenter, and use 'empty' values instead.
+        // TODO We should assign a PlanNodeId to each relational operation in the rewritten plan, calculate stats and cost for those operations, and make the StatsAndCosts map.
+        NewIrFragmenter fragmenter = new NewIrFragmenter(session, metadata, functionManager, activeCatalogs, languageFunctionManager.serializeFunctionsForWorkers(session));
+
+        SubPlan subPlan = fragmenter.fragmentProgram(program, properties);
+        Optional<SubPlan> reassignedSubPlan = reassignPartitioningHandleIfNecessary(session, subPlan);
+        if (reassignedSubPlan.isEmpty()) {
+            return Optional.empty();
+        }
+        subPlan = reassignedSubPlan.get();
+        checkState(!isForceSingleNodeOutput(session) || subPlan.getFragment().getPartitioning().isSingleNode(), "Root of PlanFragment is not single node");
+
+        // TODO: Remove query_max_stage_count session property and use queryManagerConfig.getMaxStageCount() here
+        sanityCheckFragmentedPlan(subPlan, warningCollector, getQueryMaxStageCount(session), stageCountWarningThreshold);
+
+        return Optional.of(subPlan);
     }
 
     private void sanityCheckFragmentedPlan(SubPlan subPlan, WarningCollector warningCollector, int maxStageCount, int stageCountSoftLimit)
@@ -195,14 +256,29 @@ public class PlanFragmenter
         }
     }
 
-    private SubPlan reassignPartitioningHandleIfNecessary(Session session, SubPlan subPlan)
+    private Optional<SubPlan> reassignPartitioningHandleIfNecessary(Session session, SubPlan subPlan)
     {
-        return reassignPartitioningHandleIfNecessaryHelper(session, subPlan, subPlan.getFragment().getPartitioning());
+        return reassignPartitioningHandleIfNecessaryHelper(session, subPlan, subPlan.getFragment().getPartitioning(), new HashMap<>());
     }
 
-    private SubPlan reassignPartitioningHandleIfNecessaryHelper(Session session, SubPlan subPlan, PartitioningHandle newOutputPartitioningHandle)
+    private Optional<SubPlan> reassignPartitioningHandleIfNecessaryHelper(Session session, SubPlan subPlan, PartitioningHandle newOutputPartitioningHandle, Map<PlanFragmentId, ProcessedSubPlan> processedSubPlans)
     {
         PlanFragment fragment = subPlan.getFragment();
+
+        // this fragment could have been already processed as the result of diamond shape
+        ProcessedSubPlan processedSubPlan = processedSubPlans.get(fragment.getId());
+        if (processedSubPlan != null) {
+            // we're visiting the same fragment again. we can only proceed if the results of each visit are identical.
+            // it happens when:
+            // - the fragment's output partitioning handle cannot be effectively updated (because it is a system handle)
+            // - the fragment's output partitioning handle was updated, and the new suggested partitioning handle is the same as the updated one
+            if (processedSubPlan.updatedPartitioningHandle().isEmpty() ||
+                    processedSubPlan.updatedPartitioningHandle().get().equals(newOutputPartitioningHandle)) {
+                return Optional.of(processedSubPlan.result());
+            }
+            // bail out because of incompatible output partitioning requests
+            return Optional.empty();
+        }
 
         PlanNode newRoot = fragment.getRoot();
         // If the fragment's partitioning is SINGLE or COORDINATOR_ONLY, leave the sources as is (this is for single-node execution)
@@ -212,9 +288,11 @@ public class PlanFragmenter
         }
         PartitioningScheme outputPartitioningScheme = fragment.getOutputPartitioningScheme();
         Partitioning newOutputPartitioning = outputPartitioningScheme.getPartitioning();
+        Optional<PartitioningHandle> updatedPartitioningHandle = Optional.empty();
         if (outputPartitioningScheme.getPartitioning().getHandle().getCatalogHandle().isPresent()) {
             // Do not replace the handle if the source's output handle is a system one, e.g. broadcast.
             newOutputPartitioning = newOutputPartitioning.withAlternativePartitioningHandle(newOutputPartitioningHandle);
+            updatedPartitioningHandle = Optional.of(newOutputPartitioningHandle);
         }
         PlanFragment newFragment = new PlanFragment(
                 fragment.getId(),
@@ -237,9 +315,43 @@ public class PlanFragmenter
 
         ImmutableList.Builder<SubPlan> childrenBuilder = ImmutableList.builder();
         for (SubPlan child : subPlan.getChildren()) {
-            childrenBuilder.add(reassignPartitioningHandleIfNecessaryHelper(session, child, fragment.getPartitioning()));
+            Optional<SubPlan> processedChild = reassignPartitioningHandleIfNecessaryHelper(session, child, fragment.getPartitioning(), processedSubPlans);
+            if (processedChild.isPresent()) {
+                childrenBuilder.add(processedChild.get());
+            }
+            else {
+                return Optional.empty();
+            }
         }
-        return new SubPlan(newFragment, childrenBuilder.build());
+        SubPlan newSubPlan = new SubPlan(newFragment, childrenBuilder.build());
+        processedSubPlans.put(fragment.getId(), new ProcessedSubPlan(newSubPlan, updatedPartitioningHandle));
+
+        return Optional.of(newSubPlan);
+    }
+
+    private record ProcessedSubPlan(SubPlan result, Optional<PartitioningHandle> updatedPartitioningHandle)
+    {
+        private ProcessedSubPlan
+        {
+            requireNonNull(result, "result is null");
+            requireNonNull(updatedPartitioningHandle, "updatedPartitioningHandle is null");
+        }
+    }
+
+    public static boolean isWorkerCoordinatorBoundary(FragmentProperties fragmentProperties, List<FragmentProperties> childFragmentsProperties)
+    {
+        if (!fragmentProperties.getPartitioningHandle().isCoordinatorOnly()) {
+            // receiver stage is not a coordinator stage
+            return false;
+        }
+        if (childFragmentsProperties.stream().allMatch(properties -> properties.getPartitioningHandle().isCoordinatorOnly())) {
+            // coordinator to coordinator exchange
+            return false;
+        }
+        checkArgument(
+                childFragmentsProperties.stream().noneMatch(properties -> properties.getPartitioningHandle().isCoordinatorOnly()),
+                "Plans are not expected to have a mix of coordinator only fragments and distributed fragments as siblings");
+        return true;
     }
 
     private static class Fragmenter
@@ -584,29 +696,14 @@ public class PlanFragmenter
                                     .findAll().stream())
                     .collect(toImmutableList());
         }
-
-        private static boolean isWorkerCoordinatorBoundary(FragmentProperties fragmentProperties, List<FragmentProperties> childFragmentsProperties)
-        {
-            if (!fragmentProperties.getPartitioningHandle().isCoordinatorOnly()) {
-                // receiver stage is not a coordinator stage
-                return false;
-            }
-            if (childFragmentsProperties.stream().allMatch(properties -> properties.getPartitioningHandle().isCoordinatorOnly())) {
-                // coordinator to coordinator exchange
-                return false;
-            }
-            checkArgument(
-                    childFragmentsProperties.stream().noneMatch(properties -> properties.getPartitioningHandle().isCoordinatorOnly()),
-                    "Plans are not expected to have a mix of coordinator only fragments and distributed fragments as siblings");
-            return true;
-        }
     }
 
-    private static class FragmentProperties
+    public static class FragmentProperties
     {
         private final List<SubPlan> children = new ArrayList<>();
 
-        private final PartitioningScheme partitioningScheme;
+        private final Optional<PartitioningScheme> partitioningScheme;
+        private final Optional<NewIrPartitioningScheme> newIrPartitioningScheme;
 
         private Optional<PartitioningHandle> partitioningHandle = Optional.empty();
         private Optional<Integer> partitionCount = Optional.empty();
@@ -614,7 +711,14 @@ public class PlanFragmenter
 
         public FragmentProperties(PartitioningScheme partitioningScheme)
         {
-            this.partitioningScheme = partitioningScheme;
+            this.partitioningScheme = Optional.of(partitioningScheme);
+            this.newIrPartitioningScheme = Optional.empty();
+        }
+
+        public FragmentProperties(NewIrPartitioningScheme newIrPartitioningScheme)
+        {
+            this.partitioningScheme = Optional.empty();
+            this.newIrPartitioningScheme = Optional.of(newIrPartitioningScheme);
         }
 
         public List<SubPlan> getChildren()
@@ -779,7 +883,12 @@ public class PlanFragmenter
 
         public PartitioningScheme getPartitioningScheme()
         {
-            return partitioningScheme;
+            return partitioningScheme.orElseThrow();
+        }
+
+        public NewIrPartitioningScheme getNewIrPartitioningScheme()
+        {
+            return newIrPartitioningScheme.orElseThrow();
         }
 
         public PartitioningHandle getPartitioningHandle()

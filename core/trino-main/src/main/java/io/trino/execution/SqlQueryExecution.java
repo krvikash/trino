@@ -61,10 +61,10 @@ import io.trino.sql.analyzer.Analysis;
 import io.trino.sql.analyzer.Analyzer;
 import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.newir.FormatOptions;
-import io.trino.sql.newir.Program;
 import io.trino.sql.planner.AdaptivePlanner;
 import io.trino.sql.planner.InputExtractor;
 import io.trino.sql.planner.LogicalPlanner;
+import io.trino.sql.planner.LogicalPlanner.PlanOptions;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.PlanFragment;
@@ -75,7 +75,6 @@ import io.trino.sql.planner.SplitSourceFactory;
 import io.trino.sql.planner.SubPlan;
 import io.trino.sql.planner.optimizations.AdaptivePlanOptimizer;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
-import io.trino.sql.planner.optimizations.ctereuse.CteReuse;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.sanity.ForAlternatives;
 import io.trino.sql.tree.ExplainAnalyze;
@@ -506,17 +505,28 @@ public class SqlQueryExecution
                 costCalculator,
                 stateMachine.getWarningCollector(),
                 planOptimizersStatsCollector,
-                tableStatsProvider);
-        Plan plan = logicalPlanner.plan(analysis);
+                tableStatsProvider,
+                formatOptions);
+        PlanOptions planOptions = logicalPlanner.plan(analysis);
+        Plan plan = planOptions.oldIrPlan();
+        // TODO update this to handle both the old IR and new IR plans. It is used for dynamic filters and TestingTrinoServer
         queryPlan.set(plan);
 
-        Optional<Program> optimizedProgram = CteReuse.reuseCommonSubqueries(plan, plannerContext, getSession(), formatOptions);
-        checkState(optimizedProgram.isEmpty());
-
         // fragment the plan
-        SubPlan fragmentedPlan;
-        try (var _ = scopedSpan(tracer, "fragment-plan")) {
-            fragmentedPlan = planFragmenter.createSubPlans(stateMachine.getSession(), plan, false, stateMachine.getWarningCollector());
+        SubPlan fragmentedPlan = null;
+        if (planOptions.newIrProgram().isPresent()) {
+            Optional<SubPlan> optionalFragmentedPlan;
+            try (var _ = scopedSpan(tracer, "fragment-plan-new-ir")) {
+                optionalFragmentedPlan = planFragmenter.createSubPlans(stateMachine.getSession(), planOptions.newIrProgram().get(), false, stateMachine.getWarningCollector());
+            }
+            if (optionalFragmentedPlan.isPresent()) {
+                fragmentedPlan = optionalFragmentedPlan.get();
+            }
+        }
+        if (fragmentedPlan == null) {
+            try (var _ = scopedSpan(tracer, "fragment-plan-old-ir")) {
+                fragmentedPlan = planFragmenter.createSubPlans(stateMachine.getSession(), plan, false, stateMachine.getWarningCollector());
+            }
         }
 
         // extract inputs
