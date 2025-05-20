@@ -418,6 +418,7 @@ import static org.apache.iceberg.SnapshotSummary.TOTAL_RECORDS_PROP;
 import static org.apache.iceberg.TableProperties.COMMIT_NUM_RETRIES;
 import static org.apache.iceberg.TableProperties.DELETE_ISOLATION_LEVEL;
 import static org.apache.iceberg.TableProperties.DELETE_ISOLATION_LEVEL_DEFAULT;
+import static org.apache.iceberg.TableProperties.ENCRYPTION_TABLE_KEY;
 import static org.apache.iceberg.TableProperties.FORMAT_VERSION;
 import static org.apache.iceberg.TableProperties.MANIFEST_TARGET_SIZE_BYTES;
 import static org.apache.iceberg.TableProperties.MANIFEST_TARGET_SIZE_BYTES_DEFAULT;
@@ -621,6 +622,11 @@ public class IcebergMetadata
                 return new CorruptedIcebergTableHandle(tableName, e);
             }
             throw e;
+        }
+
+        if (table.properties().containsKey(ENCRYPTION_TABLE_KEY)) {
+            // TODO https://starburstdata.atlassian.net/browse/CONNECT-577 Support table encryption
+            throw new TrinoException(NOT_SUPPORTED, "Table encryption is not supported for: " + tableName);
         }
 
         if (endVersion.isPresent()) {
