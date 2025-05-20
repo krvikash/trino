@@ -19,7 +19,15 @@ public interface NullSafeHash
 {
     long hash(ValueBlock block, int position);
 
+    /**
+     * Hashes the block and stores the result in the hashes array.
+     * Should be used for single channel Pages and the first channel of multi-channel Pages.
+     */
     void hashBatched(ValueBlock block, long[] hashes, int offset, int length);
 
+    /**
+     * Hashes the block and combines the result with the existing hash in the hashes array.
+     * Should be used for combining hashes for multi-channel Pages after the first channel is processed by hashBatched.
+     */
     void hashBatchedWithCombine(ValueBlock block, long[] hashes, int offset, int length);
 }
