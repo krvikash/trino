@@ -307,17 +307,11 @@ public class MatchService
         return Optional.of(chunk);
     }
 
-    private boolean isNativeMatchException(Exception e)
-    {
-        return e instanceof TrinoException trinoException &&
-                (trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode()) || trinoException.getErrorCode().equals(WARP_NATIVE_MATCH_ERROR.toErrorCode()));
-    }
-
     public void abortPage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs, Exception e)
     {
         if (matcherPageArgs.matchState().isPresent()) {
             // In case of native match exception match tx already closed
-            if (!isNativeMatchException(e)) {
+            if (!ExceptionThrower.isNativeMatchException(e)) {
                 long startTime = System.nanoTime();
                 storageEngine.matchClose(matcherPageArgs.matchState().get().getStateMemory());
                 queryArgs.dispatcherPageSourceStats().addnative_read_time(System.nanoTime() - startTime);

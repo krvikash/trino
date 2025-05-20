@@ -260,7 +260,7 @@ public class WarpDispatcherPageSourceFactory
 
             pageSourceDecision = getPageSourceDecision(queryContext);
             if (PageSourceDecision.EMPTY.equals(pageSourceDecision)) {
-                closeHandler.accept(afterLockRowGroupData);
+                closeHandler.accept(afterLockRowGroupData, "EMPTY-factory", shapingLogger);
                 queryClassifier.close(queryContext);
                 addStatsOnFilteredByPredicate(columns, customStatsContext, dispatcherPageSourceStats, basicQueryContext);
                 return new EmptyPageSource();
@@ -320,7 +320,7 @@ public class WarpDispatcherPageSourceFactory
                 }
                 catch (Exception e) {
                     if (Thread.currentThread().isInterrupted()) {
-                        closeHandler.accept(afterLockRowGroupData);
+                        closeHandler.accept(afterLockRowGroupData, "WARP_TX_ALLOCATION_INTERRUPTED", shapingLogger);
                         throw new TrinoException(WarpErrorCode.WARP_TX_ALLOCATION_INTERRUPTED,
                                 "interrupted while trying to create page source");
                     }
@@ -346,14 +346,14 @@ public class WarpDispatcherPageSourceFactory
         catch (Exception e) {
             RowGroupData afterLockRowGroupData = rowGroupDataService.getIfPresent(rowGroupKey);
             if (afterLockRowGroupData != null) {
-                closeHandler.accept(afterLockRowGroupData);
+                closeHandler.accept(afterLockRowGroupData, "exception-factory", shapingLogger);
             }
             throw e;
         }
     }
 
     private ConnectorPageSource createProxiedConnectorPageSource(
-            Optional<RowGroupData> rowGroupData,
+            Optional<RowGroupData> rowGroupDataOpt,
             ConnectorPageSourceProvider proxiedConnectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
@@ -365,7 +365,7 @@ public class WarpDispatcherPageSourceFactory
             RowGroupCloseHandler closeHandler,
             PageSourceDecision pageSourceDecision)
     {
-        rowGroupData.ifPresent(closeHandler);
+        rowGroupDataOpt.ifPresent(rowGroupData -> closeHandler.accept(rowGroupData, "createProxiedConnectorPageSource", shapingLogger));
         queryContext.ifPresent(queryClassifier::close);
 
         ConnectorTableHandle connectorTableHandle;

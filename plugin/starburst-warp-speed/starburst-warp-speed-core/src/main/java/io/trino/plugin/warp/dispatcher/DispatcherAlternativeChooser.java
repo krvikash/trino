@@ -138,7 +138,7 @@ public class DispatcherAlternativeChooser
                         }
                         if (chosenIndex == -1) {
                             // no need to lock resources when using the trivial alternative (we'll lock later if necessary)
-                            closeResources(closeHandler, rowGroupKey, Optional.ofNullable(queryContext));
+                            closeResources(closeHandler, rowGroupKey, Optional.ofNullable(queryContext), "chosenIndex-1");
                             closeHandler = Optional.empty();
                             queryContext = null;
                         }
@@ -173,7 +173,7 @@ public class DispatcherAlternativeChooser
                             new ResourceCloser(closeHandler, rowGroupKey, Optional.ofNullable(queryContext))));
         }
         catch (Exception e) {
-            closeResources(closeHandler, rowGroupKey, Optional.ofNullable(queryContext));
+            closeResources(closeHandler, rowGroupKey, Optional.ofNullable(queryContext), "chooseAlternative-exception");
             throw e;
         }
     }
@@ -192,13 +192,13 @@ public class DispatcherAlternativeChooser
         return -1;
     }
 
-    private void closeResources(Optional<RowGroupCloseHandler> closeHandler, RowGroupKey rowGroupKey, Optional<QueryContext> queryContext)
+    private void closeResources(Optional<RowGroupCloseHandler> closeHandler, RowGroupKey rowGroupKey, Optional<QueryContext> queryContext, String caller)
     {
         try {
             closeHandler.ifPresent(value -> {
                 RowGroupData rowGroupDataToClose = rowGroupDataService.getIfPresent(rowGroupKey);
                 if (rowGroupDataToClose != null) {
-                    value.accept(rowGroupDataToClose);
+                    value.accept(rowGroupDataToClose, caller, null);
                 }
             });
         }
@@ -277,7 +277,7 @@ public class DispatcherAlternativeChooser
         public void close()
         {
             if (!handled.getAndSet(true)) {
-                closeResources(closeHandler, rowGroupKey, queryContext);
+                closeResources(closeHandler, rowGroupKey, queryContext, "ResourceCloser-close");
             }
         }
     }

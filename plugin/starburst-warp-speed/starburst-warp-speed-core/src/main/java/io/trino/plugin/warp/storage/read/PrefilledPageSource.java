@@ -126,7 +126,7 @@ public class PrefilledPageSource
     @Override
     public void close()
     {
-        closeHandler.ifPresent(handler -> handler.accept(rowGroupData));
+        closeHandler.ifPresent(handler -> handler.accept(rowGroupData, "close prefill", null));
         stats.inccached_warp_success_files();
         stats.addexecution_time(System.currentTimeMillis() - this.startTime);
     }

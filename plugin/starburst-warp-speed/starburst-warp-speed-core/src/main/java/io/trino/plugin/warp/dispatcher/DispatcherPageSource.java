@@ -496,7 +496,7 @@ public class DispatcherPageSource
         finally {
             queryClassifier.close(queryContext);
             this.stats.addexecution_time(System.nanoTime() - this.startTime);
-            closeHandler.accept(rowGroupData);
+            closeHandler.accept(rowGroupData, "close page source", shapingLogger);
         }
     }
 

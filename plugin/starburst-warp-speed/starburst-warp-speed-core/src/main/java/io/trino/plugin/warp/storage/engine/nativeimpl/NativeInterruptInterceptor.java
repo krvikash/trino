@@ -13,12 +13,17 @@
  */
 package io.trino.plugin.warp.storage.engine.nativeimpl;
 
+import io.airlift.log.Logger;
+import io.trino.plugin.warp.storage.engine.ExceptionThrower;
+import io.trino.spi.TrinoException;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 
 public class NativeInterruptInterceptor
         implements MethodInterceptor
 {
+    private static final Logger logger = Logger.get(NativeInterruptInterceptor.class);
+
     @SuppressWarnings("ThrowFromFinallyBlock")
     @Override
     public Object invoke(MethodInvocation invocation)
@@ -27,10 +32,12 @@ public class NativeInterruptInterceptor
         try {
             return invocation.proceed();
         }
-        finally {
-            if (Thread.currentThread().isInterrupted()) {
-                throw new InterruptedException("Thread was interrupted while native code was running");
+        catch (TrinoException te) {
+            if ((ExceptionThrower.isNativeException(te) || ExceptionThrower.isNativeMatchException(te)) &&
+                    Thread.currentThread().isInterrupted()) {
+                logger.warn(te, "native execption wad thrown while thread was interrupted");
             }
+            throw te;
         }
     }
 }

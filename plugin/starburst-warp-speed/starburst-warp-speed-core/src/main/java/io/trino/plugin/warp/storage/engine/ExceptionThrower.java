@@ -19,8 +19,10 @@ import io.trino.spi.TrinoException;
 import java.util.function.Consumer;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_MATCH_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_READ_OUT_OF_BOUNDS;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR;
 
 public interface ExceptionThrower
 {
@@ -28,6 +30,12 @@ public interface ExceptionThrower
     {
         int code = te.getErrorCode().getCode();
         return code == WARP_NATIVE_ERROR.toErrorCode().getCode() || code == WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode().getCode() || code == WARP_NATIVE_READ_OUT_OF_BOUNDS.toErrorCode().getCode();
+    }
+
+    static boolean isNativeMatchException(Exception e)
+    {
+        return e instanceof TrinoException trinoException &&
+                (trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode()) || trinoException.getErrorCode().equals(WARP_NATIVE_MATCH_ERROR.toErrorCode()));
     }
 
     void throwException(int code, String msg);

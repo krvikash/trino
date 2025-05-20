@@ -188,13 +188,13 @@ public class WarpCachePageSourceFactory
             if (!queryContext.getRemainingCollectColumnByBlockIndex().isEmpty() || // might happen if there is not enough memory, see NativeCollectClassifier
                     !queryContext.getPredicateContextData().getRemainingColumns().isEmpty() ||
                     !queryContext.isCanBeTight()) {
-                closeResources(closeHandler, afterLockRowGroupData, queryContext);
+                closeResources(closeHandler, afterLockRowGroupData, queryContext, "no memory");
                 return Optional.empty();
             }
 
             pageSourceDecision = getPageSourceDecision(queryContext);
             if (PageSourceDecision.EMPTY.equals(pageSourceDecision)) {
-                closeResources(closeHandler, afterLockRowGroupData, queryContext);
+                closeResources(closeHandler, afterLockRowGroupData, queryContext, "EMPTY");
                 addStatsOnFilteredByPredicate(columns, customStatsContext, dispatcherPageSourceStats, basicQueryContext);
                 return Optional.of(new EmptyPageSource());
             }
@@ -217,7 +217,7 @@ public class WarpCachePageSourceFactory
             }
 
             if (pageSourceDecision != PageSourceDecision.WARP) {
-                closeResources(closeHandler, afterLockRowGroupData, queryContext);
+                closeResources(closeHandler, afterLockRowGroupData, queryContext, "PROXY");
                 return Optional.empty();
             }
 
@@ -254,7 +254,7 @@ public class WarpCachePageSourceFactory
             return Optional.of(new WarpCachePageSource(txService, dispatcherPageSource, customStatsContext));
         }
         catch (Exception e) {
-            closeResources(closeHandler, afterLockRowGroupData, queryContext);
+            closeResources(closeHandler, afterLockRowGroupData, queryContext, "EXCEPTION");
             throw new RuntimeException(format("Failed to create page source. queryStoreId=%s, rowGroupData=%s, queryContext=%s, dispatcherTableHandle=%s",
                     queryStoreId, afterLockRowGroupData, queryContext, dispatcherTableHandle), e);
         }
@@ -278,10 +278,10 @@ public class WarpCachePageSourceFactory
                 .build();
     }
 
-    private void closeResources(RowGroupCloseHandler closeHandler, RowGroupData afterLockRowGroupData, QueryContext queryContext)
+    private void closeResources(RowGroupCloseHandler closeHandler, RowGroupData afterLockRowGroupData, QueryContext queryContext, String caller)
     {
         try {
-            closeHandler.accept(afterLockRowGroupData);
+            closeHandler.accept(afterLockRowGroupData, caller, shapingLogger);
         }
         finally {
             if (queryContext != null) {

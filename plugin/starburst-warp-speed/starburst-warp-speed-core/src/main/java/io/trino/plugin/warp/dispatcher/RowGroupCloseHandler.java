@@ -15,25 +15,35 @@ package io.trino.plugin.warp.dispatcher;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
+import io.trino.plugin.warp.log.ShapingLogger;
+import org.apache.commons.lang3.function.TriConsumer;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 public class RowGroupCloseHandler
-        implements Consumer<RowGroupData>
+        implements TriConsumer<RowGroupData, String, ShapingLogger>
 {
-    private static final Logger logger = Logger.get(RowGroupCloseHandler.class);
+    private static final io.airlift.log.Logger logger = Logger.get(RowGroupCloseHandler.class);
 
     private final AtomicBoolean handled = new AtomicBoolean();
+    private final List<String> callers = new ArrayList<>();
 
     @Override
-    public void accept(RowGroupData rowGroupData)
+    public void accept(RowGroupData rowGroupData, String caller, ShapingLogger shapingLogger)
     {
         if (!handled.getAndSet(true)) {
             rowGroupData.getLock().readUnLock();
         }
         else {
-            logger.warn("already called & handled by this close handled for rowGroup[%s]", rowGroupData.getRowGroupKey());
+            if (shapingLogger != null) {
+                shapingLogger.warn("already called & handled by this close handled for rowGroup[%s], previous callers %s", rowGroupData.getRowGroupKey(), callers);
+            }
+            else {
+                logger.warn("already called & handled by this close handled for rowGroup[%s], previous callers %s", rowGroupData.getRowGroupKey(), callers);
+            }
         }
+        callers.add(caller);
     }
 }
