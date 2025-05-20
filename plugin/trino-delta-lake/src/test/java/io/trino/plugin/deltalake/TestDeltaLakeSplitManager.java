@@ -37,9 +37,13 @@ import io.trino.plugin.deltalake.transactionlog.TransactionLogAccess;
 import io.trino.plugin.deltalake.transactionlog.checkpoint.CheckpointSchemaManager;
 import io.trino.plugin.deltalake.transactionlog.checkpoint.CheckpointWriterManager;
 import io.trino.plugin.deltalake.transactionlog.checkpoint.LastCheckpoint;
+import io.trino.plugin.deltalake.transactionlog.reader.FileSystemTransactionLogReader;
+import io.trino.plugin.deltalake.transactionlog.reader.FileSystemTransactionLogReaderFactory;
+import io.trino.plugin.deltalake.transactionlog.reader.TransactionLogReader;
+import io.trino.plugin.deltalake.transactionlog.reader.TransactionLogReaderFactory;
+import io.trino.plugin.deltalake.transactionlog.writer.FileSystemTransactionLogWriterFactory;
 import io.trino.plugin.deltalake.transactionlog.writer.NoIsolationSynchronizer;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogSynchronizerManager;
-import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFactory;
 import io.trino.plugin.hive.HiveTransactionHandle;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.NodeVersion;
@@ -201,6 +205,7 @@ public class TestDeltaLakeSplitManager
             @Override
             public Stream<AddFileEntry> getActiveFiles(
                     ConnectorSession session,
+                    TransactionLogReader transactionLogReader,
                     TableSnapshot tableSnapshot,
                     MetadataEntry metadataEntry,
                     ProtocolEntry protocolEntry,
@@ -222,6 +227,7 @@ public class TestDeltaLakeSplitManager
                 new DeltaLakeConfig(),
                 newDirectExecutorService());
 
+        TransactionLogReaderFactory transactionLogReaderFactory = new FileSystemTransactionLogReaderFactory(hdfsFileSystemFactory);
         HiveMetastoreFactory hiveMetastoreFactory = HiveMetastoreFactory.ofInstance(createTestingFileHiveMetastore(new MemoryFileSystemFactory(), Location.of("memory:///")));
         DeltaLakeMetadataFactory metadataFactory = new DeltaLakeMetadataFactory(
                 hiveMetastoreFactory,
@@ -232,8 +238,7 @@ public class TestDeltaLakeSplitManager
                 new DeltaLakeConfig(),
                 JsonCodec.jsonCodec(DataFileInfo.class),
                 JsonCodec.jsonCodec(DeltaLakeMergeResult.class),
-                new TransactionLogWriterFactory(
-                        new TransactionLogSynchronizerManager(ImmutableMap.of(), new NoIsolationSynchronizer(hdfsFileSystemFactory))),
+                new FileSystemTransactionLogWriterFactory(new TransactionLogSynchronizerManager(ImmutableMap.of(), new NoIsolationSynchronizer(hdfsFileSystemFactory))),
                 new TestingNodeManager(),
                 checkpointWriterManager,
                 new CachingExtendedStatisticsAccess(new MetaDirStatisticsAccess(HDFS_FILE_SYSTEM_FACTORY, new JsonCodecFactory().jsonCodec(ExtendedStatistics.class))),
@@ -242,12 +247,13 @@ public class TestDeltaLakeSplitManager
                 new NodeVersion("test_version"),
                 new DeltaLakeTableMetadataScheduler(new TestingNodeManager(), TESTING_TYPE_MANAGER, new DeltaLakeFileMetastoreTableOperationsProvider(hiveMetastoreFactory), Integer.MAX_VALUE, new DeltaLakeConfig()),
                 newDirectExecutorService(),
-                new MetastoreTypeConfig());
+                new MetastoreTypeConfig(),
+                transactionLogReaderFactory);
 
         ConnectorSession session = testingConnectorSessionWithConfig(deltaLakeConfig);
         DeltaLakeTransactionManager deltaLakeTransactionManager = new DeltaLakeTransactionManager(metadataFactory);
         deltaLakeTransactionManager.begin(transactionHandle);
-        deltaLakeTransactionManager.get(transactionHandle, session.getIdentity()).getSnapshot(session, tableHandle.getSchemaTableName(), TABLE_PATH, Optional.empty());
+        deltaLakeTransactionManager.get(transactionHandle, session.getIdentity()).getSnapshot(session, new FileSystemTransactionLogReader(TABLE_PATH, hdfsFileSystemFactory), tableHandle.getSchemaTableName(), TABLE_PATH, Optional.empty());
         return new DeltaLakeSplitManager(
                 typeManager,
                 transactionLogAccess,
@@ -256,7 +262,8 @@ public class TestDeltaLakeSplitManager
                 HDFS_FILE_SYSTEM_FACTORY,
                 createJsonCodec(DeltaLakeCacheSplitId.class),
                 deltaLakeTransactionManager,
-                new DefaultCachingHostAddressProvider());
+                new DefaultCachingHostAddressProvider(),
+                transactionLogReaderFactory);
     }
 
     private AddFileEntry addFileEntryOfSize(String path, long fileSize)
