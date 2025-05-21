@@ -76,7 +76,9 @@ import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.IC
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.ICEBERG_COMPATIBILITY_V2_FEATURE_NAME;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.IDENTITY_COLUMNS_FEATURE_NAME;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.INVARIANTS_FEATURE_NAME;
+import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.IN_COMMIT_TIMESTAMP_FEATURE_NAME;
 import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.DELTA_CHANGE_DATA_FEED_ENABLED_PROPERTY;
+import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.DELTA_IN_COMMIT_TIMESTAMP_ENABLED_PROPERTY;
 import static io.trino.spi.StandardErrorCode.DUPLICATE_COLUMN_NAME;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -685,6 +687,18 @@ public final class DeltaLakeSchemaSupport
             return Optional.empty();
         }
         return Optional.of(parseBoolean(enableChangeDataFeed));
+    }
+
+    public static Optional<Boolean> inCommitTimestampEnabled(MetadataEntry metadataEntry, ProtocolEntry protocolEntry)
+    {
+        if (!protocolEntry.supportsWriterFeatures() || !protocolEntry.writerFeaturesContains(IN_COMMIT_TIMESTAMP_FEATURE_NAME)) {
+            return Optional.empty();
+        }
+        String inCommitTimestampEnabled = metadataEntry.getConfiguration().get(DELTA_IN_COMMIT_TIMESTAMP_ENABLED_PROPERTY);
+        if (inCommitTimestampEnabled == null) {
+            return Optional.empty();
+        }
+        return Optional.of(parseBoolean(inCommitTimestampEnabled));
     }
 
     public static Map<String, Map<String, Object>> getColumnsMetadata(MetadataEntry metadataEntry)

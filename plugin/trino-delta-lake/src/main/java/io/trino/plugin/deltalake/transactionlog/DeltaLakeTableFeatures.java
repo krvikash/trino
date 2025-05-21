@@ -40,6 +40,7 @@ public final class DeltaLakeTableFeatures
     public static final String VARIANT_TYPE_FEATURE_NAME = "variantType";
     public static final String VARIANT_TYPE_PREVIEW_FEATURE_NAME = "variantType-preview";
     public static final String V2_CHECKPOINT_FEATURE_NAME = "v2Checkpoint";
+    public static final String IN_COMMIT_TIMESTAMP_FEATURE_NAME = "inCommitTimestamp";
 
     private static final Set<String> SUPPORTED_READER_FEATURES = ImmutableSet.<String>builder()
             .add(COLUMN_MAPPING_FEATURE_NAME)
@@ -61,6 +62,7 @@ public final class DeltaLakeTableFeatures
             .add(COLUMN_MAPPING_FEATURE_NAME)
             .add(TIMESTAMP_NTZ_FEATURE_NAME)
             .add(VACUUM_PROTOCOL_CHECK_FEATURE_NAME)
+            .add(IN_COMMIT_TIMESTAMP_FEATURE_NAME)
             .build();
 
     private DeltaLakeTableFeatures() {}

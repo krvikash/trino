@@ -723,6 +723,8 @@ The following table properties are available for use:
     Defaults to `NONE`.
 * - `deletion_vectors_enabled`
   - Enables deletion vectors.
+* - `in_commit_timestamp_enabled`
+  - Enables storing `inCommitTimstamp` in every commit.
 :::
 
 The following example uses all available table properties:

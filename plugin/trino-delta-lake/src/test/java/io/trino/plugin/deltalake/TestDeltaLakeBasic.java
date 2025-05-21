@@ -34,6 +34,7 @@ import io.trino.parquet.reader.MetadataReader;
 import io.trino.parquet.reader.ParquetReader;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.deltalake.transactionlog.AddFileEntry;
+import io.trino.plugin.deltalake.transactionlog.CommitInfoEntry;
 import io.trino.plugin.deltalake.transactionlog.DeletionVectorEntry;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ColumnMappingMode;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeTransactionLogEntry;
@@ -91,6 +92,7 @@ import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.trino.parquet.ParquetTestUtils.createParquetReader;
 import static io.trino.plugin.deltalake.DeltaLakeConfig.DEFAULT_TRANSACTION_LOG_MAX_CACHED_SIZE;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.IN_COMMIT_TIMESTAMP_SUPPORTED_WRITER_VERSION;
 import static io.trino.plugin.deltalake.DeltaTestingConnectorSession.SESSION;
 import static io.trino.plugin.deltalake.TestingDeltaLakeUtils.copyDirectoryContents;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.extractPartitionColumns;
@@ -2463,6 +2465,118 @@ public class TestDeltaLakeBasic
         assertQuery("SELECT date_diff('millisecond', TIMESTAMP '1970-01-01 00:00:00 UTC', timestamp) FROM \"%s$history\"".formatted(tableName), "VALUES 1739859668531L, 1739859684775L, 1739859743394L, 1739859755480L");
     }
 
+    @Test
+    void testCreateWithInCommitTimestamp()
+            throws IOException
+    {
+        // set column_mapping_mode to name as we will add/drop/rename columns in the test
+        try (TestTable table = newTrinoTable("in_commit_timestamp_", "(x int, v varchar) WITH (in_commit_timestamp_enabled = true, column_mapping_mode = 'name')")) {
+            assertQueryReturnsEmptyResult("SELECT * FROM " + table.getName());
+            testInCommitTimestamp(table.getName(), 0);
+        }
+    }
+
+    @Test
+    void testSetPropertyWithInCommitTimestamp()
+            throws IOException
+    {
+        // set column_mapping_mode to name as we will add/drop/rename columns in the test
+        try (TestTable table = newTrinoTable("in_commit_timestamp_", "(x int, v varchar) WITH (column_mapping_mode = 'name')")) {
+            String tableName = table.getName();
+            assertQueryReturnsEmptyResult("SELECT * FROM " + tableName);
+            Path tableLocation = Path.of(getTableLocation(tableName).replace("file://", ""));
+            CommitInfoEntry commitInfoEntry = loadCommitInfoEntry(0, tableLocation);
+            assertThat(commitInfoEntry.inCommitTimestamp()).isEmpty();
+
+            assertUpdate("ALTER TABLE " + tableName + " SET PROPERTIES in_commit_timestamp_enabled = true");
+
+            long version = testInCommitTimestamp(tableName, 1);
+
+            // test that the commitInfoEntry doesn't contain in_commit_timestamp after disabling in-commit timestamps
+            assertUpdate("ALTER TABLE " + tableName + " SET PROPERTIES in_commit_timestamp_enabled = false");
+
+            version++;
+
+            // insert
+            assertUpdate("INSERT INTO " + tableName + " VALUES (10, 'x'), (20, 'x')", 2);
+            assertThat(loadCommitInfoEntry(version++, tableLocation).inCommitTimestamp()).isEmpty();
+
+            // update
+            assertUpdate("UPDATE " + tableName + " SET x = -10 WHERE x = 10", 1);
+            assertThat(loadCommitInfoEntry(version++, tableLocation).inCommitTimestamp()).isEmpty();
+
+            // delete
+            assertUpdate("DELETE FROM " + tableName + " WHERE x = 20", 1);
+            assertThat(loadCommitInfoEntry(version++, tableLocation).inCommitTimestamp()).isEmpty();
+
+            // add column
+            assertUpdate("ALTER TABLE " + tableName + " ADD COLUMN new_col int");
+            assertThat(loadCommitInfoEntry(version++, tableLocation).inCommitTimestamp()).isEmpty();
+
+            // drop column
+            assertUpdate("ALTER TABLE " + tableName + " DROP COLUMN new_col");
+            assertThat(loadCommitInfoEntry(version++, tableLocation).inCommitTimestamp()).isEmpty();
+
+            // rename column
+            assertUpdate("ALTER TABLE " + tableName + " RENAME COLUMN x TO x_renamed");
+            assertThat(loadCommitInfoEntry(version++, tableLocation).inCommitTimestamp()).isEmpty();
+        }
+    }
+
+    private long testInCommitTimestamp(String tableName, long version)
+            throws IOException
+    {
+        Path tableLocation = Path.of(getTableLocation(tableName).replace("file://", ""));
+        CommitInfoEntry firstCommitInfoEntry = loadCommitInfoEntry(version, tableLocation);
+        assertThat(firstCommitInfoEntry.inCommitTimestamp()).isPresent();
+
+        // check the minWriterVersion is greater than or equal to IN_COMMIT_TIMESTAMP_SUPPORTED_WRITER_VERSION
+        ProtocolEntry protocolEntry = loadProtocolEntry(version, tableLocation);
+        assertThat(protocolEntry.minWriterVersion()).isGreaterThanOrEqualTo(IN_COMMIT_TIMESTAMP_SUPPORTED_WRITER_VERSION);
+
+        version++;
+
+        // insert
+        assertUpdate("INSERT INTO " + tableName + " VALUES (1, 'x'), (2, 'x')", 2);
+        CommitInfoEntry secondCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
+        assertThat(secondCommitInfoEntry.inCommitTimestamp()).isPresent();
+        assertThat(secondCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(firstCommitInfoEntry.inCommitTimestamp().getAsLong());
+
+        // update
+        assertUpdate("UPDATE " + tableName + " SET v = 'y' WHERE x = 1", 1);
+        assertThat(query("SELECT v FROM " + tableName + " WHERE x = 1")).matches("VALUES CAST('y' AS varchar)");
+        CommitInfoEntry thirdCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
+        assertThat(thirdCommitInfoEntry.inCommitTimestamp()).isPresent();
+        assertThat(thirdCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(secondCommitInfoEntry.inCommitTimestamp().getAsLong());
+
+        // delete
+        assertUpdate("DELETE FROM " + tableName + " WHERE x = 2", 1);
+        assertThat(query("SELECT v FROM " + tableName)).matches("VALUES CAST('y' AS varchar)");
+        CommitInfoEntry fourthCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
+        assertThat(fourthCommitInfoEntry.inCommitTimestamp()).isPresent();
+        assertThat(fourthCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(thirdCommitInfoEntry.inCommitTimestamp().getAsLong());
+
+        // add column
+        assertUpdate("ALTER TABLE " + tableName + " ADD COLUMN new_col int");
+        CommitInfoEntry fifthCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
+        assertThat(fifthCommitInfoEntry.inCommitTimestamp()).isPresent();
+        assertThat(fifthCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(fourthCommitInfoEntry.inCommitTimestamp().getAsLong());
+
+        // drop column
+        assertUpdate("ALTER TABLE " + tableName + " DROP COLUMN new_col");
+        CommitInfoEntry sixthCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
+        assertThat(sixthCommitInfoEntry.inCommitTimestamp()).isPresent();
+        assertThat(sixthCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(fifthCommitInfoEntry.inCommitTimestamp().getAsLong());
+
+        // rename column
+        assertUpdate("ALTER TABLE " + tableName + " RENAME COLUMN v TO v_renamed");
+        CommitInfoEntry seventhCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
+        assertThat(seventhCommitInfoEntry.inCommitTimestamp()).isPresent();
+        assertThat(seventhCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(sixthCommitInfoEntry.inCommitTimestamp().getAsLong());
+
+        return version;
+    }
+
     /**
      * @see deltalake.clone_merge
      */
@@ -2594,6 +2708,15 @@ public class TestDeltaLakeBasic
                 .filter(log -> log.getProtocol() != null)
                 .collect(onlyElement());
         return transactionLog.getProtocol();
+    }
+
+    private static CommitInfoEntry loadCommitInfoEntry(long entryNumber, Path tableLocation)
+            throws IOException
+    {
+        DeltaLakeTransactionLogEntry transactionLog = getEntriesFromJson(entryNumber, tableLocation.resolve("_delta_log").toString()).stream()
+                .filter(log -> log.getCommitInfo() != null)
+                .collect(onlyElement());
+        return transactionLog.getCommitInfo();
     }
 
     private String getTableLocation(String tableName)

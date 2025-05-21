@@ -174,6 +174,7 @@ public class TestDeltaLakePageSink
                 true,
                 Optional.empty(),
                 Optional.of(false),
+                Optional.empty(),
                 false,
                 schemaString,
                 NONE,

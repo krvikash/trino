@@ -51,6 +51,10 @@ public class MetadataEntry
     public static final String DELTA_CHANGE_DATA_FEED_ENABLED_PROPERTY = "delta.enableChangeDataFeed";
     public static final String DELTA_CHECKPOINT_INTERVAL_PROPERTY = "delta.checkpointInterval";
 
+    public static final String DELTA_IN_COMMIT_TIMESTAMP_ENABLED_PROPERTY = "delta.enableInCommitTimestamps";
+    public static final String DELTA_IN_COMMIT_TIMESTAMP_ENABLED_VERSION_PROPERTY = "delta.inCommitTimestampEnablementVersion";
+    public static final String DELTA_IN_COMMIT_TIMESTAMP_ENABLED_TIMESTAMP_PROPERTY = "delta.inCommitTimestampEnablementTimestamp";
+
     private final String id;
     private final String name;
     private final String description;
@@ -175,7 +179,8 @@ public class MetadataEntry
             Optional<Boolean> changeDataFeedEnabled,
             boolean deletionVectorsEnabled,
             ColumnMappingMode columnMappingMode,
-            OptionalInt maxFieldId)
+            OptionalInt maxFieldId,
+            Optional<Boolean> inCommitTimestampEnabled)
     {
         ImmutableMap.Builder<String, String> configurationMapBuilder = ImmutableMap.builder();
         checkpointInterval.ifPresent(interval -> configurationMapBuilder.put(DELTA_CHECKPOINT_INTERVAL_PROPERTY, String.valueOf(interval)));
@@ -189,6 +194,8 @@ public class MetadataEntry
             }
             case UNKNOWN -> throw new UnsupportedOperationException();
         }
+        inCommitTimestampEnabled.ifPresent(enabled -> configurationMapBuilder.put(DELTA_IN_COMMIT_TIMESTAMP_ENABLED_PROPERTY, String.valueOf(enabled)));
+
         return configurationMapBuilder.buildOrThrow();
     }
 

@@ -36,6 +36,7 @@ public record DeltaLakeOutputTableHandle(
         boolean external,
         Optional<String> comment,
         Optional<Boolean> changeDataFeedEnabled,
+        Optional<Boolean> inCommitTimestampEnabled,
         boolean deletionVectorsEnabled,
         String schemaString,
         ColumnMappingMode columnMappingMode,
@@ -54,6 +55,7 @@ public record DeltaLakeOutputTableHandle(
         requireNonNull(checkpointInterval, "checkpointInterval is null");
         requireNonNull(comment, "comment is null");
         requireNonNull(changeDataFeedEnabled, "changeDataFeedEnabled is null");
+        requireNonNull(inCommitTimestampEnabled, "inCommitTimestampEnabled is null");
         requireNonNull(schemaString, "schemaString is null");
         requireNonNull(columnMappingMode, "columnMappingMode is null");
         requireNonNull(maxColumnId, "maxColumnId is null");
