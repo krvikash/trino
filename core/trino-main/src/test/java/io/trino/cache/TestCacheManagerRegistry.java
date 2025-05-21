@@ -57,8 +57,8 @@ public class TestCacheManagerRegistry
     public void setup()
     {
         NodeMemoryConfig config = new NodeMemoryConfig()
-                .setHeapHeadroom(DataSize.of(10, MEGABYTE))
-                .setMaxQueryMemoryPerNode(DataSize.of(100, MEGABYTE));
+                .setHeapHeadroom(DataSize.of(10, MEGABYTE).toString())
+                .setMaxQueryMemoryPerNode(DataSize.of(100, MEGABYTE).toString());
 
         memoryManager = new LocalMemoryManager(config, DataSize.of(110, MEGABYTE).toBytes());
         registry = new CacheManagerRegistry(new CacheConfig(), memoryManager, newDirectExecutorService(), new TestingBlockEncodingSerde(), new CacheStats(), new InMemoryNodeManager());

@@ -133,8 +133,8 @@ public class TestCacheDriverFactory
     public void setUp()
     {
         NodeMemoryConfig config = new NodeMemoryConfig()
-                .setHeapHeadroom(DataSize.of(16, MEGABYTE))
-                .setMaxQueryMemoryPerNode(DataSize.of(32, MEGABYTE));
+                .setHeapHeadroom(DataSize.of(16, MEGABYTE).toString())
+                .setMaxQueryMemoryPerNode(DataSize.of(32, MEGABYTE).toString());
         CacheConfig cacheConfig = new CacheConfig();
         cacheConfig.setEnabled(true);
         registry = new CacheManagerRegistry(cacheConfig, new LocalMemoryManager(config, DataSize.of(1024, MEGABYTE).toBytes()), new TestingBlockEncodingSerde(), new CacheStats(), new InMemoryNodeManager());

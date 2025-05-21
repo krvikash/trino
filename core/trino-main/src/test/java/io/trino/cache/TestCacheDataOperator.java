@@ -106,8 +106,8 @@ public class TestCacheDataOperator
     public void setUp()
     {
         NodeMemoryConfig config = new NodeMemoryConfig()
-                .setHeapHeadroom(DataSize.of(10, MEGABYTE))
-                .setMaxQueryMemoryPerNode(DataSize.of(100, MEGABYTE));
+                .setHeapHeadroom(DataSize.of(10, MEGABYTE).toString())
+                .setMaxQueryMemoryPerNode(DataSize.of(100, MEGABYTE).toString());
         LocalMemoryManager memoryManager = new LocalMemoryManager(config, DataSize.of(110, MEGABYTE).toBytes());
         CacheConfig cacheConfig = new CacheConfig();
         cacheConfig.setEnabled(true);
