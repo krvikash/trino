@@ -27,6 +27,7 @@ import io.opentelemetry.context.Context;
 import io.trino.ExceededCpuLimitException;
 import io.trino.ExceededOutputDataSizeLimitException;
 import io.trino.ExceededScanLimitException;
+import io.trino.ExceededWrittenDataSizeLimitException;
 import io.trino.Session;
 import io.trino.execution.QueryExecution.QueryOutputInfo;
 import io.trino.execution.StateMachine.StateChangeListener;
@@ -58,6 +59,7 @@ import static io.airlift.concurrent.Threads.threadsNamed;
 import static io.trino.SystemSessionProperties.getQueryMaxCpuTime;
 import static io.trino.SystemSessionProperties.getQueryMaxOutputDataSize;
 import static io.trino.SystemSessionProperties.getQueryMaxScanPhysicalBytes;
+import static io.trino.SystemSessionProperties.getQueryMaxWrittenDataSize;
 import static io.trino.execution.QueryState.RUNNING;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.tracing.ScopedSpan.scopedSpan;
@@ -387,6 +389,11 @@ public class SqlQueryManager
             getQueryMaxOutputDataSize(query.getSession()).ifPresent(limit -> {
                 if (query.getQueryInfo().getQueryStats().getOutputDataSize().compareTo(limit) > 0) {
                     query.fail(new ExceededOutputDataSizeLimitException(limit));
+                }
+            });
+            getQueryMaxWrittenDataSize(query.getSession()).ifPresent(limit -> {
+                if (query.getQueryInfo().getQueryStats().getPhysicalWrittenDataSize().compareTo(limit) > 0) {
+                    query.fail(new ExceededWrittenDataSizeLimitException(limit));
                 }
             });
         }

@@ -19,6 +19,7 @@ import io.trino.dispatcher.DispatchManager;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryManager;
 import io.trino.execution.QueryState;
+import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.server.BasicQueryInfo;
 import io.trino.server.SessionContext;
 import io.trino.server.protocol.Slug;
@@ -29,6 +30,8 @@ import io.trino.tests.tpch.TpchQueryRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.parallel.Execution;
+
+import java.io.File;
 
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.execution.QueryRunnerUtil.createQuery;
@@ -161,5 +164,46 @@ public class TestQueryManager
             //Query with predicate produces ~170MB
             queryRunner.execute(session, "SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
         }
+    }
+
+    @Test
+    @Timeout(60)
+    public void testQueryMaxWrittenDataSizeLimit()
+            throws Exception
+    {
+        try (QueryRunner queryRunner = TpchQueryRunner.builder().addExtraProperty("query.max-written-data-size", "50MB").build()) {
+            addIcebergCatalog(queryRunner);
+            assertThatThrownBy(() -> queryRunner.execute("CREATE TABLE iceberg.default.t2 AS SELECT * FROM tpch.sf100.customer"))
+                    .hasMessage("Exceeded written data size limit of 50MB");
+            //Query with predicate writes ~32MB
+            queryRunner.execute("CREATE TABLE iceberg.default.t1 AS SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
+            queryRunner.execute("DROP TABLE iceberg.default.t1");
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    public void testQueryMaxWrittenDataSizeLimitSession()
+            throws Exception
+    {
+        try (QueryRunner queryRunner = TpchQueryRunner.builder().build()) {
+            addIcebergCatalog(queryRunner);
+            Session session = Session.builder(queryRunner.getDefaultSession())
+                    .setSystemProperty("query_max_written_data_size", "50MB")
+                    .build();
+            assertThatThrownBy(() -> queryRunner.execute(session, "CREATE TABLE iceberg.default.t2 AS SELECT * FROM tpch.sf100.customer"))
+                    .hasMessage("Exceeded written data size limit of 50MB");
+            //Query with predicate writes ~32MB
+            queryRunner.execute(session, "CREATE TABLE iceberg.default.t1 AS SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
+            queryRunner.execute("DROP TABLE iceberg.default.t1");
+        }
+    }
+
+    private static void addIcebergCatalog(QueryRunner queryRunner)
+    {
+        File baseDir = queryRunner.getCoordinator().getBaseDataDir().resolve("iceberg_data").toFile();
+        queryRunner.installPlugin(new TestingIcebergPlugin(baseDir.toPath()));
+        queryRunner.createCatalog("iceberg", "iceberg");
+        queryRunner.execute("CREATE SCHEMA iceberg.default");
     }
 }
