@@ -242,6 +242,7 @@ public final class SystemSessionProperties
     public static final String COLUMNAR_FILTER_EVALUATION_ENABLED = "columnar_filter_evaluation_enabled";
     public static final String SPOOLING_ENABLED = "spooling_enabled";
     public static final String DEBUG_ADAPTIVE_PLANNER = "debug_adaptive_planner";
+    public static final String DEBUG_CTE_REUSE = "debug_cte_reuse";
     public static final String SUPERSET_PREDICATE_PUSHDOWN_ENABLED = "superset_predicate_pushdown_enabled";
 
     private final List<PropertyMetadata<?>> sessionProperties;
@@ -1272,6 +1273,11 @@ public final class SystemSessionProperties
                         queryManagerConfig.isFaultTolerantExecutionDebugAdaptivePlanner(),
                         true),
                 booleanProperty(
+                        DEBUG_CTE_REUSE,
+                        "Enable debug information for the common subquery reuse optimization",
+                        false,
+                        false),
+                booleanProperty(
                         SUPERSET_PREDICATE_PUSHDOWN_ENABLED,
                         "Enable superset predicate pushdown",
                         featuresConfig.isSuperSetPredicatePushdownEnabled(),
@@ -2278,6 +2284,11 @@ public final class SystemSessionProperties
     public static boolean isDebugAdaptivePlannerEnabled(Session session)
     {
         return session.getSystemProperty(DEBUG_ADAPTIVE_PLANNER, Boolean.class);
+    }
+
+    public static boolean isDebugCteReuseEnabled(Session session)
+    {
+        return session.getSystemProperty(DEBUG_CTE_REUSE, Boolean.class);
     }
 
     public static boolean isSuperSetPredicatePushdownEnabled(Session session)

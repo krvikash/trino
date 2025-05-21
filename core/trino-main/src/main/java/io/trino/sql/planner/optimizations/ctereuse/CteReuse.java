@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Sets;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.Session;
@@ -85,6 +86,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.SystemSessionProperties.isDebugCteReuseEnabled;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -141,17 +143,26 @@ public class CteReuse
 
     public static Optional<Program> reuseCommonSubqueries(Plan plan, PlannerContext plannerContext, Session session, FormatOptions formatOptions)
     {
+        boolean debugEnabled = isDebugCteReuseEnabled(session);
+        Logger log = Logger.get(CteReuse.class);
+
         // rewrite to new IR
         Program program;
         try {
             program = ProgramBuilder.buildProgram(plan.getRoot());
         }
         catch (UnsupportedOperationException | TrinoException e) {
+            if (debugEnabled) {
+                log.info("Failed to translate the query plan to the new IR for query: " + session.getQueryId());
+            }
             return Optional.empty();
         }
 
         // proceed only if this is a SELECT statement. This is true if all tables have updateTarget == false
         if (hasUpdateTarget(program)) {
+            if (debugEnabled) {
+                log.info("Cannot apply CTE reuse for query %s: it is an update query.\nQuery program: %s", session.getQueryId(), program.print(1, formatOptions));
+            }
             return Optional.empty();
         }
 
@@ -166,6 +177,9 @@ public class CteReuse
                 .collect(toImmutableList());
 
         if (unifiedGroups.isEmpty()) {
+            if (debugEnabled) {
+                log.info("CTE reuse is ineffective for query %s: no tables to unify found.\nQuery program: %s", session.getQueryId(), program.print(1, formatOptions));
+            }
             return Optional.empty();
         }
 
@@ -213,8 +227,9 @@ public class CteReuse
 
         Program newProgram = new Program(((Query) program.getRoot()).withRegions(ImmutableList.of(singleBlockRegion(newMainBlock))), ImmutableMap.of());
 
-        System.out.println("\n\n\nBEFORE\n" + program.print(1, formatOptions) + "\n\n\n");
-        System.out.println("\n\n\nAFTER\n" + newProgram.print(1, formatOptions) + "\n\n\n");
+        if (debugEnabled) {
+            log.info("CTE reuse applied for query %s.\nQuery program before: %s\n\nQuery program after: %s", session.getQueryId(), program.print(1, formatOptions), newProgram.print(1, formatOptions));
+        }
 
         return Optional.empty();
     }
