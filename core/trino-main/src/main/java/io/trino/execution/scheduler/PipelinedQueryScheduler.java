@@ -1204,6 +1204,11 @@ public class PipelinedQueryScheduler
                 if (splitSources.size() == 1) {
                     Entry<PlanNodeId, SplitSource> entry = getOnlyElement(splitSources.entrySet());
                     PlanNodeId planNodeId = entry.getKey();
+
+                    if (replicatedSplitSources.containsKey(planNodeId)) {
+                        throw new TrinoException(GENERIC_INTERNAL_ERROR, String.format("Single REPLICATED source is not supported; stageId=%s, planNodeId=%s", stageExecution.getStageId(), planNodeId));
+                    }
+
                     SplitSource splitSource = entry.getValue();
                     Optional<CatalogHandle> catalogHandle = Optional.of(splitSource.getCatalogHandle())
                             .filter(catalog -> !catalog.getType().isInternal());
