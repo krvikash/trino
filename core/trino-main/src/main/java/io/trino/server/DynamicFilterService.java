@@ -30,6 +30,7 @@ import io.airlift.units.Duration;
 import io.trino.Session;
 import io.trino.execution.DynamicFilterConfig;
 import io.trino.execution.SqlQueryExecution;
+import io.trino.execution.SqlQueryExecution.EffectivePlan;
 import io.trino.execution.StageId;
 import io.trino.execution.TaskId;
 import io.trino.metadata.FunctionManager;
@@ -44,6 +45,14 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.DynamicFilters;
+import io.trino.sql.dialect.trino.operation.Exchange;
+import io.trino.sql.dialect.trino.operation.Join;
+import io.trino.sql.dialect.trino.operation.Project;
+import io.trino.sql.dialect.trino.operation.Query;
+import io.trino.sql.newir.Block;
+import io.trino.sql.newir.Operation;
+import io.trino.sql.newir.Program;
+import io.trino.sql.newir.Value;
 import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.DynamicFilterTupleDomain;
 import io.trino.sql.planner.PlanFragment;
@@ -98,6 +107,14 @@ import static io.trino.SystemSessionProperties.isEnableLargeDynamicFilters;
 import static io.trino.spi.connector.DynamicFilter.EMPTY;
 import static io.trino.sql.DynamicFilters.extractDynamicFilters;
 import static io.trino.sql.DynamicFilters.extractSourceSymbols;
+import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
+import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
+import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.ExchangeScope.LOCAL;
+import static io.trino.sql.dialect.trino.Attributes.ExchangeScope.REMOTE;
+import static io.trino.sql.dialect.trino.Attributes.ExchangeType.GATHER;
+import static io.trino.sql.dialect.trino.Attributes.ExchangeType.REPARTITION;
+import static io.trino.sql.dialect.trino.Attributes.ExchangeType.REPLICATE;
 import static io.trino.sql.ir.IrUtils.extractDisjuncts;
 import static io.trino.sql.planner.DomainCoercer.applySaturatedCasts;
 import static io.trino.sql.planner.ExpressionExtractor.extractExpressions;
@@ -127,9 +144,20 @@ public class DynamicFilterService
 
     public void registerQuery(SqlQueryExecution sqlQueryExecution, SubPlan fragmentedPlan)
     {
-        PlanNode queryPlan = sqlQueryExecution.getQueryPlan().orElseThrow().getRoot();
-        Set<DynamicFilterId> dynamicFilters = getProducedDynamicFilters(queryPlan);
-        Set<DynamicFilterId> replicatedDynamicFilters = getReplicatedDynamicFilters(queryPlan);
+        EffectivePlan effectivePlan = sqlQueryExecution.getQueryPlan().orElseThrow();
+        Set<DynamicFilterId> dynamicFilters;
+        Set<DynamicFilterId> replicatedDynamicFilters;
+
+        if (effectivePlan.isOldIrPlan()) {
+            PlanNode plan = effectivePlan.getOldIrPlan().getRoot();
+            dynamicFilters = getProducedDynamicFilters(plan);
+            replicatedDynamicFilters = getReplicatedDynamicFilters(plan);
+        }
+        else {
+            Program program = effectivePlan.getNewIrProgram();
+            dynamicFilters = getProducedDynamicFilters(program);
+            replicatedDynamicFilters = getReplicatedDynamicFilters(program);
+        }
 
         Set<DynamicFilterId> lazyDynamicFilters = fragmentedPlan.getAllFragments().stream()
                 .flatMap(plan -> getLazyDynamicFilters(plan).stream())
@@ -571,6 +599,57 @@ public class DynamicFilterService
             return dynamicFilterSourceNode.getDynamicFilters().keySet();
         }
         throw new IllegalStateException("getDynamicFiltersProducedInPlanNode called with neither JoinNode nor SemiJoinNode");
+    }
+
+    private static Set<DynamicFilterId> getReplicatedDynamicFilters(Program program)
+    {
+        Block mainBlock = ((Query) program.getRoot()).query();
+        Map<Value, Operation> operations = mainBlock.operations().stream()
+                .collect(toImmutableMap(Operation::result, identity()));
+        return mainBlock.operations().stream()
+                // TODO handle SemiJoin when we support it in new IR
+                .filter(Join.class::isInstance)
+                .map(Join.class::cast)
+                .filter(join -> isBuildSideReplicated(join, operations))
+                .map(join -> DYNAMIC_FILTER_IDS.getAttribute(join.attributes()))
+                .flatMap(List::stream)
+                .map(DynamicFilterId::new)
+                .collect(toImmutableSet());
+    }
+
+    private static boolean isBuildSideReplicated(Join join, Map<Value, Operation> operations)
+    {
+        Operation rightSource = operations.get(join.right());
+        return hasReplicatedSource(rightSource, operations);
+    }
+
+    private static boolean hasReplicatedSource(Operation operation, Map<Value, Operation> operations)
+    {
+        if (operation instanceof Project ||
+                (operation instanceof Exchange exchange &&
+                        EXCHANGE_SCOPE.getAttribute(exchange.attributes()) == LOCAL &&
+                        ImmutableSet.of(REPARTITION, GATHER).contains(EXCHANGE_TYPE.getAttribute(exchange.attributes())))) {
+            return operation.arguments().stream()
+                    .anyMatch(argument -> hasReplicatedSource(operations.get(argument), operations));
+        }
+
+        // TODO also return true when operation is RemoteSource of type REPLICATE when we support RemoteSource in new IR
+        return operation instanceof Exchange exchange &&
+                EXCHANGE_SCOPE.getAttribute(exchange.attributes()) == REMOTE &&
+                EXCHANGE_TYPE.getAttribute(exchange.attributes()) == REPLICATE;
+    }
+
+    private static Set<DynamicFilterId> getProducedDynamicFilters(Program program)
+    {
+        Block mainBlock = ((Query) program.getRoot()).query();
+        return mainBlock.operations().stream()
+                // TODO handle SemiJoin and DynamicFilterSource when we support them in new IR
+                .filter(Join.class::isInstance)
+                .map(Join.class::cast)
+                .map(join -> DYNAMIC_FILTER_IDS.getAttribute(join.attributes()))
+                .flatMap(List::stream)
+                .map(DynamicFilterId::new)
+                .collect(toImmutableSet());
     }
 
     private static Set<DynamicFilterId> getConsumedDynamicFilters(PlanNode planNode)

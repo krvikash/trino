@@ -21,6 +21,7 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.Session;
 import io.trino.execution.QueryPreparer.PreparedQuery;
+import io.trino.execution.SqlQueryExecution.EffectivePlan;
 import io.trino.execution.StateMachine.StateChangeListener;
 import io.trino.execution.querystats.PlanOptimizersStatsCollector;
 import io.trino.execution.warnings.WarningCollector;
@@ -28,7 +29,6 @@ import io.trino.server.BasicQueryInfo;
 import io.trino.server.ResultQueryInfo;
 import io.trino.server.protocol.Slug;
 import io.trino.spi.QueryId;
-import io.trino.sql.planner.Plan;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.Statement;
 import jakarta.annotation.Nullable;
@@ -280,7 +280,7 @@ public class DataDefinitionExecution<T extends Statement>
     }
 
     @Override
-    public Optional<Plan> getQueryPlan()
+    public Optional<EffectivePlan> getQueryPlan()
     {
         return Optional.empty();
     }

@@ -61,6 +61,7 @@ import io.trino.sql.analyzer.Analysis;
 import io.trino.sql.analyzer.Analyzer;
 import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.newir.FormatOptions;
+import io.trino.sql.newir.Program;
 import io.trino.sql.planner.AdaptivePlanner;
 import io.trino.sql.planner.InputExtractor;
 import io.trino.sql.planner.LogicalPlanner;
@@ -136,7 +137,7 @@ public class SqlQueryExecution
     private final FailureDetector failureDetector;
 
     private final AtomicReference<QueryScheduler> queryScheduler = new AtomicReference<>();
-    private final AtomicReference<Plan> queryPlan = new AtomicReference<>();
+    private final AtomicReference<EffectivePlan> queryPlan = new AtomicReference<>();
     private final NodeTaskMap nodeTaskMap;
     private final ExecutionPolicy executionPolicy;
     private final SplitSchedulerStats schedulerStats;
@@ -508,9 +509,6 @@ public class SqlQueryExecution
                 tableStatsProvider,
                 formatOptions);
         PlanOptions planOptions = logicalPlanner.plan(analysis);
-        Plan plan = planOptions.oldIrPlan();
-        // TODO update this to handle both the old IR and new IR plans. It is used for dynamic filters and TestingTrinoServer
-        queryPlan.set(plan);
 
         // fragment the plan
         SubPlan fragmentedPlan = null;
@@ -521,11 +519,13 @@ public class SqlQueryExecution
             }
             if (optionalFragmentedPlan.isPresent()) {
                 fragmentedPlan = optionalFragmentedPlan.get();
+                queryPlan.set(new EffectivePlan(planOptions.newIrProgram().get()));
             }
         }
         if (fragmentedPlan == null) {
             try (var _ = scopedSpan(tracer, "fragment-plan-old-ir")) {
-                fragmentedPlan = planFragmenter.createSubPlans(stateMachine.getSession(), plan, false, stateMachine.getWarningCollector());
+                fragmentedPlan = planFragmenter.createSubPlans(stateMachine.getSession(), planOptions.oldIrPlan(), false, stateMachine.getWarningCollector());
+                queryPlan.set(new EffectivePlan(planOptions.oldIrPlan()));
             }
         }
 
@@ -741,7 +741,7 @@ public class SqlQueryExecution
     }
 
     @Override
-    public Optional<Plan> getQueryPlan()
+    public Optional<EffectivePlan> getQueryPlan()
     {
         return Optional.ofNullable(queryPlan.get());
     }
@@ -950,6 +950,52 @@ public class SqlQueryExecution
                     eventDrivenTaskSourceFactory,
                     taskDescriptorStorage,
                     formatOptions);
+        }
+    }
+
+    /**
+     * A structure to contain the only effective version of the query plan.
+     *
+     * @param oldIrPlan -- the plan based on the old IR
+     * @param newIrProgram -- the plan rewritten to the new IR, and optionally further optimized by CTE reuse
+     */
+    public record EffectivePlan(Optional<Plan> oldIrPlan, Optional<Program> newIrProgram)
+    {
+        public EffectivePlan
+        {
+            requireNonNull(oldIrPlan, "oldIrPlan is null");
+            requireNonNull(newIrProgram, "newIrProgram is null");
+            checkArgument(oldIrPlan.isPresent() != newIrProgram.isPresent(), "Only one version of the query plan can be effective");
+        }
+
+        public EffectivePlan(Plan oldIrPlan)
+        {
+            this(Optional.of(oldIrPlan), Optional.empty());
+        }
+
+        public EffectivePlan(Program newIrProgram)
+        {
+            this(Optional.empty(), Optional.of(newIrProgram));
+        }
+
+        public boolean isOldIrPlan()
+        {
+            return oldIrPlan.isPresent();
+        }
+
+        public Plan getOldIrPlan()
+        {
+            return oldIrPlan.orElseThrow(() -> new IllegalStateException("The effective plan is a new IR program"));
+        }
+
+        public boolean isNewIrProgram()
+        {
+            return newIrProgram.isPresent();
+        }
+
+        public Program getNewIrProgram()
+        {
+            return newIrProgram.orElseThrow(() -> new IllegalStateException("The effective plan is an old IR plan"));
         }
     }
 }

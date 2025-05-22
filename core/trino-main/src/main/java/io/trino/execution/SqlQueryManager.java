@@ -30,6 +30,7 @@ import io.trino.ExceededScanLimitException;
 import io.trino.ExceededWrittenDataSizeLimitException;
 import io.trino.Session;
 import io.trino.execution.QueryExecution.QueryOutputInfo;
+import io.trino.execution.SqlQueryExecution.EffectivePlan;
 import io.trino.execution.StateMachine.StateChangeListener;
 import io.trino.memory.ClusterMemoryManager;
 import io.trino.server.BasicQueryInfo;
@@ -53,6 +54,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static io.airlift.concurrent.Threads.threadsNamed;
@@ -233,9 +235,11 @@ public class SqlQueryManager
         return queryTracker.getQuery(queryId).getSlug();
     }
 
-    public Optional<Plan> getQueryPlan(QueryId queryId)
+    public Optional<Plan> getOldIrQueryPlan(QueryId queryId)
     {
-        return queryTracker.getQuery(queryId).getQueryPlan();
+        Optional<EffectivePlan> effectivePlan = queryTracker.getQuery(queryId).getQueryPlan();
+        checkState(effectivePlan.map(EffectivePlan::isOldIrPlan).orElse(true), "New IR plans are not supported in this context. Please make sure that reuse_common_subqueries is set to false");
+        return effectivePlan.map(EffectivePlan::getOldIrPlan);
     }
 
     public void addFinalQueryInfoListener(QueryId queryId, StateChangeListener<QueryInfo> stateChangeListener)
