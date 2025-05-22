@@ -188,7 +188,7 @@ public class StageInfo
         return new StageInfo(
                 stageId,
                 state,
-                plan.pruneCatalogProperties(),
+                plan == null ? plan : plan.pruneCatalogProperties(),
                 coordinatorOnly,
                 types,
                 stageStats,
