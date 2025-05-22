@@ -817,9 +817,13 @@ public class QueryStateMachine
                 double runningPercentageSum = 0.0;
                 int totalStages = 0;
                 Queue<StageInfo> queue = new ArrayDeque<>();
+                Set<StageId> processedStages = new HashSet<>();
                 queue.add(rootStage.get());
                 while (!queue.isEmpty()) {
                     StageInfo stage = queue.poll();
+                    if (!processedStages.add(stage.getStageId())) {
+                        continue;
+                    }
                     StageStats stageStats = stage.getStageStats();
                     totalStages++;
                     if (stage.getState().isScheduled()) {
