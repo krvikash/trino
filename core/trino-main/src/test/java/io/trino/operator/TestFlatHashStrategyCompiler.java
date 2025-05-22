@@ -30,13 +30,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TestFlatHashStrategyCompiler
 {
     private static final TypeOperators TYPE_OPERATORS = new TypeOperators();
+    private static final NullSafeHashCompiler NULL_SAFE_HASH_COMPILER = new NullSafeHashCompiler(TYPE_OPERATORS);
 
     @Test
     void test()
     {
         // this will work with 100K columns, but that uses too much memory for the CI
-        FlatHashStrategyCompiler.compileFlatHashStrategy(nCopies(2_001, BIGINT), TYPE_OPERATORS);
-        FlatHashStrategyCompiler.compileFlatHashStrategy(nCopies(2_001, VARCHAR), TYPE_OPERATORS);
+        FlatHashStrategyCompiler.compileFlatHashStrategy(nCopies(2_001, BIGINT), TYPE_OPERATORS, NULL_SAFE_HASH_COMPILER);
+        FlatHashStrategyCompiler.compileFlatHashStrategy(nCopies(2_001, VARCHAR), TYPE_OPERATORS, NULL_SAFE_HASH_COMPILER);
     }
 
     @Test
@@ -57,7 +58,7 @@ class TestFlatHashStrategyCompiler
     private static void testVariableWidthColumns(int columns)
     {
         Block[] variableBlocks = createVariableWidthTestColumns(columns);
-        FlatHashStrategy hashStrategy = FlatHashStrategyCompiler.compileFlatHashStrategy(nCopies(columns, VARCHAR), TYPE_OPERATORS);
+        FlatHashStrategy hashStrategy = FlatHashStrategyCompiler.compileFlatHashStrategy(nCopies(columns, VARCHAR), TYPE_OPERATORS, NULL_SAFE_HASH_COMPILER);
         byte[] fixedChunk = new byte[hashStrategy.getTotalFlatFixedLength()];
         int variableLength = toIntExact(Arrays.stream(variableBlocks).mapToLong(block -> VARCHAR.getFlatVariableWidthSize(block, 0)).sum());
         byte[] variableChunk = new byte[variableLength];
@@ -71,7 +72,7 @@ class TestFlatHashStrategyCompiler
     private static void testFixedWidthColumns(int columns)
     {
         Block[] fixedBlocks = createFixedWidthTestColumns(columns);
-        FlatHashStrategy hashStrategy = FlatHashStrategyCompiler.compileFlatHashStrategy(nCopies(columns, BIGINT), TYPE_OPERATORS);
+        FlatHashStrategy hashStrategy = FlatHashStrategyCompiler.compileFlatHashStrategy(nCopies(columns, BIGINT), TYPE_OPERATORS, NULL_SAFE_HASH_COMPILER);
         byte[] fixedChunk = new byte[hashStrategy.getTotalFlatFixedLength()];
         byte[] variableChunk = null;
         hashStrategy.writeFlat(fixedBlocks, 0, fixedChunk, 0, fixedChunk, 0);

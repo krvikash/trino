@@ -14,6 +14,7 @@
 package io.trino.operator;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.annotation.UsedByGeneratedCode;
 import io.trino.operator.scalar.CombineHashFunction;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -77,6 +78,24 @@ public class InterpretedHashGenerator
             }
             else {
                 hashBlockWithCombine(rawBlock, positionOffset, length, hashCodeOperators[operatorIndex], hashes);
+            }
+        }
+    }
+
+    @UsedByGeneratedCode
+    public void hashBlocksBatched(Block[] blocks, long[] hashes, int offset, int length)
+    {
+        if (length == 0) {
+            return;
+        }
+        // Note: this code must logically match hashPosition(position, Page page) for all positions
+        for (int index = 0; index < blocks.length; index++) {
+            Block rawBlock = blocks[index];
+            if (index == 0) {
+                hashFirstBlock(rawBlock, offset, length, hashCodeOperators[index], hashes);
+            }
+            else {
+                hashBlockWithCombine(rawBlock, offset, length, hashCodeOperators[index], hashes);
             }
         }
     }

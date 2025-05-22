@@ -62,7 +62,7 @@ class TestFlatHashStrategy
     private static final int VARIABLE_CHUNK_OFFSET = 17;
 
     private final TypeOperators typeOperators = new TypeOperators();
-    private final FlatHashStrategyCompiler compiler = new FlatHashStrategyCompiler(typeOperators);
+    private final FlatHashStrategyCompiler compiler = new FlatHashStrategyCompiler(typeOperators, new NullSafeHashCompiler(typeOperators));
 
     @Test
     void test()
