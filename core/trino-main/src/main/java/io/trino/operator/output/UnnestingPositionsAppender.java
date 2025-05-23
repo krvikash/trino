@@ -168,6 +168,9 @@ public class UnnestingPositionsAppender
 
     public Block build()
     {
+        if (state == State.DICTIONARY && dictionary.getPositionCount() > dictionaryIdsBuilder.size()) {
+            transitionToDirect();
+        }
         Block result = switch (state) {
             case DICTIONARY -> DictionaryBlock.create(dictionaryIdsBuilder.size(), dictionary, dictionaryIdsBuilder.getDictionaryIds());
             case RLE -> RunLengthEncodedBlock.create(rleValue, rlePositionCount);
