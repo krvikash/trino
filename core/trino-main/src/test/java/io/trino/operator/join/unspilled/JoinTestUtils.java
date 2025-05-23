@@ -32,6 +32,7 @@ import io.trino.operator.join.JoinBridgeManager;
 import io.trino.operator.join.LookupSource;
 import io.trino.operator.join.StandardJoinFilterFunction;
 import io.trino.operator.join.unspilled.HashBuilderOperator.HashBuilderOperatorFactory;
+import io.trino.operator.output.PositionsAppenderFactory;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
@@ -39,6 +40,7 @@ import io.trino.spi.type.TypeOperators;
 import io.trino.sql.gen.JoinFilterFunctionCompiler;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.type.BlockTypeOperators;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,6 +64,7 @@ import static java.util.Objects.requireNonNull;
 public final class JoinTestUtils
 {
     private static final int PARTITION_COUNT = 4;
+    private static final PositionsAppenderFactory POSITIONS_APPENDER_FACTORY = new PositionsAppenderFactory(new BlockTypeOperators(new TypeOperators()));
     private static final NullSafeHashCompiler HASH_COMPILER = new NullSafeHashCompiler(new TypeOperators());
 
     private JoinTestUtils() {}
@@ -147,6 +150,8 @@ public final class JoinTestUtils
                 hashChannels,
                 hashChannelTypes,
                 buildPages.getHashChannel(),
+                POSITIONS_APPENDER_FACTORY,
+                types,
                 DataSize.of(32, DataSize.Unit.MEGABYTE),
                 HASH_COMPILER,
                 DataSize.of(32, DataSize.Unit.MEGABYTE),

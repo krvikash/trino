@@ -24,8 +24,10 @@ import io.trino.Session;
 import io.trino.operator.BucketPartitionFunction;
 import io.trino.operator.HashGenerator;
 import io.trino.operator.NullSafeHashCompiler;
+import io.trino.operator.OperatorContext;
 import io.trino.operator.PartitionFunction;
 import io.trino.operator.PrecomputedHashGenerator;
+import io.trino.operator.output.PositionsAppenderFactory;
 import io.trino.operator.output.SkewedPartitionRebalancer;
 import io.trino.spi.Page;
 import io.trino.spi.type.Type;
@@ -51,6 +53,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.SystemSessionProperties.getQueryMaxMemoryPerNode;
 import static io.trino.SystemSessionProperties.getSkewedPartitionMinDataProcessedRebalanceThreshold;
+import static io.trino.SystemSessionProperties.isMergePartitionedPages;
 import static io.trino.operator.InterpretedHashGenerator.createChannelsHashGenerator;
 import static io.trino.operator.exchange.LocalExchangeSink.finishedLocalExchangeSink;
 import static io.trino.sql.planner.PartitioningHandle.isScaledWriterHashDistribution;
@@ -95,6 +98,8 @@ public class LocalExchange
             List<Integer> partitionChannels,
             List<Type> partitionChannelTypes,
             Optional<Integer> partitionHashChannel,
+            PositionsAppenderFactory positionsAppenderFactory,
+            List<Type> sourceTypes,
             DataSize maxBufferedBytes,
             NullSafeHashCompiler hashCompiler,
             DataSize writerScalingMinDataProcessed,
@@ -176,9 +181,16 @@ public class LocalExchange
         else if (partitioning.equals(FIXED_HASH_DISTRIBUTION) || partitioning.getCatalogHandle().isPresent() ||
                 (partitioning.getConnectorHandle() instanceof MergePartitioningHandle)) {
             LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
-            sources = IntStream.range(0, bufferCount)
-                    .mapToObj(i -> new LocalExchangeSource(memoryManager, source -> checkAllSourcesFinished()))
-                    .collect(toImmutableList());
+            if (isMergePartitionedPages(session)) {
+                sources = IntStream.range(0, bufferCount)
+                        .mapToObj(i -> new MergingLocalExchangePageBuffer(memoryManager, source -> checkAllSourcesFinished(), sourceTypes, positionsAppenderFactory))
+                        .collect(toImmutableList());
+            }
+            else {
+                sources = IntStream.range(0, bufferCount)
+                        .mapToObj(i -> new LocalExchangeSource(memoryManager, source -> checkAllSourcesFinished()))
+                        .collect(toImmutableList());
+            }
             exchangerSupplier = () -> {
                 PartitionFunction partitionFunction = createPartitionFunction(
                         nodePartitioningManager,
@@ -214,10 +226,13 @@ public class LocalExchange
         return newFactory;
     }
 
-    public synchronized LocalExchangePageBuffer getNextSource()
+    public synchronized LocalExchangePageBuffer getNextSource(OperatorContext operatorContext)
     {
         checkState(nextSourceIndex < sources.size(), "All operators already created");
         LocalExchangePageBuffer result = sources.get(nextSourceIndex);
+        if (result instanceof MergingLocalExchangePageBuffer mergingLocalExchangePageBuffer) {
+            mergingLocalExchangePageBuffer.init(operatorContext);
+        }
         nextSourceIndex++;
         return result;
     }

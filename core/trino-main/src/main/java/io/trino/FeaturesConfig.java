@@ -112,6 +112,7 @@ public class FeaturesConfig
 
     private DataSize filterAndProjectMinOutputPageSize = DataSize.of(500, KILOBYTE);
     private int filterAndProjectMinOutputPageRowCount = 256;
+    private boolean mergePartitionedPages = true;
     private int maxGroupingSets = 2048;
 
     private boolean legacyCatalogRoles;
@@ -423,6 +424,19 @@ public class FeaturesConfig
     public FeaturesConfig setFilterAndProjectMinOutputPageRowCount(int filterAndProjectMinOutputPageRowCount)
     {
         this.filterAndProjectMinOutputPageRowCount = filterAndProjectMinOutputPageRowCount;
+        return this;
+    }
+
+    public boolean isMergePartitionedPages()
+    {
+        return mergePartitionedPages;
+    }
+
+    @Config("merge-partitioned-pages")
+    @ConfigDescription("Merge pages partitioned by local exchange")
+    public FeaturesConfig setMergePartitionedPages(boolean mergePartitionedPages)
+    {
+        this.mergePartitionedPages = mergePartitionedPages;
         return this;
     }
 

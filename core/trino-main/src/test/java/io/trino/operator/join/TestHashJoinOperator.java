@@ -23,6 +23,7 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.ExceededMemoryLimitException;
 import io.trino.RowPagesBuilder;
+import io.trino.Session;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.execution.NodeTaskMap;
 import io.trino.execution.StageId;
@@ -79,6 +80,7 @@ import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.RowPagesBuilder.rowPagesBuilder;
 import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.SystemSessionProperties.MERGE_PARTITIONED_PAGES;
 import static io.trino.operator.JoinOperatorType.fullOuterJoin;
 import static io.trino.operator.JoinOperatorType.innerJoin;
 import static io.trino.operator.JoinOperatorType.lookupOuterJoin;
@@ -95,6 +97,7 @@ import static io.trino.operator.join.JoinTestUtils.runDriverInThread;
 import static io.trino.operator.join.JoinTestUtils.setupBuildSide;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.util.Arrays.asList;
 import static java.util.Collections.nCopies;
 import static java.util.Collections.singletonList;
@@ -375,7 +378,8 @@ public class TestHashJoinOperator
             throws Exception
     {
         TaskStateMachine taskStateMachine = new TaskStateMachine(new TaskId(new StageId("query", 0), 0, 0), executor);
-        TaskContext taskContext = TestingTaskContext.createTaskContext(executor, scheduledExecutor, TEST_SESSION, taskStateMachine);
+        Session session = testSessionBuilder(TEST_SESSION).setSystemProperty(MERGE_PARTITIONED_PAGES, "false").build();
+        TaskContext taskContext = TestingTaskContext.createTaskContext(executor, scheduledExecutor, session, taskStateMachine);
 
         DriverContext joinDriverContext = taskContext.addPipelineContext(2, true, true, false).addDriverContext();
 
@@ -1251,7 +1255,7 @@ public class TestHashJoinOperator
 
     private void testMemoryLimit(boolean parallelBuild, boolean buildHashEnabled)
     {
-        TaskContext taskContext = TestingTaskContext.createTaskContext(executor, scheduledExecutor, TEST_SESSION, DataSize.ofBytes(100));
+        TaskContext taskContext = TestingTaskContext.createTaskContext(executor, scheduledExecutor, TEST_SESSION, DataSize.ofBytes(3000));
 
         RowPagesBuilder buildPages = rowPagesBuilder(buildHashEnabled, Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT))
                 .addSequencePage(10, 20, 30, 40);
