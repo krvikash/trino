@@ -34,6 +34,7 @@ import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
 public class LocalExchangeSource
+        implements LocalExchangePageBuffer
 {
     private static final ListenableFuture<Void> NOT_BLOCKED = immediateVoidFuture();
 
@@ -58,6 +59,7 @@ public class LocalExchangeSource
         this.onFinish = requireNonNull(onFinish, "onFinish is null");
     }
 
+    @Override
     public LocalExchangeBufferInfo getBufferInfo()
     {
         // This must be lock free to assure task info creation is fast
@@ -65,7 +67,8 @@ public class LocalExchangeSource
         return new LocalExchangeBufferInfo(bufferedBytes.get(), bufferedPages.get());
     }
 
-    void addPage(Page page)
+    @Override
+    public void addPage(Page page)
     {
         assertNotHoldsLock();
 
@@ -100,6 +103,7 @@ public class LocalExchangeSource
         }
     }
 
+    @Override
     public WorkProcessor<Page> pages()
     {
         return WorkProcessor.create(() -> {
@@ -121,6 +125,7 @@ public class LocalExchangeSource
         });
     }
 
+    @Override
     public Page removePage()
     {
         assertNotHoldsLock();
@@ -147,6 +152,7 @@ public class LocalExchangeSource
         return page;
     }
 
+    @Override
     public ListenableFuture<Void> waitForReading()
     {
         assertNotHoldsLock();
@@ -168,6 +174,7 @@ public class LocalExchangeSource
         }
     }
 
+    @Override
     public boolean isFinished()
     {
         // Common case fast-path without synchronizing
@@ -180,6 +187,7 @@ public class LocalExchangeSource
         }
     }
 
+    @Override
     public void finish()
     {
         assertNotHoldsLock();
@@ -204,6 +212,7 @@ public class LocalExchangeSource
         checkFinished();
     }
 
+    @Override
     public void close()
     {
         assertNotHoldsLock();

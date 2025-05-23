@@ -70,7 +70,7 @@ public class LocalExchange
 
     private final Supplier<LocalExchanger> exchangerSupplier;
 
-    private final List<LocalExchangeSource> sources;
+    private final List<LocalExchangePageBuffer> sources;
 
     @GuardedBy("this")
     private boolean allSourcesFinished;
@@ -120,7 +120,7 @@ public class LocalExchange
             exchangerSupplier = () -> {
                 int currentSource = nextSource.getAndIncrement();
                 checkState(currentSource < sources.size(), "no more sources");
-                return new PassthroughExchanger(sources.get(currentSource), memoryManagers.get(currentSource));
+                return new PassthroughExchanger((LocalExchangeSource) sources.get(currentSource), memoryManagers.get(currentSource));
             };
         }
         else if (partitioning.equals(SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION)) {
@@ -214,10 +214,10 @@ public class LocalExchange
         return newFactory;
     }
 
-    public synchronized LocalExchangeSource getNextSource()
+    public synchronized LocalExchangePageBuffer getNextSource()
     {
         checkState(nextSourceIndex < sources.size(), "All operators already created");
-        LocalExchangeSource result = sources.get(nextSourceIndex);
+        LocalExchangePageBuffer result = sources.get(nextSourceIndex);
         nextSourceIndex++;
         return result;
     }
@@ -301,7 +301,7 @@ public class LocalExchange
     {
         checkNotHoldsLock(this);
 
-        if (!sources.stream().allMatch(LocalExchangeSource::isFinished)) {
+        if (!sources.stream().allMatch(LocalExchangePageBuffer::isFinished)) {
             return;
         }
 
@@ -380,11 +380,11 @@ public class LocalExchange
             }
         }
 
-        sources.forEach(LocalExchangeSource::finish);
+        sources.forEach(LocalExchangePageBuffer::finish);
     }
 
     @VisibleForTesting
-    LocalExchangeSource getSource(int partitionIndex)
+    LocalExchangePageBuffer getSource(int partitionIndex)
     {
         return sources.get(partitionIndex);
     }
@@ -435,7 +435,7 @@ public class LocalExchange
         return bufferCount;
     }
 
-    private static List<Consumer<Page>> asPageConsumers(List<LocalExchangeSource> sources)
+    private static List<Consumer<Page>> asPageConsumers(List<LocalExchangePageBuffer> sources)
     {
         return sources.stream()
                 .map(buffer -> (Consumer<Page>) buffer::addPage)

@@ -65,10 +65,10 @@ public class LocalExchangeSourceOperator
     }
 
     private final OperatorContext operatorContext;
-    private final LocalExchangeSource source;
+    private final LocalExchangePageBuffer source;
     private ListenableFuture<Void> isBlocked = NOT_BLOCKED;
 
-    public LocalExchangeSourceOperator(OperatorContext operatorContext, LocalExchangeSource source)
+    public LocalExchangeSourceOperator(OperatorContext operatorContext, LocalExchangePageBuffer source)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.source = requireNonNull(source, "source is null");
