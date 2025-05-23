@@ -18,6 +18,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
 import io.airlift.concurrent.SetThreadName;
+import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
@@ -98,6 +99,7 @@ import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.units.DataSize.succinctBytes;
 import static io.trino.SystemSessionProperties.getRetryPolicy;
+import static io.trino.SystemSessionProperties.isDebugCteReuseEnabled;
 import static io.trino.SystemSessionProperties.isEnableDynamicFiltering;
 import static io.trino.execution.ParameterExtractor.bindParameters;
 import static io.trino.execution.QueryState.FAILED;
@@ -517,9 +519,17 @@ public class SqlQueryExecution
             try (var _ = scopedSpan(tracer, "fragment-plan-new-ir")) {
                 optionalFragmentedPlan = planFragmenter.createSubPlans(stateMachine.getSession(), planOptions.newIrProgram().get(), false, stateMachine.getWarningCollector());
             }
+            boolean debugEnabled = isDebugCteReuseEnabled(stateMachine.getSession());
+            Logger log = Logger.get(SqlQueryExecution.class);
             if (optionalFragmentedPlan.isPresent()) {
+                if (debugEnabled) {
+                    log.info("Successfully fragmented the new IR plan for query: " + stateMachine.getSession().getQueryId());
+                }
                 fragmentedPlan = optionalFragmentedPlan.get();
                 queryPlan.set(new EffectivePlan(planOptions.newIrProgram().get()));
+            }
+            else if (debugEnabled) {
+                log.info("Failed to fragment the new IR plan for query: %s. The old IR plan will be used.", stateMachine.getSession().getQueryId());
             }
         }
         if (fragmentedPlan == null) {
