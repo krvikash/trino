@@ -37,6 +37,12 @@ public class TestPositionsAppenderPageBuilder
     @Test
     public void testFullOnPositionCountLimit()
     {
+        testFullOnPositionCountLimit(false);
+        testFullOnPositionCountLimit(true);
+    }
+
+    public void testFullOnPositionCountLimit(boolean appendRange)
+    {
         int maxPageBytes = 1024 * 1024;
         int maxDirectSize = maxPageBytes * 10;
         PositionsAppenderPageBuilder pageBuilder = PositionsAppenderPageBuilder.withMaxPageSize(
@@ -54,13 +60,23 @@ public class TestPositionsAppenderPageBuilder
                 .as("expected MAX_POSITION_COUNT to be 32768")
                 .isEqualTo(32768);
         for (int i = 0; i < 3276; i++) {
-            pageBuilder.appendToOutputPartition(inputPage, positions);
+            if (appendRange) {
+                pageBuilder.appendRangeToOutputPartition(inputPage, 0, 10);
+            }
+            else {
+                pageBuilder.appendToOutputPartition(inputPage, positions);
+            }
         }
         assertThat(pageBuilder.isFull())
                 .as("pageBuilder should still not be full")
                 .isFalse();
         // Append 10 more positions, crossing the threshold on position count
-        pageBuilder.appendToOutputPartition(inputPage, positions);
+        if (appendRange) {
+            pageBuilder.appendRangeToOutputPartition(inputPage, 0, 10);
+        }
+        else {
+            pageBuilder.appendToOutputPartition(inputPage, positions);
+        }
         assertThat(pageBuilder.isFull())
                 .as("pageBuilder should be full")
                 .isTrue();
@@ -76,6 +92,12 @@ public class TestPositionsAppenderPageBuilder
 
     @Test
     public void testFullOnDirectSizeInBytes()
+    {
+        testFullOnDirectSizeInBytes(false);
+        testFullOnDirectSizeInBytes(true);
+    }
+
+    private void testFullOnDirectSizeInBytes(boolean appendRange)
     {
         int maxPageBytes = 100;
         int maxDirectSize = 1000;
@@ -94,7 +116,13 @@ public class TestPositionsAppenderPageBuilder
         Page inputPage = new Page(rleBlock);
 
         IntArrayList positions = IntArrayList.wrap(new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
-        pageBuilder.appendToOutputPartition(inputPage, positions);
+        if (appendRange) {
+            pageBuilder.appendRangeToOutputPartition(inputPage, 0, 10);
+        }
+        else {
+            pageBuilder.appendToOutputPartition(inputPage, positions);
+        }
+
         // 10 positions inserted, size in bytes is still the same since we're in RLE mode but direct size is 10x
         sizeAccumulator = pageBuilder.computeAppenderSizes();
         assertThat(sizeAccumulator.getSizeInBytes()).isEqualTo(rleBlock.getValue().getSizeInBytes());
@@ -106,7 +134,12 @@ public class TestPositionsAppenderPageBuilder
 
         // Keep inserting until the direct size limit is reached
         while (pageBuilder.computeAppenderSizes().getDirectSizeInBytes() < maxDirectSize) {
-            pageBuilder.appendToOutputPartition(inputPage, positions);
+            if (appendRange) {
+                pageBuilder.appendRangeToOutputPartition(inputPage, 0, 10);
+            }
+            else {
+                pageBuilder.appendToOutputPartition(inputPage, positions);
+            }
         }
         // size in bytes is unchanged
         sizeAccumulator = pageBuilder.computeAppenderSizes();
@@ -130,6 +163,12 @@ public class TestPositionsAppenderPageBuilder
     @Test
     public void testFlushUsefulDictionariesOnRelease()
     {
+        testFlushUsefulDictionariesOnRelease(false);
+        testFlushUsefulDictionariesOnRelease(true);
+    }
+
+    private void testFlushUsefulDictionariesOnRelease(boolean appendRange)
+    {
         int maxPageBytes = 100;
         int maxDirectSize = 1000;
         PositionsAppenderPageBuilder pageBuilder = PositionsAppenderPageBuilder.withMaxPageSize(
@@ -142,7 +181,13 @@ public class TestPositionsAppenderPageBuilder
         Block dictionaryBlock = DictionaryBlock.create(10, valueBlock, new int[10]);
         Page inputPage = new Page(dictionaryBlock);
 
-        pageBuilder.appendToOutputPartition(inputPage, IntArrayList.wrap(new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
+        if (appendRange) {
+            pageBuilder.appendRangeToOutputPartition(inputPage, 0, 10);
+        }
+        else {
+            pageBuilder.appendToOutputPartition(inputPage, IntArrayList.wrap(new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
+        }
+
         // Dictionary mode appender should report the size of the ID's, but doesn't currently track
         // the per-position size at all because it would be inefficient
         assertThat(pageBuilder.getSizeInBytes()).isEqualTo(Integer.BYTES * 10);
@@ -160,6 +205,12 @@ public class TestPositionsAppenderPageBuilder
     @Test
     public void testFlattenUnhelpfulDictionariesOnRelease()
     {
+        testFlattenUnhelpfulDictionariesOnRelease(false);
+        testFlattenUnhelpfulDictionariesOnRelease(true);
+    }
+
+    private void testFlattenUnhelpfulDictionariesOnRelease(boolean appendRange)
+    {
         // Create unhelpful dictionary wrapping
         Block valueBlock = createRandomBlockForType(VARCHAR, 10, 0.25f);
         Block dictionaryBlock = DictionaryBlock.create(10, valueBlock, new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
@@ -173,8 +224,12 @@ public class TestPositionsAppenderPageBuilder
                 maxDirectSize,
                 List.of(VARCHAR),
                 new PositionsAppenderFactory(new BlockTypeOperators()));
-
-        pageBuilder.appendToOutputPartition(inputPage, IntArrayList.wrap(new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
+        if (appendRange) {
+            pageBuilder.appendRangeToOutputPartition(inputPage, 0, 10);
+        }
+        else {
+            pageBuilder.appendToOutputPartition(inputPage, IntArrayList.wrap(new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}));
+        }
         assertThat(pageBuilder.getSizeInBytes()).isEqualTo(Integer.BYTES * 10);
         assertThat(pageBuilder.isFull()).isFalse();
 

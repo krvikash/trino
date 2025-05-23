@@ -71,6 +71,7 @@ import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
+import static it.unimi.dsi.fastutil.ints.IntComparators.NATURAL_COMPARATOR;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -497,6 +498,7 @@ public class TestPositionsAppender
     private static void testAppend(TestType type, List<BlockView> inputs)
     {
         testAppendBatch(type, inputs);
+        testAppendRange(type, inputs);
         testAppendSingle(type, inputs);
     }
 
@@ -507,6 +509,46 @@ public class TestPositionsAppender
 
         inputs.forEach(input -> positionsAppender.append(input.positions(), input.block()));
         assertBuildResult(type, inputs, positionsAppender, initialRetainedSize);
+    }
+
+    private static void testAppendRange(TestType type, List<BlockView> inputs)
+    {
+        UnnestingPositionsAppender positionsAppender = POSITIONS_APPENDER_FACTORY.create(type.getType(), 10, DEFAULT_MAX_PAGE_SIZE_IN_BYTES);
+        long initialRetainedSize = positionsAppender.getRetainedSizeInBytes();
+
+        inputs.forEach(input -> {
+            List<PositionsRange> ranges = extractRanges(input.positions());
+            for (PositionsRange range : ranges) {
+                positionsAppender.appendRange(range.offset(), range.length(), input.block());
+            }
+        });
+        assertBuildResult(type, inputs, positionsAppender, initialRetainedSize);
+    }
+
+    private static List<PositionsRange> extractRanges(IntArrayList positions)
+    {
+        if (positions.isEmpty()) {
+            return ImmutableList.of();
+        }
+
+        IntArrayList sorted = positions.clone();
+        sorted.sort(NATURAL_COMPARATOR);
+        ImmutableList.Builder<PositionsRange> ranges = ImmutableList.builder();
+        int rangeOffset = positions.getInt(0);
+        int rangeLength = 1;
+        for (int i = 1; i < sorted.size(); i++) {
+            int current = sorted.getInt(i);
+            if (current == rangeOffset + rangeLength) {
+                rangeLength++;
+            }
+            else {
+                ranges.add(new PositionsRange(rangeOffset, rangeLength));
+                rangeOffset = current;
+                rangeLength = 1;
+            }
+        }
+        ranges.add(new PositionsRange(rangeOffset, rangeLength));
+        return ranges.build();
     }
 
     private static void assertBuildResult(TestType type, List<BlockView> inputs, UnnestingPositionsAppender positionsAppender, long initialRetainedSize)
@@ -611,6 +653,15 @@ public class TestPositionsAppender
         {
             requireNonNull(block, "block is null");
             requireNonNull(positions, "positions is null");
+        }
+    }
+
+    private record PositionsRange(int offset, int length)
+    {
+        private PositionsRange
+        {
+            checkArgument(offset >= 0, "offset is negative");
+            checkArgument(length >= 0, "length is negative");
         }
     }
 

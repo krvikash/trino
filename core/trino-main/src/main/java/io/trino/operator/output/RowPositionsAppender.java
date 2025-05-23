@@ -101,6 +101,37 @@ public class RowPositionsAppender
     }
 
     @Override
+    public void appendRange(int offset, int length, ValueBlock block)
+    {
+        checkArgument(block instanceof RowBlock, "Block must be instance of %s", RowBlock.class);
+
+        if (length == 0) {
+            return;
+        }
+        ensureCapacity(length);
+        RowBlock sourceRowBlock = (RowBlock) block;
+
+        for (int i = 0; i < fieldAppenders.length; i++) {
+            fieldAppenders[i].appendRange(offset, length, sourceRowBlock.getFieldBlock(i));
+        }
+
+        if (sourceRowBlock.mayHaveNull()) {
+            for (int i = 0; i < length; i++) {
+                boolean positionIsNull = sourceRowBlock.isNull(offset + i);
+                rowIsNull[positionCount + i] = positionIsNull;
+                hasNullRow |= positionIsNull;
+                hasNonNullRow |= !positionIsNull;
+            }
+        }
+        else {
+            hasNonNullRow = true;
+        }
+
+        positionCount += length;
+        resetSize();
+    }
+
+    @Override
     public void appendRle(ValueBlock value, int rlePositionCount)
     {
         checkArgument(value instanceof RowBlock, "Block must be instance of %s", RowBlock.class);

@@ -105,6 +105,43 @@ public class UnnestingPositionsAppender
         }
     }
 
+    public void appendRange(int offset, int length, Block source)
+    {
+        if (length == 0) {
+            return;
+        }
+
+        switch (source) {
+            case RunLengthEncodedBlock rleBlock -> {
+                appendRle(rleBlock.getValue(), length);
+            }
+            case DictionaryBlock dictionaryBlock -> {
+                ValueBlock dictionary = dictionaryBlock.getDictionary();
+                if (state == State.UNINITIALIZED) {
+                    state = State.DICTIONARY;
+                    this.dictionary = dictionary;
+                    dictionaryIdsBuilder.appendRange(offset, length, dictionaryBlock);
+                }
+                else if (state == State.DICTIONARY && this.dictionary == dictionary) {
+                    dictionaryIdsBuilder.appendRange(offset, length, dictionaryBlock);
+                }
+                else {
+                    transitionToDirect();
+
+                    int[] positionArray = new int[length];
+                    for (int i = 0; i < length; i++) {
+                        positionArray[i] = dictionaryBlock.getId(offset + i);
+                    }
+                    delegate.append(IntArrayList.wrap(positionArray), dictionary);
+                }
+            }
+            case ValueBlock valueBlock -> {
+                transitionToDirect();
+                delegate.appendRange(offset, length, valueBlock);
+            }
+        }
+    }
+
     public void appendRle(ValueBlock value, int positionCount)
     {
         if (positionCount == 0) {
@@ -276,6 +313,17 @@ public class UnnestingPositionsAppender
                 dictionaryIds[size + i] = block.getId(positions.getInt(i));
             }
             size += positions.size();
+        }
+
+        public void appendRange(int offset, int length, DictionaryBlock block)
+        {
+            checkArgument(length > 0, "length is 0");
+            ensureCapacity(size + length);
+
+            for (int i = 0; i < length; i++) {
+                dictionaryIds[size + i] = block.getId(offset + i);
+            }
+            size += length;
         }
 
         public DictionaryIdsBuilder newBuilderLike()

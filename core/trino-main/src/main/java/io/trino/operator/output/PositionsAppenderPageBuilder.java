@@ -83,6 +83,16 @@ public class PositionsAppenderPageBuilder
         }
     }
 
+    public void appendRangeToOutputPartition(Page page, int offset, int length)
+    {
+        declarePositions(length);
+
+        for (int channel = 0; channel < channelAppenders.length; channel++) {
+            Block block = page.getBlock(channel);
+            channelAppenders[channel].appendRange(offset, length, block);
+        }
+    }
+
     public void appendToOutputPartition(Page page, int position)
     {
         declarePositions(1);
