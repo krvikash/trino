@@ -19,11 +19,12 @@ import com.google.common.graph.Traverser;
 import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.RemoteSourceNode;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkState;
-import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toMap;
 
 public final class TopologicalOrderSubPlanVisitor
@@ -49,6 +50,7 @@ public final class TopologicalOrderSubPlanVisitor
     {
         private final SubPlan subPlan;
         private final Map<PlanFragmentId, SubPlan> sourceSubPlans;
+        private final Set<PlanFragmentId> processedSubPlans = new HashSet<>();
         private final ImmutableList.Builder<SubPlan> children = ImmutableList.builder();
 
         public Visitor(SubPlan subPlan)
@@ -73,8 +75,13 @@ public final class TopologicalOrderSubPlanVisitor
         {
             for (PlanFragmentId fragmentId : node.getSourceFragmentIds()) {
                 SubPlan child = sourceSubPlans.remove(fragmentId);
-                requireNonNull(child, "PlanFragmentId %s does not appear in sources of %s".formatted(fragmentId, subPlan));
-                children.add(child);
+                if (child != null) {
+                    children.add(child);
+                    processedSubPlans.add(fragmentId);
+                }
+                else {
+                    checkState(processedSubPlans.contains(fragmentId), "PlanFragmentId %s does not appear in sources of %s".formatted(fragmentId, subPlan));
+                }
             }
             return null;
         }
