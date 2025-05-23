@@ -262,6 +262,8 @@ public class NewIrFragmenter
             ProcessedRemoteExchange processedRemoteExchange = processedRemoteExchanges.get(operation.result());
             if (processedRemoteExchange != null) {
                 // make sure that context is properly updated. Distribution has been updated above. We need to report the children.
+                // Note: in case when we're visiting the same remote exchange again in the same fragment, children have been already added to the context.
+                // children are deduplicated in the `addChildren()` method.
                 context.addChildren(processedRemoteExchange.children());
 
                 // we can return the previously created RemoteSourceNode. We must clone it for disambiguation, and recalculate the retry policy.

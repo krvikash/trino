@@ -14,7 +14,6 @@
 package io.trino.sql.planner;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multiset;
 import com.google.errorprone.annotations.Immutable;
 import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.RemoteSourceNode;
@@ -24,7 +23,7 @@ import java.util.List;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableMultiset.toImmutableMultiset;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 
 @Immutable
@@ -78,15 +77,15 @@ public class SubPlan
 
     public void sanityCheck()
     {
-        Multiset<PlanFragmentId> exchangeIds = fragment.getRemoteSourceNodes().stream()
+        Set<PlanFragmentId> exchangeIds = fragment.getRemoteSourceNodes().stream()
                 .map(RemoteSourceNode::getSourceFragmentIds)
                 .flatMap(List::stream)
-                .collect(toImmutableMultiset());
+                .collect(toImmutableSet());
 
-        Multiset<PlanFragmentId> childrenIds = children.stream()
+        Set<PlanFragmentId> childrenIds = children.stream()
                 .map(SubPlan::getFragment)
                 .map(PlanFragment::getId)
-                .collect(toImmutableMultiset());
+                .collect(toImmutableSet());
 
         checkState(exchangeIds.equals(childrenIds), "Subplan exchange ids don't match child fragment ids (%s vs %s)", exchangeIds, childrenIds);
 

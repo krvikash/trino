@@ -69,9 +69,9 @@ import io.trino.sql.planner.plan.TableWriterNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.transaction.TransactionManager;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -700,7 +700,7 @@ public class PlanFragmenter
 
     public static class FragmentProperties
     {
-        private final List<SubPlan> children = new ArrayList<>();
+        private final Map<PlanFragmentId, SubPlan> children = new LinkedHashMap<>();
 
         private final Optional<PartitioningScheme> partitioningScheme;
         private final Optional<NewIrPartitioningScheme> newIrPartitioningScheme;
@@ -723,7 +723,7 @@ public class PlanFragmenter
 
         public List<SubPlan> getChildren()
         {
-            return children;
+            return ImmutableList.copyOf(children.values());
         }
 
         public boolean hasDistribution()
@@ -876,7 +876,8 @@ public class PlanFragmenter
 
         public FragmentProperties addChildren(List<SubPlan> children)
         {
-            this.children.addAll(children);
+            children.stream()
+                    .forEach(child -> this.children.put(child.getFragment().getId(), child));
 
             return this;
         }
