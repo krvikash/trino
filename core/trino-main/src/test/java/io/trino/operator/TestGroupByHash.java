@@ -57,9 +57,9 @@ public class TestGroupByHash
 {
     private static final int MAX_GROUP_ID = 500;
     private static final int BIGINT_EXPECTED_REHASH = 20;
-    // first rehash moves from the initial capacity to 1024 (batch size) and last hash moves to 1024 * 1024,
-    // which is 1 initial rehash + 10 additional rehashes
-    private static final int VARCHAR_EXPECTED_REHASH = 11;
+    // first rehash moves from the initial capacity to 8 * 1024 (batch size) and last hash moves to 1024 * 1024,
+    // which is 1 initial rehash + 7 additional rehashes
+    private static final int VARCHAR_EXPECTED_REHASH = 8;
 
     private static final List<Type> DATA_TYPES = ImmutableList.of(VARCHAR, BIGINT);
 
@@ -511,7 +511,7 @@ public class TestGroupByHash
                 // the rehash count is 10 = log(1_000 / 0.75)
                 int expectedCurrentQuota = (int) log2(dictionaryLength / 0.75);
 
-                assertThat(currentQuota.get()).isEqualTo(2 * (groupByHashType == GroupByHashType.FLAT ? 4 : expectedCurrentQuota));
+                assertThat(currentQuota.get()).isEqualTo(2 * (groupByHashType == GroupByHashType.FLAT ? 1 : expectedCurrentQuota));
                 assertThat(currentQuota.get() / 3 / 2).isEqualTo(yields);
 
                 // test getGroupIds
@@ -540,7 +540,7 @@ public class TestGroupByHash
                 // assert we yield for every 3 rehashes
                 // currentQuota is essentially the count we have successfully rehashed multiplied by 2 (as updateMemory is called twice per rehash)
                 // the rehash count is 10 = log2(1_000 / 0.75)
-                assertThat(currentQuota.get()).isEqualTo(2 * (groupByHashType == GroupByHashType.FLAT ? 4 : expectedCurrentQuota));
+                assertThat(currentQuota.get()).isEqualTo(2 * (groupByHashType == GroupByHashType.FLAT ? 1 : expectedCurrentQuota));
                 assertThat(currentQuota.get() / 3 / 2).isEqualTo(yields);
             }
         }

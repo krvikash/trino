@@ -42,7 +42,7 @@ public class FlatGroupByHash
         implements GroupByHash
 {
     private static final int INSTANCE_SIZE = instanceSize(FlatGroupByHash.class);
-    private static final int BATCH_SIZE = 1024;
+    private static final int BATCH_SIZE = 8192;
     // Max (page value count / cumulative dictionary size) to trigger the low cardinality case
     private static final double SMALL_DICTIONARIES_MAX_CARDINALITY_RATIO = 0.25;
 
@@ -203,10 +203,10 @@ public class FlatGroupByHash
         return flatHash.putIfAbsent(blocks, position);
     }
 
-    private long[] getHashesBufferArray()
+    private long[] getHashesBufferArray(int size)
     {
-        if (currentHashes == null) {
-            currentHashes = new long[BATCH_SIZE];
+        if (currentHashes == null || currentHashes.length < size) {
+            currentHashes = new long[Math.min(size, BATCH_SIZE)];
         }
         return currentHashes;
     }
@@ -355,7 +355,7 @@ public class FlatGroupByHash
 
             int remainingPositions = positionCount - lastPosition;
 
-            long[] hashes = getHashesBufferArray();
+            long[] hashes = getHashesBufferArray(remainingPositions);
             while (remainingPositions != 0) {
                 int batchSize = min(remainingPositions, hashes.length);
                 if (!flatHash.ensureAvailableCapacity(batchSize)) {
@@ -522,7 +522,7 @@ public class FlatGroupByHash
 
             int remainingPositions = positionCount - lastPosition;
 
-            long[] hashes = getHashesBufferArray();
+            long[] hashes = getHashesBufferArray(remainingPositions);
             while (remainingPositions != 0) {
                 int batchSize = min(remainingPositions, hashes.length);
                 if (!flatHash.ensureAvailableCapacity(batchSize)) {
