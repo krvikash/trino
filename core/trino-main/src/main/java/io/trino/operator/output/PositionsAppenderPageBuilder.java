@@ -20,6 +20,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.type.Type;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -192,6 +193,12 @@ public class PositionsAppenderPageBuilder
         Page page = new Page(declaredPositions, blocks);
         reset();
         return page;
+    }
+
+    public void release()
+    {
+        // release memory early
+        Arrays.fill(channelAppenders, null);
     }
 
     private void reset()
