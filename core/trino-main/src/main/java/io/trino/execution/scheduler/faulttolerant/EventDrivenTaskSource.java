@@ -13,10 +13,12 @@
  */
 package io.trino.execution.scheduler.faulttolerant;
 
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
@@ -45,7 +47,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -148,16 +150,18 @@ class EventDrivenTaskSource
     @GuardedBy("this")
     private void initialize()
     {
-        Map<PlanFragmentId, PlanNodeId> remoteSourceNodeIds = new HashMap<>();
+        Multimap<PlanFragmentId, PlanNodeId> remoteSourceNodeIds = HashMultimap.create();
         remoteSources.forEach((planNodeId, planFragmentId) -> remoteSourceNodeIds.put(planFragmentId, planNodeId));
         ImmutableList.Builder<IdempotentSplitSource> splitSources = ImmutableList.builder();
         for (Map.Entry<PlanFragmentId, Exchange> entry : sourceExchanges.entrySet()) {
             PlanFragmentId sourceFragmentId = entry.getKey();
-            PlanNodeId remoteSourceNodeId = remoteSourceNodeIds.get(sourceFragmentId);
-            verify(remoteSourceNodeId != null, "remote source not found for fragment: %s", sourceFragmentId);
-            ExchangeSourceHandleSource handleSource = closer.register(entry.getValue().getSourceHandles());
-            ExchangeSplitSource splitSource = closer.register(new ExchangeSplitSource(handleSource, targetExchangeSplitSizeInBytes));
-            splitSources.add(closer.register(new IdempotentSplitSource(queryId, tableExecuteContextManager, remoteSourceNodeId, Optional.of(sourceFragmentId), splitSource, splitBatchSize, metricsRecorder)));
+            Collection<PlanNodeId> myRemoteSourceNodeIds = remoteSourceNodeIds.get(sourceFragmentId);
+            verify(!myRemoteSourceNodeIds.isEmpty(), "remote source not found for fragment: %s", sourceFragmentId);
+            for (PlanNodeId remoteSourceNodeId : myRemoteSourceNodeIds) {
+                ExchangeSourceHandleSource handleSource = closer.register(entry.getValue().getSourceHandles());
+                ExchangeSplitSource splitSource = closer.register(new ExchangeSplitSource(handleSource, targetExchangeSplitSizeInBytes));
+                splitSources.add(closer.register(new IdempotentSplitSource(queryId, tableExecuteContextManager, remoteSourceNodeId, Optional.of(sourceFragmentId), splitSource, splitBatchSize, metricsRecorder)));
+            }
         }
         for (Map.Entry<PlanNodeId, SplitSource> entry : splitSourceSupplier.get().entrySet()) {
             splitSources.add(closer.register(new IdempotentSplitSource(queryId, tableExecuteContextManager, entry.getKey(), Optional.empty(), closer.register(entry.getValue()), splitBatchSize, metricsRecorder)));

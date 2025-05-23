@@ -20,10 +20,12 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
@@ -2090,7 +2092,7 @@ public class EventDrivenFaultTolerantQueryScheduler
         private ExchangeSourceOutputSelector finalSinkOutputSelector;
 
         private final Set<PlanNodeId> remoteSourceIds;
-        private final Map<PlanFragmentId, RemoteSourceNode> remoteSources;
+        private final Multimap<PlanFragmentId, RemoteSourceNode> remoteSources;
         private final Map<PlanFragmentId, ExchangeSourceOutputSelector> sourceOutputSelectors = new HashMap<>();
 
         private boolean taskDescriptorLoadingActive;
@@ -2143,14 +2145,14 @@ public class EventDrivenFaultTolerantQueryScheduler
             this.dynamicFilterService = requireNonNull(dynamicFilterService, "dynamicFilterService is null");
             outputDataSize = new long[sinkPartitioningScheme.getPartitionCount()];
             sinkOutputSelectorBuilder = ExchangeSourceOutputSelector.builder(ImmutableSet.of(exchange.getId()));
-            ImmutableMap.Builder<PlanFragmentId, RemoteSourceNode> remoteSources = ImmutableMap.builder();
+            ImmutableMultimap.Builder<PlanFragmentId, RemoteSourceNode> remoteSources = ImmutableMultimap.builder();
             ImmutableSet.Builder<PlanNodeId> remoteSourceIds = ImmutableSet.builder();
             for (RemoteSourceNode remoteSource : stage.getFragment().getRemoteSourceNodes()) {
                 remoteSourceIds.add(remoteSource.getId());
                 remoteSource.getSourceFragmentIds().forEach(fragmentId -> remoteSources.put(fragmentId, remoteSource));
             }
             this.remoteSourceIds = remoteSourceIds.build();
-            this.remoteSources = remoteSources.buildOrThrow();
+            this.remoteSources = remoteSources.build();
             this.initialMemoryRequirements = computeCurrentInitialMemoryRequirements();
         }
 
@@ -2856,24 +2858,26 @@ public class EventDrivenFaultTolerantQueryScheduler
         public void setSourceOutputSelector(PlanFragmentId sourceFragmentId, ExchangeSourceOutputSelector selector)
         {
             sourceOutputSelectors.put(sourceFragmentId, selector);
-            RemoteSourceNode remoteSourceNode = remoteSources.get(sourceFragmentId);
-            verify(remoteSourceNode != null, "remoteSourceNode is null for fragment: %s", sourceFragmentId);
-            ExchangeSourceOutputSelector mergedSelector = selector;
-            for (PlanFragmentId fragmentId : remoteSourceNode.getSourceFragmentIds()) {
-                if (fragmentId.equals(sourceFragmentId)) {
-                    continue;
+            Collection<RemoteSourceNode> remoteSourceNodes = remoteSources.get(sourceFragmentId);
+            verify(!remoteSourceNodes.isEmpty(), "remoteSourceNodes is empty for fragment: %s", sourceFragmentId);
+            for (RemoteSourceNode remoteSourceNode : remoteSourceNodes) {
+                ExchangeSourceOutputSelector mergedSelector = selector;
+                for (PlanFragmentId fragmentId : remoteSourceNode.getSourceFragmentIds()) {
+                    if (fragmentId.equals(sourceFragmentId)) {
+                        continue;
+                    }
+                    ExchangeSourceOutputSelector fragmentSelector = sourceOutputSelectors.get(fragmentId);
+                    if (fragmentSelector != null) {
+                        mergedSelector = mergedSelector.merge(fragmentSelector);
+                    }
                 }
-                ExchangeSourceOutputSelector fragmentSelector = sourceOutputSelectors.get(fragmentId);
-                if (fragmentSelector != null) {
-                    mergedSelector = mergedSelector.merge(fragmentSelector);
-                }
+                ExchangeSourceOutputSelector finalMergedSelector = mergedSelector;
+                remainingPartitions.forEach((IntConsumer) value -> {
+                    StagePartition partition = partitions.get(value);
+                    verify(partition != null, "partition not found: %s", value);
+                    partition.updateExchangeSourceOutputSelector(remoteSourceNode.getId(), finalMergedSelector);
+                });
             }
-            ExchangeSourceOutputSelector finalMergedSelector = mergedSelector;
-            remainingPartitions.forEach((IntConsumer) value -> {
-                StagePartition partition = partitions.get(value);
-                verify(partition != null, "partition not found: %s", value);
-                partition.updateExchangeSourceOutputSelector(remoteSourceNode.getId(), finalMergedSelector);
-            });
         }
 
         public void abort()
