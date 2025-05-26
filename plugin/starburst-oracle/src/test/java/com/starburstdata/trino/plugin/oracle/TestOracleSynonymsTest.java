@@ -18,7 +18,6 @@ import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
-import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,18 +48,5 @@ public class TestOracleSynonymsTest
         assertThat(computeActual("SHOW TABLES").getOnlyColumn().filter("test_synonym"::equals).collect(toList())).isEqualTo(ImmutableList.of("test_synonym"));
         assertQuery("SELECT orderkey FROM test_synonym", "SELECT orderkey FROM orders");
         oracleServer.get().executeInOracle("DROP SYNONYM test_synonym");
-    }
-
-    @Test
-    public void testGetColumns()
-    {
-        // StarburstOracleClient.getColumns is using wildcard at the end of table name.
-        // Here we test that columns do not leak between tables.
-        // See StarburstOracleClient#getColumns for more details.
-        oracleServer.get().executeInOracle("CREATE TABLE ordersx AS SELECT 'a' some_additional_column FROM dual");
-        assertQuery(
-                format("SELECT column_name FROM information_schema.columns WHERE table_name = 'orders' AND table_schema = '%s'", OracleTestUsers.USER),
-                "VALUES 'orderkey', 'custkey', 'orderstatus', 'totalprice', 'orderdate', 'orderpriority', 'clerk', 'shippriority', 'comment'");
-        oracleServer.get().executeInOracle("DROP TABLE ordersx");
     }
 }

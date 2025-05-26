@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.oracle;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
@@ -18,7 +17,6 @@ import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
 import io.trino.plugin.base.mapping.IdentifierMapping;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
-import io.trino.plugin.jdbc.ColumnMapping;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.DefaultQueryBuilder;
 import io.trino.plugin.jdbc.JdbcClient;
@@ -28,7 +26,6 @@ import io.trino.plugin.jdbc.JdbcSortItem;
 import io.trino.plugin.jdbc.JdbcSplit;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.JdbcTableHandle;
-import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.PreparedQuery;
 import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.RemoteTableName;
@@ -41,8 +38,6 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
-import io.trino.spi.connector.SchemaTableName;
-import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
@@ -52,11 +47,9 @@ import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,7 +76,6 @@ public class StarburstOracleClient
             .withMaxRetries(3)
             .build();
 
-    private final boolean synonymsEnabled;
     private final boolean statisticsEnabled;
 
     @Inject
@@ -99,7 +91,6 @@ public class StarburstOracleClient
             RemoteQueryModifier queryModifier)
     {
         super(config, oracleConfig, connectionFactory, queryBuilder, identifierMapping, queryModifier);
-        synonymsEnabled = oracleConfig.isSynonymsEnabled();
         this.statisticsEnabled = requireNonNull(statisticsConfig, "statisticsConfig is null").isEnabled();
         if (jdbcMetadataConfig.isAggregationPushdownEnabled()) {
             licenseVerifier.checkLicense();
@@ -207,58 +198,6 @@ public class StarburstOracleClient
             }
             throw ex;
         }
-    }
-
-    @Override
-    // TODO: migrate to OSS?
-    public List<JdbcColumnHandle> getColumns(ConnectorSession session, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
-    {
-        if (!synonymsEnabled) {
-            return super.getColumns(session, schemaTableName, remoteTableName);
-        }
-        // MAJOR HACK ALERT!!!
-        // We had to introduce the hack because of bug in Oracle JDBC client where
-        // BaseJdbcClient#getColumns is not working when openProxySession is used and setIncludeSynonym(true) are used.
-        // Below we are forcing to use oracle.jdbc.driver.OracleDatabaseMetaData.getColumnsWithWildcardsPlsql,
-        // this method was used when setIncludeSynonym(false) is set, then openProxySession is also working as expected
-        // Forcing is done by using wildcard '%' at the end of table name. And so we have to filter rows with columns from other tables.
-        // Whenever you change this method make sure TestOracleIntegrationSmokeTest.testGetColumns covers your changes.
-        try (Connection connection = connectionFactory.openConnection(session)) {
-            try (ResultSet resultSet = getColumns(remoteTableName, connection.getMetaData(), "%")) {
-                List<JdbcColumnHandle> columns = new ArrayList<>();
-                while (resultSet.next()) {
-                    if (!resultSet.getString("TABLE_NAME").equals(remoteTableName.getTableName())) {
-                        continue;
-                    }
-                    JdbcTypeHandle typeHandle = new JdbcTypeHandle(resultSet.getInt("DATA_TYPE"), Optional.ofNullable(resultSet.getString("TYPE_NAME")), Optional.of(resultSet.getInt("COLUMN_SIZE")), Optional.of(resultSet.getInt("DECIMAL_DIGITS")), Optional.empty(), Optional.empty());
-                    Optional<ColumnMapping> columnMapping = toColumnMapping(session, connection, typeHandle);
-                    // skip unsupported column types
-                    if (columnMapping.isPresent()) {
-                        String columnName = resultSet.getString("COLUMN_NAME");
-                        columns.add(new JdbcColumnHandle(columnName, typeHandle, columnMapping.get().getType()));
-                    }
-                }
-                if (columns.isEmpty()) {
-                    // Table has no supported columns, but such table is not supported in Presto
-                    throw new TableNotFoundException(schemaTableName);
-                }
-                return ImmutableList.copyOf(columns);
-            }
-        }
-        catch (SQLException e) {
-            throw new TrinoException(JDBC_ERROR, e);
-        }
-    }
-
-    private ResultSet getColumns(RemoteTableName remoteTableName, DatabaseMetaData metadata, String tableNameSuffix)
-            throws SQLException
-    {
-        String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(
-                remoteTableName.getCatalogName().orElse(null),
-                escapeObjectNameForMetadataQuery(remoteTableName.getSchemaName(), escape).orElse(null),
-                escapeObjectNameForMetadataQuery(Optional.ofNullable(remoteTableName.getTableName()), escape).orElse("") + tableNameSuffix,
-                null);
     }
 
     @Override
