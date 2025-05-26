@@ -21,6 +21,7 @@ import io.airlift.http.client.StringResponseHandler;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
+import io.trino.Session;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
@@ -138,7 +139,12 @@ public abstract class WarpAbstractTestQueryFramework
 
     protected void assertSchema(String schema)
     {
-        MaterializedResult result = computeActual("show schemas");
+        assertSchema(getSession(), schema);
+    }
+
+    protected void assertSchema(Session session, String schema)
+    {
+        MaterializedResult result = computeActual(session, "show schemas");
 
         Optional<MaterializedRow> optionalMaterializedRow = result.getMaterializedRows()
                 .stream()

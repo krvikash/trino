@@ -88,6 +88,37 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
+    public void testDyamincCatalog()
+    {
+        String catalogDir = "\"hive.metastore.catalog.dir\"='file://" + hiveDir.toAbsolutePath() + "'";
+        String createCatalogSql = """
+                CREATE CATALOG IF NOT EXISTS iceberg_read_warp USING warp_speed
+                WITH (
+                "warp-speed.proxied-connector"='iceberg',
+                "warp-speed.cluster-uuid"='1234567e-89ee-123e-456e-567891234567',
+                "hive.metastore.disable-location-checks"='true',
+                "warp-speed.enable.import-export"='true',
+                "fs.hadoop.enabled"='true',
+                "iceberg.security"='system',
+                "iceberg.register-table-procedure.enabled"='true',
+                "iceberg.hive-catalog-name"='hive_read_warp',
+                "hive.metastore"='file',
+                "iceberg.catalog.type"='TESTING_FILE_METASTORE',
+                """;
+        createCatalogSql += catalogDir + ")";
+        computeActual(createCatalogSql);
+        Session catalogSession = Session.builder(getSession())
+                .setCatalog("iceberg_read_warp")
+                .build();
+        computeActual(catalogSession, "CREATE SCHEMA dynamic_schema_test");
+        assertSchema(catalogSession, "dynamic_schema_test");
+        computeActual(catalogSession, format("CREATE TABLE %s.%s %s", "dynamic_schema_test", "table_name", format("(%s integer, %s varchar(20))", C1, C2)));
+        assertUpdate(catalogSession, format("DROP TABLE %s.%s", "dynamic_schema_test", "table_name"));
+        assertUpdate(catalogSession, format("DROP SCHEMA %s", "dynamic_schema_test"));
+        computeActual("DROP CATALOG iceberg_read_warp");
+    }
+
+    @Test
     public void testSimple_withoutWarm_ReturnIceberg()
     {
         computeActual("INSERT INTO t VALUES (1, 'shlomi')");
