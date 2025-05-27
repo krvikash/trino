@@ -12268,6 +12268,57 @@
       }
     ],
     "data": "resources/synthetic/arr_collect_200k.jsonl"
+  },
+  {
+    "name": "empty_and_null_varchar",
+    "description": "SIC-3080",
+    "overriding": {
+      "warp_iceberg": {
+        "skip" : true
+      },
+      "warp_delta_lake": {
+        "skip" : true
+      }
+    },
+    "structure": [
+      {
+        "name": "varchar_column",
+        "type": "varchar",
+        "args": [
+          65535
+        ]
+      }
+    ],
+    "pt_enable": true,
+    "session_properties": {
+      "enable_dictionary": false
+    },
+    "warmup_rules": [
+      {
+        "colNameId": "varchar_column",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA"
+        ]
+      }
+    ],
+    "warm_query": "select * from empty_and_null_varchar",
+    "queries_data": [
+      {
+        "query": "select count(varchar_column) from empty_and_null_varchar",
+        "query_id": "empty_and_null_varchar_01",
+        "expected_result": [
+          2
+        ],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "empty_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      }
+    ]
   }
 ]
 

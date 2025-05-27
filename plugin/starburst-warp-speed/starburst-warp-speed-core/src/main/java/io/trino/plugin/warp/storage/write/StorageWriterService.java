@@ -351,6 +351,9 @@ public class StorageWriterService
                 warmupElementBuilder.recTypeLength(actualRecTypeLength);
             }
         }
+        else if (actualRecTypeLength == 0) {
+            warmupElementBuilder.recTypeLength(1); // 1 is the minimum allowed length
+        }
 
         int offset = warmUpCloseResult.endOffset();
         if (offset <= 0) {
