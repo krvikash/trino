@@ -17,7 +17,6 @@ import com.google.inject.Inject;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
-import io.trino.metastore.tracing.TracingHiveMetastore;
 import io.trino.spi.security.ConnectorIdentity;
 
 import java.util.Optional;
@@ -31,7 +30,7 @@ public class UnityHiveMetastoreFactory
     @Inject
     public UnityHiveMetastoreFactory(UnityMetastoreConfig config, Tracer tracer, SupportedUnityTableFormatsProvider supportedUnityTableFormatsProvider)
     {
-        this.metastore = new TracingHiveMetastore(
+        this.metastore = new TracingUnityHiveMetastore(
                 tracer,
                 new UnityHiveMetastore(config.getHost(), config.getCatalogName(), config.getToken(), supportedUnityTableFormatsProvider.supportedUnityTableFormats()));
     }

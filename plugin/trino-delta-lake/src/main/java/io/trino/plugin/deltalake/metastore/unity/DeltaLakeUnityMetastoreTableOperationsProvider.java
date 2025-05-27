@@ -13,21 +13,31 @@
  */
 package io.trino.plugin.deltalake.metastore.unity;
 
+import com.google.inject.Inject;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperations;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
-import io.trino.spi.TrinoException;
+import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
+import io.trino.plugin.hive.metastore.unity.UnityMetastore;
 import io.trino.spi.connector.ConnectorSession;
 
-import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
 
 public class DeltaLakeUnityMetastoreTableOperationsProvider
         implements DeltaLakeTableOperationsProvider
 {
+    private final UnityHiveMetastoreFactory unityHiveMetastoreFactory;
+
+    @Inject
+    public DeltaLakeUnityMetastoreTableOperationsProvider(UnityHiveMetastoreFactory unityHiveMetastoreFactory)
+    {
+        this.unityHiveMetastoreFactory = requireNonNull(unityHiveMetastoreFactory, "unityHiveMetastoreFactory is null");
+    }
+
     @Override
     public DeltaLakeTableOperations createTableOperations(ConnectorSession session)
     {
-        return (_, _, _, _) -> {
-            throw new TrinoException(NOT_SUPPORTED, "Unity metastore is read only");
-        };
+        return new DeltaLakeUnityTableOperations((UnityMetastore) unityHiveMetastoreFactory.createMetastore(Optional.of(session.getIdentity())));
     }
 }

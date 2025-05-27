@@ -41,6 +41,9 @@ public interface TransactionLogReader
             throws IOException
     {
         long version = oldTail.getVersion();
+        if (endVersion.isPresent() && endVersion.get() == version) {
+            return Optional.of(oldTail);
+        }
         checkArgument(endVersion.isEmpty() || endVersion.get() > version, "Invalid endVersion, expected higher than %s, but got %s", version, endVersion);
         TransactionLogTail newTail = loadNewTail(session, Optional.of(version), endVersion, transactionLogMaxCachedFileSize);
         if (newTail.getVersion() == version) {

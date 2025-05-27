@@ -16,11 +16,14 @@ package io.trino.plugin.hive.metastore.unity;
 import com.databricks.sdk.core.ApiClient;
 import com.databricks.sdk.core.DatabricksConfig;
 import com.databricks.sdk.core.DatabricksError;
+import com.databricks.sdk.core.DatabricksException;
+import com.databricks.sdk.core.http.Request;
 import com.databricks.sdk.service.catalog.ColumnInfo;
 import com.databricks.sdk.service.catalog.DataSourceFormat;
 import com.databricks.sdk.service.catalog.SchemaInfo;
 import com.databricks.sdk.service.catalog.SchemasAPI;
 import com.databricks.sdk.service.catalog.TablesAPI;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -31,7 +34,6 @@ import io.trino.metastore.AcidTransactionOwner;
 import io.trino.metastore.Column;
 import io.trino.metastore.Database;
 import io.trino.metastore.HiveColumnStatistics;
-import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HivePartition;
 import io.trino.metastore.HivePrincipal;
 import io.trino.metastore.HivePrivilegeInfo;
@@ -51,6 +53,7 @@ import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.RoleGrant;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -82,7 +85,7 @@ import static io.trino.spi.security.PrincipalType.USER;
 import static java.util.Objects.requireNonNull;
 
 public class UnityHiveMetastore
-        implements HiveMetastore
+        implements UnityMetastore
 {
     private static final Logger LOG = Logger.get(UnityHiveMetastore.class);
 
@@ -95,6 +98,7 @@ public class UnityHiveMetastore
             EXTERNAL, EXTERNAL_TABLE);
 
     private final Set<DataSourceFormat> supportedUnityTableFormats;
+    private final ApiClient apiClient;
     private final SchemasAPI schemasApi;
     private final TablesAPI tablesApi;
     private final String catalogName;
@@ -105,7 +109,7 @@ public class UnityHiveMetastore
                 .setHost(host)
                 .setAuthType(PAT);
         token.ifPresent(databricksConfig::setToken);
-        ApiClient apiClient = new ApiClient(databricksConfig);
+        apiClient = new ApiClient(databricksConfig);
         schemasApi = new SchemasAPI(apiClient);
         tablesApi = new TablesAPI(apiClient);
         this.catalogName = catalogName;
@@ -583,5 +587,50 @@ public class UnityHiveMetastore
             case TEXT -> TEXTFILE.toStorageFormat();
             default -> throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + dataSourceFormat);
         };
+    }
+
+    /// /////////////////////////////////////////
+    /// Unity Catalog specific methods
+    /// Below methods are only supported by Unity Catalog
+    /// /////////////////////////////////////////
+
+    @Override
+    public StagedCommitsInfo loadStagedCommitsInfo(String tableId, String tableLocation, Optional<Long> startVersion, Optional<Long> endVersion)
+    {
+        Request request = new Request("GET", "/api/2.1/unity-catalog/delta/preview/commits")
+                .withQueryParam("table_id", tableId)
+                .withQueryParam("table_uri", tableLocation)
+                .withQueryParam("start_version", String.valueOf(startVersion.orElse(0L)))
+                .withHeader("Accept", "application/json")
+                .withHeader("Content-Type", "application/json");
+        endVersion.ifPresent(version -> request.withQueryParam("end_version", String.valueOf(version)));
+        try {
+            return apiClient.execute(request, StagedCommitsInfo.class);
+        }
+        catch (IOException | DatabricksException e) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, e);
+        }
+    }
+
+    @Override
+    public void commitStagedCommits(CommitRequest commitStagedRequest)
+    {
+        Request request;
+        try {
+            request = new Request("POST", "/api/2.1/unity-catalog/delta/preview/commits", apiClient.serialize(commitStagedRequest))
+                    .withHeader("Accept", "application/json")
+                    .withHeader("Content-Type", "application/json");
+        }
+        catch (JsonProcessingException e) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, "Failed to serialize commit request", e);
+        }
+
+        try {
+            apiClient.execute(request, Void.class);
+        }
+        catch (IOException e) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, e);
+        }
+        // handle databricks on the caller side
     }
 }

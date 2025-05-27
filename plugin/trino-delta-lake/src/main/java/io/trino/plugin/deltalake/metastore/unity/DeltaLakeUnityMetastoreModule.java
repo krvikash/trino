@@ -24,6 +24,10 @@ import io.trino.plugin.deltalake.AllowDeltaLakeManagedTableRename;
 import io.trino.plugin.deltalake.DeltaLakeConfig;
 import io.trino.plugin.deltalake.MaxTableParameterLength;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
+import io.trino.plugin.deltalake.transactionlog.reader.TransactionLogReaderFactory;
+import io.trino.plugin.deltalake.transactionlog.reader.UnityTransactionLogReaderFactory;
+import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFactory;
+import io.trino.plugin.deltalake.transactionlog.writer.UnityTransactionLogWriterFactory;
 import io.trino.plugin.hive.AllowHiveTableRename;
 import io.trino.plugin.hive.metastore.unity.SupportedUnityTableFormatsProvider;
 import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
@@ -66,6 +70,10 @@ public class DeltaLakeUnityMetastoreModule
                         .bind(SupportedUnityTableFormatsProvider.class)
                         .toInstance(() -> ImmutableSet.of(DELTA))));
 
+        newOptionalBinder(binder, TransactionLogReaderFactory.class)
+                .setBinding().to(UnityTransactionLogReaderFactory.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, TransactionLogWriterFactory.class)
+                .setBinding().to(UnityTransactionLogWriterFactory.class).in(Scopes.SINGLETON);
         binder.bind(DeltaLakeTableOperationsProvider.class).to(DeltaLakeUnityMetastoreTableOperationsProvider.class).in(Scopes.SINGLETON);
         binder.bind(Key.get(boolean.class, AllowDeltaLakeManagedTableRename.class)).toInstance(false);
         // Databricks denied sharing the exact value as its undocumented but confirmed that it's greater than 512K when given Glue's reference.

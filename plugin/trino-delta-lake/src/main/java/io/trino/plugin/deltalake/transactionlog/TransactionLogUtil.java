@@ -17,6 +17,7 @@ import io.trino.filesystem.Location;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.filesystem.Locations.appendPath;
@@ -26,6 +27,7 @@ public final class TransactionLogUtil
     private TransactionLogUtil() {}
 
     public static final String TRANSACTION_LOG_DIRECTORY = "_delta_log";
+    private static final String STAGING_COMMIT_DIRECTORY = "_staged_commits";
 
     public static String getTransactionLogDir(String tableLocation)
     {
@@ -35,6 +37,16 @@ public final class TransactionLogUtil
     public static Location getTransactionLogJsonEntryPath(String transactionLogDir, long entryNumber)
     {
         return Location.of(transactionLogDir).appendPath("%020d.json".formatted(entryNumber));
+    }
+
+    public static Location getTransactionLogStagedCommitEntryPath(String tableLocation, long version)
+    {
+        return getTransactionLogStagedCommitDirectoryPath(tableLocation).appendPath("%020d.%s.json".formatted(version, UUID.randomUUID().toString()));
+    }
+
+    public static Location getTransactionLogStagedCommitDirectoryPath(String tableLocation)
+    {
+        return Location.of(tableLocation).appendPath(TRANSACTION_LOG_DIRECTORY).appendPath(STAGING_COMMIT_DIRECTORY);
     }
 
     public static Map<String, Optional<String>> canonicalizePartitionValues(Map<String, String> partitionValues)

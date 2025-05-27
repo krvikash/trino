@@ -22,7 +22,7 @@ import java.util.function.Supplier;
 import static io.opentelemetry.api.common.AttributeKey.booleanKey;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 
-final class Tracing
+public final class Tracing
 {
     // This attribute was deprecated and removed from stable attributes
     public static final AttributeKey<Boolean> EXCEPTION_ESCAPED = booleanKey("exception.escaped");

@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.plugin.base.ClosingBinder.closingBinder;
 import static java.util.concurrent.Executors.newCachedThreadPool;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 
 public class DeltaLakeExecutorModule
         implements Module
@@ -34,6 +35,18 @@ public class DeltaLakeExecutorModule
     {
         closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForDeltaLakeMetadata.class));
         closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForDeltaLakeSplitManager.class));
+
+        closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForUnityBackfill.class));
+    }
+
+    @Provides
+    @Singleton
+    @ForUnityBackfill
+    public ExecutorService createBackfillExecutor(CatalogName catalogName)
+    {
+        return newFixedThreadPool(
+                10, // refer io.delta.storage.commit.uccommitcoordinator.THREAD_POOL_SIZE, put half of the reference because we only for backfill
+                daemonThreadsNamed("unity-catalog-backfill-" + catalogName + "-%s"));
     }
 
     @Provides

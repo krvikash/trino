@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkState;
 import static io.trino.plugin.deltalake.DeltaLakeErrorCode.DELTA_LAKE_INVALID_SCHEMA;
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.PATH_PROPERTY;
 import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
@@ -130,7 +131,25 @@ public class HiveMetastoreBackedDeltaLakeMetastore
         return new DeltaMetastoreTable(
                 new SchemaTableName(table.getDatabaseName(), table.getTableName()),
                 table.getTableType().equals(MANAGED_TABLE.name()),
-                getTableLocation(table));
+                catalogOwned(table),
+                getTableLocation(table),
+                Optional.ofNullable(table.getParameters().get("ucTableId")));
+    }
+
+    private static boolean catalogOwned(Table table)
+    {
+        if (table.getParameters() == null) {
+            return false;
+        }
+
+        if (!"supported".equals(table.getParameters().get("delta.feature.catalogOwned-preview"))) {
+            return false;
+        }
+
+        checkState("true".equals(table.getParameters().get("delta.enableInCommitTimestamps")), "Catalog owned table must enable in-commit timestamps");
+        checkState(table.getTableType().equals(MANAGED_TABLE.name()), "Catalog owned table must be managed type table");
+        checkState(table.getParameters().containsKey("ucTableId"), "Catalog owned table must have a table id");
+        return true;
     }
 
     public static String getTableLocation(Table table)

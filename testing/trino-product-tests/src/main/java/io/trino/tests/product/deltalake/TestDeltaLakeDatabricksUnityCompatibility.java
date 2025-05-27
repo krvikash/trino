@@ -31,6 +31,7 @@ import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_ISSUE;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_MATCH;
+import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.dropDeltaTableWithRetry;
 import static io.trino.tests.product.utils.QueryExecutors.onDelta;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static java.lang.String.format;
@@ -115,6 +116,69 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                 .containsOnly(expectedRowsForMerge);
         assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
                 .containsOnly(expectedRowsForMerge);
+    }
+
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
+    public void testReadWriteCatalogOwnedTable()
+    {
+        String tableName = "test_catalog_owned_" + randomNameSuffix();
+        String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
+        String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
+        String createTableSql = format("CREATE TABLE %s (id int) USING delta TBLPROPERTIES('delta.feature.catalogOwned-preview' = 'supported', " +
+                // Disable the writing features `rowTracking` and `v2Checkpoint` and `domainMetadata`
+                "'delta.enableRowTracking' = 'false', 'delta.checkpointPolicy' = 'classic'" +
+                ")", unityTableName);
+
+        try {
+            onDelta().executeQuery(createTableSql);
+
+            onDelta().executeQuery("INSERT INTO " + unityTableName + " VALUES 1");
+
+            assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                    .containsOnly(row(1));
+
+            assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
+                    .containsOnly(row(tableName));
+
+            assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                    .containsOnly(row(1));
+
+            // insert
+            assertThat(onTrino().executeQuery("INSERT INTO " + deltaTableName + " VALUES 2"))
+                    .containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                    .containsOnly(row(1), row(2));
+            assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                    .containsOnly(row(1), row(2));
+
+            // update
+            assertThat(onTrino().executeQuery("UPDATE " + deltaTableName + " SET id = -2 WHERE id = 2"))
+                    .containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                    .containsOnly(row(1), row(-2));
+            assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                    .containsOnly(row(1), row(-2));
+
+            // delete
+            assertThat(onTrino().executeQuery("DELETE FROM " + deltaTableName + " WHERE id = -2"))
+                    .containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                    .containsOnly(row(1));
+            assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                    .containsOnly(row(1));
+
+            // insert again
+            assertThat(onTrino().executeQuery("INSERT INTO " + deltaTableName + " VALUES 2, 3"))
+                    .containsOnly(row(2));
+            assertThat(onTrino().executeQuery("SELECT * FROM " + deltaTableName))
+                    .containsOnly(row(1), row(2), row(3));
+            assertThat(onDelta().executeQuery("SELECT * FROM " + unityTableName))
+                    .containsOnly(row(1), row(2), row(3));
+        }
+        finally {
+            dropDeltaTableWithRetry(unityTableName);
+        }
     }
 
     @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})

@@ -15,16 +15,27 @@ package io.trino.plugin.deltalake.metastore;
 
 import io.trino.spi.connector.SchemaTableName;
 
+import java.util.Optional;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 public record DeltaMetastoreTable(
         SchemaTableName schemaTableName,
         boolean managed,
-        String location)
+        boolean catalogOwned,
+        String location,
+        Optional<String> tableId)
 {
     public DeltaMetastoreTable
     {
         requireNonNull(schemaTableName, "schemaTableName is null");
         requireNonNull(location, "location is null");
+        requireNonNull(tableId, "tableId is null");
+
+        if (catalogOwned) {
+            checkArgument(managed, "catalog owned tables must be managed");
+            checkArgument(tableId.isPresent(), "tableId must be present for catalog owned tables");
+        }
     }
 }

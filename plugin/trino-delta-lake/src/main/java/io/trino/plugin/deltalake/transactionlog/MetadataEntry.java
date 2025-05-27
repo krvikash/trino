@@ -174,6 +174,16 @@ public class MetadataEntry
         }
     }
 
+    @JsonIgnore
+    public Optional<String> getTableId()
+    {
+        if (configuration == null) {
+            return Optional.empty();
+        }
+
+        return Optional.ofNullable(configuration.get("ucTableId"));
+    }
+
     public static Map<String, String> configurationForNewTable(
             Optional<Long> checkpointInterval,
             Optional<Boolean> changeDataFeedEnabled,
