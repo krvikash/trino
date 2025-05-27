@@ -321,7 +321,7 @@ public class AdaptivePlanner
         return upstreamNodes;
     }
 
-    private PlanNode getCurrentPlan(PlanNode node)
+    public static PlanNode getCurrentPlan(PlanNode node)
     {
         return rewriteWith(new CurrentPlanRewriter(), node);
     }
