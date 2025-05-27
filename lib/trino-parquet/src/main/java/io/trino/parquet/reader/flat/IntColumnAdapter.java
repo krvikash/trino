@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.airlift.slice.SizeOf.sizeOf;
+import static io.trino.parquet.ParquetReaderUtils.castToByteNegate;
 import static java.lang.Math.toIntExact;
 
 public class IntColumnAdapter
@@ -46,9 +47,15 @@ public class IntColumnAdapter
     }
 
     @Override
-    public void copyValue(int[] source, int sourceIndex, int[] destination, int destinationIndex)
+    public void unpackNullValues(int[] source, int[] destination, boolean[] isNull, int destOffset, int nonNullCount, int totalValuesCount)
     {
-        destination[destinationIndex] = source[sourceIndex];
+        int srcOffset = 0;
+        while (srcOffset < nonNullCount) {
+            destination[destOffset] = source[srcOffset];
+            // Avoid branching
+            srcOffset += castToByteNegate(isNull[destOffset]);
+            destOffset++;
+        }
     }
 
     @Override
