@@ -650,9 +650,12 @@ public class PlanFragmenter
                 Metadata metadata,
                 Session session)
         {
+            if (partitionCount.isPresent()) {
+                this.partitionCount = partitionCount;
+            }
+
             if (partitioningHandle.isEmpty()) {
                 partitioningHandle = Optional.of(distribution);
-                this.partitionCount = partitionCount;
                 return this;
             }
 
@@ -673,7 +676,6 @@ public class PlanFragmenter
 
             if (isCompatibleScaledWriterPartitioning(currentPartitioning, distribution)) {
                 this.partitioningHandle = Optional.of(distribution);
-                this.partitionCount = partitionCount;
                 return this;
             }
 
