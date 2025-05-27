@@ -34,7 +34,7 @@ import jakarta.ws.rs.core.MediaType;
 
 import java.util.List;
 
-@TaskResourceMarker(coordinator = false)
+@TaskResourceMarker(coordinator = false, cacheMgr = true)
 //@Api(value = "Row Group Dump", tags = "Row Group")
 @Consumes(MediaType.APPLICATION_JSON)
 @Path("")
