@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 @JsonDeserialize(builder = WarmUpElement.Builder.class)
@@ -387,16 +388,13 @@ public class WarmUpElement
     @JsonIgnore
     public static int getRecTypeLength(MemorySegment warmUpElementAtt)
     {
-        int recTypeLength = (int) warmUpElementAtt.get(ValueLayout.JAVA_SHORT, WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_LENGTH);
-        if (recTypeLength < 0) {
-            throw new RuntimeException("record length is negative");
-        }
-        return recTypeLength;
+        return Short.toUnsignedInt(warmUpElementAtt.get(ValueLayout.JAVA_SHORT, WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_LENGTH));
     }
 
     @JsonIgnore
     public static void setRecTypeLength(MemorySegment warmUpElementAtt, int recTypeLength)
     {
+        checkArgument(recTypeLength <= 0xFFFF, "recTypeLength %s cannot be converted to unsigned short", recTypeLength);
         warmUpElementAtt.set(ValueLayout.JAVA_SHORT, WARM_UP_ELEMENT_ATT_OFFSET_REC_TYPE_LENGTH, (short) recTypeLength);
     }
 
