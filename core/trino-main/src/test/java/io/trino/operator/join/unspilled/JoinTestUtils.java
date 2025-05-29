@@ -92,8 +92,7 @@ public final class JoinTestUtils
                 probePages.getTypes(),
                 probePages.getHashChannels().orElseThrow(),
                 getHashChannelAsInt(probePages),
-                Optional.empty(),
-                HASH_COMPILER);
+                Optional.empty());
     }
 
     public static void instantiateBuildDrivers(BuildSideSetup buildSideSetup, TaskContext taskContext)

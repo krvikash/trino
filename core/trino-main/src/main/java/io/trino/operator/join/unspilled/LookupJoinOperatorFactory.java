@@ -14,12 +14,8 @@
 package io.trino.operator.join.unspilled;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.primitives.Ints;
-import io.trino.operator.HashGenerator;
 import io.trino.operator.JoinOperatorType;
-import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OperatorFactory;
-import io.trino.operator.PrecomputedHashGenerator;
 import io.trino.operator.ProcessorContext;
 import io.trino.operator.WorkProcessor;
 import io.trino.operator.WorkProcessorOperator;
@@ -35,12 +31,9 @@ import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.operator.InterpretedHashGenerator.createChannelsHashGenerator;
 import static io.trino.operator.join.LookupJoinOperatorFactory.JoinType.INNER;
 import static io.trino.operator.join.LookupJoinOperatorFactory.JoinType.PROBE_OUTER;
 import static java.util.Objects.requireNonNull;
@@ -58,7 +51,6 @@ public class LookupJoinOperatorFactory
     private final JoinProbeFactory joinProbeFactory;
     private final Optional<OperatorFactory> outerOperatorFactory;
     private final JoinBridgeManager<? extends PartitionedLookupSourceFactory> joinBridgeManager;
-    private final HashGenerator probeHashGenerator;
 
     private boolean closed;
 
@@ -70,10 +62,7 @@ public class LookupJoinOperatorFactory
             List<Type> probeOutputTypes,
             List<Type> buildOutputTypes,
             JoinOperatorType joinOperatorType,
-            JoinProbeFactory joinProbeFactory,
-            NullSafeHashCompiler hashCompiler,
-            List<Integer> probeJoinChannels,
-            OptionalInt probeHashChannel)
+            JoinProbeFactory joinProbeFactory)
     {
         this.operatorId = operatorId;
         this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
@@ -98,18 +87,6 @@ public class LookupJoinOperatorFactory
                     buildOutputTypes,
                     lookupSourceFactoryManager));
         }
-
-        requireNonNull(probeHashChannel, "probeHashChannel is null");
-        if (probeHashChannel.isPresent()) {
-            this.probeHashGenerator = new PrecomputedHashGenerator(probeHashChannel.getAsInt());
-        }
-        else {
-            requireNonNull(probeJoinChannels, "probeJoinChannels is null");
-            List<Type> hashTypes = probeJoinChannels.stream()
-                    .map(probeTypes::get)
-                    .collect(toImmutableList());
-            this.probeHashGenerator = createChannelsHashGenerator(hashTypes, Ints.toArray(probeJoinChannels), hashCompiler);
-        }
     }
 
     private LookupJoinOperatorFactory(LookupJoinOperatorFactory other)
@@ -127,7 +104,6 @@ public class LookupJoinOperatorFactory
         joinProbeFactory = other.joinProbeFactory;
         outerOperatorFactory = other.outerOperatorFactory;
         joinBridgeManager = other.joinBridgeManager;
-        probeHashGenerator = other.probeHashGenerator;
 
         closed = false;
         joinBridgeManager.incrementProbeFactoryCount();

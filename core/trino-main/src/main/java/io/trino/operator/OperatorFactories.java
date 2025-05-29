@@ -44,8 +44,7 @@ public final class OperatorFactories
             List<Type> probeTypes,
             List<Integer> probeJoinChannel,
             OptionalInt probeHashChannel,
-            Optional<List<Integer>> probeOutputChannelsOptional,
-            NullSafeHashCompiler hashCompiler)
+            Optional<List<Integer>> probeOutputChannelsOptional)
     {
         List<Integer> probeOutputChannels = probeOutputChannelsOptional.orElseGet(() -> rangeList(probeTypes.size()));
         List<Type> probeOutputChannelTypes = probeOutputChannels.stream()
@@ -60,10 +59,7 @@ public final class OperatorFactories
                 probeOutputChannelTypes,
                 lookupSourceFactory.getBuildOutputTypes(),
                 joinType,
-                new JoinProbe.JoinProbeFactory(probeOutputChannels, probeJoinChannel, probeHashChannel, hasFilter),
-                hashCompiler,
-                probeJoinChannel,
-                probeHashChannel));
+                new JoinProbe.JoinProbeFactory(probeOutputChannels, probeJoinChannel, probeHashChannel, hasFilter)));
     }
 
     public static OperatorFactory spillingJoin(
