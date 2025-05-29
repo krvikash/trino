@@ -51,6 +51,11 @@ import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
 import static io.trino.sql.planner.optimizations.ctereuse.FieldMapping.EMPTY;
+import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.layoutOperations;
+import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.reallocateValues;
+import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.remapParameters;
+import static java.util.HashMap.newHashMap;
+import static java.util.function.Function.identity;
 
 public class AssignmentsUtils
 {
@@ -224,6 +229,36 @@ public class AssignmentsUtils
         }
 
         return new FieldMapping(fieldIndexMapping.buildOrThrow());
+    }
+
+    /**
+     * Extract mappings from input fields to output fields, ignoring other projected expressions.
+     * In case of an input field being projected multiple times, return the first occurrence.
+     * Ignore correlated field references.
+     */
+    public static FieldMapping getIdentityMappings(Block block)
+    {
+        checkArgument(isProjectAssignments(block), "expected project assignments");
+
+        if (isEmptyFieldSelector(block)) {
+            return EMPTY;
+        }
+
+        Map<Value, Operation> operations = block.operations().stream()
+                .collect(toImmutableMap(Operation::result, identity()));
+        Block.Parameter parameter = getOnlyElement(block.parameters());
+        Map<Integer, Integer> fieldIndexMapping = new HashMap<>();
+        Row rowConstructor = (Row) block.operations().get(block.operations().size() - 2);
+
+        for (int i = 0; i < rowConstructor.arguments().size(); i++) {
+            Value projectedItem = rowConstructor.arguments().get(i);
+            Operation operation = operations.get(projectedItem);
+            if (operation instanceof FieldReference fieldReference && fieldReference.base().equals(parameter)) {
+                fieldIndexMapping.putIfAbsent(FIELD_INDEX.getAttribute(fieldReference.attributes()), i);
+            }
+        }
+
+        return new FieldMapping(fieldIndexMapping);
     }
 
     /**
@@ -461,5 +496,77 @@ public class AssignmentsUtils
         return ((Row) block.operations().get(block.operations().size() - 2)).arguments().stream()
                 .map(fieldReferences::get)
                 .collect(toImmutableList());
+    }
+
+    /**
+     * Break up a block selecting a row of items into blocks selecting individual items.
+     * The resulting blocks have the same name and parameter as the input block.
+     * The order of items is respected.
+     */
+    public static List<Block> getProjectedItems(Block block, ProgramBuilder.ValueNameAllocator nameAllocator)
+    {
+        checkArgument(isProjectAssignments(block), "expected project assignments");
+
+        if (isEmptyFieldSelector(block)) {
+            return ImmutableList.of();
+        }
+
+        Row rowConstructor = (Row) block.operations().get(block.operations().size() - 2);
+        Map<Value, Operation> operations = newHashMap(block.operations().size() + rowConstructor.arguments().size());
+        block.operations().stream()
+                .forEach(operation -> operations.put(operation.result(), operation));
+        ImmutableList.Builder<Block> projectedItems = ImmutableList.builder();
+        for (Value argument : rowConstructor.arguments()) {
+            Return returnOperation = new Return(nameAllocator.newName(), argument, ImmutableMap.of()); // TODO pass source attributes
+            operations.put(returnOperation.result(), returnOperation);
+            Block.Builder builder = new Block.Builder(block.name(), block.parameters());
+            layoutOperations(returnOperation.result(), builder, operations);
+            projectedItems.add(builder.build());
+        }
+
+        return projectedItems.build();
+    }
+
+    /**
+     * Collect the component items in a Row.
+     * The resulting block has the same parameters as the first component block.
+     * <p>
+     * Note: Local operation results in the component blocks will be re-mapped to new values. Re-mapping does not affect the semantics,
+     * but it helps avoid incorrect duplicate values in case when component blocks originate from the same block.
+     * <p>
+     * Note: any correlated referenced in the component blocks will be preserved.
+     * If the component blocks belong to different contexts, they might potentially contain identical correlated values with different semantics.
+     * Those values would clash in the resulting block. It is up to the caller to avoid this kind of issues. It is recommended
+     * to only call this method for uncorrelated blocks or for blocks belonging to the same context.
+     */
+    public static Block composeProjectedItems(List<Block> blocks, ProgramBuilder.ValueNameAllocator nameAllocator)
+    {
+        // to create a block, we need a block parameter representing the input. We cannot create a block when the input type is not known
+        checkArgument(!blocks.isEmpty(), "cannot combine 0 blocks");
+
+        List<Block.Parameter> resultParameters = blocks.getFirst().parameters();
+        Block.Builder result = new Block.Builder(Optional.empty(), resultParameters);
+        ImmutableList.Builder<Value> items = ImmutableList.builder();
+        for (Block block : blocks) {
+            // remap operations in the block to use the first block's parameters
+            Block remapped = remapParameters(block, resultParameters);
+            // reallocate operation results for safe composition
+            Block reallocated = reallocateValues(remapped, nameAllocator);
+
+            for (Operation operation : reallocated.operations()) {
+                if (!(operation instanceof Return returnOperation)) {
+                    result.addOperation(operation);
+                }
+                else {
+                    items.add(returnOperation.argument());
+                }
+            }
+        }
+        Row rowConstructor = new Row(nameAllocator.newName(), items.build(), ImmutableList.of()); // TODO pass source attributes when we remove ValueMap
+        result.addOperation(rowConstructor);
+        Return returnOperation = new Return(nameAllocator.newName(), rowConstructor.result(), rowConstructor.attributes());
+        result.addOperation(returnOperation);
+
+        return result.build();
     }
 }

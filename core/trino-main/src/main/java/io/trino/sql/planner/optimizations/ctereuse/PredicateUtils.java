@@ -481,7 +481,7 @@ public class PredicateUtils
                 leftOperation.attributes().equals(rightOperation.attributes());
     }
 
-    private static void layoutOperations(Value rootResult, Block.Builder block, Map<Value, Operation> operations)
+    public static void layoutOperations(Value rootResult, Block.Builder block, Map<Value, Operation> operations)
     {
         Operation rootOperation = operations.get(rootResult);
         // rootOperation == null indicates that the value is a block parameter or correlated, and it isn't declared inside this block
