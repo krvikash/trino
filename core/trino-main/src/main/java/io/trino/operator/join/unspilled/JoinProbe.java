@@ -14,6 +14,7 @@
 package io.trino.operator.join.unspilled;
 
 import com.google.common.primitives.Ints;
+import io.trino.operator.InterpretedHashGenerator;
 import io.trino.operator.join.LookupSource;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -40,19 +41,21 @@ public class JoinProbe
         private final int[] probeJoinChannels;
         private final int probeHashChannel; // only valid when >= 0
         private final boolean hasFilter;
+        private final InterpretedHashGenerator hashGenerator;
 
-        public JoinProbeFactory(List<Integer> probeOutputChannels, List<Integer> probeJoinChannels, OptionalInt probeHashChannel, boolean hasFilter)
+        public JoinProbeFactory(List<Integer> probeOutputChannels, List<Integer> probeJoinChannels, OptionalInt probeHashChannel, boolean hasFilter, InterpretedHashGenerator hashGenerator)
         {
             this.probeOutputChannels = Ints.toArray(requireNonNull(probeOutputChannels, "probeOutputChannels is null"));
             this.probeJoinChannels = Ints.toArray(requireNonNull(probeJoinChannels, "probeJoinChannels is null"));
             this.probeHashChannel = requireNonNull(probeHashChannel, "probeHashChannel is null").orElse(-1);
             this.hasFilter = hasFilter;
+            this.hashGenerator = requireNonNull(hashGenerator, "hashGenerator is null");
         }
 
         public JoinProbe createJoinProbe(Page page, LookupSource lookupSource)
         {
             Page probePage = page.getColumns(probeJoinChannels);
-            return new JoinProbe(probeOutputChannels, page, probePage, lookupSource, probeHashChannel >= 0 ? page.getBlock(probeHashChannel) : null, hasFilter);
+            return new JoinProbe(probeOutputChannels, page, probePage, lookupSource, probeHashChannel >= 0 ? page.getBlock(probeHashChannel) : null, hasFilter, hashGenerator);
         }
     }
 
@@ -62,7 +65,7 @@ public class JoinProbe
     private final boolean isRle;
     private int position = -1;
 
-    private JoinProbe(int[] probeOutputChannels, Page page, Page probePage, LookupSource lookupSource, @Nullable Block probeHashBlock, boolean hasFilter)
+    private JoinProbe(int[] probeOutputChannels, Page page, Page probePage, LookupSource lookupSource, @Nullable Block probeHashBlock, boolean hasFilter, InterpretedHashGenerator hashGenerator)
     {
         this.probeOutputChannels = requireNonNull(probeOutputChannels, "probeOutputChannels is null");
         this.page = requireNonNull(page, "page is null");
@@ -70,7 +73,7 @@ public class JoinProbe
         // if filter channels are not RLE encoded, then every probe
         // row might be unique and must be matched independently
         this.isRle = !hasFilter && hasOnlyRleBlocks(probePage);
-        joinPositionCache = fillCache(lookupSource, page, probeHashBlock, probePage, isRle);
+        joinPositionCache = fillCache(lookupSource, page, probeHashBlock, probePage, isRle, hashGenerator);
     }
 
     public int[] getOutputChannels()
@@ -119,7 +122,8 @@ public class JoinProbe
             Page page,
             Block probeHashBlock,
             Page probePage,
-            boolean isRle)
+            boolean isRle,
+            InterpretedHashGenerator hashGenerator)
     {
         int positionCount = page.getPositionCount();
 
@@ -189,16 +193,17 @@ public class JoinProbe
         for (int i = 0; i < positionCount; i++) {
             positions[i] = i;
         }
+
+        long[] hashes = new long[positionCount];
         if (probeHashBlock != null) {
-            long[] hashes = new long[positionCount];
             for (int i = 0; i < positionCount; i++) {
                 hashes[i] = BIGINT.getLong(probeHashBlock, i);
             }
-            lookupSource.getJoinPosition(positions, probePage, page, hashes, joinPositionCache);
         }
         else {
-            lookupSource.getJoinPosition(positions, probePage, page, joinPositionCache);
+            hashGenerator.hash(probePage, 0, positionCount, hashes);
         }
+        lookupSource.getJoinPosition(positions, probePage, page, hashes, joinPositionCache);
 
         return joinPositionCache;
     }

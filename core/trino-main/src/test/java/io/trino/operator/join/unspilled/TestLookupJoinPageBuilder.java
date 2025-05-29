@@ -14,6 +14,7 @@
 package io.trino.operator.join.unspilled;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.join.LookupSource;
 import io.trino.operator.join.unspilled.JoinProbe.JoinProbeFactory;
 import io.trino.spi.Page;
@@ -23,16 +24,20 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeOperators;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.OptionalInt;
 
+import static io.trino.operator.InterpretedHashGenerator.createPagePrefixHashGenerator;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestLookupJoinPageBuilder
 {
+    private static final NullSafeHashCompiler HASH_COMPILER = new NullSafeHashCompiler(new TypeOperators());
+
     @Test
     public void testPageBuilder()
     {
@@ -44,10 +49,11 @@ public class TestLookupJoinPageBuilder
         Block block = blockBuilder.build();
         Page page = new Page(block, block);
 
-        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0, 1), ImmutableList.of(0, 1), OptionalInt.empty(), false);
-        LookupSource lookupSource = new TestLookupSource(ImmutableList.of(BIGINT, BIGINT), page);
+        List<Type> types = ImmutableList.of(BIGINT, BIGINT);
+        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0, 1), ImmutableList.of(0, 1), OptionalInt.empty(), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
+        LookupSource lookupSource = new TestLookupSource(types, page);
         JoinProbe probe = joinProbeFactory.createJoinProbe(page, lookupSource);
-        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(ImmutableList.of(BIGINT, BIGINT));
+        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
 
         int joinPosition = 0;
         while (!lookupJoinPageBuilder.isFull() && probe.advanceNextPosition()) {
@@ -92,9 +98,10 @@ public class TestLookupJoinPageBuilder
         }
         Block block = blockBuilder.build();
         Page page = new Page(block);
-        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), OptionalInt.empty(), false);
-        LookupSource lookupSource = new TestLookupSource(ImmutableList.of(BIGINT), page);
-        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(ImmutableList.of(BIGINT));
+        List<Type> types = ImmutableList.of(BIGINT);
+        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), OptionalInt.empty(), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
+        LookupSource lookupSource = new TestLookupSource(types, page);
+        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
 
         // empty
         JoinProbe probe = joinProbeFactory.createJoinProbe(page, lookupSource);
@@ -164,8 +171,9 @@ public class TestLookupJoinPageBuilder
 
         // nothing on the build side so we don't append anything
         LookupSource lookupSource = new TestLookupSource(ImmutableList.of(), page);
-        JoinProbe probe = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), OptionalInt.empty(), false).createJoinProbe(page, lookupSource);
-        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(ImmutableList.of(BIGINT));
+        List<Type> types = ImmutableList.of(BIGINT);
+        JoinProbe probe = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), OptionalInt.empty(), false, createPagePrefixHashGenerator(types, HASH_COMPILER)).createJoinProbe(page, lookupSource);
+        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
 
         // append the same row many times should also flush in the end
         probe.advanceNextPosition();
@@ -214,13 +222,13 @@ public class TestLookupJoinPageBuilder
         @Override
         public long getJoinPosition(int position, Page page, Page allChannelsPage, long rawHash)
         {
-            throw new UnsupportedOperationException();
+            return -1;
         }
 
         @Override
         public long getJoinPosition(int position, Page hashChannelsPage, Page allChannelsPage)
         {
-            return -1;
+            throw new UnsupportedOperationException();
         }
 
         @Override

@@ -44,12 +44,17 @@ public final class OperatorFactories
             List<Type> probeTypes,
             List<Integer> probeJoinChannel,
             OptionalInt probeHashChannel,
-            Optional<List<Integer>> probeOutputChannelsOptional)
+            Optional<List<Integer>> probeOutputChannelsOptional,
+            NullSafeHashCompiler hashCompiler)
     {
         List<Integer> probeOutputChannels = probeOutputChannelsOptional.orElseGet(() -> rangeList(probeTypes.size()));
         List<Type> probeOutputChannelTypes = probeOutputChannels.stream()
                 .map(probeTypes::get)
                 .collect(toImmutableList());
+        List<Type> hashTypes = probeJoinChannel.stream()
+                .map(probeTypes::get)
+                .collect(toImmutableList());
+        InterpretedHashGenerator hashGenerator = InterpretedHashGenerator.createPagePrefixHashGenerator(hashTypes, hashCompiler);
 
         return createAdapterOperatorFactory(new io.trino.operator.join.unspilled.LookupJoinOperatorFactory(
                 operatorId,
@@ -59,7 +64,7 @@ public final class OperatorFactories
                 probeOutputChannelTypes,
                 lookupSourceFactory.getBuildOutputTypes(),
                 joinType,
-                new JoinProbe.JoinProbeFactory(probeOutputChannels, probeJoinChannel, probeHashChannel, hasFilter)));
+                new JoinProbe.JoinProbeFactory(probeOutputChannels, probeJoinChannel, probeHashChannel, hasFilter, hashGenerator)));
     }
 
     public static OperatorFactory spillingJoin(
