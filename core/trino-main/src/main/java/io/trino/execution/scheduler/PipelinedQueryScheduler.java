@@ -1116,9 +1116,10 @@ public class PipelinedQueryScheduler
         {
             ImmutableMap.Builder<PlanFragmentId, Exchange> result = ImmutableMap.builder();
             for (SqlStage childStage : stageManager.getDistributedStagesInTopologicalOrder()) {
-                Set<SqlStage> parents = stageManager.getParents(childStage.getStageId());
-
-                if (parents.size() > 1) {
+                long parentReferenceCount = stageManager.getParents(childStage.getStageId()).stream().flatMap(parent -> parent.getFragment().getRemoteSourceNodes().stream())
+                        .filter(remoteSourceNode -> remoteSourceNode.getSourceFragmentIds().contains(childStage.getFragment().getId()))
+                        .count();
+                if (parentReferenceCount > 1) {
                     // if fragment has more than one parent we use spooling exchange for its output.
                     // todo: consider dressing it in nicer abstraction
                     PlanFragmentId fragmentId = childStage.getFragment().getId();

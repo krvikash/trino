@@ -58,6 +58,7 @@ import io.trino.util.Failures;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.net.URI;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -78,6 +79,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.trino.execution.scheduler.StageExecution.State.ABORTED;
 import static io.trino.execution.scheduler.StageExecution.State.CANCELED;
@@ -128,7 +130,7 @@ public class PipelinedStageExecution
     private final TaskLifecycleListener taskLifecycleListener;
     private final FailureDetector failureDetector;
     private final Optional<int[]> bucketToPartition;
-    private final Map<PlanFragmentId, RemoteSourceNode> exchangeSources;
+    private final Multimap<PlanFragmentId, RemoteSourceNode> exchangeSources;
     private final int attempt;
 
     private final Map<Integer, RemoteTask> tasks = new ConcurrentHashMap<>();
@@ -173,10 +175,9 @@ public class PipelinedStageExecution
             int attempt)
     {
         PipelinedStageStateMachine stateMachine = new PipelinedStageStateMachine(stage.getStageId(), executor);
-        ImmutableMap.Builder<PlanFragmentId, RemoteSourceNode> exchangeSources = ImmutableMap.builder();
+        ImmutableMultimap.Builder<PlanFragmentId, RemoteSourceNode> exchangeSources = ImmutableMultimap.builder();
         for (RemoteSourceNode remoteSourceNode : stage.getFragment().getRemoteSourceNodes()) {
             for (PlanFragmentId planFragmentId : remoteSourceNode.getSourceFragmentIds()) {
-                // todo handle case when we read from same fragment twice (cte self-union/self-join)
                 exchangeSources.put(planFragmentId, remoteSourceNode);
             }
         }
@@ -188,7 +189,7 @@ public class PipelinedStageExecution
                 taskLifecycleListener,
                 failureDetector,
                 bucketToPartition,
-                exchangeSources.buildOrThrow(),
+                exchangeSources.build(),
                 attempt);
         execution.initialize();
         return execution;
@@ -202,7 +203,7 @@ public class PipelinedStageExecution
             TaskLifecycleListener taskLifecycleListener,
             FailureDetector failureDetector,
             Optional<int[]> bucketToPartition,
-            Map<PlanFragmentId, RemoteSourceNode> exchangeSources,
+            Multimap<PlanFragmentId, RemoteSourceNode> exchangeSources,
             int attempt)
     {
         this.stateMachine = requireNonNull(stateMachine, "stateMachine is null");
@@ -212,7 +213,7 @@ public class PipelinedStageExecution
         this.taskLifecycleListener = requireNonNull(taskLifecycleListener, "taskLifecycleListener is null");
         this.failureDetector = requireNonNull(failureDetector, "failureDetector is null");
         this.bucketToPartition = requireNonNull(bucketToPartition, "bucketToPartition is null");
-        this.exchangeSources = ImmutableMap.copyOf(requireNonNull(exchangeSources, "exchangeSources is null"));
+        this.exchangeSources = ImmutableMultimap.copyOf(requireNonNull(exchangeSources, "exchangeSources is null"));
         this.attempt = attempt;
     }
 
@@ -339,7 +340,7 @@ public class PipelinedStageExecution
 
     public Optional<PlanFragmentId> getExchangeSourceFragment(PlanNodeId sourceNodeId)
     {
-        for (Map.Entry<PlanFragmentId, RemoteSourceNode> entry : exchangeSources.entrySet()) {
+        for (Map.Entry<PlanFragmentId, RemoteSourceNode> entry : exchangeSources.entries()) {
             if (entry.getValue().getId().equals(sourceNodeId)) {
                 return Optional.of(entry.getKey());
             }
@@ -447,7 +448,7 @@ public class PipelinedStageExecution
         pipelinedSourceTasks.forEach((sourceFragmentId, sourceTask) -> {
             TaskStatus status = sourceTask.getTaskStatus();
             if (status.getState() != TaskState.FINISHED) {
-                PlanNodeId planNodeId = exchangeSources.get(sourceFragmentId).getId();
+                PlanNodeId planNodeId = getOnlyElement(exchangeSources.get(sourceFragmentId)).getId();
                 exchangeSplits.put(planNodeId, createExchangeSplit(sourceTask, task));
             }
         });
@@ -621,8 +622,8 @@ public class PipelinedStageExecution
     {
         requireNonNull(fragmentId, "fragmentId is null");
 
-        RemoteSourceNode remoteSource = exchangeSources.get(fragmentId);
-        checkArgument(remoteSource != null, "Unknown remote source %s. Known sources are %s", fragmentId, exchangeSources.keySet());
+        Collection<RemoteSourceNode> remoteSources = exchangeSources.get(fragmentId);
+        checkArgument(!remoteSources.isEmpty(), "Unknown remote source %s. Known sources are %s", fragmentId, exchangeSources.keySet());
 
         if (spoolingOutputExchanges.containsKey(fragmentId)) {
             spoolingExchangeSourceTasks.put(fragmentId, sourceTask);
@@ -633,23 +634,25 @@ public class PipelinedStageExecution
             sourceTask.setOutputBuffers(outputBufferManager.getOutputBuffers());
 
             for (RemoteTask destinationTask : getAllTasks()) {
-                destinationTask.addSplits(ImmutableMultimap.of(remoteSource.getId(), createExchangeSplit(sourceTask, destinationTask)));
+                destinationTask.addSplits(ImmutableMultimap.of(getOnlyElement(remoteSources).getId(), createExchangeSplit(sourceTask, destinationTask)));
             }
         }
     }
 
     private synchronized void noMoreSourceTasks(PlanFragmentId fragmentId)
     {
-        RemoteSourceNode remoteSource = exchangeSources.get(fragmentId);
-        checkArgument(remoteSource != null, "Unknown remote source %s. Known sources are %s", fragmentId, exchangeSources.keySet());
+        Collection<RemoteSourceNode> remoteSources = exchangeSources.get(fragmentId);
+        checkArgument(!remoteSources.isEmpty(), "Unknown remote source %s. Known sources are %s", fragmentId, exchangeSources.keySet());
 
         if (spoolingOutputExchanges.containsKey(fragmentId)) {
             updateSourceOutputSelectorSplit(fragmentId);
-            checkExchangeSourceComplete(remoteSource.getId());
+            for (RemoteSourceNode remoteSource : remoteSources) {
+                checkExchangeSourceComplete(remoteSource.getId());
+            }
         }
         else {
             completeSourceFragments.add(fragmentId);
-
+            RemoteSourceNode remoteSource = getOnlyElement(remoteSources);
             // is the source now complete?
             if (completeSourceFragments.containsAll(remoteSource.getSourceFragmentIds())) {
                 markSourceComplete(remoteSource.getId());
@@ -660,12 +663,18 @@ public class PipelinedStageExecution
     @GuardedBy("this")
     private void updateSourceOutputSelectorSplit(PlanFragmentId fragmentId)
     {
-        PlanNodeId remoteSourceNodeId = exchangeSources.get(fragmentId).getId();
+        Collection<RemoteSourceNode> remoteSources = exchangeSources.get(fragmentId);
         Split sourceOutputSelectorSplit = buildFinaleSourceOutputSelectorSplit(fragmentId);
-        spoolingExchangeSourcesOutputSelectorSplits.put(remoteSourceNodeId, sourceOutputSelectorSplit);
 
-        for (RemoteTask task : getAllTasks()) {
-            task.addSplits(ImmutableMultimap.of(remoteSourceNodeId, sourceOutputSelectorSplit));
+        for (RemoteSourceNode remoteSource : remoteSources) {
+            PlanNodeId remoteSourceNodeId = remoteSource.getId();
+            Split previous = spoolingExchangeSourcesOutputSelectorSplits.putIfAbsent(remoteSourceNodeId, sourceOutputSelectorSplit);
+            if (previous == null) {
+                // do not redeliver output selector split
+                for (RemoteTask task : getAllTasks()) {
+                    task.addSplits(ImmutableMultimap.of(remoteSourceNodeId, sourceOutputSelectorSplit));
+                }
+            }
         }
     }
 
