@@ -134,6 +134,7 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.fromConn
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.REFRESH_SCHEDULE;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.STORAGE_SCHEMA;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
 import static io.trino.plugin.iceberg.IcebergTableName.tableNameWithType;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_NOT_NULL_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_TYPE_ID_PROPERTY;
@@ -877,7 +878,7 @@ public class TrinoGlueCatalog
             try {
                 // Cache the TableMetadata while we have the Table retrieved anyway
                 // Note: this is racy from cache invalidation perspective, but it should not matter here
-                uncheckedCacheGet(tableMetadataCache, schemaTableName, () -> TableMetadataParser.read(new ForwardingFileIo(fileSystemFactory.create(session)), metadataLocation));
+                uncheckedCacheGet(tableMetadataCache, schemaTableName, () -> TableMetadataParser.read(new ForwardingFileIo(fileSystemFactory.create(session), isUseFileSizeFromMetadata(session)), metadataLocation));
             }
             catch (RuntimeException e) {
                 LOG.warn(e, "Failed to cache table metadata from table at %s", metadataLocation);
@@ -1171,7 +1172,7 @@ public class TrinoGlueCatalog
             }
             catch (RuntimeException e) {
                 try {
-                    dropMaterializedViewStorage(fileSystemFactory.create(session), storageMetadataLocation.toString());
+                    dropMaterializedViewStorage(session, fileSystemFactory.create(session), storageMetadataLocation.toString());
                 }
                 catch (Exception suppressed) {
                     LOG.warn(suppressed, "Failed to clean up metadata '%s' for materialized view '%s'", storageMetadataLocation, viewName);
@@ -1334,7 +1335,7 @@ public class TrinoGlueCatalog
             String storageMetadataLocation = parameters.get(METADATA_LOCATION_PROP);
             checkState(storageMetadataLocation != null, "Storage location missing in definition of materialized view " + view.name());
             try {
-                dropMaterializedViewStorage(fileSystemFactory.create(session), storageMetadataLocation);
+                dropMaterializedViewStorage(session, fileSystemFactory.create(session), storageMetadataLocation);
             }
             catch (IOException e) {
                 LOG.warn(e, "Failed to delete storage table metadata '%s' for materialized view '%s'", storageMetadataLocation, view.name());
@@ -1474,7 +1475,7 @@ public class TrinoGlueCatalog
         requireNonNull(storageMetadataLocation, "storageMetadataLocation is null");
         return uncheckedCacheGet(tableMetadataCache, storageTableName, () -> {
             TrinoFileSystem fileSystem = fileSystemFactory.create(session);
-            return TableMetadataParser.read(new ForwardingFileIo(fileSystem), storageMetadataLocation);
+            return TableMetadataParser.read(new ForwardingFileIo(fileSystem, isUseFileSizeFromMetadata(session)), storageMetadataLocation);
         });
     }
 

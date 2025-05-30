@@ -79,6 +79,7 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.decodeMa
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.STORAGE_SCHEMA;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.getRefreshSchedule;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.getStorageSchema;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
 import static io.trino.plugin.iceberg.IcebergTableName.tableNameWithType;
 import static io.trino.plugin.iceberg.IcebergTableProperties.getPartitioning;
 import static io.trino.plugin.iceberg.IcebergTableProperties.getSortOrder;
@@ -356,10 +357,10 @@ public abstract class AbstractTrinoCatalog
         return metadataFileLocation;
     }
 
-    protected void dropMaterializedViewStorage(TrinoFileSystem fileSystem, String storageMetadataLocation)
+    protected void dropMaterializedViewStorage(ConnectorSession session, TrinoFileSystem fileSystem, String storageMetadataLocation)
             throws IOException
     {
-        TableMetadata metadata = TableMetadataParser.read(new ForwardingFileIo(fileSystem), storageMetadataLocation);
+        TableMetadata metadata = TableMetadataParser.read(new ForwardingFileIo(fileSystem, isUseFileSizeFromMetadata(session)), storageMetadataLocation);
         String storageLocation = metadata.location();
         fileSystem.deleteDirectory(Location.of(storageLocation));
     }
