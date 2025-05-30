@@ -89,7 +89,7 @@ public final class FlatHashStrategyCompiler
     @VisibleForTesting
     static final int COLUMNS_PER_CHUNK = 500;
 
-    private final LoadingCache<List<Type>, FlatHashStrategy> flatHashStrategies;
+    private final LoadingCache<CacheKey, FlatHashStrategy> flatHashStrategies;
 
     @Inject
     public FlatHashStrategyCompiler(TypeOperators typeOperators, NullSafeHashCompiler nullSafeHashCompiler)
@@ -99,12 +99,17 @@ public final class FlatHashStrategyCompiler
                 CacheBuilder.newBuilder()
                         .recordStats()
                         .maximumSize(1000),
-                CacheLoader.from(key -> compileFlatHashStrategy(key, typeOperators, nullSafeHashCompiler)));
+                CacheLoader.from(key -> compileFlatHashStrategy(key.types(), typeOperators, nullSafeHashCompiler)));
     }
 
     public FlatHashStrategy getFlatHashStrategy(List<Type> types)
     {
-        return flatHashStrategies.getUnchecked(ImmutableList.copyOf(types));
+        return getFlatHashStrategy(types, ImmutableList.of());
+    }
+
+    public FlatHashStrategy getFlatHashStrategy(List<Type> types, List<Class<? extends Block>> blockTypes)
+    {
+        return flatHashStrategies.getUnchecked(new CacheKey(types, blockTypes));
     }
 
     @Managed
@@ -874,6 +879,15 @@ public final class FlatHashStrategyCompiler
             throw new IllegalStateException("variableWidthOffset must be >= 0, found: " + variableWidthOffset);
         }
         return variableWidthOffset;
+    }
+
+    private record CacheKey(List<Type> types, List<Class<? extends Block>> blockTypes)
+    {
+        private CacheKey
+        {
+            types = ImmutableList.copyOf(types);
+            blockTypes = ImmutableList.copyOf(blockTypes);
+        }
     }
 
     private record KeyField(

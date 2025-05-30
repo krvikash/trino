@@ -14,6 +14,7 @@
 package io.trino.operator;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Shorts;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
@@ -23,9 +24,11 @@ import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.type.Type;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -47,6 +50,14 @@ public class FlatGroupByHash
     private static final double SMALL_DICTIONARIES_MAX_CARDINALITY_RATIO = 0.25;
 
     private final GroupByHashMode hashMode;
+    private final FlatHashStrategyCompiler hashStrategyCompiler;
+    private final List<Type> hashTypes;
+    // This object should only be used to call methods that do not accept Block as parameter
+    // and thus are not sensitive to Block type based virtual calls
+    private final FlatHashStrategy flatHashStrategy;
+    // This cache reduces performance overhead of looking up FlatHashStrategy per page.
+    // It does that by avoiding any thread synchronization, having a simpler key, and being small.
+    private final Map<Class<? extends Block>[], FlatHashStrategy> flatHashStrategyCache = new Object2ObjectOpenHashMap<>();
     private final FlatHash flatHash;
     private final int groupByChannelCount;
 
@@ -71,7 +82,10 @@ public class FlatGroupByHash
             UpdateMemory checkMemoryReservation)
     {
         this.hashMode = requireNonNull(hashMode, "hashMode is null");
-        this.flatHash = new FlatHash(hashStrategyCompiler.getFlatHashStrategy(hashTypes), hashMode, expectedSize, checkMemoryReservation);
+        this.hashStrategyCompiler = requireNonNull(hashStrategyCompiler, "flatHashStrategy is null");
+        this.hashTypes = requireNonNull(hashTypes, "hashTypes is null");
+        this.flatHashStrategy = hashStrategyCompiler.getFlatHashStrategy(hashTypes);
+        this.flatHash = new FlatHash(flatHashStrategy, hashMode, expectedSize, checkMemoryReservation);
         this.groupByChannelCount = hashTypes.size();
 
         checkArgument(expectedSize > 0, "expectedSize must be greater than zero");
@@ -86,6 +100,9 @@ public class FlatGroupByHash
     public FlatGroupByHash(FlatGroupByHash other)
     {
         this.flatHash = other.flatHash.copy();
+        this.hashStrategyCompiler = other.hashStrategyCompiler;
+        this.flatHashStrategy = other.flatHashStrategy;
+        this.hashTypes = other.hashTypes;
         groupByChannelCount = other.groupByChannelCount;
         hashMode = other.hashMode;
         processDictionary = other.processDictionary;
@@ -109,7 +126,7 @@ public class FlatGroupByHash
     @Override
     public long getRawHash(int groupId)
     {
-        return flatHash.hashPosition(groupId);
+        return flatHash.hashPosition(groupId, flatHashStrategy);
     }
 
     @Override
@@ -136,7 +153,7 @@ public class FlatGroupByHash
         for (int i = 0; i < blockBuilders.length; i++) {
             blockBuilders[i] = pageBuilder.getBlockBuilder(i);
         }
-        flatHash.appendTo(groupId, blockBuilders);
+        flatHash.appendTo(groupId, blockBuilders, flatHashStrategy);
     }
 
     @Override
@@ -198,9 +215,9 @@ public class FlatGroupByHash
         return new FlatGroupByHash(this);
     }
 
-    private int putIfAbsent(Block[] blocks, int position)
+    private int putIfAbsent(Block[] blocks, int position, FlatHashStrategy flatHashStrategy)
     {
-        return flatHash.putIfAbsent(blocks, position);
+        return flatHash.putIfAbsent(blocks, position, flatHashStrategy);
     }
 
     private long[] getHashesBufferArray(int size)
@@ -219,6 +236,16 @@ public class FlatGroupByHash
             blocks[i] = page.getBlock(i);
         }
         return blocks;
+    }
+
+    private FlatHashStrategy flatHashStrategy(Block[] blocks)
+    {
+        Class<? extends Block>[] blockTypes = new Class[blocks.length];
+        for (int i = 0; i < blockTypes.length; i++) {
+            blockTypes[i] = blocks[i].getClass();
+        }
+
+        return flatHashStrategyCache.computeIfAbsent(blockTypes, key -> hashStrategyCompiler.getFlatHashStrategy(hashTypes, ImmutableList.copyOf(key)));
     }
 
     private void updateDictionaryLookBack(Block dictionary)
@@ -271,13 +298,13 @@ public class FlatGroupByHash
         return true;
     }
 
-    private int registerGroupId(Block[] dictionaries, int positionInDictionary)
+    private int registerGroupId(Block[] dictionaries, int positionInDictionary, FlatHashStrategy flatHashStrategy)
     {
         if (dictionaryLookBack.isProcessed(positionInDictionary)) {
             return dictionaryLookBack.getGroupId(positionInDictionary);
         }
 
-        int groupId = putIfAbsent(dictionaries, positionInDictionary);
+        int groupId = putIfAbsent(dictionaries, positionInDictionary, flatHashStrategy);
         dictionaryLookBack.setProcessed(positionInDictionary, groupId);
         return groupId;
     }
@@ -340,11 +367,13 @@ public class FlatGroupByHash
             implements Work<Void>
     {
         private final Block[] blocks;
+        private final FlatHashStrategy flatHashStrategy;
         private int lastPosition;
 
         public AddNonDictionaryPageWork(Block[] blocks)
         {
             this.blocks = blocks;
+            this.flatHashStrategy = flatHashStrategy(blocks);
         }
 
         @Override
@@ -358,13 +387,13 @@ public class FlatGroupByHash
             long[] hashes = getHashesBufferArray(remainingPositions);
             while (remainingPositions != 0) {
                 int batchSize = min(remainingPositions, hashes.length);
-                if (!flatHash.ensureAvailableCapacity(batchSize)) {
+                if (!flatHash.ensureAvailableCapacity(batchSize, flatHashStrategy)) {
                     return false;
                 }
 
-                flatHash.computeHashes(blocks, hashes, lastPosition, batchSize);
+                flatHash.computeHashes(blocks, hashes, lastPosition, batchSize, flatHashStrategy);
                 for (int i = 0; i < batchSize; i++) {
-                    flatHash.putIfAbsent(blocks, lastPosition + i, hashes[i]);
+                    flatHash.putIfAbsent(blocks, lastPosition + i, hashes[i], flatHashStrategy);
                 }
 
                 lastPosition += batchSize;
@@ -387,6 +416,7 @@ public class FlatGroupByHash
     {
         private final DictionaryBlock dictionaryBlock;
         private final Block[] dictionaries;
+        private final FlatHashStrategy flatHashStrategy;
         private int lastPosition;
 
         public AddDictionaryPageWork(Block[] blocks)
@@ -399,6 +429,7 @@ public class FlatGroupByHash
                     .map(DictionaryBlock::getDictionary)
                     .toArray(Block[]::new);
             updateDictionaryLookBack(dictionaries[0]);
+            this.flatHashStrategy = flatHashStrategy(blocks);
         }
 
         @Override
@@ -407,8 +438,8 @@ public class FlatGroupByHash
             int positionCount = dictionaryBlock.getPositionCount();
             checkState(lastPosition <= positionCount, "position count out of bound");
 
-            while (lastPosition < positionCount && flatHash.ensureAvailableCapacity(1)) {
-                registerGroupId(dictionaries, dictionaryBlock.getId(lastPosition));
+            while (lastPosition < positionCount && flatHash.ensureAvailableCapacity(1, flatHashStrategy)) {
+                registerGroupId(dictionaries, dictionaryBlock.getId(lastPosition), flatHashStrategy);
                 lastPosition++;
             }
             return lastPosition == positionCount;
@@ -426,12 +457,14 @@ public class FlatGroupByHash
     {
         private final Block[] blocks;
         private final int[] combinationIdToPosition;
+        private final FlatHashStrategy flatHashStrategy;
         private int nextCombinationId;
 
         public AddLowCardinalityDictionaryPageWork(Block[] blocks)
         {
             this.blocks = blocks;
             this.combinationIdToPosition = calculateCombinationIdToPositionMapping(blocks);
+            this.flatHashStrategy = flatHashStrategy(blocks);
         }
 
         @Override
@@ -440,11 +473,11 @@ public class FlatGroupByHash
             for (int combinationId = nextCombinationId; combinationId < combinationIdToPosition.length; combinationId++) {
                 int position = combinationIdToPosition[combinationId];
                 if (position != -1) {
-                    if (!flatHash.ensureAvailableCapacity(1)) {
+                    if (!flatHash.ensureAvailableCapacity(1, flatHashStrategy)) {
                         nextCombinationId = combinationId;
                         return false;
                     }
-                    putIfAbsent(blocks, position);
+                    putIfAbsent(blocks, position, flatHashStrategy);
                 }
             }
             return true;
@@ -462,6 +495,7 @@ public class FlatGroupByHash
             implements Work<Void>
     {
         private final Block[] blocks;
+        private final FlatHashStrategy flatHashStrategy;
         private boolean finished;
 
         public AddRunLengthEncodedPageWork(Block[] blocks)
@@ -472,6 +506,7 @@ public class FlatGroupByHash
                 blocks[i] = blocks[i].getSingleValueBlock(0);
             }
             this.blocks = blocks;
+            this.flatHashStrategy = flatHashStrategy(blocks);
         }
 
         @Override
@@ -479,12 +514,12 @@ public class FlatGroupByHash
         {
             checkState(!finished);
 
-            if (!flatHash.ensureAvailableCapacity(1)) {
+            if (!flatHash.ensureAvailableCapacity(1, flatHashStrategy)) {
                 return false;
             }
 
             // Only needs to process the first row since it is Run Length Encoded
-            putIfAbsent(blocks, 0);
+            putIfAbsent(blocks, 0, flatHashStrategy);
             finished = true;
 
             return true;
@@ -503,6 +538,7 @@ public class FlatGroupByHash
     {
         private final Block[] blocks;
         private final int[] groupIds;
+        private final FlatHashStrategy flatHashStrategy;
 
         private boolean finished;
         private int lastPosition;
@@ -511,6 +547,7 @@ public class FlatGroupByHash
         {
             this.blocks = blocks;
             this.groupIds = new int[currentBlocks[0].getPositionCount()];
+            this.flatHashStrategy = flatHashStrategy(blocks);
         }
 
         @Override
@@ -525,13 +562,13 @@ public class FlatGroupByHash
             long[] hashes = getHashesBufferArray(remainingPositions);
             while (remainingPositions != 0) {
                 int batchSize = min(remainingPositions, hashes.length);
-                if (!flatHash.ensureAvailableCapacity(batchSize)) {
+                if (!flatHash.ensureAvailableCapacity(batchSize, flatHashStrategy)) {
                     return false;
                 }
 
-                flatHash.computeHashes(blocks, hashes, lastPosition, batchSize);
+                flatHash.computeHashes(blocks, hashes, lastPosition, batchSize, flatHashStrategy);
                 for (int i = 0, position = lastPosition; i < batchSize; i++, position++) {
-                    groupIds[position] = flatHash.putIfAbsent(blocks, position, hashes[i]);
+                    groupIds[position] = flatHash.putIfAbsent(blocks, position, hashes[i], flatHashStrategy);
                 }
 
                 lastPosition += batchSize;
@@ -559,6 +596,7 @@ public class FlatGroupByHash
         private final short[] positionToCombinationId;
         private final int[] combinationIdToGroupId;
         private final int[] groupIds;
+        private final FlatHashStrategy flatHashStrategy;
 
         private int nextPosition;
         private boolean finished;
@@ -574,6 +612,7 @@ public class FlatGroupByHash
             combinationIdToGroupId = new int[maxCardinality];
             Arrays.fill(combinationIdToGroupId, -1);
             groupIds = new int[positionCount];
+            this.flatHashStrategy = flatHashStrategy(blocks);
         }
 
         @Override
@@ -583,11 +622,11 @@ public class FlatGroupByHash
                 short combinationId = positionToCombinationId[position];
                 int groupId = combinationIdToGroupId[combinationId];
                 if (groupId == -1) {
-                    if (!flatHash.ensureAvailableCapacity(1)) {
+                    if (!flatHash.ensureAvailableCapacity(1, flatHashStrategy)) {
                         nextPosition = position;
                         return false;
                     }
-                    groupId = putIfAbsent(blocks, position);
+                    groupId = putIfAbsent(blocks, position, flatHashStrategy);
                     combinationIdToGroupId[combinationId] = groupId;
                 }
                 groupIds[position] = groupId;
@@ -611,6 +650,7 @@ public class FlatGroupByHash
         private final int[] groupIds;
         private final DictionaryBlock dictionaryBlock;
         private final Block[] dictionaries;
+        private final FlatHashStrategy flatHashStrategy;
 
         private boolean finished;
         private int lastPosition;
@@ -627,6 +667,7 @@ public class FlatGroupByHash
                     .map(DictionaryBlock::getDictionary)
                     .toArray(Block[]::new);
             updateDictionaryLookBack(dictionaries[0]);
+            this.flatHashStrategy = flatHashStrategy(blocks);
         }
 
         @Override
@@ -635,8 +676,8 @@ public class FlatGroupByHash
             checkState(lastPosition <= groupIds.length, "position count out of bound");
             checkState(!finished);
 
-            while (lastPosition < groupIds.length && flatHash.ensureAvailableCapacity(1)) {
-                groupIds[lastPosition] = registerGroupId(dictionaries, dictionaryBlock.getId(lastPosition));
+            while (lastPosition < groupIds.length && flatHash.ensureAvailableCapacity(1, flatHashStrategy)) {
+                groupIds[lastPosition] = registerGroupId(dictionaries, dictionaryBlock.getId(lastPosition), flatHashStrategy);
                 lastPosition++;
             }
             return lastPosition == groupIds.length;
@@ -658,6 +699,7 @@ public class FlatGroupByHash
     {
         private final int positionCount;
         private final Block[] blocks;
+        private final FlatHashStrategy flatHashStrategy;
         private int groupId = -1;
         private boolean processFinished;
         private boolean resultProduced;
@@ -671,6 +713,7 @@ public class FlatGroupByHash
                 blocks[i] = blocks[i].getSingleValueBlock(0);
             }
             this.blocks = blocks;
+            this.flatHashStrategy = flatHashStrategy(blocks);
         }
 
         @Override
@@ -678,12 +721,12 @@ public class FlatGroupByHash
         {
             checkState(!processFinished);
 
-            if (!flatHash.ensureAvailableCapacity(1)) {
+            if (!flatHash.ensureAvailableCapacity(1, flatHashStrategy)) {
                 return false;
             }
 
             // Only needs to process the first row since it is Run Length Encoded
-            groupId = putIfAbsent(blocks, 0);
+            groupId = putIfAbsent(blocks, 0, flatHashStrategy);
             processFinished = true;
             return true;
         }

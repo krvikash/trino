@@ -59,7 +59,6 @@ public final class FlatHash
     private static final int VECTOR_LENGTH = Long.BYTES;
     private static final VarHandle LONG_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class, LITTLE_ENDIAN);
 
-    private final FlatHashStrategy flatHashStrategy;
     private final AppendOnlyVariableWidthData variableWidthData;
     private final UpdateMemory checkMemoryReservation;
 
@@ -82,7 +81,6 @@ public final class FlatHash
 
     public FlatHash(FlatHashStrategy flatHashStrategy, GroupByHashMode hashMode, int expectedSize, UpdateMemory checkMemoryReservation)
     {
-        this.flatHashStrategy = requireNonNull(flatHashStrategy, "flatHashStrategy is null");
         this.checkMemoryReservation = requireNonNull(checkMemoryReservation, "checkMemoryReservation is null");
         boolean hasVariableData = flatHashStrategy.isAnyVariableWidth();
         this.variableWidthData = hasVariableData ? new AppendOnlyVariableWidthData() : null;
@@ -111,7 +109,6 @@ public final class FlatHash
 
     public FlatHash(FlatHash other)
     {
-        this.flatHashStrategy = other.flatHashStrategy;
         this.checkMemoryReservation = other.checkMemoryReservation;
         this.variableWidthData = other.variableWidthData == null ? null : new AppendOnlyVariableWidthData(other.variableWidthData);
         this.hasPrecomputedHash = other.hasPrecomputedHash;
@@ -153,7 +150,7 @@ public final class FlatHash
         return capacity;
     }
 
-    public long hashPosition(int groupId)
+    public long hashPosition(int groupId, FlatHashStrategy flatHashStrategy)
     {
         if (groupId < 0) {
             throw new IllegalArgumentException("groupId is negative");
@@ -178,7 +175,7 @@ public final class FlatHash
         }
     }
 
-    public void appendTo(int groupId, BlockBuilder[] blockBuilders)
+    public void appendTo(int groupId, BlockBuilder[] blockBuilders, FlatHashStrategy flatHashStrategy)
     {
         checkArgument(groupId < nextGroupId, "groupId out of range");
 
@@ -204,7 +201,7 @@ public final class FlatHash
         }
     }
 
-    public void computeHashes(Block[] blocks, long[] hashes, int offset, int length)
+    public void computeHashes(Block[] blocks, long[] hashes, int offset, int length, FlatHashStrategy flatHashStrategy)
     {
         if (hasPrecomputedHash) {
             Block hashBlock = blocks[blocks.length - 1];
@@ -217,7 +214,7 @@ public final class FlatHash
         }
     }
 
-    public int putIfAbsent(Block[] blocks, int position)
+    public int putIfAbsent(Block[] blocks, int position, FlatHashStrategy flatHashStrategy)
     {
         long hash;
         if (hasPrecomputedHash) {
@@ -227,12 +224,12 @@ public final class FlatHash
             hash = flatHashStrategy.hash(blocks, position);
         }
 
-        return putIfAbsent(blocks, position, hash);
+        return putIfAbsent(blocks, position, hash, flatHashStrategy);
     }
 
-    public int putIfAbsent(Block[] blocks, int position, long hash)
+    public int putIfAbsent(Block[] blocks, int position, long hash, FlatHashStrategy flatHashStrategy)
     {
-        int index = getIndex(blocks, position, hash);
+        int index = getIndex(blocks, position, hash, flatHashStrategy);
         if (index >= 0) {
             int groupId = groupIdsByHash[index];
             if (groupId < 0) {
@@ -242,14 +239,14 @@ public final class FlatHash
         }
 
         index = -index - 1;
-        int groupId = addNewGroup(index, blocks, position, hash);
+        int groupId = addNewGroup(index, blocks, position, hash, flatHashStrategy);
         if (nextGroupId >= maxFill) {
-            rehash(0);
+            rehash(0, flatHashStrategy);
         }
         return groupId;
     }
 
-    private int getIndex(Block[] blocks, int position, long hash)
+    private int getIndex(Block[] blocks, int position, long hash, FlatHashStrategy flatHashStrategy)
     {
         byte hashPrefix = (byte) (hash & 0x7F | 0x80);
         int bucket = bucket((int) (hash >> 7));
@@ -260,7 +257,7 @@ public final class FlatHash
         while (true) {
             final long controlVector = (long) LONG_HANDLE.get(control, bucket);
 
-            int matchIndex = matchInVector(blocks, position, hash, bucket, repeated, controlVector);
+            int matchIndex = matchInVector(blocks, position, hash, bucket, repeated, controlVector, flatHashStrategy);
             if (matchIndex >= 0) {
                 return matchIndex;
             }
@@ -275,13 +272,13 @@ public final class FlatHash
         }
     }
 
-    private int matchInVector(Block[] blocks, int position, long hash, int vectorStartBucket, long repeated, long controlVector)
+    private int matchInVector(Block[] blocks, int position, long hash, int vectorStartBucket, long repeated, long controlVector, FlatHashStrategy flatHashStrategy)
     {
         long controlMatches = match(controlVector, repeated);
         while (controlMatches != 0) {
             int index = bucket(vectorStartBucket + (Long.numberOfTrailingZeros(controlMatches) >>> 3));
             int groupId = groupIdsByHash[index];
-            if (valueIdentical(groupId, blocks, position, hash)) {
+            if (valueIdentical(groupId, blocks, position, hash, flatHashStrategy)) {
                 return index;
             }
 
@@ -300,7 +297,7 @@ public final class FlatHash
         return bucket(vectorStartBucket + slot);
     }
 
-    private int addNewGroup(int index, Block[] blocks, int position, long hash)
+    private int addNewGroup(int index, Block[] blocks, int position, long hash, FlatHashStrategy flatHashStrategy)
     {
         setControl(index, (byte) (hash & 0x7F | 0x80));
         int groupId = nextGroupId++;
@@ -349,17 +346,17 @@ public final class FlatHash
         }
     }
 
-    public boolean ensureAvailableCapacity(int batchSize)
+    public boolean ensureAvailableCapacity(int batchSize, FlatHashStrategy flatHashStrategy)
     {
         long requiredMaxFill = nextGroupId + batchSize;
         if (requiredMaxFill >= maxFill) {
             long minimumRequiredCapacity = (requiredMaxFill + 1) * 16 / 15;
-            return tryRehash(toIntExact(minimumRequiredCapacity));
+            return tryRehash(toIntExact(minimumRequiredCapacity), flatHashStrategy);
         }
         return true;
     }
 
-    private boolean tryRehash(int minimumRequiredCapacity)
+    private boolean tryRehash(int minimumRequiredCapacity, FlatHashStrategy flatHashStrategy)
     {
         int newCapacity = computeNewCapacity(minimumRequiredCapacity);
         temporaryRehashRetainedSize = multiplyExact((long) newCapacity, Integer.BYTES + Byte.BYTES);
@@ -367,11 +364,11 @@ public final class FlatHash
             return false;
         }
 
-        rehash(minimumRequiredCapacity);
+        rehash(minimumRequiredCapacity, flatHashStrategy);
         return true;
     }
 
-    private void rehash(int minimumRequiredCapacity)
+    private void rehash(int minimumRequiredCapacity, FlatHashStrategy flatHashStrategy)
     {
         capacity = computeNewCapacity(minimumRequiredCapacity);
         maxFill = calculateMaxFill(capacity);
@@ -386,7 +383,7 @@ public final class FlatHash
         Arrays.fill(groupIdsByHash, -1);
 
         for (int groupId = 0; groupId < nextGroupId; groupId++) {
-            long hash = hashPosition(groupId);
+            long hash = hashPosition(groupId, flatHashStrategy);
 
             byte hashPrefix = (byte) (hash & 0x7F | 0x80);
             int bucket = bucket((int) (hash >> 7));
@@ -435,7 +432,7 @@ public final class FlatHash
         return (groupId & RECORDS_PER_GROUP_MASK) * fixedRecordSize;
     }
 
-    private boolean valueIdentical(int groupId, Block[] rightBlocks, int rightPosition, long rightHash)
+    private boolean valueIdentical(int groupId, Block[] rightBlocks, int rightPosition, long rightHash, FlatHashStrategy flatHashStrategy)
     {
         checkArgument(groupId >= 0, "groupId is negative");
         byte[] fixedSizeRecords = getFixedSizeRecords(groupId);
