@@ -44,7 +44,7 @@ public class CachingAiModelAccessControl
     {
         try {
             if (!accessControlCache.get(new CacheKey(context, modelId))) {
-                denyAiModelAccess(modelId);
+                denyExecuteAiModelAccess(modelId);
             }
         }
         catch (UncheckedExecutionException e) {

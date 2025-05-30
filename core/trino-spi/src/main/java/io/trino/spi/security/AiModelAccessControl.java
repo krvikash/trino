@@ -26,12 +26,47 @@ public interface AiModelAccessControl
 
     default void checkCanExecuteModel(Context context, String modelId)
     {
-        denyAiModelAccess(modelId);
+        denyExecuteAiModelAccess(modelId);
     }
 
-    default void denyAiModelAccess(String modelId)
+    default void canCreateModel(Context context, String modelId)
     {
-        throw new AccessDeniedException("Model " + modelId);
+        denyCreateAiModelAccess(modelId);
+    }
+
+    default void canUpdateModel(Context context, String modelId)
+    {
+        denyUpdateAiModelAccess(modelId);
+    }
+
+    default void canDropModel(Context context, String modelId)
+    {
+        denyDropAiModelAccess(modelId);
+    }
+
+    default void denyExecuteAiModelAccess(String modelId)
+    {
+        denyAiModelAccess(modelId, "Execute");
+    }
+
+    default void denyCreateAiModelAccess(String modelId)
+    {
+        denyAiModelAccess(modelId, "Create");
+    }
+
+    default void denyUpdateAiModelAccess(String modelId)
+    {
+        denyAiModelAccess(modelId, "Update");
+    }
+
+    default void denyDropAiModelAccess(String modelId)
+    {
+        denyAiModelAccess(modelId, "Drop");
+    }
+
+    default void denyAiModelAccess(String modelId, String action)
+    {
+        throw new AccessDeniedException(action + " model " + modelId);
     }
 
     record Context(ConnectorIdentity connectorIdentity, String queryId)

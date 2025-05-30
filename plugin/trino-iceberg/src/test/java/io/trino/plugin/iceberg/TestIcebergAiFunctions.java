@@ -175,11 +175,11 @@ public class TestIcebergAiFunctions
             assertQueryFails(
                     sessionWithRole(DENY_ACCESS_ROLE),
                     "ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'cohere')".formatted(table.getName()),
-                    AccessDeniedException.PREFIX + "Model cohere");
+                    AccessDeniedException.PREFIX + "Execute model cohere");
             assertQueryFails(
                     sessionWithRole(ALLOW_ACCESS_ROLE),
                     "ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => '%s')".formatted(table.getName(), DENY_ACCESS_MODEL),
-                    AccessDeniedException.PREFIX + "Model %s".formatted(DENY_ACCESS_MODEL));
+                    AccessDeniedException.PREFIX + "Execute model %s".formatted(DENY_ACCESS_MODEL));
         }
     }
 
@@ -197,7 +197,7 @@ public class TestIcebergAiFunctions
         public void checkCanExecuteModel(Context context, String modelId)
         {
             if (modelId.equals(DENY_ACCESS_MODEL) || context.connectorIdentity().getEnabledSystemRoles().contains(DENY_ACCESS_ROLE)) {
-                denyAiModelAccess(modelId);
+                denyExecuteAiModelAccess(modelId);
             }
         }
     }
