@@ -29,6 +29,7 @@ import io.airlift.bytecode.control.ForLoop;
 import io.airlift.bytecode.control.IfStatement;
 import io.airlift.bytecode.expression.BytecodeExpression;
 import io.trino.operator.scalar.CombineHashFunction;
+import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
@@ -100,6 +101,8 @@ public final class NullSafeHashCompiler
         generateHashBlocksBatched("hashBatchedWithCombine", definition, callSiteBinder, hashMethod, true);
         generateHashNonNullPositions("hashNonNullPositions", definition, callSiteBinder, hashMethod, false);
         generateHashNonNullPositions("hashNonNullPositionsWithCombine", definition, callSiteBinder, hashMethod, true);
+        generateHashNonNullPositionsDictionary("hashNonNullPositionsDictionary", definition, callSiteBinder, hashMethod, false);
+        generateHashNonNullPositionsDictionary("hashNonNullPositionsDictionaryWithCombine", definition, callSiteBinder, hashMethod, true);
 
         try {
             DynamicClassLoader classLoader = new DynamicClassLoader(NullSafeHashCompiler.class.getClassLoader(), callSiteBinder.getBindings());
@@ -213,7 +216,49 @@ public final class NullSafeHashCompiler
         body.append(computeHashLoop).ret();
     }
 
-    private static BytecodeExpression computeHashNonNull(CallSiteBinder callSiteBinder, Parameter block, Variable position, MethodHandle hashMethod)
+    private static void generateHashNonNullPositionsDictionary(String methodName, ClassDefinition definition, CallSiteBinder callSiteBinder, MethodHandle hashMethod, boolean combineHash)
+    {
+        Parameter dictionaryBlock = arg("dictionaryBlock", type(DictionaryBlock.class));
+        Parameter hashes = arg("hashes", type(long[].class));
+        Parameter positions = arg("positions", type(int[].class));
+
+        MethodDefinition methodDefinition = definition.declareMethod(
+                a(PUBLIC),
+                methodName,
+                type(void.class),
+                dictionaryBlock,
+                hashes,
+                positions);
+
+        BytecodeBlock body = methodDefinition.getBody();
+        Scope scope = methodDefinition.getScope();
+        body.append(invokeStatic(
+                Objects.class,
+                "checkFromIndexSize",
+                int.class,
+                constantInt(0),
+                dictionaryBlock.invoke("getPositionCount", int.class), hashes.length()).pop());
+
+        Variable position = scope.declareVariable(int.class, "position");
+        Variable hash = scope.declareVariable(long.class, "hash");
+        Variable valueBlock = scope.declareVariable("valueBlock", body, dictionaryBlock.invoke("getUnderlyingValueBlock", ValueBlock.class));
+        Variable index = scope.declareVariable(int.class, "index");
+
+        BytecodeBlock computeHashLoop = new BytecodeBlock()
+                .append(new ForLoop("for (int index = 0; index < positions.length; index++)")
+                        .initialize(index.set(constantInt(0)))
+                        .condition(lessThan(index, positions.length()))
+                        .update(index.increment())
+                        .body(new BytecodeBlock()
+                                .append(position.set(positions.getElement(index)))
+                                // long hash = valueBlock.hash<invokedynamic>(valueBlock, dictionaryBlock.getUnderlyingValuePosition(position))
+                                .append(hash.set(computeHashNonNull(callSiteBinder, valueBlock, dictionaryBlock.invoke("getUnderlyingValuePosition", int.class, position), hashMethod)))
+                                .append(setHashExpression(hashes, position, hash, combineHash))));
+
+        body.append(computeHashLoop).ret();
+    }
+
+    private static BytecodeExpression computeHashNonNull(CallSiteBinder callSiteBinder, Variable block, BytecodeExpression position, MethodHandle hashMethod)
     {
         return invokeDynamic(
                 BOOTSTRAP_METHOD,
