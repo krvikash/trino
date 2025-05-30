@@ -800,7 +800,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
                             "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "gcp.credentials-key",
+                            "gcp.user-name"))
             .put("prometheus",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
