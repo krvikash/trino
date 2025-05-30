@@ -176,16 +176,17 @@ public class JoinProbe
                     // This way less code is in the if branch and CPU should be able to optimize branch prediction better
                     nonNullCount += isNull[i] ? 0 : 1;
                 }
+
+                long[] hashes = new long[positionCount];
                 if (probeHashBlock != null) {
-                    long[] hashes = new long[positionCount];
                     for (int i = 0; i < positionCount; i++) {
                         hashes[i] = BIGINT.getLong(probeHashBlock, i);
                     }
-                    lookupSource.getJoinPosition(positions, probePage, page, hashes, joinPositionCache);
                 }
                 else {
-                    lookupSource.getJoinPosition(positions, probePage, page, joinPositionCache);
+                    hashGenerator.hashNonNulls(probePage, positions, hashes);
                 }
+                lookupSource.getJoinPosition(positions, probePage, page, hashes, joinPositionCache);
                 return joinPositionCache;
             } // else fall back to non-null path
         }
