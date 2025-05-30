@@ -22,11 +22,6 @@ defaults:
 env:
   # An envar that signals to tests we are executing in the CI environment
   CONTINUOUS_INTEGRATION: true
-  # credentials for the private repository
-  mavenReleaseUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
-  mavenReleasePassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
-  mavenSnapshotsUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
-  mavenSnapshotsPassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
   # allow overriding Maven command
   MAVEN: ./mvnw -s .github/settings.xml
   MAVEN_OPTS: "-Xmx512M -XX:+ExitOnOutOfMemoryError"

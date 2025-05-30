@@ -7,8 +7,8 @@
         <!-- Starburst Maven Snapshot Repository -->
         <server>
             <id>starburstdata-sep.snapshots</id>
-            <username>${env.mavenSnapshotsUsername}</username>
-            <password>${env.mavenSnapshotsPassword}</password>
+            <username>${env.mavenUser}</username>
+            <password>${env.mavenCredentials}</password>
             <configuration>
                 <httpConfiguration>
                     <all>
@@ -21,8 +21,8 @@
         <!-- Starburst Maven Release Repository -->
         <server>
             <id>starburstdata-sep.releases</id>
-            <username>${env.mavenReleaseUsername}</username>
-            <password>${env.mavenReleasePassword}</password>
+            <username>${env.mavenUser}</username>
+            <password>${env.mavenCredentials}</password>
             <configuration>
                 <httpConfiguration>
                     <all>
