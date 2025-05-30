@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
@@ -223,12 +224,47 @@ public class AggregateCall
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        checkArgument(newRegions.size() == 4, "regions lists size mismatch");
+        return new AggregateCall(
+                result.name(),
+                group,
+                trinoType(result.type()),
+                newRegions.get(0).getOnlyBlock(),
+                newRegions.get(1).getOnlyBlock(),
+                newRegions.get(2).getOnlyBlock(),
+                newRegions.get(3).getOnlyBlock(),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                RESOLVED_FUNCTION.getAttribute(attributes),
+                DISTINCT.getAttribute(attributes),
+                AGGREGATION_STEP.getAttribute(attributes));
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);
         return new AggregateCall(
                 result.name(),
                 newArgument,
+                trinoType(result.type()),
+                arguments.getOnlyBlock(),
+                filterSelector.getOnlyBlock(),
+                maskSelector.getOnlyBlock(),
+                orderingSelector.getOnlyBlock(),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                RESOLVED_FUNCTION.getAttribute(attributes),
+                DISTINCT.getAttribute(attributes),
+                AGGREGATION_STEP.getAttribute(attributes));
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        return new AggregateCall(
+                newName,
+                group,
                 trinoType(result.type()),
                 arguments.getOnlyBlock(),
                 filterSelector.getOnlyBlock(),
