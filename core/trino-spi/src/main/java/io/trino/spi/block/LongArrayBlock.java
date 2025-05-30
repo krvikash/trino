@@ -220,7 +220,7 @@ public final class LongArrayBlock
     }
 
     @Override
-    public Optional<ByteArrayBlock> getNulls()
+    public Optional<BooleanArrayBlock> getNulls()
     {
         return BlockUtil.getNulls(valueIsNull, arrayOffset, positionCount);
     }

@@ -45,10 +45,10 @@ public non-sealed interface ValueBlock
     }
 
     /**
-     * Returns a ByteArrayBlock specifying whether the current positions in the Block contain a NULL.
+     * Returns a BooleanArrayBlock specifying whether the current positions in the Block contain a NULL.
      * Returns Optional.empty() when there are no NULLs in the Block.
-     * The returned ByteArrayBlock must not contain NULL values.
+     * The returned BooleanArrayBlock must not contain NULL values.
      */
     @Experimental(eta = "2025-01-01")
-    Optional<ByteArrayBlock> getNulls();
+    Optional<BooleanArrayBlock> getNulls();
 }

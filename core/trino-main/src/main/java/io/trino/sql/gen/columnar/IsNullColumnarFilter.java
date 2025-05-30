@@ -16,7 +16,7 @@ package io.trino.sql.gen.columnar;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.trino.operator.project.InputChannels;
-import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
@@ -59,21 +59,18 @@ public final class IsNullColumnarFilter
     public int filterPositionsRange(ConnectorSession session, int[] outputPositions, int offset, int size, SourcePage page)
     {
         ValueBlock block = (ValueBlock) page.getBlock(0);
-        if (!block.mayHaveNull()) {
-            return 0;
-        }
 
-        Optional<ByteArrayBlock> isNullsBlock = block.getNulls();
+        Optional<BooleanArrayBlock> isNullsBlock = block.getNulls();
         if (isNullsBlock.isEmpty()) {
             return 0;
         }
 
-        byte[] isNull = isNullsBlock.get().getRawValues();
+        boolean[] isNull = isNullsBlock.get().getRawValues();
         int isNullOffset = isNullsBlock.get().getRawValuesOffset();
         int nullPositionsCount = 0;
         for (int position = offset; position < offset + size; position++) {
             outputPositions[nullPositionsCount] = position;
-            nullPositionsCount += isNull[isNullOffset + position];
+            nullPositionsCount += isNull[isNullOffset + position] ? 1 : 0;
         }
         return nullPositionsCount;
     }
@@ -82,22 +79,19 @@ public final class IsNullColumnarFilter
     public int filterPositionsList(ConnectorSession session, int[] outputPositions, int[] activePositions, int offset, int size, SourcePage page)
     {
         ValueBlock block = (ValueBlock) page.getBlock(0);
-        if (!block.mayHaveNull()) {
-            return 0;
-        }
 
-        Optional<ByteArrayBlock> isNullsBlock = block.getNulls();
+        Optional<BooleanArrayBlock> isNullsBlock = block.getNulls();
         if (isNullsBlock.isEmpty()) {
             return 0;
         }
 
-        byte[] isNull = isNullsBlock.get().getRawValues();
+        boolean[] isNull = isNullsBlock.get().getRawValues();
         int isNullOffset = isNullsBlock.get().getRawValuesOffset();
         int nullPositionsCount = 0;
         for (int index = offset; index < offset + size; index++) {
             int position = activePositions[index];
             outputPositions[nullPositionsCount] = position;
-            nullPositionsCount += isNull[isNullOffset + position];
+            nullPositionsCount += isNull[isNullOffset + position] ? 1 : 0;
         }
         return nullPositionsCount;
     }

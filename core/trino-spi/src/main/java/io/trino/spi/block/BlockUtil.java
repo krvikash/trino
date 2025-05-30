@@ -286,6 +286,18 @@ final class BlockUtil
         return buffer;
     }
 
+    public static boolean[] ensureCapacity(@Nullable boolean[] buffer, int capacity)
+    {
+        if (buffer == null) {
+            buffer = new boolean[capacity];
+        }
+        else if (buffer.length < capacity) {
+            buffer = Arrays.copyOf(buffer, capacity);
+        }
+
+        return buffer;
+    }
+
     /**
      * Returns a new short array of size capacity if the input buffer is null or
      * smaller than the capacity. Returns the original array otherwise.
@@ -350,20 +362,11 @@ final class BlockUtil
      * Ideally, the underlying nulls array in Block implementations should be a byte array instead of a boolean array.
      * This method is used to perform that conversion until the Block implementations are changed.
      */
-    static Optional<ByteArrayBlock> getNulls(@Nullable boolean[] valueIsNull, int arrayOffset, int positionCount)
+    static Optional<BooleanArrayBlock> getNulls(@Nullable boolean[] valueIsNull, int arrayOffset, int positionCount)
     {
         if (valueIsNull == null) {
             return Optional.empty();
         }
-        byte[] booleansAsBytes = new byte[positionCount];
-        boolean foundAnyNull = false;
-        for (int i = 0; i < positionCount; i++) {
-            booleansAsBytes[i] = (byte) (valueIsNull[arrayOffset + i] ? 1 : 0);
-            foundAnyNull = foundAnyNull || valueIsNull[arrayOffset + i];
-        }
-        if (!foundAnyNull) {
-            return Optional.empty();
-        }
-        return Optional.of(new ByteArrayBlock(booleansAsBytes.length, Optional.empty(), booleansAsBytes));
+        return Optional.of(new BooleanArrayBlock(arrayOffset, positionCount, valueIsNull));
     }
 }

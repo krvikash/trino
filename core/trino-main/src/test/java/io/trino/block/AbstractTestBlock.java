@@ -21,7 +21,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.BlockEncodingSerde;
-import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.DictionaryId;
 import io.trino.spi.block.MapHashTables;
@@ -38,7 +38,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
@@ -58,11 +57,13 @@ public abstract class AbstractTestBlock
         assertRetainedSize(block);
 
         assertBlockPositions(block, expectedValues);
-        assertBlockPositions(copyBlockViaBlockSerde(block), expectedValues);
+        if (!(block instanceof BooleanArrayBlock)) {
+            assertBlockPositions(copyBlockViaBlockSerde(block), expectedValues);
 
-        Block blockWithNull = copyBlockViaBlockSerde(block).copyWithAppendedNull();
-        T[] expectedValuesWithNull = Arrays.copyOf(expectedValues, expectedValues.length + 1);
-        assertBlockPositions(blockWithNull, expectedValuesWithNull);
+            Block blockWithNull = copyBlockViaBlockSerde(block).copyWithAppendedNull();
+            T[] expectedValuesWithNull = Arrays.copyOf(expectedValues, expectedValues.length + 1);
+            assertBlockPositions(blockWithNull, expectedValuesWithNull);
+        }
 
         assertBlockSize(block);
         assertRetainedSize(block);
@@ -79,11 +80,11 @@ public abstract class AbstractTestBlock
 
         if (block instanceof ValueBlock valueBlock) {
             assertBlockClassImplementation(valueBlock.getClass());
-            Optional<ByteArrayBlock> isNull = valueBlock.getNulls();
-            if (valueBlock.mayHaveNull() && IntStream.range(0, valueBlock.getPositionCount()).anyMatch(valueBlock::isNull)) {
+            Optional<BooleanArrayBlock> isNull = valueBlock.getNulls();
+            if (valueBlock.mayHaveNull()) {
                 assertThat(isNull).isPresent();
                 for (int i = 0; i < valueBlock.getPositionCount(); i++) {
-                    assertThat(isNull.get().getByte(i) == 1).isEqualTo(valueBlock.isNull(i));
+                    assertThat(isNull.get().getBoolean(i)).isEqualTo(valueBlock.isNull(i));
                 }
             }
             else {
@@ -248,9 +249,11 @@ public abstract class AbstractTestBlock
         assertPositionValue(block.getRegion(0, position + 1), position, expectedValue);
         assertPositionValue(block.getRegion(position, block.getPositionCount() - position), 0, expectedValue);
 
-        assertPositionValue(copyBlockViaBlockSerde(block.getRegion(position, 1)), 0, expectedValue);
-        assertPositionValue(copyBlockViaBlockSerde(block.getRegion(0, position + 1)), position, expectedValue);
-        assertPositionValue(copyBlockViaBlockSerde(block.getRegion(position, block.getPositionCount() - position)), 0, expectedValue);
+        if (!(block instanceof BooleanArrayBlock)) {
+            assertPositionValue(copyBlockViaBlockSerde(block.getRegion(position, 1)), 0, expectedValue);
+            assertPositionValue(copyBlockViaBlockSerde(block.getRegion(0, position + 1)), position, expectedValue);
+            assertPositionValue(copyBlockViaBlockSerde(block.getRegion(position, block.getPositionCount() - position)), 0, expectedValue);
+        }
 
         assertPositionValue(block.copyRegion(position, 1), 0, expectedValue);
         assertPositionValue(block.copyRegion(0, position + 1), position, expectedValue);

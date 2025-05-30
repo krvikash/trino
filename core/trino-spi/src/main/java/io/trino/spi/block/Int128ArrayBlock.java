@@ -237,7 +237,7 @@ public final class Int128ArrayBlock
     }
 
     @Override
-    public Optional<ByteArrayBlock> getNulls()
+    public Optional<BooleanArrayBlock> getNulls()
     {
         return BlockUtil.getNulls(valueIsNull, positionOffset, positionCount);
     }

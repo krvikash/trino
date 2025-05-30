@@ -16,7 +16,7 @@ package io.trino.sql.gen.columnar;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.trino.operator.project.InputChannels;
-import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
@@ -62,17 +62,16 @@ public final class IsNotNullColumnarFilter
         ValueBlock block = (ValueBlock) page.getBlock(0);
         int nonNullPositionsCount = 0;
         int position;
-        if (block.mayHaveNull()) {
-            Optional<ByteArrayBlock> isNullsBlock = block.getNulls();
-            if (isNullsBlock.isPresent()) {
-                byte[] isNull = isNullsBlock.get().getRawValues();
-                int isNullOffset = isNullsBlock.get().getRawValuesOffset();
-                for (position = offset; position < offset + size; position++) {
-                    outputPositions[nonNullPositionsCount] = position;
-                    nonNullPositionsCount += isNull[isNullOffset + position] == 0 ? 1 : 0;
-                }
-                return nonNullPositionsCount;
+
+        Optional<BooleanArrayBlock> isNullsBlock = block.getNulls();
+        if (isNullsBlock.isPresent()) {
+            boolean[] isNull = isNullsBlock.get().getRawValues();
+            int isNullOffset = isNullsBlock.get().getRawValuesOffset();
+            for (position = offset; position < offset + size; position++) {
+                outputPositions[nonNullPositionsCount] = position;
+                nonNullPositionsCount += isNull[isNullOffset + position] ? 0 : 1;
             }
+            return nonNullPositionsCount;
         }
 
         for (position = offset; position < offset + size; position++) {
@@ -85,19 +84,17 @@ public final class IsNotNullColumnarFilter
     public int filterPositionsList(ConnectorSession session, int[] outputPositions, int[] activePositions, int offset, int size, SourcePage page)
     {
         ValueBlock block = (ValueBlock) page.getBlock(0);
-        if (block.mayHaveNull()) {
-            Optional<ByteArrayBlock> isNullsBlock = block.getNulls();
-            if (isNullsBlock.isPresent()) {
-                int nonNullPositionsCount = 0;
-                byte[] isNull = isNullsBlock.get().getRawValues();
-                int isNullOffset = isNullsBlock.get().getRawValuesOffset();
-                for (int index = offset; index < offset + size; index++) {
-                    int position = activePositions[index];
-                    outputPositions[nonNullPositionsCount] = position;
-                    nonNullPositionsCount += isNull[isNullOffset + position] == 0 ? 1 : 0;
-                }
-                return nonNullPositionsCount;
+        Optional<BooleanArrayBlock> isNullsBlock = block.getNulls();
+        if (isNullsBlock.isPresent()) {
+            int nonNullPositionsCount = 0;
+            boolean[] isNull = isNullsBlock.get().getRawValues();
+            int isNullOffset = isNullsBlock.get().getRawValuesOffset();
+            for (int index = offset; index < offset + size; index++) {
+                int position = activePositions[index];
+                outputPositions[nonNullPositionsCount] = position;
+                nonNullPositionsCount += isNull[isNullOffset + position] ? 0 : 1;
             }
+            return nonNullPositionsCount;
         }
 
         arraycopy(activePositions, offset, outputPositions, 0, size);

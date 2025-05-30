@@ -529,7 +529,7 @@ public final class MapBlock
     }
 
     @Override
-    public Optional<ByteArrayBlock> getNulls()
+    public Optional<BooleanArrayBlock> getNulls()
     {
         return BlockUtil.getNulls(mapIsNull, startOffset, positionCount);
     }

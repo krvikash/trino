@@ -245,7 +245,7 @@ public final class Fixed12Block
     }
 
     @Override
-    public Optional<ByteArrayBlock> getNulls()
+    public Optional<BooleanArrayBlock> getNulls()
     {
         return BlockUtil.getNulls(valueIsNull, positionOffset, positionCount);
     }
