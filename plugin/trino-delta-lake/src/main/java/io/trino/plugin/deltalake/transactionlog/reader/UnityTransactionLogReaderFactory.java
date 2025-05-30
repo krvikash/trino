@@ -18,9 +18,12 @@ import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
 import io.trino.plugin.deltalake.metastore.DeltaMetastoreTable;
+import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
+import io.trino.spi.TrinoException;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogOwnedTable;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
 
 public class UnityTransactionLogReaderFactory
@@ -28,20 +31,26 @@ public class UnityTransactionLogReaderFactory
 {
     private final TrinoFileSystemFactory fileSystemFactory;
     private final DeltaLakeTableOperationsProvider tableOperationsProvider;
+    private final boolean isCatalogOwnedTableEnabled;
 
     @Inject
     public UnityTransactionLogReaderFactory(
             TrinoFileSystemFactory fileSystemFactory,
-            DeltaLakeTableOperationsProvider tableOperationsProvider)
+            DeltaLakeTableOperationsProvider tableOperationsProvider,
+            UnityMetastoreConfig unityMetastoreConfig)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
+        this.isCatalogOwnedTableEnabled = unityMetastoreConfig.isCatalogOwnedTableEnabled();
     }
 
     @Override
     public TransactionLogReader createReader(DeltaLakeTableHandle tableHandle)
     {
         if (isCatalogOwnedTable(tableHandle.getProtocolEntry())) {
+            if (!isCatalogOwnedTableEnabled) {
+                throw new TrinoException(NOT_SUPPORTED, "Catalog owned table not enabled");
+            }
             String tableId = tableHandle.getMetadataEntry().getTableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog owned tables"));
             return new RestUnityTransactionLogReader(tableId, tableHandle.getLocation(), fileSystemFactory, tableOperationsProvider);
         }
@@ -54,6 +63,9 @@ public class UnityTransactionLogReaderFactory
     public TransactionLogReader createReader(DeltaMetastoreTable table)
     {
         if (table.catalogOwned()) {
+            if (!isCatalogOwnedTableEnabled) {
+                throw new TrinoException(NOT_SUPPORTED, "Catalog owned table not enabled");
+            }
             String tableId = table.tableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog owned tables"));
             return new RestUnityTransactionLogReader(tableId, table.location(), fileSystemFactory, tableOperationsProvider);
         }

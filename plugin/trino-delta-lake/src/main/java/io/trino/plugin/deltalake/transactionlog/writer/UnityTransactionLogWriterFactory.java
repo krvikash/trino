@@ -20,11 +20,14 @@ import io.trino.plugin.deltalake.ForUnityBackfill;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
+import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 
 import java.util.concurrent.ExecutorService;
 
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogOwnedTable;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
 
 public class UnityTransactionLogWriterFactory
@@ -34,18 +37,21 @@ public class UnityTransactionLogWriterFactory
     private final DeltaLakeTableOperationsProvider tableOperationsProvider;
     private final TransactionLogSynchronizerManager synchronizerManager;
     private final ExecutorService backfillExecutor;
+    private final boolean isCatalogOwnedTableEnabled;
 
     @Inject
     public UnityTransactionLogWriterFactory(
             TrinoFileSystemFactory fileSystemFactory,
             DeltaLakeTableOperationsProvider tableOperationsProvider,
             TransactionLogSynchronizerManager synchronizerManager,
-            @ForUnityBackfill ExecutorService backfillExecutor)
+            @ForUnityBackfill ExecutorService backfillExecutor,
+            UnityMetastoreConfig unityMetastoreConfig)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
         this.synchronizerManager = requireNonNull(synchronizerManager, "synchronizerManager is null");
         this.backfillExecutor = requireNonNull(backfillExecutor, "backfillExecutor is null");
+        this.isCatalogOwnedTableEnabled = unityMetastoreConfig.isCatalogOwnedTableEnabled();
     }
 
     @Override
@@ -59,6 +65,9 @@ public class UnityTransactionLogWriterFactory
     {
         TransactionLogSynchronizer synchronizer = synchronizerManager.getSynchronizer(tableLocation);
         if (isCatalogOwnedTable(protocolEntry)) {
+            if (!isCatalogOwnedTableEnabled) {
+                throw new TrinoException(NOT_SUPPORTED, "Catalog owned table not enabled");
+            }
             String tableId = metadataEntry.getTableId()
                     .orElseThrow(() -> new IllegalStateException("tableId is not present"));
             return new UnityTransactionLogWriter(

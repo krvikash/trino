@@ -3148,7 +3148,7 @@ public class DeltaLakeMetadata
             return !requiresOptIn || unsafeWritesEnabled;
         }
         catch (TrinoException e) {
-            if (e.getErrorCode() == NOT_SUPPORTED.toErrorCode()) {
+            if (!isCatalogOwnedTable(tableHandle.getProtocolEntry()) && e.getErrorCode() == NOT_SUPPORTED.toErrorCode()) {
                 return false;
             }
             throw e;
