@@ -158,16 +158,6 @@ public final class NullSafeHashCompiler
         body.append(position.set(invokeStatic(Objects.class, "checkFromToIndex", int.class, offset, add(offset, length), block.invoke("getPositionCount", int.class))));
         body.append(invokeStatic(Objects.class, "checkFromIndexSize", int.class, constantInt(0), length, hashes.length()).pop());
 
-        BytecodeExpression setHashExpression;
-        if (combineHash) {
-            // hashes[index] = CombineHashFunction.getHash(hashes[index], hash);
-            setHashExpression = hashes.setElement(index, invokeStatic(CombineHashFunction.class, "getHash", long.class, hashes.getElement(index), hash));
-        }
-        else {
-            // hashes[index] = hash;
-            setHashExpression = hashes.setElement(index, hash);
-        }
-
         BytecodeBlock computeHashLoop = new BytecodeBlock()
                 .append(mayHaveNull.set(block.invoke("mayHaveNull", boolean.class)))
                 .append(new ForLoop("for (int index = 0; index < length; index++)")
@@ -179,7 +169,7 @@ public final class NullSafeHashCompiler
                                         .condition(and(mayHaveNull, block.invoke("isNull", boolean.class, position)))
                                         .ifTrue(hash.set(constantLong(NULL_HASH_CODE)))
                                         .ifFalse(hash.set(computeHashNonNull(callSiteBinder, block, position, hashMethod))))
-                                .append(setHashExpression)
+                                .append(setHashExpression(hashes, index, hash, combineHash))
                                 .append(position.increment())));
 
         body.append(computeHashLoop).ret();
@@ -194,5 +184,15 @@ public final class NullSafeHashCompiler
                 long.class,
                 block,
                 position);
+    }
+
+    private static BytecodeExpression setHashExpression(Parameter hashes, Variable index, Variable hash, boolean combineHash)
+    {
+        if (combineHash) {
+            // hashes[index] = CombineHashFunction.getHash(hashes[index], hash);
+            return hashes.setElement(index, invokeStatic(CombineHashFunction.class, "getHash", long.class, hashes.getElement(index), hash));
+        }
+        // hashes[index] = hash;
+        return hashes.setElement(index, hash);
     }
 }
