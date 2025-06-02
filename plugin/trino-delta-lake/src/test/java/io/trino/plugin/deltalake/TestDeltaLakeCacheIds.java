@@ -116,7 +116,8 @@ public class TestDeltaLakeCacheIds
                 fileFormatDataSourceStats,
                 HDFS_FILE_SYSTEM_FACTORY,
                 new ParquetReaderConfig(),
-                newDirectExecutorService());
+                newDirectExecutorService(),
+                new FileSystemTransactionLogReaderFactory(hdfsFileSystemFactory));
         CheckpointWriterManager checkpointWriterManager = new CheckpointWriterManager(
                 typeManager,
                 new CheckpointSchemaManager(typeManager),
@@ -162,8 +163,7 @@ public class TestDeltaLakeCacheIds
                 hdfsFileSystemFactory,
                 createJsonCodec(DeltaLakeCacheSplitId.class),
                 new DeltaLakeTransactionManager(metadataFactory),
-                new DefaultCachingHostAddressProvider(),
-                transactionLogReaderFactory);
+                new DefaultCachingHostAddressProvider());
     }
 
     @AfterAll

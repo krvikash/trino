@@ -14,7 +14,6 @@
 package io.trino.plugin.deltalake;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.units.DataSize;
@@ -28,8 +27,6 @@ import io.trino.plugin.deltalake.transactionlog.AddFileEntry;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.TableSnapshot;
 import io.trino.plugin.deltalake.transactionlog.TransactionLogAccess;
-import io.trino.plugin.deltalake.transactionlog.reader.TransactionLogReader;
-import io.trino.plugin.deltalake.transactionlog.reader.TransactionLogReaderFactory;
 import io.trino.plugin.deltalake.transactionlog.statistics.DeltaLakeFileStatistics;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.cache.CacheSplitId;
@@ -94,7 +91,6 @@ public class DeltaLakeSplitManager
     private final JsonCodec<DeltaLakeCacheSplitId> splitIdCodec;
     private final DeltaLakeTransactionManager deltaLakeTransactionManager;
     private final CachingHostAddressProvider cachingHostAddressProvider;
-    private final TransactionLogReaderFactory transactionLogReaderFactory;
 
     @Inject
     public DeltaLakeSplitManager(
@@ -105,8 +101,7 @@ public class DeltaLakeSplitManager
             TrinoFileSystemFactory fileSystemFactory,
             JsonCodec<DeltaLakeCacheSplitId> splitIdCodec,
             DeltaLakeTransactionManager deltaLakeTransactionManager,
-            CachingHostAddressProvider cachingHostAddressProvider,
-            TransactionLogReaderFactory transactionLogReaderFactory)
+            CachingHostAddressProvider cachingHostAddressProvider)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.transactionLogAccess = requireNonNull(transactionLogAccess, "transactionLogAccess is null");
@@ -118,7 +113,6 @@ public class DeltaLakeSplitManager
         this.splitIdCodec = requireNonNull(splitIdCodec, "splitIdCodec is null");
         this.deltaLakeTransactionManager = requireNonNull(deltaLakeTransactionManager, "deltaLakeTransactionManager is null");
         this.cachingHostAddressProvider = requireNonNull(cachingHostAddressProvider, "cacheHostAddressProvider is null");
-        this.transactionLogReaderFactory = requireNonNull(transactionLogReaderFactory, "transactionLogLoaderFactory is null");
     }
 
     @Override
@@ -197,17 +191,9 @@ public class DeltaLakeSplitManager
             Set<ColumnHandle> columnsCoveredByDynamicFilter,
             Constraint constraint)
     {
-        TransactionLogReader transactionLogReader = transactionLogReaderFactory.createReader(tableHandle);
         TableSnapshot tableSnapshot = deltaLakeTransactionManager.get(transaction, session.getIdentity())
-                .getSnapshot(session, transactionLogReader, tableHandle.getSchemaTableName(), tableHandle.getLocation(), Optional.of(tableHandle.getReadVersion()));
-        Stream<AddFileEntry> validDataFiles = transactionLogAccess.getActiveFiles(
-                session,
-                transactionLogReader,
-                tableSnapshot,
-                tableHandle.getMetadataEntry(),
-                tableHandle.getProtocolEntry(),
-                tableHandle.getEnforcedPartitionConstraint(),
-                tableHandle.getProjectedColumns().orElse(ImmutableSet.of()));
+                .getSnapshot(session, tableHandle, Optional.of(tableHandle.getReadVersion()));
+        Stream<AddFileEntry> validDataFiles = transactionLogAccess.getActiveFiles(session, tableHandle, tableSnapshot);
         TupleDomain<DeltaLakeColumnHandle> enforcedPartitionConstraint = tableHandle.getEnforcedPartitionConstraint();
         TupleDomain<DeltaLakeColumnHandle> nonPartitionConstraint = tableHandle.getNonPartitionConstraint();
         Domain pathDomain = getPathDomain(nonPartitionConstraint);

@@ -134,8 +134,7 @@ public class DeltaLakeMetadataFactory
         FileBasedTableStatisticsProvider tableStatisticsProvider = new FileBasedTableStatisticsProvider(
                 typeManager,
                 transactionLogAccess,
-                statisticsAccess,
-                transactionLogReaderFactory);
+                statisticsAccess);
         TrinoViewHiveMetastore trinoViewHiveMetastore = new TrinoViewHiveMetastore(
                 cachingHiveMetastore,
                 usingSystemSecurity,
