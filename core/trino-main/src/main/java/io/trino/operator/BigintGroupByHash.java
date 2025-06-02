@@ -51,7 +51,7 @@ public class BigintGroupByHash
         implements GroupByHash
 {
     private static final int INSTANCE_SIZE = instanceSize(BigintGroupByHash.class);
-    private static final int BATCH_SIZE = 1024;
+    private static final int BATCH_SIZE = 8192;
 
     private static final float FILL_RATIO = 0.75f;
     private static final Set<Type> SUPPORTED_TYPES = ImmutableSet.of(BIGINT, INTEGER, SMALLINT, TINYINT, DATE);
