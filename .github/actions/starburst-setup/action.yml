@@ -58,18 +58,9 @@ runs:
       if: inputs.login-maven != 'false'
       uses: starburstdata/codeartifact-login-action@v1
       with:
-        domain: starburst-domain
-        owner: 843985043183
-        region: us-east-1
-    - name: "Login to maven registry us-east-2"
-      if: inputs.login-maven != 'false'
-      uses: starburstdata/codeartifact-login-action@v1
-      with:
         domain: starburstdata-sep-cicd
         owner: 843985043183
         region: us-east-2
-        user-variable: mavenUserUsEast2
-        password-variable: mavenCredentialsUsEast2
     - name: "Login to ECR docker registry"
       if: inputs.login-docker != 'false'
       uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3
