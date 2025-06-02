@@ -1035,6 +1035,8 @@ public abstract class BaseConnectorTest
                 assertUpdate("ALTER TABLE %s ADD COLUMN new_column_2 BIGINT".formatted(table.getName()));
                 assertUpdate("ALTER VIEW %s REFRESH".formatted(view.getName()));
                 assertThat(getColumnComment(view.getName(), "column_with_comment")).isEqualTo("test comment");
+
+                assertUpdate("ALTER TABLE %s RENAME COLUMN column_with_comment TO renamed_new_column".formatted(table.getName()));
             }
 
             if (hasBehavior(SUPPORTS_DROP_COLUMN)) {
