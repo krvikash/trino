@@ -80,6 +80,8 @@ public class BigintGroupByHash
     private final UpdateMemory updateMemory;
     private long preallocatedMemoryInBytes;
     private long currentPageSizeInBytes;
+    // reusable array for computing hash batches into
+    private int[] currentHashes;
 
     public BigintGroupByHash(boolean outputRawHash, int expectedSize, UpdateMemory updateMemory, Type hashType)
     {
@@ -120,6 +122,7 @@ public class BigintGroupByHash
         updateMemory = other.updateMemory;
         preallocatedMemoryInBytes = other.preallocatedMemoryInBytes;
         currentPageSizeInBytes = other.currentPageSizeInBytes;
+        currentHashes = other.currentHashes == null ? null : Arrays.copyOf(other.currentHashes, other.currentHashes.length);
     }
 
     @Override
@@ -129,6 +132,7 @@ public class BigintGroupByHash
                 sizeOf(groupIds) +
                 values.getSize() +
                 valuesByGroupId.getSize() +
+                sizeOf(currentHashes) +
                 preallocatedMemoryInBytes;
     }
 
@@ -224,6 +228,25 @@ public class BigintGroupByHash
         long value = hashType.getLong(block, position);
         int hashPosition = getHashPosition(value, mask);
 
+        return putValueIfAbsent(value, hashPosition);
+    }
+
+    private int putIfAbsent(int position, Block block, int hashPosition)
+    {
+        if (block.isNull(position)) {
+            if (nullGroupId < 0) {
+                // set null group id
+                nullGroupId = nextGroupId++;
+            }
+
+            return nullGroupId;
+        }
+
+        return putValueIfAbsent(hashType.getLong(block, position), hashPosition);
+    }
+
+    private int putValueIfAbsent(long value, int hashPosition)
+    {
         // look for an empty slot or a slot containing this key
         while (true) {
             int groupId = groupIds[hashPosition];
@@ -240,6 +263,25 @@ public class BigintGroupByHash
         }
 
         return addNewGroup(hashPosition, value);
+    }
+
+    private void computeHashes(Block block, int offset, int batchSize, int[] hashes)
+    {
+        boolean mayHaveNull = block.mayHaveNull();
+        for (int i = 0; i < batchSize; i++) {
+            int position = offset + i;
+            if (!mayHaveNull || !block.isNull(position)) {
+                hashes[i] = getHashPosition(hashType.getLong(block, position), mask);
+            }
+        }
+    }
+
+    private int[] getHashesBufferArray(int size)
+    {
+        if (currentHashes == null || currentHashes.length < size) {
+            currentHashes = new int[Math.min(size, BATCH_SIZE)];
+        }
+        return currentHashes;
     }
 
     private int addNewGroup(int hashPosition, long value)
@@ -375,14 +417,17 @@ public class BigintGroupByHash
             checkState(lastPosition <= positionCount, "position count out of bound");
             int remainingPositions = positionCount - lastPosition;
 
+            int[] hashes = getHashesBufferArray(remainingPositions);
             while (remainingPositions != 0) {
-                int batchSize = min(remainingPositions, BATCH_SIZE);
+                int batchSize = min(remainingPositions, hashes.length);
                 if (!ensureHashTableSize(batchSize)) {
                     return false;
                 }
 
-                for (int i = lastPosition; i < lastPosition + batchSize; i++) {
-                    putIfAbsent(i, block);
+                computeHashes(block, lastPosition, batchSize, hashes);
+                for (int i = 0; i < batchSize; i++) {
+                    int position = lastPosition + i;
+                    putIfAbsent(position, block, hashes[i]);
                 }
 
                 lastPosition += batchSize;
@@ -511,15 +556,18 @@ public class BigintGroupByHash
 
             int remainingPositions = positionCount - lastPosition;
 
+            int[] hashes = getHashesBufferArray(remainingPositions);
             while (remainingPositions != 0) {
-                int batchSize = min(remainingPositions, BATCH_SIZE);
+                int batchSize = min(remainingPositions, hashes.length);
                 if (!ensureHashTableSize(batchSize)) {
                     return false;
                 }
 
-                for (int i = lastPosition; i < lastPosition + batchSize; i++) {
+                computeHashes(block, lastPosition, batchSize, hashes);
+                for (int i = 0; i < batchSize; i++) {
+                    int position = lastPosition + i;
                     // output the group id for this row
-                    groupIds[i] = putIfAbsent(i, block);
+                    groupIds[position] = putIfAbsent(position, block, hashes[i]);
                 }
 
                 lastPosition += batchSize;
