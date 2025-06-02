@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.trino.jdbc.CancellableIterator.wrap;
+import static io.trino.client.CloseableIterator.closeable;
 
 // This is a hack to avoid shading issues with relocated client classes
 public class StargateInMemoryResultSet
@@ -31,7 +31,7 @@ public class StargateInMemoryResultSet
 
     public StargateInMemoryResultSet(String serializedColumns, Iterator<List<Object>> iterator)
     {
-        super(Optional.empty(), SerializationShim.toColumns(serializedColumns), wrap(iterator));
+        super(Optional.empty(), SerializationShim.toColumns(serializedColumns), closeable(iterator));
     }
 
     @Override
