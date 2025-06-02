@@ -632,6 +632,12 @@ public class DispatcherMetadata
     }
 
     @Override
+    public void refreshView(ConnectorSession session, SchemaTableName viewName, ConnectorViewDefinition viewDefinition)
+    {
+        proxiedConnectorMetadata.refreshView(session, viewName, viewDefinition);
+    }
+
+    @Override
     public void dropView(ConnectorSession session, SchemaTableName viewName)
     {
         proxiedConnectorMetadata.dropView(session, viewName);

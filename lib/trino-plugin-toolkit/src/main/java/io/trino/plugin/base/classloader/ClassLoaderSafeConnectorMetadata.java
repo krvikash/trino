@@ -677,6 +677,14 @@ public class ClassLoaderSafeConnectorMetadata
     }
 
     @Override
+    public void refreshView(ConnectorSession session, SchemaTableName viewName, ConnectorViewDefinition viewDefinition)
+    {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            delegate.refreshView(session, viewName, viewDefinition);
+        }
+    }
+
+    @Override
     public void dropView(ConnectorSession session, SchemaTableName viewName)
     {
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
