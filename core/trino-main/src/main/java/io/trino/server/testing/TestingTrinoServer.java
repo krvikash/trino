@@ -36,7 +36,6 @@ import io.airlift.jmx.testing.TestingJmxModule;
 import io.airlift.json.JsonModule;
 import io.airlift.log.Level;
 import io.airlift.log.Logging;
-import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracing.TracingModule;
 import io.opentelemetry.api.trace.Span;
@@ -273,7 +272,8 @@ public class TestingTrinoServer
             List<EventListener> eventListeners,
             Consumer<TestingTrinoServer> additionalConfiguration,
             CatalogMangerKind catalogMangerKind,
-            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
+            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
+            boolean bindAllInterfaces)
     {
         this.coordinator = coordinator;
 
@@ -311,7 +311,7 @@ public class TestingTrinoServer
         serverProperties.put("optimizer.ignore-stats-calculator-failures", "false");
 
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
-                .add(new TestingNodeModule(environment))
+                .add(new TestingNodeModule(environment, bindAllInterfaces))
                 .add(new TestingHttpServerModule(httpPort))
                 .add(new JsonModule())
                 .add(new JaxrsModule())
@@ -844,10 +844,17 @@ public class TestingTrinoServer
         private Consumer<TestingTrinoServer> additionalConfiguration = _ -> {};
         private CatalogMangerKind catalogMangerKind = CatalogMangerKind.DYNAMIC;
         private Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader = Optional.empty();
+        private boolean bindAllInterfaces;
 
         public Builder setCoordinator(boolean coordinator)
         {
             this.coordinator = coordinator;
+            return this;
+        }
+
+        public Builder setBindAllInterfaces(boolean bindAllInterfaces)
+        {
+            this.bindAllInterfaces = bindAllInterfaces;
             return this;
         }
 
@@ -959,7 +966,8 @@ public class TestingTrinoServer
                     eventListeners,
                     additionalConfiguration,
                     catalogMangerKind,
-                    modelConnectionSpecsLoader);
+                    modelConnectionSpecsLoader,
+                    bindAllInterfaces);
         }
     }
 

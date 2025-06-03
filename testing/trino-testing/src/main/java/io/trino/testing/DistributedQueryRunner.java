@@ -150,7 +150,8 @@ public final class DistributedQueryRunner
             List<EventListener> eventListeners,
             List<AutoCloseable> extraCloseables,
             TestingTrinoClientFactory testingTrinoClientFactory,
-            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
+            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
+            boolean bindAllInterfaces)
             throws Exception
     {
         requireNonNull(defaultSession, "defaultSession is null");
@@ -179,7 +180,8 @@ public final class DistributedQueryRunner
                     systemAccessControlConfiguration,
                     systemAccessControls,
                     eventListeners,
-                    modelConnectionSpecsLoader);
+                    modelConnectionSpecsLoader,
+                    bindAllInterfaces);
 
             backupCoordinator = backupCoordinatorProperties.map(properties -> createServer(
                     true,
@@ -193,7 +195,8 @@ public final class DistributedQueryRunner
                     systemAccessControlConfiguration,
                     systemAccessControls,
                     eventListeners,
-                    modelConnectionSpecsLoader));
+                    modelConnectionSpecsLoader,
+                    bindAllInterfaces));
 
             backupCoordinator.ifPresent(backup -> {
                 coordinator.registerServer(backup.getCurrentNode());
@@ -216,7 +219,8 @@ public final class DistributedQueryRunner
                         Optional.empty(),
                         Optional.of(ImmutableList.of()),
                         ImmutableList.of(),
-                        modelConnectionSpecsLoader);
+                        modelConnectionSpecsLoader,
+                        bindAllInterfaces);
             };
 
             for (int i = 0; i < workerCount; i++) {
@@ -268,7 +272,8 @@ public final class DistributedQueryRunner
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
             List<EventListener> eventListeners,
-            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
+            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
+            boolean bindAllInterfaces)
     {
         if (this.coordinator != null) {
             String discoveryUri = this.coordinator.getCurrentNode().getInternalUri() +
@@ -293,7 +298,8 @@ public final class DistributedQueryRunner
                     functionBundles.forEach(newServer::addFunctions);
                     plugins.forEach(newServer::installPlugin);
                 },
-                modelConnectionSpecsLoader));
+                modelConnectionSpecsLoader,
+                bindAllInterfaces));
         servers.add(server);
 
         if (this.coordinator != null) {
@@ -327,7 +333,8 @@ public final class DistributedQueryRunner
             Optional<List<SystemAccessControl>> systemAccessControls,
             List<EventListener> eventListeners,
             Consumer<TestingTrinoServer> additionalConfiguration,
-            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
+            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
+            boolean bindAllInterfaces)
     {
         long start = System.nanoTime();
         ImmutableMap.Builder<String, String> propertiesBuilder = ImmutableMap.<String, String>builder()
@@ -362,6 +369,7 @@ public final class DistributedQueryRunner
                 .setEventListeners(eventListeners)
                 .setAdditionalConfiguration(additionalConfiguration)
                 .setModelConnectionSpecsLoader(modelConnectionSpecsLoader)
+                .setBindAllInterfaces(bindAllInterfaces)
                 .build();
 
         String nodeRole = coordinator ? "coordinator" : "worker";
@@ -769,12 +777,20 @@ public final class DistributedQueryRunner
         private TestingTrinoClientFactory testingTrinoClientFactory = TestingTrinoClient::new;
         private Optional<String> encoding = Optional.empty();
         private Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader = Optional.empty();
+        private boolean bindAllInterfaces;
 
         protected Builder(Session defaultSession)
         {
             this.defaultSession = requireNonNull(defaultSession, "defaultSession is null");
             String tracingEnabled = firstNonNull(getenv("TESTS_TRACING_ENABLED"), "false");
             this.withTracing = parseBoolean(tracingEnabled) || tracingEnabled.equals("1");
+        }
+
+        @CanIgnoreReturnValue
+        public SELF setBindAllInterfaces(boolean bindAllInterfaces)
+        {
+            this.bindAllInterfaces = bindAllInterfaces;
+            return self();
         }
 
         @CanIgnoreReturnValue
@@ -1028,7 +1044,8 @@ public final class DistributedQueryRunner
                     eventListeners,
                     extraCloseables.build(),
                     testingTrinoClientFactory,
-                    modelConnectionSpecsLoader);
+                    modelConnectionSpecsLoader,
+                    bindAllInterfaces);
             extraCloseables = null;
 
             try {
