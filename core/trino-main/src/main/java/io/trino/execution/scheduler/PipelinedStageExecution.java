@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.opentelemetry.api.trace.Span;
@@ -69,6 +70,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -80,6 +82,9 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
+import static io.airlift.concurrent.MoreFutures.addSuccessCallback;
+import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.trino.execution.scheduler.StageExecution.State.ABORTED;
 import static io.trino.execution.scheduler.StageExecution.State.CANCELED;
@@ -160,6 +165,8 @@ public class PipelinedStageExecution
 
     @GuardedBy("this")
     private final Set<PlanNodeId> completeSources = new HashSet<>();
+
+    private final Map<TaskId, SpoolingOutputBuffers> spoolingOutputBuffers = new ConcurrentHashMap<>();
 
     @GuardedBy("this")
     private boolean allRequiredSinksFinishedSent;
@@ -460,6 +467,10 @@ public class PipelinedStageExecution
         completeSources.forEach(task::noMoreSplits);
 
         task.addStateChangeListener(this::updateTaskStatus);
+        if (exchangeSinkHandle != null) {
+            spoolingOutputBuffers.put(task.getTaskId(), (SpoolingOutputBuffers) outputBuffers);
+            task.addStateChangeListener(createSinkInstanceUpdateListener());
+        }
 
         task.start();
 
@@ -472,12 +483,49 @@ public class PipelinedStageExecution
         return Optional.of(task);
     }
 
+    private StateChangeListener<TaskStatus> createSinkInstanceUpdateListener()
+    {
+        AtomicLong respondedToVersion = new AtomicLong(-1);
+        Exchange exchange = getOutputSpoolingExchange();
+        return taskStatus -> {
+            OutputBufferStatus outputBufferStatus = taskStatus.getOutputBufferStatus();
+            if (outputBufferStatus.getOutputBuffersVersion().isEmpty()) {
+                return;
+            }
+            if (!outputBufferStatus.isExchangeSinkInstanceHandleUpdateRequired()) {
+                return;
+            }
+            long remoteVersion = outputBufferStatus.getOutputBuffersVersion().getAsLong();
+            while (true) {
+                long localVersion = respondedToVersion.get();
+                if (remoteVersion <= localVersion) {
+                    // version update is scheduled or sent already but got not propagated yet
+                    break;
+                }
+                if (respondedToVersion.compareAndSet(localVersion, remoteVersion)) {
+                    TaskId taskId = taskStatus.getTaskId();
+                    ExchangeSinkHandle exchangeSinkHandle = exchangeSinkHandles.get(taskId);
+                    ListenableFuture<ExchangeSinkInstanceHandle> future = toListenableFuture(exchange.updateSinkInstanceHandle(exchangeSinkHandle, 0));
+
+                    addExceptionCallback(future, this::fail);
+
+                    addSuccessCallback(future, newSinkInstanceHandle -> {
+                        if (stateMachine.getState().isDone()) {
+                            // done already
+                            return;
+                        }
+                        SpoolingOutputBuffers oldBuffers = spoolingOutputBuffers.get(taskId);
+                        SpoolingOutputBuffers newBuffers = oldBuffers.withExchangeSinkInstanceHandle(newSinkInstanceHandle);
+                        spoolingOutputBuffers.put(taskId, newBuffers);
+                        tasks.get(taskId.getPartitionId()).setOutputBuffers(newBuffers);
+                    });
+                }
+            }
+        };
+    }
+
     private void updateTaskStatus(TaskStatus taskStatus)
     {
-        if (taskStatus.getOutputBufferStatus() != null && taskStatus.getOutputBufferStatus().isExchangeSinkInstanceHandleUpdateRequired()) {
-            fail(new RuntimeException("todo: handle isExchangeSinkInstanceHandleUpdateRequired"));
-        }
-
         if (stateMachine.getState().isDone()) {
             return;
         }
