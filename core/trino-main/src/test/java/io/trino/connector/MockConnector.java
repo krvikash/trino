@@ -718,6 +718,9 @@ public class MockConnector
         public void setViewAuthorization(ConnectorSession session, SchemaTableName viewName, TrinoPrincipal principal) {}
 
         @Override
+        public void setMaterializedViewAuthorization(ConnectorSession session, SchemaTableName viewName, TrinoPrincipal principal) {}
+
+        @Override
         public void dropView(ConnectorSession session, SchemaTableName viewName) {}
 
         @Override

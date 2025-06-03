@@ -968,7 +968,7 @@ grantObject
     ;
 
 ownedEntityKind
-    : TABLE | SCHEMA | VIEW | identifier
+    : TABLE | SCHEMA | VIEW | MATERIALIZED VIEW | identifier
     ;
 
 qualifiedName
