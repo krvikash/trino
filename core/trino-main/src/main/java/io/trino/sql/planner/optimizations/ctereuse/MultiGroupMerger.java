@@ -48,7 +48,7 @@ import static java.util.stream.IntStream.range;
 
 public class MultiGroupMerger
 {
-    private static final List<MultiGroupProcessor> MULTI_GROUP_PROCESSORS = ImmutableList.of(new JoinMerger());
+    private static final List<MultiGroupProcessor> MULTI_GROUP_PROCESSORS = ImmutableList.of(new JoinMerger(), new ExchangeMerger());
 
     private int hangingGroupId;
     private final Map<Integer, HangingGroup> hangingGroups = new LinkedHashMap<>();
