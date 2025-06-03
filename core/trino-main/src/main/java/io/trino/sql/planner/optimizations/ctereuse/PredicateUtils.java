@@ -299,6 +299,41 @@ public class PredicateUtils
         return optimizeLogicalOperations(conjunction(ImmutableList.of(hoistedCommonConjunct, residualConjunct), nameAllocator));
     }
 
+    /**
+     * Find common conjuncts of all predicates.
+     * <p>
+     * The resulting block has the same name and parameters as the first input block.
+     */
+    public static Block intersectPredicates(List<Block> predicates, ProgramBuilder.ValueNameAllocator nameAllocator)
+    {
+        // to create a block, we need a block parameter representing the input. We cannot create a block when the input type is not known
+        checkArgument(!predicates.isEmpty(), "cannot combine 0 blocks");
+
+        predicates.stream()
+                .forEach(predicate -> checkArgument(trinoType(predicate.getReturnedType()).equals(BOOLEAN), "expected block returning boolean"));
+
+        List<Block> optimizedPredicates = predicates.stream()
+                .map(PredicateUtils::optimizeLogicalOperations)
+                .collect(toImmutableList());
+
+        if (optimizedPredicates.size() == 1) {
+            return optimizedPredicates.getFirst();
+        }
+
+        List<Block> commonConjuncts = extractConjuncts(optimizedPredicates.getFirst(), nameAllocator);
+        for (int i = 1; i < optimizedPredicates.size(); i++) {
+            List<Block> newConjuncts = extractConjuncts(optimizedPredicates.get(i), nameAllocator);
+            commonConjuncts = commonConjuncts.stream()
+                    .filter(commonConjunct -> newConjuncts.stream()
+                            .anyMatch(newConjunct -> blocksSemanticallyEquivalent(commonConjunct, newConjunct)))
+                    .collect(toImmutableList());
+        }
+
+        return commonConjuncts.isEmpty() ?
+                truePredicate(optimizedPredicates.getFirst().name(), optimizedPredicates.getFirst().parameters(), nameAllocator) :
+                conjunction(commonConjuncts, nameAllocator);
+    }
+
     public static Block optimizeLogicalOperations(Block block)
     {
         Map<Value, Operation> originalOperations = block.operations().stream()
