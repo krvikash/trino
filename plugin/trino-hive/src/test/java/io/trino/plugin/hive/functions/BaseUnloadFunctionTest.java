@@ -46,6 +46,7 @@ import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.trino.plugin.hive.HiveCompressionCodecs.toCompressionCodec;
 import static io.trino.plugin.hive.HiveStorageFormat.AVRO;
 import static io.trino.plugin.hive.HiveStorageFormat.JSON;
+import static io.trino.plugin.hive.HiveStorageFormat.OPENX_JSON;
 import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
 import static io.trino.plugin.hive.HiveStorageFormat.RCBINARY;
 import static io.trino.plugin.hive.HiveStorageFormat.RCTEXT;
@@ -797,7 +798,10 @@ abstract class BaseUnloadFunctionTest
         testUnloadColumnType(format, "date", "'1582-10-05'");
         testUnloadColumnType(format, "date", "'1582-10-14'");
         testUnloadColumnType(format, "date", "'9999-12-31'");
-        testUnloadColumnType(format, "date", "'5874897-12-31'");
+        if (format != OPENX_JSON) {
+            // no longer works with OPENX_JSON after "Use new parseHiveDate for OpenX reader to remove any characters after yyyy-mm-dd"
+            testUnloadColumnType(format, "date", "'5874897-12-31'");
+        }
         testUnloadColumnType(format, "date", "NULL");
     }
 
