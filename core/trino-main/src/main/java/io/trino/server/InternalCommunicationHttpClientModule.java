@@ -94,6 +94,7 @@ public class InternalCommunicationHttpClientModule
         httpConfig.setKeyStorePassword(internalCommunicationConfig.getKeyStorePassword());
         httpConfig.setTrustStorePath(internalCommunicationConfig.getTrustStorePath());
         httpConfig.setTrustStorePassword(internalCommunicationConfig.getTrustStorePassword());
+        httpConfig.setVerifyHostname(internalCommunicationConfig.isVerifyHostnameEnabled());
         httpConfig.setAutomaticHttpsSharedSecret(null);
     }
 

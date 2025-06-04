@@ -38,6 +38,7 @@ public class TestInternalCommunicationConfig
                 .setKeyStorePassword(null)
                 .setTrustStorePath(null)
                 .setTrustStorePassword(null)
+                .setVerifyHostnameEnabled(true)
                 .setHttpServerHttpsEnabled(false));
     }
 
@@ -56,6 +57,7 @@ public class TestInternalCommunicationConfig
                 .put("internal-communication.https.keystore.key", "key-key")
                 .put("internal-communication.https.truststore.path", truststoreFile.toString())
                 .put("internal-communication.https.truststore.key", "trust-key")
+                .put("internal-communication.https.hostname-verification.enabled", "false")
                 .put("http-server.https.enabled", "true")
                 .buildOrThrow();
 
@@ -67,6 +69,7 @@ public class TestInternalCommunicationConfig
                 .setKeyStorePassword("key-key")
                 .setTrustStorePath(truststoreFile.toString())
                 .setTrustStorePassword("trust-key")
+                .setVerifyHostnameEnabled(false)
                 .setHttpServerHttpsEnabled(true);
 
         assertFullMapping(properties, expected);

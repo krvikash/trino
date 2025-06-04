@@ -33,6 +33,7 @@ public class InternalCommunicationConfig
     private String sharedSecret;
     private boolean http2Enabled;
     private boolean httpsRequired;
+    private boolean verifyHostnameEnabled = true;
     private String keyStorePath;
     private String keyStorePassword;
     private String trustStorePath;
@@ -63,6 +64,19 @@ public class InternalCommunicationConfig
     public InternalCommunicationConfig setHttp2Enabled(boolean http2Enabled)
     {
         this.http2Enabled = http2Enabled;
+        return this;
+    }
+
+    public boolean isVerifyHostnameEnabled()
+    {
+        return verifyHostnameEnabled;
+    }
+
+    @Config("internal-communication.https.hostname-verification.enabled")
+    @ConfigDescription("Enable the HTTPS hostname verification")
+    public InternalCommunicationConfig setVerifyHostnameEnabled(boolean verifyHostnameEnabled)
+    {
+        this.verifyHostnameEnabled = verifyHostnameEnabled;
         return this;
     }
 
