@@ -39,7 +39,6 @@ import io.trino.operator.RetryPolicy;
 import io.trino.operator.join.JoinUtils;
 import io.trino.spi.QueryId;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
@@ -215,7 +214,7 @@ public class DynamicFilterService
         dynamicFilterContexts.put(queryId, context.createContextForQueryRetry(attemptId));
     }
 
-    public DynamicFiltersStats getDynamicFilteringStats(QueryId queryId, Session session)
+    public DynamicFiltersStats getDynamicFilteringStats(QueryId queryId)
     {
         DynamicFilterContext context = dynamicFilterContexts.get(queryId);
         if (context == null) {
@@ -227,14 +226,13 @@ public class DynamicFilterService
         int replicatedFilters = context.getReplicatedDynamicFilters().size();
         int totalDynamicFilters = context.getTotalDynamicFilters();
 
-        ConnectorSession connectorSession = session.toConnectorSession();
         List<DynamicFilterDomainStats> dynamicFilterDomainStats = context.getDynamicFilterSummaries().entrySet().stream()
                 .map(entry -> {
                     DynamicFilterId dynamicFilterId = entry.getKey();
                     return new DynamicFilterDomainStats(
                             dynamicFilterId,
                             // use small limit for readability
-                            entry.getValue().toString(connectorSession, 2),
+                            entry.getValue().toString(2),
                             context.getDynamicFilterCollectionDuration(dynamicFilterId));
                 })
                 .collect(toImmutableList());

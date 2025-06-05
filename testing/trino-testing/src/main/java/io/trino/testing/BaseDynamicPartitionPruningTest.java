@@ -111,7 +111,7 @@ public abstract class BaseDynamicPartitionPruningTest
         assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
 
         DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(none(BIGINT).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(none(BIGINT).toString());
         assertThat(domainStats.getCollectionDuration()).isPresent();
     }
 
@@ -134,7 +134,7 @@ public abstract class BaseDynamicPartitionPruningTest
         assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
 
         DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString());
     }
 
     @Test
@@ -157,7 +157,7 @@ public abstract class BaseDynamicPartitionPruningTest
         assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
 
         DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString());
     }
 
     @Test
@@ -258,7 +258,7 @@ public abstract class BaseDynamicPartitionPruningTest
         assertThat(dynamicFiltersStats.getReplicatedDynamicFilters()).isEqualTo(0L);
         assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
         DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString());
     }
 
     @Test
@@ -279,7 +279,7 @@ public abstract class BaseDynamicPartitionPruningTest
         assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
 
         DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(none(BIGINT).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(none(BIGINT).toString());
     }
 
     @Test
@@ -300,7 +300,7 @@ public abstract class BaseDynamicPartitionPruningTest
         assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
 
         DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString());
     }
 
     @Test
@@ -364,7 +364,7 @@ public abstract class BaseDynamicPartitionPruningTest
         assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
 
         DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(none(BIGINT).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(none(BIGINT).toString());
     }
 
     @Test
@@ -385,7 +385,7 @@ public abstract class BaseDynamicPartitionPruningTest
         assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
 
         DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString());
     }
 
     @Test

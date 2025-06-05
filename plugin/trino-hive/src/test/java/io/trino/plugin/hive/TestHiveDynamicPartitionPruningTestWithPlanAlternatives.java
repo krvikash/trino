@@ -93,7 +93,7 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
         assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
 
         DynamicFilterService.DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString());
     }
 
     @Override

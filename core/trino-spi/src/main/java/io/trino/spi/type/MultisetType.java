@@ -18,7 +18,6 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.MapBlock;
 import io.trino.spi.block.SqlMap;
-import io.trino.spi.connector.ConnectorSession;
 
 import static io.trino.spi.type.StandardTypes.MULTISET;
 
@@ -58,7 +57,7 @@ public class MultisetType
     }
 
     @Override
-    public Object getObjectValue(ConnectorSession session, Block block, int position)
+    public Object getObjectValue(Block block, int position)
     {
         throw new UnsupportedOperationException(getClass().getName());
     }

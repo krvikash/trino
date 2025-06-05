@@ -923,7 +923,7 @@ public class DispatcherMetadata
 
         if (logger.isDebugEnabled()) {
             logger.debug("ApplyFilter - Input tupleDomain: %s, expression: %s",
-                    constraint.getSummary().toString(session),
+                    constraint.getSummary().toString(),
                     constraint.getExpression().toString());
         }
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> resultOpt =
@@ -963,7 +963,7 @@ public class DispatcherMetadata
         TupleDomain<ColumnHandle> newRemainingFilter = resultOpt.get().getAlternatives().getFirst().remainingFilter();
         Optional<ConnectorExpression> newRemainingExpression = resultOpt.get().getAlternatives().getFirst().remainingExpression();
         if (logger.isDebugEnabled()) {
-            logger.debug("Will return to Trino the following remaining filter: %s and remaining expression: %s", newRemainingFilter.toString(session), newRemainingExpression);
+            logger.debug("Will return to Trino the following remaining filter: %s and remaining expression: %s", newRemainingFilter.toString(), newRemainingExpression);
         }
 
         return createConstraintApplicationResult(

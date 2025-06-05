@@ -236,7 +236,7 @@ public class SqlQueryExecution
                     return;
                 }
                 unregisterDynamicFilteringQuery(
-                        dynamicFilterService.getDynamicFilteringStats(stateMachine.getQueryId(), stateMachine.getSession()));
+                        dynamicFilterService.getDynamicFilteringStats(stateMachine.getQueryId()));
 
                 tableExecuteContextManager.unregisterTableExecuteContextForQuery(stateMachine.getQueryId());
             });
@@ -264,9 +264,7 @@ public class SqlQueryExecution
 
         dynamicFilterService.registerQuery(this, plan.getRoot());
         stateMachine.setDynamicFiltersStatsSupplier(
-                () -> dynamicFilterService.getDynamicFilteringStats(
-                        stateMachine.getQueryId(),
-                        stateMachine.getSession()));
+                () -> dynamicFilterService.getDynamicFilteringStats(stateMachine.getQueryId()));
     }
 
     private synchronized void unregisterDynamicFilteringQuery(DynamicFiltersStats finalDynamicFiltersStats)

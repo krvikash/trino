@@ -18,7 +18,6 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.ValueBlock;
-import io.trino.spi.connector.ConnectorSession;
 
 import java.util.List;
 import java.util.Optional;
@@ -88,7 +87,7 @@ public class EmptyRowType
     }
 
     @Override
-    public Object getObjectValue(ConnectorSession session, Block block, int position)
+    public Object getObjectValue(Block block, int position)
     {
         throw new UnsupportedOperationException(getClass().getName());
     }

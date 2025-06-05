@@ -76,7 +76,7 @@ public class DispatcherAlternativePageSourceProvider
         try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of(session.getQueryId()))) {
             if (logger.isDebugEnabled()) {
                 logger.debug("createPageSource: handle=%s, split=%s, table=%s, columns=%s, dynamicFilter=%s",
-                        transactionHandle, split, table, columns, dynamicFilter.getCurrentPredicate().toString(session));
+                        transactionHandle, split, table, columns, dynamicFilter.getCurrentPredicate().toString());
             }
             DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
             DispatcherSplit dispatcherSplit = (DispatcherSplit) split;

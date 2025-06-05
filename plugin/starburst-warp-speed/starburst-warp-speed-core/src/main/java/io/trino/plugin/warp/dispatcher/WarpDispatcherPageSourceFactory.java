@@ -250,8 +250,8 @@ public class WarpDispatcherPageSourceFactory
 
             if (logger.isDebugEnabled()) {
                 logger.debug("Intersected fullPredicate: %s, dynamicFilter: %s -> into tupleDomain: %s",
-                        dispatcherTableHandle.getFullPredicate().toString(session),
-                        dynamicFilter.getCurrentPredicate().toString(session),
+                        dispatcherTableHandle.getFullPredicate().toString(),
+                        dynamicFilter.getCurrentPredicate().toString(),
                         basicQueryContext.getPredicateContextData());
             }
 

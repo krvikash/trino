@@ -18,7 +18,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.errorprone.annotations.DoNotCall;
-import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.ValueSet;
@@ -200,18 +199,16 @@ public final class DynamicFilterDomain
     @Override
     public String toString()
     {
-        if (domain.isPresent()) {
-            return domain.get().toString();
-        }
-        return bloomfilterWithRange.get().toString();
+        return domain
+                .map(Domain::toString)
+                .orElseGet(() -> bloomfilterWithRange.get().toString());
     }
 
-    public String toString(ConnectorSession connectorSession, int limit)
+    public String toString(int limit)
     {
-        if (domain.isPresent()) {
-            return domain.get().toString(connectorSession, limit);
-        }
-        return bloomfilterWithRange.get().toString();
+        return domain
+                .map(value -> value.toString(limit))
+                .orElseGet(() -> bloomfilterWithRange.get().toString());
     }
 
     public static DynamicFilterDomain all(Type type)
