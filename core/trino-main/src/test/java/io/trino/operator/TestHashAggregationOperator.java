@@ -975,6 +975,59 @@ public class TestHashAggregationOperator
         assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(AGGREGATION);
     }
 
+    @Test
+    public void testLocalAdaptivePartialAggregation()
+    {
+        List<Integer> hashChannels = Ints.asList(0);
+
+        PartialAggregationController partialAggregationController = new PartialAggregationController(true, DataSize.of(200, MEGABYTE), 0.8);
+        HashAggregationOperatorFactory operatorFactory = new HashAggregationOperatorFactory(
+                0,
+                new PlanNodeId("test"),
+                ImmutableList.of(BIGINT),
+                hashChannels,
+                ImmutableList.of(),
+                PARTIAL,
+                ImmutableList.of(LONG_MIN.createAggregatorFactory(PARTIAL, ImmutableList.of(0), OptionalInt.empty())),
+                Optional.empty(),
+                Optional.empty(),
+                10,
+                Optional.of(DataSize.of(16, MEGABYTE)), // this setting makes operator to flush only after all pages
+                hashStrategyCompiler,
+                hashCompiler,
+                // 1 byte maxPartialMemory causes adaptive partial aggregation to be triggered after each page flush
+                Optional.of(partialAggregationController));
+
+        List<Page> operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+                .addBlocksPage(createRepeatedValuesBlock(1, 200)) // second page will be hashed to existing value 1
+                .addBlocksPage(createRepeatedValuesBlock(1, 200)) // second page will be hashed to existing value 1
+                .build();
+        // the total unique rows ratio for the first operator will be 10/12 so > 0.8 (adaptive partial aggregation uniqueRowsRatioThreshold)
+        List<Page> operator1Expected = rowPagesBuilder(BIGINT, BIGINT)
+                .addBlocksPage(createRepeatedValuesBlock(1, 200), createRepeatedValuesBlock(1, 200))
+                // For the second page adaptive local aggregation controller will set to partial aggregation mode
+                .addBlocksPage(createRepeatedValuesBlock(1, 1), createRepeatedValuesBlock(1, 1))
+                .build();
+        assertOperatorEquals(operatorFactory, operator1Input, operator1Expected);
+
+        assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(HLL);
+
+        // Local adaptive aggregation controller happens only for HLL_MODE
+        partialAggregationController.onFlush(1_000_000_000, 1_000_000, OptionalLong.of(1_000_000));
+        assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(PASSTHROUGH);
+
+        operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+                .addBlocksPage(createRepeatedValuesBlock(1, 200)) // second page will be hashed to existing value 1
+                .addBlocksPage(createRepeatedValuesBlock(1, 200)) // second page will be hashed to existing value 1
+                .build();
+        // the total unique ows ratio for the first operator will be 10/12 so > 0.8 (adaptive partial aggregation uniqueRowsRatioThreshold)
+        operator1Expected = rowPagesBuilder(BIGINT, BIGINT)
+                .addBlocksPage(createRepeatedValuesBlock(1, 200), createRepeatedValuesBlock(1, 200))
+                .addBlocksPage(createRepeatedValuesBlock(1, 200), createRepeatedValuesBlock(1, 200))
+                .build();
+        assertOperatorEquals(operatorFactory, operator1Input, operator1Expected);
+    }
+
     private void assertInputRowsWithPartialAggregationDisabled(DriverContext context, long expectedRowCount)
     {
         LongCount metric = ((LongCount) context.getDriverStats().getOperatorStats().get(0).getMetrics().getMetrics().get(INPUT_ROWS_WITH_PARTIAL_AGGREGATION_DISABLED_METRIC_NAME));

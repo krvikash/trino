@@ -219,6 +219,7 @@ public final class SystemSessionProperties
     public static final String ADAPTIVE_PARTIAL_AGGREGATION_UNIQUE_ROWS_RATIO_THRESHOLD = "adaptive_partial_aggregation_unique_rows_ratio_threshold";
     public static final String USE_CARDINALITY_ESTIMATION_BASED_PARTIAL_AGGREGATION_CONTROLLER = "use_cardinality_estimation_based_partial_aggregation_controller";
     public static final String HLL_BUCKET_SIZE = "hll_bucket_size";
+    public static final String ADAPTIVE_LOCAL_PARTIAL_AGGREGATION_UNIQUE_ROWS_RATIO_THRESHOLD = "adaptive_local_partial_aggregation_unique_rows_ratio_threshold";
     public static final String REMOTE_TASK_ADAPTIVE_UPDATE_REQUEST_SIZE_ENABLED = "remote_task_adaptive_update_request_size_enabled";
     public static final String REMOTE_TASK_MAX_REQUEST_SIZE = "remote_task_max_request_size";
     public static final String REMOTE_TASK_REQUEST_SIZE_HEADROOM = "remote_task_request_size_headroom";
@@ -1150,6 +1151,11 @@ public final class SystemSessionProperties
                         "Bucket size for HLL to be used for cardinality estimator",
                         optimizerConfig.getCardinalityEstimatorHllBucketCount(),
                         value -> validateBucketCountForHLL(value, HLL_BUCKET_SIZE),
+                        false),
+                doubleProperty(
+                        ADAPTIVE_LOCAL_PARTIAL_AGGREGATION_UNIQUE_ROWS_RATIO_THRESHOLD,
+                        "Ratio between aggregation output and input rows below which partial aggregation might be adaptively turned on at a task level",
+                        optimizerConfig.getAdaptivePartialAggregationLocalUniqueRowsRatioThreshold(),
                         false),
                 booleanProperty(
                         REMOTE_TASK_ADAPTIVE_UPDATE_REQUEST_SIZE_ENABLED,
@@ -2198,6 +2204,11 @@ public final class SystemSessionProperties
     public static int getHllBucketSize(Session session)
     {
         return session.getSystemProperty(HLL_BUCKET_SIZE, Integer.class);
+    }
+
+    public static double getAdaptiveLocalPartialAggregationUniqueRowsRatioThreshold(Session session)
+    {
+        return session.getSystemProperty(ADAPTIVE_LOCAL_PARTIAL_AGGREGATION_UNIQUE_ROWS_RATIO_THRESHOLD, Double.class);
     }
 
     public static boolean isRemoteTaskAdaptiveUpdateRequestSizeEnabled(Session session)

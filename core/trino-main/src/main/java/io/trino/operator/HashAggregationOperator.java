@@ -38,11 +38,13 @@ import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.OptionalLong;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.trino.SystemSessionProperties.getAdaptiveLocalPartialAggregationUniqueRowsRatioThreshold;
 import static io.trino.SystemSessionProperties.getHllBucketSize;
 import static io.trino.SystemSessionProperties.isUseCardinalityBasedPartialAggregationController;
 import static io.trino.operator.HashGenerator.INITIAL_HASH_VALUE;
@@ -400,6 +402,12 @@ public class HashAggregationOperator
                     .map(PartialAggregationController::getPartialAggregationMode)
                     .orElse(PartialAggregationController.AggregationMode.AGGREGATION);
 
+            if (aggregationMode == PartialAggregationController.AggregationMode.HLL && cardinalityEstimator.overallCardinality().isPresent() && cardinalityEstimator.overallCardinality().getAsDouble() > 0) {
+                if (cardinalityEstimator.overallCardinality().getAsDouble() < getAdaptiveLocalPartialAggregationUniqueRowsRatioThreshold(operatorContext.getSession())) {
+                    aggregationMode = PartialAggregationController.AggregationMode.AGGREGATION;
+                }
+            }
+
             boolean partialAggregationDisabled = aggregationMode == PartialAggregationController.AggregationMode.HLL
                     || aggregationMode == PartialAggregationController.AggregationMode.PASSTHROUGH;
 
@@ -655,6 +663,8 @@ public class HashAggregationOperator
         void processInput(Page page);
 
         CardinalityDetails getCardinalityDetails();
+
+        OptionalDouble overallCardinality();
     }
 
     public record CardinalityDetails(OptionalLong estimatedUniqueValues, long rowsProcessed) {}
@@ -677,6 +687,12 @@ public class HashAggregationOperator
             rowsProcessed = 0;
             return cardinalityDetails;
         }
+
+        @Override
+        public OptionalDouble overallCardinality()
+        {
+            return OptionalDouble.empty();
+        }
     }
 
     public static class HllCardinalityEstimator
@@ -687,6 +703,7 @@ public class HashAggregationOperator
         private final HyperLogLog hyperLogLog;
         private final AggregationMetrics aggregationMetrics;
         private long inputRowsProcessed;
+        private long processedInputRows;
         private long processedCardinality;
 
         public HllCardinalityEstimator(int[] columnsToBeLoaded, FlatHashStrategy flatHashStrategy, HyperLogLog hyperLogLog, AggregationMetrics aggregationMetrics)
@@ -714,10 +731,16 @@ public class HashAggregationOperator
         @Override
         public CardinalityDetails getCardinalityDetails()
         {
-            CardinalityDetails cardinalityDetails = new CardinalityDetails(OptionalLong.of(hyperLogLog.cardinality() - processedCardinality), inputRowsProcessed);
-            inputRowsProcessed = 0;
+            CardinalityDetails cardinalityDetails = new CardinalityDetails(OptionalLong.of(hyperLogLog.cardinality() - processedCardinality), inputRowsProcessed - processedInputRows);
+            processedInputRows = inputRowsProcessed;
             processedCardinality = hyperLogLog.cardinality();
             return cardinalityDetails;
+        }
+
+        @Override
+        public OptionalDouble overallCardinality()
+        {
+            return OptionalDouble.of((double) hyperLogLog.cardinality() / inputRowsProcessed);
         }
     }
 

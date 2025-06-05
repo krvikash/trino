@@ -102,6 +102,7 @@ public class OptimizerConfig
     private double adaptivePartialAggregationUniqueRowsRatioThreshold = 0.8;
     private boolean cardinalityEstimationBasedPartialAggregationControllerEnabled = true;
     private int cardinalityEstimatorHllBucketCount = 8192;
+    private double adaptivePartialAggregationLocalUniqueRowsRatioThreshold = 0.01;
     private long joinPartitionedBuildMinRowCount = 1_000_000L;
     private DataSize minInputSizePerTask = DataSize.of(5, GIGABYTE);
     private long minInputRowsPerTask = 10_000_000L;
@@ -785,6 +786,19 @@ public class OptimizerConfig
     public OptimizerConfig setCardinalityEstimatorHllBucketCount(int cardinalityEstimatorHllBucketCount)
     {
         this.cardinalityEstimatorHllBucketCount = cardinalityEstimatorHllBucketCount;
+        return this;
+    }
+
+    public double getAdaptivePartialAggregationLocalUniqueRowsRatioThreshold()
+    {
+        return adaptivePartialAggregationLocalUniqueRowsRatioThreshold;
+    }
+
+    @Config("adaptive-partial-aggregation.local.unique-rows-ratio-threshold")
+    @ConfigDescription("Ratio between aggregation output and input rows below which partial aggregation might be adaptively turned on at a task level")
+    public OptimizerConfig setAdaptivePartialAggregationLocalUniqueRowsRatioThreshold(double adaptivePartialAggregationLocalUniqueRowsRatioThreshold)
+    {
+        this.adaptivePartialAggregationLocalUniqueRowsRatioThreshold = adaptivePartialAggregationLocalUniqueRowsRatioThreshold;
         return this;
     }
 
