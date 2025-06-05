@@ -48,6 +48,7 @@ public class AiConnectorFactory
 
         Injector injector = app
                 .doNotInitializeLogging()
+                .loadSecretsPlugins() // starburst-ai-client requires access to secrets.
                 .setRequiredConfigurationProperties(config)
                 .initialize();
 
