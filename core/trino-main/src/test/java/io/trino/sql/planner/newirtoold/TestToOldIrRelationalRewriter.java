@@ -51,6 +51,7 @@ import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.OutputNode;
@@ -239,6 +240,32 @@ class TestToOldIrRelationalRewriter
     {
         FilterNode filterNode = new FilterNode(new PlanNodeId("0"), VALUES_NODE, new Reference(BOOLEAN, "b"));
         assertRoundtrip(filterNode);
+    }
+
+    @Test
+    public void testGroupId()
+    {
+        // note: the ToOldIrRelationalRewriter will create the grouping symbols passing the name of the respective input symbol suffixed with "_gid"
+        // it is consistent with the grouping symbols created for the old IR in QueryPlanner#planGroupingSets() with the difference that
+        // QueryPlanner handles differently the grouping columns derived for complex expressions.
+        // for the group id column, ToOldIrRelationalRewriter creates the symbol passing the name "groupId", which gets transformed to "groupid" by the SymbolAllocator.
+        // it is consistent with the group id symbol created for the old IR in QueryPlanner#planGroupingSets()
+        // this test uses the same symbol names to enable roundtrip.
+        GroupIdNode groupIdNode = new GroupIdNode(
+                new PlanNodeId("0"),
+                VALUES_NODE,
+                ImmutableList.of(
+                        // Note: both grouping sets use symbol a_gid
+                        ImmutableList.of(new Symbol(BOOLEAN, "b_gid_0"), new Symbol(BIGINT, "a_gid")),
+                        ImmutableList.of(new Symbol(BOOLEAN, "b_gid"), new Symbol(BIGINT, "a_gid"))),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a_gid"), new Symbol(BIGINT, "a"),
+                        // note: symbols b_gid and b_gid_0 refer to the same input symbol b
+                        new Symbol(BOOLEAN, "b_gid"), new Symbol(BOOLEAN, "b"),
+                        new Symbol(BOOLEAN, "b_gid_0"), new Symbol(BOOLEAN, "b")),
+                ImmutableList.of(new Symbol(BIGINT, "a")),
+                new Symbol(BIGINT, "groupid"));
+        assertRoundtrip(groupIdNode);
     }
 
     @Test

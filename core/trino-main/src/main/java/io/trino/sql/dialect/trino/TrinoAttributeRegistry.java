@@ -46,6 +46,7 @@ import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.FIELD_INDEX;
 import static io.trino.sql.dialect.trino.Attributes.GLOBAL_GROUPING_SETS;
+import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS;
 import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.GROUP_ID_INDEX;
 import static io.trino.sql.dialect.trino.Attributes.INPUT_REDUCING;
@@ -126,6 +127,7 @@ public class TrinoAttributeRegistry
                 .put(EXCHANGE_TYPE.name(), new AttributeProperties<>(EXCHANGE_TYPE, Attributes.ExchangeType::parse, Attributes.ExchangeType::print))
                 .put(FIELD_INDEX.name(), new AttributeProperties<>(FIELD_INDEX, Integer::valueOf, Object::toString))
                 .put(GLOBAL_GROUPING_SETS.name(), new AttributeProperties<>(GLOBAL_GROUPING_SETS, Attributes.IntegerList::parse, Attributes.IntegerList::print))
+                .put(GROUPING_SETS.name(), new AttributeProperties<>(GROUPING_SETS, Attributes.IntegerListList::parse, Attributes.IntegerListList::print))
                 .put(GROUPING_SETS_COUNT.name(), new AttributeProperties<>(GROUPING_SETS_COUNT, Integer::valueOf, Object::toString))
                 .put(GROUP_ID_INDEX.name(), new AttributeProperties<>(GROUP_ID_INDEX, Integer::valueOf, Object::toString))
                 .put(INPUT_REDUCING.name(), new AttributeProperties<>(INPUT_REDUCING, Boolean::valueOf, Object::toString))

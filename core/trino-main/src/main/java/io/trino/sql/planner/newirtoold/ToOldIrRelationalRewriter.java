@@ -29,6 +29,7 @@ import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.Filter;
+import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
@@ -57,6 +58,7 @@ import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinNode.EquiJoinClause;
 import io.trino.sql.planner.plan.JoinType;
@@ -79,6 +81,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
 import static io.trino.sql.dialect.trino.Attributes.BUCKET_TO_PARTITION;
@@ -91,6 +94,7 @@ import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.GLOBAL_GROUPING_SETS;
+import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS;
 import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.GROUP_ID_INDEX;
 import static io.trino.sql.dialect.trino.Attributes.INPUT_REDUCING;
@@ -328,6 +332,35 @@ public class ToOldIrRelationalRewriter
                 planNodeIdAllocator.getNextId(),
                 source,
                 scalarRewriter.toOldIr(filter.predicate(), ImmutableList.of(source.getOutputSymbols())));
+    }
+
+    @Override
+    public PlanNode visitGroupId(GroupId groupId, List<PlanNode> sources)
+    {
+        PlanNode source = getOnlyElement(sources);
+
+        List<Symbol> groupingInputSymbols = scalarRewriter.getSelectedSymbols(groupId.groupingColumnsSelector(), source.getOutputSymbols());
+        List<Symbol> groupingOutputSymbols = groupingInputSymbols.stream()
+                .map(inputSymbol -> symbolAllocator.newSymbol(inputSymbol.name() + "_gid", inputSymbol.type()))
+                .collect(toImmutableList());
+
+        List<List<Symbol>> groupingSets = GROUPING_SETS.getAttribute(groupId.attributes()).stream()
+                .map(indexList -> indexList.stream()
+                        .map(groupingOutputSymbols::get)
+                        .collect(toImmutableList()))
+                .collect(toImmutableList());
+
+        Map<Symbol, Symbol> groupingColumns = IntStream.range(0, groupingOutputSymbols.size())
+                .boxed()
+                .collect(toImmutableMap(groupingOutputSymbols::get, groupingInputSymbols::get));
+
+        return new GroupIdNode(
+                planNodeIdAllocator.getNextId(),
+                source,
+                groupingSets,
+                groupingColumns,
+                scalarRewriter.getSelectedSymbols(groupId.aggregationArgumentsSelector(), source.getOutputSymbols()),
+                symbolAllocator.newSymbol("groupId", BIGINT));
     }
 
     @Override

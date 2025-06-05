@@ -38,6 +38,7 @@ import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Filter;
+import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
@@ -60,6 +61,7 @@ import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.OutputNode;
@@ -499,6 +501,48 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(filter.result().type())), node.getOutputSymbols());
         context.block().addOperation(filter);
         return new OperationAndMapping(filter, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitGroupId(GroupIdNode node, Context context)
+    {
+        OperationAndMapping input = node.getSource().accept(this, context);
+        String resultName = nameAllocator.newName();
+
+        ImmutableList.Builder<Symbol> groupingInputSymbolsBuilder = ImmutableList.builder();
+        ImmutableMap.Builder<Symbol, Integer> groupingOutputSymbolsToIndexBuilder = ImmutableMap.builder();
+        List<Map.Entry<Symbol, Symbol>> mappings = ImmutableList.copyOf(node.getGroupingColumns().entrySet());
+        for (int i = 0; i < mappings.size(); i++) {
+            Symbol outputSymbol = mappings.get(i).getKey();
+            Symbol inputSymbol = mappings.get(i).getValue();
+            groupingInputSymbolsBuilder.add(inputSymbol);
+            groupingOutputSymbolsToIndexBuilder.put(outputSymbol, i);
+        }
+        Map<Symbol, Integer> groupingOutputSymbolsToIndex = groupingOutputSymbolsToIndexBuilder.buildOrThrow();
+
+        Block.Parameter groupingColumnsSelectorParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(relationRowType(trinoType(input.operation().result().type()))));
+        Block groupingColumnsSelector = fieldSelectorBlock("^groupingColumnsSelector", groupingColumnsSelectorParameter, input.mapping(), groupingInputSymbolsBuilder.build());
+        valueMap.put(groupingColumnsSelectorParameter, groupingColumnsSelector);
+
+        List<List<Integer>> groupingSets = node.getGroupingSets().stream()
+                .map(symbolList -> symbolList.stream()
+                        .map(groupingOutputSymbolsToIndex::get)
+                        .collect(toImmutableList()))
+                .collect(toImmutableList());
+
+        Block.Parameter aggregationArgumentsSelectorParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(relationRowType(trinoType(input.operation().result().type()))));
+        Block aggregationArgumentsSelector = fieldSelectorBlock("^aggregationArgumentsSelector", aggregationArgumentsSelectorParameter, input.mapping(), node.getAggregationArguments());
+        valueMap.put(aggregationArgumentsSelectorParameter, aggregationArgumentsSelector);
+
+        GroupId groupId = new GroupId(resultName, input.operation().result(), groupingColumnsSelector, aggregationArgumentsSelector, groupingSets, input.operation().attributes());
+        valueMap.put(groupId.result(), groupId);
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(groupId.result().type())), node.getOutputSymbols());
+        context.block().addOperation(groupId);
+        return new OperationAndMapping(groupId, outputMapping);
     }
 
     @Override

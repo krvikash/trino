@@ -61,6 +61,7 @@ public class Attributes
     public static final AttributeMetadata<ExchangeType> EXCHANGE_TYPE = new AttributeMetadata<>("exchange_type", false);
     public static final AttributeMetadata<Integer> FIELD_INDEX = new AttributeMetadata<>("field_index", false);
     public static final AttributeMetadata<List<Integer>> GLOBAL_GROUPING_SETS = new AttributeMetadata<>("global_grouping_sets", false);
+    public static final AttributeMetadata<List<List<Integer>>> GROUPING_SETS = new AttributeMetadata<>("grouping_sets", false);
     public static final AttributeMetadata<Integer> GROUPING_SETS_COUNT = new AttributeMetadata<>("grouping_sets_count", false);
     public static final AttributeMetadata<Integer> GROUP_ID_INDEX = new AttributeMetadata<>("group_id_index", false);
     public static final AttributeMetadata<Boolean> INPUT_REDUCING = new AttributeMetadata<>("input_reducing", false);
@@ -216,6 +217,21 @@ public class Attributes
         public static String print(List<Integer> integerList)
         {
             return INTEGER_LIST_CODEC.toJson(integerList);
+        }
+    }
+
+    public record IntegerListList()
+    {
+        private static final JsonCodec<List<List<Integer>>> INTEGER_LIST_LIST_CODEC = JSON_CODEC_FACTORY.listJsonCodec(JSON_CODEC_FACTORY.listJsonCodec(Integer.class));
+
+        public static List<List<Integer>> parse(String string)
+        {
+            return ImmutableList.copyOf(INTEGER_LIST_LIST_CODEC.fromJson(string));
+        }
+
+        public static String print(List<List<Integer>> integerListList)
+        {
+            return INTEGER_LIST_LIST_CODEC.toJson(integerListList);
         }
     }
 

@@ -32,6 +32,7 @@ import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.Filter;
+import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
@@ -367,6 +368,14 @@ public class NewIrFragmenter
 
         @Override
         public PlanNode visitFilter(Filter operation, FragmentProperties context)
+        {
+            TrinoOperation source = getSource(operation);
+            PlanNode rewrittenSource = source.accept(this, context);
+            return operation.accept(relationalRewriter, ImmutableList.of(rewrittenSource));
+        }
+
+        @Override
+        public PlanNode visitGroupId(GroupId operation, FragmentProperties context)
         {
             TrinoOperation source = getSource(operation);
             PlanNode rewrittenSource = source.accept(this, context);

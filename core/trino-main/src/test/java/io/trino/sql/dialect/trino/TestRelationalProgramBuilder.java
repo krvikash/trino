@@ -44,6 +44,7 @@ import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Filter;
+import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
@@ -72,6 +73,7 @@ import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinType;
 import io.trino.sql.planner.plan.LimitNode;
@@ -812,6 +814,79 @@ final class TestRelationalProgramBuilder
                 ImmutableMap.of(
                         new Symbol(BIGINT, "a"), 0,
                         new Symbol(BOOLEAN, "b"), 1));
+    }
+
+    @Test
+    public void testGroupId()
+    {
+        GroupIdNode groupIdNode = new GroupIdNode(
+                new PlanNodeId("groupId"),
+                VALUES_NODE,
+                ImmutableList.of(
+                        // Note: both grouping sets use symbol a_gid
+                        ImmutableList.of(new Symbol(BOOLEAN, "c_gid"), new Symbol(BIGINT, "a_gid")),
+                        ImmutableList.of(new Symbol(BOOLEAN, "b_gid"), new Symbol(BIGINT, "a_gid"))),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a_gid"), new Symbol(BIGINT, "a"),
+                        // Note: symbols b_gid and c_gid refer to the same input symbol b
+                        new Symbol(BOOLEAN, "b_gid"), new Symbol(BOOLEAN, "b"),
+                        new Symbol(BOOLEAN, "c_gid"), new Symbol(BOOLEAN, "b")),
+                ImmutableList.of(new Symbol(BIGINT, "a")),
+                new Symbol(BIGINT, "groupId"));
+
+        // grouping columns selector
+        Block.Parameter groupingColumnsSelectorParameter = new Block.Parameter(
+                "%10",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceA = new FieldReference("%11", groupingColumnsSelectorParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceB = new FieldReference("%12", groupingColumnsSelectorParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceBAnother = new FieldReference("%13", groupingColumnsSelectorParameter, 1, ImmutableMap.of());
+        Row rowOperationGroupingColumns = new Row(
+                "%14",
+                ImmutableList.of(fieldReferenceA.result(), fieldReferenceB.result(), fieldReferenceBAnother.result()),
+                ImmutableList.of(fieldReferenceA.attributes(), fieldReferenceB.attributes(), fieldReferenceBAnother.attributes()));
+        Return returnOperationGroupingColumns = new Return("%15", rowOperationGroupingColumns.result(), rowOperationGroupingColumns.attributes());
+
+        // aggregation arguments selector
+        Block.Parameter aggregationArgumentsSelectorParameter = new Block.Parameter(
+                "%16",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceAAnother = new FieldReference("%17", aggregationArgumentsSelectorParameter, 0, ImmutableMap.of());
+        Row rowOperationAggregationArguments = new Row("%18", ImmutableList.of(fieldReferenceAAnother.result()), ImmutableList.of(fieldReferenceAAnother.attributes()));
+        Return returnOperationAggregationArguments = new Return("%19", rowOperationAggregationArguments.result(), rowOperationAggregationArguments.attributes());
+
+        GroupId groupIdOperation = new GroupId(
+                "%9",
+                VALUES_OPERATION.result(),
+                new Block(
+                        Optional.of("^groupingColumnsSelector"),
+                        ImmutableList.of(groupingColumnsSelectorParameter),
+                        ImmutableList.of(
+                                fieldReferenceA,
+                                fieldReferenceB,
+                                fieldReferenceBAnother,
+                                rowOperationGroupingColumns,
+                                returnOperationGroupingColumns)),
+                new Block(
+                        Optional.of("^aggregationArgumentsSelector"),
+                        ImmutableList.of(aggregationArgumentsSelectorParameter),
+                        ImmutableList.of(
+                                fieldReferenceAAnother,
+                                rowOperationAggregationArguments,
+                                returnOperationAggregationArguments)),
+                ImmutableList.of(ImmutableList.of(2, 0), ImmutableList.of(1, 0)),
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                groupIdNode,
+                ImmutableList.of(VALUES_OPERATION, groupIdOperation),
+                new MultisetType(anonymousRow(BOOLEAN, BIGINT, BOOLEAN, BIGINT, BIGINT)),
+                ImmutableMap.of(
+                        new Symbol(BOOLEAN, "c_gid"), 0,
+                        new Symbol(BIGINT, "a_gid"), 1,
+                        new Symbol(BOOLEAN, "b_gid"), 2,
+                        new Symbol(BIGINT, "a"), 3,
+                        new Symbol(BIGINT, "groupId"), 4));
     }
 
     @Test

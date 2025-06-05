@@ -92,6 +92,11 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
+    public R visitGroupId(GroupId operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
     public R visitIn(In operation, C context)
     {
         return visitOperation(operation, context);
