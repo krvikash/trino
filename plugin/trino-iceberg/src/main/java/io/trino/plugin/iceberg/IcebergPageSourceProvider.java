@@ -1146,7 +1146,7 @@ public class IcebergPageSourceProvider
                 fileModifiedTime = OptionalLong.of(inputFile.lastModified().toEpochMilli());
             }
         }
-        catch (IOException e) {
+        catch (IOException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, e);
         }
 
@@ -1231,7 +1231,7 @@ public class IcebergPageSourceProvider
                     Optional.empty(),
                     Optional.empty());
         }
-        catch (IOException e) {
+        catch (IOException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, e);
         }
     }

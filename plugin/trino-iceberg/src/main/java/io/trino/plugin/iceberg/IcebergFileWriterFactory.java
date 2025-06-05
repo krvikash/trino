@@ -50,6 +50,7 @@ import org.weakref.jmx.Managed;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -221,7 +222,7 @@ public class IcebergFileWriterFactory
                             .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, "Compression codec %s not supported for Parquet".formatted(hiveCompressionCodec))),
                     nodeVersion.toString());
         }
-        catch (IOException e) {
+        catch (IOException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_WRITER_OPEN_ERROR, "Error creating Parquet file", e);
         }
     }
@@ -256,7 +257,7 @@ public class IcebergFileWriterFactory
                         TrinoInputFile inputFile = fileSystem.newInputFile(outputPath);
                         return new TrinoOrcDataSource(inputFile, new OrcReaderOptions(), readStats);
                     }
-                    catch (IOException e) {
+                    catch (IOException | UncheckedIOException e) {
                         throw new TrinoException(ICEBERG_WRITE_VALIDATION_FAILED, e);
                     }
                 });
@@ -288,7 +289,7 @@ public class IcebergFileWriterFactory
                     getOrcWriterValidateMode(session),
                     orcWriterStats);
         }
-        catch (IOException e) {
+        catch (IOException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_WRITER_OPEN_ERROR, "Error creating ORC file", e);
         }
     }
