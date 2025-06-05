@@ -38,10 +38,10 @@ public class RowGroupCloseHandler
         }
         else {
             if (shapingLogger != null) {
-                shapingLogger.warn("already called & handled by this close handled for rowGroup[%s], previous callers %s", rowGroupData.getRowGroupKey(), callers);
+                shapingLogger.warn("already called & handled by this close handled for rowGroup[%s], previous callers %s, current caller %s", rowGroupData.getRowGroupKey(), callers, caller);
             }
             else {
-                logger.warn("already called & handled by this close handled for rowGroup[%s], previous callers %s", rowGroupData.getRowGroupKey(), callers);
+                logger.warn("already called & handled by this close handled for rowGroup[%s], previous callers %s, current caller %s", rowGroupData.getRowGroupKey(), callers, caller);
             }
         }
         callers.add(caller);
