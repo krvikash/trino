@@ -22,7 +22,7 @@
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
         <dep.lucene.version>10.2.0</dep.lucene.version>
-        <dep.warp-speed-native.version>325</dep.warp-speed-native.version>
+        <dep.warp-speed-native.version>327</dep.warp-speed-native.version>
         <air.compiler.fail-warnings>true</air.compiler.fail-warnings>
     </properties>
 
