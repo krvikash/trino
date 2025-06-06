@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -332,6 +333,26 @@ public class PredicateUtils
         return commonConjuncts.isEmpty() ?
                 truePredicate(optimizedPredicates.getFirst().name(), optimizedPredicates.getFirst().parameters(), nameAllocator) :
                 conjunction(commonConjuncts, nameAllocator);
+    }
+
+    /**
+     * Retain conjuncts which satisfy the filterCondition.
+     * <p>
+     * The resulting block has the same name and parameters as the input block.
+     */
+    public static Block filterConjuncts(Block predicate, Predicate<Block> filterCondition, ProgramBuilder.ValueNameAllocator nameAllocator)
+    {
+        checkArgument(trinoType(predicate.getReturnedType()).equals(BOOLEAN), "expected block returning boolean");
+
+        Block optimizedPredicate = optimizeLogicalOperations(predicate);
+        List<Block> conjuncts = extractConjuncts(optimizedPredicate, nameAllocator);
+        List<Block> filteredConjuncts = conjuncts.stream()
+                .filter(filterCondition)
+                .collect(toImmutableList());
+
+        return filteredConjuncts.isEmpty() ?
+                truePredicate(optimizedPredicate.name(), optimizedPredicate.parameters(), nameAllocator) :
+                conjunction(filteredConjuncts, nameAllocator);
     }
 
     public static Block optimizeLogicalOperations(Block block)
