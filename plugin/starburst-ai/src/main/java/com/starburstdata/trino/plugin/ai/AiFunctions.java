@@ -168,12 +168,10 @@ public class AiFunctions
                 if (boundSignature.getArity() == 2) {
                     yield PROMPT;
                 }
-                else if (boundSignature.getArity() == 3) {
+                if (boundSignature.getArity() == 3) {
                     yield PROMPT_SYSTEM;
                 }
-                else {
-                    throw new IllegalArgumentException("Invalid number of arguments for function: " + name);
-                }
+                throw new IllegalArgumentException("Invalid number of arguments for function: " + name);
             }
             case "mask" -> MASK;
             case "translate" -> TRANSLATE;
