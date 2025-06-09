@@ -54,6 +54,8 @@ import io.trino.plugin.iceberg.aggregation.DataSketchStateSerializer;
 import io.trino.plugin.iceberg.aggregation.IcebergThetaSketchForStats;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.delete.PositionDeleteFiles;
+import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
+import io.trino.plugin.iceberg.fileio.ForwardingOutputFile;
 import io.trino.plugin.iceberg.functions.IcebergFunctionProvider;
 import io.trino.plugin.iceberg.procedure.IcebergAddFilesFromTableHandle;
 import io.trino.plugin.iceberg.procedure.IcebergAddFilesHandle;
@@ -62,6 +64,7 @@ import io.trino.plugin.iceberg.procedure.IcebergExpireSnapshotsHandle;
 import io.trino.plugin.iceberg.procedure.IcebergGenerateEmbeddingsHandle;
 import io.trino.plugin.iceberg.procedure.IcebergOptimizeHandle;
 import io.trino.plugin.iceberg.procedure.IcebergOptimizeManifestsHandle;
+import io.trino.plugin.iceberg.procedure.IcebergOptimizePositionDeletesHandle;
 import io.trino.plugin.iceberg.procedure.IcebergRemoveOrphanFilesHandle;
 import io.trino.plugin.iceberg.procedure.IcebergRollbackToSnapshotHandle;
 import io.trino.plugin.iceberg.procedure.IcebergTableExecuteHandle;
@@ -169,6 +172,7 @@ import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
+import org.apache.iceberg.PositionDeletesScanTask;
 import org.apache.iceberg.ReplaceSortOrder;
 import org.apache.iceberg.RewriteFiles;
 import org.apache.iceberg.RewriteManifests;
@@ -190,6 +194,19 @@ import org.apache.iceberg.UpdatePartitionSpec;
 import org.apache.iceberg.UpdateProperties;
 import org.apache.iceberg.UpdateSchema;
 import org.apache.iceberg.UpdateStatistics;
+import org.apache.iceberg.actions.BinPackRewritePositionDeletePlanner;
+import org.apache.iceberg.actions.FileRewritePlan;
+import org.apache.iceberg.actions.RewritePositionDeleteFiles.FileGroupInfo;
+import org.apache.iceberg.actions.RewritePositionDeletesCommitManager;
+import org.apache.iceberg.actions.RewritePositionDeletesGroup;
+import org.apache.iceberg.actions.SizeBasedFileRewritePlanner;
+import org.apache.iceberg.avro.Avro;
+import org.apache.iceberg.data.Record;
+import org.apache.iceberg.data.TrinoGenericFileWriterFactory;
+import org.apache.iceberg.data.avro.PlannedDataReader;
+import org.apache.iceberg.data.parquet.GenericParquetReaders;
+import org.apache.iceberg.deletes.PositionDelete;
+import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.exceptions.CommitStateUnknownException;
@@ -198,6 +215,11 @@ import org.apache.iceberg.exceptions.ValidationException;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.FileWriterFactory;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.io.LocationProvider;
+import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
@@ -338,6 +360,7 @@ import static io.trino.plugin.iceberg.IcebergUtil.getColumnHandle;
 import static io.trino.plugin.iceberg.IcebergUtil.getColumnMetadatas;
 import static io.trino.plugin.iceberg.IcebergUtil.getFileFormat;
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableProperties;
+import static io.trino.plugin.iceberg.IcebergUtil.getLocationProvider;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionKeys;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionValues;
 import static io.trino.plugin.iceberg.IcebergUtil.getProjectedColumns;
@@ -366,6 +389,7 @@ import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.EXPIRE_S
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.GENERATE_EMBEDDINGS;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.OPTIMIZE;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.OPTIMIZE_MANIFESTS;
+import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.REMOVE_ORPHAN_FILES;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.ROLLBACK_TO_SNAPSHOT;
 import static io.trino.plugin.iceberg.procedure.MigrationUtils.addFiles;
@@ -408,6 +432,7 @@ import static java.lang.Math.floorDiv;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static org.apache.iceberg.MetadataTableType.ALL_ENTRIES;
@@ -436,7 +461,11 @@ import static org.apache.iceberg.TableProperties.PARQUET_BLOOM_FILTER_COLUMN_ENA
 import static org.apache.iceberg.TableProperties.WRITE_DATA_LOCATION;
 import static org.apache.iceberg.TableProperties.WRITE_LOCATION_PROVIDER_IMPL;
 import static org.apache.iceberg.TableUtil.formatVersion;
+import static org.apache.iceberg.data.orc.GenericOrcReader.buildReader;
+import static org.apache.iceberg.encryption.EncryptedFiles.encryptedOutput;
+import static org.apache.iceberg.encryption.EncryptionKeyMetadata.EMPTY;
 import static org.apache.iceberg.expressions.Expressions.alwaysTrue;
+import static org.apache.iceberg.io.DeleteSchemaUtil.posDeleteReadSchema;
 import static org.apache.iceberg.types.TypeUtil.indexParents;
 import static org.apache.iceberg.util.LocationUtil.stripTrailingSlash;
 import static org.apache.iceberg.util.SnapshotUtil.schemaFor;
@@ -1731,6 +1760,7 @@ public class IcebergMetadata
         return switch (procedureId) {
             case OPTIMIZE -> getTableHandleForOptimize(tableHandle, icebergTable, executeProperties, retryMode);
             case OPTIMIZE_MANIFESTS -> getTableHandleForOptimizeManifests(session, tableHandle);
+            case OPTIMIZE_POSITION_DELETES -> getTableHandleForOptimizePositionDeletes(session, tableHandle);
             case DROP_EXTENDED_STATS -> getTableHandleForDropExtendedStats(session, tableHandle);
             case ROLLBACK_TO_SNAPSHOT -> getTableHandleForRollbackToSnapshot(session, tableHandle, executeProperties);
             case EXPIRE_SNAPSHOTS -> getTableHandleForExpireSnapshots(session, tableHandle, executeProperties);
@@ -1776,6 +1806,18 @@ public class IcebergMetadata
                 tableHandle.getSchemaTableName(),
                 OPTIMIZE_MANIFESTS,
                 new IcebergOptimizeManifestsHandle(),
+                icebergTable.location(),
+                icebergTable.io().properties()));
+    }
+
+    private Optional<ConnectorTableExecuteHandle> getTableHandleForOptimizePositionDeletes(ConnectorSession session, IcebergTableHandle tableHandle)
+    {
+        Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
+
+        return Optional.of(new IcebergTableExecuteHandle(
+                tableHandle.getSchemaTableName(),
+                OPTIMIZE_POSITION_DELETES,
+                new IcebergOptimizePositionDeletesHandle(),
                 icebergTable.location(),
                 icebergTable.io().properties()));
     }
@@ -2009,6 +2051,7 @@ public class IcebergMetadata
             case OPTIMIZE, GENERATE_EMBEDDINGS:
                 return getLayoutForOptimize(session, executeHandle);
             case OPTIMIZE_MANIFESTS:
+            case OPTIMIZE_POSITION_DELETES:
             case DROP_EXTENDED_STATS:
             case ROLLBACK_TO_SNAPSHOT:
             case EXPIRE_SNAPSHOTS:
@@ -2042,6 +2085,7 @@ public class IcebergMetadata
             case GENERATE_EMBEDDINGS:
                 return beginGenerateEmbeddings(session, executeHandle, table);
             case OPTIMIZE_MANIFESTS:
+            case OPTIMIZE_POSITION_DELETES:
             case DROP_EXTENDED_STATS:
             case ROLLBACK_TO_SNAPSHOT:
             case EXPIRE_SNAPSHOTS:
@@ -2112,6 +2156,7 @@ public class IcebergMetadata
                 finishGenerateEmbeddings(session, executeHandle, fragments, splitSourceInfo);
                 return;
             case OPTIMIZE_MANIFESTS:
+            case OPTIMIZE_POSITION_DELETES:
             case DROP_EXTENDED_STATS:
             case ROLLBACK_TO_SNAPSHOT:
             case EXPIRE_SNAPSHOTS:
@@ -2351,6 +2396,9 @@ public class IcebergMetadata
             case OPTIMIZE_MANIFESTS:
                 executeOptimizeManifests(session, executeHandle);
                 return;
+            case OPTIMIZE_POSITION_DELETES:
+                executeOptimizePositionDeletes(session, executeHandle);
+                return;
             case DROP_EXTENDED_STATS:
                 executeDropExtendedStats(session, executeHandle);
                 return;
@@ -2396,6 +2444,131 @@ public class IcebergMetadata
         }).commit();
         commitTransaction(transaction, "optimize manifests");
         transaction = null;
+    }
+
+    private void executeOptimizePositionDeletes(ConnectorSession session, IcebergTableExecuteHandle executeHandle)
+    {
+        checkArgument(executeHandle.procedureHandle() instanceof IcebergOptimizePositionDeletesHandle, "Unexpected procedure handle %s", executeHandle.procedureHandle());
+
+        BaseTable icebergTable = catalog.loadTable(session, executeHandle.schemaTableName());
+
+        beginTransaction(icebergTable);
+
+        LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(), executeHandle.tableLocation(), executeHandle.fileIoProperties());
+
+        RewritePositionDeletesCommitManager commitManager = new RewritePositionDeletesCommitManager(icebergTable);
+        BinPackRewritePositionDeletePlanner positionDeletePlanner = new BinPackRewritePositionDeletePlanner(icebergTable);
+        positionDeletePlanner.init(ImmutableMap.of(SizeBasedFileRewritePlanner.REWRITE_ALL, "true"));
+        FileRewritePlan<FileGroupInfo, PositionDeletesScanTask, DeleteFile, RewritePositionDeletesGroup> plan = positionDeletePlanner.plan();
+        if (plan.totalGroupCount() == 0) {
+            return;
+        }
+
+        // List data files to keep only valid position deletes
+        ImmutableSet.Builder<String> dataFilesBuilder = ImmutableSet.builder();
+        try (CloseableIterable<FileScanTask> iterator = icebergTable.newScan().planWith(icebergScanExecutor).planFiles()) {
+            for (FileScanTask fileScanTask : iterator) {
+                DataFile dataFile = fileScanTask.file();
+                dataFilesBuilder.add(dataFile.location());
+            }
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        Set<String> dataFiles = dataFilesBuilder.build();
+
+        try (FileIO fileIo = icebergTable.io()) {
+            TrinoFileSystem fileSystem = fileSystemFactory.create(session.getIdentity(), fileIo.properties());
+
+            ImmutableSet.Builder<RewritePositionDeletesGroup> fileGroups = ImmutableSet.builder();
+            try (CloseableIterable<RewritePositionDeletesGroup> groups = plan.groups()) {
+                for (RewritePositionDeletesGroup fileGroup : groups) {
+                    fileGroup.setOutputFiles(optimizePositionDeletes(session, fileSystem, locationProvider, fileGroup, icebergTable, dataFiles));
+                    fileGroups.add(fileGroup);
+                }
+            }
+            catch (IOException e) {
+                throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed accessing data for table: " + executeHandle.schemaTableName(), e);
+            }
+            commitManager.commit(fileGroups.build());
+        }
+
+        transaction = null;
+    }
+
+    private static Set<DeleteFile> optimizePositionDeletes(
+            ConnectorSession session,
+            TrinoFileSystem fileSystem,
+            LocationProvider locationProvider,
+            RewritePositionDeletesGroup fileGroup,
+            Table table,
+            Set<String> dataFiles)
+            throws IOException
+    {
+        checkArgument(!fileGroup.rewrittenDeleteFiles().isEmpty());
+
+        FileWriterFactory<?> writerFactory = TrinoGenericFileWriterFactory.builderFor(table);
+        DeleteFile deleteFile = fileGroup.rewrittenDeleteFiles().iterator().next();
+        String fileName = deleteFile.format().addExtension(session.getQueryId() + "-" + randomUUID());
+        Location location = Location.of(locationProvider.newDataLocation(table.spec(), deleteFile.partition(), fileName));
+
+        try (PositionDeleteWriter<?> positionDeleteWriter = writerFactory.newPositionDeleteWriter(encryptedOutput(new ForwardingOutputFile(fileSystem, location), EMPTY), table.spec(), deleteFile.partition())) {
+            boolean danglingFileExists = false;
+            boolean isEmpty = true;
+            for (DeleteFile rewrittenDeleteFile : fileGroup.rewrittenDeleteFiles()) {
+                try (CloseableIterable<Record> positionDeletes = positionDeletesReader(new ForwardingInputFile(fileSystem.newInputFile(Location.of(rewrittenDeleteFile.location()))), rewrittenDeleteFile.format(), table.spec())) {
+                    for (Record record : positionDeletes) {
+                        String filePath = record.get(0, String.class);
+                        if (!dataFiles.contains(filePath)) {
+                            danglingFileExists = true;
+                            continue;
+                        }
+                        isEmpty = false;
+                        //noinspection rawtypes
+                        PositionDelete positionDelete = PositionDelete.create();
+                        positionDelete.set(filePath, record.get(1, Long.class));
+                        //noinspection unchecked
+                        positionDeleteWriter.write(positionDelete);
+                    }
+                }
+            }
+
+            positionDeleteWriter.close();
+            DeleteFile rewrittenDeleteFile = positionDeleteWriter.toDeleteFile();
+            if (isEmpty) {
+                // Don't add an empty delete file
+                fileSystem.deleteFile(Location.of(rewrittenDeleteFile.location()));
+                return ImmutableSet.of();
+            }
+            if (!danglingFileExists && fileGroup.rewrittenDeleteFiles().size() == 1) {
+                // Don't rewrite a single delete file unless the file group contains dangling deletes
+                fileSystem.deleteFile(Location.of(rewrittenDeleteFile.location()));
+                return ImmutableSet.copyOf(fileGroup.rewrittenDeleteFiles());
+            }
+            return ImmutableSet.of(rewrittenDeleteFile);
+        }
+    }
+
+    private static CloseableIterable<Record> positionDeletesReader(InputFile inputFile, FileFormat format, PartitionSpec spec)
+    {
+        Schema deleteSchema = posDeleteReadSchema(spec.schema());
+        return switch (format) {
+            case AVRO -> Avro.read(inputFile)
+                    .project(deleteSchema)
+                    .reuseContainers()
+                    .createResolvingReader(PlannedDataReader::create)
+                    .build();
+            case PARQUET -> Parquet.read(inputFile)
+                    .project(deleteSchema)
+                    .reuseContainers()
+                    .createReaderFunc(fileSchema -> GenericParquetReaders.buildReader(deleteSchema, fileSchema))
+                    .build();
+            case ORC -> org.apache.iceberg.orc.ORC.read(inputFile)
+                    .project(deleteSchema)
+                    .createReaderFunc(fileSchema -> buildReader(deleteSchema, fileSchema))
+                    .build();
+            default -> throw new TrinoException(NOT_SUPPORTED, "Unsupported file format: " + format);
+        };
     }
 
     private void executeDropExtendedStats(ConnectorSession session, IcebergTableExecuteHandle executeHandle)

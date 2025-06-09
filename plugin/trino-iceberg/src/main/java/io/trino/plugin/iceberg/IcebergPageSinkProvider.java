@@ -165,6 +165,7 @@ public class IcebergPageSinkProvider
             case GENERATE_EMBEDDINGS:
                 return createGenerateEmbeddingsPageSink(session, executeHandle);
             case OPTIMIZE_MANIFESTS:
+            case OPTIMIZE_POSITION_DELETES:
             case DROP_EXTENDED_STATS:
             case ROLLBACK_TO_SNAPSHOT:
             case EXPIRE_SNAPSHOTS:
