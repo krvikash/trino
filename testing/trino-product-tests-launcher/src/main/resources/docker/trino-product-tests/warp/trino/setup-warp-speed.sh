@@ -4,4 +4,4 @@ set -exuo pipefail
 echo "8388608" > /proc/sys/fs/aio-max-nr
 
 # disk for native
-mkdir -p /opt/data
+mkdir -p /opt/data/INDEX-CACHE

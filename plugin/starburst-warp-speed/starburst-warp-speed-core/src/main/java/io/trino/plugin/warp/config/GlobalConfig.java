@@ -38,7 +38,7 @@ public class GlobalConfig
     private long clusterUpTime;
     private int consistentSplitBucketsPerWorker = 2048;
     private int exportDelayInSeconds;
-    private String localStorePath = "/opt/data/";
+    private String localStorePath = "/opt/data/INDEX-CACHE";
     private int predicateSimplifyThreshold = 1_000_000;
     private long reservationUsageForSingleTxInBytes = 1024L * 1024 * 128;
     private long emptyPageIterations = 5000;
