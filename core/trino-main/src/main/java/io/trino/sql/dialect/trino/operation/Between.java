@@ -33,7 +33,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Between
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "between";
 
@@ -97,5 +97,23 @@ public final class Between
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty between";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        return new Between(
+                result.name(),
+                index == 0 ? newArgument : input,
+                index == 1 ? newArgument : min,
+                index == 2 ? newArgument : max,
+                ImmutableList.of());
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        return new Between(newName, input, min, max, ImmutableList.of());
     }
 }

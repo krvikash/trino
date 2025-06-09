@@ -21,6 +21,7 @@ import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +34,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static java.util.Objects.requireNonNull;
 
 public final class Logical
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "logical";
 
@@ -94,5 +95,24 @@ public final class Logical
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "logical :)";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        List<Value> newTerms = new ArrayList<>(terms);
+        newTerms.set(index, newArgument);
+        return new Logical(
+                result.name(),
+                newTerms,
+                LOGICAL_OPERATOR.getAttribute(attributes),
+                ImmutableList.of());
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        return new Logical(newName, terms, LOGICAL_OPERATOR.getAttribute(attributes), ImmutableList.of());
     }
 }

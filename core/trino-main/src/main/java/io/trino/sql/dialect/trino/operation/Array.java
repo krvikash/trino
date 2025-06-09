@@ -23,6 +23,7 @@ import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +35,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Array
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "array";
 
@@ -92,5 +93,24 @@ public final class Array
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "array :)";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        List<Value> newArguments = new ArrayList<>(elements);
+        newArguments.set(index, newArgument);
+        return new Array(
+                result.name(),
+                ((ArrayType) trinoType(result.type())).getElementType(),
+                newArguments,
+                ImmutableList.of());
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        return new Array(newName, ((ArrayType) trinoType(result.type())).getElementType(), elements, ImmutableList.of());
     }
 }

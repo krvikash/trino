@@ -30,7 +30,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static java.util.Objects.requireNonNull;
 
 public final class Constant
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "constant";
 
@@ -75,5 +75,12 @@ public final class Constant
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty constant";
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        NullableValue constantResult = CONSTANT_RESULT.getAttribute(attributes);
+        return new Constant(newName, constantResult.getType(), constantResult.getValue());
     }
 }

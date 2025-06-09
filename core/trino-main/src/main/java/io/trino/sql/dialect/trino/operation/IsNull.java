@@ -29,7 +29,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static java.util.Objects.requireNonNull;
 
 public final class IsNull
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "is_null";
 
@@ -80,5 +80,21 @@ public final class IsNull
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "is_null :)";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        return new IsNull(
+                result.name(),
+                newArgument,
+                ImmutableMap.of());
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        return new IsNull(newName, input, ImmutableMap.of());
     }
 }

@@ -40,7 +40,7 @@ import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public final class Project
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "project";
 
@@ -109,5 +109,21 @@ public final class Project
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty project";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        return new Project(
+                result.name(),
+                newArgument,
+                assignments.getOnlyBlock(),
+                ImmutableMap.of());
+    }
+
+    public Block assignments()
+    {
+        return assignments.getOnlyBlock();
     }
 }

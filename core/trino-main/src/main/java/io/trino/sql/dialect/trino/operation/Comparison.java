@@ -34,7 +34,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Comparison
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "comparison";
 
@@ -94,5 +94,23 @@ public final class Comparison
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "comparison :)";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        return new Comparison(
+                result.name(),
+                index == 0 ? newArgument : left,
+                index == 1 ? newArgument : right,
+                COMPARISON_OPERATOR.getAttribute(attributes),
+                ImmutableList.of());
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        return new Comparison(newName, left, right, COMPARISON_OPERATOR.getAttribute(attributes), ImmutableList.of());
     }
 }

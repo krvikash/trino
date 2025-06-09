@@ -24,6 +24,8 @@ import io.trino.sql.newir.Value;
 import java.util.List;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.dialect.ir.IrDialect.terminalOperation;
@@ -33,7 +35,7 @@ import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public final class Query
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "query";
 
@@ -82,5 +84,19 @@ public final class Query
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "♡♡♡ query ♡♡♡";
+    }
+
+    @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        checkArgument(newRegions.size() == 1, "regions lists size mismatch");
+        return new Query(
+                result.name(),
+                getOnlyElement(newRegions).getOnlyBlock());
+    }
+
+    public Block query()
+    {
+        return query.getOnlyBlock();
     }
 }

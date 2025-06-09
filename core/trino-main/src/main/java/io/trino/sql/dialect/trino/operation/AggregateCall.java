@@ -51,7 +51,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class AggregateCall
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "aggregate_call";
 
@@ -220,5 +220,23 @@ public class AggregateCall
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty aggregate call";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        return new AggregateCall(
+                result.name(),
+                newArgument,
+                trinoType(result.type()),
+                arguments.getOnlyBlock(),
+                filterSelector.getOnlyBlock(),
+                maskSelector.getOnlyBlock(),
+                orderingSelector.getOnlyBlock(),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                RESOLVED_FUNCTION.getAttribute(attributes),
+                DISTINCT.getAttribute(attributes),
+                AGGREGATION_STEP.getAttribute(attributes));
     }
 }

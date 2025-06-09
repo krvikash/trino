@@ -23,6 +23,7 @@ import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +33,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static java.util.Objects.requireNonNull;
 
 public final class Row
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "row";
 
@@ -90,5 +91,23 @@ public final class Row
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "row :)";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        List<Value> newFields = new ArrayList<>(fields);
+        newFields.set(index, newArgument);
+        return new Row(
+                result.name(),
+                newFields,
+                ImmutableList.of());
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        return new Row(newName, fields, ImmutableList.of());
     }
 }

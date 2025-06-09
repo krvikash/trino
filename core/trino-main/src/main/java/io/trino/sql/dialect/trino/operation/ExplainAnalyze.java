@@ -14,6 +14,7 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
@@ -40,7 +41,7 @@ import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public class ExplainAnalyze
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "explain_analyze";
 
@@ -102,5 +103,17 @@ public class ExplainAnalyze
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "pretty explain analyze";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        return new ExplainAnalyze(
+                result.name(),
+                newArgument,
+                fieldSelector.getOnlyBlock(),
+                VERBOSE.getAttribute(attributes),
+                ImmutableMap.of());
     }
 }

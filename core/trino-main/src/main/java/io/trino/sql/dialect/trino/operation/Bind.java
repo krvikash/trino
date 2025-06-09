@@ -23,6 +23,7 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 import io.trino.type.FunctionType;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +35,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Bind
-        extends Operation
+        extends TrinoOperation
 {
     private static final String NAME = "bind";
 
@@ -103,5 +104,26 @@ public final class Bind
     public String prettyPrint(int indentLevel, FormatOptions formatOptions)
     {
         return "bind :)";
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        List<Value> newValues = new ArrayList<>(values);
+        if (index < values.size()) {
+            newValues.set(index, newArgument);
+        }
+        return new Bind(
+                result.name(),
+                newValues,
+                index == values.size() ? newArgument : lambda,
+                ImmutableList.of());
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        return new Bind(newName, values, lambda, ImmutableList.of());
     }
 }
