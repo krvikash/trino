@@ -37,6 +37,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
 import static io.trino.sql.newir.Region.singleBlockRegion;
+import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.isPruningAssignments;
 import static java.util.Objects.requireNonNull;
 
 public final class Project
@@ -125,5 +126,10 @@ public final class Project
     public Block assignments()
     {
         return assignments.getOnlyBlock();
+    }
+
+    public boolean isPruning()
+    {
+        return isPruningAssignments(assignments());
     }
 }

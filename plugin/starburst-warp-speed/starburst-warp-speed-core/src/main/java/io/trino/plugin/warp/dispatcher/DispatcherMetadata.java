@@ -72,6 +72,7 @@ import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
 import io.trino.spi.connector.TopNApplicationResult;
+import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.connector.WriterScalingOptions;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Constant;
@@ -1074,6 +1075,13 @@ public class DispatcherMetadata
     @Override
     public Optional<TopNApplicationResult<ConnectorTableHandle>> applyTopN(ConnectorSession session, ConnectorTableHandle handle, long topNCount, List<SortItem> sortItems, Map<String, ColumnHandle> assignments)
     {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<UnificationResult<ConnectorTableHandle>> unifyTables(ConnectorSession session, ConnectorTableHandle first, ConnectorTableHandle second)
+    {
+        // TODO implement this
         return Optional.empty();
     }
 

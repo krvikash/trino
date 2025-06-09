@@ -75,6 +75,7 @@ import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
 import io.trino.spi.connector.TopNApplicationResult;
+import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.connector.WriterScalingOptions;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.function.AggregationFunctionMetadata;
@@ -953,6 +954,13 @@ public class MockPlanAlternativeMetadata
     public Optional<TableFunctionApplicationResult<ConnectorTableHandle>> applyTableFunction(ConnectorSession session, ConnectorTableFunctionHandle handle)
     {
         return delegate.applyTableFunction(session, handle);
+    }
+
+    @Override
+    public Optional<UnificationResult<ConnectorTableHandle>> unifyTables(ConnectorSession session, ConnectorTableHandle first, ConnectorTableHandle second)
+    {
+        // TODO implement this
+        return Optional.empty();
     }
 
     @Override
