@@ -61,7 +61,6 @@ public class PlanFragment
     private final Optional<String> jsonRepresentation;
     private final boolean containsTableScanNode;
 
-    // Only for creating instances without the JSON representation embedded
     private PlanFragment(
             PlanFragmentId id,
             PlanNode root,
@@ -76,7 +75,8 @@ public class PlanFragment
             PartitioningScheme outputPartitioningScheme,
             StatsAndCosts statsAndCosts,
             List<CatalogProperties> activeCatalogs,
-            Map<FunctionId, LanguageFunctionData> languageFunctions)
+            Map<FunctionId, LanguageFunctionData> languageFunctions,
+            Optional<String> jsonRepresentation)
     {
         this.id = requireNonNull(id, "id is null");
         this.root = requireNonNull(root, "root is null");
@@ -92,7 +92,7 @@ public class PlanFragment
         this.statsAndCosts = requireNonNull(statsAndCosts, "statsAndCosts is null");
         this.activeCatalogs = requireNonNull(activeCatalogs, "activeCatalogs is null");
         this.languageFunctions = ImmutableMap.copyOf(languageFunctions);
-        this.jsonRepresentation = Optional.empty();
+        this.jsonRepresentation = requireNonNull(jsonRepresentation, "jsonRepresentation is null");
         // ChooseAlternativeNode is put into partitionedSources to link SplitSource to AlternativesAwareDriverFactory
         this.containsTableScanNode = partitionedSourceNodes.stream().anyMatch(node -> node instanceof TableScanNode || node instanceof ChooseAlternativeNode);
     }
@@ -238,7 +238,8 @@ public class PlanFragment
                 this.outputPartitioningScheme,
                 this.statsAndCosts,
                 this.activeCatalogs,
-                this.languageFunctions);
+                this.languageFunctions,
+                Optional.empty());
     }
 
     public List<Type> getTypes()
@@ -357,6 +358,7 @@ public class PlanFragment
                 activeCatalogs.stream()
                         .map(activeCatalog -> new CatalogProperties(activeCatalog.catalogHandle(), activeCatalog.connectorName(), ImmutableMap.of()))
                         .collect(toImmutableList()),
-                languageFunctions);
+                languageFunctions,
+                jsonRepresentation);
     }
 }
