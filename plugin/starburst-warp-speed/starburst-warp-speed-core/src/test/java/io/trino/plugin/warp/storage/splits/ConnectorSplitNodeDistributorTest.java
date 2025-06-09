@@ -46,7 +46,9 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toCollection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 public class ConnectorSplitNodeDistributorTest
@@ -73,8 +75,7 @@ public class ConnectorSplitNodeDistributorTest
     public void testGetNodeBuckets()
     {
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(ImmutableList.of());
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
-
+        connectorSplitNodeDistributor = createConnectorSplitConsistentHashNodeDistributor();
         List<String> nodeIds = IntStream.range(1, 6)
                 .mapToObj(Integer::toString)
                 .collect(toCollection(ArrayList::new));
@@ -99,7 +100,7 @@ public class ConnectorSplitNodeDistributorTest
     public void testIdentitiesHashValidation()
     {
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(ImmutableList.of());
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
+        connectorSplitNodeDistributor = createConnectorSplitConsistentHashNodeDistributor();
 
         assertThatThrownBy(() -> connectorSplitNodeDistributor.getNode(UUID.randomUUID().toString()))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -115,7 +116,7 @@ public class ConnectorSplitNodeDistributorTest
                 .collect(Collectors.toMap(Node::getNodeIdentifier, Function.identity()));
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(new ArrayList<>(nodesMap.values()));
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
+        connectorSplitNodeDistributor = createConnectorSplitConsistentHashNodeDistributor();
 
         Map<String, String> keyToNodeMap1 = keys.stream()
                 .collect(Collectors.toMap(Function.identity(), key -> connectorSplitNodeDistributor.getNode(key).getNodeIdentifier()));
@@ -188,7 +189,7 @@ public class ConnectorSplitNodeDistributorTest
                 .collect(Collectors.toMap(Node::getNodeIdentifier, Function.identity()));
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(new ArrayList<>(nodesMap.values()));
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
+        connectorSplitNodeDistributor = createConnectorSplitConsistentHashNodeDistributor();
 
         Map<String, String> keyToNodeMap1 = keys.stream()
                 .collect(Collectors.toMap(Function.identity(), key -> connectorSplitNodeDistributor.getNode(key).getNodeIdentifier()));
@@ -236,7 +237,7 @@ public class ConnectorSplitNodeDistributorTest
     {
         Map<String, Node> nodesMap = new HashMap<>();
 
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
+        connectorSplitNodeDistributor = createConnectorSplitConsistentHashNodeDistributor();
 
         //add one node each time
         Map<String, Set<String>> nodeToKeysMap1 = assertAddNode(nodesMap, "a", Map.of());
@@ -258,7 +259,7 @@ public class ConnectorSplitNodeDistributorTest
         List<String> nodeIds = new ArrayList<>(List.of("a", "c", "e", "b", "d")); // when starting from 0 we get duplicates in hashes
         Map<String, Node> nodesMap = new HashMap<>();
 
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
+        connectorSplitNodeDistributor = createConnectorSplitConsistentHashNodeDistributor();
 
         //add one node each time
         Map<String, Set<String>> nodeToKeysMap1 = assertAddNode(nodesMap, nodeIds.removeFirst(), Map.of());
@@ -326,6 +327,16 @@ public class ConnectorSplitNodeDistributorTest
         int invalidNumber = 20;
         connectorSplitNodeDistributor = new ConnectorSplitSessionNodeDistributor(nodeManager, String.valueOf(invalidNumber));
         Assertions.assertThrows(IndexOutOfBoundsException.class, () -> connectorSplitNodeDistributor.getNode(ignore));
+    }
+
+    private ConnectorSplitConsistentHashNodeDistributor createConnectorSplitConsistentHashNodeDistributor()
+    {
+        ConnectorSplitConsistentHashNodeDistributor distributor = spy(new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager));
+        doAnswer(_ -> {
+            distributor.updateNodeBuckets();
+            return null;
+        }).when(distributor).updateNodeBucketsIfNeeded();
+        return distributor;
     }
 
     private Map<String, Set<String>> assertRemoveNode(Map<String, Node> nodesMap,

@@ -63,6 +63,7 @@ public interface DispatcherProxiedConnectorTransformer
             String splitKey,
             ConnectorSplitNodeDistributor connectorSplitNodeDistributor)
     {
+        connectorSplitNodeDistributor.updateNodeBucketsIfNeeded();
         Node node = connectorSplitNodeDistributor.getNode(splitKey);
         if (Objects.isNull(node)) {
             throw new TrinoException(WarpErrorCode.WARP_CLUSTER_NOT_READY, "no worker nodes available");

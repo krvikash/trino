@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.storage.splits;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
@@ -29,14 +30,18 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.IntStream;
 
+import static io.airlift.units.Duration.nanosSince;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Singleton
 public class ConnectorSplitConsistentHashNodeDistributor
         implements ConnectorSplitNodeDistributor
 {
     private static final Logger logger = Logger.get(ConnectorSplitConsistentHashNodeDistributor.class);
+
+    private static final long WORKER_NODES_CACHE_TIMEOUT_SECS = 5;
 
     /**
      * prime number fit for number of nodes 2->128 to test distribution of different values.
@@ -45,6 +50,7 @@ public class ConnectorSplitConsistentHashNodeDistributor
 
     private final GlobalConfig globalConfig;
     private final CoordinatorNodeManager coordinatorNodeManager;
+    private volatile long lastRefreshTime;
 
     //key = bucket hash, value = node
     private TreeMap<Integer, Node> nodeBucketsTreeMap;
@@ -64,6 +70,20 @@ public class ConnectorSplitConsistentHashNodeDistributor
     @Override
     public synchronized void updateNodeBucketsIfNeeded()
     {
+        if (nanosSince(lastRefreshTime).getValue(SECONDS) > WORKER_NODES_CACHE_TIMEOUT_SECS) {
+            // Double lock checking pattern to reduce lock contention
+            synchronized (this) {
+                if (nanosSince(lastRefreshTime).getValue(SECONDS) > WORKER_NODES_CACHE_TIMEOUT_SECS) {
+                    updateNodeBuckets();
+                }
+            }
+        }
+    }
+
+    @VisibleForTesting
+    void updateNodeBuckets()
+    {
+        lastRefreshTime = System.nanoTime();
         int currentWorkerNodesHash = getWorkerNodesHash();
         if (workerNodesHash == currentWorkerNodesHash) {
             return;
