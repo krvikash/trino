@@ -42,6 +42,7 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
+import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.NULLABLE_RETURN;
 import static io.trino.spi.type.TypeSignature.arrayType;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -59,10 +60,12 @@ public class AiFunctions
             .add(function("generate_embedding")
                     .description("Generate a vector embedding for the provided VARCHAR, using the specified model")
                     .signature(signature(TypeSignature.arrayType(DOUBLE), TEXT, TEXT))
+                    .nullable()
                     .build())
             .add(function("generate_binary_embedding", "generate_binary_embedding")
                     .description("Generate a vector embedding for the provided VARCHAR with a VARBINARY encoding")
                     .signature(signature(VARBINARY.getTypeSignature(), TEXT, TEXT))
+                    .nullable()
                     .build())
             .add(function("analyze_sentiment")
                     .description("Perform sentiment analysis on text, using the specified model")
@@ -82,11 +85,13 @@ public class AiFunctions
             .add(function("prompt")
                     .description("Generate text based on a prompt, using the specified model")
                     .signature(signature(TEXT, TEXT, TEXT))
+                    .nullable()
                     .nondeterministic()
                     .build())
             .add(function("prompt")
                     .description("Generate text based on a system and user prompt, using the specified model")
                     .signature(signature(TEXT, TEXT, TEXT, TEXT))
+                    .nullable()
                     .nondeterministic()
                     .build())
             .add(function("mask")
@@ -179,11 +184,18 @@ public class AiFunctions
             default -> throw new IllegalArgumentException("Invalid function ID: " + functionId);
         };
 
+        InvocationConvention.InvocationReturnConvention returnConvention = switch (name) {
+            case "generate_embedding" -> NULLABLE_RETURN;
+            case "generate_binary_embedding" -> NULLABLE_RETURN;
+            case "prompt" -> NULLABLE_RETURN;
+            default -> FAIL_ON_NULL;
+        };
+
         handle = handle.bindTo(this);
 
         InvocationConvention actualConvention = new InvocationConvention(
                 nCopies(boundSignature.getArity(), NEVER_NULL),
-                FAIL_ON_NULL,
+                returnConvention,
                 true,
                 false);
 
