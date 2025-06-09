@@ -42,7 +42,7 @@ record HiveIdentifier(LowerCaseString name)
 
     HiveIdentifier
     {
-        checkArgument(isValidName(name.getOriginalString()), "Idenfitier: %s is not valid for Hive compatibility", name);
+        checkArgument(isValidName(name.getOriginalString()), "Identifier: %s is not valid for Hive compatibility", name);
     }
 
     HiveIdentifier(String name)
@@ -108,6 +108,12 @@ record HiveIdentifier(LowerCaseString name)
         // try to remove first character until we have name that is valid
         while (fixedName.length() > 1 && !isValidName(fixedName)) {
             fixedName = fixedName.substring(1);
+        }
+        // return original name, as at this point fixedName has 1 length
+        // which is not expected outcome, and with original name in error it's easier to
+        // interpret error message
+        if (fixedName.length() == 1) {
+            return new HiveIdentifier(name);
         }
         return new HiveIdentifier(fixedName);
     }

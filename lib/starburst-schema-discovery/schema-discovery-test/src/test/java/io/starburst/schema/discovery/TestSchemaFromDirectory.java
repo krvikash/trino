@@ -514,6 +514,42 @@ public class TestSchemaFromDirectory
     }
 
     @Test
+    public void testHiveCompatiblePartitions()
+            throws Exception
+    {
+        DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_HIVE_AND_TRINO, newCachedThreadPool());
+        Location directory = Util.testFilePath("hive_partition_names");
+        ListenableFuture<DiscoveredSchema> discoveryFuture = controller.guess(new GuessRequest(uriFromLocation(directory), CSV_OPTIONS));
+        DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
+
+        assertThat(discoveredTableSet.tables())
+                .hasSize(1)
+                .allMatch(DiscoveredTable::valid)
+                .allMatch(table -> table.tableName().equals(new TableName(Optional.empty(), toTestingHiveIdentifier("hive_partition_names"))))
+                .allMatch(table -> table.discoveredPartitions().columns().getFirst().name().equals(toLowerCase("orderpartition")))
+                .allMatch(table -> table.discoveredPartitions().columns().get(1).name().equals(toLowerCase("partition_reception_time")));
+    }
+
+    @Test
+    public void testShallowHiveCompatiblePartitions()
+            throws Exception
+    {
+        DiscoveryTrinoFileSystem fileSystem = Util.fileSystem();
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, parquetDataSourceFactory, orcDataSourceFactory, TRINO, VALID_IN_HIVE_AND_TRINO, newCachedThreadPool());
+        Location directory = Util.testFilePath("hive_partition_names");
+        ListenableFuture<DiscoveredSchema> shallowDiscoveryFuture = controller.discoverTablesShallow(new GuessRequest(uriFromLocation(directory), ImmutableMap.of()));
+        DiscoveredSchema discoveredShallowSchema = shallowDiscoveryFuture.get(5, TimeUnit.SECONDS);
+
+        assertThat(discoveredShallowSchema.tables())
+                .hasSize(1)
+                .allMatch(DiscoveredTable::valid)
+                .allMatch(table -> table.tableName().equals(new TableName(Optional.empty(), toTestingHiveIdentifier("hive_partition_names"))))
+                .allMatch(table -> table.discoveredPartitions().columns().getFirst().name().equals(toLowerCase("orderpartition")))
+                .allMatch(table -> table.discoveredPartitions().columns().get(1).name().equals(toLowerCase("partition_reception_time")));
+    }
+
+    @Test
     public void testDiscoveryOnFolderWithIllegalTableNameWithTrinoCompatibility()
             throws Exception
     {

@@ -10,7 +10,6 @@
 package io.starburst.schema.discovery.options;
 
 import com.google.common.collect.ImmutableMap;
-import io.starburst.schema.discovery.TableChanges.TableName;
 import io.trino.spi.TrinoException;
 
 import java.text.DecimalFormat;
@@ -45,14 +44,14 @@ public class OptionsMap
         return new OptionsMap(overrides, defaults);
     }
 
-    public OptionsMap withTableName(TableName tableName)
+    public OptionsMap withPrefixedOptions(String prefix)
     {
-        String prefix = tableName + ".";
+        String actualPrefix = prefix + ".";
         Map<String, String> standardOverrides = new HashMap<>();
         Map<String, String> tableOverrides = new HashMap<>();
         overrides.forEach((key, value) -> {
-            if (key.startsWith(prefix)) {
-                tableOverrides.put(key.substring(prefix.length()), value);
+            if (key.startsWith(actualPrefix)) {
+                tableOverrides.put(key.substring(actualPrefix.length()), value);
             }
             else {
                 standardOverrides.put(key, value);

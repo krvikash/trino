@@ -38,7 +38,7 @@ public class TestOptionsMap
     {
         Map<String, String> options = new HashMap<>(CsvOptions.standard());
         options.put("s.f." + CsvOptions.DELIMITER, "-");
-        CsvOptions csvOptions = new CsvOptions(new OptionsMap(options).withTableName(new TableChanges.TableName(Optional.of(toLowerCase("s")), toLowerCase("f"))));
+        CsvOptions csvOptions = new CsvOptions(new OptionsMap(options).withPrefixedOptions(new TableChanges.TableName(Optional.of(toLowerCase("s")), toLowerCase("f")).toString()));
         assertThat(csvOptions.delimiter()).isEqualTo("-");
     }
 }

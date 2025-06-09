@@ -87,6 +87,7 @@ import static io.starburst.schema.discovery.models.DiscoveredFormat.EMPTY_DISCOV
 import static io.starburst.schema.discovery.models.DiscoveredIdentifier.identifierFromString;
 import static io.starburst.schema.discovery.models.DiscoveredTable.EMPTY_DISCOVERED_TABLE;
 import static io.starburst.schema.discovery.models.IdentifierConstraint.VALID_IN_TRINO;
+import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
 import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
@@ -112,7 +113,7 @@ public class Processor
 
     public record ProcessorPath(Location path, Optional<LakehouseFormat> lakehouseFormat) {}
 
-    record ProcessorShallowTableGuess(TableAndPathKey tableAndPathKey, TableFormat tableFormat) {}
+    record ProcessorShallowTableGuess(ProcessorGuessedTableName guessedTableName, Location path, TableFormat tableFormat) {}
 
     record ProcessorDiscoveredSchemas(Location parent, List<ProcessorFormatGuessSchema> formatGuessSchemas) {}
 
@@ -122,9 +123,23 @@ public class Processor
 
     record ProcessorGuess(TableFormat format, FormatGuess formatGuess) {}
 
-    record ProcessorGuessedSchema(Optional<DiscoveredIdentifier> schemaName, TableFormat format, Map<String, String> options, DiscoveredColumns columns) {}
+    record ProcessorGuessedSchema(Optional<LowerCaseString> schemaName, TableFormat format, Map<String, String> options, DiscoveredColumns columns) {}
 
     record ProcessorGuessedSchemaAndPartition(ProcessorGuessedSchema guessedSchema, List<InferredPartition> partitions) {}
+
+    record ProcessorGuessedTableName(Optional<LowerCaseString> schemaName, LowerCaseString tableName)
+    {
+        public String toString(LowerCaseString defaultSchemaName)
+        {
+            return "%s.%s".formatted(schemaName.orElse(defaultSchemaName), tableName);
+        }
+
+        @Override
+        public String toString()
+        {
+            return schemaName.map(this::toString).orElse(tableName.toString());
+        }
+    }
 
     public Processor(Map<TableFormat, SchemaDiscovery> schemaDiscoveryInstances, DiscoveryTrinoFileSystem fileSystem, Location rootPath, OptionsMap options, IdentifierConstraint identifierConstraint, Executor executor)
     {
@@ -237,17 +252,17 @@ public class Processor
         return formatGuessSchemas.stream()
                 .map(formatGuessSchema -> {
                     InferPartitions inferredPartitions = new InferPartitions(generalOptions, rootPath, formatGuessSchema.parent(), identifierConstraint);
-                    Optional<DiscoveredIdentifier> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(formatGuessSchema.parent(), inferredPartitions);
+                    Optional<LowerCaseString> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(formatGuessSchema.parent(), inferredPartitions);
                     ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, formatGuessSchema.discoveredFormat().format(), formatGuessSchema.discoveredFormat().options(), formatGuessSchema.columns());
                     ProcessorGuessedSchemaAndPartition guessedSchemaAndPartition = new ProcessorGuessedSchemaAndPartition(guessedSchema, inferredPartitions.partitions());
                     return entry(
-                            new TableAndPathKey(new TableName(schemaName, inferredPartitions.tableName()), inferredPartitions.path()),
+                            new TableAndPathKey(new TableName(schemaName.map(this::toNameIdentifier), inferredPartitions.tableName()), inferredPartitions.path()),
                             guessedSchemaAndPartition);
                 })
                 .collect(Collectors.groupingBy(Entry::getKey, Collectors.mapping(Entry::getValue, toImmutableList()))); // grouped by table name to list of potential tables, which need to be reduced
     }
 
-    private Optional<DiscoveredIdentifier> inferPossibleSchemaName(Location fileParentPath, InferPartitions partitions)
+    private Optional<LowerCaseString> inferPossibleSchemaName(Location fileParentPath, InferPartitions partitions)
     {
         if (partitions.partitions().isEmpty()) {
             return inferPossibleSchemaName(fileParentPath);
@@ -261,7 +276,7 @@ public class Processor
         while (!rootPath.equals(parent) && !rootPath.equals(parentOf(parent))) {
             if (!partitionDirectoryNames.contains(directoryOrFileName(parent))) {
                 String possibleSchemaName = directoryOrFileName(parentOf(parent));
-                return possibleSchemaName.isEmpty() ? Optional.empty() : Optional.of(toNameIdentifier(possibleSchemaName));
+                return possibleSchemaName.isEmpty() ? Optional.empty() : Optional.of(toLowerCase(possibleSchemaName));
             }
             else {
                 parent = parentOf(parent);
@@ -270,13 +285,13 @@ public class Processor
         return Optional.empty();
     }
 
-    private Optional<DiscoveredIdentifier> inferPossibleSchemaName(Location parent)
+    private Optional<LowerCaseString> inferPossibleSchemaName(Location parent)
     {
         if (rootPath.equals(parent) || rootPath.equals(parentOf(parent))) {
             return Optional.empty();
         }
         String possibleSchemaName = directoryOrFileName(parentOf(parent));
-        return possibleSchemaName.isEmpty() ? Optional.empty() : Optional.of(toNameIdentifier(possibleSchemaName));
+        return possibleSchemaName.isEmpty() ? Optional.empty() : Optional.of(toLowerCase(possibleSchemaName));
     }
 
     private Void buildTablesAndSetResult(Map<TableAndPathKey, ? extends List<ProcessorGuessedSchemaAndPartition>> tableToGuessesAndPartitions)
@@ -449,7 +464,7 @@ public class Processor
         return new DiscoveredTable(
                 valid,
                 ensureEndsWithSlash(tablePath),
-                new TableName(guess.guessedSchema().schemaName(), tableName),
+                new TableName(guess.guessedSchema().schemaName().map(this::toNameIdentifier), tableName),
                 guess.guessedSchema().format(),
                 guess.guessedSchema().options(),
                 guess.guessedSchema().columns(),
@@ -634,8 +649,8 @@ public class Processor
         }
         else {
             Location firstPath = firstProcessorPath.path();
-            TableName guessedTableName = new TableName(inferPossibleSchemaName(parent), toNameIdentifier(directoryOrFileName(parent)));
-            OptionsMap optionsForTableName = this.options.withTableName(guessedTableName);
+            ProcessorGuessedTableName guessedTableName = new ProcessorGuessedTableName(inferPossibleSchemaName(parent), toLowerCase(directoryOrFileName(parent)));
+            OptionsMap optionsForTableName = this.options.withPrefixedOptions(guessedTableName.toString());
             GeneralOptions generalOptions = new GeneralOptions(optionsForTableName);
 
             Optional<DiscoveredFormat> forcedDiscoveredFormat = generalOptions.forcedFormat()
@@ -678,9 +693,10 @@ public class Processor
     private ListenableFuture<ProcessorShallowTableGuess> buildShallowTables(Location parent, ProcessorPath first)
     {
         return Futures.submit(() -> {
-            TableName guessedTableName = new TableName(inferPossibleSchemaName(parent), toNameIdentifier(directoryOrFileName(parent)));
+            ProcessorGuessedTableName guessedTableName = new ProcessorGuessedTableName(inferPossibleSchemaName(parent), toLowerCase(directoryOrFileName(parent)));
             return new ProcessorShallowTableGuess(
-                    new TableAndPathKey(guessedTableName, parent),
+                    guessedTableName,
+                    parent,
                     first.lakehouseFormat().map(LakehouseFormat::format).orElse(extensionTableFormatMatcher.match(first.path())));
         }, executor);
     }
@@ -689,16 +705,15 @@ public class Processor
     {
         return tableAndPathKeys.stream()
                 .map(tableGuess -> {
-                    TableAndPathKey tableAndPath = tableGuess.tableAndPathKey();
                     TableFormat tableFormat = tableGuess.tableFormat();
-                    OptionsMap optionsForTableName = this.options.withTableName(tableAndPath.tableName());
+                    OptionsMap optionsForTableName = this.options.withPrefixedOptions(tableGuess.guessedTableName().toString());
                     GeneralOptions generalOptions = new GeneralOptions(optionsForTableName);
-                    InferPartitions inferredPartitions = new InferPartitions(generalOptions, rootPath, tableAndPath.path(), identifierConstraint);
-                    Optional<DiscoveredIdentifier> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(tableAndPath.path(), inferredPartitions);
+                    InferPartitions inferredPartitions = new InferPartitions(generalOptions, rootPath, tableGuess.path(), identifierConstraint);
+                    Optional<LowerCaseString> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(tableGuess.path(), inferredPartitions);
                     ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, tableFormat, optionsForTableName.unwrap(), EMPTY_DISCOVERED_COLUMNS);
                     ProcessorGuessedSchemaAndPartition guessedSchemaAndPartition = new ProcessorGuessedSchemaAndPartition(guessedSchema, inferredPartitions.partitions());
 
-                    return entry(new TableAndPathKey(new TableName(schemaName, inferredPartitions.tableName()), inferredPartitions.path()), guessedSchemaAndPartition);
+                    return entry(new TableAndPathKey(new TableName(schemaName.map(this::toNameIdentifier), inferredPartitions.tableName()), inferredPartitions.path()), guessedSchemaAndPartition);
                 })
                 .collect(Collectors.groupingBy(Entry::getKey, Collectors.mapping(Entry::getValue, toImmutableList())));
     }
@@ -799,6 +814,11 @@ public class Processor
             diff = Integer.compare(ordinalDiff, 0);
         }
         return diff;
+    }
+
+    private DiscoveredIdentifier toNameIdentifier(LowerCaseString lowerCaseIdentifier)
+    {
+        return identifierFromString(lowerCaseIdentifier.string(), identifierConstraint);
     }
 
     private DiscoveredIdentifier toNameIdentifier(String rawIdentifier)

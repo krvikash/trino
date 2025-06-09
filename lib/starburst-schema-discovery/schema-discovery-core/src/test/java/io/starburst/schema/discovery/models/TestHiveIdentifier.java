@@ -17,6 +17,7 @@ import java.util.List;
 import static io.starburst.schema.discovery.models.HiveIdentifier.toHiveIdentifier;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatException;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
@@ -51,5 +52,13 @@ public class TestHiveIdentifier
         assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> new HiveIdentifier(toLowerCase("table$")));
         assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> new HiveIdentifier(toLowerCase("$")));
         assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> new HiveIdentifier(toLowerCase("")));
+    }
+
+    @Test
+    public void testHiveIdentifierErrorMessage()
+    {
+        assertThatException()
+                .isThrownBy(() -> toHiveIdentifier("partition_reception_time=15-00-00"))
+                .withMessage("Identifier: partition_reception_time=15-00-00 is not valid for Hive compatibility");
     }
 }
