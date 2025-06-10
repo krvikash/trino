@@ -87,8 +87,8 @@ import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
-import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.execution.ChunkManager.ExchangeRemovalReason.ABANDONED;
 import static io.starburst.stargate.buffer.data.execution.ChunkManager.ExchangeRemovalReason.EXPLICIT;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.CREATED;
@@ -220,7 +220,7 @@ public class ChunkManager
                                 // ensure we log only once to not overwhelm logging system
                                 decodingFailures.add(key);
                             }
-                            throw new DataServerException(INTERNAL_ERROR, "Error decoding metadata from file " + getMetadataFileName(key), t);
+                            throw new DataServerException(EXCHANGE_CORRUPTED, "Error decoding metadata from file " + getMetadataFileName(key), t);
                         }
                     }
 
