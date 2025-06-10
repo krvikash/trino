@@ -366,6 +366,7 @@ public class HashBuilderOperator
             long indexSizeAfterCompaction = index.getEstimatedSize().toBytes();
             if (indexSizeAfterCompaction < indexSizeBeforeCompaction * INDEX_COMPACTION_ON_REVOCATION_TARGET) {
                 finishMemoryRevoke = Optional.of(() -> {});
+                localRevocableMemoryContext.setBytes(indexSizeAfterCompaction);
                 return immediateVoidFuture();
             }
 
