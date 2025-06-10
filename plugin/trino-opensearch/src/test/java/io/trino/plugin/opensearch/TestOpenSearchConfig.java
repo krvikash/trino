@@ -42,6 +42,7 @@ public class TestOpenSearchConfig
                 .setDefaultSchema("default")
                 .setScrollSize(1000)
                 .setScrollTimeout(new Duration(1, MINUTES))
+                .setSearchAfterBatchSize(1000)
                 .setRequestTimeout(new Duration(10, SECONDS))
                 .setConnectTimeout(new Duration(1, SECONDS))
                 .setBackoffInitDelay(new Duration(500, MILLISECONDS))
@@ -58,6 +59,7 @@ public class TestOpenSearchConfig
                 .setVerifyHostnames(true)
                 .setIgnorePublishAddress(false)
                 .setProjectionPushdownEnabled(true)
+                .setSearchStrategy(OpenSearchConfig.SearchStrategy.SCROLL)
                 .setSecurity(null));
     }
 
@@ -74,6 +76,7 @@ public class TestOpenSearchConfig
                 .put("opensearch.default-schema-name", "test")
                 .put("opensearch.scroll-size", "4000")
                 .put("opensearch.scroll-timeout", "20s")
+                .put("opensearch.search-after-batch-size", "4000")
                 .put("opensearch.request-timeout", "1s")
                 .put("opensearch.connect-timeout", "10s")
                 .put("opensearch.backoff-init-delay", "100ms")
@@ -90,6 +93,7 @@ public class TestOpenSearchConfig
                 .put("opensearch.tls.verify-hostnames", "false")
                 .put("opensearch.ignore-publish-address", "true")
                 .put("opensearch.projection-pushdown-enabled", "false")
+                .put("opensearch.search-strategy", "SEARCH_AFTER")
                 .put("opensearch.security", "AWS")
                 .buildOrThrow();
 
@@ -99,6 +103,7 @@ public class TestOpenSearchConfig
                 .setDefaultSchema("test")
                 .setScrollSize(4000)
                 .setScrollTimeout(new Duration(20, SECONDS))
+                .setSearchAfterBatchSize(4000)
                 .setRequestTimeout(new Duration(1, SECONDS))
                 .setConnectTimeout(new Duration(10, SECONDS))
                 .setBackoffInitDelay(new Duration(100, MILLISECONDS))
@@ -115,6 +120,7 @@ public class TestOpenSearchConfig
                 .setVerifyHostnames(false)
                 .setIgnorePublishAddress(true)
                 .setProjectionPushdownEnabled(false)
+                .setSearchStrategy(OpenSearchConfig.SearchStrategy.SEARCH_AFTER)
                 .setSecurity(AWS);
 
         assertFullMapping(properties, expected);

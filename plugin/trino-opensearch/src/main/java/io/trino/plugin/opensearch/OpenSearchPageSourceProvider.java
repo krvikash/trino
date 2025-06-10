@@ -67,6 +67,18 @@ public class OpenSearchPageSourceProvider
             return new CountQueryPageSource(client, opensearchTable, opensearchSplit);
         }
 
+        // OpenSearch Serverless doesn't support the `_search/scroll` APIs used by ScanQueryPageSource, hence implement `search_after` logic.
+        if (client.isSearchAfterStrategy()) {
+            return new SearchAfterQueryPageSource(
+                    client,
+                    typeManager,
+                    opensearchTable,
+                    opensearchSplit,
+                    columns.stream()
+                            .map(OpenSearchColumnHandle.class::cast)
+                            .collect(toImmutableList()));
+        }
+
         return new ScrollQueryPageSource(
                 client,
                 typeManager,

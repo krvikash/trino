@@ -38,10 +38,18 @@ public class OpenSearchConfig
         PASSWORD,
     }
 
+    public enum SearchStrategy
+    {
+        SCROLL,
+        SEARCH_AFTER,
+    }
+
     private List<String> hosts;
     private int port = 9200;
     private String defaultSchema = "default";
+    private SearchStrategy searchStrategy = SearchStrategy.SCROLL;
     private int scrollSize = 1_000;
+    private int searchAfterBatchSize = 1_000;
     private Duration scrollTimeout = new Duration(1, MINUTES);
     private Duration requestTimeout = new Duration(10, SECONDS);
     private Duration connectTimeout = new Duration(1, SECONDS);
@@ -113,6 +121,20 @@ public class OpenSearchConfig
     public OpenSearchConfig setScrollSize(int scrollSize)
     {
         this.scrollSize = scrollSize;
+        return this;
+    }
+
+    @Min(1)
+    public int getSearchAfterBatchSize()
+    {
+        return searchAfterBatchSize;
+    }
+
+    @Config("opensearch.search-after-batch-size")
+    @ConfigDescription("Search-after batch size")
+    public OpenSearchConfig setSearchAfterBatchSize(int searchAfterBatchSize)
+    {
+        this.searchAfterBatchSize = searchAfterBatchSize;
         return this;
     }
 
@@ -350,6 +372,19 @@ public class OpenSearchConfig
     public OpenSearchConfig setSecurity(Security security)
     {
         this.security = security;
+        return this;
+    }
+
+    @NotNull
+    public OpenSearchConfig.SearchStrategy getSearchStrategy()
+    {
+        return searchStrategy;
+    }
+
+    @Config("opensearch.search-strategy")
+    public OpenSearchConfig setSearchStrategy(SearchStrategy searchStrategy)
+    {
+        this.searchStrategy = searchStrategy;
         return this;
     }
 }

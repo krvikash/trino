@@ -65,6 +65,7 @@ import org.opensearch.client.RestClientBuilder;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.search.builder.SearchSourceBuilder;
+import org.opensearch.search.sort.SortOrder;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
@@ -120,6 +121,7 @@ public class OpenSearchClient
     private final BackpressureRestHighLevelClient client;
     private final int scrollSize;
     private final Duration scrollTimeout;
+    private final int searchAfterBatchSize;
 
     private final AtomicReference<Set<OpenSearchNode>> nodes = new AtomicReference<>(ImmutableSet.of());
     private final ScheduledExecutorService executor = newSingleThreadScheduledExecutor(daemonThreadsNamed("NodeRefresher"));
@@ -132,6 +134,7 @@ public class OpenSearchClient
     private final TimeStat nextPageStats = new TimeStat(MILLISECONDS);
     private final TimeStat countStats = new TimeStat(MILLISECONDS);
     private final TimeStat backpressureStats = new TimeStat(MILLISECONDS);
+    private final OpenSearchConfig.SearchStrategy searchStrategy;
 
     @Inject
     public OpenSearchClient(
@@ -143,9 +146,11 @@ public class OpenSearchClient
 
         this.ignorePublishAddress = config.isIgnorePublishAddress();
         this.scrollSize = config.getScrollSize();
+        this.searchAfterBatchSize = config.getSearchAfterBatchSize();
         this.scrollTimeout = config.getScrollTimeout();
         this.refreshInterval = config.getNodeRefreshInterval();
         this.tlsEnabled = config.isTlsEnabled();
+        this.searchStrategy = config.getSearchStrategy();
     }
 
     @PostConstruct
@@ -245,6 +250,11 @@ public class OpenSearchClient
         });
 
         return new BackpressureRestHighLevelClient(builder, config, backpressureStats);
+    }
+
+    public boolean isSearchAfterStrategy()
+    {
+        return searchStrategy == OpenSearchConfig.SearchStrategy.SEARCH_AFTER;
     }
 
     private static AWSCredentialsProvider getAwsCredentialsProvider(AwsSecurityConfig config)
@@ -705,6 +715,50 @@ public class OpenSearchClient
         }
         catch (IOException e) {
             throw new TrinoException(OPENSEARCH_CONNECTION_ERROR, e);
+        }
+    }
+
+    public SearchResponse searchAfter(QueryBuilder query, String index, List<String> documentFields, OptionalLong limit, Object[] searchAfter, String sort, long totalRecordCount)
+    {
+        SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource()
+                .query(query)
+                .sort(sort, SortOrder.ASC);
+
+        int batchSize = searchAfterBatchSize;
+        if (limit.isPresent()) {
+            long remaining = limit.getAsLong() - totalRecordCount;
+            batchSize = (int) Math.max(1, Math.min(searchAfterBatchSize, remaining));
+        }
+        sourceBuilder.size(batchSize);
+
+        if (searchAfter != null) {
+            sourceBuilder.searchAfter(searchAfter);
+        }
+        documentFields.forEach(sourceBuilder::docValueField);
+
+        LOG.debug("Fetching next batch for index: %s, with search_after: %s, query: %s", index, Arrays.toString(searchAfter), sourceBuilder);
+        SearchRequest searchRequest = new SearchRequest(index)
+                .source(sourceBuilder);
+        long start = System.nanoTime();
+        try {
+            return client.search(searchRequest);
+        }
+        catch (IOException e) {
+            throw new TrinoException(OPENSEARCH_CONNECTION_ERROR, e);
+        }
+        catch (OpenSearchStatusException e) {
+            Throwable[] suppressed = e.getSuppressed();
+            if (suppressed.length > 0) {
+                Throwable cause = suppressed[0];
+                if (cause instanceof ResponseException responseException) {
+                    throw propagate(responseException);
+                }
+            }
+
+            throw new TrinoException(OPENSEARCH_CONNECTION_ERROR, e);
+        }
+        finally {
+            searchStats.add(Duration.nanosSince(start));
         }
     }
 

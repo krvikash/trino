@@ -59,9 +59,15 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 public abstract class BaseOpenSearchConnectorTest
         extends BaseConnectorTest
 {
+    protected static final String DEFAULT_LATEST_IMAGE = "opensearchproject/opensearch:latest";
     private final String image;
-    private OpenSearchServer opensearch;
+    protected OpenSearchServer opensearch;
     protected RestHighLevelClient client;
+
+    BaseOpenSearchConnectorTest()
+    {
+        this(DEFAULT_LATEST_IMAGE);
+    }
 
     BaseOpenSearchConnectorTest(String image)
     {

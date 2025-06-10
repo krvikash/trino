@@ -22,11 +22,6 @@ import java.util.List;
 public class TestOpenSearchLatestConnectorTest
         extends BaseOpenSearchConnectorTest
 {
-    public TestOpenSearchLatestConnectorTest()
-    {
-        super("opensearchproject/opensearch:latest");
-    }
-
     @Override
     protected List<Integer> largeInValuesCountData()
     {
