@@ -67,7 +67,7 @@ public class OpenSearchPageSourceProvider
             return new CountQueryPageSource(client, opensearchTable, opensearchSplit);
         }
 
-        return new ScanQueryPageSource(
+        return new ScrollQueryPageSource(
                 client,
                 typeManager,
                 opensearchTable,

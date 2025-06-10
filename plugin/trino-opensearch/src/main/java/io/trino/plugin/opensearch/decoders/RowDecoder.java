@@ -15,8 +15,8 @@ package io.trino.plugin.opensearch.decoders;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.trino.plugin.opensearch.AbstractScanQueryPageSource;
 import io.trino.plugin.opensearch.DecoderDescriptor;
-import io.trino.plugin.opensearch.ScanQueryPageSource;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.RowBlockBuilder;
@@ -58,7 +58,7 @@ public class RowDecoder
             ((RowBlockBuilder) output).buildEntry(fieldBuilders -> {
                 for (int i = 0; i < decoders.size(); i++) {
                     String field = fieldNames.get(i);
-                    decoders.get(i).decode(hit, () -> ScanQueryPageSource.getField((Map<String, Object>) data, field), fieldBuilders.get(i));
+                    decoders.get(i).decode(hit, () -> AbstractScanQueryPageSource.getField((Map<String, Object>) data, field), fieldBuilders.get(i));
                 }
             });
         }

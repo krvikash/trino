@@ -13,9 +13,7 @@
  */
 package io.trino.plugin.opensearch;
 
-import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
-import io.airlift.log.Logger;
 import io.trino.plugin.opensearch.client.OpenSearchClient;
 import io.trino.plugin.opensearch.decoders.Decoder;
 import io.trino.spi.Page;
@@ -28,8 +26,8 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import org.opensearch.action.search.SearchResponse;
+import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.search.SearchHit;
-import org.opensearch.search.SearchHits;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,25 +40,24 @@ import java.util.function.Supplier;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.opensearch.BuiltinColumns.SOURCE;
 import static io.trino.plugin.opensearch.BuiltinColumns.isBuiltinColumn;
+import static io.trino.plugin.opensearch.OpenSearchQueryBuilder.buildSearchQuery;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.isEqual;
 import static java.util.stream.Collectors.toList;
 
-public class ScanQueryPageSource
+public abstract class AbstractScanQueryPageSource
         implements ConnectorPageSource
 {
-    private static final Logger LOG = Logger.get(ScanQueryPageSource.class);
-
     private final List<Decoder> decoders;
 
-    private final SearchHitIterator iterator;
+    private final TrackedSearchIterator iterator;
     private final BlockBuilder[] columnBuilders;
     private final List<OpenSearchColumnHandle> columns;
     private long totalBytes;
     private long readTimeNanos;
 
-    public ScanQueryPageSource(
+    public AbstractScanQueryPageSource(
             OpenSearchClient client,
             TypeManager typeManager,
             OpenSearchTableHandle table,
@@ -72,8 +69,7 @@ public class ScanQueryPageSource
         requireNonNull(columns, "columns is null");
 
         this.columns = ImmutableList.copyOf(columns);
-
-        decoders = createDecoders(columns);
+        this.decoders = createDecoders(columns);
 
         // When the _source field is requested, we need to bypass column pruning when fetching the document
         boolean needAllFields = columns.stream()
@@ -98,27 +94,44 @@ public class ScanQueryPageSource
                 .filter(name -> !isBuiltinColumn(name))
                 .collect(toList());
 
-        // sorting by _doc (index order) get special treatment in OpenSearch and is more efficient
-        Optional<String> sort = Optional.of("_doc");
+        QueryBuilder query = buildSearchQuery(
+                table.constraint().transformKeys(OpenSearchColumnHandle.class::cast),
+                table.query(),
+                table.regexes());
 
-        if (table.query().isPresent()) {
-            // However, if we're using a custom OpenSearch query, use default sorting.
-            // Documents will be scored and returned based on relevance
-            sort = Optional.empty();
-        }
-
+        Supplier<SearchResponse> firstPageSupplier = () -> {
+            Optional<String> sort = defaultSort(table);
+            return client.beginSearch(
+                    split.index(),
+                    split.shard(),
+                    query,
+                    needAllFields ? Optional.empty() : Optional.of(requiredFields),
+                    documentFields,
+                    sort,
+                    table.limit());
+        };
         long start = System.nanoTime();
-        SearchResponse searchResponse = client.beginSearch(
-                split.index(),
-                split.shard(),
-                OpenSearchQueryBuilder.buildSearchQuery(table.constraint().transformKeys(OpenSearchColumnHandle.class::cast), table.query(), table.regexes()),
-                needAllFields ? Optional.empty() : Optional.of(requiredFields),
-                documentFields,
-                sort,
-                table.limit());
+        SearchResponse firstPage = firstPageSupplier.get();
         readTimeNanos += System.nanoTime() - start;
-        this.iterator = new SearchHitIterator(client, () -> searchResponse, table.limit());
+
+        this.iterator = createIterator(client, query, split, documentFields, table.limit(), firstPage);
     }
+
+    protected Optional<String> defaultSort(OpenSearchTableHandle table)
+    {
+        // sorting by _doc (index order) get special treatment in OpenSearch and is more efficient
+        // However, if we're using a custom OpenSearch query, use default sorting.
+        // Documents will be scored and returned based on relevance
+        return table.query().isPresent() ? Optional.empty() : Optional.of("_doc");
+    }
+
+    protected abstract TrackedSearchIterator createIterator(
+            OpenSearchClient client,
+            QueryBuilder query,
+            OpenSearchSplit split,
+            List<String> documentFields,
+            OptionalLong limit,
+            SearchResponse firstPage);
 
     @Override
     public long getCompletedBytes()
@@ -266,85 +279,5 @@ public class ScanQueryPageSource
         }
 
         return base + "." + element;
-    }
-
-    private static class SearchHitIterator
-            extends AbstractIterator<SearchHit>
-    {
-        private final OpenSearchClient client;
-        private final Supplier<SearchResponse> first;
-        private final OptionalLong limit;
-
-        private SearchHits searchHits;
-        private String scrollId;
-        private int currentPosition;
-
-        private long readTimeNanos;
-        private long totalRecordCount;
-
-        public SearchHitIterator(OpenSearchClient client, Supplier<SearchResponse> first, OptionalLong limit)
-        {
-            this.client = client;
-            this.first = first;
-            this.limit = limit;
-            this.totalRecordCount = 0;
-        }
-
-        public long getReadTimeNanos()
-        {
-            return readTimeNanos;
-        }
-
-        @Override
-        protected SearchHit computeNext()
-        {
-            if (limit.isPresent() && totalRecordCount == limit.getAsLong()) {
-                // No more record is necessary.
-                return endOfData();
-            }
-
-            if (scrollId == null) {
-                long start = System.nanoTime();
-                SearchResponse response = first.get();
-                readTimeNanos += System.nanoTime() - start;
-                reset(response);
-            }
-            else if (currentPosition == searchHits.getHits().length) {
-                long start = System.nanoTime();
-                SearchResponse response = client.nextPage(scrollId);
-                readTimeNanos += System.nanoTime() - start;
-                reset(response);
-            }
-
-            if (currentPosition == searchHits.getHits().length) {
-                return endOfData();
-            }
-
-            SearchHit hit = searchHits.getAt(currentPosition);
-            currentPosition++;
-            totalRecordCount++;
-
-            return hit;
-        }
-
-        private void reset(SearchResponse response)
-        {
-            scrollId = response.getScrollId();
-            searchHits = response.getHits();
-            currentPosition = 0;
-        }
-
-        public void close()
-        {
-            if (scrollId != null) {
-                try {
-                    client.clearScroll(scrollId);
-                }
-                catch (Exception e) {
-                    // ignore
-                    LOG.debug(e, "Error clearing scroll");
-                }
-            }
-        }
     }
 }
