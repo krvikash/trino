@@ -55,8 +55,10 @@ import org.apache.parquet.schema.LogicalTypeAnnotation.TimeLogicalTypeAnnotation
 import org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Types;
 import org.joda.time.DateTimeZone;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +78,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
@@ -84,8 +87,10 @@ import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
 
@@ -189,7 +194,7 @@ final class ParquetWriters
         return writeBuilder.build();
     }
 
-    private static class WriteBuilder
+    public static class WriteBuilder
             extends ParquetTypeVisitor<ColumnWriter>
     {
         private final MessageType type;
@@ -234,6 +239,39 @@ final class ParquetWriters
         {
             builder.addAll(fields);
             return super.message(message, fields);
+        }
+
+        @Override
+        public ColumnWriter variant()
+        {
+            String[] path = currentPath();
+            int fieldDefinitionLevel = type.getMaxDefinitionLevel(path);
+            int fieldRepetitionLevel = type.getMaxRepetitionLevel(path);
+
+            String[] metadataPath = Arrays.copyOf(path, path.length + 1);
+            metadataPath[path.length] = "metadata";
+            ColumnDescriptor metadataColumnDescriptor = new ColumnDescriptor(metadataPath, Types.required(BINARY).named("metadata"), fieldRepetitionLevel, fieldDefinitionLevel);
+            ColumnWriter metadataWriter = getVarbinaryColumnWriter(metadataColumnDescriptor, Optional.empty());
+
+            String[] valuePath = Arrays.copyOf(path, path.length + 1);
+            valuePath[path.length] = "value";
+            ColumnDescriptor valueColumnDescriptor = new ColumnDescriptor(valuePath, Types.required(BINARY).named("value"), fieldRepetitionLevel, fieldDefinitionLevel);
+            ColumnWriter valueWriter = getVarbinaryColumnWriter(valueColumnDescriptor, Optional.empty());
+
+            return new VariantValueWriter(metadataWriter, valueWriter);
+        }
+
+        private ColumnWriter getVarbinaryColumnWriter(ColumnDescriptor columnDescriptor, Optional<BloomFilter> bloomFilter)
+        {
+            return new PrimitiveColumnWriter(
+                    columnDescriptor,
+                    getValueWriter(valuesWriterFactory.newValuesWriter(columnDescriptor, bloomFilter), VARBINARY, columnDescriptor.getPrimitiveType(), parquetTimeZone),
+                    newDefinitionLevelWriter(columnDescriptor, maxPageSize),
+                    newRepetitionLevelWriter(columnDescriptor, maxPageSize),
+                    compressionCodec,
+                    maxPageSize,
+                    pageValueCountLimit,
+                    bloomFilter);
         }
 
         @Override
@@ -306,6 +344,15 @@ final class ParquetWriters
                 return Optional.of(new BlockSplitBloomFilter(optimalNumOfBits / 8, maxBloomFilterSize));
             }
             return Optional.empty();
+        }
+
+        public boolean isVariantType()
+        {
+            if (trinoTypes.containsKey(fieldNames)) {
+                Type type = trinoTypes.get(fieldNames);
+                return type.getTypeSignature().getBase().equals(JSON);
+            }
+            return false;
         }
     }
 

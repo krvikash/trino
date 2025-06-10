@@ -43,6 +43,7 @@ import static io.trino.plugin.base.io.ByteBuffers.getBytes;
 import static io.trino.plugin.iceberg.IcebergTypes.convertTrinoValueToIceberg;
 import static io.trino.plugin.iceberg.TypeConverter.toIcebergTypeForNewColumn;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.apache.iceberg.util.DateTimeUtil.isoTimestampToNanos;
 import static org.apache.iceberg.util.DateTimeUtil.isoTimestamptzToNanos;
@@ -71,6 +72,10 @@ public final class IcebergThetaSketchForStats
 
     private static ByteBuffer toByteBuffer(org.apache.iceberg.types.Type type, Object value)
     {
+        if (type.equals(Types.VariantType.get())) {
+            String bytes = (String) value;
+            return ByteBuffer.wrap(bytes.getBytes(UTF_8));
+        }
         if (type.equals(Types.TimestampNanoType.withoutZone())) {
             long nanos = isoTimestampToNanos((String) value);
             return Conversions.toByteBuffer(type, nanos);

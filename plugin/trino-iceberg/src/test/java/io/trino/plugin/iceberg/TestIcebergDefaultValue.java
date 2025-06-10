@@ -190,6 +190,15 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testVariantTypeFails(IcebergFileFormat format)
+    {
+        assertQueryFails(
+                "CREATE TABLE test_default_value_variant (id int, variant JSON DEFAULT JSON '{\"id\":3}') WITH (format='" + format + "')",
+                "Variant is not supported as default values");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testVarchar(IcebergFileFormat format)
     {
         testDefaultValue(format, "VARCHAR", "'test varchar'", "VARCHAR 'test varchar'");

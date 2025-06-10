@@ -134,6 +134,9 @@ public class TableStatisticsWriter
                     if (type instanceof Type.PrimitiveType) {
                         return ImmutableList.of();
                     }
+                    if (type.isVariantType()) {
+                        return ImmutableList.of();
+                    }
                     throw new IllegalArgumentException("Unrecognized type for field %s: %s".formatted(nestedField, type));
                 })
                 .depthFirstPreOrder(schema.columns()))

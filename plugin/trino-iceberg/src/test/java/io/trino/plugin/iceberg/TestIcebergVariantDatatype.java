@@ -19,6 +19,7 @@ import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
@@ -55,6 +56,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
@@ -118,7 +120,11 @@ final class TestIcebergVariantDatatype
         closeAfterClass(() -> deleteRecursively(metastoreDir.toPath(), ALLOW_INSECURE));
         metastore = createTestingFileHiveMetastore(HDFS_FILE_SYSTEM_FACTORY, Location.of(metastoreDir.getAbsolutePath()));
         QueryRunner queryRunner = IcebergQueryRunner.builder()
-                .setIcebergProperties(ImmutableMap.of("iceberg.register-table-procedure.enabled", "true"))
+                .setIcebergProperties(ImmutableMap.<String, String>builder()
+                        .put("iceberg.register-table-procedure.enabled", "true")
+                        .put("iceberg.format-version", "3")
+                        .put("iceberg.max-format-version", "3")
+                        .buildOrThrow())
                 .setMetastoreDirectory(metastoreDir)
                 .build();
         fileSystemFactory = getFileSystemFactory(queryRunner);
@@ -163,6 +169,7 @@ final class TestIcebergVariantDatatype
     private void testVariantTypeMappings(Variant variantData, @Language("SQL") String expectedVariant)
             throws Exception
     {
+        // Iceberg writes and Trino reads
         String tableName = "test_variant_" + randomNameSuffix();
         BaseTable table = createTableWithVariantColumn(tableName, "PARQUET");
         writeParquetDataToIcebergTable(
@@ -170,10 +177,81 @@ final class TestIcebergVariantDatatype
                 DataFiles.builder(PartitionSpec.unpartitioned()),
                 table,
                 variantData);
-
         assertThat(query("SELECT * FROM " + tableName)).matches("VALUES (1, %s)".formatted(expectedVariant));
         assertThat(query("SELECT id FROM " + tableName + " WHERE var = " + expectedVariant)).matches("VALUES 1");
         assertUpdate("DROP TABLE " + tableName);
+
+        // Trino writes and reads
+        try (TestTable testTable = newTrinoTable("test_variant", "(id int, var json) WITH (format = 'PARQUET', format_version = 3)")) {
+            assertUpdate("INSERT INTO " + testTable.getName() + " VALUES (1, " + expectedVariant + ")", 1);
+            assertThat(query("SELECT count(*) FROM \"" + testTable.getName() + "$files\"")).matches("VALUES CAST(1 AS BIGINT)");
+            assertThat(query("SELECT * FROM " + testTable.getName())).matches("VALUES (1, %s)".formatted(expectedVariant));
+            assertThat(query("SELECT id FROM " + testTable.getName() + " WHERE var = " + expectedVariant)).matches("VALUES 1");
+            assertThat(query("SELECT id FROM " + testTable.getName() + " WHERE var != " + expectedVariant)).returnsEmptyResult();
+        }
+    }
+
+    @Test
+    void testVariantNull()
+    {
+        try (TestTable table = newTrinoTable("test_variant", "(id int, variant JSON)", List.of("1, JSON 'null'", "2, NULL", "3, JSON '{\"id\":3}'"))) {
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (1, JSON 'null'), (2, NULL),  (3, JSON '{\"id\":3}')");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant = JSON 'null'"))
+                    .matches("VALUES 1");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant IS NOT NULL"))
+                    .matches("VALUES 1, 3");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant IS NULL"))
+                    .matches("VALUES 2");
+        }
+    }
+
+    @Test
+    void testVariantShowStats()
+    {
+        try (TestTable table = newTrinoTable("test_variant", "(variant JSON)", List.of("JSON '{\"id\":1}'", "JSON '{\"id\":2}'"))) {
+            assertThat(query("SHOW STATS FOR " + table.getName()))
+                    .skippingTypesCheck()
+                    .matches("VALUES " +
+                            "('variant', null, 2e0, 0e0, NULL, NULL, NULL), " +
+                            "(NULL, NULL, NULL, NULL, 2e0, NULL, NULL)");
+
+            assertThat(query("SHOW STATS FOR (SELECT * FROM " + table.getName() + " WHERE variant = JSON '{\"id\":1}')"))
+                    .skippingTypesCheck()
+                    .matches("VALUES " +
+                            "('variant', null, 1e0, 0e0, NULL, NULL, NULL), " +
+                            "(NULL, NULL, NULL, NULL, 1e0, NULL, NULL)");
+
+            assertUpdate("ANALYZE " + table.getName());
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (JSON '{\"id\":3}')", 1);
+            assertThat(query("SHOW STATS FOR " + table.getName()))
+                    .skippingTypesCheck()
+                    .matches("VALUES " +
+                            "('variant', null, 3e0, 0e0, NULL, NULL, NULL), " +
+                            "(NULL, NULL, NULL, NULL, 3e0, NULL, NULL)");
+        }
+    }
+
+    @Test
+    void testVariantOptimize()
+    {
+        try (TestTable table = newTrinoTable("test_variant_optimize", "(id int, variant JSON)", List.of("1, JSON 'null'", "2, NULL"))) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (3, JSON '{\"id\":3}')", 1);
+            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize");
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (1, JSON 'null'), (2, NULL), (3, JSON '{\"id\":3}')");
+        }
+    }
+
+    @Test
+    void testRowTypeWithMetadataValueFields()
+    {
+        try (TestTable table = newTrinoTable("test_partition", "(x row(metadata varbinary, value varbinary))")) {
+            assertUpdate("INSERT INTO " + table.getName() + " SELECT row(x'12', x'34')", 1);
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("SELECT CAST(row(x'12', x'34') AS row(metadata varbinary, value varbinary))");
+        }
     }
 
     @Test
@@ -181,6 +259,8 @@ final class TestIcebergVariantDatatype
             throws Exception
     {
         String tableName = "test_variant_partitioned_" + randomNameSuffix();
+
+        assertQueryFails("CREATE TABLE " + tableName + "(x JSON) WITH (partitioning = ARRAY['x'])", ".*Cannot partition by non-primitive source field.*");
         assertThatThrownBy(() -> PartitionSpec.builderFor(SCHEMA)
                 .identity(VARIANT_COLUMN_IDENTITY.getName())
                 .build())
@@ -202,6 +282,79 @@ final class TestIcebergVariantDatatype
                 Variant.of(TEST_METADATA, TEST_OBJECT));
         assertThat(query("SELECT * FROM " + tableName)).matches("VALUES (1, JSON '{\"a\":null,\"d\":\"trino\"}')");
         assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    void testVariantTypePartitionTransformsFail()
+            throws Exception
+    {
+        String tableName = "test_variant_partition_transforms_" + randomNameSuffix();
+
+        // Test that all transforms fail with variant columns
+        assertThatThrownBy(() -> PartitionSpec.builderFor(SCHEMA)
+                .identity(VARIANT_COLUMN_IDENTITY.getName())
+                .build())
+                .hasMessageContaining("Cannot partition by non-primitive source field: variant");
+
+        assertThatThrownBy(() -> PartitionSpec.builderFor(SCHEMA)
+                .bucket(VARIANT_COLUMN_IDENTITY.getName(), 10)
+                .build())
+                .hasMessageContaining("Cannot partition by non-primitive source field: variant");
+
+        assertThatThrownBy(() -> PartitionSpec.builderFor(SCHEMA)
+                .truncate(VARIANT_COLUMN_IDENTITY.getName(), 10)
+                .build())
+                .hasMessageContaining("Cannot partition by non-primitive source field: variant");
+
+        assertThatThrownBy(() -> PartitionSpec.builderFor(SCHEMA)
+                .year(VARIANT_COLUMN_IDENTITY.getName())
+                .build())
+                .hasMessageContaining("Cannot partition by non-primitive source field: variant");
+
+        assertThatThrownBy(() -> PartitionSpec.builderFor(SCHEMA)
+                .month(VARIANT_COLUMN_IDENTITY.getName())
+                .build())
+                .hasMessageContaining("Cannot partition by non-primitive source field: variant");
+
+        assertThatThrownBy(() -> PartitionSpec.builderFor(SCHEMA)
+                .day(VARIANT_COLUMN_IDENTITY.getName())
+                .build())
+                .hasMessageContaining("Cannot partition by non-primitive source field: variant");
+
+        assertThatThrownBy(() -> PartitionSpec.builderFor(SCHEMA)
+                .hour(VARIANT_COLUMN_IDENTITY.getName())
+                .build())
+                .hasMessageContaining("Cannot partition by non-primitive source field: variant");
+
+        PartitionSpec validPartitionSpec = PartitionSpec.builderFor(SCHEMA)
+                .bucket(INT_COLUMN_IDENTITY.getName(), 2)
+                .build();
+
+        assertUpdate(format("CREATE TABLE %s (%s int) WITH (format = 'PARQUET', format_version = 3, partitioning = ARRAY['bucket(%s, 2)'])",
+                tableName, INT_COL_NAME, INT_COL_NAME));
+
+        Table table = loadTable(tableName);
+        addVariantColumn(table);
+
+        writeParquetDataToIcebergTable(
+                metastoreDir + "/variant-bucket-part-%s.parquet".formatted(randomNameSuffix()),
+                DataFiles.builder(validPartitionSpec)
+                        .withPartition(PartitionData.fromJson("{\"partitionValues\":[\"1\"]}", new Type[] {Types.IntegerType.get()})),
+                table,
+                Variant.of(TEST_METADATA, TEST_OBJECT));
+        assertUpdate("INSERT INTO " + tableName + " VALUES (2, JSON '{\"a\":1,\"b\":2}'), (3, JSON 'null')", 2);
+        assertThat(query("SELECT * FROM " + tableName)).matches("VALUES (1, JSON '{\"a\":null,\"d\":\"trino\"}'), (2, JSON '{\"a\":1,\"b\":2}'), (3, JSON 'null')");
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    void testSetVariantPartitionFails()
+    {
+        try (TestTable table = newTrinoTable("test_partition", "(id int, part json)")) {
+            assertQueryFails(
+                    "ALTER TABLE " + table.getName() + " SET PROPERTIES partitioning = ARRAY['part']",
+                    "Unable to parse partitioning value: Cannot partition by non-primitive source field: variant");
+        }
     }
 
     @Test
@@ -242,7 +395,7 @@ final class TestIcebergVariantDatatype
     }
 
     @Test
-    void testVariantWriteFails()
+    void testVariantWrite()
             throws Exception
     {
         String tableName = "test_variant_write_" + randomNameSuffix();
@@ -262,10 +415,17 @@ final class TestIcebergVariantDatatype
                 "(1, JSON '{\"a\":null,\"d\":\"trino\"}')," +
                 "(1, JSON '{\"a\":123456789,\"c\":\"string\"}')");
         assertThat(query("SELECT count(*) FROM \"" + tableName + "$files\"")).matches("VALUES CAST(2 AS BIGINT)");
-        assertThatThrownBy(() -> computeActual("ALTER TABLE " + tableName + " EXECUTE OPTIMIZE"))
-                .hasMessageContaining("Trino type is null");
-        assertThatThrownBy(() -> computeActual("INSERT INTO " + tableName + " VALUES (2, JSON '{\"a\":null,\"d\":\"trino\"}')"))
-                .hasMessageContaining("Trino type is null");
+
+        assertThat(query("SELECT * FROM " + tableName)).matches("VALUES " +
+                "(1, JSON '{\"a\":null,\"d\":\"trino\"}')," +
+                "(1, JSON '{\"a\":123456789,\"c\":\"string\"}')");
+
+        assertUpdate("INSERT INTO " + tableName + " VALUES (2, JSON '{\"a\":null,\"d\":\"trino\"}')", 1);
+        assertThat(query("SELECT count(*) FROM \"" + tableName + "$files\"")).matches("VALUES CAST(3 AS BIGINT)");
+        assertThat(query("SELECT * FROM " + tableName)).matches("VALUES " +
+                "(1, JSON '{\"a\":null,\"d\":\"trino\"}')," +
+                "(1, JSON '{\"a\":123456789,\"c\":\"string\"}')," +
+                "(2, JSON '{\"a\":null,\"d\":\"trino\"}')");
 
         assertUpdate("DROP TABLE " + tableName);
     }
@@ -284,6 +444,9 @@ final class TestIcebergVariantDatatype
 
         assertThat(query("SELECT * FROM " + tableName))
                 .failure().hasMessageContaining("Cannot read SQL type 'json' from ORC stream '.var' of type STRUCT with attributes");
+
+        assertThat(query(("INSERT INTO " + tableName + " VALUES (2, JSON '{\"a\":null,\"d\":\"trino\"}')")))
+                .failure().hasMessageContaining("Unsupported Iceberg type: variant");
         assertUpdate("DROP TABLE " + tableName);
     }
 
@@ -301,7 +464,20 @@ final class TestIcebergVariantDatatype
 
         assertThat(query("SELECT * FROM " + tableName))
                 .failure().hasMessage("unsupported type: json");
+        assertThat(query(("INSERT INTO " + tableName + " VALUES (2, JSON '{\"a\":null,\"d\":\"trino\"}')")))
+                .failure().hasMessageContaining("unsupported type: json");
         assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    void testUnsupportedForFormatVersion()
+    {
+        assertThatThrownBy(() -> computeActual("CREATE TABLE test_unsupported_format_version(x int, variant JSON) WITH (format_version=2)"),
+                "variant is not supported until v3");
+
+        try (TestTable table = newTrinoTable("test_unsupported_format_version", "(x int)  WITH (format_version=2)")) {
+            assertThatThrownBy(() -> computeActual("ALTER TABLE " + table.getName() + " ADD COLUMN variant JSON"), "variant is not supported until v3");
+        }
     }
 
     @Test

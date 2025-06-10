@@ -47,6 +47,9 @@ public final class VariantUtil
     public static final int BASIC_TYPE_MASK = 0x3;
     public static final int TYPE_INFO_MASK = 0x3F;
 
+    // The inclusive maximum value of the type info value. It is the size limit of `SHORT_STR`.
+    public static final int MAX_SHORT_STR_SIZE = 0x3F;
+
     // Below is all possible basic type values.
     // Primitive value. The type info value must be one of the values in the below section.
     public static final int PRIMITIVE = 0;
@@ -120,7 +123,10 @@ public final class VariantUtil
     // The lower 4 bits of the first metadata byte contain the version.
     public static final byte VERSION_MASK = 0x0F;
 
+    public static final int U8_MAX = 0xFF;
+    public static final int U16_MAX = 0xFFFF;
     public static final int U24_MAX = 0xFFFFFF;
+    public static final int U24_SIZE = 3;
     public static final int U32_SIZE = 4;
 
     // Both variant value and variant metadata need to be no longer than 16MiB.
@@ -131,6 +137,38 @@ public final class VariantUtil
     public static final int MAX_DECIMAL16_PRECISION = 38;
 
     private VariantUtil() {}
+
+    // Write the least significant `numBytes` bytes in `value` into `bytes[pos, pos + numBytes)` in
+    // little endian.
+    public static void writeLong(byte[] bytes, int pos, long value, int numBytes)
+    {
+        for (int i = 0; i < numBytes; ++i) {
+            bytes[pos + i] = (byte) ((value >>> (8 * i)) & 0xFF);
+        }
+    }
+
+    public static byte primitiveHeader(int type)
+    {
+        return (byte) (type << 2 | PRIMITIVE);
+    }
+
+    public static byte shortStrHeader(int size)
+    {
+        return (byte) (size << 2 | SHORT_STR);
+    }
+
+    public static byte objectHeader(boolean largeSize, int idSize, int offsetSize)
+    {
+        return (byte) (((largeSize ? 1 : 0) << (BASIC_TYPE_BITS + 4)) |
+                ((idSize - 1) << (BASIC_TYPE_BITS + 2)) |
+                ((offsetSize - 1) << BASIC_TYPE_BITS) | OBJECT);
+    }
+
+    public static byte arrayHeader(boolean largeSize, int offsetSize)
+    {
+        return (byte) (((largeSize ? 1 : 0) << (BASIC_TYPE_BITS + 2)) |
+                ((offsetSize - 1) << BASIC_TYPE_BITS) | ARRAY);
+    }
 
     // Check the validity of an array index `position`. Throw `MALFORMED_VARIANT` if it is out of bound,
     // meaning that the variant is malformed.
@@ -223,6 +261,58 @@ public final class VariantUtil
                 default -> throw new IllegalArgumentException("Unexpected type: " + typeInfo);
             };
         };
+    }
+
+    // Compute the size in bytes of the variant value `value[pos...]`. `value.length - pos` is an
+    // upper bound of the size, but the actual size can be smaller.
+    // Throw `MALFORMED_VARIANT` if the variant is malformed.
+    public static int valueSize(byte[] value, int pos)
+    {
+        checkIndex(pos, value.length);
+        int basicType = value[pos] & BASIC_TYPE_MASK;
+        int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
+        switch (basicType) {
+            case SHORT_STR:
+                return 1 + typeInfo;
+            case OBJECT:
+                return handleObject(value, pos,
+                        (size, idSize, offsetSize, idStart, offsetStart, dataStart) ->
+                                dataStart - pos + readUnsigned(value, offsetStart + size * offsetSize, offsetSize));
+            case ARRAY:
+                return handleArray(value, pos, (size, offsetSize, offsetStart, dataStart) ->
+                        dataStart - pos + readUnsigned(value, offsetStart + size * offsetSize, offsetSize));
+            default:
+                switch (typeInfo) {
+                    case NULL:
+                    case TRUE:
+                    case FALSE:
+                        return 1;
+                    case INT1:
+                        return 2;
+                    case INT2:
+                        return 3;
+                    case INT4:
+                    case DATE:
+                    case FLOAT:
+                        return 5;
+                    case INT8:
+                    case DOUBLE:
+                    case TIMESTAMP:
+                    case TIMESTAMP_NTZ:
+                        return 9;
+                    case DECIMAL4:
+                        return 6;
+                    case DECIMAL8:
+                        return 10;
+                    case DECIMAL16:
+                        return 18;
+                    case BINARY:
+                    case LONG_STR:
+                        return 1 + U32_SIZE + readUnsigned(value, pos + 1, U32_SIZE);
+                    default:
+                        throw new IllegalArgumentException("Unexpected type: " + typeInfo);
+                }
+        }
     }
 
     private static IllegalStateException unexpectedType(Type type)

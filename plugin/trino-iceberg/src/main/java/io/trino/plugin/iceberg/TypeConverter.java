@@ -174,6 +174,9 @@ public final class TypeConverter
         if (type.equals(UUID)) {
             return Types.UUIDType.get();
         }
+        if (type.getTypeSignature().getBase().equals(JSON)) {
+            return Types.VariantType.get();
+        }
         if (type instanceof RowType rowType) {
             return fromRow(rowType, columnIdentity, nextFieldId);
         }

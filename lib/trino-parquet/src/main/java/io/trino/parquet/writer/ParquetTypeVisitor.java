@@ -41,6 +41,16 @@ public class ParquetTypeVisitor<T>
         }
         // if not a primitive, the typeId must be a group
         GroupType group = type.asGroupType();
+        // TODO: rely on `org.apache.parquet.schema.LogicalTypeAnnotation.VariantLogicalTypeAnnotation`
+        //  from https://github.com/apache/parquet-java/pull/3072 once released, instead of writeBuilderVisitor.isVariantType()
+        if (visitor instanceof ParquetWriters.WriteBuilder writeBuilderVisitor && writeBuilderVisitor.isVariantType()) {
+            checkArgument(group.getFields().size() == 2
+                            && group.getFields().get(0).getName().equals("metadata")
+                            && group.getFields().get(1).getName().equals("value"),
+                    "Expected variant type group with exactly two fields named 'metadata' and 'value', but found: %s", group.getFields());
+            checkArgument(!group.isRepetition(REPEATED), "Invalid variant: top-level group is repeated: %s", group);
+            return visitor.variant();
+        }
         LogicalTypeAnnotation annotation = group.getLogicalTypeAnnotation();
         if (LogicalTypeAnnotation.listType().equals(annotation)) {
             checkArgument(!group.isRepetition(REPEATED),
@@ -129,6 +139,11 @@ public class ParquetTypeVisitor<T>
     }
 
     public T message(MessageType message, List<T> fields)
+    {
+        return null;
+    }
+
+    public T variant()
     {
         return null;
     }

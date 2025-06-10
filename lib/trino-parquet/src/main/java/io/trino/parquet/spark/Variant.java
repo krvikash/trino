@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Locale;
 
@@ -30,6 +31,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.parquet.spark.VariantUtil.SIZE_LIMIT;
 import static io.trino.parquet.spark.VariantUtil.VERSION;
 import static io.trino.parquet.spark.VariantUtil.VERSION_MASK;
+import static io.trino.parquet.spark.VariantUtil.checkIndex;
 import static io.trino.parquet.spark.VariantUtil.getBinary;
 import static io.trino.parquet.spark.VariantUtil.getBoolean;
 import static io.trino.parquet.spark.VariantUtil.getDecimal;
@@ -42,6 +44,7 @@ import static io.trino.parquet.spark.VariantUtil.getType;
 import static io.trino.parquet.spark.VariantUtil.handleArray;
 import static io.trino.parquet.spark.VariantUtil.handleObject;
 import static io.trino.parquet.spark.VariantUtil.readUnsigned;
+import static io.trino.parquet.spark.VariantUtil.valueSize;
 import static io.trino.plugin.base.util.JsonUtils.jsonFactory;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
@@ -86,6 +89,21 @@ public final class Variant
         // Don't attempt to use a Variant larger than 16 MiB. We'll never produce one, and it risks memory instability.
         checkArgument(metadata.length <= SIZE_LIMIT, "max metadata size is %s: %s", SIZE_LIMIT, metadata.length);
         checkArgument(value.length <= SIZE_LIMIT, "max value size is %s: %s", SIZE_LIMIT, value.length);
+    }
+
+    public byte[] getValue()
+    {
+        if (position == 0) {
+            return value;
+        }
+        int size = valueSize(value, position);
+        checkIndex(position + size - 1, value.length);
+        return Arrays.copyOfRange(value, position, position + size);
+    }
+
+    public byte[] getMetadata()
+    {
+        return metadata;
     }
 
     // Stringify the variant in JSON format.

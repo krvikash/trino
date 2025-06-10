@@ -46,6 +46,7 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
@@ -143,6 +144,10 @@ public final class IcebergTypes
 
         if (type == UuidType.UUID) {
             return trinoUuidToJavaUuid(((Slice) trinoNativeValue));
+        }
+
+        if (type.getTypeSignature().getBase().equals(JSON)) {
+            return ((Slice) trinoNativeValue).toStringUtf8();
         }
 
         throw new UnsupportedOperationException("Unsupported type: " + type);

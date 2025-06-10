@@ -149,6 +149,9 @@ public final class IcebergDefaultValues
                             throw new TrinoException(NOT_SUPPORTED, "Timestamp nanos is not supported as default values");
                         }
                     }
+                    case "json" -> {
+                        throw new TrinoException(NOT_SUPPORTED, "Variant is not supported as default values");
+                    }
                 }
                 if (typeName.equals("uuid")) {
                     yield Literal.of(literal.getValue());
