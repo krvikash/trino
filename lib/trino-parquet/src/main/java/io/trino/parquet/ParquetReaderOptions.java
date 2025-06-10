@@ -230,34 +230,6 @@ public class ParquetReaderOptions
                 vectorizedDecodingEnabled);
     }
 
-    public ParquetReaderOptions withNativeZstdDecompressorEnabled(boolean nativeZstdDecompressorEnabled)
-    {
-        return new ParquetReaderOptions(
-                ignoreStatistics,
-                maxReadBlockSize,
-                maxReadBlockRowCount,
-                maxMergeDistance,
-                maxBufferSize,
-                useColumnIndex,
-                useBloomFilter,
-                smallFileThreshold,
-                vectorizedDecodingEnabled);
-    }
-
-    public ParquetReaderOptions withNativeSnappyDecompressorEnabled(boolean nativeSnappyDecompressorEnabled)
-    {
-        return new ParquetReaderOptions(
-                ignoreStatistics,
-                maxReadBlockSize,
-                maxReadBlockRowCount,
-                maxMergeDistance,
-                maxBufferSize,
-                useColumnIndex,
-                useBloomFilter,
-                smallFileThreshold,
-                vectorizedDecodingEnabled);
-    }
-
     public ParquetReaderOptions withVectorizedDecodingEnabled(boolean vectorizedDecodingEnabled)
     {
         return new ParquetReaderOptions(
