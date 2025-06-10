@@ -48,7 +48,7 @@ public class ParquetSchemaDiscovery
     {
         try {
             ParquetDataSource dataSource = createParquetDataSource(stream);
-            ParquetMetadata metadata = MetadataReader.readFooter(dataSource, Optional.empty());
+            ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
             MessageType schema = metadata.getFileMetaData().getSchema();
             ImmutableList<Column> columns = schema.asGroupType()
                     .getFields()

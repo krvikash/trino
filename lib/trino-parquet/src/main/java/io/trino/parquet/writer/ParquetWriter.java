@@ -238,7 +238,7 @@ public class ParquetWriter
         checkState(validationBuilder.isPresent(), "validation is not enabled");
         ParquetWriteValidation writeValidation = validationBuilder.get().build();
         try {
-            ParquetMetadata parquetMetadata = MetadataReader.readFooter(input, Optional.of(writeValidation));
+            ParquetMetadata parquetMetadata = MetadataReader.readFooter(input, Optional.empty(), Optional.of(writeValidation));
             try (ParquetReader parquetReader = createParquetReader(input, parquetMetadata, writeValidation)) {
                 for (SourcePage page = parquetReader.nextPage(); page != null; page = parquetReader.nextPage()) {
                     // fully load the page
