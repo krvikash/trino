@@ -232,6 +232,33 @@ public class AssignmentsUtils
     }
 
     /**
+     * Return mapping from output fields to input fields.
+     * In case when an input field was mapped to multiple output fields, return mapping for all the output fields to the input field.
+     */
+    public static FieldMapping getInversedMapping(Block block)
+    {
+        checkArgument(block.parameters().size() == 1 && isFieldSelector(block, true), "expected field selector block with single parameter");
+
+        if (isEmptyFieldSelector(block)) {
+            return EMPTY;
+        }
+
+        Row rowConstructor = (Row) block.operations().get(block.operations().size() - 2);
+        Map<Value, Integer> referencedFields = block.operations().subList(0, block.operations().size() - 2).stream()
+                .map(FieldReference.class::cast)
+                .collect(toImmutableMap(
+                        FieldReference::result,
+                        fieldReference -> FIELD_INDEX.getAttribute(fieldReference.attributes())));
+
+        ImmutableMap.Builder<Integer, Integer> inversedMapping = ImmutableMap.builder();
+        for (int i = 0; i < rowConstructor.arguments().size(); i++) {
+            inversedMapping.put(i, referencedFields.get(rowConstructor.arguments().get(i)));
+        }
+
+        return new FieldMapping(inversedMapping.buildOrThrow());
+    }
+
+    /**
      * Extract mappings from input fields to output fields, ignoring other projected expressions.
      * In case of an input field being projected multiple times, return the first occurrence.
      * Ignore correlated field references.
