@@ -41,9 +41,9 @@ import io.trino.plugin.base.metrics.TDigestHistogram;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.PlanNodeId;
-import org.joda.time.DateTime;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -144,7 +144,7 @@ public class TestingRemoteTaskFactory
         {
             return new TaskInfo(
                     getTaskStatus(),
-                    DateTime.now(),
+                    Instant.now(),
                     new OutputBufferInfo(
                             "TESTING",
                             BufferState.FINISHED,
@@ -159,7 +159,7 @@ public class TestingRemoteTaskFactory
                             Optional.empty(),
                             Optional.empty()),
                     ImmutableSet.copyOf(noMoreSplits),
-                    new TaskStats(DateTime.now(), null),
+                    new TaskStats(Instant.now(), null),
                     Optional.empty(),
                     false);
         }

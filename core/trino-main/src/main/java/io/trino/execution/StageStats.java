@@ -27,8 +27,8 @@ import io.trino.operator.OperatorStats;
 import io.trino.spi.eventlistener.StageGcStatistics;
 import io.trino.spi.metrics.Metrics;
 import io.trino.sql.planner.plan.PlanNodeId;
-import org.joda.time.DateTime;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -48,7 +48,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 @Immutable
 public class StageStats
 {
-    private final DateTime schedulingComplete;
+    private final Instant schedulingComplete;
 
     private final Map<PlanNodeId, DistributionSnapshot> getSplitDistribution;
     private final Map<PlanNodeId, Metrics> splitSourceMetrics;
@@ -125,7 +125,7 @@ public class StageStats
 
     @JsonCreator
     public StageStats(
-            @JsonProperty("schedulingComplete") DateTime schedulingComplete,
+            @JsonProperty("schedulingComplete") Instant schedulingComplete,
 
             @JsonProperty("getSplitDistribution") Map<PlanNodeId, DistributionSnapshot> getSplitDistribution,
             @JsonProperty("splitSourceMetrics") Map<PlanNodeId, Metrics> splitSourceMetrics,
@@ -296,7 +296,7 @@ public class StageStats
     }
 
     @JsonProperty
-    public DateTime getSchedulingComplete()
+    public Instant getSchedulingComplete()
     {
         return schedulingComplete;
     }
