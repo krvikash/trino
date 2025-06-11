@@ -388,6 +388,7 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.sql.NodeUtils.getSortItemsFromOrderBy;
+import static io.trino.sql.analyzer.AggregationAnalyzer.containsAggregation;
 import static io.trino.sql.analyzer.AggregationAnalyzer.verifyOrderByAggregations;
 import static io.trino.sql.analyzer.AggregationAnalyzer.verifySourceAggregations;
 import static io.trino.sql.analyzer.Analyzer.verifyNoAggregateWindowOrGroupingFunctions;
@@ -4635,16 +4636,11 @@ class StatementAnalyzer
                     else if (groupingElement instanceof AutoGroupBy) {
                         // Analyze non-aggregation outputs
                         for (Expression column : outputExpressions) {
-                            if (column instanceof FunctionCall functionCall) {
-                                ResolvedFunction function = getResolvedFunction(functionCall);
-                                if (function.functionKind() == AGGREGATE) {
-                                    continue;
-                                }
+                            if (containsAggregation(column, this::getResolvedFunction)) {
+                                continue;
                             }
-                            else {
-                                verifyNoAggregateWindowOrGroupingFunctions(session, functionResolver, accessControl, column, "GROUP BY clause");
-                                analyzeExpression(column, scope);
-                            }
+                            verifyNoAggregateWindowOrGroupingFunctions(session, functionResolver, accessControl, column, "GROUP BY clause");
+                            analyzeExpression(column, scope);
 
                             ResolvedField field = analysis.getColumnReferenceFields().get(NodeRef.of(column));
                             if (field != null) {
