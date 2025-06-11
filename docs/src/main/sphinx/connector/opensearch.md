@@ -117,6 +117,10 @@ following options must be configured:
   - Optional external ID to pass while assuming an AWS IAM role.
 * - `opensearch.aws.deployment-type`
   - AWS OpenSearch deployment type. Possible values are `PROVISIONED` & `SERVERLESS`. This option is required.
+* - `opensearch.search-strategy`
+  - The search strategy to use for OpenSearch queries. Possible values are
+    `SCROLL` and `SEARCH_AFTER`. Defaults to `SCROLL`. For OpenSearch Serverless deployment type,
+    (`opensearch.aws.deployment-type=SERVERLESS`) only `SEARCH_AFTER` is supported.
 :::
 
 To enable password authentication, the `opensearch.security` option must be set
