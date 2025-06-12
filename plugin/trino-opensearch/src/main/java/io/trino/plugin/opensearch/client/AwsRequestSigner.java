@@ -13,12 +13,7 @@
  */
 package io.trino.plugin.opensearch.client;
 
-import com.amazonaws.DefaultRequest;
-import com.amazonaws.auth.AWS4Signer;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.http.HttpMethodName;
-import com.amazonaws.util.BinaryUtils;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import org.apache.http.Header;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpHost;
@@ -29,6 +24,17 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HttpContext;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.signer.Aws4Signer;
+import software.amazon.awssdk.auth.signer.internal.SignerConstant;
+import software.amazon.awssdk.auth.signer.params.Aws4SignerParams;
+import software.amazon.awssdk.auth.signer.params.SignerChecksumParams;
+import software.amazon.awssdk.core.checksums.Algorithm;
+import software.amazon.awssdk.http.ContentStreamProvider;
+import software.amazon.awssdk.http.SdkHttpFullRequest;
+import software.amazon.awssdk.http.SdkHttpMethod;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.utils.BinaryUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -42,29 +48,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.plugin.opensearch.AwsSecurityConfig.DeploymentType;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static org.apache.http.protocol.HttpCoreContext.HTTP_TARGET_HOST;
 
+@SuppressWarnings("deprecation")
 class AwsRequestSigner
         implements HttpRequestInterceptor
 {
     private static final String EMPTY_BODY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-    private final String serviceName;
-    private final AWSCredentialsProvider credentialsProvider;
-    private final AWS4Signer signer;
 
-    public AwsRequestSigner(String region, DeploymentType deploymentType, AWSCredentialsProvider credentialsProvider)
+    private final String serviceName;
+    private final String region;
+    private final AwsCredentialsProvider credentialsProvider;
+    private final Aws4Signer signer;
+
+    public AwsRequestSigner(String region, DeploymentType deploymentType, AwsCredentialsProvider credentialsProvider)
     {
         this.credentialsProvider = credentialsProvider;
-        this.signer = new AWS4Signer();
+        this.signer = Aws4Signer.create();
         this.serviceName = switch (deploymentType) {
             case SERVERLESS -> "aoss";
             case PROVISIONED -> "es";
         };
-
-        signer.setServiceName(serviceName);
-        signer.setRegionName(region);
+        this.region = region;
     }
 
     @Override
@@ -103,29 +111,41 @@ class AwsRequestSigner
         catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-        ImmutableMap.Builder<String, String> headersBuilder = ImmutableMap.builder();
-        Arrays.stream(request.getAllHeaders())
-                .forEach(header -> headersBuilder.put(header.getName(), header.getValue()));
-        headersBuilder.put("X-Amz-Content-Sha256", payloadHash);
 
-        DefaultRequest<?> awsRequest = new DefaultRequest<>(serviceName);
+        Map<String, List<String>> headers = Arrays.stream(request.getAllHeaders())
+                .collect(toImmutableMap(Header::getName, header -> ImmutableList.of(header.getValue())));
+        SdkHttpFullRequest.Builder awsRequest = SdkHttpFullRequest.builder()
+                .rawQueryParameters(parameters)
+                .method(SdkHttpMethod.fromValue(method))
+                .protocol("https")
+                .encodedPath(uri.getPath())
+                .headers(headers)
+                .rawQueryParameters(parameters);
 
+        Aws4SignerParams aws4SignerParams = Aws4SignerParams.builder()
+                .signingName(serviceName)
+                .signingRegion(Region.of(region))
+                .awsCredentials(credentialsProvider.resolveCredentials())
+                .checksumParams(
+                        SignerChecksumParams.builder()
+                                .algorithm(Algorithm.SHA256)
+                                .isStreamingRequest(false)
+                                .checksumHeaderName(SignerConstant.X_AMZ_CONTENT_SHA256)
+                                .build())
+                .build();
         HttpHost host = (HttpHost) context.getAttribute(HTTP_TARGET_HOST);
         if (host != null) {
-            awsRequest.setEndpoint(URI.create(host.toURI()));
+            awsRequest.uri(URI.create(host.toURI()));
         }
-        awsRequest.setHttpMethod(HttpMethodName.fromValue(method));
-        awsRequest.setResourcePath(uri.getRawPath());
         if (contentBytes != null) {
-            awsRequest.setContent(new ByteArrayInputStream(contentBytes));
+            awsRequest.contentStreamProvider(ContentStreamProvider.fromInputStream(new ByteArrayInputStream(contentBytes)));
         }
-        awsRequest.setParameters(parameters);
-        awsRequest.setHeaders(headersBuilder.buildOrThrow());
+        awsRequest.putHeader("X-Amz-Content-Sha256", payloadHash);
 
-        signer.sign(awsRequest, credentialsProvider.getCredentials());
+        SdkHttpFullRequest signedRequest = signer.sign(awsRequest.build(), aws4SignerParams);
 
-        Header[] newHeaders = awsRequest.getHeaders().entrySet().stream()
-                .map(entry -> new BasicHeader(entry.getKey(), entry.getValue()))
+        Header[] newHeaders = signedRequest.headers().entrySet().stream()
+                .map(entry -> new BasicHeader(entry.getKey(), entry.getValue().getFirst()))
                 .toArray(Header[]::new);
 
         request.setHeaders(newHeaders);
