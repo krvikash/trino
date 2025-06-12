@@ -54,6 +54,8 @@ import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.Values;
+import io.trino.sql.dialect.trino.operation.Window;
+import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
@@ -69,10 +71,12 @@ import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.AggregationNode.GroupingSetDescriptor;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.CorrelatedJoinNode;
+import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.FrameBoundType;
 import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinType;
@@ -84,6 +88,8 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.ValuesNode;
+import io.trino.sql.planner.plan.WindowFrameType;
+import io.trino.sql.planner.plan.WindowNode;
 import io.trino.sql.tree.Identifier;
 import org.junit.jupiter.api.Test;
 
@@ -94,6 +100,7 @@ import java.util.OptionalInt;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_FIRST;
+import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.connector.SortOrder.DESC_NULLS_FIRST;
 import static io.trino.spi.connector.SortOrder.DESC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -111,6 +118,9 @@ import static io.trino.sql.dialect.trino.Attributes.ExchangeScope.REMOTE;
 import static io.trino.sql.dialect.trino.Attributes.ExchangeType.GATHER;
 import static io.trino.sql.dialect.trino.Attributes.JoinType.LEFT;
 import static io.trino.sql.dialect.trino.Attributes.TopNStep.FINAL;
+import static io.trino.sql.dialect.trino.Attributes.WindowFrameBoundType.FOLLOWING;
+import static io.trino.sql.dialect.trino.Attributes.WindowFrameBoundType.PRECEDING;
+import static io.trino.sql.dialect.trino.Attributes.WindowFrameType.RANGE;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.deriveOutputMapping;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.mapStatistics;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
@@ -1485,6 +1495,266 @@ final class TestRelationalProgramBuilder
 
         // assert symbol mapping
         assertThat(operationAndMapping.mapping()).isEqualTo(ImmutableMap.of());
+    }
+
+    @Test
+    public void testWindow()
+    {
+        ResolvedFunction lagFunction = FUNCTION_RESOLUTION.resolveFunction("lag", fromTypes(BOOLEAN, BIGINT));
+
+        WindowNode windowNode = new WindowNode(
+                new PlanNodeId("window"),
+                VALUES_NODE,
+                new DataOrganizationSpecification(
+                        ImmutableList.of(new Symbol(BOOLEAN, "b")),
+                        Optional.of(new OrderingScheme(
+                                ImmutableList.of(new Symbol(BOOLEAN, "b"), new Symbol(BIGINT, "a")),
+                                ImmutableMap.of(new Symbol(BOOLEAN, "b"), ASC_NULLS_LAST, new Symbol(BIGINT, "a"), DESC_NULLS_FIRST)))),
+                ImmutableMap.of(
+                        new Symbol(BOOLEAN, "lag_function"),
+                        new WindowNode.Function(
+                                lagFunction,
+                                ImmutableList.of(new Reference(BOOLEAN, "b"), new io.trino.sql.ir.Constant(BIGINT, 5L)),
+                                Optional.of(new OrderingScheme(ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b")), ImmutableMap.of(new Symbol(BOOLEAN, "b"), ASC_NULLS_FIRST, new Symbol(BIGINT, "a"), DESC_NULLS_LAST))),
+                                new WindowNode.Frame(
+                                        WindowFrameType.RANGE,
+                                        FrameBoundType.PRECEDING,
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        FrameBoundType.FOLLOWING,
+                                        Optional.of(new Symbol(BOOLEAN, "b")),
+                                        Optional.of(new Symbol(BIGINT, "a"))),
+                                true,
+                                false)),
+                Optional.empty(),
+                ImmutableSet.of(new Symbol(BOOLEAN, "b")),
+                1);
+
+        // window functions parameter
+        Block.Parameter windowFunctionsParameter = new Block.Parameter(
+                "%10",
+                VALUES_OPERATION.result().type());
+
+        // window function arguments
+        Block.Parameter argumentsParameter = new Block.Parameter(
+                "%12",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperationArgument = new FieldReference("%13", argumentsParameter, 1, ImmutableMap.of());
+        Constant constantOperationArgument = new Constant("%14", BIGINT, 5L);
+        Row rowOperationArgument = new Row(
+                "%15",
+                ImmutableList.of(fieldReferenceOperationArgument.result(), constantOperationArgument.result()),
+                ImmutableList.of(fieldReferenceOperationArgument.attributes(), constantOperationArgument.attributes()));
+        Return returnOperationArgument = new Return("%16", rowOperationArgument.result(), rowOperationArgument.attributes());
+
+        // window function ordering
+        Block.Parameter functionOrderingParameter = new Block.Parameter(
+                "%17",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperationFunctionOrderingA = new FieldReference("%18", functionOrderingParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationFunctionOrderingB = new FieldReference("%19", functionOrderingParameter, 1, ImmutableMap.of());
+        Row rowOperationFunctionOrdering = new Row(
+                "%20",
+                ImmutableList.of(fieldReferenceOperationFunctionOrderingA.result(), fieldReferenceOperationFunctionOrderingB.result()),
+                ImmutableList.of(fieldReferenceOperationFunctionOrderingA.attributes(), fieldReferenceOperationFunctionOrderingB.attributes()));
+        Return returnOperationFunctionOrdering = new Return("%21", rowOperationFunctionOrdering.result(), rowOperationFunctionOrdering.attributes());
+
+        // frame start field
+        Block.Parameter frameStartFieldParameter = new Block.Parameter(
+                "%22",
+                VALUES_OPERATION_ROW_TYPE);
+        Constant constantOperationFrameStart = new Constant("%23", EMPTY_ROW, null);
+        Return returnOperationFrameStart = new Return("%24", constantOperationFrameStart.result(), constantOperationFrameStart.attributes());
+
+        // sort key for frame start
+        Block.Parameter sortKeyCoercedForFrameStartComparisonParameter = new Block.Parameter(
+                "%25",
+                VALUES_OPERATION_ROW_TYPE);
+        Constant constantOperationSortKeyStart = new Constant("%26", EMPTY_ROW, null);
+        Return returnOperationSortKeyStart = new Return("%27", constantOperationSortKeyStart.result(), constantOperationSortKeyStart.attributes());
+
+        // frame end field
+        Block.Parameter frameEndFieldParameter = new Block.Parameter(
+                "%28",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperationFrameEnd = new FieldReference("%29", frameEndFieldParameter, 1, ImmutableMap.of());
+        Row rowOperationFrameEnd = new Row("%30", ImmutableList.of(fieldReferenceOperationFrameEnd.result()), ImmutableList.of(fieldReferenceOperationFrameEnd.attributes()));
+        Return returnOperationFrameEnd = new Return("%31", rowOperationFrameEnd.result(), rowOperationFrameEnd.attributes());
+
+        // sort key for frame end
+        Block.Parameter sortKeyCoercedForFrameEndComparisonParameter = new Block.Parameter(
+                "%32",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperationSortKeyEnd = new FieldReference("%33", sortKeyCoercedForFrameEndComparisonParameter, 0, ImmutableMap.of());
+        Row rowOperationSortKeyEnd = new Row("%34", ImmutableList.of(fieldReferenceOperationSortKeyEnd.result()), ImmutableList.of(fieldReferenceOperationSortKeyEnd.attributes()));
+        Return returnOperationSortKeyEnd = new Return("%35", rowOperationSortKeyEnd.result(), rowOperationSortKeyEnd.attributes());
+
+        WindowFunctionCall windowFunctionCallOperation = new WindowFunctionCall(
+                "%11",
+                windowFunctionsParameter,
+                new Block(
+                        Optional.of("^arguments"),
+                        ImmutableList.of(argumentsParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationArgument,
+                                constantOperationArgument,
+                                rowOperationArgument,
+                                returnOperationArgument)),
+                new Block(
+                        Optional.of("^orderingSelector"),
+                        ImmutableList.of(functionOrderingParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationFunctionOrderingA,
+                                fieldReferenceOperationFunctionOrderingB,
+                                rowOperationFunctionOrdering,
+                                returnOperationFunctionOrdering)),
+                new Block(
+                        Optional.of("^frameStartFieldSelector"),
+                        ImmutableList.of(frameStartFieldParameter),
+                        ImmutableList.of(
+                                constantOperationFrameStart,
+                                returnOperationFrameStart)),
+                new Block(
+                        Optional.of("^sortKeyCoercedForFrameStartComparisonSelector"),
+                        ImmutableList.of(sortKeyCoercedForFrameStartComparisonParameter),
+                        ImmutableList.of(
+                                constantOperationSortKeyStart,
+                                returnOperationSortKeyStart)),
+                new Block(
+                        Optional.of("^frameEndFieldSelector"),
+                        ImmutableList.of(frameEndFieldParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationFrameEnd,
+                                rowOperationFrameEnd,
+                                returnOperationFrameEnd)),
+                new Block(
+                        Optional.of("^sortKeyCoercedForFrameEndComparisonSelector"),
+                        ImmutableList.of(sortKeyCoercedForFrameEndComparisonParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationSortKeyEnd,
+                                rowOperationSortKeyEnd,
+                                returnOperationSortKeyEnd)),
+                lagFunction,
+                Optional.of(new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST))),
+                RANGE,
+                PRECEDING,
+                FOLLOWING,
+                true,
+                false);
+
+        // collecting window functions in a row
+        Row windowFunctionsRowOperation = new Row("%36", ImmutableList.of(windowFunctionCallOperation.result()), ImmutableList.of(windowFunctionCallOperation.attributes()));
+        Return windowFunctionsReturnOperation = new Return("%37", windowFunctionsRowOperation.result(), windowFunctionsRowOperation.attributes());
+
+        // partitioning
+        Block.Parameter partitioningSelectorParameter = new Block.Parameter(
+                "%38",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperationPartitioning = new FieldReference("%39", partitioningSelectorParameter, 1, ImmutableMap.of());
+        Row rowOperationPartitioning = new Row("%40", ImmutableList.of(fieldReferenceOperationPartitioning.result()), ImmutableList.of(fieldReferenceOperationPartitioning.attributes()));
+        Return returnOperationPartitioning = new Return("%41", rowOperationPartitioning.result(), rowOperationPartitioning.attributes());
+
+        // ordering
+        Block.Parameter orderingParameter = new Block.Parameter(
+                "%42",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%43", orderingParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationOrderingA = new FieldReference("%44", orderingParameter, 0, ImmutableMap.of());
+        Row rowOperationOrdering = new Row(
+                "%45",
+                ImmutableList.of(fieldReferenceOperationOrderingB.result(), fieldReferenceOperationOrderingA.result()),
+                ImmutableList.of(fieldReferenceOperationOrderingB.attributes(), fieldReferenceOperationOrderingA.attributes()));
+        Return returnOperationOrdering = new Return("%46", rowOperationOrdering.result(), rowOperationOrdering.attributes());
+
+        // hash
+        Block.Parameter hashParameter = new Block.Parameter(
+                "%47",
+                VALUES_OPERATION_ROW_TYPE);
+        Constant constantOperationHash = new Constant("%48", EMPTY_ROW, null);
+        Return returnOperationHash = new Return("%49", constantOperationHash.result(), constantOperationHash.attributes());
+
+        Window windowOperation = new Window(
+                "%9",
+                VALUES_OPERATION.result(),
+                new Block(
+                        Optional.of("^windowFunctions"),
+                        ImmutableList.of(windowFunctionsParameter),
+                        ImmutableList.of(
+                                windowFunctionCallOperation,
+                                windowFunctionsRowOperation,
+                                windowFunctionsReturnOperation)),
+                new Block(
+                        Optional.of("^partitioningSelector"),
+                        ImmutableList.of(partitioningSelectorParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationPartitioning,
+                                rowOperationPartitioning,
+                                returnOperationPartitioning)),
+                new Block(
+                        Optional.of("^orderingSelector"),
+                        ImmutableList.of(orderingParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationOrderingB,
+                                fieldReferenceOperationOrderingA,
+                                rowOperationOrdering,
+                                returnOperationOrdering)),
+                new Block(
+                        Optional.of("^hashSelector"),
+                        ImmutableList.of(hashParameter),
+                        ImmutableList.of(
+                                constantOperationHash,
+                                returnOperationHash)),
+                ImmutableList.of(0),
+                Optional.of(new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST))),
+                1,
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                windowNode,
+                ImmutableList.of(VALUES_OPERATION, windowOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1,
+                        new Symbol(BOOLEAN, "lag_function"), 2));
+
+        assertThat(windowFunctionCallOperation.attributes())
+                .isEqualTo(ImmutableMap.builder()
+                        .put(
+                                new AttributeKey(TRINO, "resolved_function"),
+                                lagFunction)
+                        .put(
+                                new AttributeKey(TRINO, "sort_orders"),
+                                new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)))
+                        .put(
+                                new AttributeKey(TRINO, "frame_type"),
+                                RANGE)
+                        .put(
+                                new AttributeKey(TRINO, "frame_start_type"),
+                                PRECEDING)
+                        .put(
+                                new AttributeKey(TRINO, "frame_end_type"),
+                                FOLLOWING)
+                        .put(
+                                new AttributeKey(TRINO, "ignore_nulls"),
+                                true)
+                        .put(
+                                new AttributeKey(TRINO, "distinct"),
+                                false)
+                        .buildOrThrow());
+
+        assertThat(windowOperation.attributes())
+                .isEqualTo(ImmutableMap.builder()
+                        .put(
+                                new AttributeKey(TRINO, "pre_partitioned_indexes"),
+                                ImmutableList.of(0))
+                        .put(
+                                new AttributeKey(TRINO, "sort_orders"),
+                                new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)))
+                        .put(
+                                new AttributeKey(TRINO, "pre_sorted_prefix"),
+                                1)
+                        .buildOrThrow());
     }
 
     @Test

@@ -47,6 +47,7 @@ import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.AggregationNode.Aggregation;
 import io.trino.sql.planner.plan.AggregationNode.GroupingSetDescriptor;
 import io.trino.sql.planner.plan.Assignments;
+import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
@@ -60,13 +61,16 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.ValuesNode;
+import io.trino.sql.planner.plan.WindowNode;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
 import static io.trino.metadata.TestMetadataManager.createTestMetadataManager;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_FIRST;
+import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.connector.SortOrder.DESC_NULLS_FIRST;
+import static io.trino.spi.connector.SortOrder.DESC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.RowType.rowType;
@@ -76,8 +80,12 @@ import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.sql.ir.Comparison.Operator.GREATER_THAN;
 import static io.trino.sql.ir.Logical.Operator.OR;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
+import static io.trino.sql.planner.plan.FrameBoundType.FOLLOWING;
+import static io.trino.sql.planner.plan.FrameBoundType.PRECEDING;
 import static io.trino.sql.planner.plan.JoinNode.DistributionType.PARTITIONED;
 import static io.trino.sql.planner.plan.JoinType.LEFT;
+import static io.trino.sql.planner.plan.WindowFrameType.RANGE;
+import static io.trino.sql.planner.plan.WindowNode.Frame.DEFAULT_FRAME;
 import static io.trino.testing.TestingSession.testSession;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -429,6 +437,47 @@ class TestToOldIrRelationalRewriter
                 new PlanNodeId("0"),
                 ImmutableList.of(new Symbol(BIGINT, "field"), new Symbol(BOOLEAN, "field_0")));
         assertRoundtrip(emptyValuesNode);
+    }
+
+    @Test
+    public void testWindow()
+    {
+        // note: the ToOldIrRelationalRewriter will assign the output symbol names for window functions based on resolved function name
+        // this is consistent with symbols created for the old IR in QueryPlanner#planWindow(), with the difference that
+        // we get the name from ResolvedFunction, and QueryPlanner gets the name from FunctionCall, so the result might differ in some cases,
+        // when the FunctionCall uses a name alias.
+        // this test uses the same symbol names to enable roundtrip.
+
+        ResolvedFunction sumFunction = FUNCTION_RESOLUTION.resolveFunction("sum", fromTypes(BIGINT));
+        ResolvedFunction lagFunction = FUNCTION_RESOLUTION.resolveFunction("lag", fromTypes(BOOLEAN));
+
+        WindowNode windowNode = new WindowNode(
+                new PlanNodeId("0"),
+                VALUES_NODE,
+                new DataOrganizationSpecification(
+                        ImmutableList.of(B),
+                        Optional.of(new OrderingScheme(ImmutableList.of(B, A), ImmutableMap.of(B, ASC_NULLS_LAST, A, DESC_NULLS_FIRST)))),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "sum"),
+                        new WindowNode.Function(
+                                sumFunction,
+                                ImmutableList.of(new Reference(BIGINT, "a")),
+                                Optional.empty(),
+                                DEFAULT_FRAME,
+                                true,
+                                false),
+                        new Symbol(BOOLEAN, "lag"),
+                        new WindowNode.Function(
+                                lagFunction,
+                                ImmutableList.of(new Reference(BOOLEAN, "b")),
+                                Optional.of(new OrderingScheme(ImmutableList.of(A, B), ImmutableMap.of(B, ASC_NULLS_FIRST, A, DESC_NULLS_LAST))),
+                                new WindowNode.Frame(RANGE, PRECEDING, Optional.empty(), Optional.empty(), FOLLOWING, Optional.of(B), Optional.of(A)),
+                                false,
+                                true)),
+                Optional.empty(),
+                ImmutableSet.of(B),
+                1);
+        assertRoundtrip(windowNode);
     }
 
     private void assertRoundtrip(PlanNode originalPlanNode)

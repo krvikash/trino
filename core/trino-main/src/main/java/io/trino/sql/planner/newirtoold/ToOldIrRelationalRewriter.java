@@ -39,6 +39,8 @@ import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
 import io.trino.sql.dialect.trino.operation.Values;
+import io.trino.sql.dialect.trino.operation.Window;
+import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
@@ -54,10 +56,12 @@ import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.SymbolAllocator;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.Assignments;
+import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.FrameBoundType;
 import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinNode.EquiJoinClause;
@@ -69,6 +73,8 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.ValuesNode;
+import io.trino.sql.planner.plan.WindowFrameType;
+import io.trino.sql.planner.plan.WindowNode;
 import jakarta.annotation.Nullable;
 
 import java.util.HashMap;
@@ -80,6 +86,7 @@ import java.util.stream.IntStream;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -93,10 +100,14 @@ import static io.trino.sql.dialect.trino.Attributes.DISTRIBUTION_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.FRAME_END_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.FRAME_START_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.FRAME_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.GLOBAL_GROUPING_SETS;
 import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS;
 import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.GROUP_ID_INDEX;
+import static io.trino.sql.dialect.trino.Attributes.IGNORE_NULLS;
 import static io.trino.sql.dialect.trino.Attributes.INPUT_REDUCING;
 import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.LIMIT;
@@ -106,7 +117,9 @@ import static io.trino.sql.dialect.trino.Attributes.PARTIAL;
 import static io.trino.sql.dialect.trino.Attributes.PARTITIONING_HANDLE;
 import static io.trino.sql.dialect.trino.Attributes.PARTITION_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.PRE_GROUPED_INDEXES;
+import static io.trino.sql.dialect.trino.Attributes.PRE_PARTITIONED_INDEXES;
 import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_INDEXES;
+import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_PREFIX;
 import static io.trino.sql.dialect.trino.Attributes.REPLICATE_NULLS_AND_ANY;
 import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
 import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
@@ -576,5 +589,88 @@ public class ToOldIrRelationalRewriter
                 values.rows().stream()
                         .map(block -> scalarRewriter.toOldIr(block, ImmutableList.of()))
                         .collect(toImmutableList()));
+    }
+
+    @Override
+    public PlanNode visitWindow(Window window, List<PlanNode> sources)
+    {
+        PlanNode source = getOnlyElement(sources);
+
+        // build window functions
+        List<WindowNode.Function> windowFunctions = getWindowFunctions(window.windowFunctionCalls(), source.getOutputSymbols());
+        List<Type> windowFunctionTypes = trinoType(window.windowFunctionCalls().getReturnedType()).getTypeParameters();
+        ImmutableMap.Builder<Symbol, WindowNode.Function> windowFunctionsBuilder = ImmutableMap.builder();
+        for (int i = 0; i < windowFunctions.size(); i++) {
+            WindowNode.Function windowFunction = windowFunctions.get(i);
+            windowFunctionsBuilder.put(symbolAllocator.newSymbol(windowFunction.getResolvedFunction().name().getFunctionName(), windowFunctionTypes.get(i)), windowFunction);
+        }
+
+        List<Symbol> partitionBy = scalarRewriter.getSelectedSymbols(window.partitioningSelector(), source.getOutputSymbols());
+        Optional<OrderingScheme> orderingScheme = getOptionalOrderingScheme(SORT_ORDERS.getAttribute(window.attributes()), window.orderingSelector(), source.getOutputSymbols());
+
+        return new WindowNode(
+                planNodeIdAllocator.getNextId(),
+                source,
+                new DataOrganizationSpecification(partitionBy, orderingScheme),
+                windowFunctionsBuilder.buildOrThrow(),
+                scalarRewriter.getOptionalSelectedSymbol(window.hashSelector(), source.getOutputSymbols()),
+                PRE_PARTITIONED_INDEXES.getAttribute(window.attributes()).stream()
+                        .map(partitionBy::get)
+                        .collect(toImmutableSet()),
+                PRE_SORTED_PREFIX.getAttribute(window.attributes()));
+    }
+
+    private List<WindowNode.Function> getWindowFunctions(Block windowFunctionCalls, List<Symbol> inputSymbols)
+    {
+        if (isEmptyRelationalComputation(windowFunctionCalls)) {
+            return ImmutableList.of();
+        }
+
+        Map<Value, Operation> operations = windowFunctionCalls.operations().stream()
+                .collect(toImmutableMap(Operation::result, identity()));
+
+        return windowFunctionCalls.operations().get(windowFunctionCalls.operations().size() - 2).arguments().stream()
+                .map(operations::get)
+                .map(WindowFunctionCall.class::cast)
+                .map(windowFunctionCall -> getWindowFunction(windowFunctionCall, inputSymbols))
+                .collect(toImmutableList());
+    }
+
+    private WindowNode.Function getWindowFunction(WindowFunctionCall windowFunctionCall, List<Symbol> inputSymbols)
+    {
+        return new WindowNode.Function(
+                RESOLVED_FUNCTION.getAttribute(windowFunctionCall.attributes()),
+                scalarRewriter.getExpressions(windowFunctionCall.argumentsBlock(), inputSymbols),
+                getOptionalOrderingScheme(SORT_ORDERS.getAttribute(windowFunctionCall.attributes()), windowFunctionCall.orderingSelector(), inputSymbols),
+                new WindowNode.Frame(
+                        rewriteFrameType(FRAME_TYPE.getAttribute(windowFunctionCall.attributes())),
+                        rewriteFrameBoundType(FRAME_START_TYPE.getAttribute(windowFunctionCall.attributes())),
+                        scalarRewriter.getOptionalSelectedSymbol(windowFunctionCall.frameStartFieldSelector(), inputSymbols),
+                        scalarRewriter.getOptionalSelectedSymbol(windowFunctionCall.sortKeyCoercedForFrameStartComparisonSelector(), inputSymbols),
+                        rewriteFrameBoundType(FRAME_END_TYPE.getAttribute(windowFunctionCall.attributes())),
+                        scalarRewriter.getOptionalSelectedSymbol(windowFunctionCall.frameEndFieldSelector(), inputSymbols),
+                        scalarRewriter.getOptionalSelectedSymbol(windowFunctionCall.sortKeyCoercedForFrameEndComparisonSelector(), inputSymbols)),
+                IGNORE_NULLS.getAttribute(windowFunctionCall.attributes()),
+                DISTINCT.getAttribute(windowFunctionCall.attributes()));
+    }
+
+    private static WindowFrameType rewriteFrameType(Attributes.WindowFrameType type)
+    {
+        return switch (type) {
+            case RANGE -> WindowFrameType.RANGE;
+            case ROWS -> WindowFrameType.ROWS;
+            case GROUPS -> WindowFrameType.GROUPS;
+        };
+    }
+
+    private static FrameBoundType rewriteFrameBoundType(Attributes.WindowFrameBoundType type)
+    {
+        return switch (type) {
+            case UNBOUNDED_PRECEDING -> FrameBoundType.UNBOUNDED_PRECEDING;
+            case PRECEDING -> FrameBoundType.PRECEDING;
+            case CURRENT_ROW -> FrameBoundType.CURRENT_ROW;
+            case FOLLOWING -> FrameBoundType.FOLLOWING;
+            case UNBOUNDED_FOLLOWING -> FrameBoundType.UNBOUNDED_FOLLOWING;
+        };
     }
 }

@@ -45,10 +45,14 @@ import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.FIELD_INDEX;
+import static io.trino.sql.dialect.trino.Attributes.FRAME_END_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.FRAME_START_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.FRAME_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.GLOBAL_GROUPING_SETS;
 import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS;
 import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.GROUP_ID_INDEX;
+import static io.trino.sql.dialect.trino.Attributes.IGNORE_NULLS;
 import static io.trino.sql.dialect.trino.Attributes.INPUT_REDUCING;
 import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.LIMIT;
@@ -60,7 +64,9 @@ import static io.trino.sql.dialect.trino.Attributes.PARTIAL;
 import static io.trino.sql.dialect.trino.Attributes.PARTITIONING_HANDLE;
 import static io.trino.sql.dialect.trino.Attributes.PARTITION_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.PRE_GROUPED_INDEXES;
+import static io.trino.sql.dialect.trino.Attributes.PRE_PARTITIONED_INDEXES;
 import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_INDEXES;
+import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_PREFIX;
 import static io.trino.sql.dialect.trino.Attributes.REPLICATE_NULLS_AND_ANY;
 import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
 import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION_CODEC;
@@ -126,10 +132,14 @@ public class TrinoAttributeRegistry
                 .put(EXCHANGE_SCOPE.name(), new AttributeProperties<>(EXCHANGE_SCOPE, Attributes.ExchangeScope::parse, Attributes.ExchangeScope::print))
                 .put(EXCHANGE_TYPE.name(), new AttributeProperties<>(EXCHANGE_TYPE, Attributes.ExchangeType::parse, Attributes.ExchangeType::print))
                 .put(FIELD_INDEX.name(), new AttributeProperties<>(FIELD_INDEX, Integer::valueOf, Object::toString))
+                .put(FRAME_END_TYPE.name(), new AttributeProperties<>(FRAME_END_TYPE, Attributes.WindowFrameBoundType::parse, Attributes.WindowFrameBoundType::print))
+                .put(FRAME_START_TYPE.name(), new AttributeProperties<>(FRAME_START_TYPE, Attributes.WindowFrameBoundType::parse, Attributes.WindowFrameBoundType::print))
+                .put(FRAME_TYPE.name(), new AttributeProperties<>(FRAME_TYPE, Attributes.WindowFrameType::parse, Attributes.WindowFrameType::print))
                 .put(GLOBAL_GROUPING_SETS.name(), new AttributeProperties<>(GLOBAL_GROUPING_SETS, Attributes.IntegerList::parse, Attributes.IntegerList::print))
                 .put(GROUPING_SETS.name(), new AttributeProperties<>(GROUPING_SETS, Attributes.IntegerListList::parse, Attributes.IntegerListList::print))
                 .put(GROUPING_SETS_COUNT.name(), new AttributeProperties<>(GROUPING_SETS_COUNT, Integer::valueOf, Object::toString))
                 .put(GROUP_ID_INDEX.name(), new AttributeProperties<>(GROUP_ID_INDEX, Integer::valueOf, Object::toString))
+                .put(IGNORE_NULLS.name(), new AttributeProperties<>(IGNORE_NULLS, Boolean::valueOf, Object::toString))
                 .put(INPUT_REDUCING.name(), new AttributeProperties<>(INPUT_REDUCING, Boolean::valueOf, Object::toString))
                 .put(JOIN_TYPE.name(), new AttributeProperties<>(JOIN_TYPE, Attributes.JoinType::parse, Attributes.JoinType::print))
                 .put(LIMIT.name(), new AttributeProperties<>(LIMIT, Long::valueOf, Object::toString))
@@ -139,7 +149,9 @@ public class TrinoAttributeRegistry
                 .put(PARTIAL.name(), new AttributeProperties<>(PARTIAL, Boolean::valueOf, Object::toString))
                 .put(PARTITION_COUNT.name(), new AttributeProperties<>(PARTITION_COUNT, Integer::valueOf, Object::toString))
                 .put(PRE_GROUPED_INDEXES.name(), new AttributeProperties<>(PRE_GROUPED_INDEXES, Attributes.IntegerList::parse, Attributes.IntegerList::print))
+                .put(PRE_PARTITIONED_INDEXES.name(), new AttributeProperties<>(PRE_PARTITIONED_INDEXES, Attributes.IntegerList::parse, Attributes.IntegerList::print))
                 .put(PRE_SORTED_INDEXES.name(), new AttributeProperties<>(PRE_SORTED_INDEXES, Attributes.IntegerList::parse, Attributes.IntegerList::print))
+                .put(PRE_SORTED_PREFIX.name(), new AttributeProperties<>(PRE_SORTED_PREFIX, Integer::valueOf, Object::toString))
                 .put(REPLICATE_NULLS_AND_ANY.name(), new AttributeProperties<>(REPLICATE_NULLS_AND_ANY, Boolean::valueOf, Object::toString))
                 .put(RESOLVED_FUNCTION.name(), new AttributeProperties<>(RESOLVED_FUNCTION, RESOLVED_FUNCTION_CODEC::fromJson, RESOLVED_FUNCTION_CODEC::toJson))
                 .put(SORT_ORDERS.name(), new AttributeProperties<>(SORT_ORDERS, Attributes.SortOrderList::parse, Attributes.SortOrderList::print))

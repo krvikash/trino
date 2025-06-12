@@ -30,6 +30,8 @@ import io.trino.sql.dialect.trino.Attributes.NullableValues;
 import io.trino.sql.dialect.trino.Attributes.SortOrderList;
 import io.trino.sql.dialect.trino.Attributes.Statistics;
 import io.trino.sql.dialect.trino.Attributes.TopNStep;
+import io.trino.sql.dialect.trino.Attributes.WindowFrameBoundType;
+import io.trino.sql.dialect.trino.Attributes.WindowFrameType;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.Constant;
@@ -48,6 +50,8 @@ import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.Values;
+import io.trino.sql.dialect.trino.operation.Window;
+import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
@@ -71,6 +75,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.ValuesNode;
+import io.trino.sql.planner.plan.WindowNode;
 import org.assertj.core.util.VisibleForTesting;
 
 import java.util.Arrays;
@@ -853,6 +858,187 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(values.result().type())), node.getOutputSymbols());
         context.block().addOperation(values);
         return new OperationAndMapping(values, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitWindow(WindowNode node, Context context)
+    {
+        OperationAndMapping input = node.getSource().accept(this, context);
+        String resultName = nameAllocator.newName();
+
+        // model window functions
+        Block.Parameter windowFunctionsParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                input.operation().result().type());
+        Block.Builder windowFunctionsBlockBuilder = new Block.Builder(Optional.of("^windowFunctions"), ImmutableList.of(windowFunctionsParameter));
+        ImmutableList.Builder<WindowFunctionCall> windowFunctions = ImmutableList.builder();
+
+        for (Map.Entry<Symbol, WindowNode.Function> entry : node.getWindowFunctions().entrySet()) {
+            WindowFunctionCall windowFunctionCall = modelWindowFunctionCall(entry.getValue(), windowFunctionsParameter, context, input.mapping());
+            windowFunctions.add(windowFunctionCall);
+            windowFunctionsBlockBuilder.addOperation(windowFunctionCall);
+        }
+
+        // collect window functions in a Row
+        List<WindowFunctionCall> windowFunctionsList = windowFunctions.build();
+        if (windowFunctionsList.isEmpty()) {
+            String constantNullName = nameAllocator.newName();
+            Constant constantNull = new Constant(constantNullName, EMPTY_ROW, null);
+            valueMap.put(constantNull.result(), constantNull);
+            windowFunctionsBlockBuilder.addOperation(constantNull);
+        }
+        else {
+            String rowName = nameAllocator.newName();
+            Row windowFunctionsRow = new Row(
+                    rowName,
+                    windowFunctionsList.stream()
+                            .map(Operation::result)
+                            .collect(toImmutableList()),
+                    windowFunctionsList.stream()
+                            .map(Operation::attributes)
+                            .collect(toImmutableList()));
+            valueMap.put(windowFunctionsRow.result(), windowFunctionsRow);
+            windowFunctionsBlockBuilder.addOperation(windowFunctionsRow);
+        }
+        addReturnOperation(windowFunctionsBlockBuilder);
+
+        Block windowFunctionsBlock = windowFunctionsBlockBuilder.build();
+        valueMap.put(windowFunctionsParameter, windowFunctionsBlock);
+
+        // partitioning
+        Block.Parameter partitioningSelectorParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(relationRowType(trinoType(input.operation().result().type()))));
+        Block partitioningSelector = fieldSelectorBlock("^partitioningSelector", partitioningSelectorParameter, input.mapping(), node.getPartitionBy());
+        valueMap.put(partitioningSelectorParameter, partitioningSelector);
+
+        // order by
+        Block.Parameter orderingSelectorParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(relationRowType(trinoType(input.operation().result().type()))));
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, input.mapping(), node.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
+        valueMap.put(orderingSelectorParameter, orderingSelector);
+
+        // hash
+        Block.Parameter hashSelectorParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(relationRowType(trinoType(input.operation().result().type()))));
+        Block hashSelector = fieldSelectorBlock("^hashSelector", hashSelectorParameter, input.mapping(), node.getHashSymbol().stream().collect(toImmutableList()));
+        valueMap.put(hashSelectorParameter, hashSelector);
+
+        List<Integer> prePartitionedIndexes = node.getPrePartitionedInputs().stream()
+                .map(symbol -> node.getPartitionBy().indexOf(symbol))
+                .collect(toImmutableList());
+
+        Window window = new Window(
+                resultName,
+                input.operation().result(),
+                windowFunctionsBlock,
+                partitioningSelector,
+                orderingSelector,
+                hashSelector,
+                prePartitionedIndexes,
+                node.getOrderingScheme()
+                        .map(OrderingScheme::orderingList)
+                        .map(SortOrderList::new),
+                node.getPreSortedOrderPrefix(),
+                input.operation().attributes());
+        valueMap.put(window.result(), window);
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(window.result().type())), node.getOutputSymbols());
+        context.block().addOperation(window);
+        return new OperationAndMapping(window, outputMapping);
+    }
+
+    private WindowFunctionCall modelWindowFunctionCall(
+            WindowNode.Function windowFunction,
+            Block.Parameter windowFunctionsParameter,
+            Context outerContext,
+            Map<Symbol, Integer> inputMapping)
+    {
+        String resultName = nameAllocator.newName();
+
+        // input to window function calls is a window -- it is of relation type
+        // internal structures of a window function, like arguments or ordering, are defined in terms of a single row
+        Type inputRowType = relationRowType(trinoType(windowFunctionsParameter.type()));
+
+        // arguments
+        Block.Parameter argumentsParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(inputRowType));
+        Block.Builder argumentsBuilder = new Block.Builder(Optional.of("^arguments"), ImmutableList.of(argumentsParameter));
+
+        // collect all arguments in a Row or EMPTY_ROW if there are none
+        if (windowFunction.getArguments().isEmpty()) {
+            String constantNullName = nameAllocator.newName();
+            Constant constantNull = new Constant(constantNullName, EMPTY_ROW, null);
+            valueMap.put(constantNull.result(), constantNull);
+            argumentsBuilder.addOperation(constantNull);
+        }
+        else {
+            io.trino.sql.ir.Row argumentsRow = new io.trino.sql.ir.Row(ImmutableList.copyOf(windowFunction.getArguments()));
+            argumentsRow.accept(
+                    new ScalarProgramBuilder(nameAllocator, valueMap),
+                    new Context(argumentsBuilder, composedMapping(outerContext, argumentMapping(argumentsParameter, inputMapping))));
+        }
+        addReturnOperation(argumentsBuilder);
+        Block arguments = argumentsBuilder.build();
+        valueMap.put(argumentsParameter, arguments);
+
+        // order by
+        Block.Parameter orderingSelectorParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(inputRowType));
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, inputMapping, windowFunction.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
+        valueMap.put(orderingSelectorParameter, orderingSelector);
+
+        // frame start field
+        Block.Parameter frameStartFieldParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(inputRowType));
+        Block frameStartFieldSelector = fieldSelectorBlock("^frameStartFieldSelector", frameStartFieldParameter, inputMapping, windowFunction.getFrame().getStartValue().stream().collect(toImmutableList()));
+        valueMap.put(frameStartFieldParameter, frameStartFieldSelector);
+
+        // sort key coerced for frame start comparison
+        Block.Parameter sortKeyCoercedForFrameStartComparisonParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(inputRowType));
+        Block sortKeyCoercedForFrameStartComparisonSelector = fieldSelectorBlock("^sortKeyCoercedForFrameStartComparisonSelector", sortKeyCoercedForFrameStartComparisonParameter, inputMapping, windowFunction.getFrame().getSortKeyCoercedForFrameStartComparison().stream().collect(toImmutableList()));
+        valueMap.put(sortKeyCoercedForFrameStartComparisonParameter, sortKeyCoercedForFrameStartComparisonSelector);
+
+        // frame end field
+        Block.Parameter frameEndFieldParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(inputRowType));
+        Block frameEndFieldSelector = fieldSelectorBlock("^frameEndFieldSelector", frameEndFieldParameter, inputMapping, windowFunction.getFrame().getEndValue().stream().collect(toImmutableList()));
+        valueMap.put(frameEndFieldParameter, frameEndFieldSelector);
+
+        // sort key coerced for frame end comparison
+        Block.Parameter sortKeyCoercedForFrameEndComparisonParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(inputRowType));
+        Block sortKeyCoercedForFrameEndComparisonSelector = fieldSelectorBlock("^sortKeyCoercedForFrameEndComparisonSelector", sortKeyCoercedForFrameEndComparisonParameter, inputMapping, windowFunction.getFrame().getSortKeyCoercedForFrameEndComparison().stream().collect(toImmutableList()));
+        valueMap.put(sortKeyCoercedForFrameEndComparisonParameter, sortKeyCoercedForFrameEndComparisonSelector);
+
+        WindowFunctionCall windowFunctionCall = new WindowFunctionCall(
+                resultName,
+                windowFunctionsParameter,
+                arguments,
+                orderingSelector,
+                frameStartFieldSelector,
+                sortKeyCoercedForFrameStartComparisonSelector,
+                frameEndFieldSelector,
+                sortKeyCoercedForFrameEndComparisonSelector,
+                windowFunction.getResolvedFunction(),
+                windowFunction.getOrderingScheme()
+                        .map(OrderingScheme::orderingList)
+                        .map(SortOrderList::new),
+                WindowFrameType.of(windowFunction.getFrame().getType()),
+                WindowFrameBoundType.of(windowFunction.getFrame().getStartType()),
+                WindowFrameBoundType.of(windowFunction.getFrame().getEndType()),
+                windowFunction.isIgnoreNulls(),
+                windowFunction.isDistinct());
+        valueMap.put(windowFunctionCall.result(), windowFunctionCall);
+        return windowFunctionCall;
     }
 
     /**

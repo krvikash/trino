@@ -32,6 +32,7 @@ import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.ExchangeNode;
+import io.trino.sql.planner.plan.FrameBoundType;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.TopNNode;
 import org.pcollections.HashTreePMap;
@@ -60,10 +61,14 @@ public class Attributes
     public static final AttributeMetadata<ExchangeScope> EXCHANGE_SCOPE = new AttributeMetadata<>("exchange_scope", false);
     public static final AttributeMetadata<ExchangeType> EXCHANGE_TYPE = new AttributeMetadata<>("exchange_type", false);
     public static final AttributeMetadata<Integer> FIELD_INDEX = new AttributeMetadata<>("field_index", false);
+    public static final AttributeMetadata<WindowFrameBoundType> FRAME_END_TYPE = new AttributeMetadata<>("frame_end_type", false);
+    public static final AttributeMetadata<WindowFrameBoundType> FRAME_START_TYPE = new AttributeMetadata<>("frame_start_type", false);
+    public static final AttributeMetadata<WindowFrameType> FRAME_TYPE = new AttributeMetadata<>("frame_type", false);
     public static final AttributeMetadata<List<Integer>> GLOBAL_GROUPING_SETS = new AttributeMetadata<>("global_grouping_sets", false);
     public static final AttributeMetadata<List<List<Integer>>> GROUPING_SETS = new AttributeMetadata<>("grouping_sets", false);
     public static final AttributeMetadata<Integer> GROUPING_SETS_COUNT = new AttributeMetadata<>("grouping_sets_count", false);
     public static final AttributeMetadata<Integer> GROUP_ID_INDEX = new AttributeMetadata<>("group_id_index", false);
+    public static final AttributeMetadata<Boolean> IGNORE_NULLS = new AttributeMetadata<>("ignore_nulls", false);
     public static final AttributeMetadata<Boolean> INPUT_REDUCING = new AttributeMetadata<>("input_reducing", false);
     public static final AttributeMetadata<JoinType> JOIN_TYPE = new AttributeMetadata<>("join_type", false);
     public static final AttributeMetadata<Long> LIMIT = new AttributeMetadata<>("limit", false);
@@ -75,7 +80,9 @@ public class Attributes
     public static final AttributeMetadata<PartitioningHandle> PARTITIONING_HANDLE = new AttributeMetadata<>("partitioning_handle", false);
     public static final AttributeMetadata<Integer> PARTITION_COUNT = new AttributeMetadata<>("partition_count", false);
     public static final AttributeMetadata<List<Integer>> PRE_GROUPED_INDEXES = new AttributeMetadata<>("pre_grouped_indexes", false);
+    public static final AttributeMetadata<List<Integer>> PRE_PARTITIONED_INDEXES = new AttributeMetadata<>("pre_partitioned_indexes", false);
     public static final AttributeMetadata<List<Integer>> PRE_SORTED_INDEXES = new AttributeMetadata<>("pre_sorted_indexes", false);
+    public static final AttributeMetadata<Integer> PRE_SORTED_PREFIX = new AttributeMetadata<>("pre_sorted_prefix", false);
     public static final AttributeMetadata<Boolean> REPLICATE_NULLS_AND_ANY = new AttributeMetadata<>("replicate_nulls_and_any", false);
     public static final AttributeMetadata<ResolvedFunction> RESOLVED_FUNCTION = new AttributeMetadata<>("resolved_function", false);
     public static final AttributeMetadata<SortOrderList> SORT_ORDERS = new AttributeMetadata<>("sort_orders", true);
@@ -516,6 +523,74 @@ public class Attributes
         public static String print(ExchangeScope scope)
         {
             return scope.name();
+        }
+    }
+
+    public enum WindowFrameType
+    {
+        RANGE,
+        ROWS,
+        GROUPS;
+
+        public static WindowFrameType of(io.trino.sql.planner.plan.WindowFrameType type)
+        {
+            return switch (type) {
+                case RANGE -> RANGE;
+                case ROWS -> ROWS;
+                case GROUPS -> GROUPS;
+            };
+        }
+
+        public static WindowFrameType parse(String string)
+        {
+            return switch (string) {
+                case "RANGE" -> RANGE;
+                case "ROWS" -> ROWS;
+                case "GROUPS" -> GROUPS;
+                default -> throw new TrinoException(IR_ERROR, "cannot parse window frame type: " + string);
+            };
+        }
+
+        public static String print(WindowFrameType type)
+        {
+            return type.name();
+        }
+    }
+
+    public enum WindowFrameBoundType
+    {
+        UNBOUNDED_PRECEDING,
+        PRECEDING,
+        CURRENT_ROW,
+        FOLLOWING,
+        UNBOUNDED_FOLLOWING;
+
+        public static WindowFrameBoundType of(FrameBoundType type)
+        {
+            return switch (type) {
+                case UNBOUNDED_PRECEDING -> UNBOUNDED_PRECEDING;
+                case PRECEDING -> PRECEDING;
+                case CURRENT_ROW -> CURRENT_ROW;
+                case FOLLOWING -> FOLLOWING;
+                case UNBOUNDED_FOLLOWING -> UNBOUNDED_FOLLOWING;
+            };
+        }
+
+        public static WindowFrameBoundType parse(String string)
+        {
+            return switch (string) {
+                case "UNBOUNDED_PRECEDING" -> UNBOUNDED_PRECEDING;
+                case "PRECEDING" -> PRECEDING;
+                case "CURRENT_ROW" -> CURRENT_ROW;
+                case "FOLLOWING" -> FOLLOWING;
+                case "UNBOUNDED_FOLLOWING" -> UNBOUNDED_FOLLOWING;
+                default -> throw new TrinoException(IR_ERROR, "cannot parse window frame bound type: " + string);
+            };
+        }
+
+        public static String print(WindowFrameBoundType type)
+        {
+            return type.name();
         }
     }
 }

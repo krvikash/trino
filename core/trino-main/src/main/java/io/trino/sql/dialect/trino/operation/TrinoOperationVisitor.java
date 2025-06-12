@@ -171,4 +171,9 @@ public abstract class TrinoOperationVisitor<R, C>
     {
         return visitOperation(operation, context);
     }
+
+    public R visitWindow(Window operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
 }

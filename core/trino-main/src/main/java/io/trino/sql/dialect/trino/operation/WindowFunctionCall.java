@@ -1,0 +1,306 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.sql.dialect.trino.operation;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import io.trino.metadata.ResolvedFunction;
+import io.trino.spi.TrinoException;
+import io.trino.spi.type.RowType;
+import io.trino.sql.dialect.trino.Attributes.SortOrderList;
+import io.trino.sql.dialect.trino.Attributes.WindowFrameBoundType;
+import io.trino.sql.dialect.trino.Attributes.WindowFrameType;
+import io.trino.sql.newir.Block;
+import io.trino.sql.newir.FormatOptions;
+import io.trino.sql.newir.Operation;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.spi.StandardErrorCode.IR_ERROR;
+import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
+import static io.trino.sql.dialect.trino.Attributes.DISTINCT;
+import static io.trino.sql.dialect.trino.Attributes.FRAME_END_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.FRAME_START_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.FRAME_TYPE;
+import static io.trino.sql.dialect.trino.Attributes.IGNORE_NULLS;
+import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
+import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
+import static io.trino.sql.dialect.trino.Attributes.WindowFrameType.RANGE;
+import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
+import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
+import static io.trino.sql.dialect.trino.TrinoDialect.irType;
+import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.newir.Region.singleBlockRegion;
+import static java.util.Objects.requireNonNull;
+
+public class WindowFunctionCall
+        extends TrinoOperation
+{
+    private static final String NAME = "window_function_call";
+
+    private final Result result;
+    private final Value window;
+    private final Region arguments;
+    private final Region orderingSelector;
+    private final Region frameStartFieldSelector;
+    private final Region sortKeyCoercedForFrameStartComparisonSelector;
+    private final Region frameEndFieldSelector;
+    private final Region sortKeyCoercedForFrameEndComparisonSelector;
+    private final Map<AttributeKey, Object> attributes;
+
+    public WindowFunctionCall(
+            String resultName,
+            Value window,
+            Block arguments,
+            Block orderingSelector,
+            Block frameStartFieldSelector,
+            Block sortKeyCoercedForFrameStartComparisonSelector,
+            Block frameEndFieldSelector,
+            Block sortKeyCoercedForFrameEndComparisonSelector,
+            ResolvedFunction function,
+            Optional<SortOrderList> sortOrders,
+            WindowFrameType frameType,
+            WindowFrameBoundType frameStartType,
+            WindowFrameBoundType frameEndType,
+            boolean ignoreNulls,
+            boolean distinct)
+    // TODO pass input attributes
+    {
+        super(TRINO, NAME);
+        requireNonNull(resultName, "resultName is null");
+        requireNonNull(window, "window is null");
+        requireNonNull(arguments, "arguments is null");
+        requireNonNull(orderingSelector, "orderingSelector is null");
+        requireNonNull(frameStartFieldSelector, "frameStartFieldSelector is null");
+        requireNonNull(sortKeyCoercedForFrameStartComparisonSelector, "sortKeyCoercedForFrameStartComparisonSelector is null");
+        requireNonNull(frameEndFieldSelector, "frameEndFieldSelector is null");
+        requireNonNull(sortKeyCoercedForFrameEndComparisonSelector, "sortKeyCoercedForFrameEndComparisonSelector is null");
+        requireNonNull(function, "function is null");
+        requireNonNull(sortOrders, "sortOrders is null");
+        requireNonNull(frameType, "frameType is null");
+        requireNonNull(frameStartType, "frameStartType is null");
+        requireNonNull(frameEndType, "frameEndType is null");
+
+        if (!IS_RELATION.test(trinoType(window.type()))) {
+            throw new TrinoException(IR_ERROR, "window input of WindowFunctionCall operation must be of relation type");
+        }
+        this.window = window;
+
+        if (arguments.parameters().size() != 1 ||
+                !trinoType(arguments.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
+                !(trinoType(arguments.getReturnedType()) instanceof RowType || trinoType(arguments.getReturnedType()).equals(EMPTY_ROW))) {
+            throw new TrinoException(IR_ERROR, "invalid arguments for WindowFunctionCall operation");
+        }
+        this.arguments = singleBlockRegion(arguments);
+
+        this.result = new Result(resultName, irType(function.signature().getReturnType()));
+
+        if (orderingSelector.parameters().size() != 1 ||
+                !trinoType(orderingSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
+                !(trinoType(orderingSelector.getReturnedType()) instanceof RowType || trinoType(orderingSelector.getReturnedType()).equals(EMPTY_ROW))) {
+            throw new TrinoException(IR_ERROR, "invalid ordering selector for WindowFunctionCall operation");
+        }
+        this.orderingSelector = singleBlockRegion(orderingSelector);
+
+        if (trinoType(orderingSelector.getReturnedType()).getTypeParameters().size() != sortOrders.map(orders -> orders.sortOrders().size()).orElse(0)) {
+            throw new TrinoException(IR_ERROR, "ordering fields and sort orders for WindowFunctionCall do not match in size");
+        }
+
+        if (frameStartFieldSelector.parameters().size() != 1 ||
+                !trinoType(frameStartFieldSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
+                !(trinoType(frameStartFieldSelector.getReturnedType()) instanceof RowType || trinoType(frameStartFieldSelector.getReturnedType()).equals(EMPTY_ROW)) ||
+                trinoType(frameStartFieldSelector.getReturnedType()).getTypeParameters().size() > 1) {
+            throw new TrinoException(IR_ERROR, "invalid frame start field selector for WindowFunctionCall operation");
+        }
+        this.frameStartFieldSelector = singleBlockRegion(frameStartFieldSelector);
+
+        if (sortKeyCoercedForFrameStartComparisonSelector.parameters().size() != 1 ||
+                !trinoType(sortKeyCoercedForFrameStartComparisonSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
+                !(trinoType(sortKeyCoercedForFrameStartComparisonSelector.getReturnedType()) instanceof RowType || trinoType(sortKeyCoercedForFrameStartComparisonSelector.getReturnedType()).equals(EMPTY_ROW)) ||
+                trinoType(sortKeyCoercedForFrameStartComparisonSelector.getReturnedType()).getTypeParameters().size() > 1) {
+            throw new TrinoException(IR_ERROR, "invalid sort key selector for WindowFunctionCall operation");
+        }
+        this.sortKeyCoercedForFrameStartComparisonSelector = singleBlockRegion(sortKeyCoercedForFrameStartComparisonSelector);
+
+        if (frameEndFieldSelector.parameters().size() != 1 ||
+                !trinoType(frameEndFieldSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
+                !(trinoType(frameEndFieldSelector.getReturnedType()) instanceof RowType || trinoType(frameEndFieldSelector.getReturnedType()).equals(EMPTY_ROW)) ||
+                trinoType(frameEndFieldSelector.getReturnedType()).getTypeParameters().size() > 1) {
+            throw new TrinoException(IR_ERROR, "invalid frame end field selector for WindowFunctionCall operation");
+        }
+        this.frameEndFieldSelector = singleBlockRegion(frameEndFieldSelector);
+
+        if (sortKeyCoercedForFrameEndComparisonSelector.parameters().size() != 1 ||
+                !trinoType(sortKeyCoercedForFrameEndComparisonSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
+                !(trinoType(sortKeyCoercedForFrameEndComparisonSelector.getReturnedType()) instanceof RowType || trinoType(sortKeyCoercedForFrameEndComparisonSelector.getReturnedType()).equals(EMPTY_ROW)) ||
+                trinoType(sortKeyCoercedForFrameEndComparisonSelector.getReturnedType()).getTypeParameters().size() > 1) {
+            throw new TrinoException(IR_ERROR, "invalid sort key selector for WindowFunctionCall operation");
+        }
+        this.sortKeyCoercedForFrameEndComparisonSelector = singleBlockRegion(sortKeyCoercedForFrameEndComparisonSelector);
+
+        if (frameType == RANGE) {
+            if (trinoType(frameStartFieldSelector.getReturnedType()).getTypeParameters().size() == 1 &&
+                    trinoType(sortKeyCoercedForFrameStartComparisonSelector.getReturnedType()).getTypeParameters().isEmpty()) {
+                throw new TrinoException(IR_ERROR, "for frame of type RANGE, sortKeyCoercedForFrameStartComparison must be present if frameStartField is present");
+            }
+            if (trinoType(frameEndFieldSelector.getReturnedType()).getTypeParameters().size() == 1 &&
+                    trinoType(sortKeyCoercedForFrameEndComparisonSelector.getReturnedType()).getTypeParameters().isEmpty()) {
+                throw new TrinoException(IR_ERROR, "for frame of type RANGE, sortKeyCoercedForFrameEndComparison must be present if frameEndField is present");
+            }
+        }
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        RESOLVED_FUNCTION.putAttribute(attributes, function);
+        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(attributes, orders));
+        FRAME_TYPE.putAttribute(attributes, frameType);
+        FRAME_START_TYPE.putAttribute(attributes, frameStartType);
+        FRAME_END_TYPE.putAttribute(attributes, frameEndType);
+        IGNORE_NULLS.putAttribute(attributes, ignoreNulls);
+        DISTINCT.putAttribute(attributes, distinct);
+
+        // TODO: derive attributes from input attributes; derive attributes from ResolvedFunction
+        this.attributes = attributes.buildOrThrow();
+    }
+
+    @Override
+    public Result result()
+    {
+        return result;
+    }
+
+    @Override
+    public List<Value> arguments()
+    {
+        return ImmutableList.of(window);
+    }
+
+    @Override
+    public List<Region> regions()
+    {
+        return ImmutableList.of(arguments, orderingSelector, frameStartFieldSelector, sortKeyCoercedForFrameStartComparisonSelector, frameEndFieldSelector, sortKeyCoercedForFrameEndComparisonSelector);
+    }
+
+    @Override
+    public Map<AttributeKey, Object> attributes()
+    {
+        return attributes;
+    }
+
+    @Override
+    public String prettyPrint(int indentLevel, FormatOptions formatOptions)
+    {
+        return "pretty window function call";
+    }
+
+    @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        checkArgument(newRegions.size() == 6, "regions lists size mismatch");
+        return new WindowFunctionCall(
+                result.name(),
+                window,
+                newRegions.get(0).getOnlyBlock(),
+                newRegions.get(1).getOnlyBlock(),
+                newRegions.get(2).getOnlyBlock(),
+                newRegions.get(3).getOnlyBlock(),
+                newRegions.get(4).getOnlyBlock(),
+                newRegions.get(5).getOnlyBlock(),
+                RESOLVED_FUNCTION.getAttribute(attributes),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                FRAME_TYPE.getAttribute(attributes),
+                FRAME_START_TYPE.getAttribute(attributes),
+                FRAME_END_TYPE.getAttribute(attributes),
+                IGNORE_NULLS.getAttribute(attributes),
+                DISTINCT.getAttribute(attributes));
+    }
+
+    @Override
+    public Operation withArgument(Value newArgument, int index)
+    {
+        validateArgument(newArgument, index);
+        return new WindowFunctionCall(
+                result.name(),
+                newArgument,
+                arguments.getOnlyBlock(),
+                orderingSelector.getOnlyBlock(),
+                frameStartFieldSelector.getOnlyBlock(),
+                sortKeyCoercedForFrameStartComparisonSelector.getOnlyBlock(),
+                frameEndFieldSelector.getOnlyBlock(),
+                sortKeyCoercedForFrameEndComparisonSelector.getOnlyBlock(),
+                RESOLVED_FUNCTION.getAttribute(attributes),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                FRAME_TYPE.getAttribute(attributes),
+                FRAME_START_TYPE.getAttribute(attributes),
+                FRAME_END_TYPE.getAttribute(attributes),
+                IGNORE_NULLS.getAttribute(attributes),
+                DISTINCT.getAttribute(attributes));
+    }
+
+    @Override
+    public Operation withResultName(String newName)
+    {
+        return new WindowFunctionCall(
+                newName,
+                window,
+                arguments.getOnlyBlock(),
+                orderingSelector.getOnlyBlock(),
+                frameStartFieldSelector.getOnlyBlock(),
+                sortKeyCoercedForFrameStartComparisonSelector.getOnlyBlock(),
+                frameEndFieldSelector.getOnlyBlock(),
+                sortKeyCoercedForFrameEndComparisonSelector.getOnlyBlock(),
+                RESOLVED_FUNCTION.getAttribute(attributes),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                FRAME_TYPE.getAttribute(attributes),
+                FRAME_START_TYPE.getAttribute(attributes),
+                FRAME_END_TYPE.getAttribute(attributes),
+                IGNORE_NULLS.getAttribute(attributes),
+                DISTINCT.getAttribute(attributes));
+    }
+
+    public Block argumentsBlock()
+    {
+        return arguments.getOnlyBlock();
+    }
+
+    public Block orderingSelector()
+    {
+        return orderingSelector.getOnlyBlock();
+    }
+
+    public Block frameStartFieldSelector()
+    {
+        return frameStartFieldSelector.getOnlyBlock();
+    }
+
+    public Block sortKeyCoercedForFrameStartComparisonSelector()
+    {
+        return sortKeyCoercedForFrameStartComparisonSelector.getOnlyBlock();
+    }
+
+    public Block frameEndFieldSelector()
+    {
+        return frameEndFieldSelector.getOnlyBlock();
+    }
+
+    public Block sortKeyCoercedForFrameEndComparisonSelector()
+    {
+        return sortKeyCoercedForFrameEndComparisonSelector.getOnlyBlock();
+    }
+}

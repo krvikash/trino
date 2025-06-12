@@ -43,6 +43,7 @@ import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
 import io.trino.sql.dialect.trino.operation.Values;
+import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Program;
@@ -451,6 +452,14 @@ public class NewIrFragmenter
                 context.setSingleNodeDistribution();
             }
             return operation.accept(relationalRewriter, ImmutableList.of());
+        }
+
+        @Override
+        public PlanNode visitWindow(Window operation, FragmentProperties context)
+        {
+            TrinoOperation source = getSource(operation);
+            PlanNode rewrittenSource = source.accept(this, context);
+            return operation.accept(relationalRewriter, ImmutableList.of(rewrittenSource));
         }
 
         private TrinoOperation getSource(TrinoOperation operation)
