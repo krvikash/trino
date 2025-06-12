@@ -423,7 +423,7 @@ public abstract class AbstractDistributedEngineOnlyQueries
                 %0 = query() : () -> "boolean" ({
                     ^query
                         %1 = table_scan() : () -> "multiset(row(varchar(25)))" ()
-                            {table_handle = "{""catalogHandle"":""memory:normal:21a29a35ed877cb4ea566f4b08371b5a0a3c0588f07ba25bd0881def395049cd"",""connectorHandle"":{""@type"":""system:io.trino.plugin.memory.MemoryTableHandle"",""id"":2},""transaction"":[""system:io.trino.plugin.memory.MemoryTransactionHandle"",""INSTANCE""]}", column_handles = "[{""@type"":""system:io.trino.plugin.memory.MemoryColumnHandle"",""columnIndex"":1,""type"":""varchar(25)""}]", constraint = "{""columnDomains"":[]}", update_target = "false", use_connector_node_partitioning = "false"}
+                            {table_handle = "{""catalogHandle"":""memory:normal:21a29a35ed877cb4ea566f4b08371b5a0a3c0588f07ba25bd0881def395049cd"",""connectorHandle"":{""@type"":""system:io.trino.plugin.memory.MemoryTableHandle"",""id"":2,""name"":{""schema"":""default"",""table"":""nation""}},""transaction"":[""system:io.trino.plugin.memory.MemoryTransactionHandle"",""INSTANCE""]}", column_handles = "[{""@type"":""system:io.trino.plugin.memory.MemoryColumnHandle"",""columnIndex"":1,""name"":""name"",""type"":""varchar(25)""}]", constraint = "{""columnDomains"":[]}", update_target = "false", use_connector_node_partitioning = "false"}
                         %2 = output(%1) : ("multiset(row(varchar(25)))") -> "boolean" ({
                             ^outputFieldSelector (%3 : "row(varchar(25))")
                                 %4 = field_reference(%3) : ("row(varchar(25))") -> "varchar(25)" ()
