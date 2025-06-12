@@ -22,6 +22,7 @@ import com.google.errorprone.annotations.ThreadSafe;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
+import io.trino.memory.context.CoarseGrainLocalMemoryContext;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.DriverContext;
 import io.trino.operator.HashArraySizeSupplier;
@@ -56,6 +57,7 @@ import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.checkSuccess;
 import static io.airlift.concurrent.MoreFutures.getDone;
 import static io.airlift.units.DataSize.succinctBytes;
+import static io.trino.memory.context.CoarseGrainLocalMemoryContext.DEFAULT_GRANULARITY;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -144,7 +146,8 @@ public class HashBuilderOperator
                     pagesIndexFactory,
                     spillEnabled,
                     singleStreamSpillerFactory,
-                    hashArraySizeSupplier);
+                    hashArraySizeSupplier,
+                    DEFAULT_GRANULARITY);
         }
 
         @Override
@@ -249,7 +252,8 @@ public class HashBuilderOperator
             PagesIndex.Factory pagesIndexFactory,
             boolean spillEnabled,
             SingleStreamSpillerFactory singleStreamSpillerFactory,
-            HashArraySizeSupplier hashArraySizeSupplier)
+            HashArraySizeSupplier hashArraySizeSupplier,
+            long memorySyncGranularity)
     {
         requireNonNull(pagesIndexFactory, "pagesIndexFactory is null");
 
@@ -258,8 +262,8 @@ public class HashBuilderOperator
         this.filterFunctionFactory = filterFunctionFactory;
         this.sortChannel = sortChannel;
         this.searchFunctionFactories = searchFunctionFactories;
-        this.localUserMemoryContext = operatorContext.localUserMemoryContext();
-        this.localRevocableMemoryContext = operatorContext.localRevocableMemoryContext();
+        this.localUserMemoryContext = new CoarseGrainLocalMemoryContext(operatorContext.localUserMemoryContext(), memorySyncGranularity);
+        this.localRevocableMemoryContext = new CoarseGrainLocalMemoryContext(operatorContext.localRevocableMemoryContext(), memorySyncGranularity);
 
         this.index = pagesIndexFactory.newPagesIndex(lookupSourceFactory.getTypes(), expectedPositions);
         this.lookupSourceFactory = lookupSourceFactory;
