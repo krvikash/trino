@@ -15,12 +15,14 @@ package io.trino.sql.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.cost.StatsAndCosts;
 import io.trino.execution.QueryManagerConfig;
+import io.trino.execution.scheduler.PipelinedQueryScheduler.BucketToPartitionKey;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.CatalogInfo;
 import io.trino.metadata.CatalogManager;
@@ -70,6 +72,7 @@ import io.trino.sql.planner.plan.TableWriterNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.transaction.TransactionManager;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -85,6 +88,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.SystemSessionProperties.getQueryMaxStageCount;
 import static io.trino.SystemSessionProperties.getRetryPolicy;
 import static io.trino.SystemSessionProperties.isForceSingleNodeOutput;
+import static io.trino.execution.scheduler.PipelinedQueryScheduler.getKeyForFragment;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.QUERY_HAS_TOO_MANY_STAGES;
 import static io.trino.spi.connector.StandardWarningCode.TOO_MANY_STAGES;
@@ -232,10 +236,45 @@ public class PlanFragmenter
         subPlan = reassignedSubPlan.get();
         checkState(!isForceSingleNodeOutput(session) || subPlan.getFragment().getPartitioning().isSingleNode(), "Root of PlanFragment is not single node");
 
+        // If multiple downstream fragments read from the same upstream fragment, all the downstream fragments must have matching bucket-to-partition requirements.
+        ImmutableMultimap.Builder<PlanFragmentId, BucketToPartitionKey> requirementsBuilder = ImmutableMultimap.builder();
+        collectDownstreamRequirements(subPlan, requirementsBuilder, new HashSet<>(), session);
+        for (Map.Entry<PlanFragmentId, Collection<BucketToPartitionKey>> entry : requirementsBuilder.build().asMap().entrySet()) {
+            if (entry.getValue().stream().distinct().count() > 1) {
+                log.info("Failed to reconcile downstream bucket-to-partitioning for fragment: %s, query: %s", entry.getKey(), session.getQueryId());
+                return Optional.empty();
+            }
+        }
+
         // TODO: Remove query_max_stage_count session property and use queryManagerConfig.getMaxStageCount() here
         sanityCheckFragmentedPlan(subPlan, warningCollector, getQueryMaxStageCount(session), stageCountWarningThreshold);
 
         return Optional.of(subPlan);
+    }
+
+    // collect all downstream bucket-to-partition requirements for each fragment in the plan
+    private static void collectDownstreamRequirements(SubPlan root, ImmutableMultimap.Builder<PlanFragmentId, BucketToPartitionKey> builder, Set<PlanFragmentId> processedFragments, Session session)
+    {
+        PlanFragment fragment = root.getFragment();
+        PlanFragmentId fragmentId = fragment.getId();
+
+        if (processedFragments.contains(fragmentId)) {
+            return;
+        }
+
+        // record this fragment's requirement for all upstream fragments
+        BucketToPartitionKey bucketToPartitionKey = getKeyForFragment(fragment, session);
+        fragment.getRemoteSourceNodes().stream()
+                .map(RemoteSourceNode::getSourceFragmentIds)
+                .flatMap(List::stream)
+                .forEach(upstreamFragmentId -> builder.put(upstreamFragmentId, bucketToPartitionKey));
+
+        // recurse into upstream fragments
+        for (SubPlan upstreamSubPlan : root.getChildren()) {
+            collectDownstreamRequirements(upstreamSubPlan, builder, processedFragments, session);
+        }
+
+        processedFragments.add(fragmentId);
     }
 
     private void sanityCheckFragmentedPlan(SubPlan subPlan, WarningCollector warningCollector, int maxStageCount, int stageCountSoftLimit)

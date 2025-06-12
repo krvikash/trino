@@ -1000,21 +1000,6 @@ public class PipelinedQueryScheduler
             return result.buildOrThrow();
         }
 
-        private static BucketToPartitionKey getKeyForFragment(PlanFragment fragment, Session session)
-        {
-            PartitioningHandle partitioningHandle = fragment.getPartitioning();
-            int partitionCount = getFragmentMaxPartitionCount(session, fragment);
-
-            if (partitioningHandle.equals(SOURCE_DISTRIBUTION) || partitioningHandle.equals(SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION)) {
-                return ONE;
-            }
-            if (searchFrom(fragment.getRoot()).where(node -> node instanceof TableScanNode).findFirst().isPresent() &&
-                    fragment.getRemoteSourceNodes().stream().allMatch(node -> node.getExchangeType() == REPLICATE)) {
-                return EMPTY;
-            }
-            return new PartitioningKey(partitioningHandle, partitionCount);
-        }
-
         private static Optional<int[]> getBucketToPartition(BucketToPartitionKey bucketToPartitionKey, Function<PartitioningKey, NodePartitionMap> partitioningCache)
         {
             return switch (bucketToPartitionKey) {
@@ -1445,6 +1430,21 @@ public class PipelinedQueryScheduler
         }
     }
 
+    public static BucketToPartitionKey getKeyForFragment(PlanFragment fragment, Session session)
+    {
+        PartitioningHandle partitioningHandle = fragment.getPartitioning();
+        int partitionCount = DistributedStagesScheduler.getFragmentMaxPartitionCount(session, fragment);
+
+        if (partitioningHandle.equals(SOURCE_DISTRIBUTION) || partitioningHandle.equals(SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION)) {
+            return ONE;
+        }
+        if (searchFrom(fragment.getRoot()).where(node -> node instanceof TableScanNode).findFirst().isPresent() &&
+                fragment.getRemoteSourceNodes().stream().allMatch(node -> node.getExchangeType() == REPLICATE)) {
+            return EMPTY;
+        }
+        return new PartitioningKey(partitioningHandle, partitionCount);
+    }
+
     private enum DistributedStagesSchedulerState
     {
         PLANNED(false, false),
@@ -1611,7 +1611,7 @@ public class PipelinedQueryScheduler
         }
     }
 
-    private sealed interface BucketToPartitionKey
+    public sealed interface BucketToPartitionKey
             permits ConstantKey, PartitioningKey
     {}
 
