@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.cost.StatsAndCosts;
 import io.trino.execution.QueryManagerConfig;
@@ -110,6 +111,7 @@ public class PlanFragmenter
     private static final String TOO_MANY_STAGES_MESSAGE = "" +
             "If the query contains multiple aggregates with DISTINCT over different columns, please set the 'distinct_aggregations_strategy' session property to 'single_step'. " +
             "If the query contains WITH clauses that are referenced more than once, please create temporary table(s) for the queries in those clauses.";
+    private static final Logger log = Logger.get(PlanFragmenter.class);
 
     private final Metadata metadata;
     private final FunctionManager functionManager;
@@ -277,6 +279,7 @@ public class PlanFragmenter
                 return Optional.of(processedSubPlan.result());
             }
             // bail out because of incompatible output partitioning requests
+            log.info("Failed to reconcile output partitioning for fragment: %s, query: %s", fragment.getId(), session.getQueryId());
             return Optional.empty();
         }
 
