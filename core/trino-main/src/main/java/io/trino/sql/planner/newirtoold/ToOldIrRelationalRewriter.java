@@ -437,8 +437,6 @@ public class ToOldIrRelationalRewriter
                 scalarRewriter.getSelectedSymbols(join.rightOutputSelector(), right.getOutputSymbols()),
                 MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(join.attributes()),
                 filter,
-                scalarRewriter.getOptionalSelectedSymbol(join.leftHashSelector(), left.getOutputSymbols()),
-                scalarRewriter.getOptionalSelectedSymbol(join.rightHashSelector(), right.getOutputSymbols()),
                 Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(join.attributes())).map(ToOldIrRelationalRewriter::rewriteJoinDistributionType),
                 Optional.ofNullable(SPILLABLE.getAttribute(join.attributes())),
                 dynamicFilters.buildOrThrow(),

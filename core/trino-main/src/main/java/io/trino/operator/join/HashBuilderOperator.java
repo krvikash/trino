@@ -38,7 +38,6 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Queue;
 
@@ -67,7 +66,6 @@ public class HashBuilderOperator
         private final JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager;
         private final List<Integer> outputChannels;
         private final List<Integer> hashChannels;
-        private final OptionalInt preComputedHashChannel;
         private final Optional<JoinFilterFunctionFactory> filterFunctionFactory;
         private final Optional<Integer> sortChannel;
         private final List<JoinFilterFunctionFactory> searchFunctionFactories;
@@ -88,7 +86,6 @@ public class HashBuilderOperator
                 JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager,
                 List<Integer> outputChannels,
                 List<Integer> hashChannels,
-                OptionalInt preComputedHashChannel,
                 Optional<JoinFilterFunctionFactory> filterFunctionFactory,
                 Optional<Integer> sortChannel,
                 List<JoinFilterFunctionFactory> searchFunctionFactories,
@@ -107,7 +104,6 @@ public class HashBuilderOperator
 
             this.outputChannels = ImmutableList.copyOf(requireNonNull(outputChannels, "outputChannels is null"));
             this.hashChannels = ImmutableList.copyOf(requireNonNull(hashChannels, "hashChannels is null"));
-            this.preComputedHashChannel = requireNonNull(preComputedHashChannel, "preComputedHashChannel is null");
             this.filterFunctionFactory = requireNonNull(filterFunctionFactory, "filterFunctionFactory is null");
             this.sortChannel = sortChannel;
             this.searchFunctionFactories = ImmutableList.copyOf(searchFunctionFactories);
@@ -134,7 +130,6 @@ public class HashBuilderOperator
                     partitionIndex - 1,
                     outputChannels,
                     hashChannels,
-                    preComputedHashChannel,
                     filterFunctionFactory,
                     sortChannel,
                     searchFunctionFactories,
@@ -208,7 +203,6 @@ public class HashBuilderOperator
 
     private final List<Integer> outputChannels;
     private final List<Integer> hashChannels;
-    private final OptionalInt preComputedHashChannel;
     private final Optional<JoinFilterFunctionFactory> filterFunctionFactory;
     private final Optional<Integer> sortChannel;
     private final List<JoinFilterFunctionFactory> searchFunctionFactories;
@@ -237,7 +231,6 @@ public class HashBuilderOperator
             int partitionIndex,
             List<Integer> outputChannels,
             List<Integer> hashChannels,
-            OptionalInt preComputedHashChannel,
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
             Optional<Integer> sortChannel,
             List<JoinFilterFunctionFactory> searchFunctionFactories,
@@ -263,7 +256,6 @@ public class HashBuilderOperator
 
         this.outputChannels = outputChannels;
         this.hashChannels = hashChannels;
-        this.preComputedHashChannel = preComputedHashChannel;
 
         this.spillEnabled = spillEnabled;
         this.singleStreamSpillerFactory = requireNonNull(singleStreamSpillerFactory, "singleStreamSpillerFactory is null");
@@ -593,7 +585,7 @@ public class HashBuilderOperator
 
     private LookupSourceSupplier buildLookupSource()
     {
-        LookupSourceSupplier partition = index.createLookupSourceSupplier(operatorContext.getSession(), hashChannels, preComputedHashChannel, filterFunctionFactory, sortChannel, searchFunctionFactories, Optional.of(outputChannels), hashArraySizeSupplier);
+        LookupSourceSupplier partition = index.createLookupSourceSupplier(operatorContext.getSession(), hashChannels, filterFunctionFactory, sortChannel, searchFunctionFactories, Optional.of(outputChannels), hashArraySizeSupplier);
         checkState(lookupSourceSupplier == null, "lookupSourceSupplier is already set");
         this.lookupSourceSupplier = partition;
         return partition;

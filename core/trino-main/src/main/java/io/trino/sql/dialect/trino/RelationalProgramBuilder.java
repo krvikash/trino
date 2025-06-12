@@ -624,20 +624,6 @@ public class RelationalProgramBuilder
         valueMap.put(leftFilterParameter, filter);
         valueMap.put(rightFilterParameter, filter);
 
-        // left hash symbol
-        Block.Parameter leftHashSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(leftRowType));
-        Block leftHashSelector = fieldSelectorBlock("^leftHashSelector", leftHashSelectorParameter, left.mapping(), node.getLeftHashSymbol().stream().collect(toImmutableList()));
-        valueMap.put(leftHashSelectorParameter, leftHashSelector);
-
-        // right hash symbol
-        Block.Parameter rightHashSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(rightRowType));
-        Block rightHashSelector = fieldSelectorBlock("^rightHashSelector", rightHashSelectorParameter, right.mapping(), node.getRightHashSymbol().stream().collect(toImmutableList()));
-        valueMap.put(rightHashSelectorParameter, rightHashSelector);
-
         // left output symbols
         Block.Parameter leftOutputSelectorParameter = new Block.Parameter(
                 nameAllocator.newName(),
@@ -674,8 +660,6 @@ public class RelationalProgramBuilder
                 leftCriteriaSelector,
                 rightCriteriaSelector,
                 filter,
-                leftHashSelector,
-                rightHashSelector,
                 leftOutputSelector,
                 rightOutputSelector,
                 dynamicFilterTargetSelector,

@@ -595,8 +595,6 @@ public class PredicatePushDown
                         rightSource.getOutputSymbols(),
                         node.isMaySkipOutputDuplicates(),
                         newJoinFilter,
-                        node.getLeftHashSymbol(),
-                        node.getRightHashSymbol(),
                         node.getDistributionType(),
                         node.isSpillable(),
                         dynamicFilters,
@@ -1275,8 +1273,6 @@ public class PredicatePushDown
                             node.getRightOutputSymbols(),
                             node.isMaySkipOutputDuplicates(),
                             node.getFilter(),
-                            node.getLeftHashSymbol(),
-                            node.getRightHashSymbol(),
                             node.getDistributionType(),
                             node.isSpillable(),
                             node.getDynamicFilters(),
@@ -1292,8 +1288,6 @@ public class PredicatePushDown
                         node.getRightOutputSymbols(),
                         node.isMaySkipOutputDuplicates(),
                         node.getFilter(),
-                        node.getLeftHashSymbol(),
-                        node.getRightHashSymbol(),
                         node.getDistributionType(),
                         node.isSpillable(),
                         node.getDynamicFilters(),
@@ -1314,8 +1308,6 @@ public class PredicatePushDown
                     node.getRightOutputSymbols(),
                     node.isMaySkipOutputDuplicates(),
                     node.getFilter(),
-                    node.getLeftHashSymbol(),
-                    node.getRightHashSymbol(),
                     node.getDistributionType(),
                     node.isSpillable(),
                     node.getDynamicFilters(),
@@ -1457,8 +1449,6 @@ public class PredicatePushDown
                         node.getSourceJoinSymbol(),
                         node.getFilteringSourceJoinSymbol(),
                         node.getSemiJoinOutput(),
-                        node.getSourceHashSymbol(),
-                        node.getFilteringSourceHashSymbol(),
                         node.getDistributionType(),
                         Optional.empty());
             }
@@ -1557,8 +1547,6 @@ public class PredicatePushDown
                         node.getSourceJoinSymbol(),
                         node.getFilteringSourceJoinSymbol(),
                         node.getSemiJoinOutput(),
-                        node.getSourceHashSymbol(),
-                        node.getFilteringSourceHashSymbol(),
                         node.getDistributionType(),
                         dynamicFilterId);
             }

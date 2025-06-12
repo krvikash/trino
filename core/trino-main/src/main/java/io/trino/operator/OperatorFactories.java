@@ -43,7 +43,6 @@ public final class OperatorFactories
             boolean hasFilter,
             List<Type> probeTypes,
             List<Integer> probeJoinChannel,
-            OptionalInt probeHashChannel,
             Optional<List<Integer>> probeOutputChannelsOptional,
             NullSafeHashCompiler hashCompiler)
     {
@@ -64,7 +63,7 @@ public final class OperatorFactories
                 probeOutputChannelTypes,
                 lookupSourceFactory.getBuildOutputTypes(),
                 joinType,
-                new JoinProbe.JoinProbeFactory(probeOutputChannels, probeJoinChannel, probeHashChannel, hasFilter, hashGenerator)));
+                new JoinProbe.JoinProbeFactory(probeOutputChannels, probeJoinChannel, hasFilter, hashGenerator)));
     }
 
     public static OperatorFactory spillingJoin(
@@ -74,7 +73,6 @@ public final class OperatorFactories
             JoinBridgeManager<? extends LookupSourceFactory> lookupSourceFactory,
             List<Type> probeTypes,
             List<Integer> probeJoinChannel,
-            OptionalInt probeHashChannel,
             Optional<List<Integer>> probeOutputChannelsOptional,
             OptionalInt totalOperatorsCount,
             PartitioningSpillerFactory partitioningSpillerFactory,
@@ -93,11 +91,10 @@ public final class OperatorFactories
                 probeOutputChannelTypes,
                 lookupSourceFactory.getBuildOutputTypes(),
                 joinType,
-                new JoinProbeFactory(probeOutputChannels.stream().mapToInt(i -> i).toArray(), probeJoinChannel, probeHashChannel),
+                new JoinProbeFactory(probeOutputChannels.stream().mapToInt(i -> i).toArray(), probeJoinChannel),
                 hashCompiler,
                 totalOperatorsCount,
                 probeJoinChannel,
-                probeHashChannel,
                 partitioningSpillerFactory));
     }
 

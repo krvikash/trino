@@ -73,8 +73,6 @@ public class TestSchedulingOrderVisitor
                 sourceJoin,
                 filteringSource,
                 planBuilder.symbol("semiJoinOutput"),
-                Optional.empty(),
-                Optional.empty(),
                 a,
                 b));
         assertThat(order).isEqualTo(ImmutableList.of(b.getId(), a.getId()));

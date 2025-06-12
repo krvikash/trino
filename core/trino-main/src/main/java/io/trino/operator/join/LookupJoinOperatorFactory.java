@@ -19,7 +19,6 @@ import io.trino.operator.HashGenerator;
 import io.trino.operator.JoinOperatorType;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OperatorFactory;
-import io.trino.operator.PrecomputedHashGenerator;
 import io.trino.operator.ProcessorContext;
 import io.trino.operator.WorkProcessor;
 import io.trino.operator.WorkProcessorOperator;
@@ -82,7 +81,6 @@ public class LookupJoinOperatorFactory
             NullSafeHashCompiler hashCompiler,
             OptionalInt totalOperatorsCount,
             List<Integer> probeJoinChannels,
-            OptionalInt probeHashChannel,
             PartitioningSpillerFactory partitioningSpillerFactory)
     {
         this.operatorId = operatorId;
@@ -110,17 +108,11 @@ public class LookupJoinOperatorFactory
         }
         this.totalOperatorsCount = requireNonNull(totalOperatorsCount, "totalOperatorsCount is null");
 
-        requireNonNull(probeHashChannel, "probeHashChannel is null");
-        if (probeHashChannel.isPresent()) {
-            this.probeHashGenerator = new PrecomputedHashGenerator(probeHashChannel.getAsInt());
-        }
-        else {
-            requireNonNull(probeJoinChannels, "probeJoinChannels is null");
-            List<Type> hashTypes = probeJoinChannels.stream()
-                    .map(probeTypes::get)
-                    .collect(toImmutableList());
-            this.probeHashGenerator = createChannelsHashGenerator(hashTypes, Ints.toArray(probeJoinChannels), hashCompiler);
-        }
+        requireNonNull(probeJoinChannels, "probeJoinChannels is null");
+        List<Type> hashTypes = probeJoinChannels.stream()
+                .map(probeTypes::get)
+                .collect(toImmutableList());
+        this.probeHashGenerator = createChannelsHashGenerator(hashTypes, Ints.toArray(probeJoinChannels), hashCompiler);
 
         this.partitioningSpillerFactory = requireNonNull(partitioningSpillerFactory, "partitioningSpillerFactory is null");
     }

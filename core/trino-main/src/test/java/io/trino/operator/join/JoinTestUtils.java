@@ -99,7 +99,6 @@ public final class JoinTestUtils
                 lookupSourceFactoryManager,
                 probePages.getTypes(),
                 probePages.getHashChannels().orElseThrow(),
-                getHashChannelAsInt(probePages),
                 Optional.empty(),
                 OptionalInt.of(1),
                 partitioningSpillerFactory,
@@ -150,7 +149,7 @@ public final class JoinTestUtils
                 FIXED_HASH_DISTRIBUTION,
                 hashChannels,
                 hashChannelTypes,
-                buildPages.getHashChannel(),
+                Optional.empty(),
                 POSITIONS_APPENDER_FACTORY,
                 types,
                 DataSize.of(32, DataSize.Unit.MEGABYTE),
@@ -193,8 +192,6 @@ public final class JoinTestUtils
                 lookupSourceFactoryManager,
                 rangeList(buildPages.getTypes().size()),
                 hashChannels,
-                buildPages.getHashChannel()
-                        .map(OptionalInt::of).orElse(OptionalInt.empty()),
                 filterFunctionFactory,
                 Optional.empty(),
                 ImmutableList.of(),
@@ -243,12 +240,6 @@ public final class JoinTestUtils
                 runDriverInThread(executor, driver);
             }
         });
-    }
-
-    public static OptionalInt getHashChannelAsInt(RowPagesBuilder probePages)
-    {
-        return probePages.getHashChannel()
-                .map(OptionalInt::of).orElse(OptionalInt.empty());
     }
 
     private static List<Integer> rangeList(int endExclusive)

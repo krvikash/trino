@@ -967,8 +967,6 @@ final class TestRelationalProgramBuilder
                 ImmutableList.of(new Symbol(BIGINT, "c")),
                 false,
                 Optional.empty(),
-                Optional.of(new Symbol(BOOLEAN, "b")),
-                Optional.empty(),
                 Optional.of(JoinNode.DistributionType.REPLICATED),
                 Optional.of(true),
                 ImmutableMap.of(
@@ -1020,52 +1018,37 @@ final class TestRelationalProgramBuilder
         Constant constantOperationFilter = new Constant("%24", BOOLEAN, true);
         Return returnOperationFilter = new Return("%25", constantOperationFilter.result(), constantOperationFilter.attributes());
 
-        // left hash symbol
-        Block.Parameter leftHashSymbolParameter = new Block.Parameter(
-                "%26",
-                VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationLeftHashSymbol = new FieldReference("%27", leftHashSymbolParameter, 1, ImmutableMap.of());
-        Row rowOperationLeftHashSymbol = new Row("%28", ImmutableList.of(fieldReferenceOperationLeftHashSymbol.result()), ImmutableList.of(fieldReferenceOperationLeftHashSymbol.attributes()));
-        Return returnOperationLeftHashSymbol = new Return("%29", rowOperationLeftHashSymbol.result(), rowOperationLeftHashSymbol.attributes());
-
-        // right hash symbol
-        Block.Parameter rightHashSymbolParameter = new Block.Parameter(
-                "%30",
-                rightRowType);
-        Constant constantOperationRightHashSymbol = new Constant("%31", EMPTY_ROW, null);
-        Return returnOperationRightHashSymbol = new Return("%32", constantOperationRightHashSymbol.result(), constantOperationRightHashSymbol.attributes());
-
         // left outputs
         Block.Parameter leftOutputsParameter = new Block.Parameter(
-                "%33",
+                "%26",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationLeftOutputsA = new FieldReference("%34", leftOutputsParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationLeftOutputsB = new FieldReference("%35", leftOutputsParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationLeftOutputsA = new FieldReference("%27", leftOutputsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationLeftOutputsB = new FieldReference("%28", leftOutputsParameter, 1, ImmutableMap.of());
         Row rowOperationLeftOutputs = new Row(
-                "%36",
+                "%29",
                 ImmutableList.of(fieldReferenceOperationLeftOutputsA.result(), fieldReferenceOperationLeftOutputsB.result()),
                 ImmutableList.of(fieldReferenceOperationLeftOutputsA.attributes(), fieldReferenceOperationLeftOutputsB.attributes()));
-        Return returnOperationLeftOutputs = new Return("%37", rowOperationLeftOutputs.result(), rowOperationLeftOutputs.attributes());
+        Return returnOperationLeftOutputs = new Return("%30", rowOperationLeftOutputs.result(), rowOperationLeftOutputs.attributes());
 
         // right outputs
         Block.Parameter rightOutputsParameter = new Block.Parameter(
-                "%38",
+                "%31",
                 rightRowType);
-        FieldReference fieldReferenceOperationRightOutputsC = new FieldReference("%39", rightOutputsParameter, 0, ImmutableMap.of());
-        Row rowOperationRightOutputs = new Row("%40", ImmutableList.of(fieldReferenceOperationRightOutputsC.result()), ImmutableList.of(fieldReferenceOperationRightOutputsC.attributes()));
-        Return returnOperationRightOutputs = new Return("%41", rowOperationRightOutputs.result(), rowOperationRightOutputs.attributes());
+        FieldReference fieldReferenceOperationRightOutputsC = new FieldReference("%32", rightOutputsParameter, 0, ImmutableMap.of());
+        Row rowOperationRightOutputs = new Row("%33", ImmutableList.of(fieldReferenceOperationRightOutputsC.result()), ImmutableList.of(fieldReferenceOperationRightOutputsC.attributes()));
+        Return returnOperationRightOutputs = new Return("%34", rowOperationRightOutputs.result(), rowOperationRightOutputs.attributes());
 
         // dynamic filter targets
         Block.Parameter dynamicFilterTargetsParameter = new Block.Parameter(
-                "%42",
+                "%35",
                 rightRowType);
-        FieldReference fieldReferenceOperationDynamicFilterTargetsC1 = new FieldReference("%43", dynamicFilterTargetsParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationDynamicFilterTargetsC2 = new FieldReference("%44", dynamicFilterTargetsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationDynamicFilterTargetsC1 = new FieldReference("%36", dynamicFilterTargetsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationDynamicFilterTargetsC2 = new FieldReference("%37", dynamicFilterTargetsParameter, 0, ImmutableMap.of());
         Row rowOperationDynamicFilterTargets = new Row(
-                "%45",
+                "%38",
                 ImmutableList.of(fieldReferenceOperationDynamicFilterTargetsC1.result(), fieldReferenceOperationDynamicFilterTargetsC2.result()),
                 ImmutableList.of(fieldReferenceOperationDynamicFilterTargetsC1.attributes(), fieldReferenceOperationDynamicFilterTargetsC2.attributes()));
-        Return returnOperationDynamicFilterTargets = new Return("%46", rowOperationDynamicFilterTargets.result(), rowOperationDynamicFilterTargets.attributes());
+        Return returnOperationDynamicFilterTargets = new Return("%39", rowOperationDynamicFilterTargets.result(), rowOperationDynamicFilterTargets.attributes());
 
         Join joinOperation = new Join(
                 "%13",
@@ -1091,19 +1074,6 @@ final class TestRelationalProgramBuilder
                         ImmutableList.of(
                                 constantOperationFilter,
                                 returnOperationFilter)),
-                new Block(
-                        Optional.of("^leftHashSelector"),
-                        ImmutableList.of(leftHashSymbolParameter),
-                        ImmutableList.of(
-                                fieldReferenceOperationLeftHashSymbol,
-                                rowOperationLeftHashSymbol,
-                                returnOperationLeftHashSymbol)),
-                new Block(
-                        Optional.of("^rightHashSelector"),
-                        ImmutableList.of(rightHashSymbolParameter),
-                        ImmutableList.of(
-                                constantOperationRightHashSymbol,
-                                returnOperationRightHashSymbol)),
                 new Block(
                         Optional.of("^leftOutputSelector"),
                         ImmutableList.of(leftOutputsParameter),

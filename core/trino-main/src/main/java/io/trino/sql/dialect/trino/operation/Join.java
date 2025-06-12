@@ -60,8 +60,6 @@ public final class Join
     private final Region leftCriteriaSelector;
     private final Region rightCriteriaSelector;
     private final Region filter;
-    private final Region leftHashSelector;
-    private final Region rightHashSelector;
     private final Region leftOutputSelector;
     private final Region rightOutputSelector;
     private final Region dynamicFilterTargetSelector;
@@ -74,8 +72,6 @@ public final class Join
             Block leftCriteriaSelector,
             Block rightCriteriaSelector,
             Block filter,
-            Block leftHashSelector,
-            Block rightHashSelector,
             Block leftOutputSelector,
             Block rightOutputSelector,
             Block dynamicFilterTargetSelector,
@@ -95,8 +91,6 @@ public final class Join
         requireNonNull(leftCriteriaSelector, "leftCriteriaSelector is null");
         requireNonNull(rightCriteriaSelector, "rightCriteriaSelector is null");
         requireNonNull(filter, "filter is null");
-        requireNonNull(leftHashSelector, "leftHashSelector is null");
-        requireNonNull(rightHashSelector, "rightHashSelector is null");
         requireNonNull(leftOutputSelector, "leftOutputSelector is null");
         requireNonNull(rightOutputSelector, "rightOutputSelector is null");
         requireNonNull(dynamicFilterTargetSelector, "dynamicFilterTargetSelector is null");
@@ -140,22 +134,6 @@ public final class Join
             throw new TrinoException(IR_ERROR, "invalid filter for Join operation");
         }
         this.filter = singleBlockRegion(filter);
-
-        if (leftHashSelector.parameters().size() != 1 ||
-                !trinoType(leftHashSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(left.type()))) ||
-                !(trinoType(leftHashSelector.getReturnedType()) instanceof RowType || trinoType(leftHashSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(leftHashSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid left hash selector for Join operation");
-        }
-        this.leftHashSelector = singleBlockRegion(leftHashSelector);
-
-        if (rightHashSelector.parameters().size() != 1 ||
-                !trinoType(rightHashSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(right.type()))) ||
-                !(trinoType(rightHashSelector.getReturnedType()) instanceof RowType || trinoType(rightHashSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(rightHashSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid right hash selector for Join operation");
-        }
-        this.rightHashSelector = singleBlockRegion(rightHashSelector);
 
         if (leftOutputSelector.parameters().size() != 1 ||
                 !trinoType(leftOutputSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(left.type()))) ||
@@ -221,7 +199,7 @@ public final class Join
     @Override
     public List<Region> regions()
     {
-        return ImmutableList.of(leftCriteriaSelector, rightCriteriaSelector, filter, leftHashSelector, rightHashSelector, leftOutputSelector, rightOutputSelector, dynamicFilterTargetSelector);
+        return ImmutableList.of(leftCriteriaSelector, rightCriteriaSelector, filter, leftOutputSelector, rightOutputSelector, dynamicFilterTargetSelector);
     }
 
     @Override
@@ -247,8 +225,6 @@ public final class Join
                 leftCriteriaSelector.getOnlyBlock(),
                 rightCriteriaSelector.getOnlyBlock(),
                 filter.getOnlyBlock(),
-                leftHashSelector.getOnlyBlock(),
-                rightHashSelector.getOnlyBlock(),
                 leftOutputSelector.getOnlyBlock(),
                 rightOutputSelector.getOnlyBlock(),
                 dynamicFilterTargetSelector.getOnlyBlock(),
@@ -285,16 +261,6 @@ public final class Join
     public Block filter()
     {
         return filter.getOnlyBlock();
-    }
-
-    public Block leftHashSelector()
-    {
-        return leftHashSelector.getOnlyBlock();
-    }
-
-    public Block rightHashSelector()
-    {
-        return rightHashSelector.getOnlyBlock();
     }
 
     public Block leftOutputSelector()

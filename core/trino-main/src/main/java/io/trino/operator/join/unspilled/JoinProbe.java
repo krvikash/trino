@@ -23,15 +23,12 @@ import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
-import jakarta.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 import static com.google.common.base.Verify.verify;
-import static io.trino.spi.type.BigintType.BIGINT;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -44,15 +41,13 @@ public class JoinProbe
     {
         private final int[] probeOutputChannels;
         private final int[] probeJoinChannels;
-        private final int probeHashChannel; // only valid when >= 0
         private final boolean hasFilter;
         private final InterpretedHashGenerator hashGenerator;
 
-        public JoinProbeFactory(List<Integer> probeOutputChannels, List<Integer> probeJoinChannels, OptionalInt probeHashChannel, boolean hasFilter, InterpretedHashGenerator hashGenerator)
+        public JoinProbeFactory(List<Integer> probeOutputChannels, List<Integer> probeJoinChannels, boolean hasFilter, InterpretedHashGenerator hashGenerator)
         {
             this.probeOutputChannels = Ints.toArray(requireNonNull(probeOutputChannels, "probeOutputChannels is null"));
             this.probeJoinChannels = Ints.toArray(requireNonNull(probeJoinChannels, "probeJoinChannels is null"));
-            this.probeHashChannel = requireNonNull(probeHashChannel, "probeHashChannel is null").orElse(-1);
             this.hasFilter = hasFilter;
             this.hashGenerator = requireNonNull(hashGenerator, "hashGenerator is null");
         }
@@ -60,7 +55,7 @@ public class JoinProbe
         public JoinProbe createJoinProbe(Page page, LookupSource lookupSource)
         {
             Page probePage = page.getColumns(probeJoinChannels);
-            return new JoinProbe(probeOutputChannels, page, probePage, lookupSource, probeHashChannel >= 0 ? page.getBlock(probeHashChannel) : null, hasFilter, hashGenerator);
+            return new JoinProbe(probeOutputChannels, page, probePage, lookupSource, hasFilter, hashGenerator);
         }
     }
 
@@ -70,7 +65,7 @@ public class JoinProbe
     private final boolean isRle;
     private int position = -1;
 
-    private JoinProbe(int[] probeOutputChannels, Page page, Page probePage, LookupSource lookupSource, @Nullable Block probeHashBlock, boolean hasFilter, InterpretedHashGenerator hashGenerator)
+    private JoinProbe(int[] probeOutputChannels, Page page, Page probePage, LookupSource lookupSource, boolean hasFilter, InterpretedHashGenerator hashGenerator)
     {
         this.probeOutputChannels = requireNonNull(probeOutputChannels, "probeOutputChannels is null");
         this.page = requireNonNull(page, "page is null");
@@ -78,7 +73,7 @@ public class JoinProbe
         // if filter channels are not RLE encoded, then every probe
         // row might be unique and must be matched independently
         this.isRle = !hasFilter && hasOnlyRleBlocks(probePage);
-        joinPositionCache = fillCache(lookupSource, page, probeHashBlock, probePage, isRle, hashGenerator);
+        joinPositionCache = fillCache(lookupSource, page, probePage, isRle, hashGenerator);
     }
 
     public int[] getOutputChannels()
@@ -125,7 +120,6 @@ public class JoinProbe
     private static long[] fillCache(
             LookupSource lookupSource,
             Page page,
-            Block probeHashBlock,
             Page probePage,
             boolean isRle,
             InterpretedHashGenerator hashGenerator)
@@ -170,26 +164,12 @@ public class JoinProbe
         long[] hashes = new long[positionCount];
         if (nullableBlocksCount > 0 && positions.length < positionCount) {
             Arrays.fill(joinPositionCache, -1);
-            if (probeHashBlock != null) {
-                for (int i = 0; i < positionCount; i++) {
-                    hashes[i] = BIGINT.getLong(probeHashBlock, i);
-                }
-            }
-            else {
-                hashGenerator.hashNonNulls(probePage, positions, hashes);
-            }
+            hashGenerator.hashNonNulls(probePage, positions, hashes);
             lookupSource.getJoinPosition(positions, probePage, page, hashes, joinPositionCache);
             return joinPositionCache;
         } // else fall back to non-null path
 
-        if (probeHashBlock != null) {
-            for (int i = 0; i < positionCount; i++) {
-                hashes[i] = BIGINT.getLong(probeHashBlock, i);
-            }
-        }
-        else {
-            hashGenerator.hash(probePage, 0, positionCount, hashes);
-        }
+        hashGenerator.hash(probePage, 0, positionCount, hashes);
         lookupSource.getJoinPosition(positions, probePage, page, hashes, joinPositionCache);
 
         return joinPositionCache;

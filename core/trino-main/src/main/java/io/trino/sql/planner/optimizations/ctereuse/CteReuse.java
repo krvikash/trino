@@ -1491,8 +1491,6 @@ public class CteReuse
                 join.regions().get(2).getOnlyBlock(),
                 join.regions().get(3).getOnlyBlock(),
                 join.regions().get(4).getOnlyBlock(),
-                join.regions().get(5).getOnlyBlock(),
-                join.regions().get(6).getOnlyBlock(),
                 result.dynamicFilterTargetSelector(),
                 JOIN_TYPE.getAttribute(join.attributes()),
                 MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(join.attributes()),

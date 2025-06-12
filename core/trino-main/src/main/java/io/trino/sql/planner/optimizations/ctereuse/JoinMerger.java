@@ -114,8 +114,6 @@ public class JoinMerger
                     halfRebasedBlocks.get(3),
                     halfRebasedBlocks.get(4),
                     halfRebasedBlocks.get(5),
-                    halfRebasedBlocks.get(6),
-                    halfRebasedBlocks.get(7),
                     JOIN_TYPE.getAttribute(join.attributes()),
                     MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(join.attributes()),
                     Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(join.attributes())),
@@ -243,8 +241,6 @@ public class JoinMerger
                             rebasedBlocks.get(3),
                             rebasedBlocks.get(4),
                             rebasedBlocks.get(5),
-                            rebasedBlocks.get(6),
-                            rebasedBlocks.get(7),
                             JOIN_TYPE.getAttribute(halfRebasedJoin.attributes()),
                             MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(halfRebasedJoin.attributes()),
                             Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(halfRebasedJoin.attributes())),
@@ -425,7 +421,7 @@ public class JoinMerger
         Optional<PlanNodeStatsAndCostSummary> unifiedReorderJoinStatsAndCost = Optional.empty();
 
         // get blocks for the unified Join
-        // leftCriteriaSelector, rightCriteriaSelector, filter, leftHashSelector, rightHashSelector -- are equivalent for all merged joins
+        // leftCriteriaSelector, rightCriteriaSelector, filter -- are equivalent for all merged joins
         // compute them by rebasing blocks of the first join
         List<Block> halfRebasedBlocks = rebaseJoinBlocks(
                 firstJoin,
@@ -439,13 +435,13 @@ public class JoinMerger
                 relationRowType(trinoType(rightSource.unifiedOperation().result().type())),
                 firstRightBranch.traversalContext().fieldMapping(),
                 nameAllocator);
-        List<Block> unifiedEquivalentBlocks = rebasedBlocks.subList(0, 5);
+        List<Block> unifiedEquivalentBlocks = rebasedBlocks.subList(0, 3);
 
         // leftOutputSelector, rightOutputSelector should select the union of left and right outputs from all merged joins
         // additionally, they should select all fields necessary to support residual predicates
         Set<Integer> leftOutputFields = leftSource.residualStates().stream()
                 .map(branch -> rebaseBlock(
-                        branch.nextOperation().operation().regions().get(5).getOnlyBlock(),
+                        branch.nextOperation().operation().regions().get(3).getOnlyBlock(),
                         relationRowType(trinoType(leftSource.unifiedOperation().result().type())),
                         branch.traversalContext().fieldMapping(),
                         nameAllocator)
@@ -469,7 +465,7 @@ public class JoinMerger
 
         Set<Integer> rightOutputFields = rightSource.residualStates().stream()
                 .map(branch -> rebaseBlock(
-                        branch.nextOperation().operation().regions().get(6).getOnlyBlock(),
+                        branch.nextOperation().operation().regions().get(4).getOnlyBlock(),
                         relationRowType(trinoType(rightSource.unifiedOperation().result().type())),
                         branch.traversalContext().fieldMapping(),
                         nameAllocator)
@@ -495,7 +491,7 @@ public class JoinMerger
         Block unifiedDynamicFilterTargetSelector = concatenateFieldSelectors(
                 rightSource.residualStates().stream()
                         .map(branch -> rebaseBlock(
-                                branch.nextOperation().operation().regions().get(7).getOnlyBlock(),
+                                branch.nextOperation().operation().regions().get(5).getOnlyBlock(),
                                 relationRowType(trinoType(rightSource.unifiedOperation().result().type())),
                                 branch.traversalContext().fieldMapping(),
                                 nameAllocator)
@@ -510,8 +506,6 @@ public class JoinMerger
                 unifiedEquivalentBlocks.get(0),
                 unifiedEquivalentBlocks.get(1),
                 unifiedEquivalentBlocks.get(2),
-                unifiedEquivalentBlocks.get(3),
-                unifiedEquivalentBlocks.get(4),
                 unifiedLeftOutputSelector,
                 unifiedRightOutputSelector,
                 unifiedDynamicFilterTargetSelector,
@@ -544,9 +538,9 @@ public class JoinMerger
             Join originalJoin = (Join) leftBranch.nextOperation().operation();
 
             // compute mapping for the next operation in the branch
-            Block originalLeftOutputSelector = originalJoin.regions().get(5).getOnlyBlock();
+            Block originalLeftOutputSelector = originalJoin.regions().get(3).getOnlyBlock();
             int originalLeftOutputFieldsCount = trinoType(originalLeftOutputSelector.getReturnedType()).getTypeParameters().size();
-            Block originalRightOutputSelector = originalJoin.regions().get(6).getOnlyBlock();
+            Block originalRightOutputSelector = originalJoin.regions().get(4).getOnlyBlock();
             FieldMapping unifiedLeftMapping = getPassthroughMapping(originalLeftOutputSelector)
                     .inverse()
                     .composeWith(leftBranch.traversalContext().fieldMapping())
@@ -649,16 +643,12 @@ public class JoinMerger
             rebasedBlocks.add(blocks.get(1));
             // filter
             rebasedBlocks.add(rebaseBlock(blocks.get(2), 0, inputRowType, fieldMapping, nameAllocator).orElseThrow());
-            // leftHashSelector
-            rebasedBlocks.add(rebaseBlock(blocks.get(3), inputRowType, fieldMapping, nameAllocator).orElseThrow());
-            // rightHashSelector
-            rebasedBlocks.add(blocks.get(4));
             // leftOutputSelector
-            rebasedBlocks.add(rebaseBlock(blocks.get(5), inputRowType, fieldMapping, nameAllocator).orElseThrow());
+            rebasedBlocks.add(rebaseBlock(blocks.get(3), inputRowType, fieldMapping, nameAllocator).orElseThrow());
             // rightOutputSelector
-            rebasedBlocks.add(blocks.get(6));
+            rebasedBlocks.add(blocks.get(4));
             // dynamicFilterTargetSelector
-            rebasedBlocks.add(blocks.get(7));
+            rebasedBlocks.add(blocks.get(5));
         }
         else {
             // leftCriteriaSelector
@@ -667,16 +657,12 @@ public class JoinMerger
             rebasedBlocks.add(rebaseBlock(blocks.get(1), inputRowType, fieldMapping, nameAllocator).orElseThrow());
             // filter
             rebasedBlocks.add(rebaseBlock(blocks.get(2), 1, inputRowType, fieldMapping, nameAllocator).orElseThrow());
-            // leftHashSelector
-            rebasedBlocks.add(blocks.get(3));
-            // rightHashSelector
-            rebasedBlocks.add(rebaseBlock(blocks.get(4), inputRowType, fieldMapping, nameAllocator).orElseThrow());
             // leftOutputSelector
-            rebasedBlocks.add(blocks.get(5));
+            rebasedBlocks.add(blocks.get(3));
             // rightOutputSelector
-            rebasedBlocks.add(rebaseBlock(blocks.get(6), inputRowType, fieldMapping, nameAllocator).orElseThrow());
+            rebasedBlocks.add(rebaseBlock(blocks.get(4), inputRowType, fieldMapping, nameAllocator).orElseThrow());
             // dynamicFilterTargetSelector
-            rebasedBlocks.add(rebaseBlock(blocks.get(7), inputRowType, fieldMapping, nameAllocator).orElseThrow());
+            rebasedBlocks.add(rebaseBlock(blocks.get(5), inputRowType, fieldMapping, nameAllocator).orElseThrow());
         }
 
         return rebasedBlocks.build();

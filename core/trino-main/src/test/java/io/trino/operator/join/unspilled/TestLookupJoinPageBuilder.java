@@ -28,7 +28,6 @@ import io.trino.spi.type.TypeOperators;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.OptionalInt;
 
 import static io.trino.operator.InterpretedHashGenerator.createPagePrefixHashGenerator;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -50,7 +49,7 @@ public class TestLookupJoinPageBuilder
         Page page = new Page(block, block);
 
         List<Type> types = ImmutableList.of(BIGINT, BIGINT);
-        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0, 1), ImmutableList.of(0, 1), OptionalInt.empty(), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
+        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0, 1), ImmutableList.of(0, 1), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
         LookupSource lookupSource = new TestLookupSource(types, page);
         JoinProbe probe = joinProbeFactory.createJoinProbe(page, lookupSource);
         LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
@@ -99,7 +98,7 @@ public class TestLookupJoinPageBuilder
         Block block = blockBuilder.build();
         Page page = new Page(block);
         List<Type> types = ImmutableList.of(BIGINT);
-        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), OptionalInt.empty(), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
+        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
         LookupSource lookupSource = new TestLookupSource(types, page);
         LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
 
@@ -172,7 +171,7 @@ public class TestLookupJoinPageBuilder
         // nothing on the build side so we don't append anything
         LookupSource lookupSource = new TestLookupSource(ImmutableList.of(), page);
         List<Type> types = ImmutableList.of(BIGINT);
-        JoinProbe probe = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), OptionalInt.empty(), false, createPagePrefixHashGenerator(types, HASH_COMPILER)).createJoinProbe(page, lookupSource);
+        JoinProbe probe = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), false, createPagePrefixHashGenerator(types, HASH_COMPILER)).createJoinProbe(page, lookupSource);
         LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
 
         // append the same row many times should also flush in the end
