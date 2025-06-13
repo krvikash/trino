@@ -62,6 +62,7 @@ import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
+import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -202,6 +203,7 @@ public class TestTrinoNessieCatalog
                     3,
                     false,
                     _ -> false,
+                    UTC,
                     newDirectExecutorService(),
                     directExecutor(),
                     newDirectExecutorService());

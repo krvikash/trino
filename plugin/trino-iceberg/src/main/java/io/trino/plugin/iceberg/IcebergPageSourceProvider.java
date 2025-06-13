@@ -101,6 +101,7 @@ import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
+import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -207,6 +208,7 @@ public class IcebergPageSourceProvider
     private final FileFormatDataSourceStats fileFormatDataSourceStats;
     private final OrcReaderOptions orcReaderOptions;
     private final ParquetReaderOptions parquetReaderOptions;
+    private final DateTimeZone dateTimeZone;
     private final TypeManager typeManager;
     private final DeleteManager unpartitionedTableDeleteManager;
     private final Map<Integer, Function<PartitionData, PartitionKey>> partitionKeyFactories = new ConcurrentHashMap<>();
@@ -217,12 +219,14 @@ public class IcebergPageSourceProvider
             FileFormatDataSourceStats fileFormatDataSourceStats,
             OrcReaderOptions orcReaderOptions,
             ParquetReaderOptions parquetReaderOptions,
+            DateTimeZone dateTimeZone,
             TypeManager typeManager)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileFormatDataSourceStats = requireNonNull(fileFormatDataSourceStats, "fileFormatDataSourceStats is null");
         this.orcReaderOptions = requireNonNull(orcReaderOptions, "orcReaderOptions is null");
         this.parquetReaderOptions = requireNonNull(parquetReaderOptions, "parquetReaderOptions is null");
+        this.dateTimeZone = requireNonNull(dateTimeZone, "dateTimeZone is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.unpartitionedTableDeleteManager = new DeleteManager(typeManager);
     }
@@ -373,6 +377,22 @@ public class IcebergPageSourceProvider
                     throw new TrinoException(ICEBERG_BAD_DATA, e);
                 }
             });
+        }
+
+        if (!dateTimeZone.equals(UTC)) {
+            TransformConnectorPageSource.Builder transformerBuilder = TransformConnectorPageSource.builder();
+            int channel = 0;
+            for (IcebergColumnHandle column : icebergColumns) {
+                Type type = column.getType();
+                if (TimestampTzBlockTransformer.timestampTzBlockTransformationRequired(type)) {
+                    transformerBuilder.transform(channel, new TimestampTzBlockTransformer(type, dateTimeZone));
+                }
+                else {
+                    transformerBuilder.column(channel);
+                }
+                channel++;
+            }
+            pageSource = transformerBuilder.build(pageSource);
         }
         return pageSource;
     }

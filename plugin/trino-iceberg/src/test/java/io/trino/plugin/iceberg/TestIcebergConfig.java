@@ -31,6 +31,7 @@ import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.plugin.hive.HiveCompressionOption.ZSTD;
+import static io.trino.plugin.hive.util.TestHiveUtil.nonDefaultTimeZone;
 import static io.trino.plugin.iceberg.CatalogType.GLUE;
 import static io.trino.plugin.iceberg.CatalogType.HIVE_METASTORE;
 import static io.trino.plugin.iceberg.IcebergFileFormat.ORC;
@@ -83,7 +84,8 @@ public class TestIcebergConfig
                 .setObjectStoreLayoutEnabled(false)
                 .setMetadataParallelism(8)
                 .setBucketExecutionEnabled(true)
-                .setFileBasedConflictDetectionEnabled(true));
+                .setFileBasedConflictDetectionEnabled(true)
+                .setTimeZone("UTC"));
     }
 
     @Test
@@ -128,6 +130,7 @@ public class TestIcebergConfig
                 .put("iceberg.metadata.parallelism", "10")
                 .put("iceberg.bucket-execution", "false")
                 .put("iceberg.file-based-conflict-detection", "false")
+                .put("iceberg.time-zone", nonDefaultTimeZone().getID())
                 .buildOrThrow();
 
         IcebergConfig expected = new IcebergConfig()
@@ -169,7 +172,8 @@ public class TestIcebergConfig
                 .setObjectStoreLayoutEnabled(true)
                 .setMetadataParallelism(10)
                 .setBucketExecutionEnabled(false)
-                .setFileBasedConflictDetectionEnabled(false);
+                .setFileBasedConflictDetectionEnabled(false)
+                .setTimeZone(nonDefaultTimeZone().getID());
 
         assertFullMapping(properties, expected);
     }

@@ -78,6 +78,7 @@ import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.joda.time.DateTimeZone.UTC;
 
 public abstract class BaseTrinoCatalogTest
 {
@@ -155,6 +156,7 @@ public abstract class BaseTrinoCatalogTest
                     3,
                     false,
                     _ -> false,
+                    UTC,
                     newDirectExecutorService(),
                     directExecutor(),
                     newDirectExecutorService());

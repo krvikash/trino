@@ -53,6 +53,7 @@ import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.joda.time.DateTimeZone.UTC;
 
 public class TestTrinoRestCatalog
         extends BaseTrinoCatalogTest
@@ -129,6 +130,7 @@ public class TestTrinoRestCatalog
                     3,
                     false,
                     _ -> false,
+                    UTC,
                     newDirectExecutorService(),
                     directExecutor(),
                     newDirectExecutorService());

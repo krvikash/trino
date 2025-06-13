@@ -228,6 +228,7 @@ import org.apache.iceberg.types.Types.IntegerType;
 import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.types.Types.StringType;
 import org.apache.iceberg.types.Types.StructType;
+import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -281,7 +282,6 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.difference;
 import static io.trino.filesystem.Locations.isS3Tables;
-import static io.trino.plugin.base.filter.UtcConstraintExtractor.extractTupleDomain;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
 import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
@@ -474,6 +474,7 @@ import static org.apache.iceberg.io.DeleteSchemaUtil.posDeleteReadSchema;
 import static org.apache.iceberg.types.TypeUtil.indexParents;
 import static org.apache.iceberg.util.LocationUtil.stripTrailingSlash;
 import static org.apache.iceberg.util.SnapshotUtil.schemaFor;
+import static org.joda.time.DateTimeZone.UTC;
 
 public class IcebergMetadata
         implements ConnectorMetadata
@@ -527,6 +528,7 @@ public class IcebergMetadata
     private final int maxFormatVersion;
     private final boolean addFilesProcedureEnabled;
     private final Predicate<String> allowedExtraProperties;
+    private final DateTimeZone dateTimeZone;
     private final ExecutorService icebergScanExecutor;
     private final Executor metadataFetchingExecutor;
     private final ExecutorService icebergPlanningExecutor;
@@ -549,6 +551,7 @@ public class IcebergMetadata
             int maxFormatVersion,
             boolean addFilesProcedureEnabled,
             Predicate<String> allowedExtraProperties,
+            DateTimeZone dateTimeZone,
             ExecutorService icebergScanExecutor,
             Executor metadataFetchingExecutor,
             ExecutorService icebergPlanningExecutor)
@@ -565,6 +568,7 @@ public class IcebergMetadata
         this.maxFormatVersion = maxFormatVersion;
         this.addFilesProcedureEnabled = addFilesProcedureEnabled;
         this.allowedExtraProperties = requireNonNull(allowedExtraProperties, "allowedExtraProperties is null");
+        this.dateTimeZone = requireNonNull(dateTimeZone, "dateTimeZone is null");
         this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
         this.icebergPlanningExecutor = requireNonNull(icebergPlanningExecutor, "icebergPlanningExecutor is null");
@@ -4021,9 +4025,23 @@ public class IcebergMetadata
     public Optional<ConstraintApplicationResult<ConnectorTableHandle>> applyFilter(ConnectorSession session, ConnectorTableHandle handle, Constraint constraint)
     {
         IcebergTableHandle table = (IcebergTableHandle) handle;
-        UtcConstraintExtractor.ExtractionResult extractionResult = extractTupleDomain(constraint);
-        TupleDomain<IcebergColumnHandle> predicate = extractionResult.tupleDomain()
-                .transformKeys(IcebergColumnHandle.class::cast);
+        TupleDomain<IcebergColumnHandle> predicate;
+        ConnectorExpression connectorExpression;
+        // TODO when using iceberg.time-zone with value other than UTC, then UtcConstraintExtractor does not behave correctly as
+        //  UtcConstraintExtractor assumes all values of TIMESTAMP WITH TIME ZONE type are represented using the UTC time zone.
+        //  Make UtcConstraintExtractor to work with other time zones as well, so we can push down constraints for other time zones.
+        //  https://starburstdata.atlassian.net/browse/SEP-17396
+        if (dateTimeZone.equals(UTC)) {
+            UtcConstraintExtractor.ExtractionResult extractionResult = UtcConstraintExtractor.extractTupleDomain(constraint);
+            predicate = extractionResult.tupleDomain()
+                    .transformKeys(IcebergColumnHandle.class::cast);
+            connectorExpression = extractionResult.remainingExpression();
+        }
+        else {
+            predicate = constraint.getSummary()
+                    .transformKeys(IcebergColumnHandle.class::cast);
+            connectorExpression = constraint.getExpression();
+        }
         if (predicate.isAll() && constraint.getPredicateColumns().isEmpty()) {
             return Optional.empty();
         }
@@ -4118,7 +4136,7 @@ public class IcebergMetadata
                         newConstraintColumns,
                         table.getForAnalyze()),
                 remainingConstraint.transformKeys(ColumnHandle.class::cast),
-                extractionResult.remainingExpression(),
+                connectorExpression,
                 false));
     }
 
