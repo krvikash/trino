@@ -1009,7 +1009,7 @@
             <dependency>
                 <groupId>io.projectreactor.netty</groupId>
                 <artifactId>reactor-netty-core</artifactId>
-                <version>1.1.30</version>
+                <version>1.1.31</version>
             </dependency>
 
             <dependency>
