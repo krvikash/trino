@@ -2,7 +2,7 @@
 
 To run the Redshift tests you will need to provision a Redshift cluster.  The
 tests are designed to run on the smallest possible Redshift cluster containing
-is a single dc2.large instance. Additionally, you will need a S3 bucket 
+is a single ra3.large instance. Additionally, you will need a S3 bucket 
 containing TPCH tiny data in Parquet format.  The files should be named:
 
 ```
