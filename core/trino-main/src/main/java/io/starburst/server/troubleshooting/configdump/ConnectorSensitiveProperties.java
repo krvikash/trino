@@ -18,6 +18,29 @@ import java.util.Set;
 public final class ConnectorSensitiveProperties
 {
     public static final Map<String, Set<String>> SENSITIVE_PROPERTIES_PER_CONNECTOR = ImmutableMap.<String, Set<String>>builder()
+            .put("alteryx",
+                    ImmutableSet.of(
+                            "auth-to-local.ldap.bind-password",
+                            "azure.access-key",
+                            "azure.oauth.client-id",
+                            "azure.oauth.endpoint",
+                            "azure.oauth.secret",
+                            "azure.user-assigned-managed-identity.client-id",
+                            "azure.user-assigned-managed-identity.resource-id",
+                            "gcs.json-key",
+                            "hive.metastore.glue.aws-secret-key",
+                            "hive.metastore.thrift.client.ssl.key-password",
+                            "hive.metastore.thrift.client.ssl.trust-certificate-password",
+                            "hive.metastore.unity.token",
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password",
+                            "s3.aws-secret-key",
+                            "s3.http-proxy.password",
+                            "s3.sse.customer-key"))
             .put("azure_data_explorer",
                     ImmutableSet.of(
                             "adx.azure.active-directory-application.secret-key",
