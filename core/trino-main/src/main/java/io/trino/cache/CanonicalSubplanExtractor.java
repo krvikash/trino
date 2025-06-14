@@ -179,8 +179,7 @@ public final class CanonicalSubplanExtractor
             if (!(node.getGroupingSetCount() == 1
                     && node.getPreGroupedSymbols().isEmpty()
                     && node.getStep() == PARTIAL
-                    && node.getGroupIdSymbol().isEmpty()
-                    && node.getHashSymbol().isEmpty())) {
+                    && node.getGroupIdSymbol().isEmpty())) {
                 canonicalizeRecursively(source);
                 return Optional.empty();
             }
@@ -279,7 +278,7 @@ public final class CanonicalSubplanExtractor
         {
             PlanNode source = node.getSource();
 
-            if (!node.isPartial() || node.getHashSymbol().isPresent() || node.getSpecification().orderingScheme().isEmpty()) {
+            if (!node.isPartial() || node.getSpecification().orderingScheme().isEmpty()) {
                 canonicalizeRecursively(source);
                 return Optional.empty();
             }

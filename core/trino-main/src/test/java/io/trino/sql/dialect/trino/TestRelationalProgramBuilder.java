@@ -166,7 +166,6 @@ final class TestRelationalProgramBuilder
                 ImmutableList.of(new Symbol(BOOLEAN, "b")),
                 AggregationNode.Step.SINGLE,
                 Optional.of(new Symbol(BIGINT, "a")),
-                Optional.empty(),
                 Optional.of(true));
 
         // aggregate parameter
@@ -258,14 +257,6 @@ final class TestRelationalProgramBuilder
         Row rowOperationGroupingKeys = new Row("%32", ImmutableList.of(fieldReferenceOperationGroupingKeys.result()), ImmutableList.of(fieldReferenceOperationGroupingKeys.attributes()));
         Return returnOperationGroupingKeys = new Return("%33", rowOperationGroupingKeys.result(), rowOperationGroupingKeys.attributes());
 
-        // hash
-        Block.Parameter hashParameter = new Block.Parameter(
-                "%34",
-                VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationHash = new FieldReference("%35", hashParameter, 0, ImmutableMap.of());
-        Row rowOperationHash = new Row("%36", ImmutableList.of(fieldReferenceOperationHash.result()), ImmutableList.of(fieldReferenceOperationHash.attributes()));
-        Return returnOperationHash = new Return("%37", rowOperationHash.result(), rowOperationHash.attributes());
-
         Aggregation aggregationOperation = new Aggregation(
                 "%9",
                 VALUES_OPERATION.result(),
@@ -283,13 +274,6 @@ final class TestRelationalProgramBuilder
                                 fieldReferenceOperationGroupingKeys,
                                 rowOperationGroupingKeys,
                                 returnOperationGroupingKeys)),
-                new Block(
-                        Optional.of("^hashSelector"),
-                        ImmutableList.of(hashParameter),
-                        ImmutableList.of(
-                                fieldReferenceOperationHash,
-                                rowOperationHash,
-                                returnOperationHash)),
                 1,
                 ImmutableList.of(),
                 OptionalInt.empty(),

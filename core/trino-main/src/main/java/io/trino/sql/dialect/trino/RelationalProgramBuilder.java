@@ -180,13 +180,6 @@ public class RelationalProgramBuilder
         Block groupingKeysSelector = fieldSelectorBlock("^groupingKeysSelector", groupingKeysSelectorParameter, input.mapping(), node.getGroupingKeys());
         valueMap.put(groupingKeysSelectorParameter, groupingKeysSelector);
 
-        // hash
-        Block.Parameter hashSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block hashSelector = fieldSelectorBlock("^hashSelector", hashSelectorParameter, input.mapping(), node.getHashSymbol().stream().collect(toImmutableList()));
-        valueMap.put(hashSelectorParameter, hashSelector);
-
         OptionalInt groupIdIndex = node.getGroupIdSymbol()
                 .map(symbol -> node.getGroupingKeys().indexOf(symbol))
                 .map(OptionalInt::of)
@@ -201,7 +194,6 @@ public class RelationalProgramBuilder
                 input.operation().result(),
                 aggregateBlock,
                 groupingKeysSelector,
-                hashSelector,
                 node.getGroupingSetCount(),
                 ImmutableList.copyOf(node.getGlobalGroupingSets()),
                 groupIdIndex,

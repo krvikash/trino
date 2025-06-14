@@ -27,7 +27,6 @@ import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.trino.operator.AppendOnlyVariableWidthData.getChunkOffset;
 import static io.trino.spi.StandardErrorCode.GENERIC_INSUFFICIENT_RESOURCES;
-import static io.trino.spi.type.BigintType.BIGINT;
 import static java.lang.Math.addExact;
 import static java.lang.Math.max;
 import static java.lang.Math.multiplyExact;
@@ -62,7 +61,6 @@ public final class FlatHash
     private final AppendOnlyVariableWidthData variableWidthData;
     private final UpdateMemory checkMemoryReservation;
 
-    private final boolean hasPrecomputedHash;
     private final boolean cacheHashValue;
     private final int fixedRecordSize;
     private final int variableWidthOffset;
@@ -85,7 +83,6 @@ public final class FlatHash
         boolean hasVariableData = flatHashStrategy.isAnyVariableWidth();
         this.variableWidthData = hasVariableData ? new AppendOnlyVariableWidthData() : null;
         requireNonNull(hashMode, "hashMode is null");
-        this.hasPrecomputedHash = hashMode.isHashPrecomputed();
         this.cacheHashValue = hashMode.isHashCached();
 
         // the record is laid out as follows:
@@ -111,7 +108,6 @@ public final class FlatHash
     {
         this.checkMemoryReservation = other.checkMemoryReservation;
         this.variableWidthData = other.variableWidthData == null ? null : new AppendOnlyVariableWidthData(other.variableWidthData);
-        this.hasPrecomputedHash = other.hasPrecomputedHash;
         this.cacheHashValue = other.cacheHashValue;
         this.fixedRecordSize = other.fixedRecordSize;
         this.variableWidthOffset = other.variableWidthOffset;
@@ -195,35 +191,16 @@ public final class FlatHash
                 variableWidthChunk,
                 variableChunkOffset,
                 blockBuilders);
-
-        if (hasPrecomputedHash) {
-            BIGINT.writeLong(blockBuilders[blockBuilders.length - 1], (long) LONG_HANDLE.get(fixedSizeRecords, recordOffset));
-        }
     }
 
     public void computeHashes(Block[] blocks, long[] hashes, int offset, int length, FlatHashStrategy flatHashStrategy)
     {
-        if (hasPrecomputedHash) {
-            Block hashBlock = blocks[blocks.length - 1];
-            for (int i = 0; i < length; i++) {
-                hashes[i] = BIGINT.getLong(hashBlock, offset + i);
-            }
-        }
-        else {
-            flatHashStrategy.hashBlocksBatched(blocks, hashes, offset, length);
-        }
+        flatHashStrategy.hashBlocksBatched(blocks, hashes, offset, length);
     }
 
     public int putIfAbsent(Block[] blocks, int position, FlatHashStrategy flatHashStrategy)
     {
-        long hash;
-        if (hasPrecomputedHash) {
-            hash = BIGINT.getLong(blocks[blocks.length - 1], position);
-        }
-        else {
-            hash = flatHashStrategy.hash(blocks, position);
-        }
-
+        long hash = flatHashStrategy.hash(blocks, position);
         return putIfAbsent(blocks, position, hash, flatHashStrategy);
     }
 

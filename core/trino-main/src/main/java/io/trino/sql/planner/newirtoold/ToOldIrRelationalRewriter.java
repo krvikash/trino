@@ -199,7 +199,6 @@ public class ToOldIrRelationalRewriter
                         .map(groupingKeys::get)
                         .collect(toImmutableList()),
                 rewriteAggregationStep(AGGREGATION_STEP.getAttribute(aggregation.attributes())),
-                scalarRewriter.getOptionalSelectedSymbol(aggregation.hashSelector(), source.getOutputSymbols()),
                 Optional.ofNullable(GROUP_ID_INDEX.getAttribute(aggregation.attributes()))
                         .map(groupingKeys::get),
                 Optional.of(INPUT_REDUCING.getAttribute(aggregation.attributes())));

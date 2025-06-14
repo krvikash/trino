@@ -165,7 +165,7 @@ public final class PlanCopier
         @Override
         public PlanNode visitDistinctLimit(DistinctLimitNode node, RewriteContext<Void> context)
         {
-            return new DistinctLimitNode(idAllocator.getNextId(), context.rewrite(node.getSource()), node.getLimit(), node.isPartial(), node.getDistinctSymbols(), node.getHashSymbol());
+            return new DistinctLimitNode(idAllocator.getNextId(), context.rewrite(node.getSource()), node.getLimit(), node.isPartial(), node.getDistinctSymbols());
         }
 
         @Override
@@ -367,8 +367,7 @@ public final class PlanCopier
                     idAllocator.getNextId(),
                     context.rewrite(node.getSource()),
                     node.getMarkerSymbol(),
-                    node.getDistinctSymbols(),
-                    node.getHashSymbol());
+                    node.getDistinctSymbols());
         }
 
         @Override
@@ -386,8 +385,7 @@ public final class PlanCopier
                     node.getPartitionBy(),
                     node.isOrderSensitive(),
                     node.getRowNumberSymbol(),
-                    node.getMaxRowCountPerPartition(),
-                    node.getHashSymbol());
+                    node.getMaxRowCountPerPartition());
         }
 
         @Override
@@ -400,8 +398,7 @@ public final class PlanCopier
                     node.getRankingType(),
                     node.getRankingSymbol(),
                     node.getMaxRankingPerPartition(),
-                    node.isPartial(),
-                    node.getHashSymbol());
+                    node.isPartial());
         }
 
         @Override

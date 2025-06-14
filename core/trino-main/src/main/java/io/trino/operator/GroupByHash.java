@@ -66,7 +66,6 @@ public interface GroupByHash
     static GroupByHash createGroupByHash(
             Session session,
             List<Type> types,
-            boolean hasPrecomputedHash,
             boolean spillable,
             int expectedSize,
             FlatHashStrategyCompiler hashStrategyCompiler,
@@ -75,18 +74,15 @@ public interface GroupByHash
         boolean dictionaryAggregationEnabled = isDictionaryAggregationEnabled(session);
         return createGroupByHash(
                 types,
-                selectGroupByHashMode(hasPrecomputedHash, spillable, types),
+                selectGroupByHashMode(spillable, types),
                 expectedSize,
                 dictionaryAggregationEnabled,
                 hashStrategyCompiler,
                 updateMemory);
     }
 
-    static GroupByHashMode selectGroupByHashMode(boolean hasPrecomputedHash, boolean spillable, List<Type> types)
+    static GroupByHashMode selectGroupByHashMode(boolean spillable, List<Type> types)
     {
-        if (hasPrecomputedHash) {
-            return GroupByHashMode.PRECOMPUTED;
-        }
         // Spillable aggregations should always cache hash values since spilling requires sorting by the hash value
         if (spillable) {
             return GroupByHashMode.CACHED;
@@ -126,8 +122,8 @@ public interface GroupByHash
         try {
             if (types.size() == 1 && BigintGroupByHash.isSupportedType(types.get(0))) {
                 Type hashType = getOnlyElement(types);
-                Constructor<? extends GroupByHash> constructor = specializedGroupByHashClasses.getUnchecked(hashType).getConstructor(boolean.class, int.class, UpdateMemory.class, Type.class);
-                return constructor.newInstance(hashMode.isHashPrecomputed(), expectedSize, updateMemory, hashType);
+                Constructor<? extends GroupByHash> constructor = specializedGroupByHashClasses.getUnchecked(hashType).getConstructor(int.class, UpdateMemory.class, Type.class);
+                return constructor.newInstance(expectedSize, updateMemory, hashType);
             }
         }
         catch (ReflectiveOperationException e) {

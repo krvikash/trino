@@ -130,7 +130,6 @@ class TestToOldIrRelationalRewriter
                 new GroupingSetDescriptor(ImmutableList.of(B), 1, ImmutableSet.of()),
                 ImmutableList.of(B),
                 AggregationNode.Step.SINGLE,
-                Optional.of(A),
                 Optional.empty(),
                 Optional.of(true));
         assertRoundtrip(aggregationNode);
@@ -143,7 +142,6 @@ class TestToOldIrRelationalRewriter
                 new GroupingSetDescriptor(ImmutableList.of(), 1, ImmutableSet.of(0)),
                 ImmutableList.of(),
                 AggregationNode.Step.SINGLE,
-                Optional.empty(),
                 Optional.empty(),
                 Optional.of(true));
         assertRoundtrip(distinctAggregationNode);

@@ -56,7 +56,6 @@ public class Aggregation
     private final Value input;
     private final Region aggregateCalls;
     private final Region groupingKeysSelector;
-    private final Region hashSelector;
     private final Map<AttributeKey, Object> attributes;
 
     public Aggregation(
@@ -64,7 +63,6 @@ public class Aggregation
             Value input,
             Block aggregateCalls,
             Block groupingKeysSelector,
-            Block hashSelector,
             int groupingSetCount,
             List<Integer> globalGroupingSets,
             OptionalInt groupIdIndex, // index in groupingKeysSelector
@@ -78,7 +76,6 @@ public class Aggregation
         requireNonNull(input, "input is null");
         requireNonNull(aggregateCalls, "aggregateCalls is null");
         requireNonNull(groupingKeysSelector, "groupingKeysSelector is null");
-        requireNonNull(hashSelector, "hashSelector is null");
         requireNonNull(globalGroupingSets, "globalGroupingSets is null");
         requireNonNull(groupIdIndex, "groupIdIndex is null");
         requireNonNull(preGroupedIndexes, "preGroupedIndexes is null");
@@ -105,17 +102,8 @@ public class Aggregation
         }
         this.groupingKeysSelector = singleBlockRegion(groupingKeysSelector);
 
-        if (hashSelector.parameters().size() != 1 ||
-                !trinoType(hashSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(hashSelector.getReturnedType()) instanceof RowType || trinoType(hashSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(hashSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid hash selector for Aggregation operation");
-        }
-        this.hashSelector = singleBlockRegion(hashSelector);
-
         List<Type> outputTypes = ImmutableList.<Type>builder()
                 .addAll(trinoType(groupingKeysSelector.getReturnedType()).getTypeParameters())
-                .addAll(trinoType(hashSelector.getReturnedType()).getTypeParameters())
                 .addAll(trinoType(aggregateCalls.getReturnedType()).getTypeParameters())
                 .build();
 
@@ -167,7 +155,7 @@ public class Aggregation
     @Override
     public List<Region> regions()
     {
-        return ImmutableList.of(aggregateCalls, groupingKeysSelector, hashSelector);
+        return ImmutableList.of(aggregateCalls, groupingKeysSelector);
     }
 
     @Override
@@ -191,7 +179,6 @@ public class Aggregation
                 newArgument,
                 aggregateCalls.getOnlyBlock(),
                 groupingKeysSelector.getOnlyBlock(),
-                hashSelector.getOnlyBlock(),
                 GROUPING_SETS_COUNT.getAttribute(attributes),
                 GLOBAL_GROUPING_SETS.getAttribute(attributes),
                 Optional.ofNullable(GROUP_ID_INDEX.getAttribute(attributes)).map(OptionalInt::of).orElse(OptionalInt.empty()),
@@ -209,11 +196,6 @@ public class Aggregation
     public Block groupingKeysSelector()
     {
         return groupingKeysSelector.getOnlyBlock();
-    }
-
-    public Block hashSelector()
-    {
-        return hashSelector.getOnlyBlock();
     }
 
     @Override

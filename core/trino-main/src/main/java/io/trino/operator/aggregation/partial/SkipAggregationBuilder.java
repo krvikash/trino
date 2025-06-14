@@ -31,7 +31,6 @@ import io.trino.spi.block.BlockBuilder;
 import jakarta.annotation.Nullable;
 
 import java.util.List;
-import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -54,7 +53,6 @@ public class SkipAggregationBuilder
 
     public SkipAggregationBuilder(
             List<Integer> groupByChannels,
-            Optional<Integer> inputHashChannel,
             List<AggregatorFactory> aggregatorFactories,
             CardinalityEstimator cardinalityEstimator,
             LocalMemoryContext memoryContext,
@@ -63,11 +61,10 @@ public class SkipAggregationBuilder
         this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.aggregatorFactories = ImmutableList.copyOf(requireNonNull(aggregatorFactories, "aggregatorFactories is null"));
         this.cardinalityEstimator = requireNonNull(cardinalityEstimator, "cardinalityEstimator is null");
-        this.hashChannels = new int[groupByChannels.size() + (inputHashChannel.isPresent() ? 1 : 0)];
+        this.hashChannels = new int[groupByChannels.size()];
         for (int i = 0; i < groupByChannels.size(); i++) {
             hashChannels[i] = groupByChannels.get(i);
         }
-        inputHashChannel.ifPresent(channelIndex -> hashChannels[groupByChannels.size()] = channelIndex);
         this.aggregationMetrics = requireNonNull(aggregationMetrics, "aggregationMetrics is null");
     }
 

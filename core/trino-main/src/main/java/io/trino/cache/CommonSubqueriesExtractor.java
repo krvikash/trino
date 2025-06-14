@@ -342,8 +342,7 @@ public final class CommonSubqueriesExtractor
                             originalPlanNode.getRankingType(),
                             originalPlanNode.getRankingSymbol(),
                             originalPlanNode.getMaxRankingPerPartition(),
-                            true,
-                            Optional.empty());
+                            true);
                     List<Expression> adaptationConjuncts = createAdaptationConjuncts(subplan, TRUE, ImmutableSet.of(), Optional.of(childAdaptation));
                     return new CommonPlanAdaptation(
                             commonSubplan,

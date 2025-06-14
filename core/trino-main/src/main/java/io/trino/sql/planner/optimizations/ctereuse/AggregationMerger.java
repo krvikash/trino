@@ -107,7 +107,6 @@ public class AggregationMerger
             Operation nextOperation = branch.nextOperation().operation();
             if (nextOperation instanceof Aggregation aggregation && isDeterministic(aggregation)) {
                 Block rebasedGroupingKeysSelector = rebaseBlock(aggregation.groupingKeysSelector(), relationRowType(trinoType(unifiedOperation.result().type())), branch.traversalContext().fieldMapping(), nameAllocator).orElseThrow();
-                Block rebasedHashSelector = rebaseBlock(aggregation.hashSelector(), relationRowType(trinoType(unifiedOperation.result().type())), branch.traversalContext().fieldMapping(), nameAllocator).orElseThrow();
                 // when we merge this aggregation with other aggregations, we will have to pull the traversal context through the merged operation.
                 // It is only possible if the residual predicate is based on the grouping keys.
                 // We consider the branches mergeable when the conjuncts in their residual predicates which are _not_ based only on the grouping keys are equal.
@@ -123,7 +122,6 @@ public class AggregationMerger
                 for (Map.Entry<Integer, AggregationAndPredicate> subgroupRepresentative : subgroupRepresentatives.entrySet()) {
                     if (subgroupRepresentative.getValue().aggregation().attributes().equals(aggregation.attributes()) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().aggregation().groupingKeysSelector(), rebasedGroupingKeysSelector) &&
-                            blocksSemanticallyEquivalent(subgroupRepresentative.getValue().aggregation().hashSelector(), rebasedHashSelector) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().nonGroupingPredicateToApply(), nonGroupingPredicateToApply)) {
                         aggregationSubgroups[i] = subgroupRepresentative.getKey();
                         foundMatchingSubgroup = true;
@@ -139,7 +137,6 @@ public class AggregationMerger
                             // insert empty aggregate calls. they are not compared.
                             emptyAggregateCallsBlock,
                             rebasedGroupingKeysSelector,
-                            rebasedHashSelector,
                             GROUPING_SETS_COUNT.getAttribute(aggregation.attributes()),
                             GLOBAL_GROUPING_SETS.getAttribute(aggregation.attributes()),
                             Optional.ofNullable(GROUP_ID_INDEX.getAttribute(aggregation.attributes())).map(OptionalInt::of).orElse(OptionalInt.empty()),
@@ -213,11 +210,8 @@ public class AggregationMerger
         // the enforced predicate is not guaranteed to be fully supported. The unsupported part will be pruned
         FieldMapping predicateMapping = getPassthroughMapping(rebasedGroupingKeysSelector);
 
-        Block rebasedHashSelector = rebaseBlock(firstAggregation.hashSelector(), relationRowType(trinoType(unifiedOperation.result().type())), firstBranch.traversalContext().fieldMapping(), nameAllocator).orElseThrow();
-
         int groupingKeysCount = trinoType(rebasedGroupingKeysSelector.getReturnedType()).getTypeParameters().size();
-        int hashFieldsCount = trinoType(rebasedHashSelector.getReturnedType()).getTypeParameters().size();
-        Map<Integer, Integer> groupingKeysAndHashFieldMapping = IntStream.range(0, groupingKeysCount + hashFieldsCount)
+        Map<Integer, Integer> groupingKeysFieldMapping = IntStream.range(0, groupingKeysCount)
                 .boxed()
                 .collect(toImmutableBiMap(identity(), identity()));
 
@@ -248,7 +242,7 @@ public class AggregationMerger
                 for (int j = 0; j < unifiedAggregates.size(); j++) {
                     if (freeUnifiedIndexes.contains(j) && blocksSemanticallyEquivalent(currentAggregate, unifiedAggregates.get(j))) {
                         // aggregates are laid out after the grouping keys and hash symbol -- shift the mapping
-                        aggregateFieldsMapping.put(groupingKeysCount + hashFieldsCount + i, groupingKeysCount + hashFieldsCount + j);
+                        aggregateFieldsMapping.put(groupingKeysCount + i, groupingKeysCount + j);
                         freeUnifiedIndexes.remove(j);
                         foundUnifiedAggregate = true;
                         break;
@@ -257,13 +251,13 @@ public class AggregationMerger
                 if (!foundUnifiedAggregate) {
                     unifiedAggregates.add(currentAggregate);
                     // aggregates are laid out after the grouping keys and hash symbol -- shift the mapping
-                    aggregateFieldsMapping.put(groupingKeysCount + hashFieldsCount + i, groupingKeysCount + hashFieldsCount + unifiedAggregates.size() - 1);
+                    aggregateFieldsMapping.put(groupingKeysCount + i, groupingKeysCount + unifiedAggregates.size() - 1);
                 }
             }
 
             FieldMapping newMapping = new FieldMapping(
                     ImmutableMap.<Integer, Integer>builder()
-                            .putAll(groupingKeysAndHashFieldMapping)
+                            .putAll(groupingKeysFieldMapping)
                             .putAll(aggregateFieldsMapping)
                             .buildOrThrow());
 
@@ -277,7 +271,6 @@ public class AggregationMerger
                         emptyAggregateCallsBlock(unifiedOperation.result().type(), nameAllocator) :
                         composeProjectedItems(unifiedAggregates, nameAllocator).withLabel("^aggregates"),
                 rebasedGroupingKeysSelector,
-                rebasedHashSelector,
                 GROUPING_SETS_COUNT.getAttribute(firstAggregation.attributes()),
                 GLOBAL_GROUPING_SETS.getAttribute(firstAggregation.attributes()),
                 Optional.ofNullable(GROUP_ID_INDEX.getAttribute(firstAggregation.attributes())).map(OptionalInt::of).orElse(OptionalInt.empty()),

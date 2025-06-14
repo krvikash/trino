@@ -22,7 +22,6 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
-import io.trino.spi.type.AbstractLongType;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.Type;
 
@@ -40,7 +39,6 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
-import static io.trino.type.TypeUtils.NULL_HASH_CODE;
 import static it.unimi.dsi.fastutil.HashCommon.arraySize;
 import static it.unimi.dsi.fastutil.HashCommon.murmurHash3;
 import static java.lang.Math.min;
@@ -57,8 +55,6 @@ public class BigintGroupByHash
     private static final Set<Type> SUPPORTED_TYPES = ImmutableSet.of(BIGINT, INTEGER, SMALLINT, TINYINT, DATE);
 
     private final Type hashType;
-    private final boolean outputRawHash;
-
     private int hashCapacity;
     private int maxFill;
     private int mask;
@@ -83,14 +79,12 @@ public class BigintGroupByHash
     // reusable array for computing hash batches into
     private int[] currentHashes;
 
-    public BigintGroupByHash(boolean outputRawHash, int expectedSize, UpdateMemory updateMemory, Type hashType)
+    public BigintGroupByHash(int expectedSize, UpdateMemory updateMemory, Type hashType)
     {
         checkArgument(expectedSize > 0, "expectedSize must be greater than zero");
         checkArgument(isSupportedType(hashType), "%s does not support for column of type %s", this.getClass().getSimpleName(), hashType);
 
-        this.outputRawHash = outputRawHash;
         this.hashType = hashType;
-
         hashCapacity = arraySize(expectedSize, FILL_RATIO);
 
         maxFill = calculateMaxFill(hashCapacity);
@@ -108,7 +102,6 @@ public class BigintGroupByHash
 
     private BigintGroupByHash(BigintGroupByHash other)
     {
-        outputRawHash = other.outputRawHash;
         hashType = other.hashType;
         hashCapacity = other.hashCapacity;
         maxFill = other.maxFill;
@@ -152,16 +145,6 @@ public class BigintGroupByHash
         }
         else {
             hashType.writeLong(blockBuilder, valuesByGroupId.getValue(groupId));
-        }
-
-        if (outputRawHash) {
-            BlockBuilder hashBlockBuilder = pageBuilder.getBlockBuilder(1);
-            if (groupId == nullGroupId) {
-                BIGINT.writeLong(hashBlockBuilder, NULL_HASH_CODE);
-            }
-            else {
-                BIGINT.writeLong(hashBlockBuilder, AbstractLongType.hash(valuesByGroupId.getValue(groupId)));
-            }
         }
     }
 

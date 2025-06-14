@@ -882,8 +882,7 @@ public class PlanPrinter
             addNode(node,
                     format("DistinctLimit%s", node.isPartial() ? "Partial" : ""),
                     ImmutableMap.of(
-                            "limit", String.valueOf(node.getLimit()),
-                            "hash", formatHash(node.getHashSymbol())),
+                            "limit", String.valueOf(node.getLimit())),
                     context);
             return processChildren(node, new Context(context.isInitialPlan()));
         }
@@ -906,7 +905,7 @@ public class PlanPrinter
             NodeRepresentation nodeOutput = addNode(
                     node,
                     "Aggregate",
-                    ImmutableMap.of("type", type, "keys", keys, "hash", formatHash(node.getHashSymbol())),
+                    ImmutableMap.of("type", type, "keys", keys),
                     context);
 
             node.getAggregations().forEach((symbol, aggregation) ->
@@ -946,8 +945,7 @@ public class PlanPrinter
                     "MarkDistinct",
                     ImmutableMap.of(
                             "distinct", formatOutputs(node.getDistinctSymbols()),
-                            "marker", anonymizer.anonymize(node.getMarkerSymbol()),
-                            "hash", formatHash(node.getHashSymbol())),
+                            "marker", anonymizer.anonymize(node.getMarkerSymbol())),
                     context);
 
             return processChildren(node, new Context(context.isInitialPlan()));
@@ -1177,7 +1175,6 @@ public class PlanPrinter
                     "TopNRanking",
                     descriptor
                             .put("limit", String.valueOf(node.getMaxRankingPerPartition()))
-                            .put("hash", formatHash(node.getHashSymbol()))
                             .buildOrThrow(),
                     context);
 
@@ -1201,7 +1198,7 @@ public class PlanPrinter
             NodeRepresentation nodeOutput = addNode(
                     node,
                     "RowNumber",
-                    descriptor.put("hash", formatHash(node.getHashSymbol())).buildOrThrow(),
+                    descriptor.buildOrThrow(),
                     context);
             nodeOutput.appendDetails("%s := %s", anonymizer.anonymize(node.getRowNumberSymbol()), "row_number()");
 
