@@ -143,7 +143,9 @@ public class TestQueryRunner
         return new QueryRunner(
                 uri,
                 clientSession,
-                false);
+                false,
+                1000,
+                500);
     }
 
     static PrintStream nullPrintStream()
