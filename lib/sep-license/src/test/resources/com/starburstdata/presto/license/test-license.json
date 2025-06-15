@@ -1,0 +1,9 @@
+{
+  "owner": "Marie-hélène de Mendoza <mdemendoza@test.starburstdata.net>",
+  "expiry": "2000-01-01T00:00:00",
+  "features": [
+    "ranger",
+    "sentry",
+    "constantTimePrimeFactorization"
+  ]
+}

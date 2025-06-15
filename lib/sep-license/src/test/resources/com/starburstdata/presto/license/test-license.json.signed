@@ -1,0 +1,10 @@
+{
+  "base64Signature": "VgTK6Rs1X9vJOwF/eokaSw9pFkAEIvIT+o2u0ntVAycC8MCkmS1rAJXfw9TJx3413GQsWL9t/fhpV+jS7krAOUyfsR3tecDOflriUNxKbJQwzVTvCY5ns6mtRLALYShQspfFEx/7lG5FFC2xKBHM3+1HuXLBb1xqm7BgvYgyGVaKorYcKZ3PNpBh7goRSf1vWeykgOswOF8nxzomf0hBh+EDwoIf90WTNvZRogkf/e5QdXrHEmMiohnQMqBKx7yNk7LSioczRsy0QVDL0/pcqh1HbsqJSPr2IAHM2/qvtWw2Bz8Q4rYQhbNLCZbZTZH5uwUc2GQp4sZ5MVoy6QSo9rm7ntMeI6eaRzWocHFiKh5bNecHKyJyvdgISu3Yg9rnRh4BxbF7ZuiiebeLST/cY3TA0Ir62TnmSyJtn5l1QhxtF4+BA+1pj0XdeTDR33ZvDUqWneoif2sGpOSQFK55kBtA7Ff5mJXOeWy4FL7c0p0br+CtNQ8NdP8LBm/9YD/QNxPwLci0zL8f8IIoK+oyCVb1WRfebfT3FnU/wWMYbgvvUF5AsgvGhgpy8+VgvjZ7ReJsxnGSpEmhNx11WCSaBqamsSnndTz+e+cLoic1iJdYEZcoJJKjGZWNwecr+WLXPGoIeMIA3wW3Qc/2b/cwa6+hYR4Ln9c80tozeSLOgQ0=",
+  "expiry": "2000-01-01T00:00:00",
+  "features": [
+    "ranger",
+    "sentry",
+    "constantTimePrimeFactorization"
+  ],
+  "owner": "Marie-hélène de Mendoza <mdemendoza@test.starburstdata.net>"
+}

@@ -1,0 +1,17 @@
+{
+  "accountId" : "257642857505",
+  "architecture" : "x86_64",
+  "availabilityZone" : "us-gov-west-1a",
+  "billingProducts" : null,
+  "devpayProductCodes" : null,
+  "marketplaceProductCodes" : null,
+  "imageId" : "ami-0b5ca71f8e4232d49",
+  "instanceId" : "i-0231a7aff72d642a7",
+  "instanceType" : "r5.large",
+  "kernelId" : null,
+  "pendingTime" : "2021-05-25T11:47:57Z",
+  "privateIp" : "10.41.117.101",
+  "ramdiskId" : null,
+  "region" : "us-gov-west-1",
+  "version" : "2017-09-30"
+}

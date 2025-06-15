@@ -41,6 +41,7 @@
         <module>core/trino-spi</module>
         <module>core/trino-web-ui</module>
         <module>docs</module>
+        <module>lib/sep-license</module>
         <module>lib/starburst-functions-client</module>
         <module>lib/starburst-license</module>
         <module>lib/starburst-schema-discovery</module>
