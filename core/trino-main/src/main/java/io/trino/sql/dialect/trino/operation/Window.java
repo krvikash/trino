@@ -57,7 +57,6 @@ public class Window
     private final Region windowFunctionCalls;
     private final Region partitioningSelector;
     private final Region orderingSelector;
-    private final Region hashSelector;
     private final Map<AttributeKey, Object> attributes;
 
     public Window(
@@ -66,7 +65,6 @@ public class Window
             Block windowFunctionCalls,
             Block partitioningSelector,
             Block orderingSelector,
-            Block hashSelector,
             List<Integer> prePartitionedIndexes, // indexes in partitioningSelector
             Optional<SortOrderList> sortOrders,
             int preSortedPrefix,
@@ -78,7 +76,6 @@ public class Window
         requireNonNull(windowFunctionCalls, "windowFunctionCalls is null");
         requireNonNull(partitioningSelector, "partitioningSelector is null");
         requireNonNull(orderingSelector, "orderingSelector is null");
-        requireNonNull(hashSelector, "hashSelector is null");
         requireNonNull(prePartitionedIndexes, "prePartitionedIndexes is null");
         requireNonNull(sortOrders, "sortOrders is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
@@ -132,14 +129,6 @@ public class Window
             throw new TrinoException(IR_ERROR, "preSortedPrefix for Window operation can only be greater than zero if all partitioning fields are pre-partitioned");
         }
 
-        if (hashSelector.parameters().size() != 1 ||
-                !trinoType(hashSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(hashSelector.getReturnedType()) instanceof RowType || trinoType(hashSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(hashSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid hash selector for Window operation");
-        }
-        this.hashSelector = singleBlockRegion(hashSelector);
-
         List<Type> outputTypes = ImmutableList.<Type>builder()
                 .addAll(relationRowType(trinoType(input.type())).getTypeParameters())
                 .addAll(trinoType(windowFunctionCalls.getReturnedType()).getTypeParameters())
@@ -176,7 +165,7 @@ public class Window
     @Override
     public List<Region> regions()
     {
-        return ImmutableList.of(windowFunctionCalls, partitioningSelector, orderingSelector, hashSelector);
+        return ImmutableList.of(windowFunctionCalls, partitioningSelector, orderingSelector);
     }
 
     @Override
@@ -201,7 +190,6 @@ public class Window
                 windowFunctionCalls.getOnlyBlock(),
                 partitioningSelector.getOnlyBlock(),
                 orderingSelector.getOnlyBlock(),
-                hashSelector.getOnlyBlock(),
                 PRE_PARTITIONED_INDEXES.getAttribute(attributes),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
                 PRE_SORTED_PREFIX.getAttribute(attributes),
@@ -221,11 +209,6 @@ public class Window
     public Block orderingSelector()
     {
         return orderingSelector.getOnlyBlock();
-    }
-
-    public Block hashSelector()
-    {
-        return hashSelector.getOnlyBlock();
     }
 
     @Override

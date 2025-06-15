@@ -165,7 +165,7 @@ final class TestRelationalProgramBuilder
                 new GroupingSetDescriptor(ImmutableList.of(new Symbol(BOOLEAN, "b")), 1, ImmutableSet.of()),
                 ImmutableList.of(new Symbol(BOOLEAN, "b")),
                 AggregationNode.Step.SINGLE,
-                Optional.of(new Symbol(BIGINT, "a")),
+                Optional.empty(),
                 Optional.of(true));
 
         // aggregate parameter
@@ -285,11 +285,10 @@ final class TestRelationalProgramBuilder
         assertProgram(
                 aggregationNode,
                 ImmutableList.of(VALUES_OPERATION, aggregationOperation),
-                new MultisetType(anonymousRow(BOOLEAN, BIGINT, BIGINT)),
+                new MultisetType(anonymousRow(BOOLEAN, BIGINT)),
                 ImmutableMap.of(
                         new Symbol(BOOLEAN, "b"), 0,
-                        new Symbol(BIGINT, "a"), 1,
-                        new Symbol(BIGINT, "sum_agg"), 2));
+                        new Symbol(BIGINT, "sum_agg"), 1));
 
         assertThat(aggregateCallOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
@@ -1568,7 +1567,6 @@ final class TestRelationalProgramBuilder
                                         Optional.of(new Symbol(BIGINT, "a"))),
                                 true,
                                 false)),
-                Optional.empty(),
                 ImmutableSet.of(new Symbol(BOOLEAN, "b")),
                 1);
 
@@ -1708,13 +1706,6 @@ final class TestRelationalProgramBuilder
                 ImmutableList.of(fieldReferenceOperationOrderingB.attributes(), fieldReferenceOperationOrderingA.attributes()));
         Return returnOperationOrdering = new Return("%46", rowOperationOrdering.result(), rowOperationOrdering.attributes());
 
-        // hash
-        Block.Parameter hashParameter = new Block.Parameter(
-                "%47",
-                VALUES_OPERATION_ROW_TYPE);
-        Constant constantOperationHash = new Constant("%48", EMPTY_ROW, null);
-        Return returnOperationHash = new Return("%49", constantOperationHash.result(), constantOperationHash.attributes());
-
         Window windowOperation = new Window(
                 "%9",
                 VALUES_OPERATION.result(),
@@ -1740,12 +1731,6 @@ final class TestRelationalProgramBuilder
                                 fieldReferenceOperationOrderingA,
                                 rowOperationOrdering,
                                 returnOperationOrdering)),
-                new Block(
-                        Optional.of("^hashSelector"),
-                        ImmutableList.of(hashParameter),
-                        ImmutableList.of(
-                                constantOperationHash,
-                                returnOperationHash)),
                 ImmutableList.of(0),
                 Optional.of(new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST))),
                 1,

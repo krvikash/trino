@@ -462,24 +462,18 @@ final class TestProgramBuilderAndPrinter
                                         %49 = row(%48) : ("bigint") -> "row(bigint)" ()
                                         %50 = return(%49) : ("row(bigint)") -> "row(bigint)" ()
                                             {ir.terminal = "true"}
-                                    }, {
-                                    ^hashSelector (%51 : "row(bigint,boolean,bigint)")
-                                        %52 = constant() : () -> "empty row" ()
-                                            {constant_result = "{""type"":""empty row""}"}
-                                        %53 = return(%52) : ("empty row") -> "empty row" ()
-                                            {ir.terminal = "true"}
                                     })
                                     {grouping_sets_count = "2", global_grouping_sets = "[1]", pre_grouped_indexes = "[0]", aggregation_step = "SINGLE", input_reducing = "false"}
-                                %54 = output(%13) : ("multiset(row(bigint,bigint,bigint))") -> "boolean" ({
-                                    ^outputFieldSelector (%55 : "row(bigint,bigint,bigint)")
-                                        %56 = field_reference(%55) : ("row(bigint,bigint,bigint)") -> "bigint" ()
+                                %51 = output(%13) : ("multiset(row(bigint,bigint,bigint))") -> "boolean" ({
+                                    ^outputFieldSelector (%52 : "row(bigint,bigint,bigint)")
+                                        %53 = field_reference(%52) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                                             {field_index = "0"}
-                                        %57 = field_reference(%55) : ("row(bigint,bigint,bigint)") -> "bigint" ()
+                                        %54 = field_reference(%52) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                                             {field_index = "1"}
-                                        %58 = field_reference(%55) : ("row(bigint,bigint,bigint)") -> "bigint" ()
+                                        %55 = field_reference(%52) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                                             {field_index = "2"}
-                                        %59 = row(%56, %57, %58) : ("bigint", "bigint", "bigint") -> "row(bigint,bigint,bigint)" ()
-                                        %60 = return(%59) : ("row(bigint,bigint,bigint)") -> "row(bigint,bigint,bigint)" ()
+                                        %56 = row(%53, %54, %55) : ("bigint", "bigint", "bigint") -> "row(bigint,bigint,bigint)" ()
+                                        %57 = return(%56) : ("row(bigint,bigint,bigint)") -> "row(bigint,bigint,bigint)" ()
                                             {ir.terminal = "true"}
                                     })
                                     {output_names = "[""key_c"",""count"",""sum""]", ir.terminal = "true"}

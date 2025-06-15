@@ -1346,19 +1346,6 @@ public class PlanBuilder
                 source,
                 specification,
                 ImmutableMap.copyOf(functions),
-                Optional.empty(),
-                ImmutableSet.of(),
-                0);
-    }
-
-    public WindowNode window(DataOrganizationSpecification specification, Map<Symbol, WindowNode.Function> functions, Symbol hashSymbol, PlanNode source)
-    {
-        return new WindowNode(
-                idAllocator.getNextId(),
-                source,
-                specification,
-                ImmutableMap.copyOf(functions),
-                Optional.of(hashSymbol),
                 ImmutableSet.of(),
                 0);
     }

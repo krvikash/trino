@@ -638,7 +638,6 @@ public class ToOldIrRelationalRewriter
                 source,
                 new DataOrganizationSpecification(partitionBy, orderingScheme),
                 windowFunctionsBuilder.buildOrThrow(),
-                scalarRewriter.getOptionalSelectedSymbol(window.hashSelector(), source.getOutputSymbols()),
                 PRE_PARTITIONED_INDEXES.getAttribute(window.attributes()).stream()
                         .map(partitionBy::get)
                         .collect(toImmutableSet()),

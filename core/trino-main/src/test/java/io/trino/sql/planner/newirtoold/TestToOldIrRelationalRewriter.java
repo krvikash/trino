@@ -494,7 +494,6 @@ class TestToOldIrRelationalRewriter
                                 new WindowNode.Frame(RANGE, PRECEDING, Optional.empty(), Optional.empty(), FOLLOWING, Optional.of(B), Optional.of(A)),
                                 false,
                                 true)),
-                Optional.empty(),
                 ImmutableSet.of(B),
                 1);
         assertRoundtrip(windowNode);

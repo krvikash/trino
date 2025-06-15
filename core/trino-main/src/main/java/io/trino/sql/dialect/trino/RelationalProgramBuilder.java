@@ -950,13 +950,6 @@ public class RelationalProgramBuilder
         Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, input.mapping(), node.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
         valueMap.put(orderingSelectorParameter, orderingSelector);
 
-        // hash
-        Block.Parameter hashSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block hashSelector = fieldSelectorBlock("^hashSelector", hashSelectorParameter, input.mapping(), node.getHashSymbol().stream().collect(toImmutableList()));
-        valueMap.put(hashSelectorParameter, hashSelector);
-
         List<Integer> prePartitionedIndexes = node.getPrePartitionedInputs().stream()
                 .map(symbol -> node.getPartitionBy().indexOf(symbol))
                 .collect(toImmutableList());
@@ -967,7 +960,6 @@ public class RelationalProgramBuilder
                 windowFunctionsBlock,
                 partitioningSelector,
                 orderingSelector,
-                hashSelector,
                 prePartitionedIndexes,
                 node.getOrderingScheme()
                         .map(OrderingScheme::orderingList)
