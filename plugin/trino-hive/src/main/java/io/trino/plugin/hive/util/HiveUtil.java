@@ -123,6 +123,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
@@ -366,7 +367,7 @@ public final class HiveUtil
 
     public static boolean isStructuralType(Type type)
     {
-        return (type instanceof ArrayType) || (type instanceof MapType) || (type instanceof RowType);
+        return (type.getBaseName().equals(JSON) || type instanceof ArrayType) || (type instanceof MapType) || (type instanceof RowType);
     }
 
     private static boolean booleanPartitionKey(String value, String name)

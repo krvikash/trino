@@ -35,6 +35,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.hive.util.HiveUtil.isStructuralType;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
 import static io.trino.plugin.iceberg.IcebergTypes.convertTrinoValueToIceberg;
+import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.UuidType.UUID;
@@ -108,7 +109,7 @@ public final class ExpressionConverter
             return domain.isNullAllowed() ? alwaysTrue() : not(isNull(columnName));
         }
 
-        if (type instanceof ArrayType || type instanceof MapType || type instanceof RowType) {
+        if (type.getBaseName().equals(JSON) || type instanceof ArrayType || type instanceof MapType || type instanceof RowType) {
             // Fail fast. Ignoring expression could lead to data loss in case of deletions.
             throw new UnsupportedOperationException("Unsupported type for expression: " + type);
         }

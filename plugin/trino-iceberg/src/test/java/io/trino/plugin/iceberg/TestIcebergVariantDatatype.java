@@ -172,6 +172,7 @@ final class TestIcebergVariantDatatype
                 variantData);
 
         assertThat(query("SELECT * FROM " + tableName)).matches("VALUES (1, %s)".formatted(expectedVariant));
+        assertThat(query("SELECT id FROM " + tableName + " WHERE var = " + expectedVariant)).matches("VALUES 1");
         assertUpdate("DROP TABLE " + tableName);
     }
 
