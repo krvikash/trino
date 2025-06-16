@@ -51,6 +51,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.SystemSessionProperties.isDebugAdaptivePlannerEnabled;
+import static io.trino.SystemSessionProperties.isReuseCommonSubqueriesEnabled;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.plan.ExchangeNode.Scope.REMOTE;
 import static io.trino.sql.planner.plan.SimplePlanRewriter.rewriteWith;
@@ -120,6 +121,11 @@ public class AdaptivePlanner
 
     public SubPlan optimize(SubPlan root, RuntimeInfoProvider runtimeInfoProvider)
     {
+        if (isReuseCommonSubqueriesEnabled(session)) {
+            // adaptive planner is not compatible with CTE reuse for now.
+            return root;
+        }
+
         boolean debugEnabled = isDebugAdaptivePlannerEnabled(session);
         // No need to run optimizer since the root is already finished or its stats are almost accurate based on
         // estimate by progress.
