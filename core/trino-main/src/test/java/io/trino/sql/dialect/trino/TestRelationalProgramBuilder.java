@@ -479,7 +479,6 @@ final class TestRelationalProgramBuilder
                                         testingPartitioningHandle),
                                 ImmutableList.of(new Symbol(BIGINT, "f"))),
                         ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g")),
-                        Optional.of(new Symbol(BOOLEAN, "g")),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
                         Optional.empty()),
@@ -534,20 +533,12 @@ final class TestRelationalProgramBuilder
         Row rowOperationBoundArguments = new Row("%23", ImmutableList.of(fieldReferenceOperationF.result()), ImmutableList.of(fieldReferenceOperationF.attributes()));
         Return returnOperationBoundArguments = new Return("%24", rowOperationBoundArguments.result(), rowOperationBoundArguments.attributes());
 
-        // partitioning hash
-        Block.Parameter hashParameter = new Block.Parameter(
-                "%25",
-                irType(exchangeOutputRowType));
-        FieldReference fieldReferenceOperationG = new FieldReference("%26", hashParameter, 1, ImmutableMap.of());
-        Row rowOperationHashSymbol = new Row("%27", ImmutableList.of(fieldReferenceOperationG.result()), ImmutableList.of(fieldReferenceOperationG.attributes()));
-        Return returnOperationHashSymbol = new Return("%28", rowOperationHashSymbol.result(), rowOperationHashSymbol.attributes());
-
         // order by
         Block.Parameter orderByParameter = new Block.Parameter(
-                "%29",
+                "%25",
                 irType(exchangeOutputRowType));
-        Constant constantOperationOrderBy = new Constant("%30", EMPTY_ROW, null);
-        Return returnOperationOrderBy = new Return("%31", constantOperationOrderBy.result(), constantOperationOrderBy.attributes());
+        Constant constantOperationOrderBy = new Constant("%26", EMPTY_ROW, null);
+        Return returnOperationOrderBy = new Return("%27", constantOperationOrderBy.result(), constantOperationOrderBy.attributes());
 
         Exchange exchangeOperation = new Exchange(
                 "%10",
@@ -576,13 +567,6 @@ final class TestRelationalProgramBuilder
                                 fieldReferenceOperationF,
                                 rowOperationBoundArguments,
                                 returnOperationBoundArguments)),
-                new Block(
-                        Optional.of("^hashSelector"),
-                        ImmutableList.of(hashParameter),
-                        ImmutableList.of(
-                                fieldReferenceOperationG,
-                                rowOperationHashSymbol,
-                                returnOperationHashSymbol)),
                 new Block(
                         Optional.of("^orderingSelector"),
                         ImmutableList.of(orderByParameter),
@@ -646,7 +630,6 @@ final class TestRelationalProgramBuilder
                 new PartitioningScheme(
                         Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of(new Symbol(BIGINT, "f"))),
                         ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g")),
-                        Optional.of(new Symbol(BOOLEAN, "g")),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
                         Optional.of(10)),
@@ -678,21 +661,13 @@ final class TestRelationalProgramBuilder
         Row rowOperationBoundArguments = new Row("%17", ImmutableList.of(fieldReferenceOperationF.result()), ImmutableList.of(fieldReferenceOperationF.attributes()));
         Return returnOperationBoundArguments = new Return("%18", rowOperationBoundArguments.result(), rowOperationBoundArguments.attributes());
 
-        // partitioning hash
-        Block.Parameter hashParameter = new Block.Parameter(
-                "%19",
-                irType(exchangeOutputRowType));
-        FieldReference fieldReferenceOperationG = new FieldReference("%20", hashParameter, 1, ImmutableMap.of());
-        Row rowOperationHashSymbol = new Row("%21", ImmutableList.of(fieldReferenceOperationG.result()), ImmutableList.of(fieldReferenceOperationG.attributes()));
-        Return returnOperationHashSymbol = new Return("%22", rowOperationHashSymbol.result(), rowOperationHashSymbol.attributes());
-
         // order by
         Block.Parameter orderByParameter = new Block.Parameter(
-                "%23",
+                "%19",
                 irType(exchangeOutputRowType));
-        FieldReference fieldReferenceOperationOrderBy = new FieldReference("%24", orderByParameter, 0, ImmutableMap.of());
-        Row rowOperationOrderBy = new Row("%25", ImmutableList.of(fieldReferenceOperationOrderBy.result()), ImmutableList.of(fieldReferenceOperationOrderBy.attributes()));
-        Return returnOperationOrderBy = new Return("%26", rowOperationOrderBy.result(), rowOperationOrderBy.attributes());
+        FieldReference fieldReferenceOperationOrderBy = new FieldReference("%20", orderByParameter, 0, ImmutableMap.of());
+        Row rowOperationOrderBy = new Row("%21", ImmutableList.of(fieldReferenceOperationOrderBy.result()), ImmutableList.of(fieldReferenceOperationOrderBy.attributes()));
+        Return returnOperationOrderBy = new Return("%22", rowOperationOrderBy.result(), rowOperationOrderBy.attributes());
 
         Exchange exchangeOperation = new Exchange(
                 "%9",
@@ -713,13 +688,6 @@ final class TestRelationalProgramBuilder
                                 fieldReferenceOperationF,
                                 rowOperationBoundArguments,
                                 returnOperationBoundArguments)),
-                new Block(
-                        Optional.of("^hashSelector"),
-                        ImmutableList.of(hashParameter),
-                        ImmutableList.of(
-                                fieldReferenceOperationG,
-                                rowOperationHashSymbol,
-                                returnOperationHashSymbol)),
                 new Block(
                         Optional.of("^orderingSelector"),
                         ImmutableList.of(orderByParameter),

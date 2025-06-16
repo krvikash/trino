@@ -93,7 +93,6 @@ public class NodePartitioningManager
         if (partitioningHandle.getConnectorHandle() instanceof SystemPartitioningHandle) {
             return ((SystemPartitioningHandle) partitioningHandle.getConnectorHandle()).getPartitionFunction(
                     partitionChannelTypes,
-                    partitioningScheme.getHashColumn().isPresent(),
                     bucketToPartition,
                     hashCompiler);
         }
@@ -115,7 +114,6 @@ public class NodePartitioningManager
         if (partitioningHandle.getConnectorHandle() instanceof SystemPartitioningHandle handle) {
             return handle.getPartitionFunction(
                     partitionChannelTypes,
-                    partitioningScheme.getHashColumn().isPresent(),
                     bucketToPartition,
                     hashCompiler);
         }

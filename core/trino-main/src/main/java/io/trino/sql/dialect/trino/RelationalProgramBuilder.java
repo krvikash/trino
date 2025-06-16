@@ -429,13 +429,6 @@ public class RelationalProgramBuilder
         Block boundArguments = boundArgumentsBuilder.build();
         valueMap.put(boundArgumentsParameter, boundArguments);
 
-        // partitioning hash column
-        Block.Parameter hashSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(exchangeRowType));
-        Block hashSelector = fieldSelectorBlock("^hashSelector", hashSelectorParameter, outputMapping, node.getPartitioningScheme().getHashColumn().stream().collect(toImmutableList())); // hash column is defined in terms of exchange's output symbols
-        valueMap.put(hashSelectorParameter, hashSelector);
-
         // order by
         Block.Parameter orderingSelectorParameter = new Block.Parameter(
                 nameAllocator.newName(),
@@ -456,7 +449,6 @@ public class RelationalProgramBuilder
                         .collect(toImmutableList()),
                 inputSelectors,
                 boundArguments,
-                hashSelector,
                 orderingSelector,
                 ExchangeType.of(node.getType()),
                 ExchangeScope.of(node.getScope()),

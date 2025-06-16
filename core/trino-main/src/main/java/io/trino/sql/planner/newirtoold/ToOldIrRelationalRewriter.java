@@ -300,7 +300,6 @@ public class ToOldIrRelationalRewriter
                                 PARTITIONING_HANDLE.getAttribute(exchange.attributes()),
                                 getBoundArguments(exchange.partitioningBoundArguments(), outputSymbols)),
                         outputSymbols,
-                        scalarRewriter.getOptionalSelectedSymbol(exchange.partitioningHashSelector(), outputSymbols),
                         REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                         Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())).map(list -> list.stream().mapToInt(Integer::intValue).toArray()),
                         Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes()))),

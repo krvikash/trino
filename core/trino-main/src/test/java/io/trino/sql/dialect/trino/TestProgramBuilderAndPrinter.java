@@ -548,7 +548,6 @@ final class TestProgramBuilderAndPrinter
                                                                 new ConnectorPartitioningHandle() {}),
                                                         ImmutableList.of(new Symbol(BIGINT, "f"))),
                                                 ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g")),
-                                                Optional.of(new Symbol(BOOLEAN, "g")),
                                                 false,
                                                 Optional.of(new int[] {5, 6, 7}),
                                                 Optional.empty()),
@@ -613,28 +612,21 @@ final class TestProgramBuilderAndPrinter
                                         %21 = return(%20) : ("row(bigint)") -> "row(bigint)" ()
                                             {ir.terminal = "true"}
                                     }, {
-                                    ^hashSelector (%22 : "row(bigint,boolean)")
-                                        %23 = field_reference(%22) : ("row(bigint,boolean)") -> "boolean" ()
-                                            {field_index = "1"}
-                                        %24 = row(%23) : ("boolean") -> "row(boolean)" ()
-                                        %25 = return(%24) : ("row(boolean)") -> "row(boolean)" ()
-                                            {ir.terminal = "true"}
-                                    }, {
-                                    ^orderingSelector (%26 : "row(bigint,boolean)")
-                                        %27 = constant() : () -> "empty row" ()
+                                    ^orderingSelector (%22 : "row(bigint,boolean)")
+                                        %23 = constant() : () -> "empty row" ()
                                             {constant_result = "{""type"":""empty row""}"}
-                                        %28 = return(%27) : ("empty row") -> "empty row" ()
+                                        %24 = return(%23) : ("empty row") -> "empty row" ()
                                             {ir.terminal = "true"}
                                     })
                                     {exchange_type = "GATHER", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false", bucket_to_partition = "[5,6,7]"}
-                                %29 = output(%7) : ("multiset(row(bigint,boolean))") -> "boolean" ({
-                                    ^outputFieldSelector (%30 : "row(bigint,boolean)")
-                                        %31 = field_reference(%30) : ("row(bigint,boolean)") -> "bigint" ()
+                                %25 = output(%7) : ("multiset(row(bigint,boolean))") -> "boolean" ({
+                                    ^outputFieldSelector (%26 : "row(bigint,boolean)")
+                                        %27 = field_reference(%26) : ("row(bigint,boolean)") -> "bigint" ()
                                             {field_index = "0"}
-                                        %32 = field_reference(%30) : ("row(bigint,boolean)") -> "boolean" ()
+                                        %28 = field_reference(%26) : ("row(bigint,boolean)") -> "boolean" ()
                                             {field_index = "1"}
-                                        %33 = row(%31, %32) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
-                                        %34 = return(%33) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
+                                        %29 = row(%27, %28) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
+                                        %30 = return(%29) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
                                             {ir.terminal = "true"}
                                     })
                                     {output_names = "[""col_a"",""col_b""]", ir.terminal = "true"}

@@ -181,7 +181,6 @@ class TestToOldIrRelationalRewriter
                                         testingPartitioningHandle),
                                 ImmutableList.of(A)),
                         ImmutableList.of(A, B),
-                        Optional.of(B),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
                         Optional.empty()),
@@ -211,7 +210,6 @@ class TestToOldIrRelationalRewriter
                                 ImmutableList.of(A)),
                         // the duplicate input symbol "a" is mapped to two distinct output symbols: "a" and "a_0"
                         ImmutableList.of(A, B, new Symbol(BIGINT, "a_0")),
-                        Optional.of(B),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
                         Optional.empty()),
@@ -236,7 +234,6 @@ class TestToOldIrRelationalRewriter
                 new PartitioningScheme(
                         Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of(A)),
                         ImmutableList.of(B, A),
-                        Optional.of(B),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
                         Optional.of(10)),

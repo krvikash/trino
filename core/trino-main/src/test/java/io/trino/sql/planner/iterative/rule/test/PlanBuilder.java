@@ -911,22 +911,12 @@ public class PlanBuilder
                     ImmutableList.copyOf(outputSymbols)));
         }
 
-        public ExchangeBuilder fixedHashDistributionPartitioningScheme(List<Symbol> outputSymbols, List<Symbol> partitioningSymbols, Symbol hashSymbol)
-        {
-            return partitioningScheme(new PartitioningScheme(Partitioning.create(
-                    FIXED_HASH_DISTRIBUTION,
-                    ImmutableList.copyOf(partitioningSymbols)),
-                    ImmutableList.copyOf(outputSymbols),
-                    Optional.of(hashSymbol)));
-        }
-
         public ExchangeBuilder fixedHashDistributionPartitioningScheme(List<Symbol> outputSymbols, List<Symbol> partitioningSymbols, int partitionCount)
         {
             return partitioningScheme(new PartitioningScheme(Partitioning.create(
                     FIXED_HASH_DISTRIBUTION,
                     ImmutableList.copyOf(partitioningSymbols)),
                     ImmutableList.copyOf(outputSymbols),
-                    Optional.empty(),
                     false,
                     Optional.empty(),
                     Optional.of(partitionCount)));
@@ -938,7 +928,6 @@ public class PlanBuilder
                     FIXED_ARBITRARY_DISTRIBUTION,
                     ImmutableList.of()),
                     ImmutableList.copyOf(outputSymbols),
-                    Optional.empty(),
                     false,
                     Optional.empty(),
                     Optional.of(partitionCount)));
@@ -1279,13 +1268,12 @@ public class PlanBuilder
         return tableFunctionProcessorBuilder.build(idAllocator);
     }
 
-    public PartitioningScheme partitioningScheme(List<Symbol> outputSymbols, List<Symbol> partitioningSymbols, Symbol hashSymbol)
+    public PartitioningScheme partitioningScheme(List<Symbol> outputSymbols, List<Symbol> partitioningSymbols)
     {
         return new PartitioningScheme(Partitioning.create(
                 FIXED_HASH_DISTRIBUTION,
                 ImmutableList.copyOf(partitioningSymbols)),
-                ImmutableList.copyOf(outputSymbols),
-                Optional.of(hashSymbol));
+                ImmutableList.copyOf(outputSymbols));
     }
 
     public StatisticAggregations statisticAggregations(Map<Symbol, Aggregation> aggregations, List<Symbol> groupingSymbols)

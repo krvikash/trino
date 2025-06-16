@@ -290,19 +290,16 @@ public class NewIrFragmenter
             for (int sourceIndex = 0; sourceIndex < sources.size(); sourceIndex++) {
                 TrinoOperation source = sources.get(sourceIndex);
 
-                // rebase the partitioning scheme onto the source: must rebase the ^boundArguments and ^hashSelector blocks onto the source relation row type
+                // rebase the partitioning scheme onto the source: must rebase the ^boundArguments block onto the source relation row type
                 // 1. get mapping for input field selector of the source, and inverse it
                 FieldMapping mapping = getInversedMapping(operation.inputFieldSelectors().get(sourceIndex));
                 // 2. rebase the ^boundArguments block
                 Block newBoundArguments = rebaseBlock(partitioningScheme.partitioningBoundArguments(), relationRowType(trinoType(source.result().type())), mapping, nameAllocator).orElseThrow();
-                // 3. rebase the ^hashSelector block
-                Block newHashSelector = rebaseBlock(partitioningScheme.partitioningHashSelector(), relationRowType(trinoType(source.result().type())), mapping, nameAllocator).orElseThrow();
-                // 4. build the rebased partitioning scheme
+                // 3. build the rebased partitioning scheme
                 NewIrPartitioningScheme newPartitioningScheme = new NewIrPartitioningScheme(
                         operation.inputFieldSelectors().get(sourceIndex).withLabel("^outputLayoutSelector"),
                         partitioningScheme.handle(),
                         newBoundArguments,
-                        newHashSelector,
                         partitioningScheme.partitioningReplicateNullsAndAny(),
                         partitioningScheme.partitioningBucketToPartition(),
                         partitioningScheme.partitionCount());
@@ -509,12 +506,11 @@ public class NewIrFragmenter
             boolean equals = properties.getPartitionedSources().equals(ImmutableSet.copyOf(schedulingOrder));
             checkArgument(equals, "Expected scheduling order (%s) to contain an entry for all partitioned sources (%s)", schedulingOrder, properties.getPartitionedSources());
 
-            // rewrite the NewIrPartitioningScheme to old IR. Translate the three blocks: ^outputLayoutSelector, ^boundArguments, and ^hashSelector to old IR using the output symbols of root.
+            // rewrite the NewIrPartitioningScheme to old IR. Translate the three blocks: ^outputLayoutSelector and ^boundArguments to old IR using the output symbols of root.
             NewIrPartitioningScheme newIrPartitioningScheme = properties.getNewIrPartitioningScheme();
             PartitioningScheme partitioningScheme = new PartitioningScheme(
                     getPartitioning(newIrPartitioningScheme.handle(), relationalRewriter.getBoundArguments(newIrPartitioningScheme.partitioningBoundArguments(), root.getOutputSymbols())),
                     scalarRewriter.getSelectedSymbols(newIrPartitioningScheme.outputLayoutSelector(), root.getOutputSymbols()),
-                    scalarRewriter.getOptionalSelectedSymbol(newIrPartitioningScheme.partitioningHashSelector(), root.getOutputSymbols()),
                     newIrPartitioningScheme.partitioningReplicateNullsAndAny(),
                     newIrPartitioningScheme.partitioningBucketToPartition().map(list -> list.stream().mapToInt(Integer::intValue).toArray()),
                     newIrPartitioningScheme.partitionCount());
@@ -543,7 +539,6 @@ public class NewIrFragmenter
             Block outputLayoutSelector,
             PartitioningHandle handle,
             Block partitioningBoundArguments,
-            Block partitioningHashSelector,
             boolean partitioningReplicateNullsAndAny,
             Optional<List<Integer>> partitioningBucketToPartition,
             Optional<Integer> partitionCount)
@@ -553,16 +548,14 @@ public class NewIrFragmenter
             requireNonNull(outputLayoutSelector, "outputLayoutSelector is null");
             requireNonNull(handle, "handle is null");
             requireNonNull(partitioningBoundArguments, "partitioningBoundArguments is null");
-            requireNonNull(partitioningHashSelector, "partitioningHashSelector is null");
             partitioningBucketToPartition = partitioningBucketToPartition.map(ImmutableList::copyOf);
             requireNonNull(partitionCount, "partitionCount is null");
-            // TODO validate blocks: outputLayoutSelector, partitioningBoundArguments, partitioningHashSelector
+            // TODO validate blocks: outputLayoutSelector, partitioningBoundArguments
         }
 
         public static NewIrPartitioningScheme of(Exchange exchange, ProgramBuilder.ValueNameAllocator nameAllocator)
         {
             Block partitioningBoundArguments = exchange.partitioningBoundArguments();
-            Block partitioningHashSelector = exchange.partitioningHashSelector();
             Block outputLayoutSelector = getFullPassthroughFieldSelector(
                     "^outputLayoutSelector",
                     trinoType(getOnlyElement(partitioningBoundArguments.parameters()).type()),
@@ -572,7 +565,6 @@ public class NewIrFragmenter
                     outputLayoutSelector,
                     PARTITIONING_HANDLE.getAttribute(exchange.attributes()),
                     partitioningBoundArguments,
-                    partitioningHashSelector,
                     REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                     Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
                     Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())));

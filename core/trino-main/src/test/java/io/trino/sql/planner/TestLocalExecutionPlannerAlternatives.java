@@ -151,8 +151,7 @@ public class TestLocalExecutionPlannerAlternatives
                                                 getTableHandle("alternative2"),
                                                 ImmutableList.of(symbol1, symbol2), symbolMapping)),
                                 new FilteredTableScan(planBuilder.tableScan(ImmutableList.of(), false), Optional.empty())),
-                        ImmutableList.of(symbol1),
-                        Optional.empty()),
+                        ImmutableList.of(symbol1)),
                 ImmutableMap.of(),
                 globalAggregation());
 

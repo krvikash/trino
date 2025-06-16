@@ -213,7 +213,6 @@ public class PlanFragmenter
                 getFullPassthroughFieldSelector("^outputLayoutSelector", outputRowType, nameAllocator),
                 SINGLE_DISTRIBUTION,
                 getEmptyFieldSelector("^boundArguments", outputRowType, nameAllocator),
-                getEmptyFieldSelector("^hashSelector", outputRowType, nameAllocator),
                 false,
                 Optional.empty(),
                 Optional.empty());
@@ -346,7 +345,6 @@ public class PlanFragmenter
                 new PartitioningScheme(
                         newOutputPartitioning,
                         outputPartitioningScheme.getOutputLayout(),
-                        outputPartitioningScheme.getHashColumn(),
                         outputPartitioningScheme.isReplicateNullsAndAny(),
                         outputPartitioningScheme.getBucketToPartition(),
                         outputPartitioningScheme.getPartitionCount()),

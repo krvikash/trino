@@ -70,7 +70,6 @@ public class Exchange
     private final List<Value> inputs;
     private final List<Region> inputFieldSelectors;
     private final Region partitioningBoundArguments;
-    private final Region partitioningHashSelector;
     private final Region orderingSelector;
     private final Map<AttributeKey, Object> attributes;
 
@@ -79,7 +78,6 @@ public class Exchange
             List<Value> inputs,
             List<Block> inputFieldSelectors,
             Block partitioningBoundArguments,
-            Block partitioningHashSelector,
             Block orderingSelector,
             ExchangeType type,
             ExchangeScope scope,
@@ -96,7 +94,6 @@ public class Exchange
         requireNonNull(inputs, "inputs is null");
         requireNonNull(inputFieldSelectors, "inputFieldSelectors is null");
         requireNonNull(partitioningBoundArguments, "partitioningBoundArguments is null");
-        requireNonNull(partitioningHashSelector, "partitioningHashSelector is null");
         requireNonNull(orderingSelector, "orderingSelector is null");
         requireNonNull(type, "type is null");
         requireNonNull(scope, "scope is null");
@@ -154,14 +151,6 @@ public class Exchange
         //  Pass the current Program to resolve backlinks and check which partitioningBoundArguments are columns (FieldSelections).
         //  see assertion in PartitioningScheme
         this.partitioningBoundArguments = singleBlockRegion(partitioningBoundArguments);
-
-        if (partitioningHashSelector.parameters().size() != 1 ||
-                !trinoType(partitioningHashSelector.parameters().getFirst().type()).equals(exchangeRowType) ||
-                !(trinoType(partitioningHashSelector.getReturnedType()) instanceof RowType || trinoType(partitioningHashSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(partitioningHashSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid partitioning hash selector for Exchange operation");
-        }
-        this.partitioningHashSelector = singleBlockRegion(partitioningHashSelector);
 
         if (partitionCount.isPresent() && !(partitioningHandle.getConnectorHandle() instanceof SystemPartitioningHandle)) {
             throw new TrinoException(IR_ERROR, "connector partitioning handle should be of type system partitioning when partitionCount is present");
@@ -228,7 +217,6 @@ public class Exchange
         return ImmutableList.<Region>builder()
                 .addAll(inputFieldSelectors)
                 .add(partitioningBoundArguments)
-                .add(partitioningHashSelector)
                 .add(orderingSelector)
                 .build();
     }
@@ -258,7 +246,6 @@ public class Exchange
                         .map(Region::getOnlyBlock)
                         .collect(toImmutableList()),
                 partitioningBoundArguments.getOnlyBlock(),
-                partitioningHashSelector.getOnlyBlock(),
                 orderingSelector.getOnlyBlock(),
                 EXCHANGE_TYPE.getAttribute(attributes),
                 EXCHANGE_SCOPE.getAttribute(attributes),
@@ -281,11 +268,6 @@ public class Exchange
     public Block partitioningBoundArguments()
     {
         return partitioningBoundArguments.getOnlyBlock();
-    }
-
-    public Block partitioningHashSelector()
-    {
-        return partitioningHashSelector.getOnlyBlock();
     }
 
     public Block orderingSelector()

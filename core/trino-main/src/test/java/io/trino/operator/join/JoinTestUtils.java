@@ -148,7 +148,6 @@ public final class JoinTestUtils
                 FIXED_HASH_DISTRIBUTION,
                 hashChannels,
                 hashChannelTypes,
-                Optional.empty(),
                 POSITIONS_APPENDER_FACTORY,
                 types,
                 DataSize.of(32, DataSize.Unit.MEGABYTE),

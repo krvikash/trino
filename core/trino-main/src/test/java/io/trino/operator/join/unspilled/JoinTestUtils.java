@@ -147,7 +147,6 @@ public final class JoinTestUtils
                 FIXED_HASH_DISTRIBUTION,
                 hashChannels,
                 hashChannelTypes,
-                buildPages.getHashChannel(),
                 POSITIONS_APPENDER_FACTORY,
                 types,
                 DataSize.of(32, DataSize.Unit.MEGABYTE),

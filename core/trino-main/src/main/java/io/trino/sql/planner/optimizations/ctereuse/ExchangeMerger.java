@@ -126,7 +126,6 @@ public class ExchangeMerger
                             ImmutableList.of(rebasedBlocks.getFirst()),
                             rebasedBlocks.get(1),
                             rebasedBlocks.get(2),
-                            rebasedBlocks.get(3),
                             EXCHANGE_TYPE.getAttribute(exchange.attributes()),
                             EXCHANGE_SCOPE.getAttribute(exchange.attributes()),
                             PARTITIONING_HANDLE.getAttribute(exchange.attributes()),
@@ -187,7 +186,6 @@ public class ExchangeMerger
                 ImmutableList.of(rebasedBlocks.getFirst()),
                 rebasedBlocks.get(1),
                 rebasedBlocks.get(2),
-                rebasedBlocks.get(3),
                 EXCHANGE_TYPE.getAttribute(exchange.attributes()),
                 EXCHANGE_SCOPE.getAttribute(exchange.attributes()),
                 PARTITIONING_HANDLE.getAttribute(exchange.attributes()),
@@ -337,7 +335,6 @@ public class ExchangeMerger
                     if (subgroupRepresentative.getValue().attributes().equals(exchange.attributes()) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().inputFieldSelectors(), rebasedInputFieldSelectors) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().partitioningBoundArguments(), exchange.partitioningBoundArguments()) &&
-                            blocksSemanticallyEquivalent(subgroupRepresentative.getValue().partitioningHashSelector(), exchange.partitioningHashSelector()) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().orderingSelector(), exchange.orderingSelector())) {
                         exchangeSubgroups[i] = subgroupRepresentative.getKey();
                         foundMatchingSubgroup = true;
@@ -356,7 +353,6 @@ public class ExchangeMerger
                             unifiedSources,
                             rebasedInputFieldSelectors,
                             exchange.partitioningBoundArguments(),
-                            exchange.partitioningHashSelector(),
                             exchange.orderingSelector(),
                             EXCHANGE_TYPE.getAttribute(exchange.attributes()),
                             EXCHANGE_SCOPE.getAttribute(exchange.attributes()),
@@ -478,7 +474,6 @@ public class ExchangeMerger
                 ImmutableList.copyOf(arguments),
                 ImmutableList.copyOf(rebasedInputFieldSelectors),
                 arbitraryExchange.partitioningBoundArguments(),
-                arbitraryExchange.partitioningHashSelector(),
                 arbitraryExchange.orderingSelector(),
                 EXCHANGE_TYPE.getAttribute(arbitraryExchange.attributes()),
                 EXCHANGE_SCOPE.getAttribute(arbitraryExchange.attributes()),
