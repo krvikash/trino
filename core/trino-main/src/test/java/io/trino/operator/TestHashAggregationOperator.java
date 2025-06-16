@@ -72,7 +72,7 @@ import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.block.BlockAssertions.createRepeatedValuesBlock;
 import static io.trino.operator.AggregationMetrics.INPUT_ROWS_WITH_PARTIAL_AGGREGATION_DISABLED_METRIC_NAME;
 import static io.trino.operator.GroupByHashYieldAssertion.GroupByHashYieldResult;
-import static io.trino.operator.GroupByHashYieldAssertion.createPagesWithDistinctHashKeys;
+import static io.trino.operator.GroupByHashYieldAssertion.createPages;
 import static io.trino.operator.GroupByHashYieldAssertion.finishOperatorWithYieldingGroupByHash;
 import static io.trino.operator.OperatorAssertion.assertOperatorEqualsIgnoreOrder;
 import static io.trino.operator.OperatorAssertion.assertPagesEqualIgnoreOrder;
@@ -147,7 +147,7 @@ public class TestHashAggregationOperator
         TestingAggregationFunction countBooleanColumn = FUNCTION_RESOLUTION.getAggregateFunction("count", fromTypes(BOOLEAN));
         TestingAggregationFunction maxVarcharColumn = FUNCTION_RESOLUTION.getAggregateFunction("max", fromTypes(VARCHAR));
         List<Integer> hashChannels = Ints.asList(1);
-        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, hashChannels, VARCHAR, VARCHAR, VARCHAR, BIGINT, BOOLEAN);
+        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(hashChannels, VARCHAR, VARCHAR, VARCHAR, BIGINT, BOOLEAN);
         List<Page> input = rowPagesBuilder
                 .addSequencePage(numberOfRows, 100, 0, 100_000, 0, 500)
                 .addSequencePage(numberOfRows, 100, 0, 200_000, 0, 500)
@@ -188,7 +188,7 @@ public class TestHashAggregationOperator
 
         List<Page> pages = toPages(operatorFactory, driverContext, input, revokeMemoryWhenAddingPages);
         assertThat(pages).as("Expected more than one output page").hasSizeGreaterThan(1);
-        assertPagesEqualIgnoreOrder(driverContext, pages, expected, false, Optional.of(hashChannels.size()));
+        assertPagesEqualIgnoreOrder(driverContext, pages, expected);
 
         assertThat(spillEnabled == (spillerFactory.getSpillsCount() > 0))
                 .describedAs(format("Spill state mismatch. Expected spill: %s, spill count: %s", spillEnabled, spillerFactory.getSpillsCount()))
@@ -218,7 +218,7 @@ public class TestHashAggregationOperator
         Optional<Integer> groupIdChannel = Optional.of(1);
         List<Integer> groupByChannels = Ints.asList(1, 2);
         List<Integer> globalAggregationGroupIds = Ints.asList(42, 49);
-        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, groupByChannels, VARCHAR, VARCHAR, VARCHAR, BIGINT, BIGINT, BOOLEAN);
+        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(groupByChannels, VARCHAR, VARCHAR, VARCHAR, BIGINT, BIGINT, BOOLEAN);
         List<Page> input = rowPagesBuilder.build();
 
         HashAggregationOperatorFactory operatorFactory = new HashAggregationOperatorFactory(
@@ -251,7 +251,7 @@ public class TestHashAggregationOperator
                 .row(null, 49L, 0L, null, null, null, 0L, 0L)
                 .build();
 
-        assertOperatorEqualsIgnoreOrder(operatorFactory, driverContext, input, expected, false, Optional.of(groupByChannels.size()), revokeMemoryWhenAddingPages);
+        assertOperatorEqualsIgnoreOrder(operatorFactory, driverContext, input, expected, revokeMemoryWhenAddingPages);
     }
 
     @Test
@@ -273,7 +273,7 @@ public class TestHashAggregationOperator
         TestingAggregationFunction arrayAggColumn = FUNCTION_RESOLUTION.getAggregateFunction("array_agg", fromTypes(BIGINT));
 
         List<Integer> hashChannels = Ints.asList(1);
-        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, hashChannels, BIGINT, BIGINT);
+        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(hashChannels, BIGINT, BIGINT);
         List<Page> input = rowPagesBuilder
                 .addSequencePage(10, 100, 0)
                 .addSequencePage(10, 200, 0)
@@ -317,7 +317,7 @@ public class TestHashAggregationOperator
             TestingAggregationFunction maxVarcharColumn = FUNCTION_RESOLUTION.getAggregateFunction("max", fromTypes(VARCHAR));
 
             List<Integer> hashChannels = Ints.asList(1);
-            RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, hashChannels, VARCHAR, BIGINT, VARCHAR, BIGINT);
+            RowPagesBuilder rowPagesBuilder = rowPagesBuilder(hashChannels, VARCHAR, BIGINT, VARCHAR, BIGINT);
             List<Page> input = rowPagesBuilder
                     .addSequencePage(10, 100, 0, 100, 0)
                     .addSequencePage(10, 100, 0, 200, 0)
@@ -372,7 +372,7 @@ public class TestHashAggregationOperator
         builder.build();
 
         List<Integer> hashChannels = Ints.asList(0);
-        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, hashChannels, VARCHAR);
+        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(hashChannels, VARCHAR);
         List<Page> input = rowPagesBuilder
                 .addSequencePage(10, 100)
                 .addBlocksPage(builder.build())
@@ -412,7 +412,7 @@ public class TestHashAggregationOperator
 
     public void testMemoryReservationYield(Type type)
     {
-        List<Page> input = createPagesWithDistinctHashKeys(type, 6_000, 600);
+        List<Page> input = createPages(type, 6_000, 600);
         OperatorFactory operatorFactory = new HashAggregationOperatorFactory(
                 0,
                 new PlanNodeId("test"),
@@ -454,7 +454,7 @@ public class TestHashAggregationOperator
             builder.build();
 
             List<Integer> hashChannels = Ints.asList(0);
-            RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, hashChannels, VARCHAR);
+            RowPagesBuilder rowPagesBuilder = rowPagesBuilder(hashChannels, VARCHAR);
             List<Page> input = rowPagesBuilder
                     .addSequencePage(10, 100)
                     .addBlocksPage(builder.build())
@@ -495,7 +495,7 @@ public class TestHashAggregationOperator
         int multiSlicePositionCount = (int) (1.5 * PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES / fixedWidthSize);
 
         List<Integer> hashChannels = Ints.asList(1);
-        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, hashChannels, BIGINT, BIGINT);
+        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(hashChannels, BIGINT, BIGINT);
         List<Page> input = rowPagesBuilder
                 .addSequencePage(multiSlicePositionCount, 0, 0)
                 .build();
@@ -523,7 +523,7 @@ public class TestHashAggregationOperator
             throws Exception
     {
         List<Integer> hashChannels = Ints.asList(0);
-        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, hashChannels, BIGINT);
+        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(hashChannels, BIGINT);
         List<Page> input = rowPagesBuilder
                 .addSequencePage(500, 0)
                 .addSequencePage(500, 500)
@@ -703,7 +703,7 @@ public class TestHashAggregationOperator
 
         List<Integer> hashChannels = Ints.asList(1);
         List<Type> types = ImmutableList.of(VARCHAR, BIGINT, VARCHAR, BIGINT);
-        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, hashChannels, types);
+        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(hashChannels, types);
         List<Page> input = rowPagesBuilder
                 .addSequencePage(10, 100, 0, 100, 0)
                 // current accumulator allows 1024 values without using revocable memory, so add enough values to cause revocable memory usage
@@ -751,7 +751,7 @@ public class TestHashAggregationOperator
             throws Exception
     {
         List<Integer> hashChannels = Ints.asList(0);
-        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(false, hashChannels, BIGINT);
+        RowPagesBuilder rowPagesBuilder = rowPagesBuilder(hashChannels, BIGINT);
         Page input = getOnlyElement(rowPagesBuilder.addSequencePage(500, 0).build());
 
         HashAggregationOperatorFactory operatorFactory = new HashAggregationOperatorFactory(
@@ -808,7 +808,7 @@ public class TestHashAggregationOperator
         // at the start aggregation mode is set to HLL
         assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(HLL);
         // First operator will trigger adaptive partial aggregation after the first page
-        List<Page> operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+        List<Page> operator1Input = rowPagesBuilder(hashChannels, BIGINT)
                 .addBlocksPage(createRepeatedValuesBlock(1, 5))
                 .build();
         List<Page> operator1Expected = rowPagesBuilder(BIGINT, BIGINT)
@@ -819,7 +819,7 @@ public class TestHashAggregationOperator
         // the first operator flush enables partial aggregation
         assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(AGGREGATION);
 
-        operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+        operator1Input = rowPagesBuilder(hashChannels, BIGINT)
                 .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8, 8))
                 .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)) // these pages will increase the threshold so that passthrough mode will be enabled
                 .build();
@@ -831,7 +831,7 @@ public class TestHashAggregationOperator
         assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(PASSTHROUGH);
 
         // second operator using the same factory, reuses PartialAggregationControl, so it will only produce raw pages (partial aggregation is disabled at this point)
-        List<Page> operator2Input = rowPagesBuilder(false, hashChannels, BIGINT)
+        List<Page> operator2Input = rowPagesBuilder(hashChannels, BIGINT)
                 .addBlocksPage(createRepeatedValuesBlock(1, 10))
                 .build();
         List<Page> operator2Expected = rowPagesBuilder(BIGINT, BIGINT)
@@ -841,7 +841,7 @@ public class TestHashAggregationOperator
 
         // partial aggregation should be set to HLL again after enough data is processed
         for (int i = 1; i <= 4; ++i) {
-            List<Page> operatorInput = rowPagesBuilder(false, hashChannels, BIGINT)
+            List<Page> operatorInput = rowPagesBuilder(hashChannels, BIGINT)
                     .addBlocksPage(createLongsBlock(0, 1, 2, 3, 4, 5, 6, 7, 8))
                     .build();
             List<Page> operatorExpected = rowPagesBuilder(BIGINT, BIGINT)
@@ -860,7 +860,7 @@ public class TestHashAggregationOperator
         partialAggregationController.onFlush(1_000_000, 1_000_000, OptionalLong.empty());
 
         // partial aggregation should keep being enabled after good reduction has been observed
-        List<Page> operator3Input = rowPagesBuilder(false, hashChannels, BIGINT)
+        List<Page> operator3Input = rowPagesBuilder(hashChannels, BIGINT)
                 .addBlocksPage(createRepeatedValuesBlock(1, 100))
                 .addBlocksPage(createRepeatedValuesBlock(2, 100))
                 .build();
@@ -894,7 +894,7 @@ public class TestHashAggregationOperator
                 Optional.of(partialAggregationController));
 
         DriverContext driverContext = createDriverContext(1024);
-        List<Page> operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+        List<Page> operator1Input = rowPagesBuilder(hashChannels, BIGINT)
                 .addSequencePage(10, 0) // first page are unique values, so it would trigger adaptation, but it won't because flush is not called
                 .addBlocksPage(createRepeatedValuesBlock(1, 2)) // second page will be hashed to existing value 1
                 .build();
@@ -910,7 +910,7 @@ public class TestHashAggregationOperator
         assertInputRowsWithPartialAggregationDisabled(driverContext, 12);
 
         // second operator using the same factory, reuses PartialAggregationControl, so it will only produce raw pages (partial aggregation is disabled at this point)
-        List<Page> operator2Input = rowPagesBuilder(false, hashChannels, BIGINT)
+        List<Page> operator2Input = rowPagesBuilder(hashChannels, BIGINT)
                 .addBlocksPage(createRepeatedValuesBlock(1, 10))
                 .addBlocksPage(createRepeatedValuesBlock(2, 10))
                 .build();
@@ -946,7 +946,7 @@ public class TestHashAggregationOperator
 
         // Till we reach a threshold we tend to be in HLL mode even if the rows have less cardinality
         for (int i = 0; i < 5; i++) {
-            List<Page> operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+            List<Page> operator1Input = rowPagesBuilder(hashChannels, BIGINT)
                     .addBlocksPage(createRepeatedValuesBlock(1, 1000))
                     .build();
             List<Page> operator1Expected = rowPagesBuilder(BIGINT, BIGINT)
@@ -957,7 +957,7 @@ public class TestHashAggregationOperator
         }
         partialAggregationController.onFlush(DataSize.of(2, MEGABYTE).toBytes(), 1_00_000, OptionalLong.of(6_000));
 
-        List<Page> operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+        List<Page> operator1Input = rowPagesBuilder(hashChannels, BIGINT)
                 .addBlocksPage(createLongsBlock(1, 2, 3, 1, 1, 2, 1, 1, 1, 1))
                 .build();
         // Even though we haven't crossed the initial threshold of 32MB, since the rows are less unique we move to PA mode
@@ -990,7 +990,7 @@ public class TestHashAggregationOperator
                 // 1 byte maxPartialMemory causes adaptive partial aggregation to be triggered after each page flush
                 Optional.of(partialAggregationController));
 
-        List<Page> operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+        List<Page> operator1Input = rowPagesBuilder(hashChannels, BIGINT)
                 .addBlocksPage(createRepeatedValuesBlock(1, 200)) // second page will be hashed to existing value 1
                 .addBlocksPage(createRepeatedValuesBlock(1, 200)) // second page will be hashed to existing value 1
                 .build();
@@ -1008,7 +1008,7 @@ public class TestHashAggregationOperator
         partialAggregationController.onFlush(1_000_000_000, 1_000_000, OptionalLong.of(1_000_000));
         assertThat(partialAggregationController.getPartialAggregationMode()).isEqualTo(PASSTHROUGH);
 
-        operator1Input = rowPagesBuilder(false, hashChannels, BIGINT)
+        operator1Input = rowPagesBuilder(hashChannels, BIGINT)
                 .addBlocksPage(createRepeatedValuesBlock(1, 200)) // second page will be hashed to existing value 1
                 .addBlocksPage(createRepeatedValuesBlock(1, 200)) // second page will be hashed to existing value 1
                 .build();
@@ -1039,7 +1039,7 @@ public class TestHashAggregationOperator
         long memoryLimitForMergeWithMemory = 0;
 
         // plenty of rows → revocable mem >
-        RowPagesBuilder pages = rowPagesBuilder(false, Ints.asList(0), BIGINT)
+        RowPagesBuilder pages = rowPagesBuilder(Ints.asList(0), BIGINT)
                 .addSequencePage(5_000, 0);
 
         HashAggregationOperatorFactory factory =
@@ -1098,7 +1098,7 @@ public class TestHashAggregationOperator
         long memoryLimitForMergeWithMemory = 0;                                     // make shouldMergeWithMemory() return false
 
         // plenty of rows to allocate >64 kB in the hash builder
-        RowPagesBuilder pagesBuilder = rowPagesBuilder(false, Ints.asList(0), BIGINT)
+        RowPagesBuilder pagesBuilder = rowPagesBuilder(Ints.asList(0), BIGINT)
                 .addSequencePage(50_000, 0);
 
         SlowSpiller slowSpiller = new SlowSpiller();

@@ -158,13 +158,13 @@ public class TestHashJoinOperator
         TaskContext taskContext = createTaskContext();
 
         // build factory
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT))
                 .addSequencePage(10, 20, 30, 40);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, parallelBuild, taskContext, buildPages, Optional.empty(), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactory = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT));
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT));
         List<Page> probeInput = probePages
                 .addSequencePage(1000, 0, 1000, 2000)
                 .build();
@@ -175,7 +175,7 @@ public class TestHashJoinOperator
         buildLookupSource(executor, buildSideSetup);
 
         // expected
-        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probePages.getTypesWithoutHash(), buildPages.getTypesWithoutHash()))
+        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probePages.getTypes(), buildPages.getTypes()))
                 .row("20", 1020L, 2020L, "20", 30L, 40L)
                 .row("21", 1021L, 2021L, "21", 31L, 41L)
                 .row("22", 1022L, 2022L, "22", 32L, 42L)
@@ -197,14 +197,14 @@ public class TestHashJoinOperator
         TaskContext taskContext = createTaskContext();
 
         // build factory
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR))
                 .addSequencePage(10, 20)
                 .addSequencePage(10, 21);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, false, taskContext, buildPages, Optional.empty(), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactory = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR));
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR));
         List<Page> probeInput = ImmutableList.of(
                 new Page(RunLengthEncodedBlock.create(VARCHAR, Slices.utf8Slice("20"), 2)),
                 new Page(RunLengthEncodedBlock.create(VARCHAR, Slices.utf8Slice("-1"), 2)),
@@ -216,7 +216,7 @@ public class TestHashJoinOperator
         buildLookupSource(executor, buildSideSetup);
 
         // expected
-        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probePages.getTypesWithoutHash(), buildPages.getTypesWithoutHash()))
+        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probePages.getTypes(), buildPages.getTypes()))
                 .row("20", "20")
                 .row("20", "20")
                 .row("21", "21")
@@ -248,13 +248,13 @@ public class TestHashJoinOperator
 
         // build with 40 entries
         int entries = 40;
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(BIGINT))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(BIGINT))
                 .addSequencePage(entries, 42);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, true, taskContext, buildPages, Optional.of(filterFunction), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactory = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe matching the above 40 entries
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(BIGINT));
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(BIGINT));
         List<Page> probeInput = probePages.addSequencePage(100, 0).build();
         OperatorFactory joinOperatorFactory = spillingJoin(
                 innerJoin(false, false),
@@ -390,7 +390,7 @@ public class TestHashJoinOperator
                 });
 
         // build factory
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT))
                 .addSequencePage(4, 20, 200)
                 .addSequencePage(4, 20, 200)
                 .addSequencePage(4, 30, 300)
@@ -400,7 +400,7 @@ public class TestHashJoinOperator
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT))
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT))
                 .row("20", 123_000L)
                 .row("20", 123_000L)
                 .pageBreak()
@@ -474,7 +474,7 @@ public class TestHashJoinOperator
 
             List<Page> actualPages = getPages(pageBuffer);
 
-            MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probePages.getTypesWithoutHash(), buildPages.getTypesWithoutHash()))
+            MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probePages.getTypes(), buildPages.getTypes()))
                     .row("20", 123_000L, "20", 200L)
                     .row("20", 123_000L, "20", 200L)
                     .row("20", 123_000L, "20", 200L)
@@ -562,7 +562,7 @@ public class TestHashJoinOperator
         TaskContext taskContext = TestingTaskContext.createTaskContext(executor, scheduledExecutor, TEST_SESSION, taskStateMachine);
 
         // build factory
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT))
                 .addSequencePage(4, 20, 200);
 
         DummySpillerFactory buildSpillerFactory = new DummySpillerFactory();
@@ -612,7 +612,7 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes)
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes)
                 .row("a")
                 .row("b")
                 .row("c");
@@ -621,7 +621,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row((String) null)
@@ -636,7 +636,7 @@ public class TestHashJoinOperator
         buildLookupSource(executor, buildSideSetup);
 
         // expected
-        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildPages.getTypesWithoutHash()))
+        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildPages.getTypes()))
                 .row("a", "a")
                 .row("a", "a")
                 .row("b", "b")
@@ -657,7 +657,7 @@ public class TestHashJoinOperator
         TaskContext taskContext = createTaskContext();
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes)
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes)
                 .row("a")
                 .row("a")
                 .row("b");
@@ -666,7 +666,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row("b")
@@ -700,7 +700,7 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes)
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes)
                 .row("a")
                 .row((String) null)
                 .row((String) null)
@@ -711,7 +711,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row("b")
@@ -746,7 +746,7 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes)
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes)
                 .row("a")
                 .row((String) null)
                 .row((String) null)
@@ -757,7 +757,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row("b")
@@ -793,14 +793,14 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR, BIGINT, BIGINT);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT))
                 .addSequencePage(10, 20, 30, 40);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, parallelBuild, taskContext, buildPages, Optional.empty(), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactory = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR, BIGINT, BIGINT);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .addSequencePage(15, 20, 1020, 2020)
                 .build();
@@ -848,14 +848,14 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR, BIGINT, BIGINT);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT))
                 .addSequencePage(10, 20, 30, 40);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, parallelBuild, taskContext, buildPages, Optional.of(filterFunction), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactory = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR, BIGINT, BIGINT);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .addSequencePage(15, 20, 1020, 2020)
                 .build();
@@ -900,7 +900,7 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes)
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes)
                 .row("a")
                 .row("b")
                 .row("c");
@@ -909,7 +909,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row((String) null)
@@ -951,7 +951,7 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes)
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes)
                 .row("a")
                 .row("b")
                 .row("c");
@@ -960,7 +960,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row((String) null)
@@ -999,7 +999,7 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR))
                 .row("a")
                 .row((String) null)
                 .row((String) null)
@@ -1010,7 +1010,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row("b")
@@ -1050,7 +1050,7 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR))
                 .row("a")
                 .row((String) null)
                 .row((String) null)
@@ -1061,7 +1061,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row("b")
@@ -1096,7 +1096,7 @@ public class TestHashJoinOperator
         TaskContext taskContext = createTaskContext();
 
         // build factory
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR))
                 .row("a")
                 .row((String) null)
                 .row((String) null)
@@ -1107,7 +1107,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row("b")
@@ -1121,7 +1121,7 @@ public class TestHashJoinOperator
         buildLookupSource(executor, buildSideSetup);
 
         // expected
-        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildPages.getTypesWithoutHash()))
+        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildPages.getTypes()))
                 .row("a", "a")
                 .row("a", "a")
                 .row("b", "b")
@@ -1148,7 +1148,7 @@ public class TestHashJoinOperator
                         ImmutableSet.of("a", "c").contains(VARCHAR.getSlice(rightPage.getBlock(0), rightPosition).toStringAscii()));
 
         // build factory
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR))
                 .row("a")
                 .row((String) null)
                 .row((String) null)
@@ -1159,7 +1159,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row("b")
@@ -1173,7 +1173,7 @@ public class TestHashJoinOperator
         buildLookupSource(executor, buildSideSetup);
 
         // expected
-        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildPages.getTypesWithoutHash()))
+        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildPages.getTypes()))
                 .row("a", "a")
                 .row("a", "a")
                 .row("b", null)
@@ -1195,7 +1195,7 @@ public class TestHashJoinOperator
     {
         TaskContext taskContext = TestingTaskContext.createTaskContext(executor, scheduledExecutor, TEST_SESSION, DataSize.ofBytes(3000));
 
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT))
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR, BIGINT, BIGINT))
                 .addSequencePage(10, 20, 30, 40);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, parallelBuild, taskContext, buildPages, Optional.empty(), false, SINGLE_STREAM_SPILLER_FACTORY);
         instantiateBuildDrivers(buildSideSetup, taskContext);
@@ -1414,13 +1414,13 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes);
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, parallelBuild, taskContext, buildPages, Optional.empty(), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         OperatorFactory joinOperatorFactory = spillingJoin(
                 innerJoin(false, false),
                 0,
@@ -1457,13 +1457,13 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes);
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, parallelBuild, taskContext, buildPages, Optional.empty(), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         OperatorFactory joinOperatorFactory = spillingJoin(
                 lookupOuterJoin(false),
                 0,
@@ -1500,13 +1500,13 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes);
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, parallelBuild, taskContext, buildPages, Optional.empty(), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row("b")
@@ -1552,13 +1552,13 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes);
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, parallelBuild, taskContext, buildPages, Optional.empty(), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages
                 .row("a")
                 .row("b")
@@ -1604,7 +1604,7 @@ public class TestHashJoinOperator
 
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes)
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes)
                 .row("a")
                 .row("b")
                 .row((String) null)
@@ -1614,7 +1614,7 @@ public class TestHashJoinOperator
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         List<Page> probeInput = probePages.build();
         OperatorFactory joinOperatorFactory = spillingJoin(
                 innerJoin(false, false),
@@ -1691,7 +1691,7 @@ public class TestHashJoinOperator
     private void testInnerJoinWithBlockingLookupSource(boolean parallelBuild)
             throws Exception
     {
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), ImmutableList.of(VARCHAR));
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR));
         Page probePage = getOnlyElement(probePages.addSequencePage(1, 0).build());
 
         // join that waits for build side to be collected
@@ -1733,13 +1733,13 @@ public class TestHashJoinOperator
     {
         // build factory
         List<Type> buildTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder buildPages = rowPagesBuilder(false, Ints.asList(0), buildTypes);
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes);
         BuildSideSetup buildSideSetup = setupBuildSide(nodePartitioningManager, parallelBuild, taskContext, buildPages, Optional.empty(), false, SINGLE_STREAM_SPILLER_FACTORY);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager = buildSideSetup.getLookupSourceFactoryManager();
 
         // probe factory
         List<Type> probeTypes = ImmutableList.of(VARCHAR);
-        RowPagesBuilder probePages = rowPagesBuilder(false, Ints.asList(0), probeTypes);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
         OperatorFactory joinOperatorFactory = spillingJoin(
                 innerJoin(false, waitForBuild),
                 0,
