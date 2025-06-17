@@ -180,6 +180,16 @@ final class TracingFileSystem
     }
 
     @Override
+    public Optional<UriLocation> preSignedDeleteUri(Location location, Duration ttl)
+            throws IOException
+    {
+        Span span = tracer.spanBuilder("FileSystem.preSignedDeleteUri")
+                .setAttribute(FileSystemAttributes.FILE_LOCATION, location.toString())
+                .startSpan();
+        return withTracing(span, () -> delegate.preSignedDeleteUri(location, ttl));
+    }
+
+    @Override
     public TrinoInputFile newEncryptedInputFile(Location location, EncryptionKey key)
     {
         Span span = tracer.spanBuilder("FileSystem.newEncryptedInputFile")

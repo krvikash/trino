@@ -159,6 +159,13 @@ final class SwitchingFileSystem
     }
 
     @Override
+    public Optional<UriLocation> preSignedDeleteUri(Location location, Duration ttl)
+            throws IOException
+    {
+        return fileSystem(location).preSignedDeleteUri(location, ttl);
+    }
+
+    @Override
     public TrinoInputFile newEncryptedInputFile(Location location, EncryptionKey key)
     {
         return fileSystem(location).newEncryptedInputFile(location, key);

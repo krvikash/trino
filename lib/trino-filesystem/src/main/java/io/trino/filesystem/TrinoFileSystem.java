@@ -313,6 +313,15 @@ public interface TrinoFileSystem
     }
 
     /**
+     * Like preSignedUri, but for DELETE requests.
+     */
+    default Optional<UriLocation> preSignedDeleteUri(Location location, Duration ttl)
+            throws IOException
+    {
+        throw new UnsupportedOperationException("Pre-signed URIs are not supported by " + getClass().getSimpleName());
+    }
+
+    /**
      * Returns the direct encrypted pre-signed URI location for the given storage location.
      * <p>
      * Pre-signed URIs allow for retrieval of the files directly from the storage location.

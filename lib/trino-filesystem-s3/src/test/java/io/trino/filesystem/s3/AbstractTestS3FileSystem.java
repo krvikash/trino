@@ -16,6 +16,7 @@ package io.trino.filesystem.s3;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 import io.airlift.log.Logging;
+import io.airlift.units.Duration;
 import io.trino.filesystem.AbstractTestTrinoFileSystem;
 import io.trino.filesystem.FileEntry;
 import io.trino.filesystem.FileIterator;
@@ -23,6 +24,7 @@ import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoInputStream;
+import io.trino.filesystem.UriLocation;
 import io.trino.filesystem.encryption.EncryptionEnforcingFileSystem;
 import io.trino.filesystem.encryption.EncryptionKey;
 import io.trino.spi.security.ConnectorIdentity;
@@ -37,6 +39,10 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -247,6 +253,26 @@ public abstract class AbstractTestS3FileSystem
             assertThat(getFileSystem().listDirectories(getRootLocation())).isEmpty();
             assertThat(getFileSystem().listFiles(getRootLocation()).hasNext()).isFalse();
         }
+    }
+
+    @Test
+    public void testPreSignedDeleteUri()
+            throws Exception
+    {
+        Location abcLocation = Location.of("s3://%s/abc".formatted(bucket()));
+        byte[] content = "hello world".getBytes(UTF_8);
+        try (OutputStream output = fileSystem.newOutputFile(abcLocation).create()) {
+            output.write(content);
+        }
+        assertThat(fileSystem.listFiles(abcLocation.parentDirectory()).hasNext()).isTrue();
+
+        UriLocation uriLocation = getFileSystem().preSignedDeleteUri(abcLocation, Duration.valueOf("10m")).orElseThrow();
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            HttpRequest request = HttpRequest.newBuilder().uri(uriLocation.uri()).DELETE().build();
+            HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            assertThat(response.statusCode()).isIn(200, 204);
+        }
+        assertThat(fileSystem.listFiles(abcLocation.parentDirectory()).hasNext()).isFalse();
     }
 
     protected Location createDirectory(Closer closer, S3Client s3Client, String path)
