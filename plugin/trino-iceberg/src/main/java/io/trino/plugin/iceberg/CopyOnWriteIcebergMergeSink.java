@@ -1,0 +1,243 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.plugin.iceberg;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import io.airlift.json.JsonCodec;
+import io.airlift.slice.Slice;
+import io.trino.filesystem.Location;
+import io.trino.filesystem.TrinoFileSystem;
+import io.trino.filesystem.TrinoInputFile;
+import io.trino.plugin.iceberg.delete.DeleteFile;
+import io.trino.spi.Page;
+import io.trino.spi.connector.ConnectorPageSink;
+import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.SourcePage;
+import io.trino.spi.predicate.TupleDomain;
+import org.apache.iceberg.FileContent;
+import org.apache.iceberg.Metrics;
+import org.apache.iceberg.MetricsConfig;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionSpecParser;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.io.LocationProvider;
+import org.apache.iceberg.mapping.NameMappingParser;
+import org.apache.iceberg.types.Type;
+import org.apache.iceberg.util.DeleteFileSet;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.concurrent.CompletableFuture;
+
+import static io.airlift.slice.Slices.wrappedBuffer;
+import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
+import static java.util.concurrent.CompletableFuture.completedFuture;
+
+public class CopyOnWriteIcebergMergeSink
+        extends AbstractIcebergMergeSink
+{
+    private final IcebergPageSourceProviderFactory pageSourceProviderFactory;
+    private final List<IcebergColumnHandle> columns;
+    private final Map<String, String> fileIoProperties;
+    private final Map<String, Long> fileCounts;
+    private final Map<String, Long> dataSequenceNumbers;
+    private final Optional<String> nameMapping;
+
+    public CopyOnWriteIcebergMergeSink(
+            LocationProvider locationProvider,
+            IcebergFileWriterFactory fileWriterFactory,
+            TrinoFileSystem fileSystem,
+            Map<String, DeleteFileSet> previousDeleteFiles,
+            JsonCodec<CommitTaskData> jsonCodec,
+            ConnectorSession session,
+            IcebergFileFormat fileFormat,
+            Map<String, String> storageProperties,
+            Schema schema,
+            Map<Integer, PartitionSpec> partitionsSpecs,
+            ConnectorPageSink insertPageSink,
+            int columnCount,
+            IcebergPageSourceProviderFactory pageSourceProviderFactory,
+            List<IcebergColumnHandle> columns,
+            Map<String, String> fileIoProperties,
+            Map<String, Long> fileCounts,
+            Map<String, Long> dataSequenceNumbers,
+            Optional<String> nameMapping)
+    {
+        super(
+                locationProvider,
+                fileWriterFactory,
+                fileSystem,
+                previousDeleteFiles,
+                jsonCodec,
+                session,
+                fileFormat,
+                storageProperties,
+                schema,
+                partitionsSpecs,
+                insertPageSink,
+                columnCount);
+        this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
+        this.columns = ImmutableList.copyOf(columns);
+        this.fileIoProperties = ImmutableMap.copyOf(fileIoProperties);
+        this.fileCounts = ImmutableMap.copyOf(fileCounts);
+        this.dataSequenceNumbers = ImmutableMap.copyOf(dataSequenceNumbers);
+        this.nameMapping = requireNonNull(nameMapping, "nameMapping is null");
+    }
+
+    @Override
+    public CompletableFuture<Collection<Slice>> finish()
+    {
+        List<Slice> fragments = new ArrayList<>(insertPageSink.finish().join());
+
+        fileDeletions.forEach((dataFilePath, deletion) -> {
+            PartitionSpec partitionSpec = partitionsSpecs.get(deletion.partitionSpecId());
+            Type[] partitionColumnTypes = partitionSpec.fields().stream()
+                    .map(field -> field.transform().getResultType(schema.findType(field.sourceId())))
+                    .toArray(Type[]::new);
+            PartitionData partitionData = PartitionData.fromJson(deletion.partitionDataJson(), partitionColumnTypes);
+
+            Location dataFile = Location.of(dataFilePath.toStringUtf8());
+            String fileName = fileFormat.toIceberg().addExtension(session.getQueryId() + "-" + randomUUID());
+            Location outputPath = Location.of(partitionSpec.isPartitioned() ? locationProvider.newDataLocation(partitionSpec, partitionData, fileName) : locationProvider.newDataLocation(fileName));
+            IcebergFileWriter fileWriter = fileWriterFactory.createDataFileWriter(fileSystem, outputPath, schema, session, fileFormat, MetricsConfig.getDefault(), storageProperties);
+            try {
+                rewriteFile(fileWriter, dataFile, deletion, partitionSpec, partitionData).ifPresent(fragments::add);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+
+        return completedFuture(fragments);
+    }
+
+    private Optional<Slice> rewriteFile(
+            IcebergFileWriter writer,
+            Location dataFilePath,
+            FileDeletion deletion,
+            PartitionSpec partitionSpec,
+            PartitionData partitionData)
+            throws IOException
+    {
+        boolean writtenRecords = false;
+        try (ConnectorPageSource connectorPageSource = createPageSource(dataFilePath, deletion, partitionSpec, partitionData)) {
+            while (!connectorPageSource.isFinished()) {
+                SourcePage sourcePage = connectorPageSource.getNextSourcePage();
+                if (sourcePage == null) {
+                    continue;
+                }
+                // fully load page
+                Page page = sourcePage.getPage();
+                if (page.getPositionCount() > 0) {
+                    writtenRecords = true;
+                    writer.appendRows(page);
+                }
+            }
+            if (!writtenRecords) {
+                writer.rollback();
+                // Let the caller know that no data was left, and to remove the existing data file
+                return Optional.of(wrappedBuffer(jsonCodec.toJsonBytes(emptyCommitTaskData(dataFilePath.toString(), PartitionSpecParser.toJson(partitionSpec), Optional.of(deletion.partitionDataJson())))));
+            }
+            writer.commit();
+        }
+        catch (Throwable t) {
+            try {
+                writer.rollback();
+            }
+            catch (RuntimeException e) {
+                if (!t.equals(e)) {
+                    t.addSuppressed(e);
+                }
+            }
+            throw t;
+        }
+
+        CommitTaskData task = new CommitTaskData(
+                writer.location(),
+                writer.fileFormat(),
+                writer.getWrittenBytes(),
+                new MetricsWrapper(writer.getFileMetrics().metrics()),
+                PartitionSpecParser.toJson(partitionSpec),
+                Optional.of(deletion.partitionDataJson()),
+                FileContent.DATA,
+                Optional.of(dataFilePath.toString()),
+                writer.rewrittenDeleteFiles(),
+                OptionalLong.empty(),
+                OptionalLong.empty(),
+                writer.getFileMetrics().splitOffsets());
+
+        return Optional.of(wrappedBuffer(jsonCodec.toJsonBytes(task)));
+    }
+
+    private static CommitTaskData emptyCommitTaskData(String dataFilePath, String partitionSpecJson, Optional<String> partitionDataJson)
+    {
+        return new CommitTaskData(
+                "",
+                IcebergFileFormat.PARQUET.toIceberg(),
+                0,
+                new MetricsWrapper(new Metrics()),
+                partitionSpecJson,
+                partitionDataJson,
+                FileContent.DATA,
+                Optional.of(dataFilePath),
+                ImmutableList.of(),
+                OptionalLong.empty(),
+                OptionalLong.empty(),
+                Optional.empty());
+    }
+
+    private ConnectorPageSource createPageSource(Location path, FileDeletion deletion, PartitionSpec partitionSpec, PartitionData partitionData)
+            throws IOException
+    {
+        ImmutableList.Builder<DeleteFile> deleteFiles = ImmutableList.builder();
+        deleteFiles.add(DeleteFile.fromComputedDeletionRowPositions(deletion.rowsToDelete()));
+        previousDeleteFiles.getOrDefault(path.toString(), DeleteFileSet.create()).stream()
+                .map(DeleteFile::fromIceberg)
+                .map(deleteFile -> deleteFile.withDataSequenceNumber(dataSequenceNumbers.get(deleteFile.path())))
+                .forEach(deleteFiles::add);
+        IcebergPageSourceProvider icebergPageSourceProvider = (IcebergPageSourceProvider) pageSourceProviderFactory.createPageSourceProvider();
+        TrinoInputFile inputFile = fileSystem.newInputFile(path);
+        long fileSize = inputFile.length();
+        return icebergPageSourceProvider.createPageSource(
+                session,
+                columns,
+                schema,
+                partitionSpec,
+                partitionData,
+                deleteFiles.build(),
+                DynamicFilter.EMPTY,
+                TupleDomain.all(),
+                TupleDomain.all(),
+                path.toString(),
+                0,
+                fileSize,
+                fileSize,
+                fileCounts.get(path.toString()),
+                deletion.partitionDataJson(),
+                fileFormat,
+                fileIoProperties,
+                dataSequenceNumbers.get(path.toString()),
+                nameMapping.map(NameMappingParser::fromJson));
+    }
+}

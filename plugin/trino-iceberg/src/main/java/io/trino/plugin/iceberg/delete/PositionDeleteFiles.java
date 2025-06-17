@@ -14,16 +14,27 @@
 package io.trino.plugin.iceberg.delete;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-public record PositionDeleteFiles(String dataFileLocation, int partitionSpecId, List<String> deletes)
+public record PositionDeleteFiles(
+        String dataFileLocation,
+        long dataFileRecordCount,
+        Long dataSequenceNumber,
+        int partitionSpecId,
+        List<String> deletes,
+        Map<String, Long> dataSequenceNumbers)
 {
     public PositionDeleteFiles
     {
         requireNonNull(dataFileLocation, "dataFileLocation is null");
         deletes = ImmutableList.copyOf(deletes);
+        // TODO: remove once the DeleteFile supporting the dataSequenceNumber in serialization and deserialization
+        //  https://github.com/apache/iceberg/issues/13320
+        dataSequenceNumbers = ImmutableMap.copyOf(dataSequenceNumbers);
     }
 }

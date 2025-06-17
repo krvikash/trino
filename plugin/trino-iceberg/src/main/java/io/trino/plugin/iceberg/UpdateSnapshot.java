@@ -1,0 +1,50 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.plugin.iceberg;
+
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.SnapshotUpdate;
+import org.apache.iceberg.expressions.Expression;
+
+import java.util.Optional;
+
+/**
+ * An interface for updating table snapshots to support both Copy-on-Write (CoW) and Merge-on-Read (MoR) write modes in Iceberg.
+ * <p>
+ * This interface mimics the structure of {@link org.apache.iceberg.OverwriteFiles} but is designed to generalize
+ * snapshot update operations across multiple write strategies. It provides a set of methods for adding and removing
+ * data and delete files, as well as validating snapshot changes and detecting conflicts.
+ * <p>
+ */
+public interface UpdateSnapshot
+{
+    void validateFromSnapshot(long snapshotId);
+
+    void conflictDetectionFilter(Expression conflictDetectionFilter);
+
+    void validateNoConflicting();
+
+    void validateNoConflictingDeleteFiles();
+
+    void validateDataFilesExist(Iterable<? extends CharSequence> referencedFiles);
+
+    void addDeletes(DeleteFile deletes);
+
+    void removeDeletes(DeleteFile deletes);
+
+    void addRows(Optional<DataFile> dataFile, Optional<DataFile> rewrittenDataFile);
+
+    SnapshotUpdate<?> unwrap();
+}

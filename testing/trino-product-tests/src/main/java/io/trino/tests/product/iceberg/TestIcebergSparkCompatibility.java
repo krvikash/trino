@@ -1904,7 +1904,7 @@ public class TestIcebergSparkCompatibility
     }
 
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS}, dataProvider = "tableFormatWithDeleteFormat")
-    public void testTrinoReadsSparkRowLevelDeletes(StorageFormat tableStorageFormat, StorageFormat deleteFileStorageFormat)
+    public void testTrinoReadsSparkRowLevelDeletes(StorageFormat tableStorageFormat, StorageFormat deleteFileStorageFormat, String writeMode)
     {
         String tableName = toLowerCase(format("test_trino_reads_spark_row_level_deletes_%s_%s_%s", tableStorageFormat.name(), deleteFileStorageFormat.name(), randomNameSuffix()));
         String sparkTableName = sparkTableName(tableName);
@@ -1912,7 +1912,7 @@ public class TestIcebergSparkCompatibility
 
         onSpark().executeQuery("CREATE TABLE " + sparkTableName + "(a INT, b INT) " +
                 "USING ICEBERG PARTITIONED BY (b) " +
-                "TBLPROPERTIES ('format-version'='2', 'write.delete.mode'='merge-on-read'," +
+                "TBLPROPERTIES ('format-version'='2', 'write.delete.mode'='" + writeMode + "'," +
                 "'write.format.default'='" + tableStorageFormat.name() + "'," +
                 "'write.delete.format.default'='" + deleteFileStorageFormat.name() + "')");
         onSpark().executeQuery("INSERT INTO " + sparkTableName + " VALUES (1, 2), (2, 2), (3, 2), (11, 12), (12, 12), (13, 12)");
@@ -1937,7 +1937,7 @@ public class TestIcebergSparkCompatibility
     }
 
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS}, dataProvider = "tableFormatWithDeleteFormat")
-    public void testTrinoReadsSparkRowLevelDeletesWithRowTypes(StorageFormat tableStorageFormat, StorageFormat deleteFileStorageFormat)
+    public void testTrinoReadsSparkRowLevelDeletesWithRowTypes(StorageFormat tableStorageFormat, StorageFormat deleteFileStorageFormat, String writeMode)
     {
         String tableName = toLowerCase(format("test_trino_reads_spark_row_level_deletes_row_types_%s_%s_%s", tableStorageFormat.name(), deleteFileStorageFormat.name(), randomNameSuffix()));
         String sparkTableName = sparkTableName(tableName);
@@ -1945,7 +1945,7 @@ public class TestIcebergSparkCompatibility
 
         onSpark().executeQuery("CREATE TABLE " + sparkTableName + "(part_key INT, int_t INT, row_t STRUCT<a:INT, b:INT>) " +
                 "USING ICEBERG PARTITIONED BY (part_key) " +
-                "TBLPROPERTIES ('format-version'='2', 'write.delete.mode'='merge-on-read'," +
+                "TBLPROPERTIES ('format-version'='2', 'write.delete.mode'='" + writeMode + "'," +
                 "'write.format.default'='" + tableStorageFormat.name() + "'," +
                 "'write.delete.format.default'='" + deleteFileStorageFormat.name() + "')");
         onSpark().executeQuery("INSERT INTO " + sparkTableName + " VALUES " +
@@ -2229,7 +2229,8 @@ public class TestIcebergSparkCompatibility
     {
         return Stream.of(StorageFormat.values())
                 .flatMap(tableStorageFormat -> Arrays.stream(StorageFormat.values())
-                        .map(deleteFileStorageFormat -> new Object[] {tableStorageFormat, deleteFileStorageFormat}))
+                        .flatMap(deleteFileStorageFormat -> Stream.of("copy-on-write", "merge-on-read")
+                                .map(writeMode -> new Object[] {tableStorageFormat, deleteFileStorageFormat, writeMode})))
                 .toArray(Object[][]::new);
     }
 
@@ -2377,7 +2378,7 @@ public class TestIcebergSparkCompatibility
     }
 
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS}, dataProvider = "tableFormatWithDeleteFormat")
-    public void testCleaningUpIcebergTableWithRowLevelDeletes(StorageFormat tableStorageFormat, StorageFormat deleteFileStorageFormat)
+    public void testCleaningUpIcebergTableWithRowLevelDeletes(StorageFormat tableStorageFormat, StorageFormat deleteFileStorageFormat, String writeMode)
     {
         String baseTableName = toLowerCase("test_cleaning_up_iceberg_table_fails_for_table_v2" + tableStorageFormat);
         String trinoTableName = trinoTableName(baseTableName);
@@ -2386,7 +2387,7 @@ public class TestIcebergSparkCompatibility
 
         onSpark().executeQuery("CREATE TABLE " + sparkTableName + "(part_key INT, int_t INT, row_t STRUCT<a:INT, b:INT>) " +
                 "USING ICEBERG PARTITIONED BY (part_key) " +
-                "TBLPROPERTIES ('format-version'='2', 'write.delete.mode'='merge-on-read'," +
+                "TBLPROPERTIES ('format-version'='2', 'write.delete.mode'='" + writeMode + "'," +
                 "'write.format.default'='" + tableStorageFormat.name() + "'," +
                 "'write.delete.format.default'='" + deleteFileStorageFormat.name() + "')");
         onSpark().executeQuery("INSERT INTO " + sparkTableName + " VALUES " +

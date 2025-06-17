@@ -17,6 +17,8 @@ import com.google.common.collect.ImmutableList;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.types.Conversions;
+import org.roaringbitmap.longlong.ImmutableLongBitmapDataProvider;
+import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 import java.util.List;
 import java.util.Optional;
@@ -39,7 +41,8 @@ public record DeleteFile(
         List<Integer> equalityFieldIds,
         Optional<Long> rowPositionLowerBound,
         Optional<Long> rowPositionUpperBound,
-        long dataSequenceNumber)
+        Long dataSequenceNumber,
+        Optional<Roaring64Bitmap> computedDeletionRowPositions)
 {
     private static final long INSTANCE_SIZE = instanceSize(DeleteFile.class);
 
@@ -63,7 +66,42 @@ public record DeleteFile(
                 Optional.ofNullable(deleteFile.equalityFieldIds()).orElseGet(ImmutableList::of),
                 rowPositionLowerBound,
                 rowPositionUpperBound,
-                deleteFile.dataSequenceNumber());
+                deleteFile.dataSequenceNumber(),
+                Optional.empty());
+    }
+
+    public static DeleteFile fromComputedDeletionRowPositions(Roaring64Bitmap computedDeletionRowPositions)
+    {
+        return new DeleteFile(
+                FileContent.POSITION_DELETES,
+                "",
+                FileFormat.PARQUET,
+                0,
+                0,
+                null,
+                null,
+                ImmutableList.of(),
+                Optional.empty(),
+                Optional.empty(),
+                null,
+                Optional.of(computedDeletionRowPositions));
+    }
+
+    public DeleteFile withDataSequenceNumber(Long dataSequenceNumber)
+    {
+        return new DeleteFile(
+                content,
+                path,
+                format,
+                recordCount,
+                fileSizeInBytes,
+                contentOffset,
+                contentSizeInBytes,
+                equalityFieldIds,
+                rowPositionLowerBound,
+                rowPositionUpperBound,
+                dataSequenceNumber,
+                computedDeletionRowPositions);
     }
 
     public DeleteFile
@@ -80,7 +118,8 @@ public record DeleteFile(
     {
         return INSTANCE_SIZE
                 + estimatedSizeOf(path)
-                + estimatedSizeOf(equalityFieldIds, _ -> SIZE_OF_INT);
+                + estimatedSizeOf(equalityFieldIds, _ -> SIZE_OF_INT)
+                + computedDeletionRowPositions.map(ImmutableLongBitmapDataProvider::getSizeInBytes).orElse(0);
     }
 
     @Override

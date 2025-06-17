@@ -34,7 +34,6 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.Schema;
-import org.roaringbitmap.longlong.LongBitmapDataProvider;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 import java.io.IOException;
@@ -145,8 +144,12 @@ public class DeleteManager
             deleteDomain = deleteDomain.intersect(positionDomain);
         }
 
-        LongBitmapDataProvider deletedRows = new Roaring64Bitmap();
+        Roaring64Bitmap deletedRows = new Roaring64Bitmap();
         for (DeleteFile deleteFile : positionDeleteFiles) {
+            if (deleteFile.computedDeletionRowPositions().isPresent()) {
+                deletedRows.or(deleteFile.computedDeletionRowPositions().orElseThrow());
+                continue;
+            }
             if (shouldLoadPositionDeleteFile(deleteFile, startRowPosition, endRowPosition)) {
                 if (deleteFile.format() == PUFFIN) {
                     try (TrinoInput input = fileSystem.newInputFile(Location.of(deleteFile.path())).newInput()) {

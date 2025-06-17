@@ -29,7 +29,6 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.util.DeleteFileSet;
-import org.roaringbitmap.longlong.LongBitmapDataProvider;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 import java.util.HashMap;
@@ -119,7 +118,7 @@ public abstract class AbstractIcebergMergeSink
     {
         private final int partitionSpecId;
         private final String partitionDataJson;
-        private final LongBitmapDataProvider rowsToDelete = new Roaring64Bitmap();
+        private final Roaring64Bitmap rowsToDelete = new Roaring64Bitmap();
 
         public FileDeletion(int partitionSpecId, String partitionDataJson)
         {
@@ -137,7 +136,7 @@ public abstract class AbstractIcebergMergeSink
             return partitionDataJson;
         }
 
-        public LongBitmapDataProvider rowsToDelete()
+        public Roaring64Bitmap rowsToDelete()
         {
             return rowsToDelete;
         }

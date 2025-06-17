@@ -20,6 +20,7 @@ import io.trino.spi.connector.ConnectorInsertTableHandle;
 import io.trino.spi.connector.ConnectorOutputTableHandle;
 import io.trino.spi.connector.RetryMode;
 import io.trino.spi.connector.SchemaTableName;
+import org.apache.iceberg.RowLevelOperationMode;
 
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,8 @@ public record IcebergWritableTableHandle(
         IcebergFileFormat fileFormat,
         Map<String, String> storageProperties,
         RetryMode retryMode,
-        Map<String, String> fileIoProperties)
+        Map<String, String> fileIoProperties,
+        RowLevelOperationMode operationMode)
         implements ConnectorInsertTableHandle, ConnectorOutputTableHandle
 {
     public IcebergWritableTableHandle

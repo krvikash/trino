@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slices;
@@ -40,6 +41,7 @@ import org.apache.iceberg.ContentFileParsers;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
+import org.apache.iceberg.RowLevelOperationMode;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.io.LocationProvider;
@@ -62,6 +64,7 @@ public class IcebergPageSinkProvider
     private final JsonCodec<CommitTaskData> jsonCodec;
     private final IcebergFileWriterFactory fileWriterFactory;
     private final PageIndexerFactory pageIndexerFactory;
+    private final IcebergPageSourceProviderFactory pageSourceProviderFactory;
     private final DataSize sortingFileWriterBufferSize;
     private final int sortingFileWriterMaxOpenFiles;
     private final TypeManager typeManager;
@@ -74,6 +77,7 @@ public class IcebergPageSinkProvider
             JsonCodec<CommitTaskData> jsonCodec,
             IcebergFileWriterFactory fileWriterFactory,
             PageIndexerFactory pageIndexerFactory,
+            IcebergPageSourceProviderFactory pageSourceProviderFactory,
             SortingFileWriterConfig sortingFileWriterConfig,
             TypeManager typeManager,
             PageSorter pageSorter,
@@ -83,6 +87,7 @@ public class IcebergPageSinkProvider
         this.jsonCodec = requireNonNull(jsonCodec, "jsonCodec is null");
         this.fileWriterFactory = requireNonNull(fileWriterFactory, "fileWriterFactory is null");
         this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
+        this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
         this.sortingFileWriterBufferSize = sortingFileWriterConfig.getWriterSortBufferSize();
         this.sortingFileWriterMaxOpenFiles = sortingFileWriterConfig.getMaxOpenSortFiles();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
@@ -184,21 +189,51 @@ public class IcebergPageSinkProvider
                 .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, file -> DeleteFileSet.of(file.deletes().stream()
                         .map(delete -> (DeleteFile) ContentFileParsers.fromJson(delete, partitionsSpecs.get(file.partitionSpecId())))
                         .collect(toImmutableList()))));
+        // TODO: remove once the DeleteFile supporting the dataSequenceNumber in serialization and deserialization
+        //  https://github.com/apache/iceberg/issues/13320
+        ImmutableMap.Builder<String, Long> dataSequenceNumbers = ImmutableMap.builder();
+        for (PositionDeleteFiles previousDeleteFile : tableHandle.previousDeleteFiles()) {
+            dataSequenceNumbers.put(previousDeleteFile.dataFileLocation(), previousDeleteFile.dataSequenceNumber());
+            dataSequenceNumbers.putAll(previousDeleteFile.dataSequenceNumbers());
+        }
 
-        return new IcebergMergeSink(
-                locationProvider,
-                fileWriterFactory,
-                fileSystemFactory.create(session.getIdentity(), tableHandle.fileIoProperties()),
-                previousDeleteFiles,
-                jsonCodec,
-                session,
-                tableHandle.formatVersion(),
-                tableHandle.fileFormat(),
-                tableHandle.storageProperties(),
-                schema,
-                partitionsSpecs,
-                pageSink,
-                schema.columns().size());
+        RowLevelOperationMode rowLevelOperationMode = merge.getInsertTableHandle().operationMode();
+        return switch (rowLevelOperationMode) {
+            case MERGE_ON_READ -> new IcebergMergeSink(
+                    locationProvider,
+                    fileWriterFactory,
+                    fileSystemFactory.create(session.getIdentity(), tableHandle.fileIoProperties()),
+                    previousDeleteFiles,
+                    jsonCodec,
+                    session,
+                    tableHandle.formatVersion(),
+                    tableHandle.fileFormat(),
+                    tableHandle.storageProperties(),
+                    schema,
+                    partitionsSpecs,
+                    pageSink,
+                    schema.columns().size());
+            case COPY_ON_WRITE -> new CopyOnWriteIcebergMergeSink(
+                    locationProvider,
+                    fileWriterFactory,
+                    fileSystemFactory.create(session.getIdentity(), tableHandle.fileIoProperties()),
+                    previousDeleteFiles,
+                    jsonCodec,
+                    session,
+                    tableHandle.fileFormat(),
+                    tableHandle.storageProperties(),
+                    schema,
+                    partitionsSpecs,
+                    pageSink,
+                    schema.columns().size(),
+                    pageSourceProviderFactory,
+                    tableHandle.inputColumns(),
+                    tableHandle.fileIoProperties(),
+                    tableHandle.previousDeleteFiles().stream()
+                            .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, PositionDeleteFiles::dataFileRecordCount)),
+                    dataSequenceNumbers.buildOrThrow(),
+                    merge.getTableHandle().getNameMappingJson());
+        };
     }
 
     private ConnectorPageSink createGenerateEmbeddingsPageSink(ConnectorSession session, IcebergTableExecuteHandle executeHandle)
