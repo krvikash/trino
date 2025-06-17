@@ -46,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public final class SalesforceQueryRunner
 {
     public static final LicenseVerifier NOOP_LICENSE_MANAGER = () -> true;
+    public static final String TIMESTAMP_PUSH_DOWN_TABLE_NAME = "test_timestamp_pushdown";
 
     private static final Logger log = Logger.get(SalesforceQueryRunner.class);
 
@@ -79,7 +80,7 @@ public final class SalesforceQueryRunner
         // As the CI builds times, the sandbox would quickly fill up and then the builds will fail
         // We also don't want to hit our API limit, so instead we just create the tables once but will assert
         // all the data is in the tables each CI run
-        copyTpchTablesIfNotExists(coordinatorProperties, catalogName, connectorProperties, tableNameMapper);
+        copyTestTablesIfNotExists(coordinatorProperties, catalogName, connectorProperties, tableNameMapper);
 
         DistributedQueryRunner queryRunner = null;
         try {
@@ -149,7 +150,7 @@ public final class SalesforceQueryRunner
         }
     }
 
-    private static void copyTpchTablesIfNotExists(Map<String, String> coordinatorProperties, String catalogName, Map<String, String> connectorProperties, Map<String, TpchTable<?>> tableNameMapper)
+    private static void copyTestTablesIfNotExists(Map<String, String> coordinatorProperties, String catalogName, Map<String, String> connectorProperties, Map<String, TpchTable<?>> tableNameMapper)
             throws Exception
     {
         DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(createSession(catalogName));
@@ -163,11 +164,11 @@ public final class SalesforceQueryRunner
             queryRunner.installPlugin(new TpchPlugin());
             queryRunner.createCatalog("tpch", "tpch");
 
-            copyTpchTablesIfNotExists(queryRunner, "tpch", TINY_SCHEMA_NAME, createSession(catalogName), tableNameMapper);
+            copyTestTablesIfNotExists(queryRunner, "tpch", TINY_SCHEMA_NAME, createSession(catalogName), tableNameMapper);
         }
     }
 
-    private static void copyTpchTablesIfNotExists(
+    private static void copyTestTablesIfNotExists(
             QueryRunner queryRunner,
             String sourceCatalog,
             String sourceSchema,
@@ -194,6 +195,24 @@ public final class SalesforceQueryRunner
         // We assert the row count if it does exist to check if it is loaded correctly
         // If not, the table is truncated and then re-loaded
 
+        if (queryRunner.execute(format("SHOW TABLES LIKE '%s__c'", TIMESTAMP_PUSH_DOWN_TABLE_NAME)).getRowCount() == 0) {
+            String salesforceObjectNameForTable = TIMESTAMP_PUSH_DOWN_TABLE_NAME + "__c";
+            log.info("Table %s does not exist, running CTAS", salesforceObjectNameForTable);
+            String sql =
+                    """
+                            CREATE TABLE %s (id, ts) AS VALUES
+                            (CAST('0' AS VARCHAR(1)),  TIMESTAMP '2020-10-26 11:02:00 UTC'),
+                            (CAST('1' AS VARCHAR(1)),  TIMESTAMP '2020-10-26 11:02:01 UTC'),
+                            (CAST('2' AS VARCHAR(1)),  TIMESTAMP '2020-10-26 11:02:02 UTC'),
+                            (CAST('3' AS VARCHAR(1)),  TIMESTAMP '2020-10-26 11:02:03 UTC')""".formatted(TIMESTAMP_PUSH_DOWN_TABLE_NAME);
+            long start = System.nanoTime();
+            log.info("Running import for %s", salesforceObjectNameForTable);
+            long rows = (Long) queryRunner.execute(session, sql).getMaterializedRows().get(0).getField(0);
+            log.info("Imported %s rows for %s in %s", rows, salesforceQualifiedTable.objectName(), nanosSince(start).convertToMostSuccinctTimeUnit());
+        }
+        else {
+            log.info("Table %s already exists, skipping CTAS", TIMESTAMP_PUSH_DOWN_TABLE_NAME);
+        }
         @Language("SQL") String sql;
         if (!queryRunner.tableExists(session, salesforceQualifiedTable.objectName() + "__c")) {
             log.info("Table %s does not exist, running CTAS", salesforceQualifiedTable.objectName());

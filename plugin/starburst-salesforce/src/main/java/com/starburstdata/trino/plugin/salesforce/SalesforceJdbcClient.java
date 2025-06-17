@@ -45,6 +45,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Types;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -60,6 +61,7 @@ import static io.trino.plugin.jdbc.DecimalSessionSessionProperties.getDecimalRou
 import static io.trino.plugin.jdbc.DecimalSessionSessionProperties.getDecimalRoundingMode;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.PredicatePushdownController.DISABLE_PUSHDOWN;
+import static io.trino.plugin.jdbc.PredicatePushdownController.FULL_PUSHDOWN;
 import static io.trino.plugin.jdbc.StandardColumnMappings.bigintColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.bigintWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.booleanColumnMapping;
@@ -75,8 +77,8 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.longDecimalWriteFuncti
 import static io.trino.plugin.jdbc.StandardColumnMappings.shortDecimalReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.shortDecimalWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.timeWriteFunctionUsingSqlTime;
-import static io.trino.plugin.jdbc.StandardColumnMappings.timestampColumnMappingUsingSqlTimestampWithRounding;
 import static io.trino.plugin.jdbc.StandardColumnMappings.timestampWriteFunctionUsingSqlTimestamp;
+import static io.trino.plugin.jdbc.StandardColumnMappings.toTrinoTimestamp;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharWriteFunction;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.getUnsupportedTypeHandling;
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
@@ -90,6 +92,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.TimeType.TIME_SECONDS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
+import static io.trino.spi.type.Timestamps.round;
 import static java.lang.Math.floorMod;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -299,7 +302,7 @@ public class SalesforceJdbcClient
                 // CData driver does not support getObject, need to use SQL timestamp
                 // Additionally Salesforce supports millisecond precision but the driver is truncating it
                 // TODO https://starburstdata.atlassian.net/browse/SEP-5893
-                return Optional.of(timestampColumnMappingUsingSqlTimestampWithRounding(TIMESTAMP_SECONDS));
+                return Optional.of(timestampColumnMappingUsingSqlTimestampWithRounding());
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {
@@ -430,6 +433,22 @@ public class SalesforceJdbcClient
                 },
                 timeWriteFunctionUsingSqlTime(),
                 DISABLE_PUSHDOWN);
+    }
+
+    private static ColumnMapping timestampColumnMappingUsingSqlTimestampWithRounding()
+    {
+        return ColumnMapping.longMapping(
+                TimestampType.TIMESTAMP_SECONDS,
+                (resultSet, columnIndex) -> {
+                    LocalDateTime localDateTime = resultSet.getTimestamp(columnIndex).toLocalDateTime();
+                    int roundedNanos = toIntExact(round(localDateTime.getNano(), 9 - TimestampType.TIMESTAMP_SECONDS.getPrecision()));
+                    LocalDateTime rounded = localDateTime
+                            .withNano(0)
+                            .plusNanos(roundedNanos);
+                    return toTrinoTimestamp(TimestampType.TIMESTAMP_SECONDS, rounded);
+                },
+                timestampWriteFunctionUsingSqlTimestamp(TimestampType.TIMESTAMP_SECONDS),
+                FULL_PUSHDOWN);
     }
 
     private static LocalTime toLocalTime(Time sqlTime)
