@@ -45,6 +45,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.DynamicFilters;
+import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Project;
@@ -643,10 +644,9 @@ public class DynamicFilterService
     {
         Block mainBlock = ((Query) program.getRoot()).query();
         return mainBlock.operations().stream()
-                // TODO handle SemiJoin and DynamicFilterSource when we support them in new IR
-                .filter(Join.class::isInstance)
-                .map(Join.class::cast)
-                .map(join -> DYNAMIC_FILTER_IDS.getAttribute(join.attributes()))
+                // TODO handle SemiJoin when we support it in new IR
+                .filter(operation -> operation instanceof Join || operation instanceof DynamicFilterSource)
+                .map(operation -> DYNAMIC_FILTER_IDS.getAttribute(operation.attributes()))
                 .flatMap(List::stream)
                 .map(DynamicFilterId::new)
                 .collect(toImmutableSet());

@@ -36,6 +36,7 @@ import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
+import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
@@ -62,6 +63,7 @@ import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.CorrelatedJoinNode;
 import io.trino.sql.planner.plan.DynamicFilterId;
+import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
@@ -348,6 +350,31 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(correlatedJoin.result().type())), node.getOutputSymbols());
         context.block().addOperation(correlatedJoin);
         return new OperationAndMapping(correlatedJoin, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitDynamicFilterSource(DynamicFilterSourceNode node, Context context)
+    {
+        OperationAndMapping input = node.getSource().accept(this, context);
+        String resultName = nameAllocator.newName();
+
+        // model dynamic filters as an attribute containing dynamic filter IDs and selector block for corresponding source symbols
+        List<Symbol> dynamicFilterTargets = ImmutableList.copyOf(node.getDynamicFilters().values());
+        Block.Parameter dynamicFilterTargetSelectorParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(relationRowType(trinoType(input.operation().result().type()))));
+        Block dynamicFilterTargetSelector = fieldSelectorBlock("^dynamicFilterTargetSelector", dynamicFilterTargetSelectorParameter, input.mapping(), dynamicFilterTargets);
+        valueMap.put(dynamicFilterTargetSelectorParameter, dynamicFilterTargetSelector);
+
+        List<String> dynamicFilterIds = node.getDynamicFilters().keySet().stream()
+                .map(DynamicFilterId::toString)
+                .collect(toImmutableList());
+
+        DynamicFilterSource dynamicFilterSource = new DynamicFilterSource(resultName, input.operation().result(), dynamicFilterTargetSelector, dynamicFilterIds, input.operation().attributes());
+        valueMap.put(dynamicFilterSource.result(), dynamicFilterSource);
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(dynamicFilterSource.result().type())), node.getOutputSymbols());
+        context.block().addOperation(dynamicFilterSource);
+        return new OperationAndMapping(dynamicFilterSource, outputMapping);
     }
 
     @Override

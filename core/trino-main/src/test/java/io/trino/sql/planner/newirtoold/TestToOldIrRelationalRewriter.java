@@ -49,6 +49,7 @@ import io.trino.sql.planner.plan.AggregationNode.GroupingSetDescriptor;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
+import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
@@ -145,6 +146,19 @@ class TestToOldIrRelationalRewriter
                 Optional.empty(),
                 Optional.of(true));
         assertRoundtrip(distinctAggregationNode);
+    }
+
+    @Test
+    public void testDynamicFilterSource()
+    {
+        DynamicFilterSourceNode dynamicFilterSourceNode = new DynamicFilterSourceNode(
+                new PlanNodeId("0"),
+                VALUES_NODE,
+                ImmutableMap.of(
+                        new DynamicFilterId("first_dynamic_filter"), A,
+                        new DynamicFilterId("second_dynamic_filter"), B,
+                        new DynamicFilterId("third_dynamic_filter"), A));
+        assertRoundtrip(dynamicFilterSourceNode);
     }
 
     @Test

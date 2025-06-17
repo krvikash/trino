@@ -40,6 +40,7 @@ import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
+import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
@@ -73,6 +74,7 @@ import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.CorrelatedJoinNode;
 import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
+import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
@@ -428,6 +430,51 @@ final class TestRelationalProgramBuilder
                         new Symbol(BIGINT, "a"), 0,
                         new Symbol(BOOLEAN, "b"), 1,
                         new Symbol(BOOLEAN, "c"), 2));
+    }
+
+    @Test
+    public void testDynamicFilterSource()
+    {
+        DynamicFilterSourceNode dynamicFilterSourceNode = new DynamicFilterSourceNode(
+                new PlanNodeId("dynamic_filter_source"),
+                VALUES_NODE,
+                ImmutableMap.of(
+                        new DynamicFilterId("first_dynamic_filter"), new Symbol(BOOLEAN, "b"),
+                        new DynamicFilterId("second_dynamic_filter"), new Symbol(BIGINT, "a")));
+
+        // dynamic filter targets
+        Block.Parameter dynamicFilterTargetsParameter = new Block.Parameter(
+                "%10",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperationB = new FieldReference("%11", dynamicFilterTargetsParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationA = new FieldReference("%12", dynamicFilterTargetsParameter, 0, ImmutableMap.of());
+        Row rowOperation = new Row(
+                "%13",
+                ImmutableList.of(fieldReferenceOperationB.result(), fieldReferenceOperationA.result()),
+                ImmutableList.of(fieldReferenceOperationB.attributes(), fieldReferenceOperationA.attributes()));
+        Return returnOperation = new Return("%14", rowOperation.result(), rowOperation.attributes());
+
+        DynamicFilterSource dynamicFilterSourceOperation = new DynamicFilterSource(
+                "%9",
+                VALUES_OPERATION.result(),
+                new Block(
+                        Optional.of("^dynamicFilterTargetSelector"),
+                        ImmutableList.of(dynamicFilterTargetsParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationB,
+                                fieldReferenceOperationA,
+                                rowOperation,
+                                returnOperation)),
+                ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                dynamicFilterSourceNode,
+                ImmutableList.of(VALUES_OPERATION, dynamicFilterSourceOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1));
     }
 
     @Test

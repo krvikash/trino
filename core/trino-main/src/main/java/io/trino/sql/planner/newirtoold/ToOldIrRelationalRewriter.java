@@ -26,6 +26,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.Attributes;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
+import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.Filter;
@@ -58,6 +59,7 @@ import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
+import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
@@ -88,6 +90,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static com.google.common.collect.Streams.forEachPair;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
@@ -251,6 +254,25 @@ public class ToOldIrRelationalRewriter
             case INTERMEDIATE -> AggregationNode.Step.INTERMEDIATE;
             case SINGLE -> AggregationNode.Step.SINGLE;
         };
+    }
+
+    @Override
+    public PlanNode visitDynamicFilterSource(DynamicFilterSource dynamicFilterSource, List<PlanNode> sources)
+    {
+        PlanNode source = getOnlyElement(sources);
+
+        // build dynamic filter map
+        List<DynamicFilterId> dynamicFilterIds = DYNAMIC_FILTER_IDS.getAttribute(dynamicFilterSource.attributes()).stream()
+                .map(DynamicFilterId::new)
+                .collect(toImmutableList());
+        List<Symbol> dynamicFilterSymbols = scalarRewriter.getSelectedSymbols(dynamicFilterSource.dynamicFilterTargetSelector(), source.getOutputSymbols());
+        ImmutableMap.Builder<DynamicFilterId, Symbol> dynamicFilters = ImmutableMap.builder();
+        forEachPair(dynamicFilterIds.stream(), dynamicFilterSymbols.stream(), dynamicFilters::put);
+
+        return new DynamicFilterSourceNode(
+                planNodeIdAllocator.getNextId(),
+                source,
+                dynamicFilters.buildOrThrow());
     }
 
     @Override

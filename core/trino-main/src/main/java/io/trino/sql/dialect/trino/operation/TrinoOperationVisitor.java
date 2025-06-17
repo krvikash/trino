@@ -72,6 +72,11 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
+    public R visitDynamicFilterSource(DynamicFilterSource operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
     public R visitExchange(Exchange operation, C context)
     {
         return visitOperation(operation, context);

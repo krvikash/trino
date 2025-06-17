@@ -29,6 +29,7 @@ import io.trino.spi.function.FunctionId;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
+import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.Filter;
@@ -235,6 +236,14 @@ public class NewIrFragmenter
         public PlanNode visitCorrelatedJoin(CorrelatedJoin operation, FragmentProperties context)
         {
             throw new IllegalStateException("Unexpected operation: " + operation.name());
+        }
+
+        @Override
+        public PlanNode visitDynamicFilterSource(DynamicFilterSource operation, FragmentProperties context)
+        {
+            TrinoOperation source = getSource(operation);
+            PlanNode rewrittenSource = source.accept(this, context);
+            return operation.accept(relationalRewriter, ImmutableList.of(rewrittenSource));
         }
 
         @Override
