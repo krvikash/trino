@@ -16,11 +16,16 @@ package io.trino.sql.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import io.trino.operator.RetryPolicy;
 import io.trino.spi.connector.TestingColumnHandle;
 import io.trino.sql.planner.iterative.rule.test.PlanBuilder;
+import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.IndexJoinNode;
 import io.trino.sql.planner.plan.JoinType;
+import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.RemoteSourceNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import org.junit.jupiter.api.Test;
 
@@ -73,5 +78,31 @@ public class TestSchedulingOrderVisitor
                 a,
                 b));
         assertThat(order).isEqualTo(ImmutableList.of(b.getId(), a.getId()));
+    }
+
+    @Test
+    public void testRemoteExchanges()
+    {
+        PlanFragmentId spoolingExchangeFragmentA = new PlanFragmentId("spooling_fragment_a");
+        PlanFragmentId spoolingExchangeFragmentB = new PlanFragmentId("spooling_fragment_b");
+        PlanFragmentId normalExchangeFragment = new PlanFragmentId("normal_fragment_b");
+
+        PlanBuilder planBuilder = new PlanBuilder(new PlanNodeIdAllocator(), PLANNER_CONTEXT, TEST_SESSION);
+        TableScanNode tableScan = planBuilder.tableScan(emptyList(), emptyMap());
+        RemoteSourceNode spoolingExchangeRemoteSourceA = planBuilder.remoteSource(ImmutableList.of(spoolingExchangeFragmentA), ImmutableList.of(), Optional.empty(), ExchangeNode.Type.REPARTITION, RetryPolicy.NONE);
+        RemoteSourceNode spoolingExchangeRemoteSourceB = planBuilder.remoteSource(ImmutableList.of(spoolingExchangeFragmentB), ImmutableList.of(), Optional.empty(), ExchangeNode.Type.REPARTITION, RetryPolicy.NONE);
+        RemoteSourceNode normalExchangeRemoteSource = planBuilder.remoteSource(ImmutableList.of(normalExchangeFragment), ImmutableList.of(), Optional.empty(), ExchangeNode.Type.REPARTITION, RetryPolicy.NONE);
+
+        assertThat(scheduleOrder(planBuilder.join(JoinType.INNER, spoolingExchangeRemoteSourceA, spoolingExchangeRemoteSourceB), ImmutableSet.of(spoolingExchangeFragmentA, spoolingExchangeFragmentB)))
+                .isEqualTo(ImmutableList.of(spoolingExchangeRemoteSourceB.getId(), spoolingExchangeRemoteSourceA.getId()));
+
+        assertThat(scheduleOrder(planBuilder.join(JoinType.INNER, spoolingExchangeRemoteSourceA, tableScan), ImmutableSet.of(spoolingExchangeFragmentA, spoolingExchangeFragmentB)))
+                .isEqualTo(ImmutableList.of(tableScan.getId(), spoolingExchangeRemoteSourceA.getId()));
+
+        assertThat(scheduleOrder(planBuilder.join(JoinType.INNER, tableScan, spoolingExchangeRemoteSourceB), ImmutableSet.of(spoolingExchangeFragmentA, spoolingExchangeFragmentB)))
+                .isEqualTo(ImmutableList.of(spoolingExchangeRemoteSourceB.getId(), tableScan.getId()));
+
+        assertThat(scheduleOrder(planBuilder.join(JoinType.INNER, tableScan, normalExchangeRemoteSource), ImmutableSet.of(spoolingExchangeFragmentA, spoolingExchangeFragmentB)))
+                .isEqualTo(ImmutableList.of(tableScan.getId()));
     }
 }

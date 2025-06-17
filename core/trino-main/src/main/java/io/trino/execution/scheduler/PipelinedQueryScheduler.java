@@ -17,6 +17,7 @@ import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.common.graph.Traverser;
 import com.google.common.primitives.Ints;
@@ -73,6 +74,7 @@ import io.trino.sql.planner.NodePartitionMap;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.PlanFragment;
+import io.trino.sql.planner.SchedulingOrderVisitor;
 import io.trino.sql.planner.SplitSourceFactory;
 import io.trino.sql.planner.SubPlan;
 import io.trino.sql.planner.optimizations.PlanNodeSearcher;
@@ -1279,9 +1281,7 @@ public class PipelinedQueryScheduler
             }
 
             // contains local source
-            List<PlanNodeId> schedulingOrder = new ArrayList<>();
-            schedulingOrder.addAll(fragment.getPartitionedSources());
-
+            List<PlanNodeId> spoolingExchangeSources = new ArrayList<>();
             for (RemoteSourceNode node : fragment.getRemoteSourceNodes()) {
                 List<PlanFragmentId> exchangeSources = node.getSourceFragmentIds().stream().filter(outputExchanges::containsKey).toList();
                 List<PlanFragmentId> pipelineSources = node.getSourceFragmentIds().stream().filter(not(outputExchanges::containsKey)).toList();
@@ -1289,14 +1289,27 @@ public class PipelinedQueryScheduler
                 // todo support unsupported configurations:
                 // * more than one remote stage using exchange
                 // * mixed exchange and non-exchange remote stages
-                if (pipelineSources.isEmpty() && exchangeSources.size() == 1) {
-                    // TODO - should we be adding those nodes to the end in scheduling order
-                    schedulingOrder.add(node.getId());
-                }
-                else if (!exchangeSources.isEmpty()) {
+                if ((!pipelineSources.isEmpty() && !exchangeSources.isEmpty() || exchangeSources.size() > 1)) {
                     throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Not supported configuration of %s pipelined and %s exchange sources", pipelineSources.size(), exchangeSources.size()));
                 }
+                if (!exchangeSources.isEmpty()) {
+                    spoolingExchangeSources.add(node.getId());
+                }
             }
+
+            // recompute scheduling order as we need to include not only partitionedSources as stored in fragment
+            // but also remoteSplitSources reading from spooling exchange
+            List<PlanNodeId> schedulingOrder = SchedulingOrderVisitor.scheduleOrder(fragment.getRoot(), outputExchanges.keySet());
+            checkState(ImmutableSet.copyOf(schedulingOrder).equals(
+                            ImmutableSet.builder()
+                                    .addAll(fragment.getPartitionedSources())
+                                    .addAll(spoolingExchangeSources)
+                                    .build()),
+                    "Expected scheduling order %s for fragment %s to contain all partitionedSources %s and spoolingExchangeSources %s",
+                    schedulingOrder,
+                    fragment.getId(),
+                    fragment.getPartitionedSources(),
+                    spoolingExchangeSources);
 
             Optional<CatalogHandle> catalogHandle = partitioningHandle.getCatalogHandle();
             BucketNodeMap bucketNodeMap;
