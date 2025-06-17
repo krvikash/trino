@@ -253,6 +253,14 @@ public interface AccessControl
     Map<SchemaTableName, Set<String>> filterColumns(SecurityContext context, String catalogName, Map<SchemaTableName, Set<String>> tableColumns);
 
     /**
+     * Filter lists of columns of multiple tables to those selectable by the identity.
+     */
+    default Map<SchemaTableName, Set<String>> filterSelectableColumns(SecurityContext context, String catalogName, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        return filterColumns(context, catalogName, tableColumns);
+    }
+
+    /**
      * Check if identity is allowed to add columns to the specified table.
      *
      * @throws AccessDeniedException if not allowed

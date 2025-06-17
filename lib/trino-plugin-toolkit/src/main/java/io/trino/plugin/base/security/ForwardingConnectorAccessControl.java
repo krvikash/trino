@@ -165,6 +165,12 @@ public abstract class ForwardingConnectorAccessControl
     }
 
     @Override
+    public Map<SchemaTableName, Set<String>> filterSelectableColumns(ConnectorSecurityContext context, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        return delegate().filterSelectableColumns(context, tableColumns);
+    }
+
+    @Override
     public void checkCanAddColumn(ConnectorSecurityContext context, SchemaTableName tableName)
     {
         delegate().checkCanAddColumn(context, tableName);

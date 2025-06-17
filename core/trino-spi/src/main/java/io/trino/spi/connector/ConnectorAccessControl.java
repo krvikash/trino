@@ -286,6 +286,14 @@ public interface ConnectorAccessControl
     }
 
     /**
+     * Filter lists of columns of multiple tables to those selectable by the identity.
+     */
+    default Map<SchemaTableName, Set<String>> filterSelectableColumns(ConnectorSecurityContext context, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        return filterColumns(context, tableColumns);
+    }
+
+    /**
      * Check if identity is allowed to add columns to the specified table.
      *
      * @throws io.trino.spi.security.AccessDeniedException if not allowed

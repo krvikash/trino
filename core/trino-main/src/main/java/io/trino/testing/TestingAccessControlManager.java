@@ -664,11 +664,23 @@ public class TestingAccessControlManager
     @Override
     public Map<SchemaTableName, Set<String>> filterColumns(SecurityContext context, String catalogName, Map<SchemaTableName, Set<String>> tableColumns)
     {
-        tableColumns = tableColumns.entrySet().stream()
+        tableColumns = filterColumnsInternal(context, tableColumns);
+        return super.filterColumns(context, catalogName, tableColumns);
+    }
+
+    @Override
+    public Map<SchemaTableName, Set<String>> filterSelectableColumns(SecurityContext context, String catalogName, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        tableColumns = filterColumnsInternal(context, tableColumns);
+        return super.filterSelectableColumns(context, catalogName, tableColumns);
+    }
+
+    private Map<SchemaTableName, Set<String>> filterColumnsInternal(SecurityContext context, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        return tableColumns.entrySet().stream()
                 .collect(toImmutableMap(
                         Entry::getKey,
                         e -> localFilterColumns(context, e.getKey(), e.getValue())));
-        return super.filterColumns(context, catalogName, tableColumns);
     }
 
     private Set<String> localFilterColumns(SecurityContext context, SchemaTableName table, Set<String> columns)

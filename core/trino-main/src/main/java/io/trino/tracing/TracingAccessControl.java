@@ -324,6 +324,15 @@ public class TracingAccessControl
     }
 
     @Override
+    public Map<SchemaTableName, Set<String>> filterSelectableColumns(SecurityContext context, String catalogName, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        Span span = startSpan("filterSelectableColumns");
+        try (var _ = scopedSpan(span)) {
+            return delegate.filterSelectableColumns(context, catalogName, tableColumns);
+        }
+    }
+
+    @Override
     public void checkCanAddColumns(SecurityContext context, QualifiedObjectName tableName)
     {
         Span span = startSpan("checkCanAddColumns");

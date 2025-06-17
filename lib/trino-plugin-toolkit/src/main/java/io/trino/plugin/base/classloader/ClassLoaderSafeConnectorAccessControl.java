@@ -199,6 +199,14 @@ public class ClassLoaderSafeConnectorAccessControl
     }
 
     @Override
+    public Map<SchemaTableName, Set<String>> filterSelectableColumns(ConnectorSecurityContext context, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            return delegate.filterSelectableColumns(context, tableColumns);
+        }
+    }
+
+    @Override
     public void checkCanAddColumn(ConnectorSecurityContext context, SchemaTableName tableName)
     {
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {

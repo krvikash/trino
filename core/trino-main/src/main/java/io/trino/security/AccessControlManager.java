@@ -641,6 +641,29 @@ public class AccessControlManager
     @Override
     public Map<SchemaTableName, Set<String>> filterColumns(SecurityContext securityContext, String catalogName, Map<SchemaTableName, Set<String>> tableColumns)
     {
+        tableColumns = filterColumnsInternal(securityContext, catalogName, tableColumns);
+
+        ConnectorAccessControl connectorAccessControl = getConnectorAccessControl(securityContext.getTransactionId(), catalogName);
+        if (connectorAccessControl != null) {
+            tableColumns = connectorAccessControl.filterColumns(toConnectorSecurityContext(catalogName, securityContext), tableColumns);
+        }
+        return tableColumns;
+    }
+
+    @Override
+    public Map<SchemaTableName, Set<String>> filterSelectableColumns(SecurityContext securityContext, String catalogName, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        tableColumns = filterColumnsInternal(securityContext, catalogName, tableColumns);
+
+        ConnectorAccessControl connectorAccessControl = getConnectorAccessControl(securityContext.getTransactionId(), catalogName);
+        if (connectorAccessControl != null) {
+            tableColumns = connectorAccessControl.filterSelectableColumns(toConnectorSecurityContext(catalogName, securityContext), tableColumns);
+        }
+        return tableColumns;
+    }
+
+    private Map<SchemaTableName, Set<String>> filterColumnsInternal(SecurityContext securityContext, String catalogName, Map<SchemaTableName, Set<String>> tableColumns)
+    {
         requireNonNull(securityContext, "securityContext is null");
         requireNonNull(catalogName, "catalogName is null");
         requireNonNull(tableColumns, "tableColumns is null");
@@ -657,11 +680,6 @@ public class AccessControlManager
 
         for (SystemAccessControl systemAccessControl : getSystemAccessControls()) {
             tableColumns = systemAccessControl.filterColumns(securityContext.toSystemSecurityContext(), catalogName, tableColumns);
-        }
-
-        ConnectorAccessControl connectorAccessControl = getConnectorAccessControl(securityContext.getTransactionId(), catalogName);
-        if (connectorAccessControl != null) {
-            tableColumns = connectorAccessControl.filterColumns(toConnectorSecurityContext(catalogName, securityContext), tableColumns);
         }
         return tableColumns;
     }

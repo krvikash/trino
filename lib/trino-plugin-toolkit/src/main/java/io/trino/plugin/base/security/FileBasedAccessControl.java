@@ -257,6 +257,12 @@ public class FileBasedAccessControl
     }
 
     @Override
+    public Map<SchemaTableName, Set<String>> filterSelectableColumns(ConnectorSecurityContext context, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        return filterColumns(context, tableColumns);
+    }
+
+    @Override
     public Map<SchemaTableName, Set<String>> filterColumns(ConnectorSecurityContext context, Map<SchemaTableName, Set<String>> tableColumns)
     {
         return tableColumns.entrySet().stream()
