@@ -13,60 +13,33 @@
  */
 package io.trino.plugin.iceberg;
 
-import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.plugin.iceberg.delete.PositionDeleteWriter;
-import io.trino.spi.Page;
-import io.trino.spi.block.Block;
-import io.trino.spi.block.RowBlock;
-import io.trino.spi.connector.ConnectorMergeSink;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.MergePage;
-import io.trino.spi.type.VarcharType;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.util.DeleteFileSet;
 import org.roaringbitmap.longlong.ImmutableLongBitmapDataProvider;
-import org.roaringbitmap.longlong.LongBitmapDataProvider;
-import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
-import static io.trino.spi.connector.MergePage.createDeleteAndInsertPages;
-import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class IcebergMergeSink
-        implements ConnectorMergeSink
+        extends AbstractIcebergMergeSink
 {
-    private final LocationProvider locationProvider;
-    private final IcebergFileWriterFactory fileWriterFactory;
-    private final TrinoFileSystem fileSystem;
-    private final Map<String, DeleteFileSet> previousDeleteFiles;
-    private final JsonCodec<CommitTaskData> jsonCodec;
-    private final ConnectorSession session;
     private final int formatVersion;
-    private final IcebergFileFormat fileFormat;
-    private final Map<String, String> storageProperties;
-    private final Schema schema;
-    private final Map<Integer, PartitionSpec> partitionsSpecs;
-    private final ConnectorPageSink insertPageSink;
-    private final int columnCount;
-    private final Map<Slice, FileDeletion> fileDeletions = new HashMap<>();
 
     public IcebergMergeSink(
             LocationProvider locationProvider,
@@ -83,48 +56,20 @@ public class IcebergMergeSink
             ConnectorPageSink insertPageSink,
             int columnCount)
     {
-        this.locationProvider = requireNonNull(locationProvider, "locationProvider is null");
-        this.fileWriterFactory = requireNonNull(fileWriterFactory, "fileWriterFactory is null");
-        this.fileSystem = requireNonNull(fileSystem, "fileSystem is null");
-        this.previousDeleteFiles = ImmutableMap.copyOf(previousDeleteFiles);
-        this.jsonCodec = requireNonNull(jsonCodec, "jsonCodec is null");
-        this.session = requireNonNull(session, "session is null");
+        super(
+                locationProvider,
+                fileWriterFactory,
+                fileSystem,
+                previousDeleteFiles,
+                jsonCodec,
+                session,
+                fileFormat,
+                storageProperties,
+                schema,
+                partitionsSpecs,
+                insertPageSink,
+                columnCount);
         this.formatVersion = formatVersion;
-        this.fileFormat = requireNonNull(fileFormat, "fileFormat is null");
-        this.storageProperties = ImmutableMap.copyOf(requireNonNull(storageProperties, "storageProperties is null"));
-        this.schema = requireNonNull(schema, "schema is null");
-        this.partitionsSpecs = ImmutableMap.copyOf(requireNonNull(partitionsSpecs, "partitionsSpecs is null"));
-        this.insertPageSink = requireNonNull(insertPageSink, "insertPageSink is null");
-        this.columnCount = columnCount;
-    }
-
-    @Override
-    public void storeMergedRows(Page page)
-    {
-        MergePage mergePage = createDeleteAndInsertPages(page, columnCount);
-
-        mergePage.getInsertionsPage().ifPresent(insertPageSink::appendPage);
-
-        mergePage.getDeletionsPage().ifPresent(deletions -> {
-            List<Block> fields = RowBlock.getRowFieldsFromBlock(deletions.getBlock(deletions.getChannelCount() - 1));
-            Block fieldPathBlock = fields.get(0);
-            Block rowPositionBlock = fields.get(1);
-            Block partitionSpecIdBlock = fields.get(2);
-            Block partitionDataBlock = fields.get(3);
-            for (int position = 0; position < fieldPathBlock.getPositionCount(); position++) {
-                Slice filePath = VarcharType.VARCHAR.getSlice(fieldPathBlock, position);
-                long rowPosition = BIGINT.getLong(rowPositionBlock, position);
-
-                int index = position;
-                FileDeletion deletion = fileDeletions.computeIfAbsent(filePath, _ -> {
-                    int partitionSpecId = INTEGER.getInt(partitionSpecIdBlock, index);
-                    String partitionData = VarcharType.VARCHAR.getSlice(partitionDataBlock, index).toStringUtf8();
-                    return new FileDeletion(partitionSpecId, partitionData);
-                });
-
-                deletion.rowsToDelete().addLong(rowPosition);
-            }
-        });
     }
 
     @Override
@@ -142,12 +87,6 @@ public class IcebergMergeSink
         });
 
         return completedFuture(fragments);
-    }
-
-    @Override
-    public void abort()
-    {
-        insertPageSink.abort();
     }
 
     private PositionDeleteWriter createPositionDeleteWriter(String dataFilePath, PartitionSpec partitionSpec, String partitionDataJson)
@@ -183,34 +122,6 @@ public class IcebergMergeSink
         catch (Throwable t) {
             closeAllSuppress(t, writer::abort);
             throw t;
-        }
-    }
-
-    private static class FileDeletion
-    {
-        private final int partitionSpecId;
-        private final String partitionDataJson;
-        private final LongBitmapDataProvider rowsToDelete = new Roaring64Bitmap();
-
-        public FileDeletion(int partitionSpecId, String partitionDataJson)
-        {
-            this.partitionSpecId = partitionSpecId;
-            this.partitionDataJson = requireNonNull(partitionDataJson, "partitionDataJson is null");
-        }
-
-        public int partitionSpecId()
-        {
-            return partitionSpecId;
-        }
-
-        public String partitionDataJson()
-        {
-            return partitionDataJson;
-        }
-
-        public LongBitmapDataProvider rowsToDelete()
-        {
-            return rowsToDelete;
         }
     }
 }
