@@ -86,7 +86,19 @@ The following table details all general configuration properties:
 * - `opensearch.projection-pushdown-enabled`
   - Read only projected fields from row columns while performing `SELECT` queries
   - `true`
-:::
+* - `opensearch.aggregation-pushdown-enabled`
+  - Pushes simple aggregations like `COUNT(*)`, `MIN`, `MAX`, `SUM`, and `AVG` 
+    on numeric or `keyword` type. The aggregation on `BIGINT`
+    columns are not supported due to OpenSearch limitations with aggregating
+    large values.
+  - `true`
+* - `opensearch.max-aggregation-buckets`
+  - The maximum number of buckets that can be returned by an aggregation query.
+    If a query includes a LIMIT clause, the effective aggregation page size
+    is capped to the smallest of the query limit, Integer.MAX_VALUE, and
+    this configuration value.
+  - `65535`
+  :::
 
 ### Authentication
 

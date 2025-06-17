@@ -20,6 +20,8 @@ import com.google.inject.Inject;
 import io.airlift.slice.Slice;
 import io.trino.plugin.base.expression.ConnectorExpressions;
 import io.trino.plugin.base.projection.ApplyProjectionUtil;
+import io.trino.plugin.opensearch.aggregation.AggregationInfo;
+import io.trino.plugin.opensearch.aggregation.MetricAggregation;
 import io.trino.plugin.opensearch.client.IndexMetadata;
 import io.trino.plugin.opensearch.client.IndexMetadata.DateTimeType;
 import io.trino.plugin.opensearch.client.IndexMetadata.ObjectType;
@@ -42,6 +44,8 @@ import io.trino.plugin.opensearch.decoders.VarbinaryDecoder;
 import io.trino.plugin.opensearch.decoders.VarcharDecoder;
 import io.trino.plugin.opensearch.ptf.RawQuery.RawQueryFunctionHandle;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.AggregateFunction;
+import io.trino.spi.connector.AggregationApplicationResult;
 import io.trino.spi.connector.Assignment;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
@@ -97,6 +101,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -106,7 +111,10 @@ import static io.airlift.slice.SliceUtf8.getCodePointAt;
 import static io.airlift.slice.SliceUtf8.lengthOfCodePoint;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
+import static io.trino.plugin.opensearch.OpenSearchSessionProperties.isAggregationPushdownEnabled;
 import static io.trino.plugin.opensearch.OpenSearchSessionProperties.isProjectionPushdownEnabled;
+import static io.trino.plugin.opensearch.OpenSearchTableHandle.Type.AGGREGATION;
+import static io.trino.plugin.opensearch.aggregation.MetricAggregation.handleAggregation;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
@@ -150,6 +158,7 @@ public class OpenSearchMetadata
     private static final Set<Integer> REGEXP_RESERVED_CHARACTERS = IntStream.of('.', '?', '+', '*', '|', '{', '}', '[', ']', '(', ')', '"', '#', '@', '&', '<', '>', '~')
             .boxed()
             .collect(toImmutableSet());
+    private static final String SYNTHETIC_COLUMN_NAME_PREFIX = "_osgnrtd_";
 
     private final Type ipAddressType;
     private final OpenSearchClient client;
@@ -495,6 +504,7 @@ public class OpenSearchMetadata
                 handle.regexes(),
                 handle.query(),
                 OptionalLong.of(limit),
+                handle.aggregationInfo(),
                 ImmutableSet.of());
 
         return Optional.of(new LimitApplicationResult<>(handle, false, false));
@@ -572,6 +582,7 @@ public class OpenSearchMetadata
                 newRegexes,
                 handle.query(),
                 handle.limit(),
+                handle.aggregationInfo(),
                 ImmutableSet.of());
 
         return Optional.of(new ConstraintApplicationResult<>(handle, TupleDomain.withColumnDomains(unsupported), newExpression, false));
@@ -795,6 +806,108 @@ public class OpenSearchMetadata
         ConnectorTableHandle tableHandle = rawQueryFunctionHandle.getTableHandle();
         List<ColumnHandle> columnHandles = ImmutableList.copyOf(getColumnHandles(session, tableHandle).values());
         return Optional.of(new TableFunctionApplicationResult<>(tableHandle, columnHandles));
+    }
+
+    @Override
+    public Optional<AggregationApplicationResult<ConnectorTableHandle>> applyAggregation(
+            ConnectorSession session,
+            ConnectorTableHandle table,
+            List<AggregateFunction> aggregates,
+            Map<String, ColumnHandle> assignments,
+            List<List<ColumnHandle>> groupingSets)
+    {
+        if (!isAggregationPushdownEnabled(session)) {
+            return Optional.empty();
+        }
+
+        OpenSearchTableHandle handle = (OpenSearchTableHandle) table;
+        // aggregation pushdown currently not supported passthrough query
+        if (isPassthroughQuery(handle)) {
+            return Optional.empty();
+        }
+        // Global aggregation is represented by [[]]
+        verify(!groupingSets.isEmpty(), "No grouping sets provided");
+        if (groupingSets.size() > 1 || aggregates.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ImmutableList.Builder<ConnectorExpression> projections = ImmutableList.builder();
+        ImmutableList.Builder<Assignment> resultAssignments = ImmutableList.builder();
+        ImmutableList.Builder<MetricAggregation> metricAggregations = ImmutableList.builder();
+        ImmutableList.Builder<OpenSearchColumnHandle> groupByKeys = ImmutableList.builder();
+        for (int i = 0; i < aggregates.size(); i++) {
+            AggregateFunction aggregationFunction = aggregates.get(i);
+            String generatedColumnName = SYNTHETIC_COLUMN_NAME_PREFIX + i;
+            Optional<MetricAggregation> metricAggregation = handleAggregation(aggregationFunction, assignments, generatedColumnName);
+            if (metricAggregation.isEmpty()) {
+                return Optional.empty();
+            }
+            Type outputType = aggregationFunction.getOutputType();
+            Optional<DecoderDescriptor> descriptor = toDecoderDescriptorForSupportedPredicates(generatedColumnName, outputType);
+            if (descriptor.isEmpty()) {
+                return Optional.empty();
+            }
+            OpenSearchColumnHandle newColumn = new OpenSearchColumnHandle(
+                    ImmutableList.of(generatedColumnName),
+                    outputType,
+                    toOpensearchType(outputType),
+                    descriptor.orElse(null),
+                    // new column never support predicates
+                    false);
+
+            projections.add(new Variable(generatedColumnName, outputType));
+            resultAssignments.add(new Assignment(generatedColumnName, newColumn, outputType));
+            metricAggregations.add(metricAggregation.get());
+        }
+        for (ColumnHandle columnHandle : groupingSets.getFirst()) {
+            OpenSearchColumnHandle column = (OpenSearchColumnHandle) columnHandle;
+            if (!column.supportsPredicates()) {
+                return Optional.empty();
+            }
+
+            groupByKeys.add(column);
+        }
+        OpenSearchTableHandle tableHandle = new OpenSearchTableHandle(
+                AGGREGATION,
+                handle.schema(),
+                handle.index(),
+                handle.constraint(),
+                handle.regexes(),
+                handle.query(),
+                handle.limit(),
+                Optional.of(new AggregationInfo(metricAggregations.build(), groupByKeys.build())),
+                handle.columns());
+        return Optional.of(new AggregationApplicationResult<>(tableHandle, projections.build(), resultAssignments.build(), ImmutableMap.of(), false));
+    }
+
+    private static PrimitiveType toOpensearchType(Type outputType)
+    {
+        return switch (outputType) {
+            case BigintType _ -> new PrimitiveType("long");
+            case IntegerType _ -> new PrimitiveType("integer");
+            case SmallintType _ -> new PrimitiveType("short");
+            case TinyintType _ -> new PrimitiveType("byte");
+            case DoubleType _ -> new PrimitiveType("double");
+            case RealType _ -> new PrimitiveType("float");
+            case VarcharType _ -> new PrimitiveType("keyword");
+            case BooleanType _ -> new PrimitiveType("boolean");
+            default -> throw new IllegalArgumentException("Unsupported aggregation output type: " + outputType);
+        };
+    }
+
+    private Optional<DecoderDescriptor> toDecoderDescriptorForSupportedPredicates(String name, Type type)
+    {
+        return switch (type.getBaseName()) {
+            case StandardTypes.REAL -> Optional.of(new RealDecoder.Descriptor(name));
+            case StandardTypes.DOUBLE -> Optional.of(new DoubleDecoder.Descriptor(name));
+            case StandardTypes.TINYINT -> Optional.of(new TinyintDecoder.Descriptor(name));
+            case StandardTypes.SMALLINT -> Optional.of(new SmallintDecoder.Descriptor(name));
+            case StandardTypes.INTEGER -> Optional.of(new IntegerDecoder.Descriptor(name));
+            case StandardTypes.BIGINT -> Optional.of(new BigintDecoder.Descriptor(name));
+            case StandardTypes.VARCHAR -> Optional.of(new VarcharDecoder.Descriptor(name));
+            case StandardTypes.BOOLEAN -> Optional.of(new BooleanDecoder.Descriptor(name));
+            default -> Optional.empty();
+        };
     }
 
     private static boolean supportsPredicates(IndexMetadata.Type type, Type trinoType)

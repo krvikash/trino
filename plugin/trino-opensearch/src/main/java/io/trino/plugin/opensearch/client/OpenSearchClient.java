@@ -59,6 +59,7 @@ import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.query.QueryBuilder;
+import org.opensearch.search.aggregations.AggregationBuilder;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.sort.SortOrder;
 import org.weakref.jmx.Managed;
@@ -138,6 +139,7 @@ public class OpenSearchClient
     private final TimeStat backpressureStats = new TimeStat(MILLISECONDS);
     private final OpenSearchConfig.SearchStrategy searchStrategy;
     private final boolean isServerlessDeployment;
+    private final int maxBuckets;
 
     @Inject
     public OpenSearchClient(
@@ -156,6 +158,7 @@ public class OpenSearchClient
         this.refreshInterval = config.getNodeRefreshInterval();
         this.tlsEnabled = config.isTlsEnabled();
         this.searchStrategy = config.getSearchStrategy();
+        this.maxBuckets = config.getMaxAggregationBuckets();
     }
 
     @PostConstruct
@@ -606,17 +609,32 @@ public class OpenSearchClient
         return body;
     }
 
-    public SearchResponse beginSearch(String index, int shard, QueryBuilder query, Optional<List<String>> fields, List<String> documentFields, Optional<String> sort, OptionalLong limit)
+    public SearchResponse beginSearch(
+            String index,
+            int shard,
+            QueryBuilder query,
+            Optional<List<String>> fields,
+            List<String> documentFields,
+            Optional<List<AggregationBuilder>> aggregations,
+            Optional<String> sort,
+            OptionalLong limit)
     {
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource()
                 .query(query);
 
-        if (limit.isPresent() && limit.getAsLong() < scrollSize) {
-            // Safe to cast it to int because scrollSize is int.
-            sourceBuilder.size(toIntExact(limit.getAsLong()));
+        if (aggregations.isPresent()) {
+            aggregations.get().forEach(sourceBuilder::aggregation);
+            // If aggregations are present, we do not need to scroll.
+            sourceBuilder.size(0);
         }
         else {
-            sourceBuilder.size(scrollSize);
+            if (limit.isPresent() && limit.getAsLong() < scrollSize) {
+                // Safe to cast it to int because scrollSize is int.
+                sourceBuilder.size(toIntExact(limit.getAsLong()));
+            }
+            else {
+                sourceBuilder.size(scrollSize);
+            }
         }
 
         sort.ifPresent(sourceBuilder::sort);
@@ -635,10 +653,13 @@ public class OpenSearchClient
 
         SearchRequest request = new SearchRequest(index)
                 .searchType(QUERY_THEN_FETCH)
-                .preference("_shards:" + shard)
-                .scroll(new TimeValue(scrollTimeout.toMillis()))
                 .source(sourceBuilder);
 
+        // The request is set to prefer a specific shard (_shards:) and enables scrolling only for non-aggregated queries.
+        if (aggregations.isEmpty()) {
+            request.preference("_shards:" + shard)
+                    .scroll(new TimeValue(scrollTimeout.toMillis()));
+        }
         long start = System.nanoTime();
         try {
             return client.search(request);
@@ -802,6 +823,11 @@ public class OpenSearchClient
     public TimeStat getBackpressureStats()
     {
         return backpressureStats;
+    }
+
+    public int getMaxAggregationBuckets()
+    {
+        return maxBuckets;
     }
 
     private <T> T doRequest(String path, ResponseHandler<T> handler)

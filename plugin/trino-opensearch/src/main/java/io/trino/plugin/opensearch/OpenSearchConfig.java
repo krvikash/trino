@@ -19,6 +19,7 @@ import io.airlift.configuration.ConfigSecuritySensitive;
 import io.airlift.configuration.validation.FileExists;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDuration;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -44,6 +45,8 @@ public class OpenSearchConfig
         SEARCH_AFTER,
     }
 
+    private static final int MAX_AGGREGATION_BUCKETS = 65_535;
+
     private List<String> hosts;
     private int port = 9200;
     private String defaultSchema = "default";
@@ -68,6 +71,9 @@ public class OpenSearchConfig
     private boolean ignorePublishAddress;
     private boolean verifyHostnames = true;
     private boolean projectionPushDownEnabled = true;
+    private boolean aggregationPushdownEnabled = true;
+    // Opensearch limits/expects the #buckets to be in the Integer range
+    private int maxAggregationBuckets = MAX_AGGREGATION_BUCKETS;
 
     private Security security;
 
@@ -359,6 +365,34 @@ public class OpenSearchConfig
     public OpenSearchConfig setProjectionPushdownEnabled(boolean projectionPushDownEnabled)
     {
         this.projectionPushDownEnabled = projectionPushDownEnabled;
+        return this;
+    }
+
+    public boolean isAggregationPushdownEnabled()
+    {
+        return aggregationPushdownEnabled;
+    }
+
+    @Config("opensearch.aggregation-pushdown-enabled")
+    @ConfigDescription("Push down aggregations to OpenSearch")
+    public OpenSearchConfig setAggregationPushdownEnabled(boolean aggregationPushdownEnabled)
+    {
+        this.aggregationPushdownEnabled = aggregationPushdownEnabled;
+        return this;
+    }
+
+    @Min(1)
+    @Max(MAX_AGGREGATION_BUCKETS)
+    public int getMaxAggregationBuckets()
+    {
+        return maxAggregationBuckets;
+    }
+
+    @Config("opensearch.max-aggregation-buckets")
+    @ConfigDescription("The maximum number of aggregation buckets allowed in a single response")
+    public OpenSearchConfig setMaxAggregationBuckets(int maxAggregationBuckets)
+    {
+        this.maxAggregationBuckets = maxAggregationBuckets;
         return this;
     }
 

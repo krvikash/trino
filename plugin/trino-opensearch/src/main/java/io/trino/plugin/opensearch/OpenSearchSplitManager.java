@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.opensearch.OpenSearchTableHandle.Type.AGGREGATION;
 import static java.util.Objects.requireNonNull;
 
 public class OpenSearchSplitManager
@@ -51,7 +52,7 @@ public class OpenSearchSplitManager
     {
         OpenSearchTableHandle tableHandle = (OpenSearchTableHandle) table;
 
-        if (tableHandle.type().equals(OpenSearchTableHandle.Type.QUERY) || client.isServerlessDeployment()) {
+        if (shouldUseSingleSplit(tableHandle)) {
             return new FixedSplitSource(new OpenSearchSplit(tableHandle.index(), 0, Optional.empty()));
         }
         List<OpenSearchSplit> splits = client.getSearchShards(tableHandle.index()).stream()
@@ -59,5 +60,12 @@ public class OpenSearchSplitManager
                 .collect(toImmutableList());
 
         return new FixedSplitSource(splits);
+    }
+
+    private boolean shouldUseSingleSplit(OpenSearchTableHandle tableHandle)
+    {
+        return tableHandle.type().equals(OpenSearchTableHandle.Type.QUERY) ||
+                client.isServerlessDeployment() ||
+                tableHandle.type().equals(AGGREGATION);
     }
 }

@@ -107,6 +107,7 @@ public abstract class AbstractScanQueryPageSource
                     query,
                     needAllFields ? Optional.empty() : Optional.of(requiredFields),
                     documentFields,
+                    Optional.empty(),
                     sort,
                     table.limit());
         };

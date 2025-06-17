@@ -19,6 +19,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import io.trino.Session;
 import io.trino.spi.type.VarcharType;
+import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.ExchangeNode;
+import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.testing.AbstractTestQueries;
@@ -118,7 +121,8 @@ public abstract class BaseOpenSearchConnectorTest
                  SUPPORTS_SET_COLUMN_TYPE,
                  SUPPORTS_TOPN_PUSHDOWN,
                  SUPPORTS_UPDATE -> false;
-            case SUPPORTS_DEREFERENCE_PUSHDOWN -> true;
+            case SUPPORTS_DEREFERENCE_PUSHDOWN,
+                 SUPPORTS_AGGREGATION_PUSHDOWN -> true;
             default -> super.hasBehavior(connectorBehavior);
         };
     }
@@ -2424,6 +2428,206 @@ public abstract class BaseOpenSearchConnectorTest
                 .matches("VALUES (BIGINT '21', BIGINT '26')");
 
         deleteIndex(tableName);
+    }
+
+    @Test
+    public void testAggregationPushdown()
+    {
+        // supported functions
+        assertThat(query("SELECT regionkey, count(*) FROM nation GROUP BY regionkey")).isFullyPushedDown();
+        assertThat(query("SELECT count(*) FROM nation GROUP BY regionkey")).isFullyPushedDown();
+        assertThat(query("SELECT count(*) FROM nation")).isFullyPushedDown();
+        assertThat(query("SELECT custkey, min(totalprice) FROM orders GROUP BY custkey")).isFullyPushedDown();
+        assertThat(query("SELECT custkey, max(totalprice) FROM orders GROUP BY custkey")).isFullyPushedDown();
+        assertThat(query("SELECT custkey, sum(totalprice) FROM orders GROUP BY custkey")).isFullyPushedDown();
+        assertThat(query("SELECT custkey, avg(totalprice) FROM orders GROUP BY custkey")).isFullyPushedDown();
+        // with filter
+        assertThat(query("SELECT custkey, sum(totalprice) FROM orders WHERE custkey < 4 GROUP BY custkey")).isFullyPushedDown();
+        // with timestamp group by
+        assertThat(query("SELECT orderdate, sum(totalprice) FROM orders GROUP BY orderdate")).isFullyPushedDown();
+        // multiple grouping keys
+        assertThat(query("SELECT orderdate, custkey, sum(totalprice) FROM orders GROUP BY orderdate, custkey")).isFullyPushedDown();
+        // not pushed down - no grouping keys
+        assertThat(query("SELECT sum(DISTINCT totalprice) FROM orders")).isNotFullyPushedDown(AggregationNode.class);
+        // not pushed down - non-empty grouping sets but with subquery
+        assertThat(query("SELECT max(x) FROM (SELECT custkey, sum(totalprice) as x FROM orders GROUP BY custkey)")).isNotFullyPushedDown(AggregationNode.class);
+        // not pushed down - non-empty grouping sets but with subquery
+        assertThat(query("SELECT custkey, sum(totalprice) FROM (SELECT * FROM orders WHERE custkey < 2 LIMIT 11) GROUP BY custkey"))
+                .isNotFullyPushedDown(AggregationNode.class, LimitNode.class, ExchangeNode.class, ExchangeNode.class, LimitNode.class);
+        assertThat(query("SELECT count(x) FROM (SELECT count(*) as x FROM nation GROUP BY regionkey)")).isNotFullyPushedDown(AggregationNode.class);
+        // test very large limit to test max_buckets
+        assertThat(query("SELECT nationkey, count(acctbal) FROM customer GROUP BY nationkey LIMIT 2147483649")).isNotFullyPushedDown(LimitNode.class);
+        // no aggregates by only grouping sets
+        assertThat(query("SELECT count(*) FROM (SELECT count(*) FROM nation GROUP BY regionkey)")).isNotFullyPushedDown(AggregationNode.class);
+        assertThat(query("SELECT DISTINCT regionkey FROM nation")).isNotFullyPushedDown(AggregationNode.class);
+        // with timestamp aggregation
+        assertThat(query("SELECT custkey, count(orderdate) FROM orders GROUP BY custkey")).isNotFullyPushedDown(AggregationNode.class);
+        // on non-keyword text aggregation
+        assertThat(query("SELECT nationkey, count(name) FROM nation GROUP BY nationkey")).isNotFullyPushedDown(AggregationNode.class);
+    }
+
+    @Test
+    public void testAggregationPushdownWithNulls()
+            throws IOException
+    {
+        String indexName = "agg_pushdown_nulls_" + randomNameSuffix();
+        @Language("JSON")
+        String properties = "" +
+                "{" +
+                "  \"properties\":{" +
+                "    \"group_col\":   { \"type\": \"keyword\" }," +
+                "    \"metric_col\":   { \"type\": \"double\" }," +
+                "    \"name\":   { \"type\": \"keyword\" }" +
+                "  }" +
+                "}";
+        createIndex(indexName, properties);
+
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("group_col", "A")
+                .put("metric_col", 10.0)
+                .put("name", "row1")
+                .buildOrThrow());
+
+        // Document with null metric_col
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("group_col", "A")
+                .put("name", "row2")
+                .buildOrThrow());
+
+        // Document with null group_col
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("metric_col", 20.0)
+                .put("name", "row3")
+                .buildOrThrow());
+
+        // Document with all nulls
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("name", "row4")
+                .buildOrThrow());
+
+        assertThat(query("SELECT group_col, count(*) FROM %s GROUP BY group_col".formatted(indexName)))
+                .matches("VALUES (VARCHAR 'A', BIGINT '2'), (NULL, BIGINT '2')")
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT group_col, sum(metric_col) FROM %s GROUP BY group_col".formatted(indexName)))
+                .matches("VALUES (VARCHAR 'A', BIGINT '10'), (NULL, DOUBLE '20.0')")
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT group_col, count(metric_col) FROM %s GROUP BY group_col".formatted(indexName)))
+                .matches("VALUES (VARCHAR 'A', BIGINT '1'), (NULL, BIGINT '1')")
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT group_col, avg(metric_col) FROM %s GROUP BY group_col".formatted(indexName)))
+                .matches("VALUES (VARCHAR 'A', DOUBLE '10.0'), (NULL, DOUBLE '20.0')")
+                .isFullyPushedDown();
+
+        deleteIndex(indexName);
+    }
+
+    @Test
+    public void testAggregationPushdownWithLargeLongValues()
+            throws IOException
+    {
+        String indexName = "agg_pushdown_large_long_" + randomNameSuffix();
+        @Language("JSON")
+        String properties = "" +
+                "{" +
+                "  \"properties\":{" +
+                "    \"group_col\":   { \"type\": \"keyword\" }," +
+                "    \"metric_col\":   { \"type\": \"long\" }" +
+                "  }" +
+                "}";
+        createIndex(indexName, properties);
+
+        long largeValue = (1L << 53) + 1; // 2^53 + 1, 9007199254740993 not exactly representable in double
+
+        index(indexName, ImmutableMap.of("group_col", "A", "metric_col", largeValue));
+        index(indexName, ImmutableMap.of("group_col", "A", "metric_col", largeValue));
+
+        long expectedSum = 2 * largeValue; // Opensearch double rounding makes it 18014398509481984, so agg on bigint are not pushed down
+        double expectedAvg = (double) expectedSum / 2;
+
+        // All aggregations uses double in OpenSearch, precision lost
+        assertThat(query("SELECT sum(metric_col) FROM %s".formatted(indexName)))
+                .matches("VALUES BIGINT '" + expectedSum + "'")
+                .isNotFullyPushedDown(AggregationNode.class);
+
+        assertThat(query("SELECT avg(metric_col) FROM %s".formatted(indexName)))
+                .matches("VALUES DOUBLE '" + expectedAvg + "'")
+                .isNotFullyPushedDown(AggregationNode.class);
+
+        assertThat(query("SELECT min(metric_col) FROM %s".formatted(indexName)))
+                .matches("VALUES BIGINT '" + largeValue + "'")
+                .isNotFullyPushedDown(AggregationNode.class);
+
+        assertThat(query("SELECT max(metric_col) FROM %s".formatted(indexName)))
+                .matches("VALUES BIGINT '" + largeValue + "'")
+                .isNotFullyPushedDown(AggregationNode.class);
+
+        assertThat(query("SELECT count(metric_col) FROM %s".formatted(indexName)))
+                .matches("VALUES BIGINT '2'")
+                .isNotFullyPushedDown(AggregationNode.class);
+
+        deleteIndex(indexName);
+    }
+
+    @Test
+    public void testAggregationPushdownKeyword()
+            throws IOException
+    {
+        String indexName = "agg_pushdown_text_" + randomNameSuffix();
+        @Language("JSON")
+        String properties = "" +
+                "{" +
+                "  \"properties\":{" +
+                "    \"keyword_col\":   { \"type\": \"keyword\" }," +
+                "    \"custkey\":   { \"type\": \"integer\" }," +
+                "    \"name\":   { \"type\": \"keyword\" }" +
+                "  }" +
+                "}";
+        createIndex(indexName, properties);
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("keyword_col", "key")
+                .put("custkey", 100)
+                .put("name", "name1")
+                .buildOrThrow());
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("keyword_col", "key2")
+                .put("custkey", 200)
+                .put("name", "name2")
+                .buildOrThrow());
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("keyword_col", "key3")
+                .put("custkey", 200)
+                .put("name", "name3")
+                .buildOrThrow());
+
+        assertThat(query("SELECT custkey, count(keyword_col) FROM %s GROUP BY custkey".formatted(indexName)))
+                .matches("VALUES (200, CAST(2 AS BIGINT)), (100, CAST(1 AS BIGINT))")
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT custkey, count(keyword_col) FROM %s WHERE name = 'name1' GROUP BY custkey".formatted(indexName)))
+                .matches("VALUES (100, CAST(1 AS BIGINT))")
+                .isFullyPushedDown();
+        assertThat(query("SELECT name, cnt FROM (SELECT name, COUNT(keyword_col) AS cnt FROM %s GROUP BY name) WHERE name = 'name2'".formatted(indexName)))
+                .matches("VALUES (VARCHAR 'name2', CAST(1 AS BIGINT))")
+                .isFullyPushedDown();
+        assertThat(query("SELECT name, count(keyword_col) FROM %s WHERE custkey > 400 GROUP BY name".formatted(indexName)))
+                .returnsEmptyResult()
+                .isFullyPushedDown();
+        assertThat(query("SELECT keyword_col, count(custkey) FROM %s GROUP BY keyword_col".formatted(indexName)))
+                .matches("VALUES (VARCHAR 'key', CAST(1 AS BIGINT)), (VARCHAR 'key2', CAST(1 AS BIGINT)), (VARCHAR 'key3', CAST(1 AS BIGINT))")
+                .isFullyPushedDown();
+
+        // with filters on aggregation column
+        assertThat(query("SELECT name, count(keyword_col) FROM %s WHERE keyword_col = 'key2' GROUP BY name".formatted(indexName)))
+                .matches("VALUES (VARCHAR 'name2', CAST(1 AS BIGINT))")
+                .isFullyPushedDown();
+        assertThat(query("SELECT custkey, cnt FROM (SELECT custkey, COUNT(keyword_col) AS cnt FROM %s GROUP BY custkey ) WHERE cnt = 1".formatted(indexName)))
+                .matches("VALUES (100, CAST(1 AS BIGINT))")
+                .isNotFullyPushedDown(FilterNode.class);
+
+        deleteIndex(indexName);
     }
 
     @Test

@@ -14,7 +14,10 @@
 package io.trino.plugin.opensearch;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slice;
+import io.trino.plugin.opensearch.aggregation.AggregationInfo;
+import io.trino.plugin.opensearch.aggregation.MetricAggregation;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
@@ -27,12 +30,23 @@ import org.opensearch.index.query.QueryStringQueryBuilder;
 import org.opensearch.index.query.RangeQueryBuilder;
 import org.opensearch.index.query.RegexpQueryBuilder;
 import org.opensearch.index.query.TermQueryBuilder;
+import org.opensearch.search.aggregations.AggregationBuilder;
+import org.opensearch.search.aggregations.bucket.composite.CompositeAggregationBuilder;
+import org.opensearch.search.aggregations.bucket.composite.CompositeValuesSourceBuilder;
+import org.opensearch.search.aggregations.bucket.composite.TermsValuesSourceBuilder;
+import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.MinAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.SumAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.ValueCountAggregationBuilder;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -54,6 +68,83 @@ import static java.time.format.DateTimeFormatter.ISO_DATE_TIME;
 public final class OpenSearchQueryBuilder
 {
     private OpenSearchQueryBuilder() {}
+
+    private static final Map<String, BiFunction<String, String, AggregationBuilder>> CONVERTERS =
+            ImmutableMap.of(MetricAggregation.MAX, (alias, field) -> new MaxAggregationBuilder(alias).field(field),
+                    MetricAggregation.MIN, (alias, field) -> new MinAggregationBuilder(alias).field(field),
+                    MetricAggregation.SUM, (alias, field) -> new SumAggregationBuilder(alias).field(field),
+                    MetricAggregation.AVG, (alias, field) -> new AvgAggregationBuilder(alias).field(field),
+                    MetricAggregation.COUNT, (alias, field) -> new ValueCountAggregationBuilder(alias).field(field));
+
+    public static List<AggregationBuilder> buildAggregationQuery(AggregationInfo aggregationInfo, OptionalInt pageSize)
+    {
+        ImmutableList.Builder<AggregationBuilder> aggregationsBuilder = ImmutableList.builder();
+        ImmutableList.Builder<AggregationBuilder> metricsAggregationBuilder = ImmutableList.builder();
+        List<MetricAggregation> metricAggregations = aggregationInfo.metricAggregation();
+        for (MetricAggregation aggregation : metricAggregations) {
+            AggregationBuilder subAggregation = buildMetricAggregation(aggregation);
+            if (subAggregation != null) {
+                metricsAggregationBuilder.add(subAggregation);
+            }
+        }
+
+        List<OpenSearchColumnHandle> groupByKeys = aggregationInfo.groupByKeys();
+        if (!groupByKeys.isEmpty()) {
+            ImmutableList.Builder<CompositeValuesSourceBuilder<?>> compositeValuesSourceListBuilder = ImmutableList.builder();
+            for (OpenSearchColumnHandle groupByKey : groupByKeys) {
+                compositeValuesSourceListBuilder.add(new TermsValuesSourceBuilder(groupByKey.name())
+                        .field(groupByKey.name())
+                        .missingBucket(true)); // This ensures that documents with missing values for `groupByKey.term()` are grouped under a special "missing" bucket, instead of being excluded.
+            }
+            CompositeAggregationBuilder compositeAggregationBuilder = new CompositeAggregationBuilder("groupBy", compositeValuesSourceListBuilder.build());
+            metricsAggregationBuilder.build().forEach(compositeAggregationBuilder::subAggregation);
+            // pagination
+            pageSize.ifPresent(compositeAggregationBuilder::size);
+            aggregationsBuilder.add(compositeAggregationBuilder);
+        }
+        else {
+            aggregationsBuilder.addAll(metricsAggregationBuilder.build());
+        }
+        return aggregationsBuilder.build();
+    }
+
+    public static List<AggregationBuilder> updateCompositeAfterKey(List<AggregationBuilder> originalAggregations, Optional<Map<String, Object>> after)
+    {
+        if (after.isEmpty()) {
+            return originalAggregations;
+        }
+
+        ImmutableList.Builder<AggregationBuilder> updatedAggregations = ImmutableList.builder();
+        for (AggregationBuilder aggregation : originalAggregations) {
+            if (aggregation instanceof CompositeAggregationBuilder composite) {
+                CompositeAggregationBuilder updated = cloneCompositeAggregation(composite);
+                after.ifPresent(updated::aggregateAfter);
+                updatedAggregations.add(updated);
+            }
+            else {
+                updatedAggregations.add(aggregation);
+            }
+        }
+        return updatedAggregations.build();
+    }
+
+    private static CompositeAggregationBuilder cloneCompositeAggregation(CompositeAggregationBuilder original)
+    {
+        List<CompositeValuesSourceBuilder<?>> sources = ImmutableList.copyOf(original.sources());
+        CompositeAggregationBuilder clonedCompositeAggregation = new CompositeAggregationBuilder(original.getName(), sources);
+        original.getSubAggregations().forEach(clonedCompositeAggregation::subAggregation);
+        // size = 10 by default and never null
+        clonedCompositeAggregation.size(original.size());
+        return clonedCompositeAggregation;
+    }
+
+    private static AggregationBuilder buildMetricAggregation(MetricAggregation aggregation)
+    {
+        Optional<OpenSearchColumnHandle> column = aggregation.columnHandle();
+        // use value_count("_id") aggregation to resolve count(*)
+        String field = column.map(OpenSearchColumnHandle::name).orElse("_id");
+        return CONVERTERS.get(aggregation.functionName()).apply(aggregation.alias(), field);
+    }
 
     public static QueryBuilder buildSearchQuery(TupleDomain<OpenSearchColumnHandle> constraint, Optional<String> query, Map<String, String> regexes)
     {

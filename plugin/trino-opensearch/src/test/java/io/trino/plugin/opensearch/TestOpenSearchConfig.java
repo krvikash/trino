@@ -59,6 +59,8 @@ public class TestOpenSearchConfig
                 .setVerifyHostnames(true)
                 .setIgnorePublishAddress(false)
                 .setProjectionPushdownEnabled(true)
+                .setAggregationPushdownEnabled(true)
+                .setMaxAggregationBuckets(65535)
                 .setSearchStrategy(OpenSearchConfig.SearchStrategy.SCROLL)
                 .setSecurity(null));
     }
@@ -93,6 +95,8 @@ public class TestOpenSearchConfig
                 .put("opensearch.tls.verify-hostnames", "false")
                 .put("opensearch.ignore-publish-address", "true")
                 .put("opensearch.projection-pushdown-enabled", "false")
+                .put("opensearch.aggregation-pushdown-enabled", "false")
+                .put("opensearch.max-aggregation-buckets", "1000")
                 .put("opensearch.search-strategy", "SEARCH_AFTER")
                 .put("opensearch.security", "AWS")
                 .buildOrThrow();
@@ -120,6 +124,8 @@ public class TestOpenSearchConfig
                 .setVerifyHostnames(false)
                 .setIgnorePublishAddress(true)
                 .setProjectionPushdownEnabled(false)
+                .setAggregationPushdownEnabled(false)
+                .setMaxAggregationBuckets(1000)
                 .setSearchStrategy(OpenSearchConfig.SearchStrategy.SEARCH_AFTER)
                 .setSecurity(AWS);
 

@@ -15,6 +15,7 @@ package io.trino.plugin.opensearch;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.plugin.opensearch.aggregation.AggregationInfo;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.predicate.TupleDomain;
@@ -35,12 +36,13 @@ public record OpenSearchTableHandle(
         Map<String, String> regexes,
         Optional<String> query,
         OptionalLong limit,
+        Optional<AggregationInfo> aggregationInfo,
         Set<OpenSearchColumnHandle> columns)
         implements ConnectorTableHandle
 {
     public enum Type
     {
-        SCAN, QUERY
+        AGGREGATION, SCAN, QUERY
     }
 
     public OpenSearchTableHandle(Type type, String schema, String index, Optional<String> query)
@@ -53,6 +55,7 @@ public record OpenSearchTableHandle(
                 ImmutableMap.of(),
                 query,
                 OptionalLong.empty(),
+                Optional.empty(),
                 ImmutableSet.of());
     }
 
@@ -66,6 +69,7 @@ public record OpenSearchTableHandle(
                 regexes,
                 query,
                 limit,
+                aggregationInfo,
                 columns);
     }
 
@@ -79,6 +83,7 @@ public record OpenSearchTableHandle(
         columns = ImmutableSet.copyOf(requireNonNull(columns, "columns is null"));
         requireNonNull(query, "query is null");
         requireNonNull(limit, "limit is null");
+        requireNonNull(aggregationInfo, "aggregationInfo is null");
     }
 
     @Override
