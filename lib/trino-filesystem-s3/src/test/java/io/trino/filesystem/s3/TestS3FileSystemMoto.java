@@ -74,4 +74,13 @@ public class TestS3FileSystemMoto
         assertThatThrownBy(super::testPreSignedUris)
                 .hasMessageContaining("Expecting code to raise a throwable");
     }
+
+    @Test
+    @Override
+    public void testPreSignedPutUri()
+    {
+        // Moto doesn't only once PUTs for pre-signed URLs
+        assertThatThrownBy(super::testPreSignedPutUri)
+                .hasMessageContaining("expected: 403\n but was: 412");
+    }
 }

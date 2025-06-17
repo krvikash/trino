@@ -44,6 +44,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.filesystem.encryption.EncryptionKey.randomAes256;
@@ -253,6 +255,39 @@ public abstract class AbstractTestS3FileSystem
             assertThat(getFileSystem().listDirectories(getRootLocation())).isEmpty();
             assertThat(getFileSystem().listFiles(getRootLocation()).hasNext()).isFalse();
         }
+    }
+
+    @Test
+    public void testPreSignedPutUri()
+            throws Exception
+    {
+        Location abcLocation = Location.of("s3://%s/abc".formatted(bucket()));
+        Optional<UriLocation> uri = getFileSystem().preSignedPutUri(abcLocation, Duration.valueOf("5s"), Optional.empty());
+        assertThat(uri.isPresent()).isTrue();
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            String testContent = "test content";
+            HttpRequest request = addHeaders(HttpRequest.newBuilder(), uri.get().headers())
+                    .uri(uri.get().uri())
+                    .PUT(HttpRequest.BodyPublishers.ofString(testContent))
+                    .build();
+            HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            assertThat(response.statusCode()).isEqualTo(200);
+            FileIterator fileIterator = fileSystem.listFiles(abcLocation.parentDirectory());
+            assertThat(fileIterator.next().length()).isEqualTo(testContent.length());
+            assertThat(fileIterator.hasNext()).isFalse();
+            Thread.sleep(Duration.valueOf("6s").toMillis()); // Wait for the URL to expire.
+            response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            assertThat(response.statusCode()).isEqualTo(403);
+        }
+        finally {
+            getFileSystem().deleteFile(abcLocation);
+        }
+    }
+
+    private static HttpRequest.Builder addHeaders(HttpRequest.Builder builder, Map<String, List<String>> headers)
+    {
+        headers.forEach((headerName, headerValues) -> headerValues.forEach((headerValue) -> builder.header(headerName, headerValue)));
+        return builder;
     }
 
     @Test

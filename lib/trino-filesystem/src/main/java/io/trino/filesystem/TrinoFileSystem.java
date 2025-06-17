@@ -313,6 +313,15 @@ public interface TrinoFileSystem
     }
 
     /**
+     * Like preSignedUri, but for PUT requests.
+     */
+    default Optional<UriLocation> preSignedPutUri(Location location, Duration ttl, Optional<EncryptionKey> key)
+            throws IOException
+    {
+        throw new UnsupportedOperationException("Pre-signed URIs are not supported by " + getClass().getSimpleName());
+    }
+
+    /**
      * Like preSignedUri, but for DELETE requests.
      */
     default Optional<UriLocation> preSignedDeleteUri(Location location, Duration ttl)

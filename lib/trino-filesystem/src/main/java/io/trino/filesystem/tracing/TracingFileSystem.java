@@ -180,6 +180,16 @@ final class TracingFileSystem
     }
 
     @Override
+    public Optional<UriLocation> preSignedPutUri(Location location, Duration ttl, Optional<EncryptionKey> key)
+            throws IOException
+    {
+        Span span = tracer.spanBuilder("FileSystem.preSignedPutUri")
+                .setAttribute(FileSystemAttributes.FILE_LOCATION, location.toString())
+                .startSpan();
+        return withTracing(span, () -> delegate.preSignedPutUri(location, ttl, key));
+    }
+
+    @Override
     public Optional<UriLocation> preSignedDeleteUri(Location location, Duration ttl)
             throws IOException
     {

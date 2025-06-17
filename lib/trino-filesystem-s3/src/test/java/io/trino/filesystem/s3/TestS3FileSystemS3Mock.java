@@ -90,4 +90,14 @@ public class TestS3FileSystemS3Mock
         assertThatThrownBy(super::testPreSignedUris)
                 .hasMessageContaining("Expecting code to raise a throwable");
     }
+
+    @Test
+    @Override
+    public void testPreSignedPutUri()
+            throws Exception
+    {
+        // S3 mock doesn't only once PUTs for pre-signed URLs
+        assertThatThrownBy(super::testPreSignedPutUri)
+                .hasMessageContaining("expected: 403\n but was: 200");
+    }
 }

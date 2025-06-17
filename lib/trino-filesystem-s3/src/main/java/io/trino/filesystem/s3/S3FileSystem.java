@@ -34,6 +34,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.OptionalObjectAttributes;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.RequestPayer;
 import software.amazon.awssdk.services.s3.model.S3Error;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -42,6 +43,8 @@ import software.amazon.awssdk.services.s3.presigner.model.DeleteObjectPresignReq
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedDeleteObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -335,6 +338,46 @@ public final class S3FileSystem
             throws IOException
     {
         return encryptedPreSignedUri(location, ttl, Optional.empty());
+    }
+
+    @Override
+    public Optional<UriLocation> preSignedPutUri(Location location, Duration ttl, Optional<EncryptionKey> key)
+            throws IOException
+    {
+        location.verifyValidFileLocation();
+        S3Location s3Location = new S3Location(location);
+
+        verify(key.isEmpty() || context.s3SseContext().sseType() == NONE, "Encryption key cannot be used with SSE configuration");
+
+        PutObjectRequest request = PutObjectRequest.builder()
+                .overrideConfiguration(context::applyCredentialProviderOverride)
+                .requestPayer(requestPayer)
+                .key(s3Location.key())
+                .bucket(s3Location.bucket())
+                .ifNoneMatch("*")
+                .applyMutation(builder ->
+                        key.ifPresentOrElse(
+                                encryption ->
+                                        builder.sseCustomerKeyMD5(md5Checksum(encryption))
+                                                .sseCustomerAlgorithm(encryption.algorithm())
+                                                .sseCustomerKey(encoded(encryption)),
+                                () -> setEncryptionSettings(builder, context.s3SseContext())))
+                .build();
+
+        PutObjectPresignRequest preSignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(ttl.toJavaTime())
+                .putObjectRequest(request)
+                .build();
+        try {
+            PresignedPutObjectRequest preSigned = preSigner.presignPutObject(preSignRequest);
+            return Optional.of(new UriLocation(preSigned.url().toURI(), filterHeaders(preSigned.httpRequest().headers())));
+        }
+        catch (SdkException e) {
+            throw new IOException("Failed to generate pre-signed PUT URI", e);
+        }
+        catch (URISyntaxException e) {
+            throw new TrinoFileSystemException("Failed to convert pre-signed PUT URI to URI", e);
+        }
     }
 
     @Override

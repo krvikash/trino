@@ -175,6 +175,13 @@ public class EncryptionEnforcingFileSystem
     }
 
     @Override
+    public Optional<UriLocation> preSignedPutUri(Location location, Duration ttl, Optional<EncryptionKey> key)
+            throws IOException
+    {
+        return delegate.preSignedPutUri(location, ttl, key);
+    }
+
+    @Override
     public Optional<UriLocation> preSignedDeleteUri(Location location, Duration ttl)
             throws IOException
     {

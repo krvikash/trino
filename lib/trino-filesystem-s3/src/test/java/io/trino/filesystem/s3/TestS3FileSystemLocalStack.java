@@ -82,4 +82,14 @@ public class TestS3FileSystemLocalStack
         assertThatThrownBy(super::testPreSignedUris)
                 .hasMessageContaining("Expecting code to raise a throwable");
     }
+
+    @Test
+    @Override
+    public void testPreSignedPutUri()
+            throws Exception
+    {
+        // Localstack doesn't honor ifNoneMatch(*) that prevent duplicate PUTs (overwrites) with pre-signed URLs
+        assertThatThrownBy(super::testPreSignedPutUri)
+                .hasMessageContaining("expected: 403\n but was: 412");
+    }
 }
