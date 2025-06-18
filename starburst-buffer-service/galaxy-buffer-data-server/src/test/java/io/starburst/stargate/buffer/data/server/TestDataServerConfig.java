@@ -35,7 +35,7 @@ public class TestDataServerConfig
                 .setBroadcastInterval(succinctDuration(5, SECONDS))
                 .setBroadcastFailureInactivityThreshold(succinctDuration(30, SECONDS))
                 .setMinDrainingDuration(succinctDuration(30, SECONDS))
-                .setDrainingMaxAttempts(4)
+                .setDrainingMaxAttempts(8)
                 .setMaxInProgressAddDataPagesRequests(150)
                 .setInProgressAddDataPagesRequestsRateLimitThreshold(110)
                 .setInProgressAddDataPagesRequestsThrottlingCounterDecayDuration(succinctDuration(5, SECONDS))
