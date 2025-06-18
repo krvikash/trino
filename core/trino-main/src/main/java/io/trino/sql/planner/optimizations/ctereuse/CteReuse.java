@@ -40,6 +40,7 @@ import io.trino.sql.dialect.trino.Context;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.ScalarProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Constant;
+import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.Filter;
 import io.trino.sql.dialect.trino.operation.Join;
@@ -1169,7 +1170,8 @@ public class CteReuse
      */
     private static boolean setCheckpointAfter(Operation operation)
     {
-        return !(operation instanceof Project project && project.isPruning());
+        return !(operation instanceof Project project && project.isPruning()) &&
+                !(operation instanceof DynamicFilterSource);
     }
 
     /**
@@ -1257,14 +1259,14 @@ public class CteReuse
      * Dynamic filters can only be executed if each dynamic filter forms a separate conjunct.
      * This transformation aims to extract dynamic filters as separate conjuncts so that they can be executed.
      * The dynamic filters that cannot be transformed this way, are removed both from Filter predicates,
-     * and from assignments in Joins.
-     * This transformation uses dynamic filter equivalence. Different Join operations can define sets of
-     * globally unique dynamic filter assignments. When Join operations are merged, the resulting Join inherits
-     * all dynamic filter assignments from the component Joins. If two or more assignments refer to the same build side field,
+     * and from assignments in Joins and DynamicFilterSources.
+     * This transformation uses dynamic filter equivalence. Different Join operations and DynamicFilterSource operations can define sets of
+     * globally unique dynamic filter assignments. When Join or DynamicFilterSource operations are merged, the resulting operation inherits
+     * all dynamic filter assignments from the component operations. If two or more assignments refer to the same build side field,
      * such dynamic filters can be considered equivalent.
      * <p>
      * Transformation steps
-     * 1. Identify equivalent dynamic filter ids. See {@link #getEquivalentDynamicFilters(Join)}.
+     * 1. Identify equivalent dynamic filter ids. See {@link #getEquivalentDynamicFilters(Join)}, {@link #getEquivalentDynamicFilters(DynamicFilterSource)}.
      * For example, let's assume that {df1, df3} are identified as equivalent, because they are assigned in the same Join,
      * and refer to the same build side field.
      * 2. Rewrite dynamic filter references so that all equivalent ids are replaced with the same representative.
@@ -1276,26 +1278,37 @@ public class CteReuse
      * 4. Remove the unsupported dynamic conjunct (where OR remains).
      * The example predicate is rewritten to:
      * df1 AND (static_predicate_1 OR static_predicate_2)
-     * 5. Remove assignments for dynamic filters that are not used anymore from Join operations.
+     * 5. Remove assignments for dynamic filters that are not used anymore from Join and DynamicFilterSource operations.
      * In the example, we should remove assignments for df2, df3, and df4.
      * <p>
-     * Note: in this transformation, we only visit top-level Join and Filter operations. We don't support correlated queries.
+     * Note: in this transformation, we only visit top-level Join, DynamicFilterSource and Filter operations. We don't support correlated queries.
+     * <p>
+     * Note: with merging DynamicFilterSource operations, it might happen that we unify the dynamic filter assignments on the build side,
+     * but not unify the probe side of the join. In such a case this rewrite will result in a single (unified) dynamic filter being referenced
+     * multiple times by the non-unified probe side operations. Multiple references to a dynamic filter are correct, and they occur without CTE reuse,
+     * for example when a dynamic filter is pushed into all branches of a union.
      */
     private static Block cleanUpDynamicFilters(Block mainBlock, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
         // initialize a collection of newly created operations
         Map<Value, Operation> newOperations = new HashMap<>();
 
-        // collect dynamic filter ids from all Join operations, and group them by equivalence.
+        // collect dynamic filter ids from all Join and DynamicFilterSource operations, and group them by equivalence.
         List<EquivalentDynamicFilters> equivalenceGroups = mainBlock.operations().stream()
-                .filter(Join.class::isInstance)
-                .map(Join.class::cast)
-                .map(CteReuse::getEquivalentDynamicFilters)
+                .map(operation -> {
+                    if (operation instanceof Join join) {
+                        return getEquivalentDynamicFilters(join);
+                    }
+                    if (operation instanceof DynamicFilterSource dynamicFilterSource) {
+                        return getEquivalentDynamicFilters(dynamicFilterSource);
+                    }
+                    return ImmutableList.<EquivalentDynamicFilters>of();
+                })
                 .flatMap(List::stream)
                 .collect(toImmutableList());
 
         // process dynamic predicates in filters. Collect the ids of all retained dynamic filters
-        ImmutableSet.Builder<String> retainedDynamicFilterIds = ImmutableSet.builder();
+        ImmutableSet.Builder<String> retainedDynamicFilterIdsBuilder = ImmutableSet.builder();
         for (Operation operation : mainBlock.operations()) {
             if (operation instanceof Filter filter) {
                 DynamicFilterExtractionResult extractionResult = extractDynamicConjunct(filter.predicate(), nameAllocator);
@@ -1313,7 +1326,7 @@ public class CteReuse
                         .collect(toImmutableList());
                 dynamicConjuncts.stream()
                         .map(DynamicFilterUtils::getDynamicFilterId)
-                        .forEach(retainedDynamicFilterIds::add);
+                        .forEach(retainedDynamicFilterIdsBuilder::add);
                 // combine dynamic conjuncts with the static part of the predicate
                 Block newPredicate = optimizeLogicalOperations(conjunction(
                         ImmutableList.<Block>builder()
@@ -1329,17 +1342,49 @@ public class CteReuse
                 newOperations.put(newFilter.result(), newFilter);
             }
         }
+        Set<String> retainedDynamicFilterIds = retainedDynamicFilterIdsBuilder.build();
 
-        // remove all unused dynamic filters from Joins
+        // remove all unused dynamic filters from Join and DynamicFilterSource operations
         for (Operation operation : mainBlock.operations()) {
             if (operation instanceof Join join) {
-                Join newJoin = removeDynamicFilterAssignments(join, retainedDynamicFilterIds.build(), nameAllocator);
+                Join newJoin = removeDynamicFilterAssignments(join, retainedDynamicFilterIds, nameAllocator);
                 newOperations.put(newJoin.result(), newJoin);
+            }
+            if (operation instanceof DynamicFilterSource dynamicFilterSource) {
+                DynamicFilterSource newDynamicFilterSource = removeDynamicFilterAssignments(dynamicFilterSource, retainedDynamicFilterIds, nameAllocator);
+                newOperations.put(newDynamicFilterSource.result(), newDynamicFilterSource);
             }
         }
 
         // build the new query plan with the modified Filter and Join operations
-        return layoutOperations(mainBlock, newOperations, false);
+        Block prunedDynamicFiltersMainBlock = layoutOperations(mainBlock, newOperations, false);
+
+        // remove DynamicFilterSource operations where all dynamic filter assignments have been pruned.
+        // Replace the DynamicFilterSource operations with their source.
+        Map<Value, Value> replacements = new HashMap<>();
+        Set<Value> availableValues = new HashSet<>();
+        Block.Builder newMainBlockBuilder = new Block.Builder(mainBlock.name(), mainBlock.parameters());
+        for (Operation operation : prunedDynamicFiltersMainBlock.operations()) {
+            if (operation instanceof DynamicFilterSource dynamicFilterSource && isEmptyFieldSelector(dynamicFilterSource.dynamicFilterTargetSelector())) {
+                // do not output this operation, it should be replaced by its argument
+                replacements.put(dynamicFilterSource.result(), dynamicFilterSource.argument());
+            }
+            else {
+                // replace arguments and output the operation
+                for (int i = 0; i < operation.arguments().size(); i++) {
+                    Value argument = operation.arguments().get(i);
+                    if (replacements.containsKey(argument)) {
+                        Value newArgument = replacements.get(argument);
+                        checkArgument(availableValues.contains(newArgument), "argument not available");
+                        operation = ((TrinoOperation) operation).withArgument(newArgument, i);
+                    }
+                }
+                newMainBlockBuilder.addOperation(operation);
+                availableValues.add(operation.result());
+            }
+        }
+
+        return newMainBlockBuilder.build();
     }
 
     /**
@@ -1350,8 +1395,22 @@ public class CteReuse
      */
     private static List<EquivalentDynamicFilters> getEquivalentDynamicFilters(Join join)
     {
-        List<String> dynamicFilterIds = DYNAMIC_FILTER_IDS.getAttribute(join.attributes());
-        Block dynamicFilterTargetSelector = join.regions().get(7).getOnlyBlock();
+        return getEquivalentDynamicFilters(DYNAMIC_FILTER_IDS.getAttribute(join.attributes()), join.dynamicFilterTargetSelector());
+    }
+
+    /**
+     * Group dynamic filters assigned in given DynamicFilterSource by equivalence.
+     * Two dynamic filter ids are equivalent if they are assigned in the same DynamicFilterSource, and refer to the same input field.
+     * Such situation is possible when the DynamicFilterSource is a result of merging multiple DynamicFilterSource operations.
+     * When merging DynamicFilterSource operations, their dynamic filter assignments are concatenated.
+     */
+    private static List<EquivalentDynamicFilters> getEquivalentDynamicFilters(DynamicFilterSource dynamicFilterSource)
+    {
+        return getEquivalentDynamicFilters(DYNAMIC_FILTER_IDS.getAttribute(dynamicFilterSource.attributes()), dynamicFilterSource.dynamicFilterTargetSelector());
+    }
+
+    private static List<EquivalentDynamicFilters> getEquivalentDynamicFilters(List<String> dynamicFilterIds, Block dynamicFilterTargetSelector)
+    {
         List<Integer> targetFields = getSelectedFields(dynamicFilterTargetSelector);
 
         ImmutableListMultimap.Builder<Integer, String> idsForField = ImmutableListMultimap.builder();
@@ -1410,12 +1469,57 @@ public class CteReuse
     private static Join removeDynamicFilterAssignments(Join join, Set<String> retainedDynamicFilterIds, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
         List<String> dynamicFilterIds = DYNAMIC_FILTER_IDS.getAttribute(join.attributes());
-        Block dynamicFilterTargetSelector = join.regions().get(7).getOnlyBlock();
+        Block dynamicFilterTargetSelector = join.dynamicFilterTargetSelector();
 
         if (isEmptyFieldSelector(dynamicFilterTargetSelector)) {
             return join;
         }
 
+        DynamicFilterAssignments result = removeDynamicFilterAssignments(dynamicFilterIds, dynamicFilterTargetSelector, retainedDynamicFilterIds, nameAllocator);
+
+        return new Join(
+                join.result().name(),
+                join.arguments().get(0),
+                join.arguments().get(1),
+                join.regions().get(0).getOnlyBlock(),
+                join.regions().get(1).getOnlyBlock(),
+                join.regions().get(2).getOnlyBlock(),
+                join.regions().get(3).getOnlyBlock(),
+                join.regions().get(4).getOnlyBlock(),
+                join.regions().get(5).getOnlyBlock(),
+                join.regions().get(6).getOnlyBlock(),
+                result.dynamicFilterTargetSelector(),
+                JOIN_TYPE.getAttribute(join.attributes()),
+                MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(join.attributes()),
+                Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(join.attributes())),
+                Optional.ofNullable(SPILLABLE.getAttribute(join.attributes())),
+                result.dynamicFilterIds(),
+                Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(join.attributes())),
+                ImmutableMap.of(),
+                ImmutableMap.of());
+    }
+
+    private static DynamicFilterSource removeDynamicFilterAssignments(DynamicFilterSource dynamicFilterSource, Set<String> retainedDynamicFilterIds, ProgramBuilder.ValueNameAllocator nameAllocator)
+    {
+        List<String> dynamicFilterIds = DYNAMIC_FILTER_IDS.getAttribute(dynamicFilterSource.attributes());
+        Block dynamicFilterTargetSelector = dynamicFilterSource.dynamicFilterTargetSelector();
+
+        if (isEmptyFieldSelector(dynamicFilterTargetSelector)) {
+            return dynamicFilterSource;
+        }
+
+        DynamicFilterAssignments result = removeDynamicFilterAssignments(dynamicFilterIds, dynamicFilterTargetSelector, retainedDynamicFilterIds, nameAllocator);
+
+        return new DynamicFilterSource(
+                dynamicFilterSource.result().name(),
+                getOnlyElement(dynamicFilterSource.arguments()),
+                result.dynamicFilterTargetSelector(),
+                result.dynamicFilterIds(),
+                ImmutableMap.of());
+    }
+
+    private static DynamicFilterAssignments removeDynamicFilterAssignments(List<String> dynamicFilterIds, Block dynamicFilterTargetSelector, Set<String> retainedDynamicFilterIds, ProgramBuilder.ValueNameAllocator nameAllocator)
+    {
         Row row = (Row) dynamicFilterTargetSelector.operations().get(dynamicFilterTargetSelector.operations().size() - 2);
         ImmutableList.Builder<String> newDynamicFilterIdsBuilder = ImmutableList.builder();
         ImmutableList.Builder<Value> newSelectedFieldsBuilder = ImmutableList.builder();
@@ -1443,26 +1547,16 @@ public class CteReuse
                     true);
         }
 
-        return new Join(
-                join.result().name(),
-                join.arguments().get(0),
-                join.arguments().get(1),
-                join.regions().get(0).getOnlyBlock(),
-                join.regions().get(1).getOnlyBlock(),
-                join.regions().get(2).getOnlyBlock(),
-                join.regions().get(3).getOnlyBlock(),
-                join.regions().get(4).getOnlyBlock(),
-                join.regions().get(5).getOnlyBlock(),
-                join.regions().get(6).getOnlyBlock(),
-                newDynamicFilterTargetSelector,
-                JOIN_TYPE.getAttribute(join.attributes()),
-                MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(join.attributes()),
-                Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(join.attributes())),
-                Optional.ofNullable(SPILLABLE.getAttribute(join.attributes())),
-                newDynamicFilterIds,
-                Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(join.attributes())),
-                ImmutableMap.of(),
-                ImmutableMap.of());
+        return new DynamicFilterAssignments(newDynamicFilterIds, newDynamicFilterTargetSelector);
+    }
+
+    private record DynamicFilterAssignments(List<String> dynamicFilterIds, Block dynamicFilterTargetSelector)
+    {
+        private DynamicFilterAssignments
+        {
+            dynamicFilterIds = ImmutableList.copyOf(dynamicFilterIds);
+            requireNonNull(dynamicFilterTargetSelector, "dynamicFilterTargetSelector is null");
+        }
     }
 
     private record EquivalentDynamicFilters(Set<String> ids, String representative)
