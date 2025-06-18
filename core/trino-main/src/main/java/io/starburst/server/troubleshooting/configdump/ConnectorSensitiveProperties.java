@@ -49,6 +49,7 @@ public final class ConnectorSensitiveProperties
                             "bigquery.rpc-proxy.keystore-password",
                             "bigquery.rpc-proxy.password",
                             "bigquery.rpc-proxy.truststore-password",
+                            "cache-service.password",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
