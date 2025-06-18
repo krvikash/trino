@@ -34,6 +34,7 @@ public class NativeStorageStateHandler
     private final CatalogNameProvider catalogNameProvider;
     private final ShapingLogger shapingLogger;
 
+    boolean alwaysPermanentlyDisableOnError = true;
     boolean storageDisablePermanently = true;
     boolean storageDisableTemporarily = true;
     long storageTemporaryExceptionTimestamp;
@@ -77,7 +78,7 @@ public class NativeStorageStateHandler
     {
         logger.debug("[%s] handleErrorCode:: %s", catalogNameProvider.get(), errorCode);
 
-        if (errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR)) {
+        if (alwaysPermanentlyDisableOnError || errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR)) {
             disablePermanently();
             shapingLogger.warn("[%s] storage disabled permanently due to %s", catalogNameProvider.get(), errorCode);
         }

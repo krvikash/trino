@@ -35,8 +35,6 @@ import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.extension.execution.callhome.CallAllHomesResource;
 import io.trino.plugin.warp.extension.execution.callhome.CallHomeData;
 import io.trino.plugin.warp.extension.execution.callhome.CallHomeResource;
-import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageState;
-import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageStateResource;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
 import io.trino.plugin.warp.extension.execution.debugtools.releasenotes.ReleaseNoteVersionData;
@@ -600,90 +598,5 @@ public class TestDispatcherRestIT
         assertThat(result.getHealthNodes().size()).isEqualTo(1);
         assertThat(result.isReady()).isEqualTo(true);
         assertThat(result.getHealthNodes().getFirst().createEpochTime()).isGreaterThan(0);
-    }
-
-    @Test
-    public void testNativeStorageState()
-            throws IOException
-    {
-        String str = executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                null,
-                HttpMethod.GET,
-                HttpURLConnection.HTTP_OK);
-        NativeStorageState state = objectMapper.readValue(str, NativeStorageState.class);
-        assertThat(state).isNotNull();
-        assertThat(state.storagePermanentException()).isEqualTo(false);
-        assertThat(state.storageTemporaryException()).isEqualTo(false);
-
-        executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                new NativeStorageState(0, 0, false, false),
-                HttpMethod.POST,
-                HttpURLConnection.HTTP_NO_CONTENT);
-
-        str = executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                null,
-                HttpMethod.GET,
-                HttpURLConnection.HTTP_OK);
-        state = objectMapper.readValue(str, NativeStorageState.class);
-        assertThat(state).isNotNull();
-        assertThat(state.storagePermanentException()).isEqualTo(false);
-        assertThat(state.storageTemporaryException()).isEqualTo(false);
-
-        executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                new NativeStorageState(0, 0, true, false),
-                HttpMethod.POST,
-                HttpURLConnection.HTTP_NO_CONTENT);
-        str = executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                null,
-                HttpMethod.GET,
-                HttpURLConnection.HTTP_OK);
-        state = objectMapper.readValue(str, NativeStorageState.class);
-        assertThat(state).isNotNull();
-        assertThat(state.storagePermanentException()).isEqualTo(true);
-        assertThat(state.storageTemporaryException()).isEqualTo(false);
-
-        executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                new NativeStorageState(0, 0, false, true),
-                HttpMethod.POST,
-                HttpURLConnection.HTTP_NO_CONTENT);
-        str = executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                null,
-                HttpMethod.GET,
-                HttpURLConnection.HTTP_OK);
-        state = objectMapper.readValue(str, NativeStorageState.class);
-        assertThat(state).isNotNull();
-        assertThat(state.storagePermanentException()).isEqualTo(false);
-        assertThat(state.storageTemporaryException()).isEqualTo(true);
-
-        executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                new NativeStorageState(0, 0, false, false),
-                HttpMethod.POST,
-                HttpURLConnection.HTTP_NO_CONTENT);
-        str = executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                null,
-                HttpMethod.GET,
-                HttpURLConnection.HTTP_OK);
-        state = objectMapper.readValue(str, NativeStorageState.class);
-        assertThat(state).isNotNull();
-        assertThat(state.storagePermanentException()).isEqualTo(false);
-        assertThat(state.storageTemporaryException()).isEqualTo(false);
     }
 }
