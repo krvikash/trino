@@ -97,7 +97,7 @@ public class QueryManagerConfig
     private Duration queryMaxCpuTime = new Duration(1_000_000_000, TimeUnit.DAYS);
     private Optional<DataSize> queryMaxScanPhysicalBytes = Optional.empty();
     private Optional<DataSize> queryMaxOutputDataSize = Optional.empty();
-    private Optional<DataSize> queryMaxWrittenDataSize = Optional.empty();
+    private Optional<DataSize> queryMaxWritePhysicalSize = Optional.empty();
     private int queryReportedRuleStatsLimit = 10;
     private int dispatcherQueryPoolSize = DISPATCHER_THREADPOOL_MAX_SIZE;
 
@@ -525,16 +525,17 @@ public class QueryManagerConfig
     }
 
     @NotNull
-    public Optional<DataSize> getQueryMaxWrittenDataSize()
+    public Optional<DataSize> getQueryMaxWritePhysicalSize()
     {
-        return queryMaxWrittenDataSize;
+        return queryMaxWritePhysicalSize;
     }
 
-    @Config("query.max-written-data-size")
-    @ConfigDescription("The maximum written data size allowed by the query during its execution")
-    public QueryManagerConfig setQueryMaxWrittenDataSize(DataSize queryMaxWrittenDataSize)
+    @Config("query.max-write-physical-size")
+    @LegacyConfig("query.max-written-data-size")
+    @ConfigDescription("The maximum written physical data size allowed by the query during its execution")
+    public QueryManagerConfig setQueryMaxWritePhysicalSize(DataSize queryMaxWritePhysicalSize)
     {
-        this.queryMaxWrittenDataSize = Optional.ofNullable(queryMaxWrittenDataSize);
+        this.queryMaxWritePhysicalSize = Optional.ofNullable(queryMaxWritePhysicalSize);
         return this;
     }
 

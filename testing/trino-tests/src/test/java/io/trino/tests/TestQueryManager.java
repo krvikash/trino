@@ -13,18 +13,21 @@
  */
 package io.trino.tests;
 
+import com.google.common.collect.ImmutableMap;
 import io.opentelemetry.api.trace.Span;
 import io.trino.Session;
 import io.trino.dispatcher.DispatchManager;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryManager;
 import io.trino.execution.QueryState;
+import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.server.BasicQueryInfo;
 import io.trino.server.SessionContext;
 import io.trino.server.protocol.Slug;
 import io.trino.spi.QueryId;
 import io.trino.spi.TrinoException;
+import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.tests.tpch.TpchQueryRunner;
 import org.junit.jupiter.api.Test;
@@ -32,15 +35,19 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.io.File;
+import java.nio.file.Path;
 
 import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.SystemSessionProperties.QUERY_MAX_WRITE_PHYSICAL_SIZE;
 import static io.trino.execution.QueryRunnerUtil.createQuery;
 import static io.trino.execution.QueryRunnerUtil.waitForQueryState;
 import static io.trino.execution.QueryState.FAILED;
 import static io.trino.execution.QueryState.RUNNING;
 import static io.trino.spi.StandardErrorCode.EXCEEDED_CPU_LIMIT;
 import static io.trino.spi.StandardErrorCode.EXCEEDED_SCAN_LIMIT;
+import static io.trino.spi.StandardErrorCode.EXCEEDED_WRITE_LIMIT;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
+import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Fail.fail;
@@ -139,6 +146,67 @@ public class TestQueryManager
 
     @Test
     @Timeout(60)
+    public void testQueryWriteExceeded()
+            throws Exception
+    {
+        try (DistributedQueryRunner queryRunner = TpchQueryRunner.builder()
+                .addExtraProperty("query.max-write-physical-size", "0B")
+                .build()) {
+            Path hiveDataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("hive_data");
+            queryRunner.installPlugin(new TestingHivePlugin(hiveDataDir));
+            queryRunner.createCatalog("hive", "hive", ImmutableMap.of(
+                    "hive.metastore", "file",
+                    "hive.metastore.catalog.dir", hiveDataDir.toFile().getAbsolutePath(),
+                    "fs.hadoop.enabled", "true"));
+
+            Session session = testSessionBuilder()
+                    .setCatalog("hive")
+                    .setSchema("test")
+                    .build();
+
+            queryRunner.execute(session, "CREATE SCHEMA IF NOT EXISTS test");
+            QueryId queryId = createQuery(queryRunner, session, "CREATE TABLE test_table AS SELECT * FROM tpch.tiny.orders");
+
+            waitForQueryState(queryRunner, queryId, FAILED);
+            QueryManager queryManager = queryRunner.getCoordinator().getQueryManager();
+            BasicQueryInfo queryInfo = queryManager.getQueryInfo(queryId);
+            assertThat(queryInfo.getState()).isEqualTo(FAILED);
+            assertThat(queryInfo.getErrorCode()).isEqualTo(EXCEEDED_WRITE_LIMIT.toErrorCode());
+        }
+    }
+
+    @Test
+    @Timeout(60)
+    public void testQueryWriteExceededSession()
+            throws Exception
+    {
+        try (DistributedQueryRunner queryRunner = TpchQueryRunner.builder().build()) {
+            Path hiveDataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("hive_data");
+            queryRunner.installPlugin(new TestingHivePlugin(hiveDataDir));
+            queryRunner.createCatalog("hive", "hive", ImmutableMap.of(
+                    "hive.metastore", "file",
+                    "hive.metastore.catalog.dir", queryRunner.getCoordinator().getBaseDataDir().resolve("hive_data").toFile().getAbsolutePath(),
+                    "fs.hadoop.enabled", "true"));
+
+            Session session = testSessionBuilder()
+                    .setCatalog("hive")
+                    .setSchema("test")
+                    .setSystemProperty(QUERY_MAX_WRITE_PHYSICAL_SIZE, "0B")
+                    .build();
+
+            queryRunner.execute(session, "CREATE SCHEMA IF NOT EXISTS test");
+            QueryId queryId = createQuery(queryRunner, session, "CREATE TABLE test_table AS SELECT * FROM tpch.tiny.orders");
+
+            waitForQueryState(queryRunner, queryId, FAILED);
+            QueryManager queryManager = queryRunner.getCoordinator().getQueryManager();
+            BasicQueryInfo queryInfo = queryManager.getQueryInfo(queryId);
+            assertThat(queryInfo.getState()).isEqualTo(FAILED);
+            assertThat(queryInfo.getErrorCode()).isEqualTo(EXCEEDED_WRITE_LIMIT.toErrorCode());
+        }
+    }
+
+    @Test
+    @Timeout(60)
     public void testQueryMaxOutputDataSizeLimit()
             throws Exception
     {
@@ -168,13 +236,13 @@ public class TestQueryManager
 
     @Test
     @Timeout(60)
-    public void testQueryMaxWrittenDataSizeLimit()
+    public void testQueryMaxWritePhysicalSizeLimit()
             throws Exception
     {
-        try (QueryRunner queryRunner = TpchQueryRunner.builder().addExtraProperty("query.max-written-data-size", "50MB").build()) {
+        try (QueryRunner queryRunner = TpchQueryRunner.builder().addExtraProperty("query.max-write-physical-size", "50MB").build()) {
             addIcebergCatalog(queryRunner);
             assertThatThrownBy(() -> queryRunner.execute("CREATE TABLE iceberg.default.t2 AS SELECT * FROM tpch.sf100.customer"))
-                    .hasMessage("Exceeded written data size limit of 50MB");
+                    .hasMessage("Exceeded write limit of 50MB");
             //Query with predicate writes ~32MB
             queryRunner.execute("CREATE TABLE iceberg.default.t1 AS SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
             queryRunner.execute("DROP TABLE iceberg.default.t1");
@@ -183,16 +251,16 @@ public class TestQueryManager
 
     @Test
     @Timeout(60)
-    public void testQueryMaxWrittenDataSizeLimitSession()
+    public void testQueryMaxWritePhysicalSizeLimitSession()
             throws Exception
     {
         try (QueryRunner queryRunner = TpchQueryRunner.builder().build()) {
             addIcebergCatalog(queryRunner);
             Session session = Session.builder(queryRunner.getDefaultSession())
-                    .setSystemProperty("query_max_written_data_size", "50MB")
+                    .setSystemProperty(QUERY_MAX_WRITE_PHYSICAL_SIZE, "50MB")
                     .build();
             assertThatThrownBy(() -> queryRunner.execute(session, "CREATE TABLE iceberg.default.t2 AS SELECT * FROM tpch.sf100.customer"))
-                    .hasMessage("Exceeded written data size limit of 50MB");
+                    .hasMessage("Exceeded write limit of 50MB");
             //Query with predicate writes ~32MB
             queryRunner.execute(session, "CREATE TABLE iceberg.default.t1 AS SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
             queryRunner.execute("DROP TABLE iceberg.default.t1");

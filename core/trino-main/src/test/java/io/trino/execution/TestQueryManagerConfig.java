@@ -27,6 +27,7 @@ import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.airlift.units.DataSize.Unit.TERABYTE;
 import static io.trino.execution.QueryManagerConfig.AVAILABLE_HEAP_MEMORY;
 import static io.trino.execution.QueryManagerConfig.DEFAULT_TASK_DESCRIPTOR_STORAGE_MAX_MEMORY;
 import static io.trino.execution.QueryManagerConfig.FAULT_TOLERANT_EXECUTION_MAX_PARTITION_COUNT_LIMIT;
@@ -72,7 +73,7 @@ public class TestQueryManagerConfig
                 .setDispatcherQueryPoolSize(Integer.toString(max(50, Runtime.getRuntime().availableProcessors() * 10)))
                 .setQueryMaxScanPhysicalBytes(null)
                 .setQueryMaxOutputDataSize(null)
-                .setQueryMaxWrittenDataSize(null)
+                .setQueryMaxWritePhysicalSize(null)
                 .setRequiredWorkers(1)
                 .setRequiredWorkersMaxWait(new Duration(5, MINUTES))
                 .setRetryPolicy(RetryPolicy.NONE)
@@ -159,7 +160,7 @@ public class TestQueryManagerConfig
                 .put("query.dispatcher-query-pool-size", "151")
                 .put("query.max-scan-physical-bytes", "1kB")
                 .put("query.max-output-data-size", "1kB")
-                .put("query.max-written-data-size", "1kB")
+                .put("query.max-write-physical-size", "1TB")
                 .put("query-manager.required-workers", "333")
                 .put("query-manager.required-workers-max-wait", "33m")
                 .put("retry-policy", "QUERY")
@@ -243,7 +244,7 @@ public class TestQueryManagerConfig
                 .setDispatcherQueryPoolSize("151")
                 .setQueryMaxScanPhysicalBytes(DataSize.of(1, KILOBYTE))
                 .setQueryMaxOutputDataSize(DataSize.of(1, KILOBYTE))
-                .setQueryMaxWrittenDataSize(DataSize.of(1, KILOBYTE))
+                .setQueryMaxWritePhysicalSize(DataSize.of(1, TERABYTE))
                 .setRequiredWorkers(333)
                 .setRequiredWorkersMaxWait(new Duration(33, MINUTES))
                 .setRetryPolicy(RetryPolicy.QUERY)
