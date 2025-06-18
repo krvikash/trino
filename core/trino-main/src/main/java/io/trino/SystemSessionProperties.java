@@ -1282,7 +1282,7 @@ public final class SystemSessionProperties
                         DEBUG_CTE_REUSE,
                         "Enable debug information for the common subquery reuse optimization",
                         false,
-                        false),
+                        true),
                 booleanProperty(
                         SUPERSET_PREDICATE_PUSHDOWN_ENABLED,
                         "Enable superset predicate pushdown",
