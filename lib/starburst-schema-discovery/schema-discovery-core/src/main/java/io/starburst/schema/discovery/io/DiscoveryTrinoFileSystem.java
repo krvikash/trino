@@ -9,13 +9,11 @@
  */
 package io.starburst.schema.discovery.io;
 
-import io.airlift.units.Duration;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoOutputFile;
-import io.trino.filesystem.UriLocation;
 import io.trino.hive.formats.compression.CompressionKind;
 import io.trino.spi.TrinoException;
 
@@ -172,13 +170,6 @@ public class DiscoveryTrinoFileSystem
 
     @Override
     public void renameFile(Location source, Location target)
-    {
-        throw new UnsupportedOperationException("DiscoveryTrinoFileSystem is read only");
-    }
-
-    @Override
-    public Optional<UriLocation> preSignedUri(Location location, Duration ttl)
-            throws IOException
     {
         throw new UnsupportedOperationException("DiscoveryTrinoFileSystem is read only");
     }
