@@ -303,6 +303,7 @@ final class TestIcebergS3TablesConnectorSmokeTest
     public void testUnregisterTableAccessControl() {}
 
     @Test
+    @Override
     @Disabled // TODO: remove once https://starburstdata.atlassian.net/browse/CONNECT-557 is fixed
     public void testSelectInformationSchemaTables()
     {
