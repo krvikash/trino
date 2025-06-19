@@ -172,7 +172,7 @@ public class OpenApiSplitManager
          */
         Map<ColumnHandle, Domain> originalDomains = constraint.getDomains().get();
         // first build a list of lists of tuples with the column and single-valued domain, for every value of a multi valued domain
-        ImmutableList.Builder<List<Map.Entry<ColumnHandle, Domain>>> singleDomains = new ImmutableList.Builder<>();
+        ImmutableList.Builder<List<Map.Entry<ColumnHandle, Domain>>> singleDomains = ImmutableList.builder();
         for (Map.Entry<ColumnHandle, Domain> entry : originalDomains.entrySet()) {
             OpenApiColumnHandle column = (OpenApiColumnHandle) entry.getKey();
             Domain domain = entry.getValue();
@@ -187,7 +187,7 @@ public class OpenApiSplitManager
                         .map(Range::getSingleValue)
                         .collect(toList());
             }
-            ImmutableList.Builder<Map.Entry<ColumnHandle, Domain>> splitDomains = new ImmutableList.Builder<>();
+            ImmutableList.Builder<Map.Entry<ColumnHandle, Domain>> splitDomains = ImmutableList.builderWithExpectedSize(values.size());
             for (Object value : values) {
                 splitDomains.add(new AbstractMap.SimpleImmutableEntry<>(column, Domain.create(
                         ValueSet.of(domain.getType(), value),
@@ -196,7 +196,7 @@ public class OpenApiSplitManager
             singleDomains.add(splitDomains.build());
         }
         // then create copies of the original constraints, with every multivalued domain replaced with single-value sets
-        ImmutableList.Builder<OpenApiSplit> splits = new ImmutableList.Builder<>();
+        ImmutableList.Builder<OpenApiSplit> splits = ImmutableList.builder();
         for (List<Map.Entry<ColumnHandle, Domain>> splitDomains : Lists.cartesianProduct(singleDomains.build())) {
             Map<ColumnHandle, Domain> newDomains = new HashMap<>(originalDomains);
             for (Map.Entry<ColumnHandle, Domain> entry : splitDomains) {

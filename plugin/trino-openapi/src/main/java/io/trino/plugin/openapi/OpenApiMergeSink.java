@@ -49,14 +49,10 @@ public class OpenApiMergeSink
     private void updatedPage(Page page, int position)
     {
         PathItem.HttpMethod method = this.table.getTableHandle().getUpdateMethod();
-        if (method == PathItem.HttpMethod.PUT) {
-            client.putRows(table, page, position);
-        }
-        else if (method == PathItem.HttpMethod.POST) {
-            client.postRows(table, page, position);
-        }
-        else {
-            throw new IllegalArgumentException("Unsupported UPDATE method: " + method);
+        switch (method) {
+            case PUT -> client.putRows(table, page, position);
+            case POST -> client.postRows(table, page, position);
+            default -> throw new IllegalArgumentException("Unsupported UPDATE method: " + method);
         }
     }
 

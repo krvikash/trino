@@ -49,14 +49,10 @@ public class OpenApiPageSink
     protected void insertedPage(Page page, int position)
     {
         PathItem.HttpMethod method = this.table.getTableHandle().getUpdateMethod();
-        if (method == PathItem.HttpMethod.POST) {
-            client.postRows(table, page, position);
-        }
-        else if (method == PathItem.HttpMethod.PUT) {
-            client.putRows(table, page, position);
-        }
-        else {
-            throw new IllegalArgumentException("Unsupported INSERT method: " + method);
+        switch (method) {
+            case POST -> client.postRows(table, page, position);
+            case PUT -> client.putRows(table, page, position);
+            default -> throw new IllegalArgumentException("Unsupported INSERT method: " + method);
         }
     }
 

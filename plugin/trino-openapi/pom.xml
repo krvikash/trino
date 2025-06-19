@@ -194,6 +194,10 @@
             <artifactId>swagger-parser-v3</artifactId>
             <version>${dep.swagger-parser.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-cache</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>jakarta.validation</groupId>

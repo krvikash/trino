@@ -99,7 +99,7 @@ public class OpenApiClient
 {
     private static final Logger log = Logger.get(OpenApiRecordSetProvider.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    public static final String USER_AGENT_VALUE = "trino-openapi/" + OpenApiClient.class.getPackage().getImplementationVersion();
+    private static final String USER_AGENT_VALUE = "trino-openapi/" + OpenApiClient.class.getPackage().getImplementationVersion();
 
     private final URI baseUri;
 
@@ -107,7 +107,7 @@ public class OpenApiClient
     private final OpenApiSpec openApiSpec;
     private final RateLimiter rateLimiter;
 
-    static final long[] POWERS_OF_TEN = {
+    private static final long[] POWERS_OF_TEN = {
             1L,
             10L,
             100L,

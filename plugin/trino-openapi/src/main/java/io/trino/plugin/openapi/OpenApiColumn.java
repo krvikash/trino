@@ -120,6 +120,7 @@ public class OpenApiColumn
         return new PrimaryKey(name, type.getDisplayName());
     }
 
+    @Override
     public boolean equals(Object o)
     {
         if (this == o) {
@@ -154,6 +155,7 @@ public class OpenApiColumn
                 '}';
     }
 
+    @Override
     public int hashCode()
     {
         return Objects.hash(name, sourceName, type, sourceType, requiresPredicate, optionalPredicate, metadata, isPageNumber);

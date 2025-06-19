@@ -14,20 +14,22 @@
 
 package io.trino.plugin.openapi;
 
+import com.google.common.io.Resources;
 import io.trino.testing.containers.junit.ReportLeakedContainers;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URI;
+import java.nio.file.Files;
 
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 
@@ -57,21 +59,17 @@ public class PetStoreServer
         ReportLeakedContainers.ignoreContainerId(dockerContainer.getContainerId());
 
         try {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(URI.create(getContainerSpecUrl()).toURL().openStream()));
-            StringBuilder builder = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                builder.append(line).append("\n");
-            }
-            String contents = builder.toString();
+            String contents = Resources.toString(URI.create(getContainerSpecUrl()).toURL(), UTF_8);
 
             specFile = File.createTempFile("spec-", ".json");
             specFile.deleteOnExit();
 
-            BufferedWriter writer = new BufferedWriter(new FileWriter(specFile, true));
+            Files.writeString(
+                    specFile.toPath(),
+                    contents.replaceAll("\"authorizationUrl\":\".*?\"", "\"authorizationUrl\":\"%s\"".formatted(keycloakServer.getTokenUrl())),
+                    UTF_8,
+                    CREATE, WRITE, APPEND);
             // TODO change the implicit flow to client_credentials
-            writer.write(contents.replaceAll("\"authorizationUrl\":\".*?\"", "\"authorizationUrl\":\"%s\"".formatted(keycloakServer.getTokenUrl())));
-            writer.close();
         }
         catch (IOException e) {
             throw new RuntimeException(e);

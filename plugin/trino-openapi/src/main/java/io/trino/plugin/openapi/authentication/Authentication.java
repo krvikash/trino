@@ -14,7 +14,6 @@
 package io.trino.plugin.openapi.authentication;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
@@ -27,6 +26,7 @@ import io.swagger.v3.oas.models.security.OAuthFlow;
 import io.swagger.v3.oas.models.security.OAuthFlows;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.trino.cache.EvictableCacheBuilder;
 import io.trino.plugin.openapi.OpenApiConfig;
 import io.trino.plugin.openapi.OpenApiSpec;
 
@@ -66,11 +66,10 @@ public class Authentication
     private final String apiKeyName;
     private final String apiKeyValue;
 
-    private final URI baseUri;
     private final HttpClient httpClient;
     private final String clientId;
     private final String clientSecret;
-    private final LoadingCache<String, String> tokens = CacheBuilder.newBuilder()
+    private final LoadingCache<String, String> tokens = EvictableCacheBuilder.newBuilder()
             .build(CacheLoader.from(this::getToken));
 
     @Inject
@@ -92,7 +91,6 @@ public class Authentication
         this.apiKeyName = config.getApiKeyName();
         this.apiKeyValue = config.getApiKeyValue();
 
-        this.baseUri = requireNonNull(config.getBaseUri(), "baseUri is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.clientId = config.getClientId();
         this.clientSecret = config.getClientSecret();
@@ -106,7 +104,7 @@ public class Authentication
         Request.Builder builder = fromRequest(request);
         List<SecurityRequirement> requirements = getRequirements(request.getHeader("X-Trino-OpenAPI-Path"), method);
         applyAuthFilters(builder, requirements, uri);
-        if ((requirements == null || requirements.isEmpty()) && defaultAuthenticationType != AuthenticationType.NONE) {
+        if (requirements == null || requirements.isEmpty()) {
             switch (defaultAuthenticationType) {
                 case API_KEY -> {
                     SecurityScheme scheme = new SecurityScheme();
@@ -115,6 +113,7 @@ public class Authentication
                 }
                 case HTTP -> applyHttpAuth(builder, null);
                 case OAUTH -> throw new UnsupportedOperationException("OAuth cannot be used as a default authentication method");
+                case NONE -> {}
             }
         }
         return builder.build();
@@ -270,7 +269,7 @@ public class Authentication
             params.put("client_secret", clientSecret);
         }
 
-        return params.build().entrySet().stream()
+        return params.buildOrThrow().entrySet().stream()
                 .map(entry -> encodePair(entry.getKey(), entry.getValue()))
                 .collect(joining("&"));
     }
