@@ -30,6 +30,7 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.tryGetFutureValue;
+import static io.trino.SystemSessionProperties.isParallelizeLookupOuterOperator;
 import static java.util.Objects.requireNonNull;
 
 public class LookupOuterOperator
@@ -43,6 +44,8 @@ public class LookupOuterOperator
         private final List<Type> probeOutputTypes;
         private final List<Type> buildOutputTypes;
         private final JoinBridgeManager<?> joinBridgeManager;
+
+        private int nextPartitionIndex;
 
         private boolean closed;
 
@@ -58,6 +61,7 @@ public class LookupOuterOperator
             this.probeOutputTypes = ImmutableList.copyOf(requireNonNull(probeOutputTypes, "probeOutputTypes is null"));
             this.buildOutputTypes = ImmutableList.copyOf(requireNonNull(buildOutputTypes, "buildOutputTypes is null"));
             this.joinBridgeManager = joinBridgeManager;
+            joinBridgeManager.incrementOuterFactoryCount();
         }
 
         public int getOperatorId()
@@ -70,7 +74,15 @@ public class LookupOuterOperator
         {
             checkState(!closed, "LookupOuterOperatorFactory is closed");
 
-            ListenableFuture<OuterPositionIterator> outerPositionsFuture = joinBridgeManager.getOuterPositionsFuture();
+            ListenableFuture<OuterPositionIterator> outerPositionsFuture;
+            if (isParallelizeLookupOuterOperator(driverContext.getSession())) {
+                int partitionIndex = this.nextPartitionIndex++;
+                outerPositionsFuture = joinBridgeManager.getOuterPositionsFuture(partitionIndex);
+            }
+            else {
+                outerPositionsFuture = joinBridgeManager.getOuterPositionsFuture();
+            }
+
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, LookupOuterOperator.class.getSimpleName());
             joinBridgeManager.outerOperatorCreated();
             return new LookupOuterOperator(operatorContext, outerPositionsFuture, probeOutputTypes, buildOutputTypes, joinBridgeManager::outerOperatorClosed);

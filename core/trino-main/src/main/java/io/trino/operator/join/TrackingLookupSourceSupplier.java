@@ -23,6 +23,8 @@ public interface TrackingLookupSourceSupplier
 
     OuterPositionIterator getOuterPositionIterator();
 
+    OuterPositionIterator getOuterPositionIterator(int partitionIndex);
+
     static TrackingLookupSourceSupplier nonTracking(Supplier<LookupSource> lookupSourceSupplier)
     {
         requireNonNull(lookupSourceSupplier, "lookupSourceSupplier is null");
@@ -36,6 +38,12 @@ public interface TrackingLookupSourceSupplier
 
             @Override
             public OuterPositionIterator getOuterPositionIterator()
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public OuterPositionIterator getOuterPositionIterator(int partitionIndex)
             {
                 throw new UnsupportedOperationException();
             }

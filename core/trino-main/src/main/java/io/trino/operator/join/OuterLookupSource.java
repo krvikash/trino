@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
+import static io.trino.operator.join.OuterPositionIterator.EMPTY_ITERATOR;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -106,7 +107,7 @@ public final class OuterLookupSource
     }
 
     @ThreadSafe
-    private static class SharedLookupOuterPositionIterator
+    public static class SharedLookupOuterPositionIterator
             implements OuterPositionIterator
     {
         private final LookupSource lookupSource;
@@ -160,6 +161,15 @@ public final class OuterLookupSource
         public OuterPositionIterator getOuterPositionIterator()
         {
             return outerPositionTracker.getOuterPositionIterator();
+        }
+
+        @Override
+        public OuterPositionIterator getOuterPositionIterator(int partitionIndex)
+        {
+            if (partitionIndex == 0) {
+                return getOuterPositionIterator();
+            }
+            return EMPTY_ITERATOR;
         }
     }
 

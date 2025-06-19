@@ -346,6 +346,7 @@ import static io.trino.SystemSessionProperties.isDebugOutputEnabled;
 import static io.trino.SystemSessionProperties.isEnableDynamicRowFiltering;
 import static io.trino.SystemSessionProperties.isEnableLargeDynamicFilters;
 import static io.trino.SystemSessionProperties.isForceSpillingOperator;
+import static io.trino.SystemSessionProperties.isParallelizeLookupOuterOperator;
 import static io.trino.SystemSessionProperties.isSpillEnabled;
 import static io.trino.SystemSessionProperties.isUseCardinalityBasedPartialAggregationController;
 import static io.trino.cache.CacheCommonSubqueries.getLoadCachedDataPlanNode;
@@ -780,7 +781,7 @@ public class LocalExecutionPlanner
             boolean inputDriver = context.isInputDriver();
             OptionalInt driverInstances = context.getDriverInstanceCount();
             List<OperatorFactory> operatorFactories = physicalOperation.pipelineTail;
-            addLookupOuterDrivers(outputDriver, operatorFactories);
+            addLookupOuterDrivers(outputDriver, operatorFactories, isParallelizeLookupOuterOperator(context.getTaskContext().getSession()) ? driverInstances : OptionalInt.of(1));
             if (physicalOperation.pipelineHeadAlternatives.isEmpty()) {
                 addDriverFactory(inputDriver, outputDriver, operatorFactories, driverInstances);
             }
@@ -824,7 +825,7 @@ public class LocalExecutionPlanner
             }
         }
 
-        private void addLookupOuterDrivers(boolean isOutputDriver, List<OperatorFactory> operatorFactories)
+        private void addLookupOuterDrivers(boolean isOutputDriver, List<OperatorFactory> operatorFactories, OptionalInt driverInstanceCount)
         {
             // For an outer join on the lookup side (RIGHT or FULL) add an additional
             // driver to output the unused rows in the lookup source
@@ -845,7 +846,7 @@ public class LocalExecutionPlanner
                             .map(OperatorFactory::duplicate)
                             .forEach(newOperators::add);
 
-                    addDriverFactory(false, isOutputDriver, newOperators.build(), OptionalInt.of(1));
+                    addDriverFactory(false, isOutputDriver, newOperators.build(), driverInstanceCount);
                 }
             }
         }

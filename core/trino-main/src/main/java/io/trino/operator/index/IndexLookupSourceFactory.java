@@ -147,6 +147,12 @@ public class IndexLookupSourceFactory
     }
 
     @Override
+    public OuterPositionIterator getOuterPositionIterator(int partitionIndex)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void destroy()
     {
         // nothing to do

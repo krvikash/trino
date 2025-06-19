@@ -19,6 +19,10 @@ import io.trino.SystemSessionProperties;
 import io.trino.execution.QueryStats;
 import io.trino.operator.OperatorStats;
 import io.trino.spi.type.Decimals;
+import io.trino.sql.planner.Plan;
+import io.trino.sql.planner.optimizations.PlanNodeSearcher;
+import io.trino.sql.planner.plan.JoinNode;
+import io.trino.sql.planner.plan.PlanNode;
 import io.trino.tests.QueryTemplate;
 import io.trino.tpch.TpchTable;
 import org.intellij.lang.annotations.Language;
@@ -29,6 +33,8 @@ import java.util.List;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
+import static io.trino.SystemSessionProperties.PARALLELIZE_LOOKUP_OUTER_OPERATOR;
+import static io.trino.SystemSessionProperties.TASK_CONCURRENCY;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import static io.trino.testing.MaterializedResult.resultBuilder;
@@ -2385,6 +2391,27 @@ public abstract class AbstractTestJoinQueries
         assertQuery("SELECT p.name, l.comment FROM lineitem l JOIN part p ON l.partkey = p.partkey WHERE p.name BETWEEN l.linestatus  AND l.comment");
     }
 
+    @Test
+    public void testLookupOuterOperatorParallelization()
+    {
+        assertLookupOuterOperatorParallelization(2, "SELECT * FROM region b RIGHT JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey");
+        assertLookupOuterOperatorParallelization(4, "SELECT * FROM region b RIGHT JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey");
+        assertLookupOuterOperatorParallelization(8, "SELECT * FROM region b RIGHT JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey");
+
+        assertLookupOuterOperatorParallelization(
+                2,
+                "SELECT * FROM region b FULL JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey",
+                "(SELECT * FROM region b LEFT JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey) UNION (SELECT * FROM region b RIGHT JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey)");
+        assertLookupOuterOperatorParallelization(
+                4,
+                "SELECT * FROM region b FULL JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey",
+                "(SELECT * FROM region b LEFT JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey) UNION (SELECT * FROM region b RIGHT JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey)");
+        assertLookupOuterOperatorParallelization(
+                8,
+                "SELECT * FROM region b FULL JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey",
+                "(SELECT * FROM region b LEFT JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey) UNION (SELECT * FROM region b RIGHT JOIN (SELECT * FROM nation) a ON a.regionkey = b.regionkey)");
+    }
+
     private void assertJoinOutputPositions(@Language("SQL") String sql, int expectedJoinOutputPositions)
     {
         QueryRunner.MaterializedResultWithQueryId result = getDistributedQueryRunner().executeWithQueryId(
@@ -2405,5 +2432,45 @@ public abstract class AbstractTestJoinQueries
                 .mapToInt(Math::toIntExact)
                 .sum();
         assertThat(actualJoinOutputPositions).isEqualTo(expectedJoinOutputPositions);
+    }
+
+    protected void assertLookupOuterOperatorParallelization(int taskConcurrency, @Language("SQL") String actual)
+    {
+        assertLookupOuterOperatorParallelization(taskConcurrency, actual, actual);
+    }
+
+    protected void assertLookupOuterOperatorParallelization(int taskConcurrency, @Language("SQL") String actual, String expected)
+    {
+        assertLookupOuterOperatorParallelization(
+                Session.builder(getSession())
+                        .setSystemProperty(TASK_CONCURRENCY, Integer.toString(taskConcurrency))
+                        .build(),
+                actual,
+                expected,
+                taskConcurrency);
+
+        assertLookupOuterOperatorParallelization(
+                Session.builder(getSession())
+                        .setSystemProperty(TASK_CONCURRENCY, Integer.toString(taskConcurrency))
+                        .setSystemProperty(PARALLELIZE_LOOKUP_OUTER_OPERATOR, "false")
+                        .build(),
+                actual,
+                expected,
+                1);
+    }
+
+    protected void assertLookupOuterOperatorParallelization(Session session, @Language("SQL") String actual, String expected, int expectedDriversAtTaskLevel)
+    {
+        // Ensure results are correct
+        assertQuery(actual, expected);
+
+        QueryRunner.MaterializedResultWithPlan resultWithQueryId = getDistributedQueryRunner().executeWithPlan(session, actual);
+
+        Plan plan = getDistributedQueryRunner().getQueryPlan(resultWithQueryId.queryId());
+
+        PlanNode joinNode = PlanNodeSearcher.searchFrom(plan.getRoot()).where(node -> node instanceof JoinNode).findFirst().get();
+
+        assertThat(extractOperatorStatsAtTaskLevel(resultWithQueryId.queryId(), joinNode.getId(), "LookupOuterOperator").getTotalDrivers())
+                .isEqualTo(expectedDriversAtTaskLevel);
     }
 }

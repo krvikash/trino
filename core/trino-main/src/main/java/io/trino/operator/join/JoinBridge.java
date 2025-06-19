@@ -27,6 +27,8 @@ public interface JoinBridge
      */
     OuterPositionIterator getOuterPositionIterator();
 
+    OuterPositionIterator getOuterPositionIterator(int partitionIndex);
+
     void destroy();
 
     ListenableFuture<Void> whenBuildFinishes();

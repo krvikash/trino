@@ -129,6 +129,8 @@ public class FeaturesConfig
 
     private boolean legacyArithmeticDecimalOperators;
 
+    private boolean parallelizeLookupOuterOperator = true;
+
     public enum DataIntegrityVerification
     {
         NONE,
@@ -579,6 +581,18 @@ public class FeaturesConfig
     public FeaturesConfig setLegacyArithmeticDecimalOperators(boolean value)
     {
         this.legacyArithmeticDecimalOperators = value;
+        return this;
+    }
+
+    public boolean isParallelizeLookupOuterOperator()
+    {
+        return parallelizeLookupOuterOperator;
+    }
+
+    @Config("parallelize-lookup-outer-operator")
+    public FeaturesConfig setParallelizeLookupOuterOperator(boolean value)
+    {
+        this.parallelizeLookupOuterOperator = value;
         return this;
     }
 }

@@ -23,7 +23,6 @@ import io.trino.spi.type.Type;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.transform;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
@@ -48,6 +47,7 @@ public class JoinBridgeManager<T extends JoinBridge>
     private JoinLifecycle joinLifecycle;
 
     private final FreezeOnReadCounter probeFactoryCount = new FreezeOnReadCounter();
+    private final FreezeOnReadCounter outerFactoryCount = new FreezeOnReadCounter();
 
     public JoinBridgeManager(
             boolean buildOuter,
@@ -67,7 +67,8 @@ public class JoinBridgeManager<T extends JoinBridge>
                     return;
                 }
                 int finalProbeFactoryCount = probeFactoryCount.get();
-                joinLifecycle = new JoinLifecycle(joinBridge, finalProbeFactoryCount, buildOuter ? 1 : 0);
+                int finalOuterFactoryCount = outerFactoryCount.get();
+                joinLifecycle = new JoinLifecycle(joinBridge, finalProbeFactoryCount, buildOuter ? finalOuterFactoryCount : 0);
                 initialized.set(true);
             }
         }
@@ -81,6 +82,11 @@ public class JoinBridgeManager<T extends JoinBridge>
     public void incrementProbeFactoryCount()
     {
         probeFactoryCount.increment();
+    }
+
+    public void incrementOuterFactoryCount()
+    {
+        outerFactoryCount.increment();
     }
 
     public T getJoinBridge()
@@ -131,6 +137,12 @@ public class JoinBridgeManager<T extends JoinBridge>
         return transform(joinLifecycle.whenBuildAndProbeFinishes(), _ -> joinBridge.getOuterPositionIterator(), directExecutor());
     }
 
+    public ListenableFuture<OuterPositionIterator> getOuterPositionsFuture(int partitionIndex)
+    {
+        initializeIfNecessary();
+        return transform(joinLifecycle.whenBuildAndProbeFinishes(), _ -> joinBridge.getOuterPositionIterator(partitionIndex), directExecutor());
+    }
+
     private static class JoinLifecycle
     {
         private final ReferenceCount probeReferenceCount;
@@ -142,10 +154,8 @@ public class JoinBridgeManager<T extends JoinBridge>
         public JoinLifecycle(JoinBridge joinBridge, int probeFactoryCount, int outerFactoryCount)
         {
             // When all probe and lookup-outer operators finish, destroy the join bridge (freeing the memory)
-            // * Each LookupOuterOperatorFactory count as 1
-            //   * There is at most 1 LookupOuterOperatorFactory
-            // * Each LookupOuterOperator count as 1
-            checkArgument(outerFactoryCount == 0 || outerFactoryCount == 1);
+            // * Each lookup outer operator factory count as 1
+            // * Each lookup outer operator count as 1
             outerReferenceCount = new ReferenceCount(outerFactoryCount);
 
             // * Each probe operator factory count as 1

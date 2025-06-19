@@ -251,6 +251,7 @@ public final class SystemSessionProperties
     public static final String DEBUG_CTE_REUSE = "debug_cte_reuse";
     public static final String SUPERSET_PREDICATE_PUSHDOWN_ENABLED = "superset_predicate_pushdown_enabled";
     public static final String REUSE_COMMON_SUBQUERIES = "reuse_common_subqueries";
+    public static final String PARALLELIZE_LOOKUP_OUTER_OPERATOR = "parallelize_lookup_outer_operator";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -1331,7 +1332,12 @@ public final class SystemSessionProperties
                         SUPERSET_PREDICATE_PUSHDOWN_ENABLED,
                         "Enable superset predicate pushdown",
                         featuresConfig.isSuperSetPredicatePushdownEnabled(),
-                        true));
+                        true),
+                booleanProperty(
+                        PARALLELIZE_LOOKUP_OUTER_OPERATOR,
+                        "Parallelize lookup outer operator",
+                        featuresConfig.isParallelizeLookupOuterOperator(),
+                        false));
     }
 
     @Override
@@ -2389,5 +2395,10 @@ public final class SystemSessionProperties
     public static boolean isReuseCommonSubqueriesEnabled(Session session)
     {
         return session.getSystemProperty(REUSE_COMMON_SUBQUERIES, Boolean.class);
+    }
+
+    public static boolean isParallelizeLookupOuterOperator(Session session)
+    {
+        return session.getSystemProperty(PARALLELIZE_LOOKUP_OUTER_OPERATOR, Boolean.class);
     }
 }

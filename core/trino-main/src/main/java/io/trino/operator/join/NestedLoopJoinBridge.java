@@ -35,6 +35,12 @@ public interface NestedLoopJoinBridge
     }
 
     @Override
+    default OuterPositionIterator getOuterPositionIterator(int partitionIndex)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     default ListenableFuture<Void> whenBuildFinishes()
     {
         return transform(getPagesFuture(), _ -> null, directExecutor());

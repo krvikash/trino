@@ -395,6 +395,23 @@ public final class PartitionedLookupSourceFactory
     }
 
     @Override
+    public OuterPositionIterator getOuterPositionIterator(int partitionIndex)
+    {
+        TrackingLookupSourceSupplier lookupSourceSupplier;
+
+        lock.writeLock().lock();
+        try {
+            checkState(this.lookupSourceSupplier != null, "lookup source not ready yet");
+            lookupSourceSupplier = this.lookupSourceSupplier;
+        }
+        finally {
+            lock.writeLock().unlock();
+        }
+
+        return lookupSourceSupplier.getOuterPositionIterator(partitionIndex);
+    }
+
+    @Override
     public void destroy()
     {
         lock.writeLock().lock();

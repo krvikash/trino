@@ -738,6 +738,30 @@ public abstract class AbstractTestQueryFramework
                 .collect(MoreCollectors.onlyElement());
     }
 
+    protected OperatorStats extractOperatorStatsAtTaskLevel(QueryId queryId, PlanNodeId nodeId, String operatorType)
+    {
+        OperatorStats operatorStats = extractOperatorStatsForNodeId(queryId, nodeId, operatorType);
+        return getDistributedQueryRunner()
+                .getCoordinator()
+                .getQueryManager()
+                .getFullQueryInfo(queryId)
+                .getStages()
+                .get()
+                .getStages().stream()
+                .filter(stagesInfo -> stagesInfo.getStageId().getId() == operatorStats.getStageId())
+                .findFirst()
+                .get()
+                .getTasks()
+                .getFirst()
+                .stats()
+                .getPipelines()
+                .stream()
+                .filter(pipelineStats -> pipelineStats.getPipelineId() == operatorStats.getPipelineId())
+                .flatMap(pipelineStats -> pipelineStats.getOperatorSummaries().stream())
+                .filter(summary -> nodeId.equals(summary.getPlanNodeId()) && operatorType.equals(summary.getOperatorType()))
+                .collect(MoreCollectors.onlyElement());
+    }
+
     protected DynamicFiltersStats getDynamicFilteringStats(QueryId queryId)
     {
         return getDistributedQueryRunner().getCoordinator()

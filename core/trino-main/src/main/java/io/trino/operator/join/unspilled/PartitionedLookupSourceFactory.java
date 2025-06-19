@@ -195,6 +195,19 @@ public final class PartitionedLookupSourceFactory
     }
 
     @Override
+    public OuterPositionIterator getOuterPositionIterator(int index)
+    {
+        TrackingLookupSourceSupplier lookupSourceSupplier;
+
+        synchronized (this) {
+            checkState(this.lookupSourceSupplier != null, "lookup source not ready yet");
+            lookupSourceSupplier = this.lookupSourceSupplier;
+        }
+
+        return lookupSourceSupplier.getOuterPositionIterator(index);
+    }
+
+    @Override
     public synchronized void destroy()
     {
         freePartitions();

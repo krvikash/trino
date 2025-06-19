@@ -55,6 +55,9 @@ public interface LookupSourceFactory
     @Override
     OuterPositionIterator getOuterPositionIterator();
 
+    @Override
+    OuterPositionIterator getOuterPositionIterator(int partitionIndex);
+
     // this is only here for the index lookup source
     default void setTaskContext(TaskContext taskContext) {}
 

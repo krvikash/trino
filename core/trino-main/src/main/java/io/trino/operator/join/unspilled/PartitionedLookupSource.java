@@ -35,11 +35,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.operator.InterpretedHashGenerator.createPagePrefixHashGenerator;
 import static java.lang.Integer.numberOfTrailingZeros;
 import static java.lang.Math.toIntExact;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Like {@link io.trino.operator.join.PartitionedLookupSource} but simplified,
@@ -72,6 +74,12 @@ public class PartitionedLookupSource
                 public OuterPositionIterator getOuterPositionIterator()
                 {
                     return outerPositionTrackerFactory.getOuterPositionIterator();
+                }
+
+                @Override
+                public OuterPositionIterator getOuterPositionIterator(int partitionIndex)
+                {
+                    return outerPositionTrackerFactory.getOuterPositionIterator(partitionIndex);
                 }
             };
         }
@@ -345,6 +353,14 @@ public class PartitionedLookupSource
                 finished.set(true);
                 return new PartitionedLookupOuterPositionIterator(lookupSources, visitedPositions);
             }
+
+            public OuterPositionIterator getOuterPositionIterator(int index)
+            {
+                // touching atomic values ensures memory visibility between commit and getVisitedPositions
+                verify(referenceCount.get() == 0);
+                finished.set(true);
+                return new LookupOuterPositionIterator(lookupSources[index], visitedPositions[index]);
+            }
         }
 
         private final boolean[][] visitedPositions; // shared across multiple operators/drivers
@@ -378,6 +394,36 @@ public class PartitionedLookupSource
                 // touching atomic values ensures memory visibility between commit and getVisitedPositions
                 referenceCount.decrementAndGet();
             }
+        }
+    }
+
+    public static class LookupOuterPositionIterator
+            implements OuterPositionIterator
+    {
+        private final LookupSource lookupSource;
+        private final boolean[] visitedPositions;
+
+        private int currentPosition;
+
+        public LookupOuterPositionIterator(LookupSource lookupSource, boolean[] visitedPositions)
+        {
+            this.lookupSource = requireNonNull(lookupSource, "lookupSource is null");
+            this.visitedPositions = requireNonNull(visitedPositions, "visitedPositions is null");
+            checkArgument(lookupSource.getJoinPositionCount() == visitedPositions.length);
+        }
+
+        @Override
+        public boolean appendToNext(PageBuilder pageBuilder, int outputChannelOffset)
+        {
+            while (currentPosition < visitedPositions.length) {
+                if (!visitedPositions[currentPosition]) {
+                    lookupSource.appendTo(currentPosition, pageBuilder, outputChannelOffset);
+                    currentPosition++;
+                    return true;
+                }
+                currentPosition++;
+            }
+            return false;
         }
     }
 }
