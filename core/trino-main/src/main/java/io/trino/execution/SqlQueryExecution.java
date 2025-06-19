@@ -262,7 +262,7 @@ public class SqlQueryExecution
             return;
         }
 
-        dynamicFilterService.registerQuery(this, plan.getRoot());
+        dynamicFilterService.registerQuery(getSession(), getQueryPlan().orElseThrow(), plan.getRoot());
         stateMachine.setDynamicFiltersStatsSupplier(
                 () -> dynamicFilterService.getDynamicFilteringStats(stateMachine.getQueryId()));
     }
