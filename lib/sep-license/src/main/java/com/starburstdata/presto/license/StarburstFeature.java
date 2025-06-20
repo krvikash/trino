@@ -13,6 +13,7 @@ import static java.util.Objects.requireNonNull;
 
 public enum StarburstFeature
 {
+    AI_WORKFLOWS("ai-workflows", "AI workflows"),
     DYNAMODB("dynamodb", "Starburst DynamoDB connector"),
     SALESFORCE("salesforce", "Starburst Salesforce connector"),
     SPARK("spark", "Spark"),
