@@ -21,6 +21,8 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.expressions.Literal;
+import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -55,6 +57,65 @@ public class TestIcebergV3
         fileSystemFactory = getFileSystemFactory(queryRunner);
 
         return queryRunner;
+    }
+
+    @Test
+    void testDefaultColumnValues()
+    {
+        // TODO: Update this test when Trino supports default column values
+        try (TestTable table = newTrinoTable("test_default_column_values", "AS SELECT 1 id")) {
+            BaseTable icebergTable = loadTable(table.getName());
+            icebergTable.updateSchema()
+                    .addRequiredColumn("data", Types.IntegerType.get(), null, Literal.of(123))
+                    .commit();
+
+            // Unsupported operations
+            String errorMessage = "The connector does not support default column values";
+            assertQueryFails("INSERT INTO " + table.getName() + " VALUES (2, 999)", errorMessage);
+            assertQueryFails("UPDATE " + table.getName() + " SET id = 2", errorMessage);
+            assertQueryFails("DELETE FROM " + table.getName(), errorMessage);
+            assertQueryFails("TRUNCATE TABLE " + table.getName(), errorMessage);
+            assertQueryFails("MERGE INTO " + table.getName() + " USING (VALUES 42) t(dummy) ON false WHEN NOT MATCHED THEN INSERT (id) VALUES (3)", errorMessage);
+            assertQueryFails("ALTER TABLE " + table.getName() + " EXECUTE optimize", errorMessage);
+            assertQueryFails("CREATE OR REPLACE TABLE " + table.getName() + " AS SELECT 2 id", errorMessage);
+            assertQueryFails("ANALYZE " + table.getName(), errorMessage);
+
+            // Supported column operations
+            assertUpdate("COMMENT ON COLUMN " + table.getName() + ".data IS 'test comment'");
+            icebergTable.refresh();
+            Types.NestedField columnAfterComment = icebergTable.schema().columns().get(1);
+            assertThat(columnAfterComment.type()).isEqualTo(Types.IntegerType.get());
+            assertThat(columnAfterComment.doc()).isEqualTo("test comment");
+            assertThat(columnAfterComment.isRequired()).isTrue();
+            assertThat(columnAfterComment.writeDefault()).isEqualTo(123);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " ALTER COLUMN data SET DATA TYPE bigint");
+            icebergTable.refresh();
+            Types.NestedField columnAfterTypeChange = icebergTable.schema().columns().get(1);
+            assertThat(columnAfterTypeChange.type()).isEqualTo(Types.LongType.get());
+            assertThat(columnAfterTypeChange.doc()).isEqualTo("test comment");
+            assertThat(columnAfterTypeChange.isRequired()).isTrue();
+            assertThat(columnAfterTypeChange.writeDefault()).isEqualTo(123L);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " RENAME COLUMN data TO renamed");
+            icebergTable.refresh();
+            Types.NestedField columnAfterRenamed = icebergTable.schema().columns().get(1);
+            assertThat(columnAfterRenamed.type()).isEqualTo(Types.LongType.get());
+            assertThat(columnAfterRenamed.doc()).isEqualTo("test comment");
+            assertThat(columnAfterRenamed.isRequired()).isTrue();
+            assertThat(columnAfterRenamed.writeDefault()).isEqualTo(123L);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " ALTER COLUMN renamed DROP NOT NULL");
+            icebergTable.refresh();
+            Types.NestedField nullableColumn = icebergTable.schema().columns().get(1);
+            assertThat(nullableColumn.type()).isEqualTo(Types.LongType.get());
+            assertThat(nullableColumn.doc()).isEqualTo("test comment");
+            assertThat(nullableColumn.isRequired()).isFalse();
+            assertThat(nullableColumn.writeDefault()).isEqualTo(123L);
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (1, CAST(NULL AS bigint))");
+        }
     }
 
     @Test
