@@ -355,7 +355,7 @@ public class HivePageSourceProvider
             return false;
         }
         Optional<HiveBucketFilter> hiveBucketFilter = getHiveBucketFilter(hiveTable, predicate);
-        return hiveBucketFilter.map(filter -> !filter.getBucketsToKeep().contains(hiveSplit.getTableBucketNumber().getAsInt())).orElse(false);
+        return hiveBucketFilter.map(filter -> !filter.bucketsToKeep().contains(hiveSplit.getTableBucketNumber().getAsInt())).orElse(false);
     }
 
     private static boolean shouldSkipSplit(List<ColumnMapping> columnMappings, TupleDomain<ColumnHandle> predicate)
