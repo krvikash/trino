@@ -676,7 +676,6 @@
                                 <exclude>**/TestUnloadGcs.java</exclude>
                                 <exclude>**/TestUnloadAbfs.java</exclude>
                                 <exclude>**/Test*FailureRecoveryTest.java</exclude>
-                                <exclude>**/TestUnityMetastore.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
