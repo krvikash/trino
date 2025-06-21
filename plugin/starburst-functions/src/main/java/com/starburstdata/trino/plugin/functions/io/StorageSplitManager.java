@@ -147,7 +147,7 @@ public class StorageSplitManager
                 internalSplit.getFileModifiedTime(),
                 internalSplit.getSchema(),
                 internalSplit.getPartitionKeys(),
-                new DefaultCachingHostAddressProvider().getHosts(internalSplit.getPath(), internalSplit.currentBlock().getAddresses()),
+                new DefaultCachingHostAddressProvider().getHosts(internalSplit.getPath(), internalSplit.currentBlock().addresses()),
                 internalSplit.getReadBucketNumber(),
                 internalSplit.getTableBucketNumber(),
                 internalSplit.isForceLocalScheduling(),
