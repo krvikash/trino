@@ -12,9 +12,9 @@ package io.starburst.ai.client.openai;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.openai.client.OpenAIClient;
-import com.openai.models.CreateEmbeddingResponse;
-import com.openai.models.Embedding;
-import com.openai.models.EmbeddingCreateParams;
+import com.openai.models.embeddings.CreateEmbeddingResponse;
+import com.openai.models.embeddings.Embedding;
+import com.openai.models.embeddings.EmbeddingCreateParams;
 import io.airlift.slice.Slice;
 import io.starburst.ai.client.EmbeddingModelClient;
 import io.starburst.ai.client.EmbeddingModelConnectionSpec;
@@ -23,6 +23,7 @@ import io.trino.spi.TrinoException;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_SPEC_PROPERTY;
 import static java.util.Objects.requireNonNull;
@@ -56,7 +57,7 @@ public class OpenAiEmbeddingModelClient
                 .model(modelName);
         dimensions.ifPresent(params::dimensions);
         CreateEmbeddingResponse response = client.embeddings().create(params.build());
-        return getOnlyElement(response.data()).embedding();
+        return getOnlyElement(response.data()).embedding().stream().map(Float::doubleValue).collect(toImmutableList());
     }
 
     @Override
@@ -72,7 +73,6 @@ public class OpenAiEmbeddingModelClient
             CreateEmbeddingResponse response = client.embeddings().create(params.build());
             response.data().stream()
                     .map(Embedding::embedding)
-                    .map(embedding -> embedding.stream().map(Double::floatValue).toList())
                     .forEach(results::add);
         }
 
