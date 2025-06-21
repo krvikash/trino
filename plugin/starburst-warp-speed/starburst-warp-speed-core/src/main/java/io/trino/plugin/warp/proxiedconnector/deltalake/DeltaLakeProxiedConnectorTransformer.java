@@ -98,7 +98,7 @@ public class DeltaLakeProxiedConnectorTransformer
     {
         DeltaLakeColumnHandle deltaLakeColumnHandle = (DeltaLakeColumnHandle) columnHandle;
 
-        return deltaLakeColumnHandle.projectionInfo().isPresent() ? ((DeltaLakeColumnHandle) columnHandle).projectionInfo().orElseThrow().getType() : ((DeltaLakeColumnHandle) columnHandle).baseType();
+        return deltaLakeColumnHandle.projectionInfo().isPresent() ? ((DeltaLakeColumnHandle) columnHandle).projectionInfo().orElseThrow().type() : ((DeltaLakeColumnHandle) columnHandle).baseType();
     }
 
     @Override
