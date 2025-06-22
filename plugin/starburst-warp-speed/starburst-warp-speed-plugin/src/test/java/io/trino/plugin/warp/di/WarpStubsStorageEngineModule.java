@@ -54,6 +54,7 @@ public class WarpStubsStorageEngineModule
                 new NativeConfig(),
                 exceptionThrower,
                 new CatalogNameProvider("catalogName"),
+                storageEngine,
                 new ShapingLoggerFactory(new CatalogName("catalogName"), new SharedConfig()));
         binder.bind(NativeStorageStateHandler.class).toInstance(nativeStorageStateHandler);
     }

@@ -230,4 +230,8 @@ public interface StorageEngine
     {
         return true;
     }
+
+    default void shutdown()
+    {
+    }
 }

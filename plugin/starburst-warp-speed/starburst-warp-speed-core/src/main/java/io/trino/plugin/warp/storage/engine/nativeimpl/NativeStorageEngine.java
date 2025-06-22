@@ -72,8 +72,8 @@ public class NativeStorageEngine
     private final NativeLogger nativeLogger;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final Optional<ExceptionThrower> exceptionThrower; // we keep a reference to hold this object for native layer ref
-    private final boolean isLoaded;
     private final boolean isFirstLoaded;
+    private boolean isLoaded;
 
     // file API
     private final MethodHandle mFileOpen;
@@ -188,7 +188,7 @@ public class NativeStorageEngine
 
             // init API
             mInitEnv = linker.downcallHandle(libraryHandle.find("env_init").orElseThrow(),
-                    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
             mInitGetWarmupRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_warmup_record_buffer_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
             mInitGetFixedCollectRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_collect_record_buffer_size").orElseThrow(),
@@ -266,11 +266,15 @@ public class NativeStorageEngine
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION, nativeConfig.getEnableCompression() ? (byte) 1 : (byte) 0);
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID, sharedConfig.getDebugWarming() ? (byte) 1 : (byte) 0);
 
+            int initRes = -1;
             try (NativeLogger.LogId logId = nativeLogger.getLogId(this.exceptionThrower)) {
-                long logMemAddress = (long) mInitEnv.invokeExact(envProperties, envEnableConfig, logId.id());
-                this.isFirstLoaded = logMemAddress == 0;
+                // 0 - first loaded
+                // >0 - already loaded
+                // <0 - error
+                initRes = (int) mInitEnv.invokeExact(envProperties, envEnableConfig, logId.id());
+                this.isFirstLoaded = initRes == 0;
             }
-            this.isLoaded = true;
+            this.isLoaded = (initRes >= 0);
         }
         catch (Throwable t) {
             logger.error(t, "failed loading native storage engine");
@@ -288,6 +292,12 @@ public class NativeStorageEngine
     public boolean isFirstLoaded()
     {
         return isFirstLoaded;
+    }
+
+    @Override
+    public void shutdown()
+    {
+        isLoaded = false;
     }
 
     @Override

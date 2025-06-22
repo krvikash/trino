@@ -67,12 +67,41 @@ public class NativeStorageEngineConstants
     @Inject
     public NativeStorageEngineConstants(StorageEngine storageEngine)
     {
+        if (!storageEngine.isLoaded()) {
+            pageSizeShift = 1;
+            pageSize = 1;
+            pageOffsetMask = 1;
+            pageSizeMask = 1;
+            recordBufferMaxSize = 1;
+            indexChunkMaxSize = 1;
+            queryStringNullValueSize = 1;
+            chunksBufferMaxSize = 1;
+            chunkHeaderMaxSize = 1;
+            warmupDataTempBufferSize = 1;
+            warmupIndexTempBufferSize = 1;
+            maxWeContextSize = 1;
+            maxRecLen = 1;
+            fixedLengthStringLimit = 1;
+            varcharMaxLen = 1;
+            varlenExtMark = 1;
+            varlenMarkEnd = 1;
+            varlenSkiplistGranularity = 1;
+            varlenExtLimit = 1;
+            varlenExtRecordHeaderSize = 1;
+            chunkSizeShift = 1;
+            matchCollectBufferSize = 1;
+            matchCollectMetadataSize = 1;
+            maxChunksInRange = 1;
+            matchCollectNumIds = 1;
+            maxMatchColumns = 1;
+            matchTxSize = 1;
+            matchStatePayload = 1;
+            collectStatePayload = 1;
+            return;
+        }
+
         try {
             SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
-
-            if (!storageEngine.isLoaded()) {
-                throw new RuntimeException("storage engine not loaded");
-            }
 
             // page size
             pageSizeShift = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_page_size_shift");

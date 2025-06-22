@@ -21,6 +21,7 @@ import io.trino.plugin.warp.gen.errorcodes.ErrorCodes;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
+import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 
 import static java.util.Objects.requireNonNull;
@@ -32,6 +33,7 @@ public class NativeStorageStateHandler
 
     private final NativeConfig nativeConfig;
     private final CatalogNameProvider catalogNameProvider;
+    private final StorageEngine storageEngine;
     private final ShapingLogger shapingLogger;
 
     boolean alwaysPermanentlyDisableOnError = true;
@@ -45,17 +47,19 @@ public class NativeStorageStateHandler
             NativeConfig nativeConfig,
             ExceptionThrower exceptionThrower,
             CatalogNameProvider catalogNameProvider,
+            StorageEngine storageEngine,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         this.nativeConfig = requireNonNull(nativeConfig);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
+        this.storageEngine = requireNonNull(storageEngine);
         exceptionThrower.addExceptionConsumer(this::handleErrorCode);
         shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
     public boolean isStorageAvailable()
     {
-        if (isStorageDisabledPermanently()) {
+        if (!storageEngine.isLoaded() || isStorageDisabledPermanently()) {
             return false;
         }
         if (isStorageDisabledTemporarily()) {
@@ -78,7 +82,13 @@ public class NativeStorageStateHandler
     {
         logger.debug("[%s] handleErrorCode:: %s", catalogNameProvider.get(), errorCode);
 
-        if (alwaysPermanentlyDisableOnError || errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR)) {
+        if (alwaysPermanentlyDisableOnError) {
+            storageEngine.shutdown(); // this takes affect for all catalogs as opposed to the disable permanently which is only for this catalog
+            shapingLogger.error("storage shutdown for all catalogs error %s", errorCode);
+            return;
+        }
+
+        if (errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_PERMANENT_ERROR)) {
             disablePermanently();
             shapingLogger.warn("[%s] storage disabled permanently due to %s", catalogNameProvider.get(), errorCode);
         }
