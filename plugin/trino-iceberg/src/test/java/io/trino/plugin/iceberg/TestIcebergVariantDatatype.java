@@ -21,23 +21,9 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
-import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.UpdateSchema;
-import org.apache.iceberg.avro.Avro;
-import org.apache.iceberg.data.GenericRecord;
-import org.apache.iceberg.data.Record;
-import org.apache.iceberg.data.avro.DataWriter;
-import org.apache.iceberg.data.orc.GenericOrcWriter;
-import org.apache.iceberg.data.parquet.InternalWriter;
-import org.apache.iceberg.io.FileAppender;
-import org.apache.iceberg.io.OutputFile;
-import org.apache.iceberg.orc.ORC;
-import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
@@ -65,9 +51,15 @@ import static io.trino.plugin.hive.metastore.file.TestingFileHiveMetastore.creat
 import static io.trino.plugin.iceberg.ColumnIdentity.TypeCategory.PRIMITIVE;
 import static io.trino.plugin.iceberg.ColumnIdentity.TypeCategory.VARIANT;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
+import static io.trino.plugin.iceberg.IcebergVariantTypeUtil.INT_COL_NAME;
+import static io.trino.plugin.iceberg.IcebergVariantTypeUtil.SCHEMA;
+import static io.trino.plugin.iceberg.IcebergVariantTypeUtil.VARIANT_COL_NAME;
+import static io.trino.plugin.iceberg.IcebergVariantTypeUtil.addVariantColumn;
+import static io.trino.plugin.iceberg.IcebergVariantTypeUtil.writeAvroDataToIcebergTable;
+import static io.trino.plugin.iceberg.IcebergVariantTypeUtil.writeOrcDataToIcebergTable;
+import static io.trino.plugin.iceberg.IcebergVariantTypeUtil.writeParquetDataToIcebergTable;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
-import static org.apache.iceberg.Files.localOutput;
 import static org.apache.iceberg.variants.VariantTestUtil.createMetadata;
 import static org.apache.iceberg.variants.VariantTestUtil.createObject;
 import static org.apache.iceberg.variants.Variants.metadata;
@@ -78,14 +70,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 final class TestIcebergVariantDatatype
         extends AbstractTestQueryFramework
 {
-    private static final String INT_COL_NAME = "id";
-    private static final String VARIANT_COL_NAME = "var";
-    private static final Schema SCHEMA = new Schema(
-            Types.NestedField.required(1, INT_COL_NAME, Types.IntegerType.get()),
-            Types.NestedField.required(2, VARIANT_COL_NAME, Types.VariantType.get()));
     private static final ColumnIdentity INT_COLUMN_IDENTITY = new ColumnIdentity(1, INT_COL_NAME, PRIMITIVE, ImmutableList.of());
     private static final ColumnIdentity VARIANT_COLUMN_IDENTITY = new ColumnIdentity(2, VARIANT_COL_NAME, VARIANT, ImmutableList.of());
-    private static final GenericRecord RECORD = GenericRecord.create(SCHEMA);
 
     private static final ByteBuffer TEST_METADATA_BUFFER = createMetadata(ImmutableList.of("a", "b", "c", "d", "e"), true);
     private static final ByteBuffer TEST_OBJECT_BUFFER = createObject(
@@ -660,88 +646,12 @@ final class TestIcebergVariantDatatype
         }
     }
 
-    private static void writeParquetDataToIcebergTable(String outputFilePath, DataFiles.Builder fileBuilder, Table table, Variant... variantValues)
-            throws IOException
-    {
-        OutputFile outputFile = localOutput(outputFilePath);
-
-        try (FileAppender<Record> writer = Parquet.write(outputFile)
-                .schema(SCHEMA)
-                .variantShreddingFunc((_, _) -> null)
-                .createWriterFunc(fileSchema -> InternalWriter.create(SCHEMA.asStruct(), fileSchema))
-                .build()) {
-            for (Variant variantValue : variantValues) {
-                Record record = RECORD.copy(INT_COL_NAME, 1, VARIANT_COL_NAME, variantValue);
-                writer.add(record);
-            }
-            DataFile file = fileBuilder
-                    .withRecordCount(1)
-                    .withFileSizeInBytes(2000)
-                    .withPath(outputFile.location())
-                    .withFormat(FileFormat.PARQUET)
-                    .build();
-
-            table.newAppend().appendFile(file).commit();
-        }
-    }
-
-    private static void writeOrcDataToIcebergTable(String outputFilePath, Variant variantValue, DataFiles.Builder fileBuilder, Table table)
-            throws IOException
-    {
-        OutputFile outputFile = localOutput(outputFilePath);
-        Record record = RECORD.copy(INT_COL_NAME, 1, VARIANT_COL_NAME, variantValue);
-
-        try (FileAppender<Record> writer = ORC.write(outputFile)
-                .schema(SCHEMA)
-                .createWriterFunc(GenericOrcWriter::buildWriter)
-                .build()) {
-            writer.add(record);
-            DataFile file = fileBuilder
-                    .withRecordCount(1)
-                    .withFileSizeInBytes(2000)
-                    .withPath(outputFile.location())
-                    .withFormat(FileFormat.ORC)
-                    .build();
-
-            table.newAppend().appendFile(file).commit();
-        }
-    }
-
-    private static void writeAvroDataToIcebergTable(String outputFilePath, Variant variantValue, DataFiles.Builder fileBuilder, Table table)
-            throws IOException
-    {
-        OutputFile outputFile = localOutput(outputFilePath);
-        Record record = RECORD.copy(INT_COL_NAME, 1, VARIANT_COL_NAME, variantValue);
-
-        try (FileAppender<Record> writer = Avro.write(outputFile)
-                .schema(SCHEMA)
-                .createWriterFunc(DataWriter::create)
-                .build()) {
-            writer.add(record);
-            DataFile file = fileBuilder
-                    .withRecordCount(1)
-                    .withFileSizeInBytes(2000)
-                    .withPath(outputFile.location())
-                    .withFormat(FileFormat.AVRO)
-                    .build();
-
-            table.newAppend().appendFile(file).commit();
-        }
-    }
-
     private BaseTable createTableWithVariantColumn(String tableName, String fileFormat)
     {
         assertUpdate(format("CREATE TABLE %s (%s int) WITH (format = '" + fileFormat + "', format_version = 3)", tableName, INT_COL_NAME));
         BaseTable table = loadTable(tableName);
         addVariantColumn(table);
         return table;
-    }
-
-    private static void addVariantColumn(Table table)
-    {
-        UpdateSchema updateSchema = table.updateSchema();
-        updateSchema.addColumn(VARIANT_COL_NAME, Types.VariantType.get());
-        updateSchema.commit();
     }
 
     private BaseTable loadTable(String tableName)
