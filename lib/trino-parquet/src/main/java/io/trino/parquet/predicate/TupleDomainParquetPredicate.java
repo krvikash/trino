@@ -99,6 +99,18 @@ public class TupleDomainParquetPredicate
         this.timeZone = requireNonNull(timeZone, "timeZone is null");
     }
 
+    public boolean isDiscreteSet(ColumnDescriptor column)
+    {
+        if (effectivePredicate.isNone()) {
+            return false;
+        }
+        Domain effectivePredicateDomain = effectivePredicate.getDomains().get().get(column);
+        if (effectivePredicateDomain == null) {
+            return false;
+        }
+        return effectivePredicateDomain.getValues().isDiscreteSet();
+    }
+
     /**
      * Should the Parquet Reader process a file section with the specified statistics,
      * and if it should, then return the columns are candidates for further inspection of more

@@ -263,6 +263,12 @@ public final class PredicateUtils
                 continue;
             }
             if (isOnlyDictionaryEncodingPages(columnMetaData)) {
+                // Don't read dictionary for row group pruning if the predicate is not discrete
+                // because this adds non-trivial IO overhead and the likelihood of a range predicate
+                // overlapping the column min/max but not the dictionary is low.
+                if (!parquetPredicate.isDiscreteSet(descriptor)) {
+                    continue;
+                }
                 Statistics<?> columnStatistics = columnMetaData.getStatistics();
                 boolean nullAllowed = columnStatistics == null || columnStatistics.getNumNulls() != 0;
                 //  Early abort, predicate already filters block so no more dictionaries need be read

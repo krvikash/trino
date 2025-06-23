@@ -37,6 +37,7 @@ import static io.trino.plugin.hive.parquet.ParquetUtil.createPageSource;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.predicate.Domain.notNull;
 import static io.trino.spi.predicate.Domain.onlyNull;
+import static io.trino.spi.predicate.Domain.singleValue;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.testing.MaterializedResult.materializeSourceDataStream;
 import static java.util.Collections.singletonList;
@@ -57,6 +58,19 @@ public class TestOnlyNulls
 
         // match not null
         try (ConnectorPageSource pageSource = createPageSource(SESSION, parquetFile, ImmutableList.of(column), TupleDomain.withColumnDomains(Map.of(column, notNull(columnType))))) {
+            MaterializedResult result = materializeSourceDataStream(getHiveSession(new HiveConfig()), pageSource, List.of(columnType)).toTestTypes();
+            // NULLs are not pruned here because column statistics are missing
+            // and we avoid using dictionary for pruning on ranged predicates
+            assertThat(result.getMaterializedRows())
+                    .isEqualTo(List.of(
+                            new MaterializedRow(singletonList(null)),
+                            new MaterializedRow(singletonList(null)),
+                            new MaterializedRow(singletonList(null)),
+                            new MaterializedRow(singletonList(null))));
+        }
+
+        // match single non-null value
+        try (ConnectorPageSource pageSource = createPageSource(SESSION, parquetFile, ImmutableList.of(column), TupleDomain.withColumnDomains(Map.of(column, singleValue(columnType, 1L))))) {
             MaterializedResult result = materializeSourceDataStream(getHiveSession(new HiveConfig()), pageSource, List.of(columnType)).toTestTypes();
             assertThat(result.getMaterializedRows()).isEmpty();
         }
