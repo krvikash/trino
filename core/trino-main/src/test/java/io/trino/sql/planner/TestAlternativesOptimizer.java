@@ -303,7 +303,7 @@ public class TestAlternativesOptimizer
                         new PlanNodeIdAllocator(),
                         WarningCollector.NOOP,
                         createPlanOptimizersStatsCollector(),
-                        new CachingTableStatsProvider(getPlanTester().getPlannerContext().getMetadata(), session),
+                        new CachingTableStatsProvider(getPlanTester().getPlannerContext().getMetadata(), session, () -> false),
                         new StaticRuntimeInfoProvider(ImmutableMap.of(), ImmutableMap.of())));
     }
 

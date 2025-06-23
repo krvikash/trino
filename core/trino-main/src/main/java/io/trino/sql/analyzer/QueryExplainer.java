@@ -187,7 +187,7 @@ public class QueryExplainer
                 costCalculator,
                 warningCollector,
                 planOptimizersStatsCollector,
-                new CachingTableStatsProvider(plannerContext.getMetadata(), session),
+                new CachingTableStatsProvider(plannerContext.getMetadata(), session, () -> false),
                 formatOptions);
         return logicalPlanner.plan(analysis, OPTIMIZED_AND_VALIDATED, true, reuseCommonSubqueriesSupported);
     }
