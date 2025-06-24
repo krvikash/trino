@@ -97,6 +97,7 @@ public class OptimizerConfig
     private boolean useCostBasedPartitioning = true;
     private boolean useSubPlanAlternatives;
     private int pushFilterIntoValuesMaxRowCount = 100;
+    private boolean reuseCommonSubqueries;
     // adaptive partial aggregation
     private boolean adaptivePartialAggregationEnabled = true;
     private double adaptivePartialAggregationUniqueRowsRatioThreshold = 0.8;
@@ -894,6 +895,19 @@ public class OptimizerConfig
     public OptimizerConfig setPushFilterIntoValuesMaxRowCount(int pushFilterIntoValuesMaxRowCount)
     {
         this.pushFilterIntoValuesMaxRowCount = pushFilterIntoValuesMaxRowCount;
+        return this;
+    }
+
+    public boolean isReuseCommonSubqueries()
+    {
+        return reuseCommonSubqueries;
+    }
+
+    @Config("optimizer.reuse-common-subqueries")
+    @ConfigDescription("Allow optimizing queries by common subquery reuse")
+    public OptimizerConfig setReuseCommonSubqueries(boolean reuseCommonSubqueries)
+    {
+        this.reuseCommonSubqueries = reuseCommonSubqueries;
         return this;
     }
 

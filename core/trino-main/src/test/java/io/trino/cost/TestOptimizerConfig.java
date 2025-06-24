@@ -98,6 +98,7 @@ public class TestOptimizerConfig
                 .setUseSubPlanAlternatives(false)
                 .setUseCostBasedPartitioning(true)
                 .setPushFilterIntoValuesMaxRowCount(100)
+                .setReuseCommonSubqueries(false)
                 .setUnsafePushdownAllowed(false));
     }
 
@@ -162,6 +163,7 @@ public class TestOptimizerConfig
                 .put("optimizer.use-cost-based-partitioning", "false")
                 .put("optimizer.use-sub-plan-alternatives", "true")
                 .put("optimizer.push-filter-into-values-max-row-count", "5")
+                .put("optimizer.reuse-common-subqueries", "true")
                 .put("optimizer.allow-unsafe-pushdown", "true")
                 .buildOrThrow();
 
@@ -224,6 +226,7 @@ public class TestOptimizerConfig
                 .setUseSubPlanAlternatives(true)
                 .setUseCostBasedPartitioning(false)
                 .setPushFilterIntoValuesMaxRowCount(5)
+                .setReuseCommonSubqueries(true)
                 .setUnsafePushdownAllowed(true);
         assertFullMapping(properties, expected);
     }
