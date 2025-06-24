@@ -194,6 +194,42 @@ final class TestIcebergOptimizePositionDeletesProcedure
         }
     }
 
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testAllDanglingDeletes(IcebergFileFormat format)
+            throws Exception
+    {
+        try (TestTable table = newTrinoTable("test_dangling_deletes", "(x int, part varchar) WITH (partitioning = ARRAY['part'], format = '" + format + "')")) {
+            BaseTable icebergTable = loadTable(table.getName());
+            String tableLocation = icebergTable.location();
+
+            DataFile dataFileA = dataFile(icebergTable, "data-a", "part=a");
+            DataFile dataFileC = dataFile(icebergTable, "data-c", "part=c");
+
+            icebergTable.newAppend()
+                    .appendFile(dataFileA)
+                    .appendFile(dataFileC)
+                    .commit();
+
+            DeleteFile danglingDeleteFileB = deleteFile(icebergTable, "data-b", tableLocation + "/part=b/data-b-pos-deletes", "b");
+            DeleteFile danglingDeleteFileD = deleteFile(icebergTable, "data-d", tableLocation + "/part=d/data-d-pos-deletes", "d");
+
+            icebergTable.newRowDelta()
+                    .addRows(dataFileA)
+                    .addRows(dataFileC)
+                    .addDeletes(danglingDeleteFileB)
+                    .addDeletes(danglingDeleteFileD)
+                    .commit();
+
+            Set<String> deleteFiles = positionDeleteFiles(table.getName());
+            assertThat(deleteFiles).hasSize(2);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes");
+
+            assertThat(positionDeleteFiles(table.getName())).isEmpty();
+        }
+    }
+
     @Test
     void testEqualityDeletes()
             throws Exception

@@ -2461,6 +2461,7 @@ public class IcebergMetadata
         positionDeletePlanner.init(ImmutableMap.of(SizeBasedFileRewritePlanner.REWRITE_ALL, "true"));
         FileRewritePlan<FileGroupInfo, PositionDeletesScanTask, DeleteFile, RewritePositionDeletesGroup> plan = positionDeletePlanner.plan();
         if (plan.totalGroupCount() == 0) {
+            log.debug("No position deletes to rewrite: %s", executeHandle.schemaTableName());
             return;
         }
 
@@ -2505,48 +2506,47 @@ public class IcebergMetadata
             Set<String> dataFiles)
             throws IOException
     {
-        checkArgument(!fileGroup.rewrittenDeleteFiles().isEmpty());
+        checkArgument(!fileGroup.rewrittenDeleteFiles().isEmpty(), "File group must contain at least one rewritten delete file: %s", fileGroup);
 
         FileWriterFactory<?> writerFactory = TrinoGenericFileWriterFactory.builderFor(table);
         DeleteFile deleteFile = fileGroup.rewrittenDeleteFiles().iterator().next();
         String fileName = deleteFile.format().addExtension(session.getQueryId() + "-" + randomUUID());
         Location location = Location.of(locationProvider.newDataLocation(table.spec(), deleteFile.partition(), fileName));
 
-        try (PositionDeleteWriter<?> positionDeleteWriter = writerFactory.newPositionDeleteWriter(encryptedOutput(new ForwardingOutputFile(fileSystem, location), EMPTY), table.spec(), deleteFile.partition())) {
-            boolean danglingFileExists = false;
-            boolean isEmpty = true;
-            for (DeleteFile rewrittenDeleteFile : fileGroup.rewrittenDeleteFiles()) {
-                try (CloseableIterable<Record> positionDeletes = positionDeletesReader(new ForwardingInputFile(fileSystem.newInputFile(Location.of(rewrittenDeleteFile.location()))), rewrittenDeleteFile.format(), table.spec())) {
-                    for (Record record : positionDeletes) {
-                        String filePath = record.get(0, String.class);
-                        if (!dataFiles.contains(filePath)) {
-                            danglingFileExists = true;
-                            continue;
-                        }
-                        isEmpty = false;
-                        //noinspection rawtypes
-                        PositionDelete positionDelete = PositionDelete.create();
-                        positionDelete.set(filePath, record.get(1, Long.class));
-                        //noinspection unchecked
-                        positionDeleteWriter.write(positionDelete);
+        PositionDeleteWriter<?> positionDeleteWriter = writerFactory.newPositionDeleteWriter(encryptedOutput(new ForwardingOutputFile(fileSystem, location), EMPTY), table.spec(), deleteFile.partition());
+        boolean danglingFileExists = false;
+        boolean isEmpty = true;
+        for (DeleteFile rewrittenDeleteFile : fileGroup.rewrittenDeleteFiles()) {
+            try (CloseableIterable<Record> positionDeletes = positionDeletesReader(new ForwardingInputFile(fileSystem.newInputFile(Location.of(rewrittenDeleteFile.location()))), rewrittenDeleteFile.format(), table.spec())) {
+                for (Record record : positionDeletes) {
+                    String filePath = record.get(0, String.class);
+                    if (!dataFiles.contains(filePath)) {
+                        danglingFileExists = true;
+                        continue;
                     }
+                    isEmpty = false;
+                    //noinspection rawtypes
+                    PositionDelete positionDelete = PositionDelete.create();
+                    positionDelete.set(filePath, record.get(1, Long.class));
+                    //noinspection unchecked
+                    positionDeleteWriter.write(positionDelete);
                 }
             }
-
-            positionDeleteWriter.close();
-            DeleteFile rewrittenDeleteFile = positionDeleteWriter.toDeleteFile();
-            if (isEmpty) {
-                // Don't add an empty delete file
-                fileSystem.deleteFile(Location.of(rewrittenDeleteFile.location()));
-                return ImmutableSet.of();
-            }
-            if (!danglingFileExists && fileGroup.rewrittenDeleteFiles().size() == 1) {
-                // Don't rewrite a single delete file unless the file group contains dangling deletes
-                fileSystem.deleteFile(Location.of(rewrittenDeleteFile.location()));
-                return ImmutableSet.copyOf(fileGroup.rewrittenDeleteFiles());
-            }
-            return ImmutableSet.of(rewrittenDeleteFile);
         }
+
+        positionDeleteWriter.close();
+        DeleteFile rewrittenDeleteFile = positionDeleteWriter.toDeleteFile();
+        if (isEmpty) {
+            // Don't add an empty delete file
+            fileSystem.deleteFile(Location.of(rewrittenDeleteFile.location()));
+            return ImmutableSet.of();
+        }
+        if (!danglingFileExists && fileGroup.rewrittenDeleteFiles().size() == 1) {
+            // Don't rewrite a single delete file unless the file group contains dangling deletes
+            fileSystem.deleteFile(Location.of(rewrittenDeleteFile.location()));
+            return ImmutableSet.copyOf(fileGroup.rewrittenDeleteFiles());
+        }
+        return ImmutableSet.of(rewrittenDeleteFile);
     }
 
     private static CloseableIterable<Record> positionDeletesReader(InputFile inputFile, FileFormat format, PartitionSpec spec)
