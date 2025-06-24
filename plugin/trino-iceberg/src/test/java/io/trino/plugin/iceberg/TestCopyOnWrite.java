@@ -57,6 +57,42 @@ final class TestCopyOnWrite
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testWriteModeProperty(IcebergFileFormat format)
+    {
+        testWriteModeProperty(format, false);
+        testWriteModeProperty(format, true);
+    }
+
+    private void testWriteModeProperty(IcebergFileFormat format, boolean partitioned)
+    {
+        String partitioning = partitioned ? "partitioning = ARRAY['part']," : "";
+        try (TestTable table = newTrinoTable(
+                "test_write_mode_property",
+                "(x int, part int) WITH (" + partitioning + " format='" + format + "', merge_mode = 'copy-on-write')")) {
+            assertThat(getMergeMode(table.getName())).isEqualTo("copy-on-write");
+        }
+
+        try (TestTable table = newTrinoTable(
+                "test_write_mode_property",
+                "(x int, part int) WITH (" + partitioning + " format='" + format + "'" + ", merge_mode = 'merge-on-read')")) {
+            assertThat(getMergeMode(table.getName())).isEqualTo("merge-on-read");
+        }
+
+        try (TestTable table = newTrinoTable("test_write_mode_property", "(x int, part int) WITH (" + partitioning + " format='" + format + "')")) {
+            assertThat(getMergeMode(table.getName())).isEqualTo("merge-on-read");
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES merge_mode = 'copy-on-write'");
+            assertThat(getMergeMode(table.getName())).isEqualTo("copy-on-write");
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES merge_mode = 'merge-on-read'");
+            assertThat(getMergeMode(table.getName())).isEqualTo("merge-on-read");
+
+            assertThat(query("ALTER TABLE " + table.getName() + " SET PROPERTIES merge_mode = 'invalid'"))
+                    .failure()
+                    .hasMessage("line 1:63: Unable to set catalog 'iceberg' table property 'merge_mode' to ['invalid']: Unknown row-level operation mode: invalid");
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testCopyOnWriteDelete(IcebergFileFormat format)
     {
         testCopyOnWriteDelete(format, false);
@@ -68,11 +104,8 @@ final class TestCopyOnWrite
         String partitioning = partitioned ? "partitioning = ARRAY['part']," : "";
         try (TestTable table = newTrinoTable(
                 "test_copy_on_write",
-                "(x int, part int) WITH (" + partitioning + " format='" + format + "')",
+                "(x int, part int) WITH (" + partitioning + " format='" + format + "'" + ", merge_mode = 'copy-on-write')",
                 List.of("(1, 1)", "(2, 1)", "(3, 1)"))) {
-            Table icebergTable = loadTable(table.getName());
-            icebergTable.updateProperties().set("write.merge.mode", "copy-on-write").commit();
-
             List<String> files = getActiveFiles(table.getName());
             assertThat(files).hasSize(1);
 
@@ -109,11 +142,8 @@ final class TestCopyOnWrite
         String partitioning = partitioned ? "partitioning = ARRAY['part']," : "";
         try (TestTable table = newTrinoTable(
                 "test_copy_on_write",
-                "(x int, part int) WITH (" + partitioning + "format='" + format + "')",
+                "(x int, part int) WITH (" + partitioning + "format='" + format + "'" + ", merge_mode = 'copy-on-write')",
                 List.of("(1, 1)", "(2, 1)", "(3, 1)"))) {
-            Table icebergTable = loadTable(table.getName());
-            icebergTable.updateProperties().set("write.merge.mode", "copy-on-write").commit();
-
             List<String> files = getActiveFiles(table.getName());
             assertThat(files).hasSize(1);
 
@@ -146,11 +176,8 @@ final class TestCopyOnWrite
         String partitioning = partitioned ? "partitioning = ARRAY['part']," : "";
         try (TestTable table = newTrinoTable(
                 "test_copy_on_write",
-                "(x int, part int) WITH (" + partitioning + "format='" + format + "')",
+                "(x int, part int) WITH (" + partitioning + "format='" + format + "'" + ", merge_mode = 'copy-on-write')",
                 List.of("(1, 1)", "(2, 1)", "(3, 1)"))) {
-            Table icebergTable = loadTable(table.getName());
-            icebergTable.updateProperties().set("write.merge.mode", "copy-on-write").commit();
-
             List<String> files = getActiveFiles(table.getName());
             assertThat(files).hasSize(1);
 
@@ -193,8 +220,7 @@ final class TestCopyOnWrite
             List<String> files = getActiveFiles(table.getName());
             assertThat(files).hasSize(1);
 
-            Table icebergTable = loadTable(table.getName());
-            icebergTable.updateProperties().set("write.merge.mode", "copy-on-write").commit();
+            assertUpdate("ALTER TABLE " + table.getName() + " SET properties merge_mode = 'copy-on-write'");
 
             assertUpdate("DELETE FROM " + table.getName() + " WHERE x = 2", 1);
 
@@ -227,8 +253,8 @@ final class TestCopyOnWrite
             List<String> files = getActiveFiles(table.getName());
             assertThat(files).hasSize(1);
 
+            assertUpdate("ALTER TABLE " + table.getName() + " SET properties merge_mode = 'copy-on-write'");
             Table icebergTable = loadTable(table.getName());
-            icebergTable.updateProperties().set("write.merge.mode", "copy-on-write").commit();
             if (partitioned) {
                 writeEqualityDeleteForTable(
                         icebergTable,
@@ -271,10 +297,9 @@ final class TestCopyOnWrite
         String partitioning = partitioned ? "partitioning = ARRAY['part']," : "";
         try (TestTable table = newTrinoTable(
                 "test_copy_on_write_existing_equality_delete_",
-                "(x int, part int) WITH (" + partitioning + "format='" + format + "')",
+                "(x int, part int) WITH (" + partitioning + "format='" + format + "'" + ", merge_mode = 'copy-on-write')",
                 List.of("(1, 1)", "(2, 1)", "(3, 1)"))) {
             Table icebergTable = loadTable(table.getName());
-            icebergTable.updateProperties().set("write.merge.mode", "copy-on-write").commit();
 
             assertUpdate("DELETE FROM " + table.getName() + " WHERE x = 1", 1);
             List<String> files = getActiveFiles(table.getName());
@@ -328,8 +353,7 @@ final class TestCopyOnWrite
             List<String> files = getActiveFiles(table.getName());
             assertThat(files).hasSize(1);
 
-            Table icebergTable = loadTable(table.getName());
-            icebergTable.updateProperties().set("write.merge.mode", "copy-on-write").commit();
+            assertUpdate("ALTER TABLE " + table.getName() + " SET properties merge_mode = 'copy-on-write'");
             assertUpdate("DELETE FROM " + table.getName() + " WHERE x = 1", 1);
             assertThat(getActiveFiles(table.getName()))
                     .hasSize(1)
@@ -349,5 +373,10 @@ final class TestCopyOnWrite
         return computeActual(format("SELECT file_path FROM \"%s$files\" WHERE content = %d", tableName, FileContent.DATA.id())).getOnlyColumn()
                 .map(String.class::cast)
                 .collect(toImmutableList());
+    }
+
+    private String getMergeMode(String tableName)
+    {
+        return (String) computeScalar("SELECT value FROM \"" + tableName + "$properties\" WHERE key = 'write.merge.mode'");
     }
 }

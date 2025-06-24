@@ -22,6 +22,7 @@ import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.TypeManager;
+import org.apache.iceberg.RowLevelOperationMode;
 
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,7 @@ public class IcebergTableProperties
     public static final String OBJECT_STORE_LAYOUT_ENABLED_PROPERTY = "object_store_layout_enabled";
     public static final String DATA_LOCATION_PROPERTY = "data_location";
     public static final String EXTRA_PROPERTIES_PROPERTY = "extra_properties";
+    public static final String MERGE_MODE_PROPERTY = "merge_mode";
 
     public static final Set<String> SUPPORTED_PROPERTIES = ImmutableSet.<String>builder()
             .add(FILE_FORMAT_PROPERTY)
@@ -76,6 +78,7 @@ public class IcebergTableProperties
             .add(DATA_LOCATION_PROPERTY)
             .add(EXTRA_PROPERTIES_PROPERTY)
             .add(PARQUET_BLOOM_FILTER_COLUMNS_PROPERTY)
+            .add(MERGE_MODE_PROPERTY)
             .build();
 
     // These properties are used by Trino or Iceberg internally and cannot be set directly by users through extra_properties
@@ -201,6 +204,12 @@ public class IcebergTableProperties
                         "File system location URI for the table's data files",
                         null,
                         false))
+                .add(stringProperty(
+                        MERGE_MODE_PROPERTY,
+                        "Controls how data is written when performing data manipulation operations",
+                        "merge-on-read",
+                        RowLevelOperationMode::fromName,
+                        false))
                 .build();
 
         checkState(SUPPORTED_PROPERTIES.containsAll(tableProperties.stream()
@@ -293,5 +302,10 @@ public class IcebergTableProperties
     public static Optional<Map<String, String>> getExtraProperties(Map<String, Object> tableProperties)
     {
         return Optional.ofNullable((Map<String, String>) tableProperties.get(EXTRA_PROPERTIES_PROPERTY));
+    }
+
+    public static Optional<String> getMergeMode(Map<String, Object> tableProperties)
+    {
+        return Optional.ofNullable((String) tableProperties.get(MERGE_MODE_PROPERTY));
     }
 }
