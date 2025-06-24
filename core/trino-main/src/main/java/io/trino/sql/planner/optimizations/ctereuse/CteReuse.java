@@ -473,16 +473,21 @@ public class CteReuse
 
         UnificationResult<TableHandle> unificationResult = unifiedGroup.unificationResults().getLast();
 
+        List<ColumnHandle> unifiedColumnHandles = columnsList.stream()
+                .map(Map.Entry::getKey)
+                .collect(toImmutableList());
+        Set<ColumnHandle> unifiedColumnHandlesSet = ImmutableSet.copyOf(unifiedColumnHandles);
+
         return new TableScan(
                 nameAllocator.newName(),
                 columnsList.isEmpty() ? EMPTY_ROW : RowType.anonymous(columnsList.stream()
                         .map(Map.Entry::getValue)
                         .collect(toImmutableList())),
                 unificationResult.unifiedHandle(),
-                columnsList.stream()
-                        .map(Map.Entry::getKey)
-                        .collect(toImmutableList()),
-                unificationResult.enforcedProperties().filter(),
+                unifiedColumnHandles,
+                // the enforcedConstraint must be based on columns exposed by the TableScan
+                unificationResult.enforcedProperties().filter()
+                        .filter((columnHandle, domain) -> unifiedColumnHandlesSet.contains(columnHandle)),
                 // TODO use the method deriveTableStatisticsForPushdown() to get the statistics for the unified TableScan
                 Optional.empty(),
                 false,
