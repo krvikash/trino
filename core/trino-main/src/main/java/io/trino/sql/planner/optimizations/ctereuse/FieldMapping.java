@@ -14,6 +14,7 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.trino.spi.type.Type;
 
 import java.util.Map;
@@ -60,7 +61,7 @@ public record FieldMapping(Map<Integer, Integer> fieldIndexMapping)
                 .boxed()
                 .collect(toImmutableSet());
 
-        return indexes.equals(fieldIndexMapping.keySet()) && indexes.equals(fieldIndexMapping.values());
+        return indexes.equals(fieldIndexMapping.keySet()) && indexes.equals(ImmutableSet.copyOf(fieldIndexMapping.values()));
     }
 
     public boolean isEmpty()
