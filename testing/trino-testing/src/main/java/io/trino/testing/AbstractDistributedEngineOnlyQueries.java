@@ -144,7 +144,7 @@ public abstract class AbstractDistributedEngineOnlyQueries
     public void testTooManyStages()
     {
         @Language("SQL") String query = "WITH\n" +
-                "  t1 AS (SELECT nationkey AS x FROM nation where name='UNITED STATES'),\n" +
+                "  t1 AS (SELECT nationkey AS x FROM nation where name='UNITED STATES' AND random() > 0.5),\n" +
                 "  t2 AS (SELECT a.x+b.x+c.x+d.x AS x FROM t1 a, t1 b, t1 c, t1 d),\n" +
                 "  t3 AS (SELECT a.x+b.x+c.x+d.x AS x FROM t2 a, t2 b, t2 c, t2 d),\n" +
                 "  t4 AS (SELECT a.x+b.x+c.x+d.x AS x FROM t3 a, t3 b, t3 c, t3 d),\n" +
