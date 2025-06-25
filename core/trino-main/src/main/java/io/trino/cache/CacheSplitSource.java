@@ -68,7 +68,7 @@ public class CacheSplitSource
             PlanSignature signature,
             ConnectorSplitManager splitManager,
             SplitSource delegate,
-            ConnectorAwareAddressProvider connectorAwareAddressProvider,
+            ConsistentHashingAddressProvider addressProvider,
             NodeInfo nodeInfo,
             SplitAdmissionControllerProvider splitAdmissionControllerProvider,
             boolean schedulerIncludeCoordinator,
@@ -77,7 +77,7 @@ public class CacheSplitSource
     {
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.delegate = requireNonNull(delegate, "delegate is null");
-        this.addressProvider = connectorAwareAddressProvider.getAddressProvider(nodeInfo, delegate.getCatalogHandle(), schedulerIncludeCoordinator);
+        this.addressProvider = requireNonNull(addressProvider, "addressProvider is null");
         addressProvider.refreshHashRingIfNeeded();
         this.canonicalSignature = canonicalizePlanSignature(signature).toString();
         this.splitAdmissionController = requireNonNull(splitAdmissionControllerProvider, "splitAdmissionControllerProvider is null").get(signature);

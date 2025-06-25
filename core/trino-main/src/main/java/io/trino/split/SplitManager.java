@@ -21,7 +21,7 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.trino.Session;
 import io.trino.cache.CacheSplitSource;
-import io.trino.cache.ConnectorAwareAddressProvider;
+import io.trino.cache.ConsistentHashingAddressProvider;
 import io.trino.cache.SplitAdmissionControllerProvider;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.execution.QueryManagerConfig;
@@ -158,7 +158,7 @@ public class SplitManager
             PlanSignature signature,
             TableHandle tableHandle,
             SplitSource delegate,
-            ConnectorAwareAddressProvider connectorAwareAddressProvider,
+            ConsistentHashingAddressProvider addressProvider,
             NodeInfo nodeInfo,
             SplitAdmissionControllerProvider splitAdmissionControllerProvider,
             boolean schedulerIncludeCoordinator,
@@ -168,7 +168,7 @@ public class SplitManager
                 signature,
                 getConnectorSplitManager(tableHandle),
                 delegate,
-                connectorAwareAddressProvider,
+                addressProvider,
                 nodeInfo,
                 splitAdmissionControllerProvider,
                 schedulerIncludeCoordinator,

@@ -17,7 +17,7 @@ import io.airlift.tracing.Tracing;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.model.ModelConnectionSpecsLoader;
-import io.trino.connector.ConnectorAwareNodeManager;
+import io.trino.connector.DefaultNodeManager;
 import io.trino.metadata.InMemoryNodeManager;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.GroupByHashPageIndexerFactory;
@@ -52,7 +52,7 @@ public final class TestingConnectorContext
     public TestingConnectorContext()
     {
         pageIndexerFactory = new GroupByHashPageIndexerFactory(new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())));
-        nodeManager = new ConnectorAwareNodeManager(new InMemoryNodeManager(), "testenv", TEST_CATALOG_HANDLE, true);
+        nodeManager = new DefaultNodeManager(new InMemoryNodeManager(), "testenv", true);
     }
 
     @Override

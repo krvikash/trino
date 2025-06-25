@@ -15,7 +15,13 @@ package io.trino.cache;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import com.google.inject.Provides;
 import com.google.inject.Scopes;
+import com.google.inject.Singleton;
+import io.airlift.node.NodeInfo;
+import io.trino.connector.DefaultNodeManager;
+import io.trino.execution.scheduler.NodeSchedulerConfig;
+import io.trino.metadata.InternalNodeManager;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
@@ -30,9 +36,15 @@ public class CacheManagerModule
         binder.bind(CacheStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(CacheStats.class).withGeneratedName();
         binder.bind(CacheManagerRegistry.class).in(Scopes.SINGLETON);
-        binder.bind(ConnectorAwareAddressProvider.class).in(Scopes.SINGLETON);
         binder.bind(CacheController.class).in(Scopes.SINGLETON);
         newExporter(binder).export(CacheManagerRegistry.class).withGeneratedName();
         binder.bind(CachePerformanceTracker.class).in(Scopes.SINGLETON);
+    }
+
+    @Provides
+    @Singleton
+    public ConsistentHashingAddressProvider getConsistentHashingAddressProvider(InternalNodeManager nodeManager, NodeInfo nodeInfo, NodeSchedulerConfig nodeSchedulerConfig)
+    {
+        return new ConsistentHashingAddressProvider(new DefaultNodeManager(nodeManager, nodeInfo.getEnvironment(), nodeSchedulerConfig.isIncludeCoordinator()));
     }
 }

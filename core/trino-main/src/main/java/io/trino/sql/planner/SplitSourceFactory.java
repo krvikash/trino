@@ -21,7 +21,7 @@ import io.airlift.node.NodeInfo;
 import io.airlift.units.DataSize;
 import io.opentelemetry.api.trace.Span;
 import io.trino.Session;
-import io.trino.cache.ConnectorAwareAddressProvider;
+import io.trino.cache.ConsistentHashingAddressProvider;
 import io.trino.cache.SplitAdmissionControllerProvider;
 import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.scheduler.ExchangeSplitSource;
@@ -114,7 +114,7 @@ public class SplitSourceFactory
     private final SplitManager splitManager;
     private final PlannerContext plannerContext;
     private final DynamicFilterService dynamicFilterService;
-    private final ConnectorAwareAddressProvider connectorAwareAddressProvider;
+    private final ConsistentHashingAddressProvider addressProvider;
     private final NodeInfo nodeInfo;
     private final boolean schedulerIncludeCoordinator;
     private final int minScheduleSplitBatchSize;
@@ -124,7 +124,7 @@ public class SplitSourceFactory
             SplitManager splitManager,
             PlannerContext plannerContext,
             DynamicFilterService dynamicFilterService,
-            ConnectorAwareAddressProvider connectorAwareAddressProvider,
+            ConsistentHashingAddressProvider addressProvider,
             NodeInfo nodeInfo,
             NodeSchedulerConfig nodeSchedulerConfig,
             QueryManagerConfig queryManagerConfig)
@@ -132,7 +132,7 @@ public class SplitSourceFactory
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.plannerContext = requireNonNull(plannerContext, "metadata is null");
         this.dynamicFilterService = requireNonNull(dynamicFilterService, "dynamicFilterService is null");
-        this.connectorAwareAddressProvider = requireNonNull(connectorAwareAddressProvider, "connectorAwareAddressProvider is null");
+        this.addressProvider = requireNonNull(addressProvider, "addressProvider is null");
         this.nodeInfo = requireNonNull(nodeInfo, "nodeInfo is null");
         this.schedulerIncludeCoordinator = requireNonNull(nodeSchedulerConfig, "nodeSchedulerConfig is null").isIncludeCoordinator();
         this.minScheduleSplitBatchSize = requireNonNull(queryManagerConfig, "queryManagerConfig is null").getMinScheduleSplitBatchSize();
@@ -410,7 +410,7 @@ public class SplitSourceFactory
                                 signature,
                                 originalTableScan,
                                 splitSource,
-                                connectorAwareAddressProvider,
+                                addressProvider,
                                 nodeInfo,
                                 splitAdmissionControllerProvider,
                                 schedulerIncludeCoordinator,
