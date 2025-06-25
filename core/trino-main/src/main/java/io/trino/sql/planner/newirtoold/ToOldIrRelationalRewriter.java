@@ -44,7 +44,6 @@ import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
-import io.trino.sql.ir.Reference;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Value;
@@ -507,14 +506,7 @@ public class ToOldIrRelationalRewriter
         List<Expression> assignmentExpressions = scalarRewriter.getExpressions(project.assignments(), source.getOutputSymbols());
         Assignments.Builder assignmentsBuilder = Assignments.builder();
         assignmentExpressions.stream()
-                .forEach(expression -> {
-                    if (expression instanceof Reference reference) {
-                        assignmentsBuilder.putIdentity(Symbol.from(reference));
-                    }
-                    else {
-                        assignmentsBuilder.put(symbolAllocator.newSymbol(expression), expression);
-                    }
-                });
+                .forEach(expression -> assignmentsBuilder.put(symbolAllocator.newSymbol(expression), expression));
 
         return new ProjectNode(
                 planNodeIdAllocator.getNextId(),
