@@ -209,7 +209,7 @@ final class TestStorageFunctions
     }
 
     @ParameterizedTest
-    @EnumSource(mode = EXCLUDE, names = {"CSV", "REGEX"})
+    @EnumSource(mode = EXCLUDE, names = {"CSV", "ESRI", "REGEX"})
     void testLoadWithDescriptor(HiveStorageFormat format)
     {
         String location = "s3://%s/%s".formatted("test-bucket", randomNameSuffix());

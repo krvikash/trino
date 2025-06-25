@@ -162,7 +162,7 @@ public class UnloadWriterFactory
             case AVRO -> ".avro";
             case RCBINARY, RCTEXT -> ".rc";
             case SEQUENCEFILE -> ".seq";
-            case JSON, OPENX_JSON -> ".json";
+            case JSON, OPENX_JSON, ESRI -> ".json";
             case TEXTFILE -> ".txt";
             case CSV -> ".csv";
             case REGEX -> "";
