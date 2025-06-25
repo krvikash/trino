@@ -562,6 +562,13 @@ public class DistributedQueryRunner
         return new MaterializedResultWithPlan(result.getQueryId(), coordinator.getQueryPlan(result.getQueryId()), result.getResult());
     }
 
+    @Override
+    public MaterializedResultWithQueryId executeWithQueryId(Session session, String sql)
+    {
+        ResultWithQueryId<MaterializedResult> result = executeInternal(session, sql);
+        return new MaterializedResultWithQueryId(result.getQueryId(), result.getResult());
+    }
+
     private ResultWithQueryId<MaterializedResult> executeInternal(Session session, @Language("SQL") String sql)
     {
         lock.readLock().lock();

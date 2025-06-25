@@ -29,6 +29,7 @@ import io.trino.spi.TrinoException;
 import io.trino.sql.parser.ParsingException;
 import io.trino.sql.planner.Plan;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
+import io.trino.testing.QueryRunner.MaterializedResultWithQueryId;
 import io.trino.tpch.TpchTable;
 import org.intellij.lang.annotations.Language;
 
@@ -285,9 +286,9 @@ public final class QueryAssertions
         QueryId queryId = null;
         MaterializedResult actualResults = null;
         try {
-            MaterializedResultWithPlan resultWithPlan = distributedQueryRunner.executeWithPlan(session, actual);
-            queryId = resultWithPlan.queryId();
-            actualResults = resultWithPlan.result().toTestTypes();
+            MaterializedResultWithQueryId resultWithQueryId = distributedQueryRunner.executeWithQueryId(session, actual);
+            queryId = resultWithQueryId.queryId();
+            actualResults = resultWithQueryId.result().toTestTypes();
         }
         catch (RuntimeException ex) {
             if (queryId == null && ex instanceof QueryFailedException queryFailedException) {
@@ -460,7 +461,7 @@ public final class QueryAssertions
     protected static void assertQueryFails(QueryRunner queryRunner, Session session, @Language("SQL") String sql, @Language("RegExp") String expectedMessageRegExp)
     {
         try {
-            MaterializedResultWithPlan resultWithPlan = queryRunner.executeWithPlan(session, sql);
+            MaterializedResultWithQueryId resultWithPlan = queryRunner.executeWithQueryId(session, sql);
             fail(format("Expected query to fail: %s [QueryId: %s]", sql, resultWithPlan.queryId()));
         }
         catch (RuntimeException exception) {
@@ -474,7 +475,7 @@ public final class QueryAssertions
     {
         QueryId queryId = null;
         try {
-            MaterializedResultWithPlan resultWithPlan = queryRunner.executeWithPlan(session, sql);
+            MaterializedResultWithQueryId resultWithPlan = queryRunner.executeWithQueryId(session, sql);
             queryId = resultWithPlan.queryId();
             MaterializedResult results = resultWithPlan.result().toTestTypes();
             assertThat(results).isNotNull();

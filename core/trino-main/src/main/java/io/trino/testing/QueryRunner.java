@@ -89,6 +89,8 @@ public interface QueryRunner
 
     MaterializedResultWithPlan executeWithPlan(Session session, @Language("SQL") String sql);
 
+    MaterializedResultWithQueryId executeWithQueryId(Session session, @Language("SQL") String sql);
+
     default <T> T inTransaction(Function<Session, T> transactionSessionConsumer)
     {
         return inTransaction(getDefaultSession(), transactionSessionConsumer);
@@ -133,4 +135,6 @@ public interface QueryRunner
     void loadSpoolingManager(String name, Map<String, String> properties);
 
     record MaterializedResultWithPlan(QueryId queryId, Optional<Plan> queryPlan, MaterializedResult result) {}
+
+    record MaterializedResultWithQueryId(QueryId queryId, MaterializedResult result) {}
 }

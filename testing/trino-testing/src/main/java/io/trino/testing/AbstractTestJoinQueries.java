@@ -19,7 +19,6 @@ import io.trino.SystemSessionProperties;
 import io.trino.execution.QueryStats;
 import io.trino.operator.OperatorStats;
 import io.trino.spi.type.Decimals;
-import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.tests.QueryTemplate;
 import io.trino.tpch.TpchTable;
 import org.intellij.lang.annotations.Language;
@@ -2388,7 +2387,7 @@ public abstract class AbstractTestJoinQueries
 
     private void assertJoinOutputPositions(@Language("SQL") String sql, int expectedJoinOutputPositions)
     {
-        MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(
+        QueryRunner.MaterializedResultWithQueryId result = getDistributedQueryRunner().executeWithQueryId(
                 Session.builder(getSession())
                         .setSystemProperty(JOIN_REORDERING_STRATEGY, "NONE")
                         .build(),
