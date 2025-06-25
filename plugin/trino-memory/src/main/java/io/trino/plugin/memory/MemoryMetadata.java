@@ -51,9 +51,11 @@ import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.TableColumnsMetadata;
+import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.connector.ViewNotFoundException;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.function.SchemaFunctionName;
+import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.statistics.ComputedStatistics;
 import io.trino.spi.statistics.Estimate;
@@ -644,6 +646,30 @@ public class MemoryMetadata
         return Optional.of(new SampleApplicationResult<>(
                 new MemoryTableHandle(table.id(), table.limit(), OptionalDouble.of(table.sampleRatio().orElse(1) * sampleRatio)),
                 true));
+    }
+
+    @Override
+    public Optional<UnificationResult<ConnectorTableHandle>> unifyTables(ConnectorSession session, ConnectorTableHandle first, ConnectorTableHandle second)
+    {
+        MemoryTableHandle firstTable = (MemoryTableHandle) first;
+        MemoryTableHandle secondTable = (MemoryTableHandle) second;
+
+        // Sample ratio and type must be the same for both unified tables. We cannot apply sample as compensation.
+        // Sample type is always the same (SYSTEM) per applySample(). We must only compare the sample ratio.
+        // Limit must be the same for both unified tables. We cannot apply limit as compensation.
+        if (firstTable.id() != secondTable.id() || !Objects.equals(firstTable.limit(), secondTable.limit()) || !Objects.equals(firstTable.sampleRatio(), secondTable.sampleRatio())) {
+            return Optional.empty();
+        }
+
+        MemoryTableHandle unified = new MemoryTableHandle(firstTable.id(), firstTable.limit(), firstTable.sampleRatio());
+
+        return Optional.of(new UnificationResult<>(
+                unified,
+                TupleDomain.all(),
+                TupleDomain.all(),
+                new UnificationResult.Properties(
+                        TupleDomain.all(),
+                        firstTable.limit())));
     }
 
     @Override
