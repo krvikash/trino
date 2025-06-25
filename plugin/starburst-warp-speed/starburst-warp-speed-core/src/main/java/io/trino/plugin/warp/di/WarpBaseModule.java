@@ -46,7 +46,7 @@ public interface WarpBaseModule
 
     static boolean isSingle(Map<String, String> config)
     {
-        return Boolean.parseBoolean(config.getOrDefault(CONFIG_IS_SINGLE, Boolean.FALSE.toString()));
+        return Boolean.parseBoolean(config.getOrDefault(CONFIG_IS_SINGLE, "false"));
     }
 
     default boolean shouldInstall()

@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpSessionProperties;
-import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherIndexProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
@@ -59,7 +58,7 @@ public abstract class DispatcherConnectorBase
     private final NativeStorageStateHandler nativeStorageStateHandler;
 
     public DispatcherConnectorBase(
-            @ForWarp Connector proxiedConnector,
+            Connector proxiedConnector,
             GlobalConfig globalConfig,
             WarpSessionProperties warpSessionProperties,
             LifeCycleManager lifeCycleManager,

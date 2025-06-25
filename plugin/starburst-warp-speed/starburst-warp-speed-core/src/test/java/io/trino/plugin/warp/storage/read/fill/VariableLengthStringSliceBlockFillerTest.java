@@ -70,8 +70,7 @@ public class VariableLengthStringSliceBlockFillerTest
     {
         List<Slice> dictionaryValues = new ArrayList<>();
         for (int i = 0; i < dictionarySize; i++) {
-            String generatedString = "number%d";
-            Slice slice = Slices.utf8Slice(format(generatedString, i));
+            Slice slice = Slices.utf8Slice(format("number%d", i));
             dictionaryValues.add(slice);
         }
         return dictionaryValues;

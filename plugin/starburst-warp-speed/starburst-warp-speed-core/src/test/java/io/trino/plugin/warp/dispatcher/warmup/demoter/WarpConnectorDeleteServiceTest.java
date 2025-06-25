@@ -400,7 +400,7 @@ class WarpConnectorDeleteServiceTest
                 0,
                 true);
         warpDeleteService.deleteRowGroupData(rowGroupData, List.of(), demoteContext);
-        verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupData), eq(Boolean.TRUE));
+        verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupData), eq(true));
     }
 
     @Test

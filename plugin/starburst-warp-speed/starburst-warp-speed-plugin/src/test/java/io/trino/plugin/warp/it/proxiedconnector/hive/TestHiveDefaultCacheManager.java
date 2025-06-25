@@ -54,7 +54,7 @@ public class TestHiveDefaultCacheManager
                 numNodes,
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
-                        USE_HTTP_SERVER_PORT, Boolean.FALSE.toString(),
+                        USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
                 hiveDir,

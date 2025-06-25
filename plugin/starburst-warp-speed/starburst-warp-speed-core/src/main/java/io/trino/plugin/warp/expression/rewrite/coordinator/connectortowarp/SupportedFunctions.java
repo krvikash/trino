@@ -144,9 +144,8 @@ public class SupportedFunctions
         supportedFunctionsRules.put(UPPER, createGenericRewriter("upper(x)", false, validDateTypes));
         supportedFunctionsRules.put(JSON_EXTRACT_SCALAR, createGenericRewriter("json_extract_scalar(varchar, jsonpath)", false));
 
-        String structure = "%s(x : validDateTypes)";
         for (FunctionName dateFunction : DATE_FUNCTIONS) {
-            String query = format(structure, dateFunction.getName());
+            String query = format("%s(x : validDateTypes)", dateFunction.getName());
             supportedFunctionsRules.put(dateFunction, createGenericRewriter(query, true, validDateTypes));
         }
     }

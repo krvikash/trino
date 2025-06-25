@@ -94,7 +94,7 @@ public class DispatcherQueryRunner
                 .put(WarmupDemoterConfig.DEFAULT_RULE_TTL_IN_SECONDS, defaultRuleTtlInSeconds)
 //                .put(HTTP_REST_PORT, "" + restPort)
                 .put(WarpExtensionConfig.ENABLED, Boolean.toString(isExtensionsEnabled))
-                .put(WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.FALSE.toString())
+                .put(WarpExtensionConfig.HTTP_REST_PORT_ENABLED, "false")
                 .put(GlobalConfig.LOCAL_STORE_PATH, localStorePath.toAbsolutePath().toString())
                 .put(FAILURE_GENERATOR_ENABLED, "true")
                 .put("warp-speed.objectstore.warmup.cloud.retries", "0")

@@ -117,7 +117,7 @@ public class TestHiveWarpCacheManager
                 numNodes,
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
-                        USE_HTTP_SERVER_PORT, Boolean.FALSE.toString(),
+                        USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
                 hiveDir,
@@ -139,8 +139,8 @@ public class TestHiveWarpCacheManager
                                     .put(GlobalConfig.CONFIG_IS_SINGLE, Boolean.valueOf(numNodes == 1).toString())
                                     .put(GlobalConfig.LOCAL_STORE_PATH, "file://" + cacheMgrPath.toAbsolutePath())
                                     .put(WarmupRuleCloudFetcherConfig.STORE_PATH, "file://%s/rules".formatted(cacheMgrFetcherPath.toAbsolutePath()))
-                                    .put(CacheManagerConfig.CACHE_MANAGER_RULES_ENABLED, Boolean.TRUE.toString())
-                                    .put(WarpExtensionConfig.ENABLED, Boolean.TRUE.toString())
+                                    .put(CacheManagerConfig.CACHE_MANAGER_RULES_ENABLED, "true")
+                                    .put(WarpExtensionConfig.ENABLED, "true")
                                     .put(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.toString(warpExtensionConfig.isUseHttpServerPort()))
                                     .put(WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.toString(warpExtensionConfig.isRestHttpDefaultPortEnabled()))
                                     .put(WarpExtensionConfig.HTTP_REST_PORT, Integer.toString(warpExtensionConfig.getRestHttpPort()))

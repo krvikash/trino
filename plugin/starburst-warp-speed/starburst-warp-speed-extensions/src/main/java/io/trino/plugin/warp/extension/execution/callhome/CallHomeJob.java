@@ -16,7 +16,6 @@ package io.trino.plugin.warp.extension.execution.callhome;
 import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.HostAddress;
@@ -55,7 +54,7 @@ public class CallHomeJob
     private int numberOfUploaded;
 
     public CallHomeJob(
-            @ForWarp CloudVendorService cloudVendorService,
+            CloudVendorService cloudVendorService,
             HostAddress nodeAddress,
             String storePath,
             String serverLogPath,

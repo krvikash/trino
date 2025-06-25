@@ -87,7 +87,7 @@ public class WarpExtensionModule
                         WarpBaseModule.isWorker(connectorContext.getNodeManager(), config),
                         cacheManagerConfig.getIsCache(),
                         booleanSuppliers.build()));
-        if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
+        if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, "true"))) {
             configureHttpServer();
         }
 
