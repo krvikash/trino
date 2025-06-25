@@ -48,6 +48,7 @@ import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
+import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
@@ -74,7 +75,9 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -84,6 +87,7 @@ import static com.google.common.collect.Maps.asMap;
 import static io.trino.plugin.tpch.util.PredicateUtils.convertToPredicate;
 import static io.trino.plugin.tpch.util.PredicateUtils.filterOutColumnFromPredicate;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
 import static io.trino.spi.statistics.TableStatisticType.ROW_COUNT;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DateType.DATE;
@@ -548,6 +552,45 @@ public class TpchMetadata
                         handle.constraint()
                                 .transformKeys(TpchColumnHandle.class::cast)
                                 .transformKeys(TpchColumnHandle::columnName)));
+    }
+
+    @Override
+    public Optional<UnificationResult<ConnectorTableHandle>> unifyTables(ConnectorSession session, ConnectorTableHandle first, ConnectorTableHandle second)
+    {
+        TpchTableHandle firstTable = (TpchTableHandle) first;
+        TpchTableHandle secondTable = (TpchTableHandle) second;
+
+        if (!Objects.equals(firstTable.schemaName(), secondTable.schemaName()) ||
+                !Objects.equals(firstTable.tableName(), secondTable.tableName()) ||
+                firstTable.scaleFactor() != secondTable.scaleFactor()) {
+            return Optional.empty();
+        }
+
+        // create a unified table handle without the enforced predicate
+        TpchTableHandle unified = new TpchTableHandle(firstTable.schemaName(), firstTable.tableName(), firstTable.scaleFactor());
+
+        // union and push enforced predicates from the first and second table handles
+        // it doesn't matter if the unioned TupleDomain is abundant or if pushdown is incomplete
+        // the original enforced predicates for both tables will be returned to the caller to re-apply
+        TupleDomain<ColumnHandle> unionedEnforcedConstraint = columnWiseUnion(firstTable.constraint(), secondTable.constraint());
+        Optional<ConstraintApplicationResult<ConnectorTableHandle>> enforcedResult = applyFilter(
+                session,
+                unified,
+                new Constraint(unionedEnforcedConstraint, unionedEnforcedConstraint.asPredicate(), unionedEnforcedConstraint.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+        if (enforcedResult.isPresent()) {
+            unified = (TpchTableHandle) enforcedResult.get().getHandle();
+        }
+
+        TupleDomain<ColumnHandle> firstCompensationFilter = firstTable.constraint().contains(unified.constraint()) ? TupleDomain.all() : firstTable.constraint();
+        TupleDomain<ColumnHandle> secondCompensationFilter = secondTable.constraint().contains(unified.constraint()) ? TupleDomain.all() : secondTable.constraint();
+
+        return Optional.of(new UnificationResult<>(
+                unified,
+                firstCompensationFilter,
+                secondCompensationFilter,
+                new UnificationResult.Properties(
+                        unified.constraint(),
+                        OptionalLong.empty())));
     }
 
     private static TupleDomain<ColumnHandle> toTupleDomain(Map<TpchColumnHandle, Set<NullableValue>> predicate)
