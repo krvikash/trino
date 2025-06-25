@@ -51,6 +51,7 @@ import static io.airlift.concurrent.MoreFutures.addSuccessCallback;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.trino.execution.scheduler.ScheduleResult.BlockedReason.SPLIT_QUEUES_FULL;
 import static io.trino.execution.scheduler.ScheduleResult.BlockedReason.WAITING_FOR_SOURCE;
+import static io.trino.operator.ExchangeOperator.REMOTE_CATALOG_HANDLE;
 import static java.util.Objects.requireNonNull;
 
 public class SourcePartitionedScheduler
@@ -256,13 +257,15 @@ public class SourcePartitionedScheduler
                 nextSplitBatchFuture = null;
                 pendingSplits.addAll(nextSplits.getSplits());
                 if (nextSplits.isLastBatch()) {
-                    if (state == State.INITIALIZED && pendingSplits.isEmpty()) {
+                    if (state == State.INITIALIZED && pendingSplits.isEmpty() && !splitSource.getCatalogHandle().equals(REMOTE_CATALOG_HANDLE)) {
                         // Add an empty split in case no splits have been produced for the source.
                         // For source operators, they never take input, but they may produce output.
                         // This is well handled by the execution engine.
                         // However, there are certain non-source operators that may produce output without any input,
                         // for example, 1) an AggregationOperator, 2) a HashAggregationOperator where one of the grouping sets is ().
                         // Scheduling an empty split kicks off necessary driver instantiation to make this work.
+                        // This logic is not needed for spooling exchange split source as split containing ExchangeSourceOutputSelector will be always emitted
+
                         pendingSplits.add(new Split(
                                 splitSource.getCatalogHandle(),
                                 new EmptySplit(splitSource.getCatalogHandle())));

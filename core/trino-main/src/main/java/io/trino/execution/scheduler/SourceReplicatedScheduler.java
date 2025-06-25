@@ -23,6 +23,7 @@ import io.airlift.log.Logger;
 import io.trino.execution.RemoteTask;
 import io.trino.metadata.InternalNode;
 import io.trino.metadata.Split;
+import io.trino.operator.ExchangeOperator;
 import io.trino.split.EmptySplit;
 import io.trino.split.SplitSource;
 import io.trino.split.SplitSource.SplitBatch;
@@ -125,13 +126,14 @@ public class SourceReplicatedScheduler
             nextSplitBatchFuture = null;
             splitBuilder.putAll(replicatedNode, nextSplits.getSplits());
             if (nextSplits.isLastBatch()) {
-                if (state == State.INITIALIZED && nextSplits.getSplits().isEmpty()) {
+                if (state == State.INITIALIZED && nextSplits.getSplits().isEmpty() && !splitSource.getCatalogHandle().equals(ExchangeOperator.REMOTE_CATALOG_HANDLE)) {
                     // Add an empty split in case no splits have been produced for the source.
                     // For source operators, they never take input, but they may produce output.
                     // This is well handled by the execution engine.
                     // However, there are certain non-source operators that may produce output without any input,
                     // for example, 1) an AggregationOperator, 2) a HashAggregationOperator where one of the grouping sets is ().
                     // Scheduling an empty split kicks off necessary driver instantiation to make this work.
+                    // This logic is not needed for spooling exchange split source as split containing ExchangeSourceOutputSelector will be always emitted
                     splitBuilder.put(replicatedNode, new Split(splitSource.getCatalogHandle(), new EmptySplit(splitSource.getCatalogHandle())));
                 }
                 log.debug("stage id: %s, node: %s; transitioning to FINISHED", stageExecution.getStageId(), replicatedNode);
