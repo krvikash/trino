@@ -18,8 +18,10 @@ import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
 import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.testing.AbstractTestQueryFramework;
+import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
+import jakarta.annotation.Nullable;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.Table;
@@ -70,6 +72,9 @@ final class TestCopyOnWrite
                 "test_write_mode_property",
                 "(x int, part int) WITH (" + partitioning + " format='" + format + "', merge_mode = 'copy-on-write')")) {
             assertThat(getMergeMode(table.getName())).isEqualTo("copy-on-write");
+
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .contains("merge_mode = 'copy-on-write'");
         }
 
         try (TestTable table = newTrinoTable(
@@ -79,7 +84,7 @@ final class TestCopyOnWrite
         }
 
         try (TestTable table = newTrinoTable("test_write_mode_property", "(x int, part int) WITH (" + partitioning + " format='" + format + "')")) {
-            assertThat(getMergeMode(table.getName())).isEqualTo("merge-on-read");
+            assertThat(getMergeMode(table.getName())).isNull();
             assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES merge_mode = 'copy-on-write'");
             assertThat(getMergeMode(table.getName())).isEqualTo("copy-on-write");
             assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES merge_mode = 'merge-on-read'");
@@ -375,8 +380,10 @@ final class TestCopyOnWrite
                 .collect(toImmutableList());
     }
 
+    @Nullable
     private String getMergeMode(String tableName)
     {
-        return (String) computeScalar("SELECT value FROM \"" + tableName + "$properties\" WHERE key = 'write.merge.mode'");
+        MaterializedResult result = computeActual("SELECT value FROM \"" + tableName + "$properties\" WHERE key = 'write.merge.mode'");
+        return result.getRowCount() == 0 ? null : (String) result.getOnlyValue();
     }
 }

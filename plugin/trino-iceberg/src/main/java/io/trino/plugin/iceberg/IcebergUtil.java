@@ -182,7 +182,6 @@ import static java.lang.String.format;
 import static java.math.RoundingMode.UNNECESSARY;
 import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
-import static org.apache.iceberg.RowLevelOperationMode.MERGE_ON_READ;
 import static org.apache.iceberg.TableProperties.AVRO_COMPRESSION;
 import static org.apache.iceberg.TableProperties.COMMIT_NUM_RETRIES;
 import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT;
@@ -951,7 +950,7 @@ public final class IcebergUtil
 
         // Add write.merge.mode property, we use merge-on-read as default
         Optional<String> mergeMode = IcebergTableProperties.getMergeMode(tableMetadata.getProperties());
-        propertiesBuilder.put(MERGE_MODE, mergeMode.map(RowLevelOperationMode::fromName).orElse(MERGE_ON_READ).modeName());
+        mergeMode.ifPresent(mode -> propertiesBuilder.put(MERGE_MODE, RowLevelOperationMode.fromName(mode).modeName()));
 
         Map<String, String> baseProperties = propertiesBuilder.buildOrThrow();
         Map<String, String> extraProperties = IcebergTableProperties.getExtraProperties(tableMetadata.getProperties()).orElseGet(ImmutableMap::of);

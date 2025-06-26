@@ -384,8 +384,7 @@ public abstract class BaseIcebergConnectorTest
                         "   format = '" + format.name() + "',\n" +
                         "   format_version = " + formatVersion + ",\n" +
                         "   location = '\\E.*/tpch/orders-.*\\Q',\n" +
-                        "   max_commit_retry = 4,\n" +
-                        "   merge_mode = 'merge-on-read'\n" +
+                        "   max_commit_retry = 4\n" +
                         ")\\E");
     }
 
@@ -1289,7 +1288,6 @@ public abstract class BaseIcebergConnectorTest
                         "   format_version = 2,\n" +
                         "   location = '%s',\n" +
                         "   max_commit_retry = 4,\n" +
-                        "   merge_mode = 'merge-on-read',\n" +
                         "   partitioning = ARRAY['order_status','ship_priority','bucket(\"order key\", 9)']\n" +
                         ")",
                 getSession().getCatalog().orElseThrow(),
@@ -1659,8 +1657,7 @@ public abstract class BaseIcebergConnectorTest
                 format("   format = '%s',\n", format) +
                 "   format_version = 2,\n" +
                 format("   location = '%s',\n", tempDirPath) +
-                "   max_commit_retry = 4,\n" +
-                "   merge_mode = 'merge-on-read'\n" +
+                "   max_commit_retry = 4\n" +
                 ")";
         String createTableWithoutComment = "" +
                 "CREATE TABLE iceberg.tpch.test_table_comments (\n" +
@@ -1670,8 +1667,7 @@ public abstract class BaseIcebergConnectorTest
                 "   format = '" + format + "',\n" +
                 "   format_version = 2,\n" +
                 "   location = '" + tempDirPath + "',\n" +
-                "   max_commit_retry = 4,\n" +
-                "   merge_mode = 'merge-on-read'\n" +
+                "   max_commit_retry = 4\n" +
                 ")";
         String createTableSql = format(createTableTemplate, "test table comment", format);
         assertUpdate(createTableSql);
@@ -1961,7 +1957,7 @@ public abstract class BaseIcebergConnectorTest
         // LIKE source INCLUDING PROPERTIES copies all the properties of the source table, including the `location`.
         // For this reason the source and the copied table will share the same directory.
         // This test does not drop intentionally the created tables to avoid affecting the source table or the information_schema.
-        assertUpdate(format("CREATE TABLE test_create_table_like_original (col1 INTEGER, aDate DATE) WITH(format = '%s', location = '%s', merge_mode = 'merge-on-read', partitioning = ARRAY['aDate'])", format, tempDirPath));
+        assertUpdate(format("CREATE TABLE test_create_table_like_original (col1 INTEGER, aDate DATE) WITH(format = '%s', location = '%s', partitioning = ARRAY['aDate'])", format, tempDirPath));
         assertThat(getTablePropertiesString("test_create_table_like_original")).isEqualTo(format(
                 """
                         WITH (
@@ -1969,7 +1965,6 @@ public abstract class BaseIcebergConnectorTest
                            format_version = %s,
                            location = '%s',
                            max_commit_retry = 4,
-                           merge_mode = 'merge-on-read',
                            partitioning = ARRAY['adate']
                         )""",
                 format,
@@ -1987,8 +1982,7 @@ public abstract class BaseIcebergConnectorTest
                            format = '%s',
                            format_version = %s,
                            location = '%s',
-                           max_commit_retry = 4,
-                           merge_mode = 'merge-on-read'
+                           max_commit_retry = 4
                         )""",
                 format,
                 formatVersion,
@@ -2001,8 +1995,7 @@ public abstract class BaseIcebergConnectorTest
                            format = '%s',
                            format_version = %s,
                            location = '%s',
-                           max_commit_retry = 4,
-                           merge_mode = 'merge-on-read' 
+                           max_commit_retry = 4
                         )""",
                 format,
                 formatVersion,

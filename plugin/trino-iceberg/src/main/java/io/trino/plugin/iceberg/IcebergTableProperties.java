@@ -207,7 +207,7 @@ public class IcebergTableProperties
                 .add(stringProperty(
                         MERGE_MODE_PROPERTY,
                         "Controls how data is written when performing data manipulation operations",
-                        "merge-on-read",
+                        null,
                         RowLevelOperationMode::fromName,
                         false))
                 .build();

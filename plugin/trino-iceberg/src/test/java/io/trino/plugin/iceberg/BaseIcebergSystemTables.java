@@ -850,10 +850,10 @@ public abstract class BaseIcebergSystemTables
             Table icebergTable = loadTable(table.getName());
             Map<String, String> actualProperties = getTableProperties(table.getName());
             if (format == PARQUET) {
-                assertThat(actualProperties).hasSize(10);
+                assertThat(actualProperties).hasSize(9);
             }
             else {
-                assertThat(actualProperties).hasSize(11);
+                assertThat(actualProperties).hasSize(10);
                 assertThat(actualProperties).contains(entry("write.%s.compression-codec".formatted(format.name().toLowerCase(ENGLISH)), "zstd"));
             }
             assertThat(actualProperties).contains(
@@ -865,8 +865,7 @@ public abstract class BaseIcebergSystemTables
                     entry("sort-order", "y ASC NULLS FIRST"),
                     entry("write.format.default", format.name()),
                     entry("write.parquet.compression-codec", "zstd"),
-                    entry("commit.retry.num-retries", "4"),
-                    entry("write.merge.mode", "merge-on-read"));
+                    entry("commit.retry.num-retries", "4"));
         }
     }
 

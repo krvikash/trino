@@ -219,7 +219,6 @@ public abstract class BaseIcebergMaterializedViewTest
                                 "   format_version = 2,\n" +
                                 "   location = '" + getSchemaDirectory() + "/test_mv_show_create-\\E[0-9a-f]+\\Q',\n" +
                                 "   max_commit_retry = 4,\n" +
-                                "   merge_mode = 'merge-on-read',\n" +
                                 "   orc_bloom_filter_columns = ARRAY['_date'],\n" +
                                 "   orc_bloom_filter_fpp = 1E-1,\n" +
                                 "   partitioning = ARRAY['_date'],\n" +
@@ -537,7 +536,6 @@ public abstract class BaseIcebergMaterializedViewTest
                         "   format_version = 2,\n" +
                         "   location = '" + getSchemaDirectory() + "/materialized_view_window-\\E[0-9a-f]+\\Q',\n" +
                         "   max_commit_retry = 4,\n" +
-                        "   merge_mode = 'merge-on-read',\n" +
                         "   partitioning = ARRAY['_date'],\n" +
                         "   storage_schema = '" + schema + "'\n" +
                         ") AS\n" +
