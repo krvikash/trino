@@ -20,7 +20,7 @@ import io.trino.execution.StageId;
 import io.trino.execution.TaskId;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.NodeMemoryConfig;
-import io.trino.metadata.InMemoryNodeManager;
+import io.trino.node.InMemoryNodeManager;
 import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;

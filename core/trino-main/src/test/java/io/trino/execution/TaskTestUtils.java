@@ -35,8 +35,8 @@ import io.trino.execution.BaseTestSqlTaskManager.MockDirectExchangeClientSupplie
 import io.trino.execution.buffer.OutputBuffers;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.NodeMemoryConfig;
-import io.trino.metadata.InMemoryNodeManager;
 import io.trino.metadata.Split;
+import io.trino.node.InMemoryNodeManager;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;

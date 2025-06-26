@@ -24,7 +24,7 @@ import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.MemoryPool;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
-import io.trino.metadata.InternalNodeManager;
+import io.trino.node.InternalNodeManager;
 import io.trino.plugin.memory.MemoryCacheManagerFactory;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;

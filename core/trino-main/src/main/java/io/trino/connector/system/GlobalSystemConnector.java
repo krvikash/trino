@@ -15,7 +15,7 @@ package io.trino.connector.system;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
-import io.trino.metadata.InternalNodeManager;
+import io.trino.node.InternalNodeManager;
 import io.trino.operator.table.SequenceFunction.SequenceFunctionHandle;
 import io.trino.server.dataframe.AnalyzeLogicalPlan;
 import io.trino.spi.catalog.CatalogName;

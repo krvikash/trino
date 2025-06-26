@@ -19,7 +19,7 @@ import com.google.inject.spi.Message;
 import io.airlift.log.Logger;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
-import io.trino.metadata.InternalNodeManager;
+import io.trino.node.InternalNodeManager;
 import io.trino.server.ServerConfig;
 import io.trino.spi.Node;
 import io.trino.spi.classloader.ThreadContextClassLoader;

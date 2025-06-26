@@ -20,7 +20,7 @@ import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.trino.connector.DefaultNodeManager;
 import io.trino.execution.scheduler.NodeSchedulerConfig;
-import io.trino.metadata.InternalNodeManager;
+import io.trino.node.InternalNodeManager;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
