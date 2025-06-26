@@ -24,6 +24,7 @@ import io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin;
 import io.trino.plugin.hive.containers.Hive3MinioDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
 import io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer;
+import io.trino.plugin.iceberg.catalog.rest.TestingLakekeeperCatalog;
 import io.trino.plugin.iceberg.catalog.rest.TestingPolarisCatalog;
 import io.trino.plugin.iceberg.containers.NessieContainer;
 import io.trino.plugin.iceberg.containers.UnityCatalogContainer;
@@ -673,6 +674,34 @@ public final class IcebergQueryRunner
                     })
                     .build();
 
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static final class IcebergLakekeeperQueryRunnerMain
+    {
+        private IcebergLakekeeperQueryRunnerMain() {}
+
+        public static void main(String[] args)
+                throws Exception
+        {
+            @SuppressWarnings("resource")
+            TestingLakekeeperCatalog lakekeeperCatalog = new TestingLakekeeperCatalog();
+            Logger log = Logger.get(IcebergLakekeeperQueryRunnerMain.class);
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
+                    .addIcebergProperty("iceberg.catalog.type", "rest")
+                    .addIcebergProperty("iceberg.rest-catalog.uri", lakekeeperCatalog.restUri() + "/catalog")
+                    .addIcebergProperty("iceberg.rest-catalog.warehouse", TestingLakekeeperCatalog.WAREHOUSE)
+                    .addIcebergProperty("iceberg.rest-catalog.vended-credentials-enabled", "true")
+                    .addIcebergProperty("s3.endpoint", lakekeeperCatalog.externalMinioAddress())
+                    .addIcebergProperty("fs.native-s3.enabled", "true")
+                    .addIcebergProperty("s3.region", "dummy")
+                    .addIcebergProperty("s3.path-style-access", "true")
+                    .setInitialTables(TpchTable.getTables())
+                    .build();
             log.info("======== SERVER STARTED ========");
             log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
         }
