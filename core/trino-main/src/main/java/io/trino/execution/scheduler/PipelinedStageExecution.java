@@ -404,7 +404,7 @@ public class PipelinedStageExecution
         if (hasSpoolingExchangeOutput()) {
             Exchange exchange = getOutputSpoolingExchange();
 
-            int[] bucketToPartitionMap = bucketToPartition.orElseThrow();
+            int[] bucketToPartitionMap = bucketToPartition.orElse(new int[] {0});
             verify(IntSet.of(bucketToPartitionMap).size() == bucketToPartitionMap.length, "Expected number of buckets to be equal to number of partitions");
             int numberOfPartitions = bucketToPartitionMap.length;
 

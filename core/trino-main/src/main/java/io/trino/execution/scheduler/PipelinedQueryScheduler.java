@@ -1125,7 +1125,7 @@ public class PipelinedQueryScheduler
                     // if fragment has more than one parent we use spooling exchange for its output.
                     // todo: consider dressing it in nicer abstraction
                     PlanFragmentId fragmentId = childStage.getFragment().getId();
-                    int[] bucketToPartitionMap = bucketToPartitionMaps.get(fragmentId).orElseThrow();
+                    int[] bucketToPartitionMap = bucketToPartitionMaps.get(fragmentId).orElse(new int[] {0});
                     verify(IntSet.of(bucketToPartitionMap).size() == bucketToPartitionMap.length, "Expected number of buckets to be equal to number of partitions");
                     int numberOfPartitions = bucketToPartitionMap.length;
 
