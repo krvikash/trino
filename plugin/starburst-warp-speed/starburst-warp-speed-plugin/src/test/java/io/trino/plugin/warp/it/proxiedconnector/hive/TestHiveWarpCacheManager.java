@@ -318,8 +318,9 @@ public class TestHiveWarpCacheManager
 
         if (withSignature) {
             List<PlanSignature> planSignatures = requireNonNull(fullQueryInfo
-                    .getOutputStage()
+                    .getStages()
                     .orElseThrow()
+                    .getOutputStage()
                     .getPlan())
                     .getRoot()
                     .getSources()

@@ -24,11 +24,8 @@ import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.Nullable;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -44,7 +41,7 @@ public class StageInfo
     private final List<Type> types;
     private final StageStats stageStats;
     private final List<TaskInfo> tasks;
-    private final List<StageInfo> subStages;
+    private final List<StageId> subStages;
     private final ExecutionFailureInfo failureCause;
     private final Map<PlanNodeId, TableInfo> tables;
 
@@ -57,7 +54,7 @@ public class StageInfo
             @JsonProperty("types") List<Type> types,
             @JsonProperty("stageStats") StageStats stageStats,
             @JsonProperty("tasks") List<TaskInfo> tasks,
-            @JsonProperty("subStages") List<StageInfo> subStages,
+            @JsonProperty("subStages") List<StageId> subStages,
             @JsonProperty("tables") Map<PlanNodeId, TableInfo> tables,
             @JsonProperty("failureCause") ExecutionFailureInfo failureCause)
     {
@@ -124,7 +121,7 @@ public class StageInfo
     }
 
     @JsonProperty
-    public List<StageInfo> getSubStages()
+    public List<StageId> getSubStages()
     {
         return subStages;
     }
@@ -155,7 +152,7 @@ public class StageInfo
                 .toString();
     }
 
-    public StageInfo withSubStages(List<StageInfo> subStages)
+    public StageInfo withSubStages(List<StageId> subStages)
     {
         return new StageInfo(
                 stageId,
@@ -180,7 +177,7 @@ public class StageInfo
                 types,
                 stageStats.pruneDigests(),
                 tasks.stream().map(TaskInfo::pruneDigests).collect(toImmutableList()),
-                subStages.stream().map(StageInfo::pruneDigests).collect(toImmutableList()),
+                subStages,
                 tables,
                 failureCause);
     }
@@ -195,9 +192,7 @@ public class StageInfo
                 types,
                 stageStats,
                 tasks,
-                subStages.stream()
-                        .map(StageInfo::pruneCatalogProperties)
-                        .collect(toImmutableList()),
+                subStages,
                 tables,
                 failureCause);
     }
@@ -215,30 +210,5 @@ public class StageInfo
                 ImmutableList.of(),
                 ImmutableMap.of(),
                 null);
-    }
-
-    public static List<StageInfo> getAllStages(Optional<StageInfo> stageInfo)
-    {
-        if (stageInfo.isEmpty()) {
-            return ImmutableList.of();
-        }
-
-        ImmutableList.Builder<StageInfo> builder = ImmutableList.builder();
-        getAllStagesDeduplicated(stageInfo.get(), builder, new HashSet<>());
-
-        return builder.build().reverse();
-    }
-
-    private static void getAllStagesDeduplicated(@Nullable StageInfo stage, ImmutableList.Builder<StageInfo> builder, Set<StageId> visitedStages)
-    {
-        if (stage == null || visitedStages.contains(stage.stageId)) {
-            return;
-        }
-
-        for (StageInfo subStage : stage.getSubStages().reversed()) {
-            getAllStagesDeduplicated(subStage, builder, visitedStages);
-        }
-        builder.add(stage);
-        visitedStages.add(stage.stageId);
     }
 }
