@@ -26,7 +26,6 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageEngine;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageEngineConstants;
 import io.trino.plugin.warp.storage.read.NativeRangeFillerService;
 import io.trino.plugin.warp.storage.read.RangeFillerService;
-import io.trino.spi.NodeManager;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -46,15 +45,15 @@ public class WarpNativeStorageEngineModule
 {
     private static final String SVE_SUFFIX = "_g3";
     private static final boolean SKIP_SVE = true;
-    private final boolean isWorker;
     private static final Logger logger = Logger.get(WarpNativeStorageEngineModule.class);
     private static final String baseNativeLibName = "presto-varada-jni";
     private final boolean isSingle;
+    private final boolean isWorker;
 
-    public WarpNativeStorageEngineModule(NodeManager nodeManager, Map<String, String> config)
+    public WarpNativeStorageEngineModule(boolean isCoordinator, Map<String, String> config)
     {
-        this.isWorker = WarpBaseModule.isWorker(nodeManager, config);
         this.isSingle = WarpBaseModule.isSingle(config);
+        this.isWorker = isSingle || !isCoordinator;
     }
 
     private static void loadLibrary(Path absoluteLibraryPath)

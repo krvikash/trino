@@ -35,7 +35,6 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.ExtraModule;
-import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dictionary.AttachDictionaryService;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
@@ -104,6 +103,7 @@ import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonBinder.jsonBinder;
+import static io.trino.plugin.warp.di.WarpBaseModule.isSingle;
 
 /**
  * this module will install dependencies which are required in the cache manager
@@ -138,7 +138,8 @@ public class DispatcherCacheManagerModule
         configBinder(binder).bindConfig(CacheManagerConfig.class);
         binder.bind(CacheMgrWarmupRuleService.class);
 
-        if (!WarpBaseModule.isWorker(warpCacheMgrConnectorContext.getNodeManager(), config)) {
+        boolean isWorker = isSingle(config) || !warpCacheMgrConnectorContext.getCurrentNode().isCoordinator();
+        if (!isWorker) {
             return;
         }
         configBinder(binder).bindConfig(CloudVendorConfig.class, ForWarp.class);

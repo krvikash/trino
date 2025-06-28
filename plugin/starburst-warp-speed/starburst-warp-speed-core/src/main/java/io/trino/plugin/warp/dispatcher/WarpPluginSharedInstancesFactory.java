@@ -30,7 +30,6 @@ import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.read.RangeFillerService;
-import io.trino.spi.NodeManager;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Collections;
@@ -51,7 +50,7 @@ public class WarpPluginSharedInstancesFactory
         this.storageEngineModule = storageEngineModule;
     }
 
-    public synchronized WarpPluginSharedInstances create(NodeManager nodeManager, Map<String, String> config)
+    public synchronized WarpPluginSharedInstances create(boolean isCoordinator, Map<String, String> config)
     {
         Map<String, String> warpConfig = getWarpConfig(config);
 
@@ -59,7 +58,7 @@ public class WarpPluginSharedInstancesFactory
             Bootstrap app = new Bootstrap(
                     new MBeanServerModule(),
                     new MBeanModule(),
-                    new WarpSharedInstancesModule(storageEngineModule, nodeManager, config));
+                    new WarpSharedInstancesModule(storageEngineModule, isCoordinator, config));
 
             Injector injector = app
                     .doNotInitializeLogging()

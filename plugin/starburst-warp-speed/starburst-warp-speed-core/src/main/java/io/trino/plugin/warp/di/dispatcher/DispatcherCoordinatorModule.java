@@ -15,7 +15,6 @@ package io.trino.plugin.warp.di.dispatcher;
 
 import com.google.inject.Binder;
 import io.trino.plugin.warp.di.ExtraModule;
-import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.dispatcher.DispatcherCacheMetadata;
 import io.trino.plugin.warp.dispatcher.DispatcherMetadataFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherSplitManager;
@@ -48,7 +47,7 @@ public class DispatcherCoordinatorModule
     @Override
     public void configure(Binder binder)
     {
-        if (WarpBaseModule.isCoordinator(context.getNodeManager())) {
+        if (context.getCurrentNode().isCoordinator()) {
             binder.bind(DispatcherTransactionManager.class);
             binder.bind(DispatcherStatisticsProvider.class);
             binder.bind(DispatcherMetadataFactory.class);
@@ -64,7 +63,7 @@ public class DispatcherCoordinatorModule
     @Override
     public boolean shouldInstall()
     {
-        return WarpBaseModule.isCoordinator(context.getNodeManager());
+        return context.getCurrentNode().isCoordinator();
     }
 
     @Override

@@ -13,6 +13,7 @@
  */
 package io.trino.spi.cache;
 
+import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.block.BlockEncodingSerde;
 
@@ -32,5 +33,11 @@ public interface CacheManagerContext
     default NodeManager getNodeManager()
     {
         return null;
+    }
+
+    default Node getCurrentNode()
+    {
+        //noinspection deprecation
+        return getNodeManager().getCurrentNode();
     }
 }

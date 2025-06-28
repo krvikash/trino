@@ -29,18 +29,20 @@ class LakehouseFileSystemModule
     private final String catalogName;
     private final NodeManager nodeManager;
     private final OpenTelemetry openTelemetry;
+    private final boolean isCoordinator;
 
     public LakehouseFileSystemModule(String catalogName, ConnectorContext context)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.nodeManager = context.getNodeManager();
         this.openTelemetry = context.getOpenTelemetry();
+        this.isCoordinator = context.getCurrentNode().isCoordinator();
     }
 
     @Override
     protected void setup(Binder binder)
     {
         boolean metadataCacheEnabled = buildConfigObject(IcebergConfig.class).isMetadataCacheEnabled();
-        install(new FileSystemModule(catalogName, nodeManager, openTelemetry, metadataCacheEnabled));
+        install(new FileSystemModule(catalogName, nodeManager, isCoordinator, openTelemetry, metadataCacheEnabled));
     }
 }

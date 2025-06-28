@@ -68,6 +68,7 @@ import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonBinder.jsonBinder;
+import static io.trino.plugin.warp.di.WarpBaseModule.isSingle;
 import static java.util.Objects.requireNonNull;
 
 public class WarpMainModule
@@ -85,10 +86,12 @@ public class WarpMainModule
     @Override
     public void configure(Binder binder)
     {
-        if (WarpBaseModule.isCoordinator(context.getNodeManager())) {
+        boolean isCoordinator = context.getCurrentNode().isCoordinator();
+        if (isCoordinator) {
             configureCoordinator(binder);
         }
-        if (WarpBaseModule.isWorker(context.getNodeManager(), config)) {
+        boolean isWorker = isSingle(config) || !isCoordinator;
+        if (isWorker) {
             configureWorker(binder);
         }
         configureCommon(binder);

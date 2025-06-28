@@ -14,9 +14,12 @@ import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
 import io.trino.plugin.jdbc.JdbcModule;
 import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
+import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.security.ConnectorIdentity;
+import io.trino.testing.TestingConnectorContext;
 import io.trino.testing.TestingNodeManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -179,10 +182,12 @@ final class TestDynamoDbPropertiesProvider
 
     private void testCredentialsPropertiesProvider(Map<String, String> inputConfig, AwsCredentialsProvider credentialsProvider, Map<String, String> outputProperties)
     {
+        ConnectorContext context = new TestingConnectorContext();
         Injector injector = new Bootstrap(
                 new JdbcModule(),
                 new DynamoDbModule(() -> true),
                 binder -> binder.bind(CatalogName.class).toInstance(new CatalogName("test")),
+                binder -> binder.bind(Node.class).toInstance(context.getCurrentNode()),
                 binder -> binder.bind(NodeManager.class).toInstance(new TestingNodeManager()),
                 binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(false),
                 binder -> binder.bind(AwsCredentialsProvider.class).toInstance(credentialsProvider))

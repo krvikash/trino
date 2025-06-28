@@ -57,8 +57,7 @@ public class InternalDispatcherCacheManagerFactory
             CacheManagerContext context,
             WarpCacheMgrConnectorContext warpCacheMgrConnectorContext)
     {
-        boolean isWorker = WarpBaseModule.isWorker(warpCacheMgrConnectorContext.getNodeManager(), config);
-
+        boolean isWorker = WarpBaseModule.isSingle(config) || !warpCacheMgrConnectorContext.getCurrentNode().isCoordinator();
         List<Module> modules = new ArrayList<>(asList(
                 new MBeanServerModule(),
                 new MBeanModule(),
@@ -71,7 +70,7 @@ public class InternalDispatcherCacheManagerFactory
                 binder -> {
                     binder.bind(Tracer.class).toInstance(OpenTelemetry.noop().getTracer("InternalDispatcherCacheManagerFactory"));
                     binder.bind(OpenTelemetry.class).toInstance(OpenTelemetry.noop());
-                    if (WarpBaseModule.isCoordinator(warpCacheMgrConnectorContext.getNodeManager())) {
+                    if (warpCacheMgrConnectorContext.getCurrentNode().isCoordinator()) {
                         binder.bind(CoordinatorNodeManager.class);
                         binder.bind(CoordinatorInitializedEventHandler.class);
                     }

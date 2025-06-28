@@ -85,7 +85,7 @@ public class WarpConnectorFactory
         }
 
         WarpConnectorContext warpConnectorContext = new WarpConnectorContext(context,
-                warpPluginSharedInstancesFactory.create(context.getNodeManager(), configMap));
+                warpPluginSharedInstancesFactory.create(context.getCurrentNode().isCoordinator(), configMap));
 
         List<Class<? extends InitializationModule>> extraModules = !this.extraModules.isEmpty() ?
                 this.extraModules :

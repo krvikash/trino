@@ -92,7 +92,7 @@ public class HdfsCloudStorageAzureTest
             ConfigurationFactory configFactory = new ConfigurationFactory(properties);
             binder.bind(ConfigurationFactory.class).toInstance(configFactory);
 
-            FileSystemModule fileSystemModule = new FileSystemModule(catalogName, nodeManager, openTelemetry, false);
+            FileSystemModule fileSystemModule = new FileSystemModule(catalogName, nodeManager, true, openTelemetry, false);
             fileSystemModule.setConfigurationFactory(configFactory);
             binder.install(fileSystemModule);
 

@@ -217,6 +217,12 @@ public class CacheManagerRegistry
                     }
                 };
             }
+
+            @Override
+            public Node getCurrentNode()
+            {
+                return internalNodeManager.getCurrentNode();
+            }
         };
         CacheManager cacheManager;
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(factory.getClass().getClassLoader())) {

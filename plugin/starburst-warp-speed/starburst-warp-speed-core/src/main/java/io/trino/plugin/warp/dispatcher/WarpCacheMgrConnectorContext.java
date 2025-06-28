@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.opentelemetry.api.OpenTelemetry;
+import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogHandle;
@@ -24,11 +25,13 @@ import static io.trino.plugin.warp.dispatcher.DispatcherCacheManagerFactory.DISP
 public class WarpCacheMgrConnectorContext
         implements ConnectorContext, WarpContext
 {
+    private final Node currentNode;
     private final NodeManager nodeManager;
     private final WarpPluginSharedInstances sharedInstances;
 
-    public WarpCacheMgrConnectorContext(NodeManager nodeManager, WarpPluginSharedInstances sharedInstances)
+    public WarpCacheMgrConnectorContext(Node currentNode, NodeManager nodeManager, WarpPluginSharedInstances sharedInstances)
     {
+        this.currentNode = currentNode;
         this.nodeManager = nodeManager;
         this.sharedInstances = sharedInstances;
     }
@@ -56,5 +59,11 @@ public class WarpCacheMgrConnectorContext
     public WarpPluginSharedInstances getWarpPluginSharedInstances()
     {
         return sharedInstances;
+    }
+
+    @Override
+    public Node getCurrentNode()
+    {
+        return currentNode;
     }
 }

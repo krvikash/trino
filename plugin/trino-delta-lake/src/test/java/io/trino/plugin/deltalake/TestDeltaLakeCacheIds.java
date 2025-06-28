@@ -58,7 +58,6 @@ import io.trino.spi.type.TestingTypeManager;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.testing.TestingConnectorContext;
-import io.trino.testing.TestingNodeManager;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -82,6 +81,7 @@ import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_STATS;
 import static io.trino.spi.predicate.Domain.singleValue;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.testing.TestingNodeManager.DEFAULT_CURRENT_NODE;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -131,7 +131,6 @@ public class TestDeltaLakeCacheIds
 
         FileSystemTransactionLogReaderFactory transactionLogReaderFactory = new FileSystemTransactionLogReaderFactory(HDFS_FILE_SYSTEM_FACTORY);
         HiveMetastoreFactory hiveMetastoreFactory = HiveMetastoreFactory.ofInstance(new UnimplementedHiveMetastore());
-        TestingNodeManager nodeManager = new TestingNodeManager();
         DeltaLakeMetadataFactory metadataFactory = new DeltaLakeMetadataFactory(
                 hiveMetastoreFactory,
                 hdfsFileSystemFactory,
@@ -142,13 +141,13 @@ public class TestDeltaLakeCacheIds
                 JsonCodec.jsonCodec(DataFileInfo.class),
                 JsonCodec.jsonCodec(DeltaLakeMergeResult.class),
                 new FileSystemTransactionLogWriterFactory(new TransactionLogSynchronizerManager(ImmutableMap.of(), new NoIsolationSynchronizer(hdfsFileSystemFactory))),
-                nodeManager,
+                DEFAULT_CURRENT_NODE,
                 checkpointWriterManager,
                 new CachingExtendedStatisticsAccess(new MetaDirStatisticsAccess(HDFS_FILE_SYSTEM_FACTORY, new JsonCodecFactory().jsonCodec(ExtendedStatistics.class))),
                 true,
                 true,
                 new NodeVersion("test_version"),
-                new DeltaLakeTableMetadataScheduler(nodeManager, TESTING_TYPE_MANAGER, new DeltaLakeFileMetastoreTableOperationsProvider(hiveMetastoreFactory), Integer.MAX_VALUE, config),
+                new DeltaLakeTableMetadataScheduler(DEFAULT_CURRENT_NODE, TESTING_TYPE_MANAGER, new DeltaLakeFileMetastoreTableOperationsProvider(hiveMetastoreFactory), Integer.MAX_VALUE, config),
                 newDirectExecutorService(),
                 new MetastoreTypeConfig(),
                 transactionLogReaderFactory);

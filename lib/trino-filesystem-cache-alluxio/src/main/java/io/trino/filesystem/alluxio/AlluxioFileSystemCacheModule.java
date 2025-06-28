@@ -37,10 +37,12 @@ public class AlluxioFileSystemCacheModule
         extends AbstractConfigurationAwareModule
 {
     private final NodeManager nodeManager;
+    private final boolean isCoordinator;
 
-    public AlluxioFileSystemCacheModule(NodeManager nodeManager)
+    public AlluxioFileSystemCacheModule(NodeManager nodeManager, boolean isCoordinator)
     {
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
+        this.isCoordinator = isCoordinator;
     }
 
     @Override
@@ -53,7 +55,7 @@ public class AlluxioFileSystemCacheModule
         newExporter(binder).export(AlluxioCacheStats.class)
                 .as(generator -> generator.generatedNameOf(AlluxioCacheStats.class, catalogName.get().toString()));
 
-        if (nodeManager.getCurrentNode().isCoordinator()) {
+        if (isCoordinator) {
             binder.bind(NodeManager.class).toInstance(nodeManager);
             newOptionalBinder(binder, CachingHostAddressProvider.class).setBinding().to(ConsistentHashingHostAddressProvider.class).in(SINGLETON);
         }

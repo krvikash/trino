@@ -62,13 +62,15 @@ public class FileSystemModule
 {
     private final String catalogName;
     private final NodeManager nodeManager;
+    private final boolean isCoordinator;
     private final OpenTelemetry openTelemetry;
     private final boolean coordinatorFileCaching;
 
-    public FileSystemModule(String catalogName, NodeManager nodeManager, OpenTelemetry openTelemetry, boolean coordinatorFileCaching)
+    public FileSystemModule(String catalogName, NodeManager nodeManager, boolean isCoordinator, OpenTelemetry openTelemetry, boolean coordinatorFileCaching)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
+        this.isCoordinator = isCoordinator;
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.coordinatorFileCaching = coordinatorFileCaching;
     }
@@ -87,7 +89,6 @@ public class FileSystemModule
                     !config.isNativeGcsEnabled(),
                     !config.isNativeS3Enabled(),
                     catalogName,
-                    nodeManager,
                     openTelemetry);
 
             loader.configure().forEach((name, securitySensitive) ->
@@ -136,10 +137,9 @@ public class FileSystemModule
         newOptionalBinder(binder, MemoryFileSystemCache.class);
 
         if (config.isCacheEnabled()) {
-            install(new AlluxioFileSystemCacheModule(nodeManager));
+            install(new AlluxioFileSystemCacheModule(nodeManager, isCoordinator));
         }
         if (coordinatorFileCaching) {
-            boolean isCoordinator = nodeManager.getCurrentNode().isCoordinator();
             install(new MemoryFileSystemCacheModule(isCoordinator));
         }
     }

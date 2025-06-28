@@ -73,7 +73,9 @@ public class WarpExtensionModule
         install(new WarpClientModule());
 
         ImmutableSet.Builder<Class<? extends BooleanSupplier>> booleanSuppliers = ImmutableSet.builder();
-        if (WarpBaseModule.isCoordinator(connectorContext.getNodeManager())) {
+        boolean isCoordinator = connectorContext.getCurrentNode().isCoordinator();
+        boolean isWorker = WarpBaseModule.isSingle(config) || !isCoordinator;
+        if (isCoordinator) {
             booleanSuppliers.add(ClusterReadyTaskExecutionIsAllowedSupplier.class);
         }
         else {
@@ -83,8 +85,8 @@ public class WarpExtensionModule
         CacheManagerConfig cacheManagerConfig = configFactory.build(CacheManagerConfig.class);
         install(
                 new WarpTasksModule(
-                        WarpBaseModule.isCoordinator(connectorContext.getNodeManager()),
-                        WarpBaseModule.isWorker(connectorContext.getNodeManager(), config),
+                        isCoordinator,
+                        isWorker,
                         cacheManagerConfig.getIsCache(),
                         booleanSuppliers.build()));
         if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, "true"))) {
@@ -101,7 +103,7 @@ public class WarpExtensionModule
         configBinder(binder).bindConfig(WarpExtensionConfig.class);
 
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        if (WarpBaseModule.isWorker(connectorContext.getNodeManager(), config) &&
+        if (isWorker &&
                 !cacheManagerConfig.getIsCache() &&
                 StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(WorkerWarmupRuleFetcher.class);
@@ -132,8 +134,11 @@ public class WarpExtensionModule
         install(new JsonModule());
 
         CacheManagerConfig cacheManagerConfig = configFactory.build(CacheManagerConfig.class);
-        WarpJaxrsModule module = new WarpJaxrsModule(WarpBaseModule.isCoordinator(connectorContext.getNodeManager()),
-                WarpBaseModule.isWorker(connectorContext.getNodeManager(), config),
+        boolean isCoordinator = connectorContext.getCurrentNode().isCoordinator();
+        boolean isWorker = WarpBaseModule.isSingle(config) || !isCoordinator;
+        WarpJaxrsModule module = new WarpJaxrsModule(
+                isCoordinator,
+                isWorker,
                 cacheManagerConfig.getIsCache());
 
         module.setConfigurationFactory(configFactory);

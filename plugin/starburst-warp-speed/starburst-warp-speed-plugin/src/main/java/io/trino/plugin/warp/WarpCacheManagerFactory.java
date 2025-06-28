@@ -71,8 +71,10 @@ public class WarpCacheManagerFactory
         configMap.put(CONFIG_IS_CACHE, "true");
 
         WarpCacheMgrConnectorContext warpCacheMgrConnectorContext =
-                new WarpCacheMgrConnectorContext(context.getNodeManager(),
-                        warpPluginSharedInstancesFactory.create(context.getNodeManager(), configMap));
+                new WarpCacheMgrConnectorContext(
+                        context.getCurrentNode(),
+                        context.getNodeManager(),
+                        warpPluginSharedInstancesFactory.create(context.getCurrentNode().isCoordinator(), configMap));
 
         return dispatcherCacheManagerFactory.create(
                 configMap,

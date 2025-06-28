@@ -36,6 +36,7 @@ import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.deltalake.metastore.DeltaLakeMetastoreModule;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.NodeVersion;
+import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.cache.ConnectorCacheMetadata;
@@ -101,11 +102,12 @@ public class DeltaLakeConnectorFactory
                     new DeltaLakeModule(),
                     new DeltaLakeSecurityModule(),
                     new DeltaLakeSynchronizerModule(),
-                    new FileSystemModule(catalogName, context.getNodeManager(), context.getOpenTelemetry(), false),
+                    new FileSystemModule(catalogName, context.getNodeManager(), context.getCurrentNode().isCoordinator(), context.getOpenTelemetry(), false),
                     binder -> {
                         binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
                         binder.bind(Tracer.class).toInstance(context.getTracer());
-                        binder.bind(NodeVersion.class).toInstance(new NodeVersion(context.getNodeManager().getCurrentNode().getVersion()));
+                        binder.bind(NodeVersion.class).toInstance(new NodeVersion(context.getCurrentNode().getVersion()));
+                        binder.bind(Node.class).toInstance(context.getCurrentNode());
                         binder.bind(NodeManager.class).toInstance(context.getNodeManager());
                         binder.bind(TypeManager.class).toInstance(context.getTypeManager());
                         binder.bind(PageIndexerFactory.class).toInstance(context.getPageIndexerFactory());

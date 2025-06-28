@@ -87,7 +87,8 @@ public class DispatcherMainModule
     public void configure(Binder binder)
     {
         binder.bind(FailureGeneratorInvocationHandler.class);
-        if (WarpBaseModule.isWorker(context.getNodeManager(), config)) {
+        boolean isWorker = WarpBaseModule.isSingle(config) || !context.getCurrentNode().isCoordinator();
+        if (isWorker) {
             binder.bind(AttachDictionaryService.class);
             binder.bind(BlockAppenderFactory.class);
             binder.bind(BlockFillersFactory.class);
@@ -132,7 +133,7 @@ public class DispatcherMainModule
             binder.bind(DispatcherConnectorBase.class).to(SingleDispatcherConnector.class);
             binder.bind(WorkerDispatcherConnector.class);
         }
-        else if (WarpBaseModule.isCoordinator(context.getNodeManager())) {
+        else if (context.getCurrentNode().isCoordinator()) {
             binder.bind(DispatcherConnectorBase.class).to(CoordinatorDispatcherConnector.class);
         }
         else {

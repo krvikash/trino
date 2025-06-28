@@ -29,6 +29,7 @@ import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.NodeVersion;
 import io.trino.plugin.iceberg.catalog.IcebergCatalogModule;
+import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
@@ -89,7 +90,8 @@ public class IcebergConnectorFactory
                         binder.bind(ClassLoader.class).toInstance(IcebergConnectorFactory.class.getClassLoader());
                         binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
                         binder.bind(Tracer.class).toInstance(context.getTracer());
-                        binder.bind(NodeVersion.class).toInstance(new NodeVersion(context.getNodeManager().getCurrentNode().getVersion()));
+                        binder.bind(NodeVersion.class).toInstance(new NodeVersion(context.getCurrentNode().getVersion()));
+                        binder.bind(Node.class).toInstance(context.getCurrentNode());
                         binder.bind(NodeManager.class).toInstance(context.getNodeManager());
                         binder.bind(TypeManager.class).toInstance(context.getTypeManager());
                         binder.bind(PageIndexerFactory.class).toInstance(context.getPageIndexerFactory());
@@ -118,19 +120,21 @@ public class IcebergConnectorFactory
         private final String catalogName;
         private final NodeManager nodeManager;
         private final OpenTelemetry openTelemetry;
+        private final boolean isCoordinator;
 
         public IcebergFileSystemModule(String catalogName, ConnectorContext context)
         {
             this.catalogName = requireNonNull(catalogName, "catalogName is null");
             this.nodeManager = context.getNodeManager();
             this.openTelemetry = context.getOpenTelemetry();
+            this.isCoordinator = context.getCurrentNode().isCoordinator();
         }
 
         @Override
         protected void setup(Binder binder)
         {
             boolean metadataCacheEnabled = buildConfigObject(IcebergConfig.class).isMetadataCacheEnabled();
-            install(new FileSystemModule(catalogName, nodeManager, openTelemetry, metadataCacheEnabled));
+            install(new FileSystemModule(catalogName, nodeManager, isCoordinator, openTelemetry, metadataCacheEnabled));
         }
     }
 }
