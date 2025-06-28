@@ -49,6 +49,7 @@ import io.trino.exchange.ExchangeManagerModule;
 import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.resourcegroups.ResourceGroupManager;
 import io.trino.execution.warnings.WarningCollectorModule;
+import io.trino.node.NodeManagerModule;
 import io.trino.security.AccessControlManager;
 import io.trino.security.AccessControlModule;
 import io.trino.security.GroupProviderManager;
@@ -120,6 +121,7 @@ public class Server
                 new CatalogManagerModule(),
                 new TransactionManagerModule(),
                 new StarburstDataframeModule(),
+                new NodeManagerModule(),
                 new ServerMainModule(trinoVersion),
                 new NodeStateManagerModule(),
                 new WarningCollectorModule());
