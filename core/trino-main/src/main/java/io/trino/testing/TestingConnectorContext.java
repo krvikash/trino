@@ -17,8 +17,7 @@ import io.airlift.tracing.Tracing;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.model.ModelConnectionSpecsLoader;
-import io.trino.connector.DefaultNodeManager;
-import io.trino.node.InMemoryNodeManager;
+import io.trino.client.NodeVersion;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.GroupByHashPageIndexerFactory;
 import io.trino.operator.NullSafeHashCompiler;
@@ -44,16 +43,10 @@ import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 public final class TestingConnectorContext
         implements ConnectorContext
 {
-    private final NodeManager nodeManager;
-    private final VersionEmbedder versionEmbedder = new EmbedVersion("testversion");
+    private final NodeManager nodeManager = TestingNodeManager.create();
+    private final VersionEmbedder versionEmbedder = new EmbedVersion(NodeVersion.UNKNOWN);
     private final PageSorter pageSorter = new PagesIndexPageSorter(new PagesIndex.TestingFactory(false));
-    private final PageIndexerFactory pageIndexerFactory;
-
-    public TestingConnectorContext()
-    {
-        pageIndexerFactory = new GroupByHashPageIndexerFactory(new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())));
-        nodeManager = new DefaultNodeManager(new InMemoryNodeManager(), true);
-    }
+    private final PageIndexerFactory pageIndexerFactory = new GroupByHashPageIndexerFactory(new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())));
 
     @Override
     public CatalogHandle getCatalogHandle()
