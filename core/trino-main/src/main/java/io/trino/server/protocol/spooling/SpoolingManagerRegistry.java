@@ -19,7 +19,7 @@ import com.google.inject.spi.Message;
 import io.airlift.log.Logger;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
-import io.trino.node.InternalNodeManager;
+import io.trino.node.InternalNode;
 import io.trino.server.ServerConfig;
 import io.trino.spi.Node;
 import io.trino.spi.classloader.ThreadContextClassLoader;
@@ -60,9 +60,9 @@ public class SpoolingManagerRegistry
     private volatile SpoolingManager spoolingManager;
 
     @Inject
-    public SpoolingManagerRegistry(InternalNodeManager nodeManager, ServerConfig serverConfig, SpoolingEnabledConfig config, OpenTelemetry openTelemetry, Tracer tracer)
+    public SpoolingManagerRegistry(InternalNode currentNode, ServerConfig serverConfig, SpoolingEnabledConfig config, OpenTelemetry openTelemetry, Tracer tracer)
     {
-        this.currentNode = requireNonNull(nodeManager, "nodeManager is null").getCurrentNode();
+        this.currentNode = requireNonNull(currentNode, "currentNode is null");
         this.enabled = config.isEnabled();
         this.coordinator = serverConfig.isCoordinator();
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
