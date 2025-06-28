@@ -436,7 +436,6 @@ public class PlanTester
                 nodeManager,
                 pageSorter,
                 pageIndexerFactory,
-                nodeInfo,
                 testingVersionEmbedder(),
                 noop(),
                 transactionManager,

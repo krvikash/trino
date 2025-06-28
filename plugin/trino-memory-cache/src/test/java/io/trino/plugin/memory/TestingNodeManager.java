@@ -34,7 +34,6 @@ public class TestingNodeManager
 {
     private static final String TEST_ENVIRONMENT = "testenv";
 
-    private final String environment;
     private final Node localNode;
     private final Set<Node> nodes = new CopyOnWriteArraySet<>();
 
@@ -45,7 +44,7 @@ public class TestingNodeManager
 
     public TestingNodeManager(String environment)
     {
-        this(environment, new InternalNode("local", URI.create("local://127.0.0.1"), NodeVersion.UNKNOWN, true), ImmutableSet.of());
+        this(new InternalNode("local", URI.create("local://127.0.0.1"), NodeVersion.UNKNOWN, true), ImmutableSet.of());
     }
 
     public TestingNodeManager(Node localNode)
@@ -60,12 +59,6 @@ public class TestingNodeManager
 
     public TestingNodeManager(Node localNode, Collection<Node> otherNodes)
     {
-        this(TEST_ENVIRONMENT, localNode, otherNodes);
-    }
-
-    public TestingNodeManager(String environment, Node localNode, Collection<Node> otherNodes)
-    {
-        this.environment = environment;
         this.localNode = requireNonNull(localNode, "localNode is null");
         nodes.add(localNode);
         nodes.addAll(otherNodes);
@@ -97,11 +90,5 @@ public class TestingNodeManager
     public Node getCurrentNode()
     {
         return localNode;
-    }
-
-    @Override
-    public String getEnvironment()
-    {
-        return environment;
     }
 }

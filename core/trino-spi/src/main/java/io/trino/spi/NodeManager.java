@@ -26,8 +26,6 @@ public interface NodeManager
     // Removing deprecation as there are too many uses in Warp speed code, and we are compiling with Werror. Fixing all of those would be challenging.
     Node getCurrentNode();
 
-    String getEnvironment();
-
     default Set<Node> getRequiredWorkerNodes()
     {
         Set<Node> nodes = getWorkerNodes();

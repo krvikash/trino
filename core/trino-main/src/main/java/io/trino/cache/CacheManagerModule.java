@@ -18,7 +18,6 @@ import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
-import io.airlift.node.NodeInfo;
 import io.trino.connector.DefaultNodeManager;
 import io.trino.execution.scheduler.NodeSchedulerConfig;
 import io.trino.metadata.InternalNodeManager;
@@ -43,8 +42,8 @@ public class CacheManagerModule
 
     @Provides
     @Singleton
-    public ConsistentHashingAddressProvider getConsistentHashingAddressProvider(InternalNodeManager nodeManager, NodeInfo nodeInfo, NodeSchedulerConfig nodeSchedulerConfig)
+    public ConsistentHashingAddressProvider getConsistentHashingAddressProvider(InternalNodeManager nodeManager, NodeSchedulerConfig nodeSchedulerConfig)
     {
-        return new ConsistentHashingAddressProvider(new DefaultNodeManager(nodeManager, nodeInfo.getEnvironment(), nodeSchedulerConfig.isIncludeCoordinator()));
+        return new ConsistentHashingAddressProvider(new DefaultNodeManager(nodeManager, nodeSchedulerConfig.isIncludeCoordinator()));
     }
 }

@@ -761,6 +761,12 @@
                                     <oldVisibility>private</oldVisibility>
                                     <newVisibility>public</newVisibility>
                                 </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.removed</code>
+                                    <old>method java.lang.String io.trino.spi.NodeManager::getEnvironment()</old>
+                                    <justification>Unused</justification>
+                                </item>
                             </differences>
                         </revapi.differences>
                     </analysisConfiguration>
