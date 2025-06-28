@@ -19,7 +19,6 @@ import io.opentelemetry.api.trace.Tracer;
 import io.trino.FeaturesConfig;
 import io.trino.connector.DefaultNodeManager;
 import io.trino.metadata.TypeRegistry;
-import io.trino.node.InMemoryNodeManager;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.GroupByHashPageIndexerFactory;
 import io.trino.operator.NullSafeHashCompiler;
@@ -35,6 +34,7 @@ import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
+import io.trino.testing.TestingInternalNodeManager;
 import io.trino.type.InternalTypeManager;
 import io.trino.util.EmbedVersion;
 
@@ -53,7 +53,7 @@ public class TestingPostgreSqlConnectorContext
     public TestingPostgreSqlConnectorContext()
     {
         pageIndexerFactory = new GroupByHashPageIndexerFactory(new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())));
-        nodeManager = new DefaultNodeManager(new InMemoryNodeManager(), true);
+        nodeManager = new DefaultNodeManager(new TestingInternalNodeManager(), true);
         TypeRegistry typeRegistry = new TypeRegistry(new TypeOperators(), new FeaturesConfig());
         typeRegistry.addType(GeometryType.GEOMETRY);
         typeManager = new InternalTypeManager(typeRegistry);

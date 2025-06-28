@@ -117,7 +117,6 @@ import io.trino.metadata.TableProceduresRegistry;
 import io.trino.metadata.TablePropertyManager;
 import io.trino.metadata.TypeRegistry;
 import io.trino.metadata.ViewPropertyManager;
-import io.trino.node.InMemoryNodeManager;
 import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
 import io.trino.operator.Driver;
@@ -383,7 +382,7 @@ public class PlanTester
         this.blockTypeOperators = new BlockTypeOperators(typeOperators);
         this.hashCompiler = new NullSafeHashCompiler(typeOperators);
         this.sqlParser = new SqlParser();
-        this.nodeManager = new InMemoryNodeManager();
+        this.nodeManager = new TestingInternalNodeManager();
         PageSorter pageSorter = new PagesIndexPageSorter(new PagesIndex.TestingFactory(false));
         NodeSchedulerConfig nodeSchedulerConfig = new NodeSchedulerConfig().setIncludeCoordinator(true);
         this.optimizerConfig = new OptimizerConfig();
@@ -517,12 +516,12 @@ public class PlanTester
                 ImmutableSet.of(new ExcludeColumnsFunction()),
                 nodeManager);
 
-        cacheManagerRegistry = new CacheManagerRegistry(cacheConfig, new LocalMemoryManager(new NodeMemoryConfig()), plannerContext.getBlockEncodingSerde(), new CacheStats(), new InMemoryNodeManager());
+        cacheManagerRegistry = new CacheManagerRegistry(cacheConfig, new LocalMemoryManager(new NodeMemoryConfig()), plannerContext.getBlockEncodingSerde(), new CacheStats(), new TestingInternalNodeManager());
         cachePerformanceTracker = new CachePerformanceTracker();
         tupleDomainCodec = getTupleDomainJsonCodec(blockEncodingSerde, typeManager);
         exchangeManagerRegistry = new ExchangeManagerRegistry(noop(), noopTracer(), secretsResolver);
         spoolingManagerRegistry = new SpoolingManagerRegistry(
-                new InMemoryNodeManager(new InternalNode("nodeId", URI.create("http://localhost:8080"), NodeVersion.UNKNOWN, false)),
+                new TestingInternalNodeManager(new InternalNode("nodeId", URI.create("http://localhost:8080"), NodeVersion.UNKNOWN, false)),
                 new ServerConfig(),
                 new SpoolingEnabledConfig(),
                 noop(),

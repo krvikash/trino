@@ -36,7 +36,6 @@ import io.trino.execution.buffer.OutputBuffers;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.Split;
-import io.trino.node.InMemoryNodeManager;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;
@@ -69,6 +68,7 @@ import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.TableScanNode;
+import io.trino.testing.TestingInternalNodeManager;
 import io.trino.testing.TestingMetadata.TestingColumnHandle;
 import io.trino.testing.TestingSplit;
 import io.trino.type.BlockTypeOperators;
@@ -203,7 +203,7 @@ public final class TaskTestUtils
                 hashCompiler,
                 new TableExecuteContextManager(),
                 new ExchangeManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of())),
-                new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats, new InMemoryNodeManager()),
+                new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats, new TestingInternalNodeManager()),
                 new CachePerformanceTracker(),
                 new JsonCodecFactory(new ObjectMapperProvider()).jsonCodec(TupleDomain.class),
                 new NodeVersion("test"),
