@@ -252,11 +252,11 @@ public class TestCacheSplitAdmissionController
 
     private static ConsistentHashingAddressProvider createAddressProvider(int numNodes)
     {
-        TestingNodeManager nodeManager = new TestingNodeManager();
+        TestingNodeManager.Builder nodeManagerBuilder = TestingNodeManager.builder();
         for (int i = 0; i < numNodes; i++) {
-            nodeManager.addNode(node("node" + i));
+            nodeManagerBuilder.addNode(node("node" + i));
         }
-        return new ConsistentHashingAddressProvider(nodeManager);
+        return new ConsistentHashingAddressProvider(nodeManagerBuilder.build());
     }
 
     private static Node node(String nodeName)

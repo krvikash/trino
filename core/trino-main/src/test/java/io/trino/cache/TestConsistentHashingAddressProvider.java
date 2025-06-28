@@ -52,11 +52,12 @@ public class TestConsistentHashingAddressProvider
     @Test
     public void testAddressProvider()
     {
-        TestingNodeManager nodeManager = new TestingNodeManager();
-        nodeManager.addNode(node("node1"));
-        nodeManager.addNode(node("node2"));
-        nodeManager.addNode(node("node3"));
-        nodeManager.addNode(node("node4"));
+        TestingNodeManager nodeManager = TestingNodeManager.builder()
+                .addNode(node("node1"))
+                .addNode(node("node2"))
+                .addNode(node("node3"))
+                .addNode(node("node4"))
+                .build();
 
         ConsistentHashingAddressProvider addressProvider = new ConsistentHashingAddressProvider(nodeManager);
         String signature1 = canonicalizePlanSignature(createPlanSignature("signature1", COLUMN1)).toString();

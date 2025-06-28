@@ -188,7 +188,7 @@ final class TestDynamoDbPropertiesProvider
                 new DynamoDbModule(() -> true),
                 binder -> binder.bind(CatalogName.class).toInstance(new CatalogName("test")),
                 binder -> binder.bind(Node.class).toInstance(context.getCurrentNode()),
-                binder -> binder.bind(NodeManager.class).toInstance(new TestingNodeManager()),
+                binder -> binder.bind(NodeManager.class).toInstance(TestingNodeManager.create()),
                 binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(false),
                 binder -> binder.bind(AwsCredentialsProvider.class).toInstance(credentialsProvider))
                 .setRequiredConfigurationProperties(inputConfig)
