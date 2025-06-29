@@ -37,6 +37,7 @@ import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.TestingMetadata;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SOURCE_DISTRIBUTION;
@@ -216,6 +217,7 @@ final class PlanUtils
                 Optional.empty(),
                 ImmutableList.of(planNode.getId()),
                 new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), planNode.getOutputSymbols()),
+                OptionalInt.empty(),
                 StatsAndCosts.empty(),
                 ImmutableList.of(),
                 ImmutableMap.of(),

@@ -74,6 +74,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -523,6 +524,7 @@ public class NewIrFragmenter
                     properties.getPartitionCount(),
                     schedulingOrder,
                     partitioningScheme,
+                    OptionalInt.empty(),
                     StatsAndCosts.empty(),
                     activeCatalogs,
                     languageFunctions,

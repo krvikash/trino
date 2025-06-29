@@ -39,6 +39,7 @@ import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.type.Type;
 import io.trino.split.EmptySplit;
 import io.trino.split.RemoteSplit;
+import io.trino.sql.planner.NodePartitionMap.BucketToPartition;
 import io.trino.sql.planner.SystemPartitioningHandle.SystemPartitioning;
 
 import java.util.HashMap;
@@ -217,7 +218,11 @@ public class NodePartitioningManager
                 .mapToObj(partitionId -> nodeToPartition.inverse().get(partitionId))
                 .collect(toImmutableList());
 
-        return new NodePartitionMap(partitionToNode, bucketToPartition, getSplitToBucket(session, partitioningHandle, bucketToNode.size()));
+        boolean hasFixedMapping = optionalMap.map(ConnectorBucketNodeMap::hasFixedMapping).orElse(false);
+        return new NodePartitionMap(
+                partitionToNode,
+                new BucketToPartition(bucketToPartition, hasFixedMapping),
+                getSplitToBucket(session, partitioningHandle, bucketToNode.size()));
     }
 
     private List<InternalNode> systemBucketToNode(Session session, PartitioningHandle partitioningHandle, AtomicReference<List<InternalNode>> nodesCache, int partitionCount)
@@ -245,8 +250,8 @@ public class NodePartitioningManager
 
     public int getBucketCount(Session session, PartitioningHandle partitioningHandle)
     {
-        // we don't care about partition count at all, just bucket count
-        return getBucketNodeMap(session, partitioningHandle, 1000).getBucketCount();
+        Optional<ConnectorBucketNodeMap> bucketNodeMap = getConnectorBucketNodeMap(session, partitioningHandle);
+        return bucketNodeMap.map(ConnectorBucketNodeMap::getBucketCount).orElseGet(() -> getDefaultBucketCount(session));
     }
 
     public BucketNodeMap getBucketNodeMap(Session session, PartitioningHandle partitioningHandle, int partitionCount)
@@ -271,7 +276,7 @@ public class NodePartitioningManager
      *
      * @return The default bucket count to use when the connector doesn't provide a number.
      */
-    private int getDefaultBucketCount(Session session)
+    public int getDefaultBucketCount(Session session)
     {
         // The default bucket count is used by both remote and local exchanges to assign buckets to nodes and drivers. The goal is to have enough
         // buckets to evenly distribute them across tasks or drivers. If number of buckets is too low, then some tasks or drivers will be idle.

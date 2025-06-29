@@ -34,6 +34,7 @@ import io.trino.sql.planner.plan.TableScanNode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -55,6 +56,7 @@ public class PlanFragment
     private final Set<PlanNode> partitionedSourceNodes;
     private final List<RemoteSourceNode> remoteSourceNodes;
     private final PartitioningScheme outputPartitioningScheme;
+    private final OptionalInt outputSkewedBucketCount;
     private final StatsAndCosts statsAndCosts;
     private final List<CatalogProperties> activeCatalogs;
     private final Map<FunctionId, LanguageFunctionData> languageFunctions;
@@ -73,6 +75,7 @@ public class PlanFragment
             Set<PlanNode> partitionedSourceNodes,
             List<RemoteSourceNode> remoteSourceNodes,
             PartitioningScheme outputPartitioningScheme,
+            OptionalInt outputSkewedBucketCount,
             StatsAndCosts statsAndCosts,
             List<CatalogProperties> activeCatalogs,
             Map<FunctionId, LanguageFunctionData> languageFunctions,
@@ -89,6 +92,7 @@ public class PlanFragment
         this.partitionedSourceNodes = requireNonNull(partitionedSourceNodes, "partitionedSourceNodes is null");
         this.remoteSourceNodes = requireNonNull(remoteSourceNodes, "remoteSourceNodes is null");
         this.outputPartitioningScheme = requireNonNull(outputPartitioningScheme, "outputPartitioningScheme is null");
+        this.outputSkewedBucketCount = requireNonNull(outputSkewedBucketCount, "outputSkewedPartitionCount is null");
         this.statsAndCosts = requireNonNull(statsAndCosts, "statsAndCosts is null");
         this.activeCatalogs = requireNonNull(activeCatalogs, "activeCatalogs is null");
         this.languageFunctions = ImmutableMap.copyOf(languageFunctions);
@@ -106,6 +110,7 @@ public class PlanFragment
             @JsonProperty("partitionCount") Optional<Integer> partitionCount,
             @JsonProperty("partitionedSources") List<PlanNodeId> partitionedSources,
             @JsonProperty("outputPartitioningScheme") PartitioningScheme outputPartitioningScheme,
+            @JsonProperty("outputSkewedBucketCount") OptionalInt outputSkewedBucketCount,
             @JsonProperty("statsAndCosts") StatsAndCosts statsAndCosts,
             @JsonProperty("activeCatalogs") List<CatalogProperties> activeCatalogs,
             @JsonProperty("languageFunctions") Map<FunctionId, LanguageFunctionData> languageFunctions,
@@ -118,6 +123,7 @@ public class PlanFragment
         this.partitionCount = requireNonNull(partitionCount, "partitionCount is null");
         this.partitionedSources = ImmutableList.copyOf(requireNonNull(partitionedSources, "partitionedSources is null"));
         this.partitionedSourcesSet = ImmutableSet.copyOf(partitionedSources);
+        this.outputSkewedBucketCount = requireNonNull(outputSkewedBucketCount, "outputSkewedBucketCount is null");
         this.statsAndCosts = requireNonNull(statsAndCosts, "statsAndCosts is null");
         this.activeCatalogs = requireNonNull(activeCatalogs, "activeCatalogs is null");
         this.languageFunctions = ImmutableMap.copyOf(languageFunctions);
@@ -194,6 +200,12 @@ public class PlanFragment
     }
 
     @JsonProperty
+    public OptionalInt getOutputSkewedBucketCount()
+    {
+        return outputSkewedBucketCount;
+    }
+
+    @JsonProperty
     public StatsAndCosts getStatsAndCosts()
     {
         return statsAndCosts;
@@ -236,6 +248,7 @@ public class PlanFragment
                 this.partitionedSourceNodes,
                 this.remoteSourceNodes,
                 this.outputPartitioningScheme,
+                this.outputSkewedBucketCount,
                 this.statsAndCosts,
                 this.activeCatalogs,
                 this.languageFunctions,
@@ -291,7 +304,7 @@ public class PlanFragment
         }
     }
 
-    public PlanFragment withBucketToPartition(Optional<int[]> bucketToPartition)
+    public PlanFragment withOutputPartitioning(Optional<int[]> bucketToPartition, OptionalInt skewedBucketCount)
     {
         return new PlanFragment(
                 id,
@@ -301,6 +314,7 @@ public class PlanFragment
                 partitionCount,
                 partitionedSources,
                 outputPartitioningScheme.withBucketToPartition(bucketToPartition),
+                skewedBucketCount,
                 statsAndCosts,
                 activeCatalogs,
                 languageFunctions,
@@ -329,6 +343,7 @@ public class PlanFragment
                 this.partitionCount,
                 this.partitionedSources,
                 this.outputPartitioningScheme,
+                this.outputSkewedBucketCount,
                 this.statsAndCosts,
                 activeCatalogs,
                 this.languageFunctions,
@@ -354,6 +369,7 @@ public class PlanFragment
                 partitionedSourceNodes,
                 remoteSourceNodes,
                 outputPartitioningScheme,
+                outputSkewedBucketCount,
                 statsAndCosts,
                 activeCatalogs.stream()
                         .map(activeCatalog -> new CatalogProperties(activeCatalog.catalogHandle(), activeCatalog.connectorName(), ImmutableMap.of()))

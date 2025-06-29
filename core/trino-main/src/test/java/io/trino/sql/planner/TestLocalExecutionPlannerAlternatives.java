@@ -51,6 +51,7 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -120,6 +121,7 @@ public class TestLocalExecutionPlannerAlternatives
                 createTaskContext(executor, scheduledExecutor, TEST_SESSION),
                 plan,
                 new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), plan.getOutputSymbols()),
+                OptionalInt.empty(),
                 ImmutableList.of(),
                 new TestOutputBuffer());
 
@@ -159,6 +161,7 @@ public class TestLocalExecutionPlannerAlternatives
                 createTaskContext(executor, scheduledExecutor, TEST_SESSION),
                 plan,
                 new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), plan.getOutputSymbols()),
+                OptionalInt.empty(),
                 ImmutableList.of(),
                 new TestOutputBuffer());
 
