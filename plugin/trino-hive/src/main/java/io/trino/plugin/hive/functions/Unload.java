@@ -445,7 +445,13 @@ public class Unload
                     }
 
                     if (input == null) {
-                        sink.finish();
+                        try {
+                            sink.finish();
+                        }
+                        catch (Exception e) {
+                            sink.abort();
+                            throw e;
+                        }
                         finished.set(true);
 
                         // Return result
@@ -461,7 +467,13 @@ public class Unload
                     }
 
                     Page page = getOnlyElement(input).orElseThrow();
-                    sink.appendPage(page);
+                    try {
+                        sink.appendPage(page);
+                    }
+                    catch (Exception e) {
+                        sink.abort();
+                        throw e;
+                    }
                     return usedInput();
                 };
             }
