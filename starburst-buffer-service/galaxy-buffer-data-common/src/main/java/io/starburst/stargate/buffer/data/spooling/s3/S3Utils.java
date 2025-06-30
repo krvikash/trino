@@ -9,6 +9,8 @@
  */
 package io.starburst.stargate.buffer.data.spooling.s3;
 
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.ChannelOption;
 import jakarta.annotation.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -17,6 +19,7 @@ import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsPr
 import software.amazon.awssdk.awscore.endpoint.DefaultServiceEndpointBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
@@ -67,6 +70,9 @@ public class S3Utils
                 .credentialsProvider(credentialsProvider)
                 .serviceConfiguration(S3Configuration.builder()
                         .checksumValidationEnabled(false)
+                        .build())
+                .httpClient(NettyNioAsyncHttpClient.builder()
+                        .putChannelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                         .build())
                 .overrideConfiguration(overrideConfig);
 
