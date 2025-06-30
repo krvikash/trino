@@ -81,11 +81,12 @@ public final class ParquetFileWriter
             throws IOException
     {
         this.memoryContext = newSimpleAggregatedMemoryContext();
-        OutputStream outputStream = outputFile.create(memoryContext);
         requireNonNull(trinoVersion, "trinoVersion is null");
         this.validationInputFactory = requireNonNull(validationInputFactory, "validationInputFactory is null");
 
+        OutputStream outputStream = null;
         try {
+            outputStream = outputFile.create(memoryContext);
             this.parquetWriter = new ParquetWriter(
                     outputStream,
                     messageType,
