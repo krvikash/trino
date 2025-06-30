@@ -108,6 +108,7 @@ import static io.trino.plugin.hive.HiveSessionProperties.isUseParquetColumnNames
 import static io.trino.plugin.hive.HiveSessionProperties.useParquetBloomFilter;
 import static io.trino.plugin.hive.parquet.ParquetPageSource.handleException;
 import static io.trino.plugin.hive.parquet.ParquetTypeTranslator.createCoercer;
+import static io.trino.plugin.hive.parquet.SparkVersion.SPARK_3_0_0;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -132,6 +133,8 @@ public class ParquetPageSourceFactory
     // https://github.com/apache/hive/blob/master/ql/src/java/org/apache/hadoop/hive/ql/io/parquet/write/DataWritableWriteSupport.java#L63
     private static final String HIVE_METADATA_KEY_WRITER_DATE_PROLEPTIC = "writer.date.proleptic";
     private static final String HIVE_METADATA_KEY_WRITER_MODEL_NAME = "writer.model.name";
+    private static final String APACHE_SPARK_METADATA_KEY_VERSION = "org.apache.spark.version";
+    private static final String APACHE_SPARK_METADATA_KEY_LEGACY_DATE_TIME = "org.apache.spark.legacyDateTime";
 
     private static final Set<String> PARQUET_SERDE_CLASS_NAMES = ImmutableSet.<String>builder()
             .add(PARQUET_HIVE_SERDE_CLASS)
@@ -566,13 +569,28 @@ public class ParquetPageSourceFactory
         boolean convertDateToProleptic = false;
         boolean convertHiveInt96TimestampToProleptic = false;
 
-        // if entry exists and explicitly states 'false' then we should convert to Proleptic, in other cases no
+        // Hive: if entry exists and explicitly states 'false' then we should convert to Proleptic, in other cases no
         if ("false".equalsIgnoreCase(keyValueMetaData.get(HIVE_METADATA_KEY_WRITER_DATE_PROLEPTIC))) {
             convertDateToProleptic = true;
         }
 
         if (parquetRebaseLegacyInt96Timestamp && isParquetWrittenByHive(keyValueMetaData)) {
             convertHiveInt96TimestampToProleptic = true;
+        }
+
+        String sparkVersionMetadata = keyValueMetaData.get(APACHE_SPARK_METADATA_KEY_VERSION);
+        Optional<SparkVersion> sparkVersion = Optional.ofNullable(sparkVersionMetadata).map(SparkVersion::of);
+
+        // Files written by Spark 2.4 and earlier version follow the hybrid calendar so we need to rebase the date values.
+        // Files written by Spark 3.0+ may also need the rebase if they were written within the "LEGACY" mode
+        // https://spark.apache.org/docs/latest/sql-migration-guide.html#upgrading-from-spark-sql-24-to-30
+        // https://github.com/apache/spark/blob/c4f62d459f245fa391a5c7361ef2a434f8b869df/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/DataSourceUtils.scala#L165
+        boolean sparkDatetimeInHybrid = sparkVersion
+                .map(version -> version.isBelow(SPARK_3_0_0))
+                .orElse(false) || keyValueMetaData.containsKey(APACHE_SPARK_METADATA_KEY_LEGACY_DATE_TIME);
+
+        if (sparkDatetimeInHybrid) {
+            convertDateToProleptic = true;
         }
 
         return new CoercionContext(convertDateToProleptic, convertHiveInt96TimestampToProleptic);
