@@ -153,8 +153,8 @@ import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.parser.SqlParser;
 import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.planner.LocalExecutionPlanner;
-import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.OptimizerConfig;
+import io.trino.sql.planner.PartitionFunctionProvider;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.RuleStatsRecorder;
 import io.trino.sql.planner.Symbol;
@@ -460,8 +460,8 @@ public class ServerMainModule
         // cache metadata
         binder.bind(CacheMetadata.class).in(Scopes.SINGLETON);
 
-        // node partitioning manager
-        binder.bind(NodePartitioningManager.class).in(Scopes.SINGLETON);
+        // partitioning function provider
+        binder.bind(PartitionFunctionProvider.class).in(Scopes.SINGLETON);
 
         // index manager
         binder.bind(IndexManager.class).in(Scopes.SINGLETON);

@@ -33,9 +33,6 @@ import io.trino.eventlistener.EventListenerManager;
 import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.BaseTestSqlTaskManager.MockDirectExchangeClientSupplier;
 import io.trino.execution.buffer.OutputBuffers;
-import io.trino.execution.scheduler.NodeScheduler;
-import io.trino.execution.scheduler.NodeSchedulerConfig;
-import io.trino.execution.scheduler.UniformNodeSelectorFactory;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.InMemoryNodeManager;
@@ -62,7 +59,7 @@ import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
 import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.planner.LocalExecutionPlanner;
-import io.trino.sql.planner.NodePartitioningManager;
+import io.trino.sql.planner.PartitionFunctionProvider;
 import io.trino.sql.planner.Partitioning;
 import io.trino.sql.planner.PartitioningScheme;
 import io.trino.sql.planner.PlanFragment;
@@ -75,7 +72,6 @@ import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.TestingMetadata.TestingColumnHandle;
 import io.trino.testing.TestingSplit;
 import io.trino.type.BlockTypeOperators;
-import io.trino.util.FinalizerService;
 
 import java.util.List;
 import java.util.Optional;
@@ -162,17 +158,9 @@ public final class TaskTestUtils
                 CatalogServiceProvider.singleton(CATALOG_HANDLE, new TestingPageSourceProvider()));
         AlternativeChooser alternativeChooser = new AlternativeChooser(CatalogServiceProvider.fail());
 
-        // we don't start the finalizer so nothing will be collected, which is ok for a test
-        FinalizerService finalizerService = new FinalizerService();
-
         BlockTypeOperators blockTypeOperators = new BlockTypeOperators(PLANNER_CONTEXT.getTypeOperators());
         NullSafeHashCompiler hashCompiler = new NullSafeHashCompiler(PLANNER_CONTEXT.getTypeOperators());
-        NodeScheduler nodeScheduler = new NodeScheduler(new UniformNodeSelectorFactory(
-                new InMemoryNodeManager(),
-                new NodeSchedulerConfig().setIncludeCoordinator(true),
-                new NodeTaskMap(finalizerService)));
-        NodePartitioningManager nodePartitioningManager = new NodePartitioningManager(
-                nodeScheduler,
+        PartitionFunctionProvider partitionFunctionProvider = new PartitionFunctionProvider(
                 hashCompiler,
                 CatalogServiceProvider.fail());
 
@@ -185,7 +173,7 @@ public final class TaskTestUtils
                 pageSourceManager,
                 alternativeChooser,
                 new IndexManager(CatalogServiceProvider.fail()),
-                nodePartitioningManager,
+                partitionFunctionProvider,
                 new PageSinkManager(CatalogServiceProvider.fail()),
                 new MockDirectExchangeClientSupplier(),
                 new ExpressionCompiler(pageFunctionCompiler, columnarFilterCompiler),

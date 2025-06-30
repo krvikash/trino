@@ -446,7 +446,7 @@ public class LocalExecutionPlanner
     private final JsonCodec<TupleDomain> tupleDomainCodec;
     private final AlternativeChooser alternativeChooser;
     private final IndexManager indexManager;
-    private final NodePartitioningManager nodePartitioningManager;
+    private final PartitionFunctionProvider partitionFunctionProvider;
     private final PageSinkManager pageSinkManager;
     private final DirectExchangeClientSupplier directExchangeClientSupplier;
     private final ExpressionCompiler expressionCompiler;
@@ -504,7 +504,7 @@ public class LocalExecutionPlanner
             PageSourceManager pageSourceManager,
             AlternativeChooser alternativeChooser,
             IndexManager indexManager,
-            NodePartitioningManager nodePartitioningManager,
+            PartitionFunctionProvider partitionFunctionProvider,
             PageSinkManager pageSinkManager,
             DirectExchangeClientSupplier directExchangeClientSupplier,
             ExpressionCompiler expressionCompiler,
@@ -540,7 +540,7 @@ public class LocalExecutionPlanner
         this.pageSourceManager = requireNonNull(pageSourceManager, "pageSourceManager is null");
         this.alternativeChooser = requireNonNull(alternativeChooser, "alternativeChooser is null");
         this.indexManager = requireNonNull(indexManager, "indexManager is null");
-        this.nodePartitioningManager = requireNonNull(nodePartitioningManager, "nodePartitioningManager is null");
+        this.partitionFunctionProvider = requireNonNull(partitionFunctionProvider, "partitionFunctionProvider is null");
         this.directExchangeClientSupplier = requireNonNull(directExchangeClientSupplier, "directExchangeClientSupplier is null");
         this.pageSinkManager = requireNonNull(pageSinkManager, "pageSinkManager is null");
         this.expressionCompiler = requireNonNull(expressionCompiler, "expressionCompiler is null");
@@ -636,7 +636,7 @@ public class LocalExecutionPlanner
         Optional<SkewedPartitionRebalancer> skewedPartitionRebalancer = Optional.empty();
         int taskCount = getTaskCount(partitioningScheme);
         if (outputSkewedBucketCount.isPresent()) {
-            partitionFunction = createPartitionFunction(taskContext.getSession(), nodePartitioningManager, partitioningScheme, outputSkewedBucketCount.getAsInt(), partitionChannelTypes);
+            partitionFunction = createPartitionFunction(taskContext.getSession(), partitionFunctionProvider, partitioningScheme.getPartitioning().getHandle(), outputSkewedBucketCount.getAsInt(), partitionChannelTypes);
             int partitionedWriterCount = getPartitionedWriterCountBasedOnMemory(taskContext.getSession());
             // Keep the task bucket count to 50% of total local writers
             int taskBucketCount = (int) ceil(0.5 * partitionedWriterCount);
@@ -648,7 +648,12 @@ public class LocalExecutionPlanner
                     getSkewedPartitionMinDataProcessedRebalanceThreshold(taskContext.getSession()).toBytes()));
         }
         else {
-            partitionFunction = nodePartitioningManager.getPartitionFunction(taskContext.getSession(), partitioningScheme, partitionChannelTypes);
+            partitionFunction = partitionFunctionProvider.getPartitionFunction(
+                    taskContext.getSession(),
+                    partitioningScheme.getPartitioning().getHandle(),
+                    partitionChannelTypes,
+                    partitioningScheme.getBucketToPartition()
+                            .orElseThrow(() -> new IllegalArgumentException("Bucket to partition must be set before a partition function can be created")));
         }
         OptionalInt nullChannel = OptionalInt.empty();
         Set<Symbol> partitioningColumns = partitioningScheme.getPartitioning().getColumns();
@@ -3912,7 +3917,7 @@ public class LocalExecutionPlanner
             int operatorsCount = subContext.getDriverInstanceCount().orElse(1);
             List<Type> types = getSourceOperatorTypes(node);
             LocalExchange localExchange = new LocalExchange(
-                    nodePartitioningManager,
+                    partitionFunctionProvider,
                     session,
                     operatorsCount,
                     node.getPartitioningScheme().getPartitioning().getHandle(),
@@ -3989,7 +3994,7 @@ public class LocalExecutionPlanner
             }
 
             LocalExchange localExchange = new LocalExchange(
-                    nodePartitioningManager,
+                    partitionFunctionProvider,
                     session,
                     driverInstanceCount,
                     node.getPartitioningScheme().getPartitioning().getHandle(),

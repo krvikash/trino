@@ -41,7 +41,7 @@ import io.trino.spiller.PartitioningSpillerFactory;
 import io.trino.spiller.SingleStreamSpiller;
 import io.trino.spiller.SingleStreamSpillerFactory;
 import io.trino.sql.gen.JoinFilterFunctionCompiler;
-import io.trino.sql.planner.NodePartitioningManager;
+import io.trino.sql.planner.PartitionFunctionProvider;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.type.BlockTypeOperators;
 
@@ -124,7 +124,7 @@ public final class JoinTestUtils
     }
 
     public static BuildSideSetup setupBuildSide(
-            NodePartitioningManager nodePartitioningManager,
+            PartitionFunctionProvider partitionFunctionProvider,
             boolean parallelBuild,
             TaskContext taskContext,
             RowPagesBuilder buildPages,
@@ -142,7 +142,7 @@ public final class JoinTestUtils
                 .map(types::get)
                 .collect(toImmutableList());
         LocalExchange localExchange = new LocalExchange(
-                nodePartitioningManager,
+                partitionFunctionProvider,
                 taskContext.getSession(),
                 partitionCount,
                 FIXED_HASH_DISTRIBUTION,

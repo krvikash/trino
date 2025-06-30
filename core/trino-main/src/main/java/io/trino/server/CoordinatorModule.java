@@ -120,6 +120,7 @@ import io.trino.sql.SessionPropertyResolver;
 import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.analyzer.QueryExplainerFactory;
 import io.trino.sql.planner.AlternativesOptimizers;
+import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.OptimizerStatsMBeanExporter;
 import io.trino.sql.planner.PlanFragmenter;
 import io.trino.sql.planner.PlanOptimizers;
@@ -244,6 +245,9 @@ public class CoordinatorModule
         bindLowMemoryQueryKiller(LowMemoryQueryKillerPolicy.TOTAL_RESERVATION_ON_BLOCKED_NODES, TotalReservationOnBlockedNodesQueryLowMemoryKiller.class);
 
         newExporter(binder).export(ClusterMemoryManager.class).withGeneratedName();
+
+        // node partitioning manager
+        binder.bind(NodePartitioningManager.class).in(Scopes.SINGLETON);
 
         // node allocator
         binder.bind(BinPackingNodeAllocatorService.class).in(Scopes.SINGLETON);
