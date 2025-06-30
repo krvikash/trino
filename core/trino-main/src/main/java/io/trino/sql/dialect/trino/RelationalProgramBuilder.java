@@ -460,6 +460,7 @@ public class RelationalProgramBuilder
                         .map(IntStream::boxed)
                         .map(stream -> stream.collect(toImmutableList())),
                 node.getPartitioningScheme().getPartitionCount(),
+                node.getPartitioningScheme().getBucketCount(),
                 node.getOrderingScheme()
                         .map(OrderingScheme::orderingList)
                         .map(SortOrderList::new),

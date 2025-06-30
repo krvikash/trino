@@ -128,6 +128,7 @@ public class TestSqlStage
                 noopTracer(),
                 Span.getInvalid(),
                 new SplitSchedulerStats(),
+                (_, _) -> Optional.empty(),
                 new SplitAdmissionControllerProvider(ImmutableList.of(), TEST_SESSION));
 
         // add listener that fetches stage info when the final status is available

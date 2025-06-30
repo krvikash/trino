@@ -183,6 +183,7 @@ class TestToOldIrRelationalRewriter
                         ImmutableList.of(A, B),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
+                        Optional.empty(),
                         Optional.empty()),
                 ImmutableList.of(
                         VALUES_NODE,
@@ -212,6 +213,7 @@ class TestToOldIrRelationalRewriter
                         ImmutableList.of(A, B, new Symbol(BIGINT, "a_0")),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
+                        Optional.empty(),
                         Optional.empty()),
                 ImmutableList.of(
                         VALUES_NODE,
@@ -236,6 +238,7 @@ class TestToOldIrRelationalRewriter
                         ImmutableList.of(B, A),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
+                        Optional.empty(),
                         Optional.of(10)),
                 ImmutableList.of(VALUES_NODE),
                 ImmutableList.of(ImmutableList.of(B, A)),

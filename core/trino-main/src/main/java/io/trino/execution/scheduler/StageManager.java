@@ -29,6 +29,7 @@ import io.trino.execution.NodeTaskMap;
 import io.trino.execution.QueryStateMachine;
 import io.trino.execution.RemoteTaskFactory;
 import io.trino.execution.SqlStage;
+import io.trino.execution.SqlStage.LocalExchangeBucketCountProvider;
 import io.trino.execution.StageId;
 import io.trino.execution.StageInfo;
 import io.trino.execution.StagesInfo;
@@ -76,6 +77,7 @@ class StageManager
             SplitSchedulerStats schedulerStats,
             SubPlan planGraph,
             boolean summarizeTaskInfo,
+            LocalExchangeBucketCountProvider bucketCountProvider,
             SplitAdmissionControllerProvider splitAdmissionControllerProvider)
     {
         Session session = queryStateMachine.getSession();
@@ -101,6 +103,7 @@ class StageManager
                     tracer,
                     schedulerSpan,
                     schedulerStats,
+                    bucketCountProvider,
                     splitAdmissionControllerProvider);
             StageId stageId = stage.getStageId();
             stages.put(stageId, stage);

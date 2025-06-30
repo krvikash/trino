@@ -624,6 +624,7 @@ public class TestMultiSourcePartitionedScheduler
                 noopTracer(),
                 Span.getInvalid(),
                 new SplitSchedulerStats(),
+                (_, _) -> Optional.empty(),
                 new SplitAdmissionControllerProvider(ImmutableList.of(), TEST_SESSION));
         ImmutableMap.Builder<PlanFragmentId, PipelinedOutputBufferManager> outputBuffers = ImmutableMap.builder();
         outputBuffers.put(fragment.getId(), new PartitionedPipelinedOutputBufferManager(FIXED_HASH_DISTRIBUTION, 1));

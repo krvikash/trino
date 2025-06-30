@@ -39,6 +39,7 @@ import java.util.Optional;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
+import static io.trino.sql.dialect.trino.Attributes.BUCKET_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.BUCKET_TO_PARTITION;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
@@ -86,6 +87,7 @@ public class Exchange
             boolean partitioningReplicateNullsAndAny,
             Optional<List<Integer>> partitioningBucketToPartition,
             Optional<Integer> partitionCount,
+            Optional<Integer> bucketCount,
             Optional<SortOrderList> sortOrders,
             List<Map<AttributeKey, Object>> sourceAttributes)
     {
@@ -101,6 +103,7 @@ public class Exchange
         requireNonNull(partitioningBoundValues, "partitioningBoundValues is null");
         requireNonNull(partitioningBucketToPartition, "partitioningBucketToPartition is null");
         requireNonNull(partitionCount, "partitionCount is null");
+        requireNonNull(bucketCount, "bucketCount is null");
         requireNonNull(sortOrders, "sortOrders is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
 
@@ -193,6 +196,7 @@ public class Exchange
         REPLICATE_NULLS_AND_ANY.putAttribute(attributes, partitioningReplicateNullsAndAny);
         partitioningBucketToPartition.ifPresent(bucketToPartition -> BUCKET_TO_PARTITION.putAttribute(attributes, bucketToPartition));
         partitionCount.ifPresent(count -> PARTITION_COUNT.putAttribute(attributes, count));
+        bucketCount.ifPresent(count -> BUCKET_COUNT.putAttribute(attributes, count));
         sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(attributes, orders));
 
         // TODO derive attributes from source attributes
@@ -254,6 +258,7 @@ public class Exchange
                 REPLICATE_NULLS_AND_ANY.getAttribute(attributes),
                 Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(attributes)),
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(attributes)),
+                Optional.ofNullable(BUCKET_COUNT.getAttribute(attributes)),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
                 ImmutableList.of());
     }

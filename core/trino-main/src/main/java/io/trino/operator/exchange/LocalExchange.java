@@ -38,6 +38,7 @@ import io.trino.sql.planner.SystemPartitioningHandle;
 import java.io.Closeable;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -93,6 +94,7 @@ public class LocalExchange
             Session session,
             int defaultConcurrency,
             PartitioningHandle partitioning,
+            Optional<Integer> bucketCount,
             List<Integer> partitionChannels,
             List<Type> partitionChannelTypes,
             PositionsAppenderFactory positionsAppenderFactory,
@@ -158,6 +160,7 @@ public class LocalExchange
                         nodePartitioningManager,
                         session,
                         hashCompiler,
+                        bucketCount,
                         partitioning,
                         partitionCount,
                         partitionChannels,
@@ -192,6 +195,7 @@ public class LocalExchange
                         nodePartitioningManager,
                         session,
                         hashCompiler,
+                        bucketCount,
                         partitioning,
                         bufferCount,
                         partitionChannels,
@@ -249,6 +253,7 @@ public class LocalExchange
             NodePartitioningManager nodePartitioningManager,
             Session session,
             NullSafeHashCompiler hashCompiler,
+            Optional<Integer> optionalBucketCount,
             PartitioningHandle partitioning,
             int partitionCount,
             List<Integer> partitionChannels,
@@ -265,7 +270,7 @@ public class LocalExchange
         // The same bucket function (with the same bucket count) as for node
         // partitioning must be used. This way rows within a single bucket
         // will be being processed by single thread.
-        int bucketCount = getBucketCount(session, nodePartitioningManager, partitioning);
+        int bucketCount = optionalBucketCount.orElseThrow(() -> new IllegalArgumentException("Bucket count must be set before non-system partition function can be created"));
         int[] bucketToPartition = new int[bucketCount];
 
         for (int bucket = 0; bucket < bucketCount; bucket++) {
@@ -284,15 +289,6 @@ public class LocalExchange
         return new BucketPartitionFunction(
                 nodePartitioningManager.getBucketFunction(session, partitioning, partitionChannelTypes, bucketCount),
                 bucketToPartition);
-    }
-
-    public static int getBucketCount(Session session, NodePartitioningManager nodePartitioningManager, PartitioningHandle partitioning)
-    {
-        if (partitioning.getConnectorHandle() instanceof MergePartitioningHandle) {
-            // TODO: can we always use this code path?
-            return nodePartitioningManager.getNodePartitioningMap(session, partitioning, 1000).getBucketToPartition().bucketToPartition().length;
-        }
-        return nodePartitioningManager.getBucketCount(session, partitioning);
     }
 
     private static boolean isSystemPartitioning(PartitioningHandle partitioning)

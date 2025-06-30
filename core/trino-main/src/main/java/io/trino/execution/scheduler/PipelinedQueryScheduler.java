@@ -269,6 +269,7 @@ public class PipelinedQueryScheduler
                 schedulerStats,
                 plan,
                 summarizeTaskInfo,
+                nodePartitioningManager::getBucketCount,
                 splitAdmissionControllerProvider);
 
         coordinatorStagesScheduler = CoordinatorStagesScheduler.create(

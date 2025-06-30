@@ -28,9 +28,13 @@ import io.trino.execution.scheduler.SplitSchedulerStats;
 import io.trino.metadata.InternalNode;
 import io.trino.metadata.Split;
 import io.trino.spi.metrics.Metrics;
+import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.plan.DynamicFilterId;
+import io.trino.sql.planner.plan.ExchangeNode;
+import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.SimplePlanRewriter;
 
 import java.util.HashSet;
 import java.util.List;
@@ -41,6 +45,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -68,6 +73,7 @@ public final class SqlStage
     private final SplitAdmissionControllerProvider splitAdmissionControllerProvider;
 
     private final Set<DynamicFilterId> outboundDynamicFilterIds;
+    private final LocalExchangeBucketCountProvider bucketCountProvider;
 
     private final Map<TaskId, RemoteTask> tasks = new ConcurrentHashMap<>();
     @GuardedBy("this")
@@ -89,6 +95,7 @@ public final class SqlStage
             Tracer tracer,
             Span schedulerSpan,
             SplitSchedulerStats schedulerStats,
+            LocalExchangeBucketCountProvider bucketCountProvider,
             SplitAdmissionControllerProvider splitAdmissionControllerProvider)
     {
         requireNonNull(stageId, "stageId is null");
@@ -117,6 +124,7 @@ public final class SqlStage
                 remoteTaskFactory,
                 nodeTaskMap,
                 summarizeTaskInfo,
+                bucketCountProvider,
                 splitAdmissionControllerProvider);
         sqlStage.initialize();
         return sqlStage;
@@ -128,6 +136,7 @@ public final class SqlStage
             RemoteTaskFactory remoteTaskFactory,
             NodeTaskMap nodeTaskMap,
             boolean summarizeTaskInfo,
+            LocalExchangeBucketCountProvider bucketCountProvider,
             SplitAdmissionControllerProvider splitAdmissionControllerProvider)
     {
         this.session = requireNonNull(session, "session is null");
@@ -135,6 +144,7 @@ public final class SqlStage
         this.remoteTaskFactory = requireNonNull(remoteTaskFactory, "remoteTaskFactory is null");
         this.nodeTaskMap = requireNonNull(nodeTaskMap, "nodeTaskMap is null");
         this.summarizeTaskInfo = summarizeTaskInfo;
+        this.bucketCountProvider = requireNonNull(bucketCountProvider, "bucketCountProvider is null");
         this.splitAdmissionControllerProvider = requireNonNull(splitAdmissionControllerProvider, "splitAdmissionControllerProvider is null");
 
         this.outboundDynamicFilterIds = getOutboundDynamicFilters(stateMachine.getFragment());
@@ -265,13 +275,21 @@ public final class SqlStage
 
         stateMachine.transitionToScheduling();
 
+        // set partitioning information on coordinator side
+        PlanFragment fragment = stateMachine.getFragment();
+        fragment = fragment.withOutputPartitioning(bucketToPartition, skewedBucketCount);
+        PlanNode newRoot = fragment.getRoot();
+        LocalExchangePartitionRewriter rewriter = new LocalExchangePartitionRewriter(handle -> bucketCountProvider.getBucketCount(session, handle));
+        newRoot = SimplePlanRewriter.rewriteWith(rewriter, newRoot);
+        fragment = fragment.withRoot(newRoot);
+
         RemoteTask task = remoteTaskFactory.createRemoteTask(
                 session,
                 stateMachine.getStageSpan(),
                 taskId,
                 node,
                 speculative,
-                stateMachine.getFragment().withOutputPartitioning(bucketToPartition, skewedBucketCount),
+                fragment,
                 splits,
                 outputBuffers,
                 nodeTaskMap.createPartitionedSplitCountTracker(node, taskId),
@@ -382,6 +400,35 @@ public final class SqlStage
                 previousRevocableMemory = 0;
                 finalUsageReported = true;
             }
+        }
+    }
+
+    public interface LocalExchangeBucketCountProvider
+    {
+        Optional<Integer> getBucketCount(Session session, PartitioningHandle partitioning);
+    }
+
+    private static final class LocalExchangePartitionRewriter
+            extends SimplePlanRewriter<Void>
+    {
+        private final Function<PartitioningHandle, Optional<Integer>> bucketCountProvider;
+
+        public LocalExchangePartitionRewriter(Function<PartitioningHandle, Optional<Integer>> bucketCountProvider)
+        {
+            this.bucketCountProvider = requireNonNull(bucketCountProvider, "bucketCountProvider is null");
+        }
+
+        @Override
+        public PlanNode visitExchange(ExchangeNode node, RewriteContext<Void> context)
+        {
+            return new ExchangeNode(
+                    node.getId(),
+                    node.getType(),
+                    node.getScope(),
+                    node.getPartitioningScheme().withBucketCount(bucketCountProvider.apply(node.getPartitioningScheme().getPartitioning().getHandle())),
+                    node.getSources(),
+                    node.getInputs(),
+                    node.getOrderingScheme());
         }
     }
 }

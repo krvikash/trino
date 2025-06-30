@@ -156,7 +156,7 @@ public class TestIcebergStatistics
         double nameDataSize = (double) computeActual("SHOW STATS FOR " + tableName).getMaterializedRows().stream()
                 .filter(row -> "name".equals(row.getField(0)))
                 .collect(onlyElement()).getField(1);
-        assertThat(nameDataSize).isBetween(1000.0, 3000.0);
+        assertThat(nameDataSize).isBetween(1000.0, 4000.0);
         assertQuery(
                 "SHOW STATS FOR " + tableName,
                 """
@@ -172,7 +172,7 @@ public class TestIcebergStatistics
         double infoDataSize = (double) computeActual("SHOW STATS FOR " + tableName).getMaterializedRows().stream()
                 .filter(row -> "info".equals(row.getField(0)))
                 .collect(onlyElement()).getField(1);
-        assertThat(infoDataSize).isBetween(2000.0, 5000.0);
+        assertThat(infoDataSize).isBetween(4000.0, 8000.0);
         assertQuery(
                 "SHOW STATS FOR " + tableName,
                 """

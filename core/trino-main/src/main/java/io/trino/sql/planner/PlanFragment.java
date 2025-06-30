@@ -304,6 +304,27 @@ public class PlanFragment
         }
     }
 
+    public PlanFragment withRoot(PlanNode root)
+    {
+        return new PlanFragment(
+                id,
+                root,
+                symbols,
+                partitioning,
+                partitionCount,
+                partitionedSources,
+                partitionedSourcesSet,
+                types,
+                partitionedSourceNodes,
+                remoteSourceNodes,
+                outputPartitioningScheme,
+                outputSkewedBucketCount,
+                statsAndCosts,
+                activeCatalogs,
+                languageFunctions,
+                jsonRepresentation);
+    }
+
     public PlanFragment withOutputPartitioning(Optional<int[]> bucketToPartition, OptionalInt skewedBucketCount)
     {
         return new PlanFragment(

@@ -95,6 +95,7 @@ import static com.google.common.collect.Streams.forEachPair;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
+import static io.trino.sql.dialect.trino.Attributes.BUCKET_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.BUCKET_TO_PARTITION;
 import static io.trino.sql.dialect.trino.Attributes.CARDINALITY;
 import static io.trino.sql.dialect.trino.Attributes.COLUMN_HANDLES;
@@ -302,6 +303,7 @@ public class ToOldIrRelationalRewriter
                         outputSymbols,
                         REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                         Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())).map(list -> list.stream().mapToInt(Integer::intValue).toArray()),
+                        Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
                         Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes()))),
                 sources,
                 inputSymbols,

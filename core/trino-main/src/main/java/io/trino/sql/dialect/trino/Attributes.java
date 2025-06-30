@@ -49,6 +49,7 @@ import static java.util.Objects.requireNonNull;
 public class Attributes
 {
     public static final AttributeMetadata<AggregationStep> AGGREGATION_STEP = new AttributeMetadata<>("aggregation_step", false);
+    public static final AttributeMetadata<Integer> BUCKET_COUNT = new AttributeMetadata<>("bucket_count", false);
     public static final AttributeMetadata<List<Integer>> BUCKET_TO_PARTITION = new AttributeMetadata<>("bucket_to_partition", false);
     public static final AttributeMetadata<Long> CARDINALITY = new AttributeMetadata<>("cardinality", true);
     public static final AttributeMetadata<List<ColumnHandle>> COLUMN_HANDLES = new AttributeMetadata<>("column_handles", false);

@@ -45,6 +45,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Multimaps.toMultimap;
+import static io.trino.sql.dialect.trino.Attributes.BUCKET_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.BUCKET_TO_PARTITION;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
@@ -133,6 +134,7 @@ public class ExchangeMerger
                             REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                             Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
                             Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
+                            Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
                             Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
                             ImmutableList.of());
                     subgroupRepresentatives.put(i, rebasedRepresentative);
@@ -193,6 +195,7 @@ public class ExchangeMerger
                 REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                 Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
+                Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
                 ImmutableList.of());
         newOperations.put(mergedExchange.result(), mergedExchange);
@@ -361,6 +364,7 @@ public class ExchangeMerger
                             REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                             Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
                             Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
+                            Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
                             Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
                             ImmutableList.of());
                     subgroupRepresentatives.put(i, rebasedRepresentative);
@@ -482,6 +486,7 @@ public class ExchangeMerger
                 REPLICATE_NULLS_AND_ANY.getAttribute(arbitraryExchange.attributes()),
                 Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(arbitraryExchange.attributes())),
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(arbitraryExchange.attributes())),
+                Optional.ofNullable(BUCKET_COUNT.getAttribute(arbitraryExchange.attributes())),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(arbitraryExchange.attributes())),
                 ImmutableList.of());
         newOperations.put(mergedExchange.result(), mergedExchange);

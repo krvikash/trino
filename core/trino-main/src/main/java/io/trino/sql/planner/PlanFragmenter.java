@@ -216,6 +216,7 @@ public class PlanFragmenter
                 getEmptyFieldSelector("^boundArguments", outputRowType, nameAllocator),
                 false,
                 Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
 
         FragmentProperties properties = new FragmentProperties(outputPartitioningScheme);
@@ -348,6 +349,7 @@ public class PlanFragmenter
                         outputPartitioningScheme.getOutputLayout(),
                         outputPartitioningScheme.isReplicateNullsAndAny(),
                         outputPartitioningScheme.getBucketToPartition(),
+                        outputPartitioningScheme.getBucketCount(),
                         outputPartitioningScheme.getPartitionCount()),
                 OptionalInt.empty(),
                 fragment.getStatsAndCosts(),

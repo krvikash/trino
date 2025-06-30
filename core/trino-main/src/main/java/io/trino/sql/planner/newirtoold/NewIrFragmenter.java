@@ -84,6 +84,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.SystemSessionProperties.getRetryPolicy;
 import static io.trino.SystemSessionProperties.isForceSingleNodeOutput;
+import static io.trino.sql.dialect.trino.Attributes.BUCKET_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.BUCKET_TO_PARTITION;
 import static io.trino.sql.dialect.trino.Attributes.CARDINALITY;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
@@ -303,6 +304,7 @@ public class NewIrFragmenter
                         newBoundArguments,
                         partitioningScheme.partitioningReplicateNullsAndAny(),
                         partitioningScheme.partitioningBucketToPartition(),
+                        partitioningScheme.bucketCount(),
                         partitioningScheme.partitionCount());
 
                 FragmentProperties childProperties = new FragmentProperties(newPartitioningScheme);
@@ -514,6 +516,7 @@ public class NewIrFragmenter
                     scalarRewriter.getSelectedSymbols(newIrPartitioningScheme.outputLayoutSelector(), root.getOutputSymbols()),
                     newIrPartitioningScheme.partitioningReplicateNullsAndAny(),
                     newIrPartitioningScheme.partitioningBucketToPartition().map(list -> list.stream().mapToInt(Integer::intValue).toArray()),
+                    newIrPartitioningScheme.bucketCount(),
                     newIrPartitioningScheme.partitionCount());
 
             PlanFragment fragment = new PlanFragment(
@@ -543,6 +546,7 @@ public class NewIrFragmenter
             Block partitioningBoundArguments,
             boolean partitioningReplicateNullsAndAny,
             Optional<List<Integer>> partitioningBucketToPartition,
+            Optional<Integer> bucketCount,
             Optional<Integer> partitionCount)
     {
         public NewIrPartitioningScheme
@@ -551,6 +555,7 @@ public class NewIrFragmenter
             requireNonNull(handle, "handle is null");
             requireNonNull(partitioningBoundArguments, "partitioningBoundArguments is null");
             partitioningBucketToPartition = partitioningBucketToPartition.map(ImmutableList::copyOf);
+            requireNonNull(bucketCount, "bucketCount is null");
             requireNonNull(partitionCount, "partitionCount is null");
             // TODO validate blocks: outputLayoutSelector, partitioningBoundArguments
         }
@@ -569,6 +574,7 @@ public class NewIrFragmenter
                     partitioningBoundArguments,
                     REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                     Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
+                    Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
                     Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())));
         }
     }

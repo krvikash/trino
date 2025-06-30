@@ -550,6 +550,7 @@ final class TestProgramBuilderAndPrinter
                                                 ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g")),
                                                 false,
                                                 Optional.of(new int[] {5, 6, 7}),
+                                                Optional.empty(),
                                                 Optional.empty()),
                                         ImmutableList.of(
                                                 new ValuesNode(
