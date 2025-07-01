@@ -24,8 +24,6 @@ import io.airlift.bootstrap.Bootstrap;
 import io.airlift.compress.v3.lz4.Lz4NativeCompressor;
 import io.airlift.compress.v3.snappy.SnappyNativeCompressor;
 import io.airlift.compress.v3.zstd.ZstdNativeCompressor;
-import io.airlift.discovery.client.Announcer;
-import io.airlift.discovery.client.DiscoveryModule;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.jmx.JmxHttpModule;
@@ -49,6 +47,7 @@ import io.trino.exchange.ExchangeManagerModule;
 import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.resourcegroups.ResourceGroupManager;
 import io.trino.execution.warnings.WarningCollectorModule;
+import io.trino.node.Announcer;
 import io.trino.node.NodeManagerModule;
 import io.trino.security.AccessControlManager;
 import io.trino.security.AccessControlModule;
@@ -99,7 +98,6 @@ public class Server
         ImmutableList.Builder<Module> modules = ImmutableList.builder();
         modules.add(
                 new NodeModule(),
-                new DiscoveryModule(),
                 new HttpServerModule(),
                 new JsonModule(),
                 new JaxrsModule(),
@@ -115,13 +113,12 @@ public class Server
                 new EventListenerModule(),
                 new ExchangeManagerModule(),
                 new CacheManagerModule(),
-                new CoordinatorDiscoveryModule(),
                 new AiModelConnectionSpecsLoaderModule(),
                 new InternalHttpClientModule(),
                 new CatalogManagerModule(),
                 new TransactionManagerModule(),
                 new StarburstDataframeModule(),
-                new NodeManagerModule(),
+                new NodeManagerModule(trinoVersion),
                 new ServerMainModule(trinoVersion),
                 new NodeStateManagerModule(),
                 new WarningCollectorModule());

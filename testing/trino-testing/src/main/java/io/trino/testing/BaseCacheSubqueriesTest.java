@@ -579,7 +579,7 @@ public abstract class BaseCacheSubqueriesTest
                 .singleStatement()
                 .execute(session, transactionSession -> {
                     TestingTrinoServer coordinator = runner.getCoordinator();
-                    TestingTrinoServer worker = runner.getServers().get(0);
+                    TestingTrinoServer worker = runner.getServers().get(1);
                     checkState(!worker.isCoordinator());
                     String catalog = transactionSession.getCatalog().orElseThrow();
                     CatalogHandle catalogHandle = coordinator.getCatalogHandle(catalog);
@@ -714,7 +714,7 @@ public abstract class BaseCacheSubqueriesTest
                 .singleStatement()
                 .execute(getSession(), transactionSession -> {
                     TestingTrinoServer coordinator = runner.getCoordinator();
-                    TestingTrinoServer worker = runner.getServers().get(0);
+                    TestingTrinoServer worker = runner.getServers().get(1);
                     checkState(!worker.isCoordinator());
                     String catalog = transactionSession.getCatalog().orElseThrow();
                     String schema = transactionSession.getSchema().orElseThrow();
