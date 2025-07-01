@@ -96,7 +96,7 @@ public class PredicateUtils
 
     /**
      * Create a block with a conjunction (AND) of predicates from all component blocks. At least one component block must be provided.
-     * The resulting block has the same parameters as the first component block.
+     * The resulting block has the same name and parameters as the first component block.
      * <p>
      * Note: Local operation results in the second and further component blocks will be re-mapped to new values. Re-mapping does not
      * affect the semantics, but it helps avoid incorrect duplicate values in case when component blocks originate from the same
@@ -114,7 +114,7 @@ public class PredicateUtils
 
     /**
      * Create a block with a disjunction (OR) of predicates from all component blocks. At least one component block must be provided.
-     * The resulting block has the same parameters as the first component block.
+     * The resulting block has the same name and parameters as the first component block.
      * <p>
      * Note: Local operation results in the second and further component blocks will be re-mapped to new values. Re-mapping does not
      * affect the semantics, but it helps avoid incorrect duplicate values in case when component blocks originate from the same
@@ -145,7 +145,7 @@ public class PredicateUtils
         }
 
         List<Block.Parameter> resultParameters = blocks.getFirst().parameters();
-        Block.Builder result = new Block.Builder(Optional.empty(), resultParameters);
+        Block.Builder result = new Block.Builder(blocks.getFirst().name(), resultParameters);
         ImmutableList.Builder<Value> terms = ImmutableList.builder();
         for (Block block : blocks) {
             // remap operations in the block to use the first block's parameters
