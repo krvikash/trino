@@ -930,15 +930,16 @@ public class DispatcherMetadata
                     constraint,
                     dispatcherTableHandle,
                     constraint.getSummary(),
+                    Optional.empty(),
                     dispatcherTableHandle.getProxyConnectorTableHandle(),
                     warpExpression,
                     customStats);
         }
 
-        TupleDomain<ColumnHandle> newRemainingFilter = resultOpt.get().getAlternatives().getFirst().remainingFilter()
-                .transformKeys(ColumnHandle.class::cast);
+        TupleDomain<ColumnHandle> newRemainingFilter = resultOpt.get().getAlternatives().getFirst().remainingFilter();
+        Optional<ConnectorExpression> newRemainingExpression = resultOpt.get().getAlternatives().getFirst().remainingExpression();
         if (logger.isDebugEnabled()) {
-            logger.debug("Will return to Presto the following remaining Filter: %s", newRemainingFilter.toString(session));
+            logger.debug("Will return to Trino the following remaining filter: %s and remaining expression: %s", newRemainingFilter.toString(session), newRemainingExpression);
         }
 
         return createConstraintApplicationResult(
@@ -946,6 +947,7 @@ public class DispatcherMetadata
                 constraint,
                 dispatcherTableHandle,
                 newRemainingFilter,
+                newRemainingExpression,
                 resultOpt.get().getAlternatives().getFirst().handle(),
                 warpExpression,
                 customStats);
@@ -956,6 +958,7 @@ public class DispatcherMetadata
             Constraint constraint,
             DispatcherTableHandle table,
             TupleDomain<ColumnHandle> newRemainingFilter,
+            Optional<ConnectorExpression> newRemainingExpression,
             ConnectorTableHandle proxiedConnectorTableHandle,
             Optional<WarpExpression> warpExpression,
             Map<String, Long> customStatsMap)
@@ -977,7 +980,7 @@ public class DispatcherMetadata
                 .build();
 
         List<ConstraintApplicationResult.Alternative<ConnectorTableHandle>> alternatives = new ArrayList<>(2);
-        alternatives.add(new ConstraintApplicationResult.Alternative<>(dispatcherTableHandle, newRemainingFilter, Optional.empty(), false));
+        alternatives.add(new ConstraintApplicationResult.Alternative<>(dispatcherTableHandle, newRemainingFilter, newRemainingExpression, false));
 
         createSubsumedPredicatesAlternative(session, dispatcherTableHandle, constraint.getExpression())
                 .ifPresent(alternatives::add);
