@@ -561,7 +561,7 @@ public class AssignmentsUtils
      * Note: Local operation results in the component blocks will be re-mapped to new values. Re-mapping does not affect the semantics,
      * but it helps avoid incorrect duplicate values in case when component blocks originate from the same block.
      * <p>
-     * Note: any correlated referenced in the component blocks will be preserved.
+     * Note: any correlated references in the component blocks will be preserved.
      * If the component blocks belong to different contexts, they might potentially contain identical correlated values with different semantics.
      * Those values would clash in the resulting block. It is up to the caller to avoid this kind of issues. It is recommended
      * to only call this method for uncorrelated blocks or for blocks belonging to the same context.
