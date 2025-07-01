@@ -127,7 +127,7 @@ public class TestSourcePartitionedScheduler
 
     private final ExecutorService queryExecutor = newCachedThreadPool(daemonThreadsNamed("stageExecutor-%s"));
     private final ScheduledExecutorService scheduledExecutor = newScheduledThreadPool(2, daemonThreadsNamed("stageScheduledExecutor-%s"));
-    private final TestingInternalNodeManager nodeManager = new TestingInternalNodeManager();
+    private final TestingInternalNodeManager nodeManager = TestingInternalNodeManager.createDefault();
     private final FinalizerService finalizerService = new FinalizerService();
     private final Metadata metadata = createTestMetadataManager();
     private final FunctionManager functionManager = createTestingFunctionManager();
@@ -364,7 +364,7 @@ public class TestSourcePartitionedScheduler
     {
         assertTrinoExceptionThrownBy(() -> {
             NodeTaskMap nodeTaskMap = new NodeTaskMap(finalizerService);
-            TestingInternalNodeManager nodeManager = new TestingInternalNodeManager();
+            TestingInternalNodeManager nodeManager = TestingInternalNodeManager.createDefault();
             NodeScheduler nodeScheduler = new NodeScheduler(new UniformNodeSelectorFactory(CURRENT_NODE, nodeManager, new NodeSchedulerConfig().setIncludeCoordinator(false), nodeTaskMap));
 
             PlanFragment plan = createFragment();
@@ -387,7 +387,7 @@ public class TestSourcePartitionedScheduler
     public void testWorkerBalancedSplitAssignment()
     {
         // use private node manager so we can add a node later
-        TestingInternalNodeManager nodeManager = new TestingInternalNodeManager(
+        TestingInternalNodeManager nodeManager = TestingInternalNodeManager.createDefault(
                 new InternalNode("other1", URI.create("http://127.0.0.1:11"), NodeVersion.UNKNOWN, false),
                 new InternalNode("other2", URI.create("http://127.0.0.1:12"), NodeVersion.UNKNOWN, false),
                 new InternalNode("other3", URI.create("http://127.0.0.1:13"), NodeVersion.UNKNOWN, false));
@@ -433,7 +433,7 @@ public class TestSourcePartitionedScheduler
     public void testStageBalancedSplitAssignment()
     {
         // use private node manager so we can add a node later
-        TestingInternalNodeManager nodeManager = new TestingInternalNodeManager(
+        TestingInternalNodeManager nodeManager = TestingInternalNodeManager.createDefault(
                 new InternalNode("other1", URI.create("http://127.0.0.1:11"), NodeVersion.UNKNOWN, false),
                 new InternalNode("other2", URI.create("http://127.0.0.1:12"), NodeVersion.UNKNOWN, false),
                 new InternalNode("other3", URI.create("http://127.0.0.1:13"), NodeVersion.UNKNOWN, false));
@@ -498,7 +498,7 @@ public class TestSourcePartitionedScheduler
     {
         NodeTaskMap nodeTaskMap = new NodeTaskMap(finalizerService);
         // use private node manager so we can add a node later
-        TestingInternalNodeManager nodeManager = new TestingInternalNodeManager(
+        TestingInternalNodeManager nodeManager = TestingInternalNodeManager.createDefault(
                 new InternalNode("other1", URI.create("http://127.0.0.1:11"), NodeVersion.UNKNOWN, false),
                 new InternalNode("other2", URI.create("http://127.0.0.1:12"), NodeVersion.UNKNOWN, false),
                 new InternalNode("other3", URI.create("http://127.0.0.1:13"), NodeVersion.UNKNOWN, false));
@@ -541,7 +541,7 @@ public class TestSourcePartitionedScheduler
     {
         NodeTaskMap nodeTaskMap = new NodeTaskMap(finalizerService);
         // use private node manager so we can add a node later
-        TestingInternalNodeManager nodeManager = new TestingInternalNodeManager(
+        TestingInternalNodeManager nodeManager = TestingInternalNodeManager.createDefault(
                 new InternalNode("other1", URI.create("http://127.0.0.1:11"), NodeVersion.UNKNOWN, false),
                 new InternalNode("other2", URI.create("http://127.0.0.1:12"), NodeVersion.UNKNOWN, false),
                 new InternalNode("other3", URI.create("http://127.0.0.1:13"), NodeVersion.UNKNOWN, false));
@@ -779,7 +779,7 @@ public class TestSourcePartitionedScheduler
                 outputBuffers.buildOrThrow(),
                 ImmutableMap.of(),
                 TaskLifecycleListener.NO_OP,
-                new TestingInternalNodeManager(),
+                TestingInternalNodeManager.createDefault(),
                 queryExecutor,
                 Optional.of(new int[] {0}),
                 OptionalInt.empty(),
