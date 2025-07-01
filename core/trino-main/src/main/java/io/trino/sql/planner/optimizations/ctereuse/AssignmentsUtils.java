@@ -182,6 +182,7 @@ public class AssignmentsUtils
     }
 
     // TODO use this method in Project operation constructor to validate the ^assignments block
+    // NOTE: a Block with dead code is considered valid Project assignments unless it is an empty selector
     public static boolean isProjectAssignments(Block block)
     {
         if (block.parameters().size() != 1 ||
