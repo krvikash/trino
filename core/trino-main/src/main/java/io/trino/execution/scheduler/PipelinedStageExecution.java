@@ -40,9 +40,9 @@ import io.trino.execution.buffer.OutputBufferStatus;
 import io.trino.execution.buffer.OutputBuffers;
 import io.trino.execution.buffer.PipelinedOutputBuffers.OutputBufferId;
 import io.trino.execution.buffer.SpoolingOutputBuffers;
-import io.trino.failuredetector.FailureDetector;
 import io.trino.metadata.Split;
 import io.trino.node.InternalNode;
+import io.trino.node.InternalNodeManager;
 import io.trino.spi.TrinoException;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeId;
@@ -97,7 +97,6 @@ import static io.trino.execution.scheduler.StageExecution.State.RUNNING;
 import static io.trino.execution.scheduler.StageExecution.State.SCHEDULED;
 import static io.trino.execution.scheduler.StageExecution.State.SCHEDULING;
 import static io.trino.execution.scheduler.StageExecution.State.SCHEDULING_SPLITS;
-import static io.trino.failuredetector.FailureDetector.State.GONE;
 import static io.trino.operator.ExchangeOperator.REMOTE_CATALOG_HANDLE;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.REMOTE_HOST_GONE;
@@ -134,7 +133,7 @@ public class PipelinedStageExecution
     private final Map<PlanFragmentId, PipelinedOutputBufferManager> outputBufferManagers;
     private final Map<PlanFragmentId, Exchange> spoolingOutputExchanges;
     private final TaskLifecycleListener taskLifecycleListener;
-    private final FailureDetector failureDetector;
+    private final InternalNodeManager nodeManager;
     private final Optional<int[]> bucketToPartition;
     private final OptionalInt skewedBucketCount;
     private final Multimap<PlanFragmentId, RemoteSourceNode> exchangeSources;
@@ -178,7 +177,7 @@ public class PipelinedStageExecution
             Map<PlanFragmentId, PipelinedOutputBufferManager> outputBufferManagers,
             Map<PlanFragmentId, Exchange> spoolingOutputExchanges,
             TaskLifecycleListener taskLifecycleListener,
-            FailureDetector failureDetector,
+            InternalNodeManager nodeManager,
             Executor executor,
             Optional<int[]> bucketToPartition,
             OptionalInt skewedBucketCount,
@@ -197,7 +196,7 @@ public class PipelinedStageExecution
                 outputBufferManagers,
                 spoolingOutputExchanges,
                 taskLifecycleListener,
-                failureDetector,
+                nodeManager,
                 bucketToPartition,
                 skewedBucketCount,
                 exchangeSources.build(),
@@ -212,7 +211,7 @@ public class PipelinedStageExecution
             Map<PlanFragmentId, PipelinedOutputBufferManager> outputBufferManagers,
             Map<PlanFragmentId, Exchange> spoolingOutputExchanges,
             TaskLifecycleListener taskLifecycleListener,
-            FailureDetector failureDetector,
+            InternalNodeManager nodeManager,
             Optional<int[]> bucketToPartition,
             OptionalInt skewedBucketCount,
             Multimap<PlanFragmentId, RemoteSourceNode> exchangeSources,
@@ -223,7 +222,7 @@ public class PipelinedStageExecution
         this.outputBufferManagers = ImmutableMap.copyOf(requireNonNull(outputBufferManagers, "outputBufferManagers is null"));
         this.spoolingOutputExchanges = ImmutableMap.copyOf(requireNonNull(spoolingOutputExchanges, "outputExchanges is null"));
         this.taskLifecycleListener = requireNonNull(taskLifecycleListener, "taskLifecycleListener is null");
-        this.failureDetector = requireNonNull(failureDetector, "failureDetector is null");
+        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.bucketToPartition = requireNonNull(bucketToPartition, "bucketToPartition is null");
         this.skewedBucketCount = requireNonNull(skewedBucketCount, "skewedBucketCount is null");
         this.exchangeSources = ImmutableMultimap.copyOf(requireNonNull(exchangeSources, "exchangeSources is null"));
@@ -639,7 +638,7 @@ public class PipelinedStageExecution
 
     private ExecutionFailureInfo rewriteTransportFailure(ExecutionFailureInfo executionFailureInfo)
     {
-        if (executionFailureInfo.getRemoteHost() == null || failureDetector.getState(executionFailureInfo.getRemoteHost()) != GONE) {
+        if (executionFailureInfo.getRemoteHost() == null || !nodeManager.isGone(executionFailureInfo.getRemoteHost())) {
             return executionFailureInfo;
         }
 

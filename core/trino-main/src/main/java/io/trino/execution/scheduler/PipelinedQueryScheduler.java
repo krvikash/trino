@@ -57,9 +57,9 @@ import io.trino.execution.TaskStatus;
 import io.trino.execution.scheduler.policy.ExecutionPolicy;
 import io.trino.execution.scheduler.policy.ExecutionSchedule;
 import io.trino.execution.scheduler.policy.StagesScheduleResult;
-import io.trino.failuredetector.FailureDetector;
 import io.trino.metadata.Metadata;
 import io.trino.node.InternalNode;
+import io.trino.node.InternalNodeManager;
 import io.trino.operator.RetryPolicy;
 import io.trino.server.DynamicFilterService;
 import io.trino.spi.ErrorCode;
@@ -189,7 +189,7 @@ public class PipelinedQueryScheduler
     private final int splitBatchSize;
     private final ExecutorService executor;
     private final ScheduledExecutorService schedulerExecutor;
-    private final FailureDetector failureDetector;
+    private final InternalNodeManager nodeManager;
     private final ExecutionPolicy executionPolicy;
     private final SplitSchedulerStats schedulerStats;
     private final DynamicFilterService dynamicFilterService;
@@ -228,7 +228,7 @@ public class PipelinedQueryScheduler
             int splitBatchSize,
             ExecutorService queryExecutor,
             ScheduledExecutorService schedulerExecutor,
-            FailureDetector failureDetector,
+            InternalNodeManager nodeManager,
             NodeTaskMap nodeTaskMap,
             ExecutionPolicy executionPolicy,
             Tracer tracer,
@@ -246,7 +246,7 @@ public class PipelinedQueryScheduler
         this.splitBatchSize = splitBatchSize;
         this.executor = requireNonNull(queryExecutor, "queryExecutor is null");
         this.schedulerExecutor = requireNonNull(schedulerExecutor, "schedulerExecutor is null");
-        this.failureDetector = requireNonNull(failureDetector, "failureDetector is null");
+        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.executionPolicy = requireNonNull(executionPolicy, "executionPolicy is null");
         this.schedulerStats = requireNonNull(schedulerStats, "schedulerStats is null");
         this.dynamicFilterService = requireNonNull(dynamicFilterService, "dynamicFilterService is null");
@@ -276,7 +276,7 @@ public class PipelinedQueryScheduler
                 queryStateMachine,
                 nodeScheduler,
                 stageManager,
-                failureDetector,
+                nodeManager,
                 schedulerExecutor,
                 distributedStagesScheduler,
                 coordinatorTaskManager);
@@ -368,7 +368,7 @@ public class PipelinedQueryScheduler
                         stageManager,
                         coordinatorStagesScheduler,
                         executionPolicy,
-                        failureDetector,
+                        nodeManager,
                         schedulerExecutor,
                         splitSourceFactory,
                         splitBatchSize,
@@ -590,7 +590,7 @@ public class PipelinedQueryScheduler
                 QueryStateMachine queryStateMachine,
                 NodeScheduler nodeScheduler,
                 StageManager stageManager,
-                FailureDetector failureDetector,
+                InternalNodeManager nodeManager,
                 Executor executor,
                 AtomicReference<DistributedStagesScheduler> distributedStagesScheduler,
                 SqlTaskManager coordinatorTaskManager)
@@ -607,7 +607,7 @@ public class PipelinedQueryScheduler
                         outputBuffersForStagesConsumedByCoordinator,
                         ImmutableMap.of(), // no tasks using spooling exchange output
                         taskLifecycleListener,
-                        failureDetector,
+                        nodeManager,
                         executor,
                         bucketToPartitionForStagesConsumedByCoordinator.get(stage.getFragment().getId()).map(BucketToPartition::bucketToPartition),
                         OptionalInt.empty(),
@@ -903,7 +903,7 @@ public class PipelinedQueryScheduler
                 StageManager stageManager,
                 CoordinatorStagesScheduler coordinatorStagesScheduler,
                 ExecutionPolicy executionPolicy,
-                FailureDetector failureDetector,
+                InternalNodeManager nodeManager,
                 ScheduledExecutorService executor,
                 SplitSourceFactory splitSourceFactory,
                 int splitBatchSize,
@@ -988,7 +988,7 @@ public class PipelinedQueryScheduler
                         outputBufferManagers,
                         spoolingOutputExchanges,
                         createTaskLifecycleListener(taskLifecycleListeners.build()),
-                        failureDetector,
+                        nodeManager,
                         executor,
                         bucketToPartition.map(BucketToPartition::bucketToPartition),
                         skewedBucketCount,

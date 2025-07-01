@@ -33,7 +33,6 @@ import io.trino.execution.StageId;
 import io.trino.execution.TableExecuteContextManager;
 import io.trino.execution.TableInfo;
 import io.trino.execution.scheduler.NodeSchedulerConfig.SplitsBalancingPolicy;
-import io.trino.failuredetector.NoOpFailureDetector;
 import io.trino.metadata.FunctionManager;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.QualifiedObjectName;
@@ -780,7 +779,7 @@ public class TestSourcePartitionedScheduler
                 outputBuffers.buildOrThrow(),
                 ImmutableMap.of(),
                 TaskLifecycleListener.NO_OP,
-                new NoOpFailureDetector(),
+                new TestingInternalNodeManager(),
                 queryExecutor,
                 Optional.of(new int[] {0}),
                 OptionalInt.empty(),
