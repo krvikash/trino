@@ -62,7 +62,7 @@ public class RemoteModelConnectionSpecsLoader
 
     private URI coordinatorUri()
     {
-        return internalNodeManager.getAllNodes().getActiveCoordinators().stream()
+        return internalNodeManager.getAllNodes().activeCoordinators().stream()
                 .map(InternalNode::getInternalUri).findAny()
                 .orElseThrow(() -> new IllegalStateException("No active coordinator found"));
     }

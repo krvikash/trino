@@ -199,7 +199,7 @@ public class CacheManagerRegistry
                     @Override
                     public Set<Node> getAllNodes()
                     {
-                        return internalNodeManager.getAllNodes().getActiveNodes().stream().map((node) -> (Node) node).collect(Collectors.toSet());
+                        return internalNodeManager.getAllNodes().activeNodes().stream().map((node) -> (Node) node).collect(Collectors.toSet());
                     }
 
                     @Override
