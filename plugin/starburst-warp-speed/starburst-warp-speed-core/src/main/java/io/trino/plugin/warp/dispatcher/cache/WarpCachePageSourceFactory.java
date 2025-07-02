@@ -156,6 +156,7 @@ public class WarpCachePageSourceFactory
                 dispatcherTableHandle,
                 columns,
                 DynamicFilter.EMPTY,
+                Optional.empty(),   // not relevant for cache
                 dispatcherPageSourceStats);
         if (PageSourceDecision.EMPTY.equals(pageSourceDecision)) {
             dispatcherPageSourceStats.incempty_page_source();
@@ -229,6 +230,7 @@ public class WarpCachePageSourceFactory
             WarpPageSource warpPageSource = new WarpPageSource(
                     storageEngineConstants,
                     Long.MAX_VALUE,
+                    Optional.empty(),   // not relevant for cache
                     queryParams,
                     predicatesCacheService,
                     customStatsContext,

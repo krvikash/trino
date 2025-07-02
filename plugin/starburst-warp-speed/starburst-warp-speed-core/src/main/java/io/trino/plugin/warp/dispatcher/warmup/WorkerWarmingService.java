@@ -531,14 +531,17 @@ public class WorkerWarmingService
                 }
             });
         }
-        queryContext.getRemainingCollectColumns()
-                .stream()
-                .filter(column -> TypeUtils.isWarmDataSupported(columnNameToColumnType.get(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column))))
-                .forEach(column -> {
-                    RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column);
-                    Set<WarmupProperties> properties = result.computeIfAbsent(warpColumn, v -> new HashSet<>());
-                    properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_DATA));
-                });
+
+        if (!globalConfig.getEnableFSCacheMode()) {
+            queryContext.getRemainingCollectColumns()
+                    .stream()
+                    .filter(column -> TypeUtils.isWarmDataSupported(columnNameToColumnType.get(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column))))
+                    .forEach(column -> {
+                        RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column);
+                        Set<WarmupProperties> properties = result.computeIfAbsent(warpColumn, v -> new HashSet<>());
+                        properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_DATA));
+                    });
+        }
         return result;
     }
 
@@ -657,9 +660,14 @@ public class WorkerWarmingService
     private void initWarmUpTypeValidators()
     {
         warmupTypeValidators = Map.of(
-                WarmUpType.WARM_UP_TYPE_DATA, TypeUtils::isWarmDataSupported,
+                WarmUpType.WARM_UP_TYPE_DATA, this::isWarmDataSupported,
                 WarmUpType.WARM_UP_TYPE_BASIC, TypeUtils::isWarmBasicSupported,
                 WarmUpType.WARM_UP_TYPE_LUCENE, TypeUtils::isWarmLuceneSupported);
+    }
+
+    public boolean isWarmDataSupported(Type type)
+    {
+        return !globalConfig.getEnableFSCacheMode() && TypeUtils.isWarmDataSupported(type);
     }
 
     WarmData updateWarmData(RowGroupData rowGroupData, WarmData warmData)

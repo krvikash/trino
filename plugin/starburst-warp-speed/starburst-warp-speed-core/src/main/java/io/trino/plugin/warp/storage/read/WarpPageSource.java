@@ -13,6 +13,7 @@ package io.trino.plugin.warp.storage.read;
  * limitations under the License.
  */
 
+import io.trino.plugin.warp.dispatcher.FilteringStats;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
@@ -37,6 +38,7 @@ public class WarpPageSource
 
     private final StorageEngineConstants storageEngineConstants;
     private final PredicatesCacheService predicatesCacheService;
+    private final Optional<FilteringStats> filteringStats;
     private final QueryParams queryParams;
     private final WarpReader reader;
     private boolean finished;
@@ -47,6 +49,7 @@ public class WarpPageSource
 
     public WarpPageSource(StorageEngineConstants storageEngineConstants,
             long rowsLimit,
+            Optional<FilteringStats> filteringStats,
             QueryParams queryParams,
             PredicatesCacheService predicatesCacheService,
             CustomStatsContext customStatsContext,
@@ -57,6 +60,7 @@ public class WarpPageSource
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.predicatesCacheService = predicatesCacheService;
+        this.filteringStats = filteringStats;
         this.sortedRowRanges = RowRanges.EMPTY;
         this.queryParams = queryParams;
         this.shapingLogger = shapingLoggerFactory.getInstance(WarpPageSource.class);
@@ -93,6 +97,7 @@ public class WarpPageSource
     public void close()
     {
         if (!closed) {
+            filteringStats.ifPresent(stats -> stats.recordProcessed(queryParams.getTotalNumRecords(), completedPositions));
             closed = true;
             if (reader != null) {
                 reader.close();

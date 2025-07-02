@@ -80,6 +80,7 @@ public class WarpPageSourceTest
         WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 Integer.MAX_VALUE,
+                Optional.empty(),
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,
@@ -130,6 +131,7 @@ public class WarpPageSourceTest
         WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 Integer.MAX_VALUE,
+                Optional.empty(),
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,
@@ -172,6 +174,7 @@ public class WarpPageSourceTest
         WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 Integer.MAX_VALUE,
+                Optional.empty(),
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,
@@ -205,6 +208,7 @@ public class WarpPageSourceTest
         WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 Integer.MAX_VALUE,
+                Optional.empty(),
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,
@@ -261,6 +265,7 @@ public class WarpPageSourceTest
         WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 Integer.MAX_VALUE,
+                Optional.empty(),
                 mock(QueryParams.class),
                 predicatesCacheService,
                 customStatsContext,

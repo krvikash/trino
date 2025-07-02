@@ -46,6 +46,7 @@ public class DispatcherTableHandle
     private final List<CustomStat> customStats;
     private final boolean subsumedPredicates;
     private final Set<String> columnsNotFitForDictionary;
+    private final FilteringStats filteringStats;
 
     @JsonCreator
     public DispatcherTableHandle(@JsonProperty("schemaName") String schemaName,
@@ -68,6 +69,7 @@ public class DispatcherTableHandle
         this.customStats = customStats;
         this.subsumedPredicates = subsumedPredicates;
         this.columnsNotFitForDictionary = columnsNotFitForDictionary;
+        this.filteringStats = new FilteringStats();
     }
 
     @JsonProperty
@@ -147,6 +149,12 @@ public class DispatcherTableHandle
         return columnsNotFitForDictionary.isEmpty() || !columnsNotFitForDictionary.contains(columnName);
     }
 
+    @JsonIgnore
+    public FilteringStats getFilteringStats()
+    {
+        return filteringStats;
+    }
+
     @Override
     public boolean equals(Object o)
     {
@@ -190,7 +198,8 @@ public class DispatcherTableHandle
                 .add("simplifiedColumns", simplifiedColumns)
                 .add("proxyConnectorTableHandle", proxyConnectorTableHandle)
                 .add("subsumedPredicates", subsumedPredicates)
-                .add("columnsNotFitForDictionary", columnsNotFitForDictionary);
+                .add("columnsNotFitForDictionary", columnsNotFitForDictionary)
+                .add("filteringStats", filteringStats);
         limit.ifPresent(value -> toStringHelper.add("limit", value));
         warpExpression.ifPresent(value -> toStringHelper.add("warpExpression", value));
         return toStringHelper.toString();

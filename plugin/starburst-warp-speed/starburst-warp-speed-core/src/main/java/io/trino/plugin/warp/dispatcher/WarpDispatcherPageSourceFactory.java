@@ -199,11 +199,14 @@ public class WarpDispatcherPageSourceFactory
                 dispatcherSplit.getDeletedFilesHash());
 
         RowGroupData rowGroupData = rowGroupDataService.getIfPresent(rowGroupKey);
+
+        Optional<FilteringStats> filteringStats = globalConfig.getEnableFSCacheMode() ? Optional.of(dispatcherTableHandle.getFilteringStats()) : Optional.empty();
         PageSourceDecision pageSourceDecision = getBasicPageSourceDecision(
                 rowGroupData,
                 dispatcherTableHandle,
                 columns,
                 dynamicFilter,
+                filteringStats,
                 dispatcherPageSourceStats);
 
         if (PageSourceDecision.EMPTY.equals(pageSourceDecision)) {
@@ -306,17 +309,21 @@ public class WarpDispatcherPageSourceFactory
                 try {
                     increaseMixedCounters(dispatcherPageSourceStats, queryContext);
 
-                    return createMixedPageSource(connectorPageSourceProvider,
+                    ConnectorPageSource mixedPageSource = createMixedPageSource(connectorPageSourceProvider,
                             queryClassifier,
                             queryContext,
                             transactionHandle,
                             dispatcherTableHandle,
+                            filteringStats,
                             session,
                             dispatcherSplit,
                             afterLockRowGroupData,
                             pageSourceDecision,
                             customStatsContext,
                             closeHandler);
+
+                    filteringStats.ifPresent(FilteringStats::recordStarted);
+                    return mixedPageSource;
                 }
                 catch (Exception e) {
                     if (Thread.currentThread().isInterrupted()) {
@@ -392,6 +399,7 @@ public class WarpDispatcherPageSourceFactory
             QueryContext queryContext,
             ConnectorTransactionHandle transactionHandle,
             DispatcherTableHandle dispatcherTableHandle,
+            Optional<FilteringStats> filteringStats,
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
             RowGroupData rowGroupData,
@@ -426,6 +434,7 @@ public class WarpDispatcherPageSourceFactory
         WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 dispatcherTableHandle.getLimit().orElse(Long.MAX_VALUE),
+                filteringStats,
                 queryParams,
                 predicatesCacheService,
                 customStatsContext,

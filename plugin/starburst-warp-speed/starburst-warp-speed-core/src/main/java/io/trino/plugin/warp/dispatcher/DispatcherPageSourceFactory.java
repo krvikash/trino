@@ -44,6 +44,7 @@ import io.trino.spi.predicate.TupleDomain;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
@@ -125,8 +126,15 @@ public abstract class DispatcherPageSourceFactory
             DispatcherTableHandle dispatcherTableHandle,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
+            Optional<FilteringStats> filteringStats,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
+        if (filteringStats.isPresent() && !filteringStats.get().isEfficientFiltering(dispatcherPageSourceStats)) {
+            logger.debug("Inefficient filtering - go to proxy");
+            dispatcherPageSourceStats.inccached_proxied_files();
+            return PageSourceDecision.PROXY;
+        }
+
         if (Objects.isNull(rowGroupData) ||
                 rowGroupData.getValidWarmUpElements().isEmpty()) {
             logger.debug("file isn't warmed, reading from connector");

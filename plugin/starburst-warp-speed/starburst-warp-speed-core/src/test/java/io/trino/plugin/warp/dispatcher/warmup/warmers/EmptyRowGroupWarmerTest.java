@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
 import com.google.common.collect.SetMultimap;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -78,6 +79,7 @@ public class EmptyRowGroupWarmerTest
                 metricsManager,
                 mock(StorageEngineConstants.class),
                 mock(BufferAllocator.class),
+                mock(GlobalConfig.class),
                 new TestingConnectorProxiedConnectorTransformer(),
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 

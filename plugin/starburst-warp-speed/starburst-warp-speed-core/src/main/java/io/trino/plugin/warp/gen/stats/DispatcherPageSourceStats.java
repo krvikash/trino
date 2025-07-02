@@ -37,6 +37,8 @@ public final class DispatcherPageSourceStats
     private final LongAdder cached_warp_failed_files = new LongAdder();
     private final LongAdder cached_warp_failed_pages = new LongAdder();
     private final LongAdder cached_proxied_files = new LongAdder();
+    private final LongAdder inefficient_filtering = new LongAdder();
+    private final LongAdder efficient_filtering = new LongAdder();
     private final LongAdder cached_total_rows = new LongAdder();
     private final LongAdder cached_read_rows = new LongAdder();
     private final LongAdder warp_match_columns = new LongAdder();
@@ -212,6 +214,52 @@ public final class DispatcherPageSourceStats
     {
         cached_proxied_files.reset();
         addcached_proxied_files(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getinefficient_filtering()
+    {
+        return inefficient_filtering.longValue();
+    }
+
+    public void incinefficient_filtering()
+    {
+        inefficient_filtering.increment();
+    }
+
+    public void addinefficient_filtering(long val)
+    {
+        inefficient_filtering.add(val);
+    }
+
+    public void setinefficient_filtering(long val)
+    {
+        inefficient_filtering.reset();
+        addinefficient_filtering(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getefficient_filtering()
+    {
+        return efficient_filtering.longValue();
+    }
+
+    public void incefficient_filtering()
+    {
+        efficient_filtering.increment();
+    }
+
+    public void addefficient_filtering(long val)
+    {
+        efficient_filtering.add(val);
+    }
+
+    public void setefficient_filtering(long val)
+    {
+        efficient_filtering.reset();
+        addefficient_filtering(val);
     }
 
     @JsonIgnore
@@ -936,6 +984,8 @@ public final class DispatcherPageSourceStats
         ret.put("cached_warp_failed_files", cached_warp_failed_files);
         ret.put("cached_warp_failed_pages", cached_warp_failed_pages);
         ret.put("cached_proxied_files", cached_proxied_files);
+        ret.put("inefficient_filtering", inefficient_filtering);
+        ret.put("efficient_filtering", efficient_filtering);
         ret.put("cached_total_rows", cached_total_rows);
         ret.put("cached_read_rows", cached_read_rows);
         ret.put("warp_match_columns", warp_match_columns);
@@ -981,6 +1031,8 @@ public final class DispatcherPageSourceStats
         this.cached_warp_failed_files.add(other.cached_warp_failed_files.longValue());
         this.cached_warp_failed_pages.add(other.cached_warp_failed_pages.longValue());
         this.cached_proxied_files.add(other.cached_proxied_files.longValue());
+        this.inefficient_filtering.add(other.inefficient_filtering.longValue());
+        this.efficient_filtering.add(other.efficient_filtering.longValue());
         this.cached_total_rows.add(other.cached_total_rows.longValue());
         this.cached_read_rows.add(other.cached_read_rows.longValue());
         this.warp_match_columns.add(other.warp_match_columns.longValue());
@@ -1024,6 +1076,8 @@ public final class DispatcherPageSourceStats
         cached_warp_failed_files.reset();
         cached_warp_failed_pages.reset();
         cached_proxied_files.reset();
+        inefficient_filtering.reset();
+        efficient_filtering.reset();
         cached_total_rows.reset();
         cached_read_rows.reset();
         warp_match_columns.reset();
@@ -1072,6 +1126,8 @@ public final class DispatcherPageSourceStats
         res.put("dispatcherPageSource:cached_warp_failed_files", cached_warp_failed_files.longValue());
         res.put("dispatcherPageSource:cached_warp_failed_pages", cached_warp_failed_pages.longValue());
         res.put("dispatcherPageSource:cached_proxied_files", cached_proxied_files.longValue());
+        res.put("dispatcherPageSource:inefficient_filtering", inefficient_filtering.longValue());
+        res.put("dispatcherPageSource:efficient_filtering", efficient_filtering.longValue());
         if (cached_total_rows.longValue() > 0) {
             res.put("dispatcherPageSource:cached_total_rows", cached_total_rows.longValue());
         }
@@ -1152,6 +1208,8 @@ public final class DispatcherPageSourceStats
         res.put("cached_warp_failed_files", getcached_warp_failed_files());
         res.put("cached_warp_failed_pages", getcached_warp_failed_pages());
         res.put("cached_proxied_files", getcached_proxied_files());
+        res.put("inefficient_filtering", getinefficient_filtering());
+        res.put("efficient_filtering", getefficient_filtering());
         res.put("cached_total_rows", getcached_total_rows());
         res.put("cached_read_rows", getcached_read_rows());
         res.put("warp_match_columns", getwarp_match_columns());

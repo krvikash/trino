@@ -148,6 +148,7 @@ public class ProxyExecutionTaskTest
                 metricsManager,
                 mock(StorageEngineConstants.class),
                 mock(BufferAllocator.class),
+                globalConfig,
                 new TestingConnectorProxiedConnectorTransformer(),
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         nativeStorageStateHandler = mock(NativeStorageStateHandler.class);

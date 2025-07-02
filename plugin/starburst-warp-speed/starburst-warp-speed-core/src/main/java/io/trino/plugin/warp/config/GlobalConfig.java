@@ -64,6 +64,7 @@ public class GlobalConfig
     private boolean debugNoPredicateBuffer;
     private boolean debugFailureGenerator;
 
+    private boolean enableFSCacheMode;
     private boolean enableImportExport;
     private boolean enableExportAppendOnCloud = true;
     private boolean enableOrPushdown = true;
@@ -74,6 +75,17 @@ public class GlobalConfig
     public boolean getIsSingle()
     {
         return isSingle;
+    }
+
+    public boolean getEnableFSCacheMode()
+    {
+        return enableFSCacheMode;
+    }
+
+    @Config("warp-speed.enable.fs-cache-mode")
+    public void setEnableFSCacheMode(boolean enableFSCacheMode)
+    {
+        this.enableFSCacheMode = enableFSCacheMode;
     }
 
     @Config(CONFIG_IS_SINGLE)
