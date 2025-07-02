@@ -25,6 +25,6 @@ public class TestingNodeManagerModule
     {
         binder.bind(TestingInternalNodeManager.class).in(Scopes.SINGLETON);
         binder.bind(InternalNodeManager.class).to(TestingInternalNodeManager.class).in(Scopes.SINGLETON);
-        binder.bind(Announcer.class).to(TestingAnnouncer.class).in(Scopes.SINGLETON);
+        binder.bind(Announcer.class).toInstance(Announcer.NOOP);
     }
 }

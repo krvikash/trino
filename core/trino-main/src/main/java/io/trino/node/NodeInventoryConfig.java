@@ -21,6 +21,7 @@ public class NodeInventoryConfig
     public enum NodeInventoryType
     {
         ANNOUNCE,
+        DNS,
         AIRLIFT_DISCOVERY,
     }
 
