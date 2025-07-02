@@ -72,8 +72,8 @@ import io.trino.metadata.SessionPropertyManager;
 import io.trino.metadata.TablePropertyManager;
 import io.trino.node.Announcer;
 import io.trino.node.InternalNode;
-import io.trino.node.TestingInternalNodeManager;
-import io.trino.node.TestingNodeManagerModule;
+import io.trino.node.InternalNodeManager;
+import io.trino.node.NodeManagerModule;
 import io.trino.security.AccessControl;
 import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
@@ -217,7 +217,7 @@ public class TestingTrinoServer
     private final NodePartitioningManager nodePartitioningManager;
     private final ClusterMemoryManager clusterMemoryManager;
     private final LocalMemoryManager localMemoryManager;
-    private final TestingInternalNodeManager nodeManager;
+    private final InternalNodeManager nodeManager;
     private final DispatchManager dispatchManager;
     private final SqlQueryManager queryManager;
     private final SqlTaskManager taskManager;
@@ -321,7 +321,7 @@ public class TestingTrinoServer
                 .add(new StarburstDataframeModule())
                 .add(new CatalogManagerModule())
                 .add(new TransactionManagerModule())
-                .add(new TestingNodeManagerModule())
+                .add(new NodeManagerModule(VERSION))
                 .add(new ServerMainModule(VERSION))
                 .add(new CacheManagerModule())
                 .add(new TestingWarningCollectorModule())
@@ -436,7 +436,7 @@ public class TestingTrinoServer
             clusterMemoryManager = null;
             statsCalculator = null;
         }
-        nodeManager = injector.getInstance(TestingInternalNodeManager.class);
+        nodeManager = injector.getInstance(InternalNodeManager.class);
         localMemoryManager = injector.getInstance(LocalMemoryManager.class);
         nodeStateManager = injector.getInstance(NodeStateManager.class);
         taskManager = injector.getInstance(SqlTaskManager.class);
@@ -732,13 +732,14 @@ public class TestingTrinoServer
 
     public void registerServer(InternalNode server)
     {
-        nodeManager.addNodes(server);
+        checkState(coordinator, "Current server is not a coordinator");
+        nodeManager.refreshNodes(true);
     }
 
     public void unregisterServer(InternalNode worker)
     {
         checkState(coordinator, "Current server is not a coordinator");
-        nodeManager.removeNode(worker);
+        nodeManager.refreshNodes(true);
     }
 
     public int getWorkerCount()
