@@ -19,7 +19,6 @@ import io.trino.testing.AbstractDistributedEngineOnlyQueries;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.QueryRunner;
-import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -59,7 +58,7 @@ public class TestMockBufferDistributedFaultTolerantEngineOnlyQueries
                     runner.installPlugin(new MockBufferExchangePlugin(mockBufferService));
                     runner.loadExchangeManager("buffer", exchangeManagerProperties);
                 })
-                .setInitialTables(TpchTable.getTables())
+                .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
 
         queryRunner.getCoordinator().getSessionPropertyManager().addSystemSessionProperties(TEST_SYSTEM_PROPERTIES);
