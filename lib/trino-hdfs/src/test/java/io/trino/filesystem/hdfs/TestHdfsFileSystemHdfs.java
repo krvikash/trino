@@ -25,6 +25,7 @@ import io.trino.hdfs.HdfsEnvironment;
 import io.trino.hdfs.TrinoHdfsFileSystemStats;
 import io.trino.hdfs.authentication.NoHdfsAuthentication;
 import io.trino.spi.security.ConnectorIdentity;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -37,6 +38,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 
 import static java.util.Collections.emptySet;
+import static org.apache.hadoop.fs.CommonConfigurationKeys.IPC_CLIENT_RPC_TIMEOUT_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestHdfsFileSystemHdfs
@@ -120,6 +122,18 @@ public class TestHdfsFileSystemHdfs
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    @Test
+    public void testDefaultRpcTimeout()
+    {
+        Configuration configuration = hdfsEnvironment.getConfiguration(hdfsContext, new Path(getRootLocation().toString()));
+        assertThat(configuration.getInt(IPC_CLIENT_RPC_TIMEOUT_KEY, -1)).isEqualTo(120000);
+
+        // verify non zero configuration is not overridden
+        configuration.setInt(IPC_CLIENT_RPC_TIMEOUT_KEY, 777);
+        new HdfsConfigurationInitializer(new HdfsConfig()).initializeConfiguration(configuration);
+        assertThat(configuration.getInt(IPC_CLIENT_RPC_TIMEOUT_KEY, -1)).isEqualTo(777);
     }
 
     @Test

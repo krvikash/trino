@@ -34,6 +34,8 @@ import static io.trino.hdfs.ConfigurationUtils.copy;
 import static io.trino.hdfs.ConfigurationUtils.readConfiguration;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static org.apache.hadoop.fs.CommonConfigurationKeys.IPC_CLIENT_RPC_TIMEOUT_KEY;
 import static org.apache.hadoop.fs.CommonConfigurationKeys.IPC_PING_INTERVAL_KEY;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.HADOOP_RPC_PROTECTION;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.HADOOP_RPC_SOCKET_FACTORY_CLASS_DEFAULT_KEY;
@@ -106,6 +108,11 @@ public class HdfsConfigurationInitializer
         // only enable short circuit reads if domain socket path is properly configured
         if (!config.get(DFS_DOMAIN_SOCKET_PATH_KEY, "").trim().isEmpty()) {
             config.setBooleanIfUnset(HdfsClientConfigKeys.Read.ShortCircuit.KEY, true);
+        }
+
+        // TODO Cleanup once hadoop upgraded to version >= 3.4.0 (https://starburstdata.atlassian.net/browse/PERF-212)
+        if (config.getInt(IPC_CLIENT_RPC_TIMEOUT_KEY, 0) == 0) {
+            config.setInt(IPC_CLIENT_RPC_TIMEOUT_KEY, toIntExact(new Duration(2, MINUTES).toMillis()));
         }
 
         config.setInt(DFS_CLIENT_SOCKET_TIMEOUT_KEY, toIntExact(dfsTimeout.toMillis()));
