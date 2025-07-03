@@ -43,6 +43,7 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Multimaps.toMultimap;
 import static io.trino.sql.dialect.trino.Attributes.BUCKET_TO_PARTITION;
 import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
@@ -92,7 +93,7 @@ public class ExchangeMerger
         for (int i = 0; i < branches.size(); i++) {
             TraversalState branch = branches.get(i);
             Operation nextOperation = branch.nextOperation().operation();
-            if (nextOperation instanceof Exchange exchange && exchange.arguments().size() == 1 && isFullPassthroughFieldSelector(exchange.regions().getFirst().getOnlyBlock()) && isDeterministic(exchange)) {
+            if (nextOperation instanceof Exchange exchange && exchange.arguments().size() == 1 && isFullPassthroughFieldSelector(getOnlyElement(exchange.inputFieldSelectors())) && isDeterministic(exchange)) {
                 // rebase each block on the unified input type. For the input field selector, get a full-passthrough selector on the unified operation type
                 ImmutableList.Builder<Block> rebasedBlocksBuilder = ImmutableList.builder();
                 rebasedBlocksBuilder.add(getFullPassthroughFieldSelector("^inputSelector", relationRowType(trinoType(unifiedOperation.result().type())), nameAllocator));

@@ -137,15 +137,11 @@ public class JoinMerger
                         !Objects.equals(SPILLABLE.getAttribute(subgroupRepresentativeJoin.attributes()), SPILLABLE.getAttribute(halfRebasedJoin.attributes()))) {
                     continue;
                 }
-                // compare blocks: criteria selector and hash selector
-                if (sourceIndex == 0 &&
-                        (!blocksSemanticallyEquivalent(subgroupRepresentativeJoin.regions().get(0).getOnlyBlock(), halfRebasedJoin.regions().get(0).getOnlyBlock()) ||
-                                !blocksSemanticallyEquivalent(subgroupRepresentativeJoin.regions().get(3).getOnlyBlock(), halfRebasedJoin.regions().get(3).getOnlyBlock()))) {
+                // compare criteria selectors
+                if (sourceIndex == 0 && !blocksSemanticallyEquivalent(subgroupRepresentativeJoin.leftCriteriaSelector(), halfRebasedJoin.leftCriteriaSelector())) {
                     continue;
                 }
-                if (sourceIndex == 1 &&
-                        (!blocksSemanticallyEquivalent(subgroupRepresentativeJoin.regions().get(1).getOnlyBlock(), halfRebasedJoin.regions().get(1).getOnlyBlock()) ||
-                                !blocksSemanticallyEquivalent(subgroupRepresentativeJoin.regions().get(4).getOnlyBlock(), halfRebasedJoin.regions().get(4).getOnlyBlock()))) {
+                if (sourceIndex == 1 && !blocksSemanticallyEquivalent(subgroupRepresentativeJoin.rightCriteriaSelector(), halfRebasedJoin.rightCriteriaSelector())) {
                     continue;
                 }
                 // compare TraversalContext.predicateToApply and consider the join type. The inner side predicate cannot be pulled through join, so it must be equal for all merged joins.
@@ -253,18 +249,14 @@ public class JoinMerger
                     boolean foundMatchingSubgroup = false;
                     for (Map.Entry<Integer, Join> subgroupRepresentative : hangingSubgroupRepresentatives.entrySet()) {
                         Join subgroupRepresentativeJoin = subgroupRepresentative.getValue();
-                        // compare blocks: criteria selector and hash selector from the hanging group side, and filter
-                        if (hangingBranch.nextOperation().sourceIndex() == 0 &&
-                                (!blocksSemanticallyEquivalent(subgroupRepresentativeJoin.regions().get(0).getOnlyBlock(), rebasedJoin.regions().get(0).getOnlyBlock()) ||
-                                        !blocksSemanticallyEquivalent(subgroupRepresentativeJoin.regions().get(3).getOnlyBlock(), rebasedJoin.regions().get(3).getOnlyBlock()))) {
+                        // compare blocks: criteria selector from the hanging group side, and filter
+                        if (hangingBranch.nextOperation().sourceIndex() == 0 && !blocksSemanticallyEquivalent(subgroupRepresentativeJoin.leftCriteriaSelector(), rebasedJoin.leftCriteriaSelector())) {
                             continue;
                         }
-                        if (hangingBranch.nextOperation().sourceIndex() == 1 &&
-                                (!blocksSemanticallyEquivalent(subgroupRepresentativeJoin.regions().get(1).getOnlyBlock(), rebasedJoin.regions().get(1).getOnlyBlock()) ||
-                                        !blocksSemanticallyEquivalent(subgroupRepresentativeJoin.regions().get(4).getOnlyBlock(), rebasedJoin.regions().get(4).getOnlyBlock()))) {
+                        if (hangingBranch.nextOperation().sourceIndex() == 1 && !blocksSemanticallyEquivalent(subgroupRepresentativeJoin.rightCriteriaSelector(), rebasedJoin.rightCriteriaSelector())) {
                             continue;
                         }
-                        if (!blocksSemanticallyEquivalent(subgroupRepresentativeJoin.regions().get(2).getOnlyBlock(), rebasedJoin.regions().get(2).getOnlyBlock())) {
+                        if (!blocksSemanticallyEquivalent(subgroupRepresentativeJoin.filter(), rebasedJoin.filter())) {
                             continue;
                         }
                         // compare TraversalContext.predicateToApply and consider the join type. The inner side predicate cannot be pulled through join, so it must be equal for all merged joins.
@@ -441,7 +433,7 @@ public class JoinMerger
         // additionally, they should select all fields necessary to support residual predicates
         Set<Integer> leftOutputFields = leftSource.residualStates().stream()
                 .map(branch -> rebaseBlock(
-                        branch.nextOperation().operation().regions().get(3).getOnlyBlock(),
+                        ((Join) branch.nextOperation().operation()).leftOutputSelector(),
                         relationRowType(trinoType(leftSource.unifiedOperation().result().type())),
                         branch.traversalContext().fieldMapping(),
                         nameAllocator)
@@ -465,7 +457,7 @@ public class JoinMerger
 
         Set<Integer> rightOutputFields = rightSource.residualStates().stream()
                 .map(branch -> rebaseBlock(
-                        branch.nextOperation().operation().regions().get(4).getOnlyBlock(),
+                        ((Join) branch.nextOperation().operation()).rightOutputSelector(),
                         relationRowType(trinoType(rightSource.unifiedOperation().result().type())),
                         branch.traversalContext().fieldMapping(),
                         nameAllocator)
@@ -491,7 +483,7 @@ public class JoinMerger
         Block unifiedDynamicFilterTargetSelector = concatenateFieldSelectors(
                 rightSource.residualStates().stream()
                         .map(branch -> rebaseBlock(
-                                branch.nextOperation().operation().regions().get(5).getOnlyBlock(),
+                                ((Join) branch.nextOperation().operation()).dynamicFilterTargetSelector(),
                                 relationRowType(trinoType(rightSource.unifiedOperation().result().type())),
                                 branch.traversalContext().fieldMapping(),
                                 nameAllocator)
@@ -538,9 +530,9 @@ public class JoinMerger
             Join originalJoin = (Join) leftBranch.nextOperation().operation();
 
             // compute mapping for the next operation in the branch
-            Block originalLeftOutputSelector = originalJoin.regions().get(3).getOnlyBlock();
+            Block originalLeftOutputSelector = originalJoin.leftOutputSelector();
             int originalLeftOutputFieldsCount = trinoType(originalLeftOutputSelector.getReturnedType()).getTypeParameters().size();
-            Block originalRightOutputSelector = originalJoin.regions().get(4).getOnlyBlock();
+            Block originalRightOutputSelector = originalJoin.rightOutputSelector();
             FieldMapping unifiedLeftMapping = getPassthroughMapping(originalLeftOutputSelector)
                     .inverse()
                     .composeWith(leftBranch.traversalContext().fieldMapping())
