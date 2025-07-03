@@ -748,7 +748,7 @@ public abstract class BaseSnowflakeConnectorTest
     @Override
     protected String errorMessageForInsertIntoNotNullColumn(String columnName)
     {
-        return "NULL result in a non-nullable column";
+        return ".* failed on column NOT_NULL_COL with error: NULL result in a non-nullable column";
     }
 
     @Override
