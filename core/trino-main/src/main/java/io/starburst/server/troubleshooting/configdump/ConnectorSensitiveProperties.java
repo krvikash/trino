@@ -419,7 +419,6 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "sentry.ldap.password",
                             "web-ui.shared-secret"))
             .put("hudi",
                     ImmutableSet.of(
@@ -1284,7 +1283,6 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "sentry.ldap.password",
                             "web-ui.shared-secret"))
             .buildOrThrow();
 
