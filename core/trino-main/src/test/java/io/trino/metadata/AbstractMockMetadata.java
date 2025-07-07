@@ -1026,6 +1026,9 @@ public abstract class AbstractMockMetadata
     @Override
     public RedirectionAwareTableHandle getRedirectionAwareTableHandle(Session session, QualifiedObjectName tableName, Optional<TableVersion> startVersion, Optional<TableVersion> endVersion)
     {
+        if (startVersion.isEmpty() || endVersion.isEmpty()) {
+            return noRedirection(getTableHandle(session, tableName));
+        }
         throw new UnsupportedOperationException();
     }
 
