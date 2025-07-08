@@ -46,8 +46,7 @@ public class ParquetSchemaDiscovery
     @Override
     public DiscoveredColumns discoverColumns(DiscoveryInput stream, Map<String, String> options)
     {
-        try {
-            ParquetDataSource dataSource = createParquetDataSource(stream);
+        try (ParquetDataSource dataSource = createParquetDataSource(stream)) {
             ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
             MessageType schema = metadata.getFileMetaData().getSchema();
             ImmutableList<Column> columns = schema.asGroupType()

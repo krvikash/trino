@@ -38,6 +38,7 @@ import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
 import org.joda.time.DateTimeZone;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
@@ -65,6 +66,7 @@ import static java.util.stream.Collectors.toList;
 import static org.joda.time.DateTimeZone.UTC;
 
 public class OrcReader
+        implements Closeable
 {
     public static final int MAX_BATCH_SIZE = 8 * 1024;
     public static final int INITIAL_BATCH_SIZE = 1;
@@ -438,6 +440,13 @@ public class OrcReader
         catch (IOException e) {
             throw new OrcCorruptionException(e, input.getId(), "Validation failed");
         }
+    }
+
+    @Override
+    public void close()
+            throws IOException
+    {
+        orcDataSource.close();
     }
 
     public interface ProjectedLayout

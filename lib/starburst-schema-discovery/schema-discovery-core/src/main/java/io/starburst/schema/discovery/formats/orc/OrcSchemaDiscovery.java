@@ -50,15 +50,19 @@ public class OrcSchemaDiscovery
     @Override
     public DiscoveredColumns discoverColumns(DiscoveryInput stream, Map<String, String> options)
     {
-        OrcReader orcReader = createOrcReader(stream);
-        List<OrcType> collect = orcReader.getFooter().getTypes().stream().collect(toImmutableList());
-        ImmutableList<Column> columns = orcReader.getRootColumn()
-                .getNestedColumns()
-                .stream()
-                .map(orcColumn -> map(orcColumn, collect))
-                .flatMap(Optional::stream)
-                .collect(toImmutableList());
-        return new DiscoveredColumns(columns, ImmutableList.of());
+        try (OrcReader orcReader = createOrcReader(stream)) {
+            List<OrcType> collect = orcReader.getFooter().getTypes().stream().collect(toImmutableList());
+            ImmutableList<Column> columns = orcReader.getRootColumn()
+                    .getNestedColumns()
+                    .stream()
+                    .map(orcColumn -> map(orcColumn, collect))
+                    .flatMap(Optional::stream)
+                    .collect(toImmutableList());
+            return new DiscoveredColumns(columns, ImmutableList.of());
+        }
+        catch (IOException e) {
+            throw new TrinoException(IO, e);
+        }
     }
 
     @Override
