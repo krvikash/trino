@@ -4,13 +4,13 @@
 
     <parent>
         <groupId>io.starburst.stargate.buffer</groupId>
-        <artifactId>galaxy-buffer-root</artifactId>
-        <version>${revision}</version>
+        <artifactId>starburst-buffer-root</artifactId>
+        <version>476-cork-1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>galaxy-buffer-client-common</artifactId>
-    <description>Stargate Buffer Service Client Commons</description>
+    <artifactId>starburst-buffer-client-common</artifactId>
+    <description>Starburst Buffer Service Client Commons</description>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>

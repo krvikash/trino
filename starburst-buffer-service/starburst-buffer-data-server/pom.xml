@@ -4,19 +4,19 @@
 
     <parent>
         <groupId>io.starburst.stargate.buffer</groupId>
-        <artifactId>galaxy-buffer-root</artifactId>
-        <version>${revision}</version>
+        <artifactId>starburst-buffer-root</artifactId>
+        <version>476-cork-1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>galaxy-buffer-data-server</artifactId>
-    <description>Stargate Buffer Service Data Server</description>
+    <artifactId>starburst-buffer-data-server</artifactId>
+    <description>Starburst Buffer Service Data Server</description>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>
         <air.readme.file>README.md</air.readme.file>
         <main-class>io.starburst.stargate.buffer.data.server.DataServer</main-class>
-        <!-- TODO enable @GuardedBy checks in galaxy-buffer-data-server https://github.com/starburstdata/galaxy-trino/issues/2081 -->
+        <!-- TODO enable @GuardedBy checks in starburst-buffer-data-server https://github.com/starburstdata/galaxy-trino/issues/2081 -->
         <trino.error-prone.guarded-by>WARN</trino.error-prone.guarded-by>
     </properties>
 
@@ -24,7 +24,7 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>galaxy-buffer-data-common</artifactId>
+            <artifactId>starburst-buffer-data-common</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -258,22 +258,22 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-client-common</artifactId>
+            <artifactId>starburst-buffer-client-common</artifactId>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-data-client</artifactId>
+            <artifactId>starburst-buffer-data-client</artifactId>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-discovery-client</artifactId>
+            <artifactId>starburst-buffer-discovery-client</artifactId>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-status</artifactId>
+            <artifactId>starburst-buffer-status</artifactId>
         </dependency>
 
         <dependency>

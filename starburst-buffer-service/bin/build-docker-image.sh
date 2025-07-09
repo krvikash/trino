@@ -64,10 +64,10 @@ fi
 
 case ${projectName} in
   "data-server")
-    moduleName="galaxy-buffer-data-server"
+    moduleName="starburst-buffer-data-server"
     ;;
   "discovery-server")
-    moduleName="galaxy-buffer-discovery-server"
+    moduleName="starburst-buffer-discovery-server"
     ;;
   *)
     echo "Unsupported projectName"

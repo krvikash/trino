@@ -4,12 +4,12 @@
 
     <parent>
         <groupId>io.starburst.stargate.buffer</groupId>
-        <artifactId>galaxy-buffer-root</artifactId>
-        <version>${revision}</version>
+        <artifactId>starburst-buffer-root</artifactId>
+        <version>476-cork-1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>galaxy-buffer-exchange-tests</artifactId>
+    <artifactId>starburst-buffer-exchange-tests</artifactId>
     <description>Buffer Service Data Client</description>
 
     <properties>
@@ -137,49 +137,49 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-client-common</artifactId>
+            <artifactId>starburst-buffer-client-common</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-data-client</artifactId>
+            <artifactId>starburst-buffer-data-client</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-data-server</artifactId>
+            <artifactId>starburst-buffer-data-server</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-discovery-client</artifactId>
+            <artifactId>starburst-buffer-discovery-client</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-discovery-server</artifactId>
+            <artifactId>starburst-buffer-discovery-server</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-exchange</artifactId>
+            <artifactId>starburst-buffer-exchange</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-mocking</artifactId>
+            <artifactId>starburst-buffer-mocking</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-testing</artifactId>
+            <artifactId>starburst-buffer-testing</artifactId>
             <scope>test</scope>
         </dependency>
 

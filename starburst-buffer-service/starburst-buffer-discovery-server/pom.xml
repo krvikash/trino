@@ -4,12 +4,12 @@
 
     <parent>
         <groupId>io.starburst.stargate.buffer</groupId>
-        <artifactId>galaxy-buffer-root</artifactId>
-        <version>${revision}</version>
+        <artifactId>starburst-buffer-root</artifactId>
+        <version>476-cork-1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>galaxy-buffer-discovery-server</artifactId>
+    <artifactId>starburst-buffer-discovery-server</artifactId>
     <description>Buffer Service Discovery Server</description>
 
     <properties>
@@ -109,12 +109,12 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-client-common</artifactId>
+            <artifactId>starburst-buffer-client-common</artifactId>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-discovery-client</artifactId>
+            <artifactId>starburst-buffer-discovery-client</artifactId>
         </dependency>
 
         <dependency>

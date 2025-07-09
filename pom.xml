@@ -139,6 +139,7 @@
         <module>plugin/trino-vertica</module>
         <module>service/trino-proxy</module>
         <module>service/trino-verifier</module>
+        <module>starburst-buffer-service</module>
         <module>testing/starburst-tests-odbc</module>
         <module>testing/starburst-trino-testing</module>
         <module>testing/trino-benchmark-queries</module>
@@ -466,6 +467,12 @@
                         <artifactId>commons-logging</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>com.datadoghq</groupId>
+                <artifactId>dd-java-agent</artifactId>
+                <version>1.49.0</version>
             </dependency>
 
             <dependency>

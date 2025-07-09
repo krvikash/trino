@@ -5,36 +5,29 @@
     <parent>
         <groupId>io.trino</groupId>
         <artifactId>trino-root</artifactId>
-        <version>${revision}</version>
+        <version>476-cork-1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>io.starburst.stargate.buffer</groupId>
-    <artifactId>galaxy-buffer-root</artifactId>
+    <artifactId>starburst-buffer-root</artifactId>
     <packaging>pom</packaging>
 
-    <description>Stargate Buffer Service</description>
-    <url>https://github.com/starburstdata/stargate-buffer-service</url>
+    <description>Starburst Buffer Service</description>
 
     <modules>
-        <module>galaxy-buffer-client-common</module>
-        <module>galaxy-buffer-data-client</module>
-        <module>galaxy-buffer-data-common</module>
-        <module>galaxy-buffer-data-server</module>
-        <module>galaxy-buffer-discovery-client</module>
-        <module>galaxy-buffer-discovery-server</module>
-        <module>galaxy-buffer-exchange</module>
-        <module>galaxy-buffer-exchange-tests</module>
-        <module>galaxy-buffer-mocking</module>
-        <module>galaxy-buffer-status</module>
-        <module>galaxy-buffer-testing</module>
+        <module>starburst-buffer-client-common</module>
+        <module>starburst-buffer-data-client</module>
+        <module>starburst-buffer-data-common</module>
+        <module>starburst-buffer-data-server</module>
+        <module>starburst-buffer-discovery-client</module>
+        <module>starburst-buffer-discovery-server</module>
+        <module>starburst-buffer-exchange</module>
+        <module>starburst-buffer-exchange-tests</module>
+        <module>starburst-buffer-mocking</module>
+        <module>starburst-buffer-status</module>
+        <module>starburst-buffer-testing</module>
     </modules>
-
-    <scm>
-        <connection>scm:git:git://github.com/starburstdata/stargate-buffer-service.git</connection>
-        <tag>HEAD</tag>
-        <url>https://github.com/starburstdata/stargate-buffer-service</url>
-    </scm>
 
     <distributionManagement>
         <repository>
@@ -49,7 +42,7 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
-        <air.license.header-file>${air.main.basedir}/galaxy-buffer-service/src/license/starburst-header.txt</air.license.header-file>
+        <air.license.header-file>${air.main.basedir}/starburst-buffer-service/src/license/starburst-header.txt</air.license.header-file>
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
     </properties>
 
@@ -58,60 +51,60 @@
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-client-common</artifactId>
+                <artifactId>starburst-buffer-client-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-data-client</artifactId>
+                <artifactId>starburst-buffer-data-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-data-server</artifactId>
+                <artifactId>starburst-buffer-data-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-discovery-client</artifactId>
+                <artifactId>starburst-buffer-discovery-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-discovery-server</artifactId>
+                <artifactId>starburst-buffer-discovery-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-exchange</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-exchange-tests</artifactId>
+                <artifactId>starburst-buffer-exchange</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-mocking</artifactId>
+                <artifactId>starburst-buffer-exchange-tests</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-status</artifactId>
+                <artifactId>starburst-buffer-mocking</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-testing</artifactId>
+                <artifactId>starburst-buffer-status</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>starburst-buffer-testing</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

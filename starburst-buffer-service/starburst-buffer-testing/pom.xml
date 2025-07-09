@@ -4,12 +4,12 @@
 
     <parent>
         <groupId>io.starburst.stargate.buffer</groupId>
-        <artifactId>galaxy-buffer-root</artifactId>
-        <version>${revision}</version>
+        <artifactId>starburst-buffer-root</artifactId>
+        <version>476-cork-1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>galaxy-buffer-testing</artifactId>
+    <artifactId>starburst-buffer-testing</artifactId>
     <description>Buffer Service Testing Utils that don't depend on trino-main</description>
 
     <properties>
@@ -49,17 +49,17 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-data-server</artifactId>
+            <artifactId>starburst-buffer-data-server</artifactId>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-discovery-server</artifactId>
+            <artifactId>starburst-buffer-discovery-server</artifactId>
         </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-status</artifactId>
+            <artifactId>starburst-buffer-status</artifactId>
         </dependency>
 
         <dependency>

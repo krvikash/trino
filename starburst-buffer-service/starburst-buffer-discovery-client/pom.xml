@@ -4,13 +4,13 @@
 
     <parent>
         <groupId>io.starburst.stargate.buffer</groupId>
-        <artifactId>galaxy-buffer-root</artifactId>
-        <version>${revision}</version>
+        <artifactId>starburst-buffer-root</artifactId>
+        <version>476-cork-1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>galaxy-buffer-status</artifactId>
-    <description>Stargate Buffer Service Commons</description>
+    <artifactId>starburst-buffer-discovery-client</artifactId>
+    <description>Buffer Service Discovery Client</description>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>
@@ -18,18 +18,24 @@
 
     <dependencies>
         <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>starburst-buffer-client-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.google.inject</groupId>
-            <artifactId>guice</artifactId>
+            <groupId>io.airlift</groupId>
+            <artifactId>http-client</artifactId>
         </dependency>
 
         <dependency>
             <groupId>io.airlift</groupId>
-            <artifactId>jaxrs</artifactId>
+            <artifactId>json</artifactId>
         </dependency>
 
         <dependency>
@@ -40,6 +46,13 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>junit-extensions</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- for testing -->
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>testing</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -61,5 +74,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
 </project>

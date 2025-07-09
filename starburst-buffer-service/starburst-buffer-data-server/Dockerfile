@@ -1,7 +1,7 @@
 ARG JDK_VERSION=19
 FROM 843985043183.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/eclipse-temurin:${JDK_VERSION}-jdk
 
-ARG MODULE_NAME=galaxy-buffer-data-server
+ARG MODULE_NAME=starburst-buffer-data-server
 ARG PROJECT_NAME=data-server
 ARG PROJECT_VERSION
 ARG CHOWN="${PROJECT_NAME}:${PROJECT_NAME}"
