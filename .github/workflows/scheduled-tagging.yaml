@@ -1,0 +1,30 @@
+name: Scheduled tagging
+
+on:
+  schedule:
+    - cron: '0 5 * * *' # Runs daily at 5:00 UTC
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  tag:
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-1gb-amd64, latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "starburstdata-automation"
+          git config --global user.email "starburstdata-automation@starburstdata.com"
+
+      - name: Create tag
+        run: |
+          PROJECT_VERSION=$(yq .project.version pom.xml)
+          MAJOR_VERSION=$(echo "${PROJECT_VERSION}" | grep -o '^[0-9]\+')
+          TAG="${MAJOR_VERSION}.$(date -u +'%Y-%m-%dT%H%M')"
+          git tag "$TAG"
+          git push origin "$TAG"
