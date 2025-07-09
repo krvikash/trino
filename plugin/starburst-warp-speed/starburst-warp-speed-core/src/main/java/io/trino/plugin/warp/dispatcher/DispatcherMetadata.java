@@ -1390,6 +1390,36 @@ public class DispatcherMetadata
     }
 
     @Override
+    public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Map<String, Object> properties)
+    {
+        proxiedConnectorMetadata.createBranch(session, tableHandle, branch, properties);
+    }
+
+    @Override
+    public void dropBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch)
+    {
+        proxiedConnectorMetadata.dropBranch(session, tableHandle, branch);
+    }
+
+    @Override
+    public void fastForwardBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String sourceBranch, String targetBranch)
+    {
+        proxiedConnectorMetadata.fastForwardBranch(session, tableHandle, sourceBranch, targetBranch);
+    }
+
+    @Override
+    public Collection<String> listBranches(ConnectorSession session, SchemaTableName tableName)
+    {
+        return proxiedConnectorMetadata.listBranches(session, tableName);
+    }
+
+    @Override
+    public boolean branchExists(ConnectorSession session, SchemaTableName tableName, String branch)
+    {
+        return proxiedConnectorMetadata.branchExists(session, tableName, branch);
+    }
+
+    @Override
     public Map<SchemaTableName, RelationType> getRelationTypes(ConnectorSession session, Optional<String> schemaName)
     {
         return proxiedConnectorMetadata.getRelationTypes(session, schemaName);
