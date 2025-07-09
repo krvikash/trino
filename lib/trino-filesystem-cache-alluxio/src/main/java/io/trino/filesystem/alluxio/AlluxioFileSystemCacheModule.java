@@ -22,6 +22,7 @@ import io.trino.filesystem.cache.CachingHostAddressProvider;
 import io.trino.filesystem.cache.ConsistentHashingHostAddressProvider;
 import io.trino.filesystem.cache.ConsistentHashingHostAddressProviderConfig;
 import io.trino.filesystem.cache.TrinoFileSystemCache;
+import io.trino.spi.NodeManager;
 import io.trino.spi.catalog.CatalogName;
 
 import java.util.Properties;
@@ -29,16 +30,17 @@ import java.util.Properties;
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static java.util.Objects.requireNonNull;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class AlluxioFileSystemCacheModule
         extends AbstractConfigurationAwareModule
 {
-    private final boolean isCoordinator;
+    private final NodeManager nodeManager;
 
-    public AlluxioFileSystemCacheModule(boolean isCoordinator)
+    public AlluxioFileSystemCacheModule(NodeManager nodeManager)
     {
-        this.isCoordinator = isCoordinator;
+        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
     }
 
     @Override
@@ -51,7 +53,8 @@ public class AlluxioFileSystemCacheModule
         newExporter(binder).export(AlluxioCacheStats.class)
                 .as(generator -> generator.generatedNameOf(AlluxioCacheStats.class, catalogName.get().toString()));
 
-        if (isCoordinator) {
+        if (nodeManager.getCurrentNode().isCoordinator()) {
+            binder.bind(NodeManager.class).toInstance(nodeManager);
             newOptionalBinder(binder, CachingHostAddressProvider.class).setBinding().to(ConsistentHashingHostAddressProvider.class).in(SINGLETON);
         }
         binder.bind(TrinoFileSystemCache.class).to(AlluxioFileSystemCache.class).in(SINGLETON);
