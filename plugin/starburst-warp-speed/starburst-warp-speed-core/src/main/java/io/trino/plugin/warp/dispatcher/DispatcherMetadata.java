@@ -826,6 +826,24 @@ public class DispatcherMetadata
     }
 
     @Override
+    public void grantTableBranchPrivileges(ConnectorSession session, SchemaTableName tableName, String branchName, Set<Privilege> privileges, TrinoPrincipal grantee, boolean grantOption)
+    {
+        proxiedConnectorMetadata.grantTableBranchPrivileges(session, tableName, branchName, privileges, grantee, grantOption);
+    }
+
+    @Override
+    public void denyTableBranchPrivileges(ConnectorSession session, SchemaTableName tableName, String branchName, Set<Privilege> privileges, TrinoPrincipal grantee)
+    {
+        proxiedConnectorMetadata.denyTableBranchPrivileges(session, tableName, branchName, privileges, grantee);
+    }
+
+    @Override
+    public void revokeTableBranchPrivileges(ConnectorSession session, SchemaTableName tableName, String branchName, Set<Privilege> privileges, TrinoPrincipal grantee, boolean grantOption)
+    {
+        proxiedConnectorMetadata.revokeTableBranchPrivileges(session, tableName, branchName, privileges, grantee, grantOption);
+    }
+
+    @Override
     public ConnectorTableProperties getTableProperties(ConnectorSession session, ConnectorTableHandle table)
     {
         return proxiedConnectorMetadata.getTableProperties(
