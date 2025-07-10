@@ -72,13 +72,15 @@ final class TestIcebergBranching
             assertBranch(table.getName(), "main");
 
             assertUpdate("CREATE BRANCH \"" + "test-branch" + "\" IN TABLE " + table.getName());
-            String table1 = table.getName();
-            assertUpdate("CREATE BRANCH \"" + "TEST-BRANCH" + "\" IN TABLE " + table1);
+            assertUpdate("CREATE BRANCH \"" + "TEST-BRANCH" + "\" IN TABLE " + table.getName());
             assertBranch(table.getName(), "main", "test-branch", "TEST-BRANCH");
 
             assertUpdate("DROP BRANCH \"" + "test-branch" + "\" IN TABLE " + table.getName());
-            String table3 = table.getName();
-            assertUpdate("DROP BRANCH \"" + "TEST-BRANCH" + "\" IN TABLE " + table3);
+            assertUpdate("DROP BRANCH \"" + "TEST-BRANCH" + "\" IN TABLE " + table.getName());
+
+            assertQueryFails("DROP BRANCH \"" + "test-branch" + "\" IN TABLE " + table.getName(), ".*Branch 'test-branch' does not exist");
+            assertQueryFails("DROP BRANCH \"" + "TEST-BRANCH" + "\" IN TABLE " + table.getName(), ".*Branch 'TEST-BRANCH' does not exist");
+
             assertBranch(table.getName(), "main");
         }
     }
@@ -134,6 +136,17 @@ final class TestIcebergBranching
             assertUpdate("ALTER BRANCH main IN TABLE " + table.getName() + " FAST FORWARD TO dev");
             assertQueryReturnsEmptyResult("SELECT * FROM " + table.getName());
             assertQueryReturnsEmptyResult("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'dev'");
+        }
+    }
+
+    @Test
+    void testFastForwardSameBranch()
+    {
+        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_fast_forward", "AS SELECT 1 x")) {
+            assertBranch(table.getName(), "main");
+
+            assertUpdate("ALTER BRANCH main IN TABLE " + table.getName() + " FAST FORWARD TO main");
+            assertBranch(table.getName(), "main");
         }
     }
 
