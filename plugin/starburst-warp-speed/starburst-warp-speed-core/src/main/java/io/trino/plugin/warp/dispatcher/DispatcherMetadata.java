@@ -1390,6 +1390,20 @@ public class DispatcherMetadata
     }
 
     @Override
+    public void setDefaultValue(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle column, String defaultValue)
+    {
+        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
+        proxiedConnectorMetadata.setDefaultValue(session, dispatcherTableHandle.getProxyConnectorTableHandle(), column, defaultValue);
+    }
+
+    @Override
+    public void dropDefaultValue(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
+    {
+        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
+        proxiedConnectorMetadata.dropDefaultValue(session, dispatcherTableHandle.getProxyConnectorTableHandle(), columnHandle);
+    }
+
+    @Override
     public Collection<FunctionMetadata> listFunctions(ConnectorSession session, String schemaName)
     {
         return proxiedConnectorMetadata.listFunctions(session, schemaName);

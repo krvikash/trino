@@ -369,6 +369,18 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public void setDefaultValue(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle column, String defaultValue)
+    {
+        delegate.setDefaultValue(session, tableHandle, column, defaultValue);
+    }
+
+    @Override
+    public void dropDefaultValue(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
+    {
+        delegate.dropDefaultValue(session, tableHandle, columnHandle);
+    }
+
+    @Override
     public void setColumnType(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle column, Type type)
     {
         delegate.setColumnType(session, getDelegate(tableHandle), column, type);
