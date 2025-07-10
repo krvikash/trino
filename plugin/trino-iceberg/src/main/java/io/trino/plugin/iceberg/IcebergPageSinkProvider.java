@@ -75,6 +75,7 @@ public class IcebergPageSinkProvider
     private final IcebergPageSourceProviderFactory pageSourceProviderFactory;
     private final DataSize sortingFileWriterBufferSize;
     private final int sortingFileWriterMaxOpenFiles;
+    private final Optional<String> sortingFileWriterLocalStagingPath;
     private final TypeManager typeManager;
     private final PageSorter pageSorter;
     private final ModelClientProvider embeddingClientProvider;
@@ -87,6 +88,7 @@ public class IcebergPageSinkProvider
             PageIndexerFactory pageIndexerFactory,
             IcebergPageSourceProviderFactory pageSourceProviderFactory,
             SortingFileWriterConfig sortingFileWriterConfig,
+            IcebergConfig icebergConfig,
             TypeManager typeManager,
             PageSorter pageSorter,
             ModelClientProvider embeddingClientProvider)
@@ -98,6 +100,7 @@ public class IcebergPageSinkProvider
         this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
         this.sortingFileWriterBufferSize = sortingFileWriterConfig.getWriterSortBufferSize();
         this.sortingFileWriterMaxOpenFiles = sortingFileWriterConfig.getMaxOpenSortFiles();
+        this.sortingFileWriterLocalStagingPath = icebergConfig.getSortedWritingLocalStagingPath();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.embeddingClientProvider = requireNonNull(embeddingClientProvider, "embeddingClientProvider is null");
@@ -142,6 +145,7 @@ public class IcebergPageSinkProvider
                 tableHandle.sortOrder(),
                 sortingFileWriterBufferSize,
                 sortingFileWriterMaxOpenFiles,
+                sortingFileWriterLocalStagingPath,
                 typeManager,
                 pageSorter);
     }
@@ -175,6 +179,7 @@ public class IcebergPageSinkProvider
                         optimizeHandle.sortOrder(),
                         sortingFileWriterBufferSize,
                         sortingFileWriterMaxOpenFiles,
+                        sortingFileWriterLocalStagingPath,
                         typeManager,
                         pageSorter);
             case GENERATE_EMBEDDINGS:
@@ -319,6 +324,7 @@ public class IcebergPageSinkProvider
                 generateEmbeddingsHandle.sortOrder(),
                 sortingFileWriterBufferSize,
                 sortingFileWriterMaxOpenFiles,
+                sortingFileWriterLocalStagingPath,
                 typeManager,
                 pageSorter);
 
