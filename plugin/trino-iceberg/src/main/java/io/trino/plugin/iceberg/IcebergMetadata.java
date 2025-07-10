@@ -399,6 +399,7 @@ import static io.trino.plugin.iceberg.util.IcebergDefaultValues.toIcebergLiteral
 import static io.trino.spi.StandardErrorCode.COLUMN_ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.COLUMN_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
+import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
 import static io.trino.spi.StandardErrorCode.INVALID_ANALYZE_PROPERTY;
 import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
 import static io.trino.spi.StandardErrorCode.INVALID_PROCEDURE_ARGUMENT;
@@ -3009,6 +3010,74 @@ public class IcebergMetadata
     private static Term toIcebergTerm(Schema schema, PartitionField partitionField)
     {
         return Expressions.transform(schema.findColumnName(partitionField.sourceId()), partitionField.transform());
+    }
+
+    @Override
+    public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Map<String, Object> properties)
+    {
+        IcebergTableHandle table = (IcebergTableHandle) tableHandle;
+        BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        try {
+            icebergTable.manageSnapshots()
+                    .createBranch(branch)
+                    .commit();
+        }
+        catch (Exception e) {
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to create branch", e);
+        }
+    }
+
+    @Override
+    public void dropBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch)
+    {
+        if (branch.equals("main")) {
+            throw new TrinoException(NOT_SUPPORTED, "Cannot drop 'main' branch");
+        }
+        IcebergTableHandle table = (IcebergTableHandle) tableHandle;
+        BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        try {
+            icebergTable.manageSnapshots()
+                    .removeBranch(branch)
+                    .commit();
+        }
+        catch (Exception e) {
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop branch", e);
+        }
+    }
+
+    @Override
+    public void fastForwardBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String from, String to)
+    {
+        IcebergTableHandle table = (IcebergTableHandle) tableHandle;
+        Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        try {
+            icebergTable.manageSnapshots()
+                    .fastForwardBranch(from, to)
+                    .commit();
+        }
+        catch (IllegalArgumentException e) {
+            throw new TrinoException(GENERIC_USER_ERROR, "Branch '%s' is not an ancestor of '%s'".formatted(from, to), e);
+        }
+        catch (Exception e) {
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to fast forward branch", e);
+        }
+    }
+
+    @Override
+    public Collection<String> listBranches(ConnectorSession session, SchemaTableName tableName)
+    {
+        Table icebergTable = catalog.loadTable(session, tableName);
+        return icebergTable.refs().entrySet().stream()
+                .filter(ref -> ref.getValue().isBranch())
+                .map(Map.Entry::getKey)
+                .collect(toImmutableList());
+    }
+
+    @Override
+    public boolean branchExists(ConnectorSession session, SchemaTableName tableName, String branch)
+    {
+        SnapshotRef ref = catalog.loadTable(session, tableName).refs().get(branch);
+        return ref != null && ref.isBranch();
     }
 
     @Override

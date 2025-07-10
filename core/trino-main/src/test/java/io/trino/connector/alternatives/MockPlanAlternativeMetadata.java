@@ -720,6 +720,36 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Map<String, Object> properties)
+    {
+        delegate.createBranch(session, tableHandle, branch, properties);
+    }
+
+    @Override
+    public void dropBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch)
+    {
+        delegate.dropBranch(session, tableHandle, branch);
+    }
+
+    @Override
+    public void fastForwardBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String sourceBranch, String targetBranch)
+    {
+        delegate.fastForwardBranch(session, tableHandle, sourceBranch, targetBranch);
+    }
+
+    @Override
+    public Collection<String> listBranches(ConnectorSession session, SchemaTableName tableName)
+    {
+        return delegate.listBranches(session, tableName);
+    }
+
+    @Override
+    public boolean branchExists(ConnectorSession session, SchemaTableName tableName, String branch)
+    {
+        return delegate.branchExists(session, tableName, branch);
+    }
+
+    @Override
     public boolean roleExists(ConnectorSession session, String role)
     {
         return delegate.roleExists(session, role);
