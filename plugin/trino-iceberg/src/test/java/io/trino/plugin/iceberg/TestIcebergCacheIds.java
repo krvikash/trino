@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.iceberg;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
@@ -485,13 +484,9 @@ public class TestIcebergCacheIds
     private static IcebergColumnHandle newPrimitiveColumn(Type type)
     {
         int id = nextColumnId.getAndIncrement();
-        return new IcebergColumnHandle(
-                primitiveColumnIdentity(id, "column_" + id),
-                type,
-                ImmutableList.of(),
-                type,
-                true,
-                Optional.empty());
+        return IcebergColumnHandle.optional(primitiveColumnIdentity(id, "column_" + id))
+                .columnType(type)
+                .build();
     }
 
     public static <T> JsonCodec<T> createJsonCodec(Class<T> clazz)
