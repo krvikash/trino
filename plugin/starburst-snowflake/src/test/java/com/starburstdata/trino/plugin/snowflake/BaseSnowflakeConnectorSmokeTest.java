@@ -10,7 +10,6 @@
 package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.base.Suppliers;
-import io.trino.Session;
 import io.trino.plugin.jdbc.BaseJdbcConnectorSmokeTest;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.function.Supplier;
 
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.SNOWFLAKE_CATALOG;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -76,14 +74,6 @@ public abstract class BaseSnowflakeConnectorSmokeTest
                 .matches("VALUES 100");
 
         assertUpdate("DROP TABLE " + tableName);
-    }
-
-    @Override
-    protected Session getSession()
-    {
-        return Session.builder(super.getSession())
-                .setCatalogSessionProperty(SNOWFLAKE_CATALOG, "non_transactional_merge", "true")
-                .build();
     }
 
     @Override

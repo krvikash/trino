@@ -15,10 +15,12 @@ import com.google.inject.Module;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeServer;
 import com.starburstdata.trino.plugin.snowflake.TestDatabase;
+import io.trino.Session;
 import io.trino.operator.RetryPolicy;
 import io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin;
 import io.trino.plugin.jdbc.BaseJdbcFailureRecoveryTest;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.sql.SqlExecutor;
 import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -31,12 +33,12 @@ import java.util.Optional;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public abstract class BaseSnowflakeFailureRecoveryTest
         extends BaseJdbcFailureRecoveryTest
 {
     private Closer closer;
+    private SqlExecutor snowflakeExecutor;
 
     public BaseSnowflakeFailureRecoveryTest(RetryPolicy retryPolicy)
     {
@@ -56,6 +58,7 @@ public abstract class BaseSnowflakeFailureRecoveryTest
     {
         closer = Closer.create();
         TestDatabase testDB = closer.register(SnowflakeServer.createTestDatabase());
+        snowflakeExecutor = sql -> SnowflakeServer.safeExecuteOnDatabase(testDB.getName(), sql);
         return getBuilder()
                 .addExtraProperties(configProperties)
                 .withConnectorProperties(impersonationDisabled())
@@ -79,27 +82,6 @@ public abstract class BaseSnowflakeFailureRecoveryTest
 
     @Test
     @Override
-    protected void testDeleteWithSubquery()
-    {
-        assertThatThrownBy(super::testDeleteWithSubquery).hasMessageContaining("This connector does not support MERGE with transactional execution");
-    }
-
-    @Test
-    @Override
-    protected void testUpdateWithSubquery()
-    {
-        assertThatThrownBy(super::testUpdateWithSubquery).hasMessageContaining("This connector does not support MERGE with transactional execution");
-    }
-
-    @Test
-    @Override
-    protected void testMerge()
-    {
-        assertThatThrownBy(super::testMerge).hasMessageContaining("This connector does not support MERGE with transactional execution");
-    }
-
-    @Test
-    @Override
     protected void testUpdate()
     {
         // This simple update on JDBC ends up as a very simple, single-fragment, coordinator-only plan,
@@ -112,5 +94,18 @@ public abstract class BaseSnowflakeFailureRecoveryTest
                 .withSetupQuery(setupQuery)
                 .withCleanupQuery(cleanupQuery)
                 .isCoordinatorOnly();
+    }
+
+    @Override
+    protected void addPrimaryKeyForMergeTarget(Session session, String tableName, String primaryKey)
+    {
+        String schema = session.getSchema().orElseThrow();
+        snowflakeExecutor.execute("ALTER TABLE %s.%s ADD CONSTRAINT pk_%s PRIMARY KEY (%s)".formatted(schema, tableName, tableName, primaryKey));
+    }
+
+    @Override
+    protected boolean supportsMerge()
+    {
+        return true;
     }
 }

@@ -37,7 +37,6 @@ import java.util.OptionalInt;
 
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Strings.repeat;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.SNOWFLAKE_CATALOG;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -93,14 +92,6 @@ public abstract class BaseSnowflakeConnectorTest
             throws IOException
     {
         closer.close();
-    }
-
-    @Override
-    protected Session getSession()
-    {
-        return Session.builder(super.getSession())
-                .setCatalogSessionProperty(SNOWFLAKE_CATALOG, "non_transactional_merge", "true")
-                .build();
     }
 
     @Test
