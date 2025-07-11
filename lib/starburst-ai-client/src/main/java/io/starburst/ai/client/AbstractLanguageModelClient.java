@@ -81,6 +81,24 @@ public abstract class AbstractLanguageModelClient
     }
 
     @Override
+    public String generate(List<LlmMessage> messages)
+    {
+        return generateCompletion(generateModel, topLevelSystemPrompts, messages);
+    }
+
+    @Override
+    public String generate(String systemPrompt, List<LlmMessage> messages)
+    {
+        return generateCompletion(
+                generateModel,
+                ImmutableList.<String>builder()
+                        .addAll(topLevelSystemPrompts)
+                        .add(systemPrompt)
+                        .build(),
+                messages);
+    }
+
+    @Override
     public String mask(String text, List<String> labels)
     {
         return fixedCompletion(maskModelAndPrompt, formatLabelsAndText(maskModelAndPrompt.prompt(), labels, text));
@@ -129,6 +147,8 @@ public abstract class AbstractLanguageModelClient
     }
 
     protected abstract String generateCompletion(String model, List<String> systemPrompts, String prompt);
+
+    protected abstract String generateCompletion(String model, List<String> systemPrompts, List<LlmMessage> llmMessages);
 
     protected record ModelWithFixedPrompt(String name, String model, List<String> systemPrompts, String prompt) {}
 

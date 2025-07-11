@@ -9,11 +9,13 @@
  */
 package io.starburst.ai.client.bedrock;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AbstractLanguageModelClient;
+import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.PromptDao;
 import io.trino.spi.TrinoException;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
@@ -39,6 +41,7 @@ import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiOperationNameIncubatingValues.CHAT;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiSystemIncubatingValues.AWS_BEDROCK;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
+import static io.starburst.ai.client.MessageRole.USER;
 import static java.util.Objects.requireNonNull;
 
 public class AwsBedrockLanguageModelClient
@@ -77,6 +80,12 @@ public class AwsBedrockLanguageModelClient
     @Override
     protected String generateCompletion(String model, List<String> systemPrompts, String prompt)
     {
+        return generateCompletion(model, systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)));
+    }
+
+    @Override
+    protected String generateCompletion(String model, List<String> systemPrompts, List<LlmMessage> messages)
+    {
         List<SystemContentBlock> systemContentBlocks = systemPrompts.stream()
                 .map(SystemContentBlock::fromText)
                 .collect(toImmutableList());
@@ -96,10 +105,12 @@ public class AwsBedrockLanguageModelClient
                 }
                 request
                         .modelId(model)
-                        .messages(Message.builder()
-                                .role(ConversationRole.USER)
-                                .content(ContentBlock.fromText(prompt))
-                                .build())
+                        .messages(messages.stream()
+                                .map(message -> Message.builder()
+                                        .role(toConversationRole(message))
+                                        .content(ContentBlock.fromText(message.content()))
+                                        .build())
+                                .collect(toImmutableList()))
                         .inferenceConfig(config -> config
                                 .maxTokens(maxTokens.orElse(null))
                                 .temperature(temperature.orElse(null))
@@ -127,5 +138,13 @@ public class AwsBedrockLanguageModelClient
         }
 
         return response.output().message().content().getFirst().text();
+    }
+
+    private static ConversationRole toConversationRole(LlmMessage message)
+    {
+        return switch (message.role()) {
+            case USER -> ConversationRole.USER;
+            case ASSISTANT -> ConversationRole.ASSISTANT;
+        };
     }
 }

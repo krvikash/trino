@@ -9,8 +9,11 @@
  */
 package io.starburst.ai.client.openai;
 
+import com.google.common.collect.ImmutableList;
 import com.openai.client.OpenAIClient;
+import com.openai.core.JsonValue;
 import com.openai.models.chat.completions.ChatCompletion;
+import com.openai.models.chat.completions.ChatCompletionAssistantMessageParam;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
 import com.openai.models.completions.CompletionUsage;
@@ -18,6 +21,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AbstractLanguageModelClient;
+import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.PromptDao;
 import io.trino.spi.TrinoException;
 
@@ -38,6 +42,7 @@ import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiOperationNameIncubatingValues.CHAT;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiSystemIncubatingValues.OPENAI;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
+import static io.starburst.ai.client.MessageRole.USER;
 import static java.util.Objects.requireNonNull;
 
 public class OpenAiLanguageModelClient
@@ -74,6 +79,12 @@ public class OpenAiLanguageModelClient
     @Override
     protected String generateCompletion(String model, List<String> systemPrompts, String prompt)
     {
+        return generateCompletion(model, systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)));
+    }
+
+    @Override
+    protected String generateCompletion(String model, List<String> systemPrompts, List<LlmMessage> llmMessages)
+    {
         ChatCompletionCreateParams.Builder builder = ChatCompletionCreateParams.builder()
                 .model(model)
                 .seed(SEED);
@@ -88,7 +99,12 @@ public class OpenAiLanguageModelClient
             systemPrompts.forEach(builder::addDeveloperMessage);
         }
 
-        builder.addUserMessage(prompt);
+        llmMessages.forEach(llmMessage -> {
+            switch (llmMessage.role()) {
+                case USER -> builder.addUserMessage(llmMessage.content());
+                case ASSISTANT -> builder.addMessage(createAssistantMessage(llmMessage.content()));
+            }
+        });
 
         Span span = tracer.spanBuilder(CHAT + " " + model)
                 .setAttribute(GEN_AI_OPERATION_NAME, CHAT)
@@ -129,5 +145,13 @@ public class OpenAiLanguageModelClient
         }
 
         return message.content().orElse("");
+    }
+
+    private static ChatCompletionAssistantMessageParam createAssistantMessage(String content)
+    {
+        return ChatCompletionAssistantMessageParam.builder()
+                .role(JsonValue.from("assistant"))
+                .content(content)
+                .build();
     }
 }

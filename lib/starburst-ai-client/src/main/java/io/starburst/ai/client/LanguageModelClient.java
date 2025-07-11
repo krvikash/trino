@@ -23,6 +23,12 @@ public interface LanguageModelClient
 
     String generate(String systemPrompt, String prompt);
 
+    // this method is used in SEP
+    String generate(List<LlmMessage> messages);
+
+    // this method is used in SEP
+    String generate(String systemPrompt, List<LlmMessage> messages);
+
     String mask(String text, List<String> labels);
 
     String translate(String text, String language);

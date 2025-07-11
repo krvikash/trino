@@ -181,6 +181,40 @@ public class TestLanguageModelClient
                 .hasSizeLessThan(prompt.length());
     }
 
+    @ParameterizedTest
+    @MethodSource("modelIds")
+    public void testMultiMessageCompletion(String modelId)
+    {
+        List<LlmMessage> messages = ImmutableList.<LlmMessage>builder()
+                .add(new LlmMessage(MessageRole.USER, "What is the capital of England?"))
+                .add(new LlmMessage(MessageRole.ASSISTANT, "London"))
+                .add(new LlmMessage(MessageRole.USER, "And France?"))
+                .build();
+
+        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).generate(messages);
+        assertThat(result).containsIgnoringCase("paris");
+    }
+
+    @ParameterizedTest
+    @MethodSource("modelIds")
+    public void testMultiMessageCompletionWithSystemPrompt(String modelId)
+    {
+        String systemPrompt = """
+                You always use the local language name in the modern Latin alphabet for place names. For example, if
+                asked what countries are on the Iberian Peninsula, you would reply with "España" and "Portugal". If
+                asked where the autobahn is, you would reply with "Deutschland". If asked what country has the world's
+                busiest subway station, you would reply with Nihon""";
+
+        List<LlmMessage> messages = ImmutableList.<LlmMessage>builder()
+                .add(new LlmMessage(MessageRole.USER, "I will give you a capital city, reply with the country name. Madrid."))
+                .add(new LlmMessage(MessageRole.ASSISTANT, "España"))
+                .add(new LlmMessage(MessageRole.USER, "Berlin"))
+                .build();
+
+        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).generate(systemPrompt, messages);
+        assertThat(result).containsIgnoringCase("deutschland");
+    }
+
     private static String sanitize(String input)
     {
         return input
