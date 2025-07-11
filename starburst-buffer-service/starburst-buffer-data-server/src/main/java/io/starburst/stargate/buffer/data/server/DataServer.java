@@ -9,7 +9,9 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
+import com.google.inject.Module;
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.http.server.HttpServerModule;
@@ -28,6 +30,7 @@ import org.weakref.jmx.guice.MBeanModule;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
+import static io.starburst.stargate.buffer.data.server.DataServerApplicationModules.getDataServerApplicationModule;
 
 public final class DataServer
 {
@@ -42,8 +45,8 @@ public final class DataServer
         checkState(injectedVersion == null || !injectedVersion.isEmpty(), "BUFFER_DATA_SERVER_DOCKER_VERSION is set but empty");
         String version = firstNonNull(injectedVersion, DataServer.class.getPackage().getImplementationVersion());
 
-        Bootstrap app = new Bootstrap(
-                new NodeModule(),
+        ImmutableList.Builder<Module> modules = ImmutableList.builder();
+        modules.add(new NodeModule(),
                 new HttpServerModule(),
                 new JsonModule(),
                 new JaxrsModule(),
@@ -52,10 +55,10 @@ public final class DataServer
                 new JmxOpenMetricsModule(),
                 new LogJmxModule(),
                 new TracingModule("buffer-data-server", version),
-                new StatusModule(),
-                new DiscoveryApiModule(),
-                new DataServerMainModule(),
-                new SpoolingStorageModule());
+                new StatusModule());
+        modules.add(getDataServerApplicationModule());
+
+        Bootstrap app = new Bootstrap(modules.build());
 
         try {
             Injector injector = app.initialize();

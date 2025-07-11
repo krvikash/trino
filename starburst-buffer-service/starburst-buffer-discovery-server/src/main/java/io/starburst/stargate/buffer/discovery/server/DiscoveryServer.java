@@ -9,6 +9,8 @@
  */
 package io.starburst.stargate.buffer.discovery.server;
 
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Module;
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.http.server.HttpServerModule;
@@ -21,10 +23,10 @@ import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracing.TracingModule;
 import io.starburst.stargate.buffer.BufferServiceSystemRequirements;
-import io.starburst.stargate.buffer.discovery.server.failures.FailuresTrackingManagerModule;
 import org.weakref.jmx.guice.MBeanModule;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static io.starburst.stargate.buffer.discovery.server.DiscoveryServerApplicationModules.getDiscoveryServerApplicationModule;
 
 public final class DiscoveryServer
 {
@@ -35,8 +37,9 @@ public final class DiscoveryServer
     public static void main(String[] args)
     {
         BufferServiceSystemRequirements.verifySystemRequirements();
-        Bootstrap app = new Bootstrap(
-                new NodeModule(),
+
+        ImmutableList.Builder<Module> modules = ImmutableList.builder();
+        modules.add(new NodeModule(),
                 new HttpServerModule(),
                 new JsonModule(),
                 new JaxrsModule(),
@@ -45,9 +48,9 @@ public final class DiscoveryServer
                 new JmxOpenMetricsModule(),
                 new LogJmxModule(),
                 new TracingModule("buffer-discover-server", firstNonNull(DiscoveryServer.class.getPackage().getImplementationVersion(), "unknown")),
-                DiscoveryManagerModule.withSystemTicker(),
-                FailuresTrackingManagerModule.withSystemTicker(),
-                new DiscoveryServerMainModule());
+                getDiscoveryServerApplicationModule());
+
+        Bootstrap app = new Bootstrap(modules.build());
 
         try {
             app.initialize();
