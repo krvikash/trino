@@ -37,6 +37,7 @@ import java.util.OptionalInt;
 
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Strings.repeat;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.SNOWFLAKE_CATALOG;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -80,7 +81,9 @@ public abstract class BaseSnowflakeConnectorTest
                  SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
                  SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV,
                  SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
-                 SUPPORTS_JOIN_PUSHDOWN -> true;
+                 SUPPORTS_JOIN_PUSHDOWN,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_ROW_LEVEL_UPDATE -> true;
             default -> super.hasBehavior(connectorBehavior);
         };
     }
@@ -90,6 +93,64 @@ public abstract class BaseSnowflakeConnectorTest
             throws IOException
     {
         closer.close();
+    }
+
+    @Override
+    protected Session getSession()
+    {
+        return Session.builder(super.getSession())
+                .setCatalogSessionProperty(SNOWFLAKE_CATALOG, "non_transactional_merge", "true")
+                .build();
+    }
+
+    @Test
+    void testMergeWithMixedCasePrimaryKeys()
+    {
+        String schema = getSession().getSchema().orElseThrow();
+        String tableName = "test_merge_pk_different_cases_" + randomNameSuffix();
+        onRemoteDatabase().execute("CREATE TABLE " + schema + "." + tableName + " (x int, \"pK\" int NOT NULL, CONSTRAINT pk_" + tableName + " PRIMARY KEY (\"pK\"))");
+        assertUpdate("INSERT INTO " + tableName + " VALUES (1, 1), (2, 2)", 2);
+
+        assertUpdate("DELETE FROM " + tableName + " WHERE PK = 1", 1);
+        assertThat(query("SELECT CAST(x as integer) FROM " + schema + "." + tableName))
+                .matches("VALUES 2");
+
+        assertUpdate("UPDATE " + tableName + " SET x = 100 WHERE pk = 2", 1);
+        assertThat(query("SELECT CAST(x as integer) FROM " + schema + "." + tableName))
+                .matches("VALUES 100");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    void testCreateTableWithDifferentCaseColumnsFails()
+    {
+        String tableName = "test_mixed_case_columns_" + randomNameSuffix();
+        String schema = getSession().getSchema().orElseThrow();
+
+        boolean created = false;
+        try {
+            onRemoteDatabase().execute("CREATE TABLE " + schema + "." + tableName + "(col int, \"COL\" int)");
+            created = true;
+        }
+        catch (Exception e) {
+            assertThat(e).hasMessageContaining("duplicate column name 'COL'");
+        }
+
+        assertThat(created).isFalse();
+
+        assertQueryFails("CREATE table " + tableName + "(col int, \"COL\" int)", "line 1:58: Column name '\"COL\"' specified more than once");
+        assertQueryFails("CREATE table " + tableName + "(col int, \"Col\" int)", "line 1:58: Column name '\"Col\"' specified more than once");
+
+        // success creates on remote but not able to read and write in Trino
+        onRemoteDatabase().execute("CREATE TABLE " + schema + "." + tableName + "(col int, \"Col\" int)");
+        assertThat(query("SELECT * FROM " + tableName))
+                .nonTrinoExceptionFailure()
+                .hasMessageContaining("Multiple entries with same key");
+        assertThat(query("INSERT INTO " + tableName + " VALUES (1, 1), (2, 2)"))
+                .nonTrinoExceptionFailure()
+                .hasMessageContaining("Multiple entries with same key");
+        assertUpdate("DROP TABLE " + tableName);
     }
 
     @Test
@@ -737,13 +798,6 @@ public abstract class BaseSnowflakeConnectorTest
         }
     }
 
-    @Test
-    @Override
-    public void testDeleteWithLike()
-    {
-        assertThatThrownBy(super::testDeleteWithLike)
-                .hasStackTraceContaining("TrinoException: This connector does not support modifying table rows");
-    }
 
     @Override
     protected String errorMessageForInsertIntoNotNullColumn(String columnName)
@@ -1104,5 +1158,33 @@ public abstract class BaseSnowflakeConnectorTest
     protected String sumDistinctAggregationPushdownExpectedResult()
     {
         return "VALUES (BIGINT '4', DECIMAL '8')";
+    }
+
+    @Override
+    protected void createTableForWrites(String createTable, String tableName, Optional<String> primaryKey, OptionalInt updateCount)
+    {
+        super.createTableForWrites(createTable, tableName, primaryKey, updateCount);
+        String schemaTableName = getSession().getSchema().orElseThrow() + "." + tableName;
+        primaryKey.ifPresent(key -> onRemoteDatabase().execute(format("ALTER TABLE %s ADD CONSTRAINT pk_%s PRIMARY KEY (%s)", schemaTableName, tableName, key)));
+    }
+
+    @Override
+    protected TestTable createTestTableForWrites(String namePrefix, String tableDefinition, String primaryKey)
+    {
+        TestTable testTable = super.createTestTableForWrites(namePrefix, tableDefinition, primaryKey);
+        String tableName = testTable.getName();
+        String schemaTableName = getSession().getSchema().orElseThrow() + "." + tableName;
+        onRemoteDatabase().execute(format("ALTER TABLE %s ADD CONSTRAINT pk_%s PRIMARY KEY (%s)", schemaTableName, tableName, primaryKey));
+        return testTable;
+    }
+
+    @Override
+    protected TestTable createTestTableForWrites(String namePrefix, String tableDefinition, List<String> rowsToInsert, String primaryKey)
+    {
+        TestTable testTable = super.createTestTableForWrites(namePrefix, tableDefinition, rowsToInsert, primaryKey);
+        String tableName = testTable.getName();
+        String schemaTableName = getSession().getSchema().orElseThrow() + "." + tableName;
+        onRemoteDatabase().execute(format("ALTER TABLE %s ADD CONSTRAINT pk_%s PRIMARY KEY (%s)", schemaTableName, tableName, primaryKey));
+        return testTable;
     }
 }

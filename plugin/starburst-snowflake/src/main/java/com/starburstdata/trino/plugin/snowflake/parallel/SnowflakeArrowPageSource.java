@@ -14,12 +14,17 @@ import com.google.common.collect.ImmutableMap;
 import com.starburstdata.trino.plugin.snowflake.parallel.writer.BlockWriter;
 import com.starburstdata.trino.plugin.snowflake.parallel.writer.BlockWriterFactory;
 import com.starburstdata.trino.plugin.snowflake.parallel.writer.ConverterFactory;
+import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
+import io.trino.plugin.jdbc.JdbcTableHandle;
+import io.trino.plugin.jdbc.MergeJdbcPageSource;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.SourcePage;
 import net.snowflake.client.core.SFException;
 import net.snowflake.client.core.arrow.ArrowVectorConverter;
 import net.snowflake.client.jdbc.internal.apache.arrow.memory.BufferAllocator;
@@ -35,15 +40,21 @@ import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.stream.IntStream;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.MoreCollectors.toOptional;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeParallelSessionProperties.getQuotedIdentifiersIgnoreCase;
+import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeSplitManager.getScanColumns;
+import static io.trino.plugin.jdbc.DefaultJdbcMetadata.MERGE_ROW_ID;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
+import static io.trino.plugin.jdbc.JdbcPageSourceProvider.buildMergeIdColumnAdaptation;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
@@ -61,17 +72,49 @@ public class SnowflakeArrowPageSource
     private final StarburstDataConversionContext conversionContext;
     private final ChunkFetcher fetcher;
     private final long splitRetainedSize;
+    private final List<MergeJdbcPageSource.ColumnAdaptation> columnAdaptations;
     private long completedBytes;
     private CompletableFuture<byte[]> chunkFuture;
     private boolean finished;
 
-    public SnowflakeArrowPageSource(ConnectorSession session, SnowflakeArrowSplit split, List<JdbcColumnHandle> columns, StarburstResultStreamProvider streamProvider)
+    public SnowflakeArrowPageSource(
+            ConnectorSession session,
+            JdbcClient jdbcClient,
+            JdbcTableHandle table,
+            SnowflakeArrowSplit split,
+            List<JdbcColumnHandle> columns,
+            StarburstResultStreamProvider streamProvider)
     {
         this.splitRetainedSize = requireNonNull(split, "split is null").getRetainedSizeInBytes();
-        this.columns = requireNonNull(columns, "columns is null");
+
+        Optional<JdbcColumnHandle> mergeRowId = columns.stream()
+                .filter(column -> column.getColumnName().equals(MERGE_ROW_ID))
+                .collect(toOptional());
+        if (mergeRowId.isEmpty()) {
+            columnAdaptations = ImmutableList.of();
+            this.columns = ImmutableList.copyOf(columns);
+        }
+        else {
+            List<JdbcColumnHandle> primaryKeys = jdbcClient.getPrimaryKeys(session, table.getRequiredNamedRelation().getRemoteTableName());
+            checkArgument(!primaryKeys.isEmpty(), "Primary keys must be defined for table %s", table.getRequiredNamedRelation().getRemoteTableName());
+
+            List<JdbcColumnHandle> scanColumns = getScanColumns(columns, primaryKeys);
+            ImmutableList.Builder<MergeJdbcPageSource.ColumnAdaptation> columnAdaptationsBuilder = ImmutableList.builderWithExpectedSize(columns.size());
+            for (JdbcColumnHandle columnHandle : columns) {
+                if (columnHandle.equals(mergeRowId.get())) {
+                    columnAdaptationsBuilder.add(buildMergeIdColumnAdaptation(scanColumns, primaryKeys));
+                }
+                else {
+                    columnAdaptationsBuilder.add(new MergeJdbcPageSource.SourceColumn(scanColumns.indexOf(columnHandle)));
+                }
+            }
+            this.columnAdaptations = columnAdaptationsBuilder.build();
+            this.columns = scanColumns;
+        }
+
         this.quotedIdentifiersIgnoreCase = getQuotedIdentifiersIgnoreCase(requireNonNull(session, "session is null"));
 
-        this.pageBuilder = new PageBuilder(columns.stream()
+        this.pageBuilder = new PageBuilder(this.columns.stream()
                 .map(JdbcColumnHandle::getColumnType)
                 .collect(toImmutableList()));
 
@@ -81,7 +124,7 @@ public class SnowflakeArrowPageSource
                 split.getLargestChunkUncompressedBytes(),
                 Long.MAX_VALUE);
 
-        int[] decimalColumnScales = columns.stream()
+        int[] decimalColumnScales = this.columns.stream()
                 .map(column -> column.getJdbcTypeHandle().decimalDigits()
                         .orElse(0))
                 .mapToInt(Integer::intValue)
@@ -121,6 +164,26 @@ public class SnowflakeArrowPageSource
 
     @Override
     public Page getNextPage()
+    {
+        Page page = doGetNextPage();
+        if (page == null || columnAdaptations.isEmpty()) {
+            return page;
+        }
+
+        return getColumnAdaptationsPage(SourcePage.create(page));
+    }
+
+    private Page getColumnAdaptationsPage(SourcePage page)
+    {
+        Block[] blocks = new Block[columnAdaptations.size()];
+        for (int i = 0; i < columnAdaptations.size(); i++) {
+            blocks[i] = columnAdaptations.get(i).getBlock(page);
+        }
+
+        return new Page(page.getPositionCount(), blocks);
+    }
+
+    private Page doGetNextPage()
     {
         checkState(pageBuilder.isEmpty(), "PageBuilder is not empty at the beginning of a new page");
 

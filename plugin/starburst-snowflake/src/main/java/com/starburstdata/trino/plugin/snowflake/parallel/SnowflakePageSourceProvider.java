@@ -10,7 +10,9 @@
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
 import io.airlift.log.Logger;
+import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
+import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -31,11 +33,13 @@ public class SnowflakePageSourceProvider
     private static final Logger log = Logger.get(SnowflakePageSourceProvider.class);
     private final ConnectorPageSourceProvider jdbcPageSourceProvider;
     private final StarburstResultStreamProvider streamProvider;
+    private final JdbcClient jdbcClient;
 
-    public SnowflakePageSourceProvider(ConnectorPageSourceProvider jdbcPageSourceProvider, StarburstResultStreamProvider streamProvider)
+    public SnowflakePageSourceProvider(ConnectorPageSourceProvider jdbcPageSourceProvider, StarburstResultStreamProvider streamProvider, JdbcClient jdbcClient)
     {
         this.jdbcPageSourceProvider = requireNonNull(jdbcPageSourceProvider, "jdbcPageSourceProvider is null");
         this.streamProvider = requireNonNull(streamProvider, "streamProvider is null");
+        this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient is null");
     }
 
     @Override
@@ -52,7 +56,7 @@ public class SnowflakePageSourceProvider
             List<JdbcColumnHandle> jdbcColumnHandles = columns.stream()
                     .map(JdbcColumnHandle.class::cast)
                     .collect(toImmutableList());
-            return new SnowflakeArrowPageSource(session, snowflakeArrowSplit, jdbcColumnHandles, streamProvider);
+            return new SnowflakeArrowPageSource(session, jdbcClient, (JdbcTableHandle) table, snowflakeArrowSplit, jdbcColumnHandles, streamProvider);
         }
         return jdbcPageSourceProvider.createPageSource(transaction, session, split, table, columns, dynamicFilter);
     }

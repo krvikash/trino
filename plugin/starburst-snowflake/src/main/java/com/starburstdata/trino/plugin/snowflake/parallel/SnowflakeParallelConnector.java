@@ -12,6 +12,7 @@ package com.starburstdata.trino.plugin.snowflake.parallel;
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
+import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcConnector;
 import io.trino.plugin.jdbc.JdbcTransactionManager;
 import io.trino.plugin.jdbc.TablePropertiesProvider;
@@ -43,7 +44,8 @@ public class SnowflakeParallelConnector
             Set<TablePropertiesProvider> tableProperties,
             JdbcTransactionManager transactionManager,
             ConnectorPageSourceProvider jdbcPageSourceProvider,
-            StarburstResultStreamProvider streamProvider)
+            StarburstResultStreamProvider streamProvider,
+            JdbcClient jdbcClient)
     {
         super(
                 lifeCycleManager,
@@ -56,7 +58,7 @@ public class SnowflakeParallelConnector
                 sessionProperties,
                 tableProperties,
                 transactionManager);
-        this.connectorPageSourceProvider = new SnowflakePageSourceProvider(jdbcPageSourceProvider, streamProvider);
+        this.connectorPageSourceProvider = new SnowflakePageSourceProvider(jdbcPageSourceProvider, streamProvider, jdbcClient);
     }
 
     @Override

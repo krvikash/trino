@@ -60,8 +60,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.MoreCollectors.toOptional;
 import static com.starburstdata.trino.plugin.snowflake.jdbc.SnowflakeClient.throwIfInvalidWarehouse;
 import static com.starburstdata.trino.plugin.snowflake.parallel.ChunkParser.parseChunks;
+import static io.trino.plugin.jdbc.DefaultJdbcMetadata.MERGE_ROW_ID;
 import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.dynamicFilteringEnabled;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.lang.String.format;
@@ -111,6 +113,13 @@ public class SnowflakeSplitManager
                     .map(columnSet -> columnSet.stream().map(JdbcColumnHandle.class::cast).collect(toList()))
                     .orElseGet(() -> snowflakeClient.getColumns(session, jdbcTableHandle));
 
+            Optional<JdbcColumnHandle> mergeRowId = columns.stream()
+                    .filter(column -> column.getColumnName().equals(MERGE_ROW_ID))
+                    .collect(toOptional());
+            if (mergeRowId.isPresent()) {
+                columns = getScanColumns(columns, snowflakeClient.getPrimaryKeys(session, jdbcTableHandle.getRequiredNamedRelation().getRemoteTableName()));
+            }
+
             PreparedQuery preparedQuery = snowflakeClient.prepareQuery(
                     session,
                     connection,
@@ -142,6 +151,24 @@ public class SnowflakeSplitManager
             throwIfInvalidWarehouse(e);
             throw new TrinoException(JDBC_ERROR, "Couldn't get Snowflake splits, %s".formatted(e.getMessage()), e);
         }
+    }
+
+     // Replaces the merge-specific column id with the actual primary key columns,
+     // ensuring the correct columns are used during the scan
+    public static List<JdbcColumnHandle> getScanColumns(List<JdbcColumnHandle> columns, List<JdbcColumnHandle> primaryKeys)
+    {
+        Optional<JdbcColumnHandle> mergeRowId = columns.stream()
+                .filter(column -> column.getColumnName().equalsIgnoreCase(MERGE_ROW_ID))
+                .collect(toOptional());
+        if (mergeRowId.isEmpty()) {
+            return columns;
+        }
+        ImmutableList.Builder<JdbcColumnHandle> columnsBuilder = ImmutableList.builder();
+        columns.stream()
+                .filter(column -> !column.getColumnName().equalsIgnoreCase(MERGE_ROW_ID))
+                .forEach(columnsBuilder::add);
+        primaryKeys.stream().filter(column -> !columns.contains(column)).forEach(columnsBuilder::add);
+        return columnsBuilder.build();
     }
 
     private static void logFiltered(JsonNode fullJson)

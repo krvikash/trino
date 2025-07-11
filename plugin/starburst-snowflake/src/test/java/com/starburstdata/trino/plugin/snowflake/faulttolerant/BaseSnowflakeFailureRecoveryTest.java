@@ -31,6 +31,7 @@ import java.util.Optional;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public abstract class BaseSnowflakeFailureRecoveryTest
         extends BaseJdbcFailureRecoveryTest
@@ -74,6 +75,27 @@ public abstract class BaseSnowflakeFailureRecoveryTest
     protected SnowflakeQueryRunner.Builder<?> getBuilder()
     {
         return jdbcBuilder();
+    }
+
+    @Test
+    @Override
+    protected void testDeleteWithSubquery()
+    {
+        assertThatThrownBy(super::testDeleteWithSubquery).hasMessageContaining("This connector does not support MERGE with transactional execution");
+    }
+
+    @Test
+    @Override
+    protected void testUpdateWithSubquery()
+    {
+        assertThatThrownBy(super::testUpdateWithSubquery).hasMessageContaining("This connector does not support MERGE with transactional execution");
+    }
+
+    @Test
+    @Override
+    protected void testMerge()
+    {
+        assertThatThrownBy(super::testMerge).hasMessageContaining("This connector does not support MERGE with transactional execution");
     }
 
     @Test

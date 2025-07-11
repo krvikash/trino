@@ -9,15 +9,29 @@
  */
 package com.starburstdata.trino.plugin.snowflake;
 
+import com.google.common.base.Suppliers;
+import io.trino.Session;
 import io.trino.plugin.jdbc.BaseJdbcConnectorSmokeTest;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.sql.SqlExecutor;
+import io.trino.testing.sql.TestTable;
+import org.junit.jupiter.api.Test;
+
+import java.util.function.Supplier;
+
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.SNOWFLAKE_CATALOG;
+import static io.trino.testing.TestingNames.randomNameSuffix;
+import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class BaseSnowflakeConnectorSmokeTest
         extends BaseJdbcConnectorSmokeTest
 {
+    private final Supplier<TestDatabase> databaseSupplier = Suppliers.memoize(SnowflakeServer::createTestDatabase);
+
     protected TestDatabase getTestDatabase()
     {
-        return closeAfterClass(SnowflakeServer.createTestDatabase());
+        return closeAfterClass(databaseSupplier.get());
     }
 
     @Override
@@ -38,8 +52,52 @@ public abstract class BaseSnowflakeConnectorSmokeTest
                  SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
                  SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV,
                  SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
-                 SUPPORTS_JOIN_PUSHDOWN -> true;
+                 SUPPORTS_JOIN_PUSHDOWN,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_ROW_LEVEL_UPDATE -> true;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Test
+    void testMergeWithMixedCasePrimaryKeys()
+    {
+        String schema = getSession().getSchema().orElseThrow();
+        String tableName = "test_merge_pk_different_cases_" + randomNameSuffix();
+        onRemoteDatabase().execute("CREATE TABLE " + schema + "." + tableName + " (x int, \"pK\" int NOT NULL, CONSTRAINT pk_" + tableName + " PRIMARY KEY (\"pK\"))");
+        assertUpdate("INSERT INTO " + tableName + " VALUES (1, 1), (2, 2)", 2);
+
+        assertUpdate("DELETE FROM " + tableName + " WHERE PK = 1", 1);
+        assertThat(query("SELECT CAST(x as integer) FROM " + schema + "." + tableName))
+                .matches("VALUES 2");
+
+        assertUpdate("UPDATE " + tableName + " SET x = 100 WHERE pk = 2", 1);
+        assertThat(query("SELECT CAST(x as integer) FROM " + schema + "." + tableName))
+                .matches("VALUES 100");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Override
+    protected Session getSession()
+    {
+        return Session.builder(super.getSession())
+                .setCatalogSessionProperty(SNOWFLAKE_CATALOG, "non_transactional_merge", "true")
+                .build();
+    }
+
+    @Override
+    protected TestTable createTestTableForWrites(String tablePrefix)
+    {
+        TestTable table = super.createTestTableForWrites(tablePrefix);
+        String tableName = table.getName();
+        String schemaTableName = getSession().getSchema().orElseThrow() + "." + tableName;
+        onRemoteDatabase().execute(format("ALTER TABLE %s ADD CONSTRAINT pk_%s PRIMARY KEY (%s)", schemaTableName, tableName, "a"));
+        return table;
+    }
+
+    private SqlExecutor onRemoteDatabase()
+    {
+        return (sql) -> SnowflakeServer.safeExecuteOnDatabase(getTestDatabase().getName(), sql);
     }
 }

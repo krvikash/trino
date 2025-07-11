@@ -167,7 +167,7 @@ public class JdbcPageSourceProvider
         return scanColumnsBuilder.build();
     }
 
-    private static ColumnAdaptation buildMergeIdColumnAdaptation(List<JdbcColumnHandle> scanColumns, List<JdbcColumnHandle> primaryKeys)
+    public static ColumnAdaptation buildMergeIdColumnAdaptation(List<JdbcColumnHandle> scanColumns, List<JdbcColumnHandle> primaryKeys)
     {
         List<Integer> mergeRowIdSourceChannels = primaryKeys.stream()
                 .map(scanColumns::indexOf)
