@@ -1112,8 +1112,8 @@ jobs:
             - { modules: plugin/trino-druid }
             - { modules: plugin/trino-duckdb }
             - { modules: plugin/trino-elasticsearch }
-            - { modules: starburst-buffer-service/galaxy-buffer-exchange-tests, profile: test-buffer-exchange-failure-recovery }
-            - { modules: starburst-buffer-service/galaxy-buffer-exchange-tests }
+            - { modules: starburst-buffer-service/starburst-buffer-exchange-tests, profile: test-buffer-exchange-failure-recovery }
+            - { modules: starburst-buffer-service/starburst-buffer-exchange-tests }
             - { modules: plugin/trino-exasol }
             - { modules: plugin/trino-google-sheets }
             - { modules: plugin/trino-hive, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
