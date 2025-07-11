@@ -30,6 +30,8 @@ import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.status.StatusProvider;
 
 import java.security.SecureRandom;
+import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -55,23 +57,14 @@ public class DataServerMainModule
     private final long bufferNodeId;
     private final boolean discoveryBroadcastEnabled;
     private final Ticker ticker;
+    private final Optional<String> configPrefix;
 
-    public DataServerMainModule()
-    {
-        this(new SecureRandom().nextLong());
-    }
-
-    private DataServerMainModule(long bufferNodeId)
-    {
-        this(bufferNodeId, true, Ticker.systemTicker());
-    }
-
-    @VisibleForTesting
-    public DataServerMainModule(long bufferNodeId, boolean discoveryBroadcastEnabled, Ticker ticker)
+    private DataServerMainModule(long bufferNodeId, boolean discoveryBroadcastEnabled, Ticker ticker, Optional<String> configPrefix)
     {
         this.bufferNodeId = bufferNodeId;
         this.discoveryBroadcastEnabled = discoveryBroadcastEnabled;
         this.ticker = requireNonNull(ticker, "ticker is null");
+        this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
     }
 
     @Override
@@ -82,9 +75,9 @@ public class DataServerMainModule
         JsonBinder.jsonBinder(binder).addDeserializerBinding(Span.class).to(SpanSerialization.SpanDeserializer.class);
         jsonCodecBinder(binder).bindJsonCodec(Span.class);
 
-        configBinder(binder).bindConfig(ChunkManagerConfig.class);
-        configBinder(binder).bindConfig(MemoryAllocatorConfig.class);
-        configBinder(binder).bindConfig(DataServerConfig.class);
+        configBinder(binder).bindConfig(ChunkManagerConfig.class, configPrefix.orElse(null));
+        configBinder(binder).bindConfig(MemoryAllocatorConfig.class, configPrefix.orElse(null));
+        configBinder(binder).bindConfig(DataServerConfig.class, configPrefix.orElse(null));
         jaxrsBinder(binder).bind(DataResource.class);
         jaxrsBinder(binder).bind(LifecycleResource.class);
         binder.bind(MemoryAllocator.class).in(SINGLETON);
@@ -124,5 +117,54 @@ public class DataServerMainModule
     public static BoundedExecutor createAsyncHttpResponseExecutor(DataServerConfig config)
     {
         return new BoundedExecutor(newCachedThreadPool(daemonThreadsNamed("async-http-response-%s")), config.getHttpResponseThreads());
+    }
+
+    public static DataServerMainModule.Builder builder()
+    {
+        return new DataServerMainModule.Builder();
+    }
+
+    public static class Builder
+    {
+        private OptionalLong bufferNodeId = OptionalLong.empty();
+        private boolean discoveryBroadcastEnabled = true;
+        private Ticker ticker = Ticker.systemTicker();
+        private Optional<String> configPrefix = Optional.empty();
+
+        @VisibleForTesting
+        public Builder withDiscoveryBroadcast(boolean discoveryBroadcastEnabled)
+        {
+            this.discoveryBroadcastEnabled = discoveryBroadcastEnabled;
+            return this;
+        }
+
+        @VisibleForTesting
+        public Builder withBufferNodeId(long bufferNodeId)
+        {
+            this.bufferNodeId = OptionalLong.of(bufferNodeId);
+            return this;
+        }
+
+        public Builder withTicker(Ticker ticker)
+        {
+            this.ticker = requireNonNull(ticker, "ticker is null");
+            return this;
+        }
+
+        public Builder withConfigPrefix(String configPrefix)
+        {
+            requireNonNull(configPrefix, "configPrefix is null");
+            this.configPrefix = Optional.of(configPrefix);
+            return this;
+        }
+
+        public DataServerMainModule build()
+        {
+            return new DataServerMainModule(
+                    bufferNodeId.orElse(new SecureRandom().nextLong()),
+                    discoveryBroadcastEnabled,
+                    ticker,
+                    configPrefix);
+        }
     }
 }

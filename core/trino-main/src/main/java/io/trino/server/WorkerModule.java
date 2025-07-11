@@ -25,10 +25,14 @@ import io.trino.failuredetector.FailureDetector;
 import io.trino.failuredetector.NoOpFailureDetector;
 import io.trino.metadata.LanguageFunctionProvider;
 import io.trino.metadata.WorkerLanguageFunctionProvider;
+import io.trino.server.buffer.EmbeddedBufferServiceConfig;
+import io.trino.server.buffer.EmbeddedBufferServiceDataModule;
 import io.trino.server.ui.NoWebUiAuthenticationFilter;
 import io.trino.server.ui.WebUiAuthenticationFilter;
 
 import static com.google.common.reflect.Reflection.newProxy;
+import static io.airlift.configuration.ConditionalModule.conditionalModule;
+import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class WorkerModule
         extends AbstractConfigurationAwareModule
@@ -49,6 +53,13 @@ public class WorkerModule
         binder.bind(QueryManager.class).toInstance(newProxy(QueryManager.class, (proxy, method, args) -> {
             throw new UnsupportedOperationException();
         }));
+
+        // embedded buffer service
+        configBinder(binder).bindConfig(EmbeddedBufferServiceConfig.class);
+        install(conditionalModule(
+                EmbeddedBufferServiceConfig.class,
+                EmbeddedBufferServiceConfig::isEmbeddedBufferServiceEnabled,
+                new EmbeddedBufferServiceDataModule()));
 
         // language functions
         binder.bind(WorkerLanguageFunctionProvider.class).in(Scopes.SINGLETON);

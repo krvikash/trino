@@ -72,7 +72,7 @@ public class TestDiscoveryServer
     void testHappy()
     {
         URI baseUri = discoveryServer.getBaseUri();
-        HttpDiscoveryClient discoveryClient = new HttpDiscoveryClient(baseUri, httpClient);
+        HttpDiscoveryClient discoveryClient = new HttpDiscoveryClient(() -> baseUri, httpClient);
 
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
@@ -159,7 +159,7 @@ public class TestDiscoveryServer
     void testOverrideUri()
     {
         URI baseUri = discoveryServer.getBaseUri();
-        HttpDiscoveryClient discoveryClient = new HttpDiscoveryClient(baseUri, httpClient);
+        HttpDiscoveryClient discoveryClient = new HttpDiscoveryClient(() -> baseUri, httpClient);
         ticker.increment(DEFAULT_START_GRACE_PERIOD.toMillis(), TimeUnit.MILLISECONDS);
 
         // add a node

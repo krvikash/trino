@@ -61,9 +61,9 @@ public class TestingDiscoveryServer
                 new LogJmxModule(),
                 new DiscoveryServerMainModule());
 
-        modules.add(timeTicker
-                .map(DiscoveryManagerModule::withTicker)
-                .orElse(DiscoveryManagerModule.withSystemTicker()));
+        DiscoveryManagerModule.Builder discoveryManagerModule = DiscoveryManagerModule.builder();
+        timeTicker.ifPresent(discoveryManagerModule::withTicker);
+        modules.add(discoveryManagerModule.build());
 
         modules.add(timeTicker
                 .map(FailuresTrackingManagerModule::withTicker)

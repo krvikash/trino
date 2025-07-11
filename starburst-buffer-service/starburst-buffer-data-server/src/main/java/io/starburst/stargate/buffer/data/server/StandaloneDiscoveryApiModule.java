@@ -18,7 +18,7 @@ import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
-public class DiscoveryApiModule
+public class StandaloneDiscoveryApiModule
         extends AbstractModule
 {
     @Override
@@ -31,6 +31,6 @@ public class DiscoveryApiModule
     @Provides
     public DiscoveryApi getDiscoveryApi(DiscoveryApiConfig config, @ForBufferDiscoveryClient HttpClient httpClient)
     {
-        return new HttpDiscoveryClient(config.getDiscoveryServiceUri(), httpClient);
+        return new HttpDiscoveryClient(config::getDiscoveryServiceUri, httpClient);
     }
 }

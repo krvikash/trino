@@ -173,6 +173,12 @@
             <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.starburst.stargate.buffer</groupId>
+                    <artifactId>starburst-buffer-data-server</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -186,6 +192,12 @@
             <groupId>io.trino</groupId>
             <artifactId>trino-testing</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.starburst.stargate.buffer</groupId>
+                    <artifactId>starburst-buffer-data-server</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

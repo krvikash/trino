@@ -9,7 +9,6 @@
  */
 package io.starburst.stargate.buffer.data.server.testing;
 
-import com.google.common.base.Ticker;
 import com.google.common.io.Closer;
 import com.google.inject.Injector;
 import com.google.inject.Module;
@@ -26,8 +25,8 @@ import io.airlift.tracing.TracingModule;
 import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerMainModule;
 import io.starburst.stargate.buffer.data.server.DataServerStatusProvider;
-import io.starburst.stargate.buffer.data.server.DiscoveryApiModule;
 import io.starburst.stargate.buffer.data.server.SpoolingStorageModule;
+import io.starburst.stargate.buffer.data.server.StandaloneDiscoveryApiModule;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.status.StatusModule;
 import io.starburst.stargate.buffer.status.StatusProvider;
@@ -76,8 +75,11 @@ public class TestingDataServer
                 new LogJmxModule(),
                 new TracingModule("buffer-data-server", "testing"),
                 new StatusModule(),
-                new DataServerMainModule(nodeId, discoveryApiModule.isPresent(), Ticker.systemTicker()),
-                useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule()));
+                DataServerMainModule.builder()
+                        .withBufferNodeId(nodeId)
+                        .withDiscoveryBroadcast(discoveryApiModule.isPresent())
+                        .build(),
+                useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule(Optional.empty())));
         discoveryApiModule.ifPresent(modules::add);
 
         Bootstrap app = new Bootstrap(modules);
@@ -133,7 +135,7 @@ public class TestingDataServer
 
         public Builder withDefaultDiscoveryApiModule()
         {
-            discoveryApiModule = Optional.of(new DiscoveryApiModule());
+            discoveryApiModule = Optional.of(new StandaloneDiscoveryApiModule());
             return this;
         }
 

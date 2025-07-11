@@ -19,6 +19,7 @@ import io.airlift.json.JsonCodec;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 
 import java.net.URI;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
@@ -39,17 +40,13 @@ public class HttpDiscoveryClient
     private static final JsonCodec<BufferNodeInfo> BUFFER_NODE_INFO_CODEC = jsonCodec(BufferNodeInfo.class);
     private static final JsonCodec<BufferNodeInfoResponse> BUFFER_NODE_INFO_RESPONSE_CODEC = jsonCodec(BufferNodeInfoResponse.class);
 
-    private final URI baseUri;
+    private final Supplier<URI> baseUriSupplier;
     private final HttpClient httpClient;
 
-    public HttpDiscoveryClient(URI baseUri, HttpClient httpClient)
+    public HttpDiscoveryClient(Supplier<URI> baseUriSupplier, HttpClient httpClient)
     {
-        requireNonNull(baseUri, "baseUri is null");
         requireNonNull(httpClient, "httpClient is null");
-        checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got " + baseUri);
-        this.baseUri = uriBuilderFrom(requireNonNull(baseUri, "baseUri is null"))
-                .replacePath("/api/v1/buffer/discovery")
-                .build();
+        this.baseUriSupplier = requireNonNull(baseUriSupplier, "baseUriSupplier is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
     }
 
@@ -59,7 +56,7 @@ public class HttpDiscoveryClient
         requireNonNull(bufferNodeInfo, "bufferNodeInfo is null");
 
         Request request = preparePost()
-                .setUri(uriBuilderFrom(baseUri)
+                .setUri(uriBuilderFrom(getUri())
                         .appendPath("nodes/update")
                         .build())
                 .addHeader(CONTENT_TYPE, APPLICATION_JSON)
@@ -81,7 +78,7 @@ public class HttpDiscoveryClient
     public BufferNodeInfoResponse getBufferNodes()
     {
         Request request = prepareGet()
-                .setUri(uriBuilderFrom(baseUri)
+                .setUri(uriBuilderFrom(getUri())
                         .appendPath("nodes")
                         .build())
                 .build();
@@ -98,5 +95,15 @@ public class HttpDiscoveryClient
         }
 
         return response.getValue();
+    }
+
+    private URI getUri()
+    {
+        URI baseUri = baseUriSupplier.get();
+        requireNonNull(baseUri, "baseUri is null");
+        checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got " + baseUri);
+        return uriBuilderFrom(baseUri)
+                .replacePath("/api/v1/buffer/discovery")
+                .build();
     }
 }

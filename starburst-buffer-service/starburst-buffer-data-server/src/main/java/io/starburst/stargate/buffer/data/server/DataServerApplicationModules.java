@@ -13,19 +13,36 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 
+import java.util.Optional;
+
 public final class DataServerApplicationModules
 {
     private DataServerApplicationModules() {}
 
     public static Module getDataServerApplicationModule()
     {
+        return getDataServerApplicationModule(Optional.empty(), false);
+    }
+
+    public static Module getDataServerApplicationModules(String configPrefix, boolean trinoCollocated)
+    {
+        return getDataServerApplicationModule(Optional.of(configPrefix), !trinoCollocated);
+    }
+
+    private static Module getDataServerApplicationModule(Optional<String> configPrefix, boolean bindStandaloneDiscoveryApiModule)
+    {
         return new AbstractConfigurationAwareModule() {
             @Override
             protected void setup(Binder binder)
             {
-                install(new DiscoveryApiModule());
-                install(new DataServerMainModule());
-                install(new SpoolingStorageModule());
+                DataServerMainModule.Builder dataServerMainModule = DataServerMainModule.builder();
+                configPrefix.ifPresent(dataServerMainModule::withConfigPrefix);
+
+                install(dataServerMainModule.build());
+                install(new SpoolingStorageModule(configPrefix));
+                if (bindStandaloneDiscoveryApiModule) {
+                    install(new StandaloneDiscoveryApiModule());
+                }
             }
         };
     }

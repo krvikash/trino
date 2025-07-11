@@ -101,7 +101,7 @@ public class BufferExchangeModule
         {
             requireNonNull(config, "config is null");
             requireNonNull(httpClient, "httpClient is null");
-            return new HttpDiscoveryClient(config.getDiscoveryServiceUri(), httpClient);
+            return new HttpDiscoveryClient(config::getDiscoveryServiceUri, httpClient);
         }
     }
 }

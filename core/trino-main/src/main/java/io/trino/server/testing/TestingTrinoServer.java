@@ -41,6 +41,7 @@ import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracing.TracingModule;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.sdk.trace.SpanProcessor;
+import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.trino.Session;
 import io.trino.SystemSessionPropertiesProvider;
 import io.trino.cache.CacheManagerModule;
@@ -156,6 +157,7 @@ import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
 import static io.trino.spi.connector.ai.ModelConnectionSpecsLoader.EMPTY_LOADER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Integer.parseInt;
@@ -464,6 +466,12 @@ public class TestingTrinoServer
         // Must be run before startup is considered complete and node will therefore accept tasks.
         // Technically `this` reference might escape here. However, the object is fully constructed.
         additionalConfiguration.accept(this);
+
+        if (injector.getExistingBinding(Key.get(BufferNodeStateManager.class)) != null) {
+            // mark embedded buffer service as started
+            injector.getInstance(BufferNodeStateManager.class).transitionState(STARTED);
+        }
+
         injector.getInstance(StartupStatus.class).startupComplete();
     }
 

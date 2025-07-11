@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.trino.server.security.ResourceSecurity.AccessType.MANAGEMENT_READ;
+import static io.trino.server.security.ResourceSecurity.AccessType.PUBLIC;
 
 public class ResourceAccessType
 {
@@ -58,6 +59,12 @@ public class ResourceAccessType
         }
         // Trino resources are required to have a declared access control
         verifyNotTrinoResource(resourceInfo);
+
+        if (resourceInfo.getResourceMethod().getDeclaringClass().getPackageName().startsWith("io.starburst.stargate.buffer")) {
+            // hack - allow access for Buffer service uris
+            return PUBLIC;
+        }
+
         return MANAGEMENT_READ;
     }
 
