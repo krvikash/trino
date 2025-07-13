@@ -142,7 +142,6 @@ public class WarpPlugin
     }
 
     static {
-        // assumptions verification
         verifyTypeSizes();
     }
 }
