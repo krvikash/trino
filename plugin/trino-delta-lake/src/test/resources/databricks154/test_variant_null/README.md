@@ -10,6 +10,7 @@ LOCATION ?;
 INSERT INTO test_variant_null values 
 (1, parse_json('{"a":1}')), 
 (2, parse_json('{"a":2}')), 
-(3, parse_json(NULL)), 
-(4, NULL);
+(3, parse_json('null')), 
+(4, NULL),
+(5, parse_json('{"a":5}'));
 ```
