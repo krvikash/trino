@@ -102,9 +102,16 @@ public final class IcebergParquetColumnIOConverter
         if (isVariantType(type, columnIO)) {
             checkArgument(type.getTypeParameters().isEmpty(), "Expected type parameters to be empty for variant but got %s", type.getTypeParameters());
             GroupColumnIO groupColumnIO = (GroupColumnIO) columnIO;
-            Field metadataField = constructField(new FieldContext(VARBINARY, context.columnIdentity()), groupColumnIO.getChild(0)).orElseThrow();
-            Field valueField = constructField(new FieldContext(VARBINARY, context.columnIdentity()), groupColumnIO.getChild(1)).orElseThrow();
-            return Optional.of(new VariantField(type, repetitionLevel, definitionLevel, required, valueField, metadataField));
+            PrimitiveField metadataField = (PrimitiveField) constructField(new FieldContext(VARBINARY, context.columnIdentity()), groupColumnIO.getChild(0)).orElseThrow();
+            PrimitiveField valueField = (PrimitiveField) constructField(new FieldContext(VARBINARY, context.columnIdentity()), groupColumnIO.getChild(1)).orElseThrow();
+            return Optional.of(new VariantField(
+                    type,
+                    repetitionLevel,
+                    definitionLevel,
+                    required,
+                    new PrimitiveField(valueField.getType(), false, valueField.getDescriptor(), valueField.getId()),
+                    // Mark the metadata field as optional, this is because the metadata field is not present when the actual Variant value is null
+                    new PrimitiveField(metadataField.getType(), false, metadataField.getDescriptor(), metadataField.getId())));
         }
         PrimitiveColumnIO primitiveColumnIO = (PrimitiveColumnIO) columnIO;
         return Optional.of(new PrimitiveField(type, required, primitiveColumnIO.getColumnDescriptor(), primitiveColumnIO.getId()));
