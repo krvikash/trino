@@ -196,10 +196,6 @@
                                 <exclude>
                                     <item>
                                         <matcher>java</matcher>
-                                        <match>@io.trino.spi.Experimental(*) ^*;</match>
-                                    </item>
-                                    <item>
-                                        <matcher>java</matcher>
                                         <match>type io.trino.spi.connector.ConstraintApplicationResult&lt;?&gt; {}</match>
                                     </item>
                                 </exclude>
@@ -767,6 +763,14 @@
                                     <code>java.method.removed</code>
                                     <old>method java.lang.String io.trino.spi.NodeManager::getEnvironment()</old>
                                     <justification>Unused</justification>
+                                </item>
+                                <item>
+                                    <code>java.class.removed</code>
+                                    <annotationType>@interface io.trino.spi.Experimental</annotationType>
+                                </item>
+                                <item>
+                                    <code>java.annotation.removed</code>
+                                    <annotationType>io.trino.spi.Experimental</annotationType>
                                 </item>
                             </differences>
                         </revapi.differences>

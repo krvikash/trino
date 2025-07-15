@@ -13,7 +13,6 @@
  */
 package io.trino.connector.alternatives;
 
-import io.trino.spi.Experimental;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;
@@ -116,7 +115,6 @@ public class MockPlanAlternativeConnector
     }
 
     @Override
-    @Experimental(eta = "2022-10-31")
     public Optional<FunctionProvider> getFunctionProvider()
     {
         return delegate.getFunctionProvider();

@@ -23,7 +23,6 @@ import io.trino.connector.alternatives.MockPlanAlternativeTableHandle.IntegerIn;
 import io.trino.connector.alternatives.MockPlanAlternativeTableHandle.IsNull;
 import io.trino.connector.alternatives.MockPlanAlternativeTableHandle.Ranges;
 import io.trino.connector.alternatives.MockPlanAlternativeTableHandle.VarcharIn;
-import io.trino.spi.Experimental;
 import io.trino.spi.RefreshType;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
@@ -364,7 +363,6 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    @Experimental(eta = "2023-04-01")
     public void setColumnType(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle column, Type type)
     {
         delegate.setColumnType(session, getDelegate(tableHandle), column, type);
@@ -407,7 +405,6 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    @Experimental(eta = "2023-05-01")
     public void dropField(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle column, List<String> fieldPath)
     {
         delegate.dropField(session, getDelegate(tableHandle), column, fieldPath);

@@ -13,7 +13,6 @@
  */
 package io.trino.spi.connector;
 
-import io.trino.spi.Experimental;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheSplitId;
@@ -45,7 +44,6 @@ public interface ConnectorSplitManager
         return getSplits(transaction, session, table, dynamicFilter, constraint);
     }
 
-    @Experimental(eta = "2023-07-31")
     default ConnectorSplitSource getSplits(
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
