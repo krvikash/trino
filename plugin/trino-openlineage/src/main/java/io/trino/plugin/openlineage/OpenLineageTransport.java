@@ -15,6 +15,7 @@ package io.trino.plugin.openlineage;
 
 public enum OpenLineageTransport
 {
+    NOOP,
     CONSOLE,
     HTTP,
     /**/

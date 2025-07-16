@@ -18,6 +18,7 @@ import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.openlineage.client.OpenLineage;
 import io.openlineage.client.OpenLineageClient;
+import io.trino.plugin.openlineage.transport.OpenLineageNoopTransport;
 import io.trino.plugin.openlineage.transport.OpenLineageTransportConfig;
 import io.trino.plugin.openlineage.transport.OpenLineageTransportCreator;
 import io.trino.plugin.openlineage.transport.console.OpenLineageConsoleTransport;
@@ -31,6 +32,7 @@ import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.openlineage.OpenLineageTransport.CONSOLE;
 import static io.trino.plugin.openlineage.OpenLineageTransport.HTTP;
+import static io.trino.plugin.openlineage.OpenLineageTransport.NOOP;
 
 public class OpenLineageListenerModule
         extends AbstractConfigurationAwareModule
@@ -41,6 +43,14 @@ public class OpenLineageListenerModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(OpenLineageTransportConfig.class);
+
+        install(conditionalModule(
+                OpenLineageTransportConfig.class,
+                config -> config.getTransport().equals(NOOP),
+                internalBinder -> {
+                    internalBinder.bind(OpenLineageTransportCreator.class).to(OpenLineageNoopTransport.class);
+                    internalBinder.bind(EventListener.class).toInstance(new EventListener() {});
+                }));
 
         install(conditionalModule(
                 OpenLineageTransportConfig.class,

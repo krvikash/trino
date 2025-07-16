@@ -19,7 +19,7 @@ import io.trino.plugin.openlineage.OpenLineageTransport;
 
 public class OpenLineageTransportConfig
 {
-    private OpenLineageTransport transport = OpenLineageTransport.CONSOLE;
+    private OpenLineageTransport transport = OpenLineageTransport.NOOP;
 
     public OpenLineageTransport getTransport()
     {

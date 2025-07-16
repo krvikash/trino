@@ -29,7 +29,7 @@ final class TestOpenLineageTransportConfig
     void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(OpenLineageTransportConfig.class)
-                .setTransport(OpenLineageTransport.CONSOLE));
+                .setTransport(OpenLineageTransport.NOOP));
     }
 
     @Test

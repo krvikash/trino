@@ -23,6 +23,20 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 final class TestOpenLineagePlugin
 {
     @Test
+    void testCreateNoopEventListener()
+    {
+        OpenLineagePlugin plugin = new OpenLineagePlugin();
+
+        EventListenerFactory factory = getOnlyElement(plugin.getEventListenerFactories());
+        factory.create(
+                        ImmutableMap.<String, String>builder()
+                                .put("openlineage-event-listener.transport.type", "noop")
+                                .put("bootstrap.quiet", "true")
+                                .buildOrThrow(), new TestingEventListenerContext())
+                .shutdown();
+    }
+
+    @Test
     void testCreateConsoleEventListener()
     {
         OpenLineagePlugin plugin = new OpenLineagePlugin();
