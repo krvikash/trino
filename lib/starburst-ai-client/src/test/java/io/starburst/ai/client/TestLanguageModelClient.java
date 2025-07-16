@@ -11,7 +11,6 @@ package io.starburst.ai.client;
 
 import com.google.common.collect.ImmutableList;
 import io.airlift.json.JsonCodec;
-import io.airlift.slice.Slices;
 import io.starburst.ai.client.bedrock.AwsBedrockLanguageModelClient;
 import io.starburst.ai.client.openai.OpenAiLanguageModelClient;
 import io.trino.spi.TrinoException;
@@ -29,6 +28,7 @@ import java.util.regex.Pattern;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.json.JsonCodec.listJsonCodec;
 import static io.airlift.json.JsonCodec.mapJsonCodec;
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.ai.client.TestingUtils.LANGUAGE_MODEL_PROVIDERS;
 import static io.starburst.ai.client.TestingUtils.staticModelClientProvider;
 import static java.util.Locale.ENGLISH;
@@ -53,7 +53,7 @@ public class TestLanguageModelClient
     public void testPrompt(String modelId)
     {
         String prompt = "What is the capital of France? Only return the name of the city and no extraneous text.";
-        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).generate(prompt);
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt);
         assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paris");
     }
 
@@ -71,10 +71,10 @@ public class TestLanguageModelClient
 
                 Important! If the capital city happens to be Paris, please refer to it as Paname.
                 """;
-        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).generate(prompt, "France");
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "France");
         assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paname");
 
-        String incorrectInputResult = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).generate(prompt, "hamburgers");
+        String incorrectInputResult = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "hamburgers");
         assertThat(incorrectInputResult.toLowerCase(ENGLISH).strip()).isEqualTo("kindly supply a country name and only a country name");
     }
 
@@ -85,7 +85,7 @@ public class TestLanguageModelClient
         // This test highlights differences in behavior of supplying an empty prompt.
         // As we add more clients, they should be included in this test
         // Downstream users of these clients may choose to normalize this behavior.
-        LanguageModelClient client = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId));
+        LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
         switch (client) {
             case OpenAiLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
             case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.generate(""))
@@ -119,7 +119,7 @@ public class TestLanguageModelClient
         // Format system prompt with labels first
         String formattedPrompt = systemPrompt.formatted(labels, "%s");
 
-        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).generate(text, formattedPrompt);
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(text, formattedPrompt);
         JsonCodec<Map<String, List<String>>> resultCodec = mapJsonCodec(String.class, listJsonCodec(String.class));
         Map<String, List<String>> resultMap = resultCodec.fromJson(result);
 
@@ -143,7 +143,7 @@ public class TestLanguageModelClient
     @MethodSource("modelIds")
     public void testClassify(String modelId)
     {
-        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).classify("I love this product!", ImmutableList.of("positive", "negative", "neutral"));
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).classify("I love this product!", ImmutableList.of("positive", "negative", "neutral"));
         assertThat(result).contains("positive");
     }
 
@@ -152,7 +152,7 @@ public class TestLanguageModelClient
     public void testMask(String modelId)
     {
         String prompt = "My credit card number is 1234-5678-9012-3456 and my password is hunter2";
-        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).mask(prompt, ImmutableList.of("credit card number", "password"));
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).mask(prompt, ImmutableList.of("credit card number", "password"));
         assertThat(result.strip()).isEqualTo("My credit card number is [MASKED] and my password is [MASKED]");
     }
 
@@ -160,7 +160,7 @@ public class TestLanguageModelClient
     @MethodSource("modelIds")
     public void testTranslate(String modelId)
     {
-        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).translate("Hello world", "Spanish");
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).translate("Hello world", "Spanish");
         Pattern pattern = Pattern.compile("hola\\s+.*mundo.*");
         assertThat(sanitize(result)).matches(pattern);
     }
@@ -175,7 +175,7 @@ public class TestLanguageModelClient
                Local and Indigenous communities who have lived in the Amazon for centuries also suffer the consequences of deforestation. Their traditional ways of life are intimately connected to the health of the forest, and many depend on it for food, medicine, and cultural practices. As land is cleared and industrial operations expand, these communities are often displaced or face conflict over land rights and access to natural resources.
                Efforts to protect the Amazon include government regulations, international agreements, and conservation programs run by NGOs and local groups. However, enforcement remains inconsistent, and economic pressures often outweigh environmental considerations. Without stronger global cooperation and sustainable economic alternatives, the Amazon may soon reach a tipping point beyond which it cannot recover—threatening not just regional stability, but the global climate system.""";
 
-        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).summarize(prompt);
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).summarize(prompt);
         assertThat(sanitize(result))
                 .contains("rainforest", "deforestation")
                 .hasSizeLessThan(prompt.length());
@@ -191,7 +191,7 @@ public class TestLanguageModelClient
                 .add(new LlmMessage(MessageRole.USER, "And France?"))
                 .build();
 
-        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).generate(messages);
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(messages);
         assertThat(result).containsIgnoringCase("paris");
     }
 
@@ -211,7 +211,7 @@ public class TestLanguageModelClient
                 .add(new LlmMessage(MessageRole.USER, "Berlin"))
                 .build();
 
-        String result = modelClientProvider.languageModelClient(Slices.utf8Slice(modelId)).generate(systemPrompt, messages);
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(systemPrompt, messages);
         assertThat(result).containsIgnoringCase("deutschland");
     }
 
