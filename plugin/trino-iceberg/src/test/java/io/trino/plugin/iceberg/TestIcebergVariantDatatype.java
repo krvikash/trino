@@ -192,6 +192,85 @@ final class TestIcebergVariantDatatype
     }
 
     @Test
+    void testVariantArray()
+    {
+        try (TestTable table = newTrinoTable("test_variant_array", "(id int, variant JSON)",
+                List.of("1, JSON '[1, 2, 3]'", "2, JSON '[]'", "3, JSON '[\"a\", \"b\", \"c\"]'", "4, JSON '[null, 1, \"test\"]'"))) {
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (1, JSON '[1,2,3]'), (2, JSON '[]'), (3, JSON '[\"a\",\"b\",\"c\"]'), (4, JSON '[null,1,\"test\"]')");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant = JSON '[1,2,3]'"))
+                    .matches("VALUES 1");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant = JSON '[]'"))
+                    .matches("VALUES 2");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant != JSON '[]'"))
+                    .matches("VALUES 1, 3, 4");
+        }
+    }
+
+    @Test
+    void testVariantMap()
+    {
+        try (TestTable table = newTrinoTable("test_variant_map", "(id int, variant JSON)",
+                List.of("1, JSON '{\"key1\": \"value1\", \"key2\": \"value2\"}'",
+                        "2, JSON '{}'",
+                        "3, JSON '{\"nested\": {\"a\": 1, \"b\": 2}}'",
+                        "4, JSON '{\"mixed\": [1, 2, 3], \"value\": null}'",
+                        "5, JSON 'null'"))) {
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES " +
+                            "(1, JSON '{\"key1\":\"value1\",\"key2\":\"value2\"}'), " +
+                            "(2, JSON '{}'), " +
+                            "(3, JSON '{\"nested\":{\"a\":1,\"b\":2}}'), " +
+                            "(4, JSON '{\"mixed\":[1,2,3],\"value\":null}')," +
+                            "(5, JSON 'null')");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant = JSON '{}'"))
+                    .matches("VALUES 2");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant != JSON '{}'"))
+                    .matches("VALUES 1, 3, 4, 5");
+        }
+    }
+
+    @Test
+    void testVariantRow()
+    {
+        try (TestTable table = newTrinoTable("test_variant_row", "(id int, variant JSON)",
+                List.of("1, JSON '{\"field1\": 123, \"field2\": \"text\"}'",
+                        "2, JSON '{\"field1\": null, \"field2\": null}'",
+                        "3, JSON '{\"field1\": 456, \"field2\": \"another\", \"field3\": true}'",
+                        "4, JSON '{\"nested_row\": {\"inner1\": 1, \"inner2\": \"value\"}}'"))) {
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES " +
+                            "(1, JSON '{\"field1\":123,\"field2\":\"text\"}'), " +
+                            "(2, JSON '{\"field1\":null,\"field2\":null}'), " +
+                            "(3, JSON '{\"field1\":456,\"field2\":\"another\",\"field3\":true}'), " +
+                            "(4, JSON '{\"nested_row\":{\"inner1\":1,\"inner2\":\"value\"}}')");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant = JSON '{\"field1\":123,\"field2\":\"text\"}'"))
+                    .matches("VALUES 1");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant IS NOT NULL"))
+                    .matches("VALUES 1, 2, 3, 4");
+        }
+    }
+
+    @Test
+    void testVariantComplexNested()
+    {
+        try (TestTable table = newTrinoTable("test_variant_complex", "(id int, variant JSON)",
+                List.of("1, JSON '{\"array_of_maps\": [{\"id\": 1}, {\"id\": 2}]}'",
+                        "2, JSON '{\"map_of_arrays\": {\"list1\": [1, 2], \"list2\": [3, 4]}}'",
+                        "3, JSON '{\"deeply_nested\": {\"level1\": {\"level2\": {\"value\": 42}}}}'",
+                        "4, JSON '{\"mixed\": {\"arr\": [1, {\"key\": \"val\"}, null], \"num\": 123}}'"))) {
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES " +
+                            "(1, JSON '{\"array_of_maps\":[{\"id\":1},{\"id\":2}]}'), " +
+                            "(2, JSON '{\"map_of_arrays\":{\"list1\":[1,2],\"list2\":[3,4]}}'), " +
+                            "(3, JSON '{\"deeply_nested\":{\"level1\":{\"level2\":{\"value\":42}}}}'), " +
+                            "(4, JSON '{\"mixed\":{\"arr\":[1,{\"key\":\"val\"},null],\"num\":123}}')");
+            assertThat(query("SELECT count(*) FROM " + table.getName() + " WHERE variant IS NOT NULL"))
+                    .matches("VALUES CAST(4 AS BIGINT)");
+        }
+    }
+
+    @Test
     void testVariantNull()
     {
         try (TestTable table = newTrinoTable("test_variant", "(id int, variant JSON)", List.of("1, JSON 'null'", "2, NULL", "3, JSON '{\"id\":3}'"))) {
