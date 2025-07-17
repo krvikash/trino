@@ -303,6 +303,14 @@ final class TestIcebergUnityRestCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testRecreateTableWithSameName()
+    {
+        assertThatThrownBy(super::testRecreateTableWithSameName)
+                .hasMessageContaining("Access Denied");
+    }
+
+    @Test
+    @Override
     public void testRegisterTableWithTableLocation()
     {
         assertThatThrownBy(super::testRegisterTableWithTableLocation)
