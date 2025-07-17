@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.connector;
 
-import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.SourcePage;
 
@@ -36,13 +35,6 @@ public class TestingConnectorPageSource
     public boolean isFinished()
     {
         return false;
-    }
-
-    @Override
-    @SuppressWarnings("removal")
-    public Page getNextPage()
-    {
-        return null;
     }
 
     @Override

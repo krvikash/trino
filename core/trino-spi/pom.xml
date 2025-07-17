@@ -459,6 +459,24 @@
                                     <code>java.method.parameterTypeChanged</code>
                                     <old>method void io.trino.spi.eventlistener.StageTaskStatistics::&lt;init&gt;(int, int, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.LongSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution, io.trino.spi.eventlistener.DoubleSymmetricDistribution)</old>
                                 </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.removed</code>
+                                    <old>method io.trino.spi.Page io.trino.spi.connector.EmptyPageSource::getNextPage()</old>
+                                    <justification>Deprecated</justification>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.removed</code>
+                                    <old>method io.trino.spi.Page io.trino.spi.connector.FixedPageSource::getNextPage()</old>
+                                    <justification>Deprecated</justification>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.removed</code>
+                                    <old>method io.trino.spi.Page io.trino.spi.connector.RecordPageSource::getNextPage()</old>
+                                    <justification>Deprecated</justification>
+                                </item>
                             </differences>
                         </revapi.differences>
                     </analysisConfiguration>

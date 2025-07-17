@@ -163,24 +163,29 @@ public class SnowflakeArrowPageSource
     }
 
     @Override
-    public Page getNextPage()
+    public SourcePage getNextSourcePage()
     {
         Page page = doGetNextPage();
-        if (page == null || columnAdaptations.isEmpty()) {
-            return page;
+        if (page == null) {
+            return null;
         }
 
-        return getColumnAdaptationsPage(SourcePage.create(page));
+        SourcePage sourcePage = SourcePage.create(page);
+        if (columnAdaptations.isEmpty()) {
+            return sourcePage;
+        }
+
+        return getColumnAdaptationsPage(sourcePage);
     }
 
-    private Page getColumnAdaptationsPage(SourcePage page)
+    private SourcePage getColumnAdaptationsPage(SourcePage page)
     {
         Block[] blocks = new Block[columnAdaptations.size()];
         for (int i = 0; i < columnAdaptations.size(); i++) {
             blocks[i] = columnAdaptations.get(i).getBlock(page);
         }
 
-        return new Page(page.getPositionCount(), blocks);
+        return SourcePage.create(new Page(page.getPositionCount(), blocks));
     }
 
     private Page doGetNextPage()
