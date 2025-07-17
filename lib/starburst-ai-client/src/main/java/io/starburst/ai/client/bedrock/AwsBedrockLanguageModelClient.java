@@ -58,6 +58,7 @@ public class AwsBedrockLanguageModelClient
     private final Optional<Float> temperature;
     private final Optional<Float> topP;
     private final Tracer tracer;
+    private final String modelName;
     private final BedrockRuntimeClient client;
 
     public AwsBedrockLanguageModelClient(
@@ -69,31 +70,32 @@ public class AwsBedrockLanguageModelClient
             Tracer tracer,
             BedrockRuntimeClient client)
     {
-        super(modelName, promptDao);
+        super(promptDao);
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.topP = requireNonNull(topP, "topP is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.modelName = requireNonNull(modelName, "modelName is null");
         this.client = requireNonNull(client, "client is null");
     }
 
     @Override
-    protected String generateCompletion(String model, List<String> systemPrompts, String prompt)
+    protected String generateCompletion(List<String> systemPrompts, String prompt)
     {
-        return generateCompletion(model, systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)));
+        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)));
     }
 
     @Override
-    protected String generateCompletion(String model, List<String> systemPrompts, List<LlmMessage> messages)
+    protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> messages)
     {
         List<SystemContentBlock> systemContentBlocks = systemPrompts.stream()
                 .map(SystemContentBlock::fromText)
                 .collect(toImmutableList());
 
-        Span span = tracer.spanBuilder(CHAT + " " + model)
+        Span span = tracer.spanBuilder(CHAT + " " + modelName)
                 .setAttribute(GEN_AI_OPERATION_NAME, CHAT)
                 .setAttribute(GEN_AI_SYSTEM, AWS_BEDROCK)
-                .setAttribute(GEN_AI_REQUEST_MODEL, model)
+                .setAttribute(GEN_AI_REQUEST_MODEL, modelName)
                 .setSpanKind(SpanKind.CLIENT)
                 .startSpan();
 
@@ -104,7 +106,7 @@ public class AwsBedrockLanguageModelClient
                     request.system(systemContentBlocks);
                 }
                 request
-                        .modelId(model)
+                        .modelId(modelName)
                         .messages(messages.stream()
                                 .map(message -> Message.builder()
                                         .role(toConversationRole(message))
@@ -117,7 +119,7 @@ public class AwsBedrockLanguageModelClient
                                 .topP(topP.orElse(null)));
             });
 
-            span.setAttribute(GEN_AI_RESPONSE_MODEL, model);
+            span.setAttribute(GEN_AI_RESPONSE_MODEL, modelName);
             span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, Optional.ofNullable(response.usage().inputTokens()).orElse(0));
             span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, Optional.ofNullable(response.usage().outputTokens()).orElse(0));
         }

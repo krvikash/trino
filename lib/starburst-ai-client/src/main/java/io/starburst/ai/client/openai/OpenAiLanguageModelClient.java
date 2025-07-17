@@ -55,6 +55,7 @@ public class OpenAiLanguageModelClient
     private final Optional<Float> topP;
     private final boolean useDeveloperForSystemRole;
     private final Tracer tracer;
+    private final String modelName;
     private final OpenAIClient client;
 
     public OpenAiLanguageModelClient(
@@ -67,26 +68,27 @@ public class OpenAiLanguageModelClient
             Tracer tracer,
             OpenAIClient client)
     {
-        super(modelName, promptDao);
+        super(promptDao);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
         this.useDeveloperForSystemRole = useDeveloperForSystemRole;
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.modelName = requireNonNull(modelName, "modelName is null");
         this.client = requireNonNull(client, "client is null");
     }
 
     @Override
-    protected String generateCompletion(String model, List<String> systemPrompts, String prompt)
+    protected String generateCompletion(List<String> systemPrompts, String prompt)
     {
-        return generateCompletion(model, systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)));
+        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)));
     }
 
     @Override
-    protected String generateCompletion(String model, List<String> systemPrompts, List<LlmMessage> llmMessages)
+    protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages)
     {
         ChatCompletionCreateParams.Builder builder = ChatCompletionCreateParams.builder()
-                .model(model)
+                .model(modelName)
                 .seed(SEED);
         temperature.ifPresent(builder::temperature);
         topP.ifPresent(builder::topP);
@@ -106,10 +108,10 @@ public class OpenAiLanguageModelClient
             }
         });
 
-        Span span = tracer.spanBuilder(CHAT + " " + model)
+        Span span = tracer.spanBuilder(CHAT + " " + modelName)
                 .setAttribute(GEN_AI_OPERATION_NAME, CHAT)
                 .setAttribute(GEN_AI_SYSTEM, OPENAI)
-                .setAttribute(GEN_AI_REQUEST_MODEL, model)
+                .setAttribute(GEN_AI_REQUEST_MODEL, modelName)
                 .setAttribute(GEN_AI_REQUEST_SEED, SEED)
                 .setSpanKind(SpanKind.CLIENT)
                 .startSpan();

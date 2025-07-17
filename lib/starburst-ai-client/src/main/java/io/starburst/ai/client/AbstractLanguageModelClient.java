@@ -35,19 +35,17 @@ public abstract class AbstractLanguageModelClient
     protected final ModelWithFixedPrompt maskModelAndPrompt;
     protected final ModelWithFixedPrompt translateModelAndPrompt;
     protected final ModelWithFixedPrompt summarizeModelAndPrompt;
-    protected final String generateModel;
 
-    protected AbstractLanguageModelClient(String model, PromptDao promptDao)
+    protected AbstractLanguageModelClient(PromptDao promptDao)
     {
-        this.generateModel = requireNonNull(model, "model is null");
         this.promptDao = requireNonNull(promptDao, "promptDao is null");
         this.topLevelSystemPrompts = promptDao.systemPrompts();
-        this.analyzeSentimentModelAndPrompt = create("analyzeSentiment", generateModel, topLevelSystemPrompts, promptDao.analyzeSentimentPrompt(), promptDao.analyzeSentimentSystemPrompt());
-        this.classifyModelAndPrompt = create("classify", generateModel, topLevelSystemPrompts, promptDao.classifyPrompt(), promptDao.classifySystemPrompt());
-        this.fixGrammarModelAndPrompt = create("fixGrammar", generateModel, topLevelSystemPrompts, promptDao.fixGrammarPrompt(), promptDao.fixGrammarSystemPrompt());
-        this.maskModelAndPrompt = create("mask", generateModel, topLevelSystemPrompts, promptDao.maskPrompt(), promptDao.maskSystemPrompt());
-        this.translateModelAndPrompt = create("translate", generateModel, topLevelSystemPrompts, promptDao.translatePrompt(), promptDao.translateSystemPrompt());
-        this.summarizeModelAndPrompt = create("summarize", generateModel, topLevelSystemPrompts, promptDao.summarizePrompt(), promptDao.summarizeSystemPrompt());
+        this.analyzeSentimentModelAndPrompt = create("analyzeSentiment", topLevelSystemPrompts, promptDao.analyzeSentimentPrompt(), promptDao.analyzeSentimentSystemPrompt());
+        this.classifyModelAndPrompt = create("classify", topLevelSystemPrompts, promptDao.classifyPrompt(), promptDao.classifySystemPrompt());
+        this.fixGrammarModelAndPrompt = create("fixGrammar", topLevelSystemPrompts, promptDao.fixGrammarPrompt(), promptDao.fixGrammarSystemPrompt());
+        this.maskModelAndPrompt = create("mask", topLevelSystemPrompts, promptDao.maskPrompt(), promptDao.maskSystemPrompt());
+        this.translateModelAndPrompt = create("translate", topLevelSystemPrompts, promptDao.translatePrompt(), promptDao.translateSystemPrompt());
+        this.summarizeModelAndPrompt = create("summarize", topLevelSystemPrompts, promptDao.summarizePrompt(), promptDao.summarizeSystemPrompt());
     }
 
     @Override
@@ -83,14 +81,13 @@ public abstract class AbstractLanguageModelClient
     @Override
     public String generate(List<LlmMessage> messages)
     {
-        return generateCompletion(generateModel, topLevelSystemPrompts, messages);
+        return generateCompletion(topLevelSystemPrompts, messages);
     }
 
     @Override
     public String generate(String systemPrompt, List<LlmMessage> messages)
     {
         return generateCompletion(
-                generateModel,
                 ImmutableList.<String>builder()
                         .addAll(topLevelSystemPrompts)
                         .add(systemPrompt)
@@ -128,17 +125,17 @@ public abstract class AbstractLanguageModelClient
         else {
             systemPrompts = topLevelSystemPrompts;
         }
-        return generateCompletion(this.generateModel, systemPrompts, prompt);
+        return generateCompletion(systemPrompts, prompt);
     }
 
     private String fixedCompletion(ModelWithFixedPrompt modelAndPrompt, String userPrompt)
     {
-        return completion(modelAndPrompt.model(), modelAndPrompt.systemPrompts(), userPrompt);
+        return completion(modelAndPrompt.systemPrompts(), userPrompt);
     }
 
-    private String completion(String model, List<String> systemPrompts, String userPrompt)
+    private String completion(List<String> systemPrompts, String userPrompt)
     {
-        return generateCompletion(model, systemPrompts, userPrompt);
+        return generateCompletion(systemPrompts, userPrompt);
     }
 
     private static String formatLabelsAndText(String template, List<String> labels, String text)
@@ -146,13 +143,13 @@ public abstract class AbstractLanguageModelClient
         return template.formatted(LIST_CODEC.toJson(labels), text);
     }
 
-    protected abstract String generateCompletion(String model, List<String> systemPrompts, String prompt);
+    protected abstract String generateCompletion(List<String> systemPrompts, String prompt);
 
-    protected abstract String generateCompletion(String model, List<String> systemPrompts, List<LlmMessage> llmMessages);
+    protected abstract String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages);
 
-    protected record ModelWithFixedPrompt(String name, String model, List<String> systemPrompts, String prompt) {}
+    protected record ModelWithFixedPrompt(String name, List<String> systemPrompts, String prompt) {}
 
-    protected static ModelWithFixedPrompt create(String name, String model, List<String> topLevelSystemPrompts, String userPrompt, Optional<String> systemPrompt)
+    protected static ModelWithFixedPrompt create(String name, List<String> topLevelSystemPrompts, String userPrompt, Optional<String> systemPrompt)
     {
         List<String> systemPrompts;
         if (systemPrompt.isPresent()) {
@@ -164,6 +161,6 @@ public abstract class AbstractLanguageModelClient
         else {
             systemPrompts = topLevelSystemPrompts;
         }
-        return new ModelWithFixedPrompt(name, model, systemPrompts, userPrompt);
+        return new ModelWithFixedPrompt(name, systemPrompts, userPrompt);
     }
 }
