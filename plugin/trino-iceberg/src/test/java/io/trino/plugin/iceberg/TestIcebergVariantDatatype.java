@@ -163,7 +163,6 @@ final class TestIcebergVariantDatatype
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(new BigDecimal("-123456.789"))), "CAST (-123456.789 AS JSON)");
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(ByteBuffer.wrap(new byte[] {0x0a, 0x0b, 0x0c, 0x0d}))), "JSON '\"CgsMDQ==\"'");
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of("trino")), "JSON '\"trino\"'");
-        // TODO: Add tests for Array, Map and ROW https://starburstdata.atlassian.net/browse/CONNECT-588
     }
 
     private void testVariantTypeMappings(Variant variantData, @Language("SQL") String expectedVariant)
@@ -267,6 +266,84 @@ final class TestIcebergVariantDatatype
                             "(4, JSON '{\"mixed\":{\"arr\":[1,{\"key\":\"val\"},null],\"num\":123}}')");
             assertThat(query("SELECT count(*) FROM " + table.getName() + " WHERE variant IS NOT NULL"))
                     .matches("VALUES CAST(4 AS BIGINT)");
+        }
+    }
+
+    @Test
+    void testVariantInRowType()
+    {
+        try (TestTable table = newTrinoTable("test_row_with_variant", "(id int, row_col ROW(name VARCHAR, data JSON))")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES " +
+                    "(1, ROW('test', JSON '{\"info\": \"value\"}')), " +
+                    "(2, ROW('null_data', NULL))", 2);
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES " +
+                            "(1, CAST(ROW('test', JSON '{\"info\":\"value\"}') AS ROW(name VARCHAR, data JSON))), " +
+                            "(2, CAST(ROW(VARCHAR 'null_data', NULL) AS ROW(name VARCHAR, data JSON)))");
+
+            assertThat(query("SELECT row_col.data FROM " + table.getName() + " WHERE row_col.name = 'test'"))
+                    .matches("VALUES JSON '{\"info\":\"value\"}'");
+        }
+    }
+
+    @Test
+    void testVariantInNestedComplexType()
+    {
+        try (TestTable table = newTrinoTable("test_nested_complex", "(id int, nested ARRAY(ROW(id INT, variant JSON)))")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES " +
+                    "(1, ARRAY[ROW(1, JSON '{\"a\": 1}'), ROW(2, JSON 'null')]), " +
+                    "(2, ARRAY[ROW(3, JSON '[]')])", 2);
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES " +
+                            "(1, ARRAY[CAST(ROW(1, JSON '{\"a\":1}') AS ROW(id INT, variant JSON)), CAST(ROW(2, JSON 'null') AS ROW(id INT, variant JSON))]), " +
+                            "(2, ARRAY[CAST(ROW(3, JSON '[]') AS ROW(id INT, variant JSON))])");
+        }
+    }
+
+    @Test
+    void testVariantInArrayType()
+    {
+        try (TestTable table = newTrinoTable("test_array_of_variant", "(id int, arr ARRAY(JSON))")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES " +
+                    "(1, ARRAY[JSON '{\"a\": 1}', JSON '123']),\n" +
+                    "(2, ARRAY[JSON '[]', JSON '{}']),\n" +
+                    "(3, ARRAY[JSON '[\"a\", \"b\", \"c\"]']),\n" +
+                    "(4, ARRAY[JSON '[null, 1, \"test\"]'])", 4);
+
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE id = 1"))
+                    .matches("VALUES (1, ARRAY[JSON '{\"a\":1}', JSON '123'])");
+
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE id = 2"))
+                    .matches("VALUES (2, ARRAY[JSON '[]', JSON '{}'])");
+
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE id = 3"))
+                    .matches("VALUES (3, ARRAY[JSON '[\"a\",\"b\",\"c\"]'])");
+
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE id = 4"))
+                    .matches("VALUES (4, ARRAY[JSON '[null,1,\"test\"]'])");
+
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE contains(arr, JSON '{\"a\":1}')"))
+                    .matches("VALUES 1");
+        }
+    }
+
+    @Test
+    void testVariantInMapType()
+    {
+        try (TestTable table = newTrinoTable("test_map_of_variant", "(id int, map_col MAP(VARCHAR, JSON))")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES " +
+                    "(1, MAP(ARRAY['key1', 'key2'], ARRAY[JSON '{\"value\": 1}', JSON 'null'])), " +
+                    "(2, MAP(ARRAY['a'], ARRAY[JSON '[]']))", 2);
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES " +
+                            "(1, MAP(ARRAY[VARCHAR 'key1', VARCHAR 'key2'], ARRAY[JSON '{\"value\":1}', JSON 'null'])), " +
+                            "(2, MAP(ARRAY[VARCHAR 'a'], ARRAY[JSON '[]']))");
+
+            assertThat(query("SELECT map_col['key1'] FROM " + table.getName() + " WHERE id = 1"))
+                    .matches("VALUES JSON '{\"value\":1}'");
         }
     }
 

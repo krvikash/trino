@@ -14,7 +14,6 @@
 package io.trino.parquet.writer;
 
 import com.google.common.collect.ImmutableList;
-import io.airlift.slice.Slices;
 import io.trino.parquet.spark.Variant;
 import io.trino.parquet.spark.VariantBuilder;
 import io.trino.spi.block.Block;
@@ -25,15 +24,13 @@ import java.io.IOException;
 import java.util.List;
 
 import static io.airlift.slice.SizeOf.instanceSize;
+import static io.airlift.slice.Slices.wrappedBuffer;
 import static java.util.Objects.requireNonNull;
 
 public class VariantValueWriter
         implements ColumnWriter
 {
     private static final int INSTANCE_SIZE = instanceSize(VariantValueWriter.class);
-    private static final ColumnChunk NULL_COLUMN_CHUNK = new ColumnChunk(new VariableWidthBlockBuilder(null, 1, 1)
-            .appendNull()
-            .build());
     private final ColumnWriter metadataWriter;
     private final ColumnWriter valueWriter;
 
@@ -48,24 +45,27 @@ public class VariantValueWriter
             throws IOException
     {
         Block block = columnChunk.getBlock();
-        for (int i = 0; i < block.getPositionCount(); ++i) {
+        int positionCount = block.getPositionCount();
+
+        // Create builders sized for the entire batch
+        VariableWidthBlockBuilder metadataBlockBuilder = new VariableWidthBlockBuilder(null, positionCount, 50);
+        VariableWidthBlockBuilder valueBlockBuilder = new VariableWidthBlockBuilder(null, positionCount, 50);
+        VariableWidthBlock variantBlock = (VariableWidthBlock) block.getUnderlyingValueBlock();
+
+        for (int i = 0; i < positionCount; ++i) {
             if (block.isNull(i)) {
-                metadataWriter.writeBlock(NULL_COLUMN_CHUNK);
-                valueWriter.writeBlock(NULL_COLUMN_CHUNK);
+                metadataBlockBuilder.appendNull();
+                valueBlockBuilder.appendNull();
             }
             else {
-                VariableWidthBlock valueBlock = (VariableWidthBlock) block.getUnderlyingValueBlock();
                 int valuePosition = block.getUnderlyingValuePosition(i);
-                String json = valueBlock.getSlice(valuePosition).toStringUtf8();
-                Variant variant = VariantBuilder.parseJson(json);
-                metadataWriter.writeBlock(new ColumnChunk(new VariableWidthBlockBuilder(null, 1, 1)
-                        .writeEntry(Slices.wrappedBuffer(variant.getMetadata()))
-                        .build()));
-                valueWriter.writeBlock(new ColumnChunk(new VariableWidthBlockBuilder(null, 1, 1)
-                        .writeEntry(Slices.wrappedBuffer(variant.getValue()))
-                        .build()));
+                Variant variant = VariantBuilder.parseJson(variantBlock.getSlice(valuePosition).toStringUtf8());
+                metadataBlockBuilder.writeEntry(wrappedBuffer(variant.getMetadata()));
+                valueBlockBuilder.writeEntry(wrappedBuffer(variant.getValue()));
             }
         }
+        metadataWriter.writeBlock(new ColumnChunk(metadataBlockBuilder.build(), columnChunk.getDefLevelWriterProviders(), columnChunk.getRepLevelWriterProviders()));
+        valueWriter.writeBlock(new ColumnChunk(valueBlockBuilder.build(), columnChunk.getDefLevelWriterProviders(), columnChunk.getRepLevelWriterProviders()));
     }
 
     @Override
