@@ -7,13 +7,8 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.ai.client;
+module starburst.ai.model {
+    requires com.fasterxml.jackson.annotation;
 
-import static io.starburst.ai.client.ModelConnectionSpecs.EMPTY_SPECS;
-
-public interface ModelConnectionSpecsLoader
-{
-    ModelConnectionSpecsLoader EMPTY_LOADER = () -> EMPTY_SPECS;
-
-    ModelConnectionSpecs load();
+    exports io.starburst.ai.model;
 }

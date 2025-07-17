@@ -10,6 +10,7 @@
 package io.starburst.ai.client;
 
 import com.google.common.collect.ImmutableList;
+import io.starburst.ai.model.PromptOverrides;
 
 import java.util.List;
 import java.util.Optional;

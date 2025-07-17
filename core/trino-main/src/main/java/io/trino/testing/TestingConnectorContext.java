@@ -16,6 +16,7 @@ package io.trino.testing;
 import io.airlift.tracing.Tracing;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.connector.ConnectorAwareNodeManager;
 import io.trino.metadata.InMemoryNodeManager;
 import io.trino.operator.FlatHashStrategyCompiler;
@@ -35,6 +36,7 @@ import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.util.EmbedVersion;
 
+import static io.starburst.ai.model.ModelConnectionSpecsLoader.EMPTY_LOADER;
 import static io.trino.spi.connector.MetadataProvider.NOOP_METADATA_PROVIDER;
 import static io.trino.testing.TestingHandles.TEST_CATALOG_HANDLE;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
@@ -99,6 +101,12 @@ public final class TestingConnectorContext
     public AiModelAccessControl getAiModelAccessControl()
     {
         return AiModelAccessControl.ALLOW_ALL;
+    }
+
+    @Override
+    public ModelConnectionSpecsLoader getModelConnectionSpecsLoader()
+    {
+        return EMPTY_LOADER;
     }
 
     @Override

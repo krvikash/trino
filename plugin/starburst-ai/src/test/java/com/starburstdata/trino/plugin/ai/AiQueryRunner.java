@@ -41,6 +41,11 @@ public final class AiQueryRunner
         addStarburstAiCatalog(starburstAiFileStorageProperties(modelSpecJson), runner);
     }
 
+    public static void addStarburstAiCatalogWithExternalProvider(QueryRunner runner)
+    {
+        addStarburstAiCatalog(starburstAiExternalStorageProperties(), runner);
+    }
+
     public static void addStarburstAiCatalog(File modelSpecsFile, QueryRunner runner)
     {
         requireNonNull(modelSpecsFile, "modelSpecsFile is null");
@@ -64,6 +69,12 @@ public final class AiQueryRunner
     {
         requireNonNull(modelSpecsFile, "modelSpecsFile is null");
         return ImmutableMap.of("ai.client.models.storage", "FILE", "ai.client.models.file", modelSpecsFile.getAbsolutePath(), "ai.client.cache.refresh.enabled", "true");
+    }
+
+    public static Map<String, String> starburstAiExternalStorageProperties()
+    {
+        return ImmutableMap.of("ai.client.models.storage",
+                "EXTERNAL", "ai.client.cache.refresh.enabled", "true");
     }
 
     public static Session sessionWithRole(String role)

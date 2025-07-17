@@ -259,6 +259,11 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>starburst-ai-client-model</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>starburst-vbyte</artifactId>
         </dependency>
 

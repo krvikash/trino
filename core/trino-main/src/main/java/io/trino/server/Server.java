@@ -57,6 +57,7 @@ import io.trino.metadata.CatalogManager;
 import io.trino.security.AccessControlManager;
 import io.trino.security.AccessControlModule;
 import io.trino.security.GroupProviderManager;
+import io.trino.server.ai.AiModelConnectionSpecsLoaderModule;
 import io.trino.server.dataframe.StarburstDataframeModule;
 import io.trino.server.protocol.spooling.SpoolingManagerRegistry;
 import io.trino.server.security.CertificateAuthenticatorManager;
@@ -125,6 +126,8 @@ public class Server
                 new ExchangeManagerModule(),
                 new CacheManagerModule(),
                 new CoordinatorDiscoveryModule(),
+                new AiModelConnectionSpecsLoaderModule(),
+                new InternalHttpClientModule(),
                 new CatalogManagerModule(),
                 new TransactionManagerModule(),
                 new StarburstDataframeModule(),

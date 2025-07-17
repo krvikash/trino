@@ -7,16 +7,15 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.ai.client;
+package io.starburst.ai.model;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.collect.ImmutableMap;
-import io.airlift.configuration.secrets.SecretsResolver;
 
-import java.util.Map;
 import java.util.Optional;
 
+import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
+import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import static java.util.Objects.requireNonNull;
 
 @JsonTypeInfo(
@@ -24,14 +23,12 @@ import static java.util.Objects.requireNonNull;
         include = JsonTypeInfo.As.PROPERTY,
         property = "provider")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = ConnectionInfo.OpenAiConnectionInfo.class, name = "OPENAI"),
-        @JsonSubTypes.Type(value = ConnectionInfo.AwsBedrockConnectionInfo.class, name = "AWS_BEDROCK")
+        @JsonSubTypes.Type(value = OpenAiConnectionInfo.class, name = "OPENAI"),
+        @JsonSubTypes.Type(value = AwsBedrockConnectionInfo.class, name = "AWS_BEDROCK")
 })
 public sealed interface ConnectionInfo
-        permits ConnectionInfo.OpenAiConnectionInfo, ConnectionInfo.AwsBedrockConnectionInfo
+        permits OpenAiConnectionInfo, AwsBedrockConnectionInfo
 {
-    ConnectionInfo resolvedConnectionInfo(SecretsResolver secretsResolver);
-
     record OpenAiConnectionInfo(Optional<String> endpoint, Optional<String> apiKey)
             implements ConnectionInfo
     {
@@ -39,13 +36,6 @@ public sealed interface ConnectionInfo
         {
             requireNonNull(endpoint, "endpoint is null");
             requireNonNull(apiKey, "apiKey is null");
-        }
-
-        @Override
-        public OpenAiConnectionInfo resolvedConnectionInfo(SecretsResolver secretsResolver)
-        {
-            return apiKey().map(key -> new OpenAiConnectionInfo(endpoint(), Optional.of(secretsResolver.getResolvedConfiguration(ImmutableMap.of("apiKey", key)).get("apiKey"))))
-                    .orElse(this);
         }
     }
 
@@ -64,18 +54,6 @@ public sealed interface ConnectionInfo
             requireNonNull(region, "region is null");
             requireNonNull(iamRole, "iamRole is null");
             requireNonNull(externalId, "externalId is null");
-        }
-
-        @Override
-        public AwsBedrockConnectionInfo resolvedConnectionInfo(SecretsResolver secretsResolver)
-        {
-            if (awsAccessKey().isEmpty() || awsSecretKey().isEmpty()) {
-                return this;
-            }
-            Map<String, String> resolvedSecrets = secretsResolver.getResolvedConfiguration(ImmutableMap.of("awsAccessKey", awsAccessKey().get(), "awsSecretKey", awsSecretKey().get()));
-            Optional<String> awsAccessKey = Optional.of(resolvedSecrets.get("awsAccessKey"));
-            Optional<String> awsSecretKey = Optional.of(resolvedSecrets.get("awsSecretKey"));
-            return new AwsBedrockConnectionInfo(awsAccessKey, awsSecretKey, region(), iamRole(), externalId());
         }
     }
 }

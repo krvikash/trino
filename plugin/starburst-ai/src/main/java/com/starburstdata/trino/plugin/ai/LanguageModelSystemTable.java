@@ -11,9 +11,9 @@ package com.starburstdata.trino.plugin.ai;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import io.starburst.ai.client.LanguageModelConnectionSpec;
 import io.starburst.ai.client.ModelConnectionSpecDao;
-import io.starburst.ai.client.PromptOverrides;
+import io.starburst.ai.model.LanguageModelConnectionSpec;
+import io.starburst.ai.model.PromptOverrides;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.SchemaTableName;

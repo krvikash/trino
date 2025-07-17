@@ -11,6 +11,8 @@ package io.starburst.ai.client;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.google.inject.Inject;
+import io.starburst.ai.model.ModelConnectionSpecs;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.spi.TrinoException;
 
 import java.io.IOException;

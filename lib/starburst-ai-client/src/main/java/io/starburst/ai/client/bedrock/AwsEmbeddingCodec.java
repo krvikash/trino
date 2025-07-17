@@ -11,8 +11,8 @@ package io.starburst.ai.client.bedrock;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.airlift.slice.Slice;
-import io.starburst.ai.client.EmbeddingModelConnectionSpec;
 import io.starburst.ai.client.EmbeddingType;
+import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 
 import java.util.Iterator;
 import java.util.List;

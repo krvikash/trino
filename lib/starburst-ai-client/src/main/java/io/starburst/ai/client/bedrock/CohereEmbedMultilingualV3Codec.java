@@ -18,8 +18,8 @@ import com.google.common.collect.Iterators;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.starburst.ai.client.EmbeddingModelConnectionSpec;
 import io.starburst.ai.client.EmbeddingType;
+import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.trino.spi.TrinoException;
 
 import java.util.Iterator;

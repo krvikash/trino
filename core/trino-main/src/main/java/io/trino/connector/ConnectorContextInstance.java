@@ -15,6 +15,7 @@ package io.trino.connector;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
@@ -39,6 +40,7 @@ public class ConnectorContextInstance
     private final PageSorter pageSorter;
     private final PageIndexerFactory pageIndexerFactory;
     private final AiModelAccessControl aiModelAccessControl;
+    private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
     private final CatalogHandle catalogHandle;
 
     public ConnectorContextInstance(
@@ -50,6 +52,7 @@ public class ConnectorContextInstance
             TypeManager typeManager,
             MetadataProvider metadataProvider,
             AiModelAccessControl aiModelAccessControl,
+            ModelConnectionSpecsLoader modelConnectionSpecsLoader,
             PageSorter pageSorter,
             PageIndexerFactory pageIndexerFactory)
     {
@@ -60,6 +63,7 @@ public class ConnectorContextInstance
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.metadataProvider = requireNonNull(metadataProvider, "metadataProvider is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
+        this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
         this.catalogHandle = requireNonNull(catalogHandle, "catalogHandle is null");
@@ -123,5 +127,11 @@ public class ConnectorContextInstance
     public AiModelAccessControl getAiModelAccessControl()
     {
         return aiModelAccessControl;
+    }
+
+    @Override
+    public ModelConnectionSpecsLoader getModelConnectionSpecsLoader()
+    {
+        return modelConnectionSpecsLoader;
     }
 }

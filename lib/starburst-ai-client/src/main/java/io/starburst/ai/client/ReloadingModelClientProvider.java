@@ -21,6 +21,10 @@ import io.airlift.stats.CounterStat;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
+import io.starburst.ai.model.EmbeddingModelConnectionSpec;
+import io.starburst.ai.model.LanguageModelConnectionSpec;
+import io.starburst.ai.model.ModelConnectionSpecs;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.spi.TrinoException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -35,6 +39,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.starburst.ai.client.ModelSecretsResolver.resolveConnectionInfo;
+import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
+import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import static io.trino.spi.StandardErrorCode.NOT_FOUND;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
@@ -224,7 +231,7 @@ public class ReloadingModelClientProvider
                         Slice id = Slices.utf8Slice(newModelConnectionSpec.id());
                         return currentSpecs().getLanguageModelConnectionSpecById(newModelConnectionSpec.id())
                                 .map(spec -> spec.equals(newModelConnectionSpec) &&
-                                        spec.connectionInfo().resolvedConnectionInfo(secretsResolver).equals(newModelConnectionSpec.connectionInfo().resolvedConnectionInfo(secretsResolver)) &&
+                                        resolveConnectionInfo(spec.connectionInfo(), secretsResolver).equals(resolveConnectionInfo(newModelConnectionSpec.connectionInfo(), secretsResolver)) &&
                                         !isExpired(id))
                                 .orElse(false);
                     });
@@ -241,7 +248,7 @@ public class ReloadingModelClientProvider
                         Slice id = Slices.utf8Slice(newModelConnectionSpec.id());
                         return currentSpecs().getEmbeddingModelConnectionSpecById(newModelConnectionSpec.id())
                                 .map(spec -> spec.equals(newModelConnectionSpec) &&
-                                        spec.connectionInfo().resolvedConnectionInfo(secretsResolver).equals(newModelConnectionSpec.connectionInfo().resolvedConnectionInfo(secretsResolver)) &&
+                                        resolveConnectionInfo(spec.connectionInfo(), secretsResolver).equals(resolveConnectionInfo(newModelConnectionSpec.connectionInfo(), secretsResolver)) &&
                                         !isExpired(id))
                                 .orElse(false);
                     });
@@ -274,7 +281,7 @@ public class ReloadingModelClientProvider
             if (currentSpecs().getEmbeddingModelConnectionSpecById(newModelConnectionSpec.id()).map(spec -> !spec.equals(newModelConnectionSpec)).orElse(false) ||
                     isExpired(id)) {
                 try {
-                    embeddingModelClientBuilder.put(id, createEmbeddingModelClient(newModelConnectionSpec));
+                    embeddingModelClientBuilder.put(id, createEmbeddingModelClient((EmbeddingModelConnectionSpec) newModelConnectionSpec));
                     clientCreatedMillisBuilder.put(id, nowMillis);
                 }
                 catch (Throwable t) {
@@ -303,9 +310,9 @@ public class ReloadingModelClientProvider
         {
             PromptDao promptDao = new PromptDaoWithOverrides(defaultPromptDao, modelConnectionSpec.prompts());
             return switch (modelConnectionSpec.connectionInfo()) {
-                case ConnectionInfo.OpenAiConnectionInfo openAiConnectionInfo ->
+                case OpenAiConnectionInfo openAiConnectionInfo ->
                         openAiClientFactory.createLanguageModelClient(modelConnectionSpec, openAiConnectionInfo, promptDao, tracer);
-                case ConnectionInfo.AwsBedrockConnectionInfo awsBedrockConnectionInfo ->
+                case AwsBedrockConnectionInfo awsBedrockConnectionInfo ->
                         awsBedrockClientFactory.createLanguageModelClient(modelConnectionSpec, awsBedrockConnectionInfo, promptDao, tracer);
             };
         }
@@ -313,8 +320,8 @@ public class ReloadingModelClientProvider
         private EmbeddingModelClient createEmbeddingModelClient(EmbeddingModelConnectionSpec modelConnectionSpec)
         {
             return switch (modelConnectionSpec.connectionInfo()) {
-                case ConnectionInfo.OpenAiConnectionInfo openAiConnectionInfo -> openAiClientFactory.createEmbeddingClient(modelConnectionSpec, openAiConnectionInfo);
-                case ConnectionInfo.AwsBedrockConnectionInfo awsBedrockConnectionInfo ->
+                case OpenAiConnectionInfo openAiConnectionInfo -> openAiClientFactory.createEmbeddingClient(modelConnectionSpec, openAiConnectionInfo);
+                case AwsBedrockConnectionInfo awsBedrockConnectionInfo ->
                         awsBedrockClientFactory.createEmbeddingClient(modelConnectionSpec, awsBedrockConnectionInfo);
             };
         }

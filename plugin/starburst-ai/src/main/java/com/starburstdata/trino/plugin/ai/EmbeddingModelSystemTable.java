@@ -11,8 +11,8 @@ package com.starburstdata.trino.plugin.ai;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import io.starburst.ai.client.EmbeddingModelConnectionSpec;
 import io.starburst.ai.client.ModelConnectionSpecDao;
+import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.SchemaTableName;

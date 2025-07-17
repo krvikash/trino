@@ -19,6 +19,7 @@ import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.node.NodeInfo;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.connector.informationschema.InformationSchemaConnector;
 import io.trino.connector.system.CoordinatorSystemTablesProvider;
 import io.trino.connector.system.StaticSystemTablesProvider;
@@ -73,6 +74,7 @@ public class DefaultCatalogFactory
     private final boolean schedulerIncludeCoordinator;
     private final int maxPrefetchedInformationSchemaPrefixes;
     private final AiModelAccessControl aiModelAccessControl;
+    private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
 
     private final ConcurrentMap<ConnectorName, ConnectorFactory> connectorFactories = new ConcurrentHashMap<>();
     private final LocalMemoryManager localMemoryManager;
@@ -92,6 +94,7 @@ public class DefaultCatalogFactory
             TypeManager typeManager,
             NodeSchedulerConfig nodeSchedulerConfig,
             AiModelAccessControl aiModelAccessControl,
+            ModelConnectionSpecsLoader modelConnectionSpecsLoader,
             OptimizerConfig optimizerConfig,
             LocalMemoryManager localMemoryManager,
             SecretsResolver secretsResolver)
@@ -109,6 +112,7 @@ public class DefaultCatalogFactory
         this.schedulerIncludeCoordinator = nodeSchedulerConfig.isIncludeCoordinator();
         this.maxPrefetchedInformationSchemaPrefixes = optimizerConfig.getMaxPrefetchedInformationSchemaPrefixes();
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
+        this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
         this.localMemoryManager = requireNonNull(localMemoryManager, "localMemoryManager is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
     }
@@ -211,6 +215,7 @@ public class DefaultCatalogFactory
                 typeManager,
                 new InternalMetadataProvider(metadata, typeManager),
                 aiModelAccessControl,
+                modelConnectionSpecsLoader,
                 pageSorter,
                 pageIndexerFactory);
 

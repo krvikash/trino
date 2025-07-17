@@ -10,8 +10,8 @@
 package com.starburstdata.trino.plugin.ai;
 
 import io.airlift.slice.Slices;
-import io.starburst.ai.client.ConnectionInfo;
-import io.starburst.ai.client.ModelConnectionSpec;
+import io.starburst.ai.model.ConnectionInfo;
+import io.starburst.ai.model.ModelConnectionSpec;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ColumnMetadata;
@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
+import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import static io.trino.spi.connector.SystemTable.Distribution.SINGLE_COORDINATOR;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
@@ -75,8 +77,8 @@ public abstract class AiSystemTable<T extends ModelConnectionSpec>
     protected static String getEndpoint(ModelConnectionSpec spec)
     {
         return switch (spec.connectionInfo()) {
-            case ConnectionInfo.OpenAiConnectionInfo openAiConnectionInfo -> openAiConnectionInfo.endpoint().orElse(null);
-            case ConnectionInfo.AwsBedrockConnectionInfo _ -> null;
+            case OpenAiConnectionInfo openAiConnectionInfo -> openAiConnectionInfo.endpoint().orElse(null);
+            case AwsBedrockConnectionInfo _ -> null;
         };
     }
 
@@ -97,8 +99,8 @@ public abstract class AiSystemTable<T extends ModelConnectionSpec>
     protected static String convertProvider(ConnectionInfo connectionInfo)
     {
         return switch (connectionInfo) {
-            case ConnectionInfo.OpenAiConnectionInfo _ -> "OPENAI";
-            case ConnectionInfo.AwsBedrockConnectionInfo _ -> "AWS_BEDROCK";
+            case OpenAiConnectionInfo _ -> "OPENAI";
+            case AwsBedrockConnectionInfo _ -> "AWS_BEDROCK";
         };
     }
 }

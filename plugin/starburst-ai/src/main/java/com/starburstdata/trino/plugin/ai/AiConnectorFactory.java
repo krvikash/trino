@@ -38,7 +38,7 @@ public class AiConnectorFactory
         checkStrictSpiVersionMatch(context, this);
 
         Bootstrap app = new Bootstrap(
-                new AiModule(),
+                new AiModule(context.getModelConnectionSpecsLoader()),
                 binder -> {
                     binder.bind(Tracer.class).toInstance(context.getTracer());
                     binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));

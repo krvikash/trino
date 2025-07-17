@@ -15,6 +15,7 @@ package io.trino.spi.connector;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
@@ -81,6 +82,11 @@ public interface ConnectorContext
     }
 
     default AiModelAccessControl getAiModelAccessControl()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default ModelConnectionSpecsLoader getModelConnectionSpecsLoader()
     {
         throw new UnsupportedOperationException();
     }

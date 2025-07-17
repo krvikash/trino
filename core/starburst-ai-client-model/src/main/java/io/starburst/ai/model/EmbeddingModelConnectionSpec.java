@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.ai.client;
+package io.starburst.ai.model;
 
 import java.util.Optional;
 

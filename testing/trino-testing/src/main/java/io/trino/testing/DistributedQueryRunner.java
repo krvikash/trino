@@ -27,6 +27,7 @@ import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.Session;
 import io.trino.Session.SessionBuilder;
 import io.trino.cache.CacheMetadata;
@@ -150,7 +151,8 @@ public class DistributedQueryRunner
             Optional<List<SystemAccessControl>> systemAccessControls,
             List<EventListener> eventListeners,
             List<AutoCloseable> extraCloseables,
-            TestingTrinoClientFactory testingTrinoClientFactory)
+            TestingTrinoClientFactory testingTrinoClientFactory,
+            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
             throws Exception
     {
         requireNonNull(defaultSession, "defaultSession is null");
@@ -178,7 +180,8 @@ public class DistributedQueryRunner
                         baseDataDir,
                         Optional.empty(),
                         Optional.of(ImmutableList.of()),
-                        ImmutableList.of());
+                        ImmutableList.of(),
+                        modelConnectionSpecsLoader);
             };
 
             for (int i = 0; i < workerCount; i++) {
@@ -204,7 +207,8 @@ public class DistributedQueryRunner
                     baseDataDir,
                     systemAccessControlConfiguration,
                     systemAccessControls,
-                    eventListeners);
+                    eventListeners,
+                    modelConnectionSpecsLoader);
 
             backupCoordinator = backupCoordinatorProperties.map(properties -> createServer(
                     true,
@@ -217,7 +221,8 @@ public class DistributedQueryRunner
                     baseDataDir,
                     systemAccessControlConfiguration,
                     systemAccessControls,
-                    eventListeners));
+                    eventListeners,
+                    modelConnectionSpecsLoader));
         }
         catch (Exception e) {
             try {
@@ -264,7 +269,8 @@ public class DistributedQueryRunner
             Optional<Path> baseDataDir,
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
-            List<EventListener> eventListeners)
+            List<EventListener> eventListeners,
+            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
     {
         TestingTrinoServer server = closer.register(createTestingTrinoServer(
                 discoveryServer.getBaseUrl(),
@@ -280,7 +286,8 @@ public class DistributedQueryRunner
                 newServer -> {
                     functionBundles.forEach(newServer::addFunctions);
                     plugins.forEach(newServer::installPlugin);
-                }));
+                },
+                modelConnectionSpecsLoader));
         servers.add(server);
         return server;
     }
@@ -308,7 +315,8 @@ public class DistributedQueryRunner
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
             List<EventListener> eventListeners,
-            Consumer<TestingTrinoServer> additionalConfiguration)
+            Consumer<TestingTrinoServer> additionalConfiguration,
+            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
     {
         long start = System.nanoTime();
         ImmutableMap.Builder<String, String> propertiesBuilder = ImmutableMap.<String, String>builder()
@@ -345,6 +353,7 @@ public class DistributedQueryRunner
                 .setSystemAccessControls(systemAccessControls)
                 .setEventListeners(eventListeners)
                 .setAdditionalConfiguration(additionalConfiguration)
+                .setModelConnectionSpecsLoader(modelConnectionSpecsLoader)
                 .build();
 
         String nodeRole = coordinator ? "coordinator" : "worker";
@@ -737,6 +746,7 @@ public class DistributedQueryRunner
         private ImmutableList.Builder<AutoCloseable> extraCloseables = ImmutableList.builder();
         private TestingTrinoClientFactory testingTrinoClientFactory = TestingTrinoClient::new;
         private Optional<String> encoding = Optional.empty();
+        private Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader = Optional.empty();
 
         protected Builder(Session defaultSession)
         {
@@ -924,6 +934,13 @@ public class DistributedQueryRunner
             return self();
         }
 
+        @CanIgnoreReturnValue
+        public SELF withModelConnectionSpecsLoader(Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
+        {
+            this.modelConnectionSpecsLoader = modelConnectionSpecsLoader;
+            return self();
+        }
+
         @SuppressWarnings("unchecked")
         protected SELF self()
         {
@@ -986,7 +1003,8 @@ public class DistributedQueryRunner
                     systemAccessControls,
                     eventListeners,
                     extraCloseables.build(),
-                    testingTrinoClientFactory);
+                    testingTrinoClientFactory,
+                    modelConnectionSpecsLoader);
             extraCloseables = null;
 
             try {

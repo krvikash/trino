@@ -11,6 +11,7 @@ package io.starburst.ai.client;
 
 import com.google.common.collect.ImmutableSet;
 import dev.failsafe.RetryPolicy;
+import io.starburst.ai.model.LanguageModelConnectionSpec;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;

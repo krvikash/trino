@@ -18,7 +18,9 @@ import io.starburst.ai.client.AiClientConfig.StorageType;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.bedrock.AwsBedrockEmbeddingCodecsModule;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 
+import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
@@ -26,6 +28,13 @@ import static org.weakref.jmx.guice.ExportBinder.newExporter;
 public class AiClientModule
         extends AbstractConfigurationAwareModule
 {
+    private final ModelConnectionSpecsLoader externalModelConnectionSpecsLoader;
+
+    public AiClientModule(ModelConnectionSpecsLoader externalModelConnectionSpecsLoader)
+    {
+        this.externalModelConnectionSpecsLoader = externalModelConnectionSpecsLoader;
+    }
+
     @Override
     public void setup(Binder binder)
     {
@@ -43,6 +52,13 @@ public class AiClientModule
         install(conditionalModule(AiClientConfig.class,
                 aiClientConfig -> aiClientConfig.getStorageType() == StorageType.FILE,
                 new FileBackedModelSpecModule()));
+        install(conditionalModule(AiClientConfig.class,
+                aiClientConfig -> aiClientConfig.getStorageType() == StorageType.EXTERNAL,
+                externalBinder -> {
+                    AiClientConfig aiClientConfig = buildConfigObject(AiClientConfig.class);
+                    checkState(aiClientConfig.isClientCacheRefreshEnabled(), "Client cache refresh is not enabled");
+                    externalBinder.bind(ModelConnectionSpecsLoader.class).toInstance(externalModelConnectionSpecsLoader);
+                }));
     }
 
     @Provides

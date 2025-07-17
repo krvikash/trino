@@ -17,7 +17,7 @@ import com.openai.models.embeddings.Embedding;
 import com.openai.models.embeddings.EmbeddingCreateParams;
 import io.airlift.slice.Slice;
 import io.starburst.ai.client.EmbeddingModelClient;
-import io.starburst.ai.client.EmbeddingModelConnectionSpec;
+import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.trino.spi.TrinoException;
 
 import java.util.List;

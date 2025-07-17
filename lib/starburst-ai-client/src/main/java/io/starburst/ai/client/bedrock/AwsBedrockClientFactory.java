@@ -12,13 +12,12 @@ package io.starburst.ai.client.bedrock;
 import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.opentelemetry.api.trace.Tracer;
-import io.starburst.ai.client.ConnectionInfo.AwsBedrockConnectionInfo;
 import io.starburst.ai.client.EmbeddingModelClient;
-import io.starburst.ai.client.EmbeddingModelConnectionSpec;
 import io.starburst.ai.client.LanguageModelClient;
-import io.starburst.ai.client.LanguageModelConnectionSpec;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
+import io.starburst.ai.model.EmbeddingModelConnectionSpec;
+import io.starburst.ai.model.LanguageModelConnectionSpec;
 import io.trino.spi.TrinoException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -39,6 +38,8 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import java.util.Map;
 
 import static io.starburst.ai.client.AiClientErrorCode.UNSUPPORTED_MODEL;
+import static io.starburst.ai.client.ModelSecretsResolver.resolveBedrockSecrets;
+import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import static java.util.Objects.requireNonNull;
 
 public class AwsBedrockClientFactory
@@ -95,7 +96,7 @@ public class AwsBedrockClientFactory
         BedrockRuntimeClientBuilder clientBuilder = BedrockRuntimeClient.builder();
         AwsCredentialsProvider awsCredentialsProvider = DefaultCredentialsProvider.create();
         if (connectionInfo.awsAccessKey().isPresent() && connectionInfo.awsSecretKey().isPresent()) {
-            AwsBedrockConnectionInfo resolvedConnectionInfo = connectionInfo.resolvedConnectionInfo(secretsResolver);
+            AwsBedrockConnectionInfo resolvedConnectionInfo = resolveBedrockSecrets(connectionInfo, secretsResolver);
             awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(resolvedConnectionInfo.awsAccessKey().orElseThrow(), resolvedConnectionInfo.awsSecretKey().orElseThrow()));
         }
         if (connectionInfo.iamRole().isPresent()) {

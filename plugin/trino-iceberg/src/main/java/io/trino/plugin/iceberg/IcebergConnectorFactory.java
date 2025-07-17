@@ -83,7 +83,7 @@ public class IcebergConnectorFactory
                     new IcebergSecurityModule(),
                     icebergCatalogModule.orElse(new IcebergCatalogModule()),
                     new MBeanServerModule(),
-                    new AiClientModule(),
+                    new AiClientModule(context.getModelConnectionSpecsLoader()),
                     new IcebergFileSystemModule(catalogName, context),
                     binder -> {
                         binder.bind(ClassLoader.class).toInstance(IcebergConnectorFactory.class.getClassLoader());

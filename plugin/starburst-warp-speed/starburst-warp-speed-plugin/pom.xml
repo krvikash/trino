@@ -79,6 +79,12 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>starburst-ai-client-model</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-spi</artifactId>
             <scope>provided</scope>
         </dependency>

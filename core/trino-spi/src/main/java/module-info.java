@@ -14,6 +14,7 @@
 module trino.spi {
     requires com.fasterxml.jackson.annotation;
     requires com.google.errorprone.annotations;
+    requires starburst.ai.model;
     requires transitive io.opentelemetry.api;
     requires jakarta.annotation;
     requires transitive slice;

@@ -941,6 +941,7 @@ jobs:
             !:starburst-buffer-exchange-tests,
             !:starburst-ai,
             !:starburst-ai-client,
+            !:starburst-ai-client-model,
             !:starburst-base-jdbc,
             !:starburst-dynamodb,
             !:starburst-io,

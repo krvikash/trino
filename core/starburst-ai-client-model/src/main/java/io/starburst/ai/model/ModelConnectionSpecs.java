@@ -7,42 +7,42 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.ai.client;
+package io.starburst.ai.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
 public class ModelConnectionSpecs
 {
-    public static final ModelConnectionSpecs EMPTY_SPECS = new ModelConnectionSpecs(ImmutableList.of());
+    public static final ModelConnectionSpecs EMPTY_SPECS = new ModelConnectionSpecs(List.of());
 
     private final Map<String, LanguageModelConnectionSpec> languageModelConnectionSpecs;
     private final Map<String, EmbeddingModelConnectionSpec> embeddingModelConnectionSpecs;
-    private List<ModelConnectionSpec> models;
+    private final List<ModelConnectionSpec> models;
 
     @JsonCreator
     public ModelConnectionSpecs(@JsonProperty List<ModelConnectionSpec> models)
     {
         this.models = requireNonNull(models, "models is null");
-        ImmutableMap.Builder<String, LanguageModelConnectionSpec> languageModelBuilder = ImmutableMap.builder();
-        ImmutableMap.Builder<String, EmbeddingModelConnectionSpec> embeddingModelBuilder = ImmutableMap.builder();
 
-        models.forEach(spec -> {
-            switch (spec) {
-                case LanguageModelConnectionSpec languageModelSpec -> languageModelBuilder.put(languageModelSpec.id(), languageModelSpec);
-                case EmbeddingModelConnectionSpec embeddingModelSpec -> embeddingModelBuilder.put(embeddingModelSpec.id(), embeddingModelSpec);
-            }});
-        this.languageModelConnectionSpecs = languageModelBuilder.buildOrThrow();
-        this.embeddingModelConnectionSpecs = embeddingModelBuilder.buildOrThrow();
+        this.languageModelConnectionSpecs = models.stream()
+                .filter(LanguageModelConnectionSpec.class::isInstance)
+                .map(LanguageModelConnectionSpec.class::cast)
+                .collect(Collectors.toUnmodifiableMap(LanguageModelConnectionSpec::id, Function.identity()));
+
+        this.embeddingModelConnectionSpecs = models.stream()
+                .filter(EmbeddingModelConnectionSpec.class::isInstance)
+                .map(EmbeddingModelConnectionSpec.class::cast)
+                .collect(Collectors.toUnmodifiableMap(ModelConnectionSpec::id, Function.identity()));
     }
 
     @JsonProperty

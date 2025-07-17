@@ -9,6 +9,9 @@
  */
 package io.starburst.ai.client;
 
+import io.starburst.ai.model.EmbeddingModelConnectionSpec;
+import io.starburst.ai.model.LanguageModelConnectionSpec;
+
 import java.util.Collection;
 
 public interface ModelConnectionSpecDao

@@ -15,6 +15,7 @@ import com.google.inject.Scopes;
 import com.starburstdata.trino.plugin.ai.embedding.GenerateEmbeddingsTableFunction;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.ai.client.AiClientModule;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.SystemTable;
@@ -29,10 +30,17 @@ import static com.google.inject.multibindings.Multibinder.newSetBinder;
 public class AiModule
         extends AbstractConfigurationAwareModule
 {
+    private final ModelConnectionSpecsLoader externalModelConnectionSpecsLoader;
+
+    public AiModule(ModelConnectionSpecsLoader externalModelConnectionSpecsLoader)
+    {
+        this.externalModelConnectionSpecsLoader = externalModelConnectionSpecsLoader;
+    }
+
     @Override
     protected void setup(Binder binder)
     {
-        install(new AiClientModule());
+        install(new AiClientModule(externalModelConnectionSpecsLoader));
         binder.bind(AiConnector.class).in(Scopes.SINGLETON);
         binder.bind(AiMetadata.class).in(Scopes.SINGLETON);
         binder.bind(AiFunctions.class).in(Scopes.SINGLETON);

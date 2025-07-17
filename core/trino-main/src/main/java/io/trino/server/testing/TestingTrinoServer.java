@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closer;
 import com.google.common.net.HostAndPort;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -26,6 +27,7 @@ import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.discovery.client.Announcer;
 import io.airlift.discovery.client.DiscoveryModule;
 import io.airlift.discovery.client.ServiceSelectorManager;
@@ -43,6 +45,7 @@ import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracing.TracingModule;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.sdk.trace.SpanProcessor;
+import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.Session;
 import io.trino.SystemSessionPropertiesProvider;
 import io.trino.cache.CacheManagerModule;
@@ -78,6 +81,7 @@ import io.trino.security.AccessControl;
 import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
 import io.trino.security.GroupProviderManager;
+import io.trino.server.InternalHttpClientModule;
 import io.trino.server.NodeStateManager;
 import io.trino.server.PluginInstaller;
 import io.trino.server.PrefixObjectNameGeneratorModule;
@@ -88,10 +92,12 @@ import io.trino.server.SessionPropertyDefaults;
 import io.trino.server.SessionSupplier;
 import io.trino.server.ShutdownAction;
 import io.trino.server.StartupStatus;
+import io.trino.server.ai.AiModelConnectionSpecsLoaderModule;
 import io.trino.server.dataframe.StarburstDataframeModule;
 import io.trino.server.protocol.spooling.SpoolingManagerRegistry;
 import io.trino.server.security.CertificateAuthenticatorManager;
 import io.trino.server.security.ServerSecurityModule;
+import io.trino.server.testing.ai.TestingModelConnectionSpecsResource;
 import io.trino.spi.ErrorType;
 import io.trino.spi.Plugin;
 import io.trino.spi.QueryId;
@@ -150,6 +156,8 @@ import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
+import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static io.starburst.ai.model.ModelConnectionSpecsLoader.EMPTY_LOADER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Integer.parseInt;
 import static java.nio.file.Files.createTempDirectory;
@@ -263,7 +271,8 @@ public class TestingTrinoServer
             Optional<List<SystemAccessControl>> systemAccessControls,
             List<EventListener> eventListeners,
             Consumer<TestingTrinoServer> additionalConfiguration,
-            CatalogMangerKind catalogMangerKind)
+            CatalogMangerKind catalogMangerKind,
+            Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
     {
         this.coordinator = coordinator;
 
@@ -370,6 +379,7 @@ public class TestingTrinoServer
         }
 
         modules.add(aiModelAccessControlModule());
+        modules.add(new ModelConnectionSpecsLoaderModule(modelConnectionSpecsLoader));
         modules.add(additionalModule);
 
         Bootstrap app = new Bootstrap(modules.build());
@@ -771,6 +781,32 @@ public class TestingTrinoServer
                 .toInstance(AiModelAccessControl.ALLOW_ALL);
     }
 
+    public static class ModelConnectionSpecsLoaderModule
+            extends AbstractConfigurationAwareModule
+    {
+        private final Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader;
+
+        public ModelConnectionSpecsLoaderModule(Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
+        {
+            this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
+        }
+
+        @Override
+        protected void setup(Binder binder)
+        {
+            if (modelConnectionSpecsLoader.isPresent()) {
+                install(new AiModelConnectionSpecsLoaderModule());
+                install(new InternalHttpClientModule());
+                jaxrsBinder(binder).bindInstance(new TestingModelConnectionSpecsResource(modelConnectionSpecsLoader.get()));
+            }
+            else {
+                newOptionalBinder(binder, ModelConnectionSpecsLoader.class)
+                        .setDefault()
+                        .toInstance(EMPTY_LOADER);
+            }
+        }
+    }
+
     public static class Builder
     {
         private boolean coordinator = true;
@@ -786,6 +822,7 @@ public class TestingTrinoServer
         private List<EventListener> eventListeners = ImmutableList.of();
         private Consumer<TestingTrinoServer> additionalConfiguration = _ -> {};
         private CatalogMangerKind catalogMangerKind = CatalogMangerKind.DYNAMIC;
+        private Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader = Optional.empty();
 
         public Builder setCoordinator(boolean coordinator)
         {
@@ -873,6 +910,12 @@ public class TestingTrinoServer
             return this;
         }
 
+        public Builder setModelConnectionSpecsLoader(Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
+        {
+            this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
+            return this;
+        }
+
         public TestingTrinoServer build()
         {
             return new TestingTrinoServer(
@@ -888,7 +931,8 @@ public class TestingTrinoServer
                     systemAccessControls,
                     eventListeners,
                     additionalConfiguration,
-                    catalogMangerKind);
+                    catalogMangerKind,
+                    modelConnectionSpecsLoader);
         }
     }
 

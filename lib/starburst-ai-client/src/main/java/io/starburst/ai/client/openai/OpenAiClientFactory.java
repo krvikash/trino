@@ -14,14 +14,15 @@ import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.opentelemetry.api.trace.Tracer;
-import io.starburst.ai.client.ConnectionInfo.OpenAiConnectionInfo;
 import io.starburst.ai.client.EmbeddingModelClient;
-import io.starburst.ai.client.EmbeddingModelConnectionSpec;
 import io.starburst.ai.client.LanguageModelClient;
-import io.starburst.ai.client.LanguageModelConnectionSpec;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
+import io.starburst.ai.model.EmbeddingModelConnectionSpec;
+import io.starburst.ai.model.LanguageModelConnectionSpec;
 
+import static io.starburst.ai.client.ModelSecretsResolver.resolveOpenAiSecrets;
+import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import static java.util.Objects.requireNonNull;
 
 public class OpenAiClientFactory
@@ -62,7 +63,7 @@ public class OpenAiClientFactory
     {
         OpenAIOkHttpClient.Builder builder = OpenAIOkHttpClient.builder();
         if (connectionInfo.apiKey().isPresent()) {
-            OpenAiConnectionInfo resolvedConnectionInfo = connectionInfo.resolvedConnectionInfo(secretsResolver);
+            OpenAiConnectionInfo resolvedConnectionInfo = resolveOpenAiSecrets(connectionInfo, secretsResolver);
             builder.apiKey(resolvedConnectionInfo.apiKey().orElseThrow());
         }
         connectionInfo.endpoint().ifPresent(builder::baseUrl);
