@@ -1213,6 +1213,9 @@ jobs:
       - name: Run Starburst AI tests
         id: tests-starburst-ai
         env:
+          AZURE_OPEN_AI_LANGUAGE_ENDPOINT: ${{ vars.AZURE_OPEN_AI_LANGUAGE_ENDPOINT }}
+          AZURE_OPEN_AI_EMBED_ENDPOINT: ${{ vars.AZURE_OPEN_AI_EMBED_ENDPOINT }}
+          AZURE_OPEN_AI_API_KEY: ${{ secrets.AZURE_OPEN_AI_API_KEY }}
           OPEN_AI_API_KEY: ${{ secrets.OPEN_AI_API_KEY }}
           AWS_ACCESS_KEY_ID: ${{ vars.TRINO_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.TRINO_AWS_SECRET_ACCESS_KEY }}

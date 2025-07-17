@@ -17,15 +17,12 @@ import com.openai.models.embeddings.Embedding;
 import com.openai.models.embeddings.EmbeddingCreateParams;
 import io.airlift.slice.Slice;
 import io.starburst.ai.client.EmbeddingModelClient;
-import io.starburst.ai.model.EmbeddingModelConnectionSpec;
-import io.trino.spi.TrinoException;
 
 import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_SPEC_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
 public class OpenAiEmbeddingModelClient
@@ -37,14 +34,10 @@ public class OpenAiEmbeddingModelClient
     private final Optional<Integer> dimensions;
     private final OpenAIClient client;
 
-    public OpenAiEmbeddingModelClient(EmbeddingModelConnectionSpec spec, OpenAIClient client)
+    public OpenAiEmbeddingModelClient(String modelName, Optional<Integer> dimensions, OpenAIClient client)
     {
-        requireNonNull(spec, "spec is null");
-        if (spec.inferenceProfile().isPresent()) {
-            throw new TrinoException(INVALID_MODEL_SPEC_PROPERTY, "Inference profile is not supported for OpenAI embedding models");
-        }
-        this.modelName = spec.modelName();
-        this.dimensions = spec.dimensions();
+        this.modelName = modelName;
+        this.dimensions = dimensions;
         this.client = requireNonNull(client, "client is null");
     }
 
