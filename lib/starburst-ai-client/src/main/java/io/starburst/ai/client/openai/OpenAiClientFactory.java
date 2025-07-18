@@ -60,6 +60,9 @@ public class OpenAiClientFactory
                 .orElse(connectionInfo);
         // Ideally model name should be correctly parsed and populated from UI
         String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
+        boolean isGeminiEndpoint = updatedConnectionInfo.endpoint()
+                .map(endpoint -> endpoint.toLowerCase(ROOT).startsWith("https://generativelanguage.googleapis.com"))
+                .orElse(false);
         return new OpenAiLanguageModelClient(
                 modelName,
                 spec.temperature(),
@@ -68,6 +71,7 @@ public class OpenAiClientFactory
                 spec.useDeveloperForSystemRole(),
                 promptDao,
                 tracer,
+                isGeminiEndpoint,
                 createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::apiVersion)));
     }
 

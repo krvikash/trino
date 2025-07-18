@@ -56,6 +56,7 @@ public class OpenAiLanguageModelClient
     private final boolean useDeveloperForSystemRole;
     private final Tracer tracer;
     private final String modelName;
+    private final boolean isGeminiEndpoint;
     private final OpenAIClient client;
 
     public OpenAiLanguageModelClient(
@@ -66,6 +67,7 @@ public class OpenAiLanguageModelClient
             boolean useDeveloperForSystemRole,
             PromptDao promptDao,
             Tracer tracer,
+            boolean isGeminiEndpoint,
             OpenAIClient client)
     {
         super(promptDao);
@@ -75,6 +77,7 @@ public class OpenAiLanguageModelClient
         this.useDeveloperForSystemRole = useDeveloperForSystemRole;
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.modelName = requireNonNull(modelName, "modelName is null");
+        this.isGeminiEndpoint = isGeminiEndpoint;
         this.client = requireNonNull(client, "client is null");
     }
 
@@ -88,8 +91,10 @@ public class OpenAiLanguageModelClient
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages)
     {
         ChatCompletionCreateParams.Builder builder = ChatCompletionCreateParams.builder()
-                .model(modelName)
-                .seed(SEED);
+                .model(modelName);
+        if (!isGeminiEndpoint) {
+            builder.seed(SEED);
+        }
         temperature.ifPresent(builder::temperature);
         topP.ifPresent(builder::topP);
         maxTokens.ifPresent(builder::maxTokens);

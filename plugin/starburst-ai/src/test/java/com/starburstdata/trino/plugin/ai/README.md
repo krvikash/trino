@@ -5,3 +5,7 @@
    - o4-mini
    - text-embedding-3-small
 Connection information including an API key can be accessed by clicking on the respective deployment.
+
+## Gemini test setup
+
+Created https://console.cloud.google.com/apis/credentials/key/e2921eeb-f930-459a-9abd-f5303853d945?inv=1&invt=Ab3Czw&project=starburstdata-saas-development Gemini API key for tests
