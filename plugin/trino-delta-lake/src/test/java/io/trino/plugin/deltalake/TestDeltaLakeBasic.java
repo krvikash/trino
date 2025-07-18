@@ -142,7 +142,7 @@ public class TestDeltaLakeBasic
             new ResourceTable("uniform_hudi", "deltalake/uniform_hudi"),
             new ResourceTable("uniform_iceberg_v1", "databricks133/uniform_iceberg_v1"),
             new ResourceTable("uniform_iceberg_v2", "databricks143/uniform_iceberg_v2"),
-            new ResourceTable("unsupported_writer_feature", "deltalake/unsupported_writer_feature"),
+            new ResourceTable("unsupported_writer_feature", "databricks133/identity_columns_table_feature"),
             new ResourceTable("unsupported_writer_version", "deltalake/unsupported_writer_version"),
             new ResourceTable("variant", "databricks153/variant"),
             new ResourceTable("variant_types", "databricks153/variant_types"),
@@ -2470,7 +2470,29 @@ public class TestDeltaLakeBasic
     }
 
     /**
-     * @see deltalake.unsupported_writer_feature
+     *  The connector allows 'generatedColumns' writer feature if the table does not contain any generated columns.
+     *  TestDeltaLakeInsertCompatibility ensures that write operations fail if generated columns are present.
+     * @see deltalake.generated_columns
+     */
+    @Test
+    public void testNoGeneratedColumns()
+            throws Exception
+    {
+        String tableName = "test_no_generated_columns_" + randomNameSuffix();
+        Path tableLocation = catalogDir.resolve(tableName);
+        copyDirectoryContents(new File(Resources.getResource("deltalake/generated_columns").toURI()).toPath(), tableLocation);
+        assertUpdate("CALL system.register_table(CURRENT_SCHEMA, '%s', '%s')".formatted(tableName, tableLocation.toUri()));
+        assertQueryReturnsEmptyResult("SELECT * FROM " + tableName);
+
+        assertUpdate("INSERT INTO " + tableName + " VALUES (1, 10)", 1);
+        assertThat(query("SELECT * FROM " + tableName))
+                .matches("VALUES (1, 10)");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * @see databricks133.identity_columns_table_feature
      */
     @Test
     public void testUnsupportedWriterFeature()
@@ -2479,31 +2501,28 @@ public class TestDeltaLakeBasic
 
         assertQueryFails(
                 "ALTER TABLE unsupported_writer_feature ADD COLUMN new_col int",
-                "\\QUnsupported writer features: [generatedColumns]");
+                "\\QUnsupported writer features: [identityColumns]");
         assertQueryFails(
                 "ALTER TABLE unsupported_writer_feature RENAME COLUMN a TO renamed",
-                "\\QUnsupported writer features: [generatedColumns]");
+                "\\QUnsupported writer features: [identityColumns]");
         assertQueryFails(
                 "ALTER TABLE unsupported_writer_feature DROP COLUMN b",
-                "\\QUnsupported writer features: [generatedColumns]");
-        assertQueryFails(
-                "ALTER TABLE unsupported_writer_feature ALTER COLUMN b DROP NOT NULL",
-                "\\QUnsupported writer features: [generatedColumns]");
+                "\\QUnsupported writer features: [identityColumns]");
         assertQueryFails(
                 "ALTER TABLE unsupported_writer_feature EXECUTE OPTIMIZE",
-                "\\QUnsupported writer features: [generatedColumns]");
+                "\\QUnsupported writer features: [identityColumns]");
         assertQueryFails(
                 "ALTER TABLE unsupported_writer_feature ALTER COLUMN b SET DATA TYPE bigint",
                 "This connector does not support setting column types");
         assertQueryFails(
                 "COMMENT ON TABLE unsupported_writer_feature IS 'test comment'",
-                "\\QUnsupported writer features: [generatedColumns]");
+                "\\QUnsupported writer features: [identityColumns]");
         assertQueryFails(
                 "COMMENT ON COLUMN unsupported_writer_feature.a IS 'test column comment'",
-                "\\QUnsupported writer features: [generatedColumns]");
+                "\\QUnsupported writer features: [identityColumns]");
         assertQueryFails(
                 "CALL delta.system.vacuum('tpch', 'unsupported_writer_feature', '7d')",
-                "\\QCannot execute vacuum procedure with [generatedColumns] writer features");
+                "\\QCannot execute vacuum procedure with [identityColumns] writer features");
     }
 
     /**
