@@ -71,15 +71,6 @@ public record StargateParallelSplit(
     }
 
     @Override
-    public Map<String, String> getSplitInfo()
-    {
-        return Map.of(
-                "encoding", encoding,
-                "segments", Integer.toString(segments.size()),
-                "size", Long.toString(getTotalSegmentsSize()));
-    }
-
-    @Override
     public long getRetainedSizeInBytes()
     {
         return INSTANCE_SIZE + getTotalSegmentsSize();
