@@ -137,7 +137,7 @@ public class TestDeterminePreferredDynamicFilterTimeout
                     if (table != null) {
                         return table.getColumnStatistics().keySet().stream()
                                 .map(MockConnectorColumnHandle.class::cast)
-                                .map(columnHandle -> new ColumnMetadata(columnHandle.getName(), columnHandle.getType()))
+                                .map(columnHandle -> new ColumnMetadata(columnHandle.name(), columnHandle.type()))
                                 .toList();
                     }
                     return Collections.emptyList();

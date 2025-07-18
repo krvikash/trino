@@ -224,7 +224,7 @@ public class TestCommonSubqueriesExtractor
                         .withGetCanonicalTableHandle(Function.identity())
                         .withGetCacheColumnId(handle -> {
                             MockConnectorColumnHandle column = (MockConnectorColumnHandle) handle;
-                            return Optional.of(new CacheColumnId("cache_" + column.getName()));
+                            return Optional.of(new CacheColumnId("cache_" + column.name()));
                         })
                         .withApplyFilter((session, tableHandle, constraint) -> {
                             // predicate is fully subsumed
