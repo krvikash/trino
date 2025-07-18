@@ -20,6 +20,8 @@ import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 
 public final class ModelSecretsResolver
 {
+    private static final String DUMMY_API_KEY = "dummy";
+
     private ModelSecretsResolver() {}
 
     static ConnectionInfo resolveConnectionInfo(ConnectionInfo connectionInfo, io.airlift.configuration.secrets.SecretsResolver secretsResolver)
@@ -47,6 +49,7 @@ public final class ModelSecretsResolver
         return connectionInfo.apiKey().map(key ->
                         new OpenAiConnectionInfo(connectionInfo.endpoint(),
                                 Optional.of(secretsResolver.getResolvedConfiguration(ImmutableMap.of("apiKey", key)).get("apiKey"))))
-            .orElse(connectionInfo);
+                // Pass DUMMY_API_KEY as OpenAI sdk mandatorily requires an API key https://github.com/openai/openai-java/blob/71cf8abd87f4e7ea4ab658d813499f3e30aee632/openai-java-core/src/main/kotlin/com/openai/core/ClientOptions.kt#L297
+                .orElseGet(() -> new OpenAiConnectionInfo(connectionInfo.endpoint(), Optional.of(DUMMY_API_KEY)));
     }
 }
