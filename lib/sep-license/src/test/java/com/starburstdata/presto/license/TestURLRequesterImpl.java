@@ -42,7 +42,7 @@ public class TestURLRequesterImpl
     public void testReadFromHttpURL()
             throws IOException
     {
-        URL url = URI.create("http://example.org").toURL();
+        URL url = URI.create("http://google.com").toURL();
         URLRequesterImpl requester = new URLRequesterImpl();
         byte[] awsIdentity = requester.get(url, URLRequester.INFINITE_DURATION);
         assertThat(awsIdentity.length).isGreaterThan(0);
