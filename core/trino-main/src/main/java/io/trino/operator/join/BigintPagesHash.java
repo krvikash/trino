@@ -20,6 +20,9 @@ import io.trino.operator.PagesHashStrategy;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
+import io.trino.spi.block.ValueBlock;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
@@ -255,9 +258,25 @@ public final class BigintPagesHash
 
     private void extractAndHashValues(int[] positions, Page hashChannelsPage, int positionCount, long[] incomingValues, int[] hashPositions)
     {
-        for (int i = 0; i < positionCount; i++) {
-            incomingValues[i] = BIGINT.getLong(hashChannelsPage.getBlock(0), positions[i]);
-            hashPositions[i] = getHashPosition(incomingValues[i], mask);
+        switch (hashChannelsPage.getBlock(0)) {
+            case RunLengthEncodedBlock rleBlock -> {
+                long value = BIGINT.getLong(rleBlock.getUnderlyingValueBlock(), 0);
+                Arrays.fill(incomingValues, value);
+                Arrays.fill(hashPositions, getHashPosition(value, mask));
+            }
+            case DictionaryBlock dictionaryBlock -> {
+                ValueBlock valueBlock = dictionaryBlock.getUnderlyingValueBlock();
+                for (int i = 0; i < positionCount; i++) {
+                    incomingValues[i] = BIGINT.getLong(valueBlock, dictionaryBlock.getUnderlyingValuePosition(positions[i]));
+                    hashPositions[i] = getHashPosition(incomingValues[i], mask);
+                }
+            }
+            case ValueBlock valueBlock -> {
+                for (int i = 0; i < positionCount; i++) {
+                    incomingValues[i] = BIGINT.getLong(valueBlock, positions[i]);
+                    hashPositions[i] = getHashPosition(incomingValues[i], mask);
+                }
+            }
         }
     }
 
