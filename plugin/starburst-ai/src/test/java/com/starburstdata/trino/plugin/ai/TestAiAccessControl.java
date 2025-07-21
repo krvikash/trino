@@ -39,6 +39,7 @@ import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.starburstdata.trino.plugin.ai.AiQueryRunner.addStarburstAiCatalog;
 import static com.starburstdata.trino.plugin.ai.AiQueryRunner.sessionWithRole;
+import static io.trino.spi.security.AccessDeniedException.denyExecuteAiModelAccess;
 
 public class TestAiAccessControl
         extends AbstractTestQueryFramework
@@ -133,11 +134,11 @@ public class TestAiAccessControl
         assertQueryFails(
                 sessionWithRole(ALLOW_ROLE),
                 "SELECT ai.prompt('%s', '%s')".formatted(prompt, LANGUAGE_DENY_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_DENY_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_DENY_MODEL);
         assertQueryFails(
                 sessionWithRole(DENY_ROLE),
                 "SELECT ai.prompt('%s', '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_ALLOW_MODEL);    }
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_ALLOW_MODEL);    }
 
     @Test
     public void testPromptSystem()
@@ -149,11 +150,11 @@ public class TestAiAccessControl
         assertQueryFails(
                 sessionWithRole(ALLOW_ROLE),
                 "SELECT ai.prompt('', '%s', '%s')".formatted(prompt, LANGUAGE_DENY_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_DENY_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_DENY_MODEL);
         assertQueryFails(
                 sessionWithRole(DENY_ROLE),
                 "SELECT ai.prompt('', '%s', '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_ALLOW_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_ALLOW_MODEL);
     }
 
     @Test
@@ -166,11 +167,11 @@ public class TestAiAccessControl
         assertQueryFails(
                 sessionWithRole(ALLOW_ROLE),
                 "SELECT ai.classify('%s', ARRAY['positive', 'negative', 'neutral'], '%s')".formatted(prompt, LANGUAGE_DENY_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_DENY_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_DENY_MODEL);
         assertQueryFails(
                 sessionWithRole(DENY_ROLE),
                 "SELECT ai.classify('%s', ARRAY['positive', 'negative', 'neutral'], '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_ALLOW_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_ALLOW_MODEL);
     }
 
     @Test
@@ -183,11 +184,11 @@ public class TestAiAccessControl
         assertQueryFails(
                 sessionWithRole(ALLOW_ROLE),
                 "SELECT ai.mask('%s', ARRAY['credit card number', 'password'], '%s')".formatted(prompt, LANGUAGE_DENY_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_DENY_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_DENY_MODEL);
         assertQueryFails(
                 sessionWithRole(DENY_ROLE),
                 "SELECT ai.mask('%s', ARRAY['credit card number', 'password'], '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_ALLOW_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_ALLOW_MODEL);
     }
 
     @Test
@@ -200,11 +201,11 @@ public class TestAiAccessControl
         assertQueryFails(
                 sessionWithRole(ALLOW_ROLE),
                 "SELECT ai.translate('%s', 'Spanish', '%s')".formatted(prompt, LANGUAGE_DENY_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_DENY_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_DENY_MODEL);
         assertQueryFails(
                 sessionWithRole(DENY_ROLE),
                 "SELECT ai.translate('%s', 'Spanish', '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + LANGUAGE_ALLOW_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_ALLOW_MODEL);
     }
 
     @Test
@@ -217,11 +218,11 @@ public class TestAiAccessControl
         assertQueryFails(
                 sessionWithRole(ALLOW_ROLE),
                 "SELECT ai.generate_embedding('%s', '%s')".formatted(prompt, EMBED_DENY_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + EMBED_DENY_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + EMBED_DENY_MODEL);
         assertQueryFails(
                 sessionWithRole(DENY_ROLE),
                 "SELECT ai.generate_embedding('%s', '%s')".formatted(prompt, EMBED_ALLOW_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + EMBED_ALLOW_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + EMBED_ALLOW_MODEL);
     }
 
     @Test
@@ -234,11 +235,11 @@ public class TestAiAccessControl
         assertQueryFails(
                 sessionWithRole(ALLOW_ROLE),
                 "SELECT ai.generate_binary_embedding('%s', '%s')".formatted(prompt, EMBED_DENY_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + EMBED_DENY_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + EMBED_DENY_MODEL);
         assertQueryFails(
                 sessionWithRole(DENY_ROLE),
                 "SELECT ai.generate_binary_embedding('%s', '%s')".formatted(prompt, EMBED_ALLOW_MODEL),
-                AccessDeniedException.PREFIX + "Execute model " + EMBED_ALLOW_MODEL);
+                AccessDeniedException.PREFIX + "Cannot execute model " + EMBED_ALLOW_MODEL);
     }
 
     @Test
@@ -251,11 +252,11 @@ public class TestAiAccessControl
             assertQueryFails(
                     sessionWithRole(ALLOW_ROLE),
                     updateWithModel(table.getName(), EMBED_DENY_MODEL),
-                    AccessDeniedException.PREFIX + "Execute model " + EMBED_DENY_MODEL);
+                    AccessDeniedException.PREFIX + "Cannot execute model " + EMBED_DENY_MODEL);
             assertQueryFails(
                     sessionWithRole(DENY_ROLE),
                     updateWithModel(table.getName(), EMBED_ALLOW_MODEL),
-                    AccessDeniedException.PREFIX + "Execute model " + EMBED_ALLOW_MODEL);
+                    AccessDeniedException.PREFIX + "Cannot execute model " + EMBED_ALLOW_MODEL);
         }
     }
 

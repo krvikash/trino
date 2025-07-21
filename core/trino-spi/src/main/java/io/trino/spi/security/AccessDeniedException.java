@@ -824,6 +824,26 @@ public class AccessDeniedException
                 entityKindAndName.entityKind().toLowerCase(ENGLISH), entityNameString(entityKindAndName.name()), principal, formatExtraInfo(extraInfo)));
     }
 
+    public static void denyExecuteAiModelAccess(String modelId)
+    {
+        throw new AccessDeniedException(format("Cannot execute model %s", modelId));
+    }
+
+    public static void denyCreateAiModelAccess(String modelId)
+    {
+        throw new AccessDeniedException(format("Cannot create model %s", modelId));
+    }
+
+    public static void denyUpdateAiModelAccess(String modelId)
+    {
+        throw new AccessDeniedException(format("Cannot update model %s", modelId));
+    }
+
+    public static void denyDropAiModelAccess(String modelId)
+    {
+        throw new AccessDeniedException(format("Cannot drop model %s", modelId));
+    }
+
     private static String entityNameString(List<String> name)
     {
         return name.stream().collect(joining("."));

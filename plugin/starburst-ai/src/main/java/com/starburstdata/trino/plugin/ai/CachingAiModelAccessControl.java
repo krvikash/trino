@@ -19,6 +19,7 @@ import io.trino.spi.security.AiModelAccessControl;
 import java.util.concurrent.ExecutionException;
 
 import static com.google.common.base.Throwables.throwIfInstanceOf;
+import static io.trino.spi.security.AccessDeniedException.denyExecuteAiModelAccess;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.HOURS;
 

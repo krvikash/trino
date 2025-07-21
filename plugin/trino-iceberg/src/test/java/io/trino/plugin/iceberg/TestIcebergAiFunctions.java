@@ -31,6 +31,7 @@ import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.starburstdata.trino.plugin.ai.AiQueryRunner.addStarburstAiCatalog;
 import static com.starburstdata.trino.plugin.ai.AiQueryRunner.starburstAiFileStorageProperties;
+import static io.trino.spi.security.AccessDeniedException.denyExecuteAiModelAccess;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestIcebergAiFunctions
@@ -175,11 +176,11 @@ public class TestIcebergAiFunctions
             assertQueryFails(
                     sessionWithRole(DENY_ACCESS_ROLE),
                     "ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => 'cohere')".formatted(table.getName()),
-                    AccessDeniedException.PREFIX + "Execute model cohere");
+                    AccessDeniedException.PREFIX + "Cannot execute model cohere");
             assertQueryFails(
                     sessionWithRole(ALLOW_ACCESS_ROLE),
                     "ALTER TABLE %s EXECUTE generate_embeddings(embedding_column => 'embedding', data_column => 'data', model_id => '%s')".formatted(table.getName(), DENY_ACCESS_MODEL),
-                    AccessDeniedException.PREFIX + "Execute model %s".formatted(DENY_ACCESS_MODEL));
+                    AccessDeniedException.PREFIX + "Cannot execute model %s".formatted(DENY_ACCESS_MODEL));
         }
     }
 
