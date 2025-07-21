@@ -37,7 +37,7 @@ import static io.trino.plugin.openlineage.OpenLineageTransport.NOOP;
 public class OpenLineageListenerModule
         extends AbstractConfigurationAwareModule
 {
-    private static final URI OPEN_LINEAGE_PRODUCER = URI.create("https://github.com/trinodb/trino/plugin/trino-openlineage");
+    private static final URI OPEN_LINEAGE_PRODUCER = URI.create("https://www.starburst.io/starburst-enterprise/");
 
     @Override
     protected void setup(Binder binder)
