@@ -104,13 +104,13 @@ public final class BigintPagesHash
         // index pages
         for (int batchIndex = 0; batchIndex < stepSize; batchIndex++) {
             int addressIndex = batchIndex + stepBeginPosition;
-            if (isPositionNull(addressIndex)) {
+            long pageAddress = addresses.getLong(addressIndex);
+            int blockIndex = decodeSliceIndex(pageAddress);
+            int blockPosition = decodePosition(pageAddress);
+            if (isPositionNull(blockIndex, blockPosition)) {
                 continue;
             }
 
-            long address = addresses.getLong(addressIndex);
-            int blockIndex = decodeSliceIndex(address);
-            int blockPosition = decodePosition(address);
             long value = BIGINT.getLong(joinChannelBlocks.get(blockIndex), blockPosition);
 
             int pos = getHashPosition(value, mask);
@@ -271,12 +271,8 @@ public final class BigintPagesHash
         pagesHashStrategy.appendTo(blockIndex, blockPosition, pageBuilder, outputChannelOffset);
     }
 
-    private boolean isPositionNull(int position)
+    private boolean isPositionNull(int blockIndex, int blockPosition)
     {
-        long pageAddress = addresses.getLong(position);
-        int blockIndex = decodeSliceIndex(pageAddress);
-        int blockPosition = decodePosition(pageAddress);
-
         return joinChannelBlocks.get(blockIndex).isNull(blockPosition);
     }
 
