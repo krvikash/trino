@@ -489,7 +489,7 @@ jobs:
         uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
         with:
           slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
-          slack-channel: C06RV3N6N1E # team-connectors channel ID
+          slack-channel: C071QE25RV5 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Salesforce connector tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
 
@@ -576,7 +576,7 @@ jobs:
         uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
         with:
           slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
-          slack-channel: C06RV3N6N1E # team-connectors channel ID
+          slack-channel: C071QE25RV5 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Synapse weekly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
 
@@ -664,7 +664,7 @@ jobs:
         uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
         with:
           slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
-          slack-channel: C06RV3N6N1E # team-connectors channel ID
+          slack-channel: C071QE25RV5 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Synapse nightly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
 
@@ -797,7 +797,7 @@ jobs:
         uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
         with:
           slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
-          slack-channel: C06RV3N6N1E # team-connectors channel ID
+          slack-channel: C071QE25RV5 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Snowflake weekly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
 
@@ -897,7 +897,7 @@ jobs:
         uses: archive/github-actions-slack@df8416e7f4856b362a349c63b48165b42fc2f3b4 # v2.9.0
         with:
           slack-bot-user-oauth-access-token: ${{ env.SEP_CI_SEP_SLACK_TOKEN }}
-          slack-channel: C06RV3N6N1E # team-connectors channel ID
+          slack-channel: C071QE25RV5 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Snowflake nightly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
 
