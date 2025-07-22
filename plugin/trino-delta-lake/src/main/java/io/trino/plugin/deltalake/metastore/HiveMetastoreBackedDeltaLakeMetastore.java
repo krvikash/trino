@@ -133,7 +133,8 @@ public class HiveMetastoreBackedDeltaLakeMetastore
                 table.getTableType().equals(MANAGED_TABLE.name()),
                 catalogOwned(table),
                 getTableLocation(table),
-                Optional.ofNullable(table.getParameters().get("ucTableId")));
+                Optional.ofNullable(table.getParameters().get("ucTableId")),
+                Optional.empty());
     }
 
     private static boolean catalogOwned(Table table)

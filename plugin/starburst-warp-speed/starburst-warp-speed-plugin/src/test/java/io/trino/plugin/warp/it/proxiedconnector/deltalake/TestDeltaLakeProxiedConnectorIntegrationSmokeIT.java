@@ -18,6 +18,7 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.MapBinder;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.local.LocalFileSystemFactory;
+import io.trino.plugin.deltalake.DefaultDeltaLakeFileSystemFactory;
 import io.trino.plugin.deltalake.FileTestingTransactionLogSynchronizer;
 import io.trino.plugin.deltalake.transactionlog.writer.LocalTransactionLogSynchronizer;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogSynchronizer;
@@ -68,7 +69,7 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
                     newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
                             .addBinding("local").toInstance(localFileSystemFactory);
                     newMapBinder(binder, String.class, TransactionLogSynchronizer.class)
-                            .addBinding("local").toInstance(new LocalTransactionLogSynchronizer(localFileSystemFactory));
+                            .addBinding("local").toInstance(new LocalTransactionLogSynchronizer(new DefaultDeltaLakeFileSystemFactory(localFileSystemFactory)));
                     configBinder(binder).bindConfigDefaults(FileHiveMetastoreConfig.class, defaults -> defaults.setCatalogDirectory("local:///"));
                 }),
                 numNodes,

@@ -69,7 +69,8 @@ public class DeltaLakeCacheMetadata
                 deltaLakeTableHandle.getUpdateRowIdColumns(),
                 deltaLakeTableHandle.getAnalyzeHandle(),
                 deltaLakeTableHandle.getReadVersion(),
-                deltaLakeTableHandle.isTimeTravel());
+                deltaLakeTableHandle.isTimeTravel(),
+                deltaLakeTableHandle.getVendedCredentials());
 
         DeltaLakeCacheTableId tableId = new DeltaLakeCacheTableId(
                 handle.getSchemaName(),

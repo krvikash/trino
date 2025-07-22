@@ -14,10 +14,11 @@
 package io.trino.plugin.deltalake.transactionlog.writer;
 
 import com.google.inject.Inject;
-import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.plugin.deltalake.DeltaLakeFileSystemFactory;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.ForUnityBackfill;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
+import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
@@ -33,7 +34,7 @@ import static java.util.Objects.requireNonNull;
 public class UnityTransactionLogWriterFactory
         implements TransactionLogWriterFactory
 {
-    private final TrinoFileSystemFactory fileSystemFactory;
+    private final DeltaLakeFileSystemFactory fileSystemFactory;
     private final DeltaLakeTableOperationsProvider tableOperationsProvider;
     private final TransactionLogSynchronizerManager synchronizerManager;
     private final ExecutorService backfillExecutor;
@@ -41,7 +42,7 @@ public class UnityTransactionLogWriterFactory
 
     @Inject
     public UnityTransactionLogWriterFactory(
-            TrinoFileSystemFactory fileSystemFactory,
+            DeltaLakeFileSystemFactory fileSystemFactory,
             DeltaLakeTableOperationsProvider tableOperationsProvider,
             TransactionLogSynchronizerManager synchronizerManager,
             @ForUnityBackfill ExecutorService backfillExecutor,
@@ -57,11 +58,11 @@ public class UnityTransactionLogWriterFactory
     @Override
     public TransactionLogWriter createWriter(ConnectorSession session, DeltaLakeTableHandle tableHandle)
     {
-        return createWriter(session, tableHandle.location(), tableHandle.getMetadataEntry(), tableHandle.getProtocolEntry());
+        return createWriter(session, tableHandle.location(), tableHandle.getMetadataEntry(), tableHandle.getProtocolEntry(), tableHandle.toCredentialsHandle());
     }
 
     @Override
-    public TransactionLogWriter createWriter(ConnectorSession session, String tableLocation, MetadataEntry metadataEntry, ProtocolEntry protocolEntry)
+    public TransactionLogWriter createWriter(ConnectorSession session, String tableLocation, MetadataEntry metadataEntry, ProtocolEntry protocolEntry, VendedCredentialsHandle credentialsHandle)
     {
         TransactionLogSynchronizer synchronizer = synchronizerManager.getSynchronizer(tableLocation);
         if (isCatalogOwnedTable(protocolEntry)) {
@@ -73,23 +74,23 @@ public class UnityTransactionLogWriterFactory
             return new UnityTransactionLogWriter(
                     tableId,
                     tableLocation,
-                    fileSystemFactory.create(session),
+                    fileSystemFactory.create(session, credentialsHandle),
                     tableOperationsProvider.createTableOperations(session),
-                    new FileSystemTransactionLogWriter(session, synchronizer, tableLocation),
+                    new FileSystemTransactionLogWriter(session, synchronizer, tableLocation, credentialsHandle),
                     backfillExecutor);
         }
-        return new FileSystemTransactionLogWriter(session, synchronizer, tableLocation);
+        return new FileSystemTransactionLogWriter(session, synchronizer, tableLocation, credentialsHandle);
     }
 
     @Override
-    public TransactionLogWriter createFileSystemWriter(ConnectorSession session, String tableLocation)
+    public TransactionLogWriter createFileSystemWriter(ConnectorSession session, String tableLocation, VendedCredentialsHandle credentialsHandle)
     {
-        return new FileSystemTransactionLogWriter(session, synchronizerManager.getSynchronizer(tableLocation), tableLocation);
+        return new FileSystemTransactionLogWriter(session, synchronizerManager.getSynchronizer(tableLocation), tableLocation, credentialsHandle);
     }
 
     @Override
-    public TransactionLogWriter newWriterWithoutTransactionIsolation(ConnectorSession session, String tableLocation)
+    public TransactionLogWriter newWriterWithoutTransactionIsolation(ConnectorSession session, String tableLocation, VendedCredentialsHandle credentialsHandle)
     {
-        return new FileSystemTransactionLogWriter(session, synchronizerManager.getNoIsolationSynchronizer(), tableLocation);
+        return new FileSystemTransactionLogWriter(session, synchronizerManager.getNoIsolationSynchronizer(), tableLocation, credentialsHandle);
     }
 }

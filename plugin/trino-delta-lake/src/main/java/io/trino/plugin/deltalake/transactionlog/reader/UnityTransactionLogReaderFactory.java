@@ -14,10 +14,11 @@
 package io.trino.plugin.deltalake.transactionlog.reader;
 
 import com.google.inject.Inject;
-import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.plugin.deltalake.DeltaLakeFileSystemFactory;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
 import io.trino.plugin.deltalake.metastore.DeltaMetastoreTable;
+import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
 import io.trino.spi.TrinoException;
 
@@ -29,13 +30,13 @@ import static java.util.Objects.requireNonNull;
 public class UnityTransactionLogReaderFactory
         implements TransactionLogReaderFactory
 {
-    private final TrinoFileSystemFactory fileSystemFactory;
+    private final DeltaLakeFileSystemFactory fileSystemFactory;
     private final DeltaLakeTableOperationsProvider tableOperationsProvider;
     private final boolean isCatalogOwnedTableEnabled;
 
     @Inject
     public UnityTransactionLogReaderFactory(
-            TrinoFileSystemFactory fileSystemFactory,
+            DeltaLakeFileSystemFactory fileSystemFactory,
             DeltaLakeTableOperationsProvider tableOperationsProvider,
             UnityMetastoreConfig unityMetastoreConfig)
     {
@@ -52,11 +53,11 @@ public class UnityTransactionLogReaderFactory
                 throw new TrinoException(NOT_SUPPORTED, "Catalog owned table not enabled");
             }
             String tableId = tableHandle.getMetadataEntry().getTableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog owned tables"));
-            return new RestUnityTransactionLogReader(tableId, tableHandle.getLocation(), fileSystemFactory, tableOperationsProvider);
+            return new RestUnityTransactionLogReader(tableId, tableHandle.getLocation(), tableHandle.toCredentialsHandle(), fileSystemFactory, tableOperationsProvider);
         }
 
         checkArgument(tableHandle.getMetadataEntry().getTableId().isEmpty(), "Table id exists but table is not Unity Catalog owned");
-        return new FileSystemTransactionLogReader(tableHandle.getLocation(), fileSystemFactory);
+        return new FileSystemTransactionLogReader(tableHandle.getLocation(), tableHandle.toCredentialsHandle(), fileSystemFactory);
     }
 
     @Override
@@ -67,10 +68,10 @@ public class UnityTransactionLogReaderFactory
                 throw new TrinoException(NOT_SUPPORTED, "Catalog owned table not enabled");
             }
             String tableId = table.tableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog owned tables"));
-            return new RestUnityTransactionLogReader(tableId, table.location(), fileSystemFactory, tableOperationsProvider);
+            return new RestUnityTransactionLogReader(tableId, table.location(), VendedCredentialsHandle.of(table), fileSystemFactory, tableOperationsProvider);
         }
 
         checkArgument(table.tableId().isEmpty(), "Table id exists but table is not Unity Catalog owned");
-        return new FileSystemTransactionLogReader(table.location(), fileSystemFactory);
+        return new FileSystemTransactionLogReader(table.location(), VendedCredentialsHandle.of(table), fileSystemFactory);
     }
 }

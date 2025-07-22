@@ -29,6 +29,7 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.plugin.base.TypeDeserializer;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler;
+import io.trino.plugin.deltalake.metastore.NoOpVendedCredentialsProvider;
 import io.trino.plugin.deltalake.metastore.file.DeltaLakeFileMetastoreTableOperationsProvider;
 import io.trino.plugin.deltalake.statistics.CachingExtendedStatisticsAccess;
 import io.trino.plugin.deltalake.statistics.ExtendedStatistics;
@@ -105,7 +106,7 @@ public class TestDeltaLakeCacheIds
         TestingConnectorContext context = new TestingConnectorContext();
         TypeManager typeManager = context.getTypeManager();
         CheckpointSchemaManager checkpointSchemaManager = new CheckpointSchemaManager(typeManager);
-        HdfsFileSystemFactory hdfsFileSystemFactory = new HdfsFileSystemFactory(hdfsEnvironment, HDFS_FILE_SYSTEM_STATS);
+        DeltaLakeFileSystemFactory deltaLakeFileSystemFactory = new DefaultDeltaLakeFileSystemFactory(new HdfsFileSystemFactory(hdfsEnvironment, HDFS_FILE_SYSTEM_STATS));
 
         FileFormatDataSourceStats fileFormatDataSourceStats = new FileFormatDataSourceStats();
 
@@ -114,14 +115,14 @@ public class TestDeltaLakeCacheIds
                 checkpointSchemaManager,
                 config,
                 fileFormatDataSourceStats,
-                HDFS_FILE_SYSTEM_FACTORY,
+                deltaLakeFileSystemFactory,
                 new ParquetReaderConfig(),
                 newDirectExecutorService(),
-                new FileSystemTransactionLogReaderFactory(hdfsFileSystemFactory));
+                new FileSystemTransactionLogReaderFactory(deltaLakeFileSystemFactory));
         CheckpointWriterManager checkpointWriterManager = new CheckpointWriterManager(
                 typeManager,
                 new CheckpointSchemaManager(typeManager),
-                hdfsFileSystemFactory,
+                deltaLakeFileSystemFactory,
                 new NodeVersion("test_version"),
                 transactionLogAccess,
                 new FileFormatDataSourceStats(),
@@ -129,28 +130,29 @@ public class TestDeltaLakeCacheIds
                 config,
                 listeningDecorator(newDirectExecutorService()));
 
-        FileSystemTransactionLogReaderFactory transactionLogReaderFactory = new FileSystemTransactionLogReaderFactory(HDFS_FILE_SYSTEM_FACTORY);
+        FileSystemTransactionLogReaderFactory transactionLogReaderFactory = new FileSystemTransactionLogReaderFactory(new DefaultDeltaLakeFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY));
         HiveMetastoreFactory hiveMetastoreFactory = HiveMetastoreFactory.ofInstance(new UnimplementedHiveMetastore());
         DeltaLakeMetadataFactory metadataFactory = new DeltaLakeMetadataFactory(
                 hiveMetastoreFactory,
-                hdfsFileSystemFactory,
+                deltaLakeFileSystemFactory,
                 LocationAccessControl.ALLOW_ALL,
                 transactionLogAccess,
                 typeManager,
                 config,
                 JsonCodec.jsonCodec(DataFileInfo.class),
                 JsonCodec.jsonCodec(DeltaLakeMergeResult.class),
-                new FileSystemTransactionLogWriterFactory(new TransactionLogSynchronizerManager(ImmutableMap.of(), new NoIsolationSynchronizer(hdfsFileSystemFactory))),
+                new FileSystemTransactionLogWriterFactory(new TransactionLogSynchronizerManager(ImmutableMap.of(), new NoIsolationSynchronizer(deltaLakeFileSystemFactory))),
                 CURRENT_NODE,
                 checkpointWriterManager,
-                new CachingExtendedStatisticsAccess(new MetaDirStatisticsAccess(HDFS_FILE_SYSTEM_FACTORY, new JsonCodecFactory().jsonCodec(ExtendedStatistics.class))),
+                new CachingExtendedStatisticsAccess(new MetaDirStatisticsAccess(new DefaultDeltaLakeFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY), new JsonCodecFactory().jsonCodec(ExtendedStatistics.class))),
                 true,
                 true,
                 new NodeVersion("test_version"),
                 new DeltaLakeTableMetadataScheduler(CURRENT_NODE, TESTING_TYPE_MANAGER, new DeltaLakeFileMetastoreTableOperationsProvider(hiveMetastoreFactory), Integer.MAX_VALUE, config),
                 newDirectExecutorService(),
                 new MetastoreTypeConfig(),
-                transactionLogReaderFactory);
+                transactionLogReaderFactory,
+                new NoOpVendedCredentialsProvider());
         metadata = new DeltaLakeCacheMetadata(
                 createJsonCodec(DeltaLakeCacheTableId.class),
                 createJsonCodec(DeltaLakeColumnHandle.class));
@@ -159,7 +161,7 @@ public class TestDeltaLakeCacheIds
                 transactionLogAccess,
                 newDirectExecutorService(),
                 config,
-                hdfsFileSystemFactory,
+                deltaLakeFileSystemFactory,
                 createJsonCodec(DeltaLakeCacheSplitId.class),
                 new DeltaLakeTransactionManager(metadataFactory),
                 new DefaultCachingHostAddressProvider());
@@ -438,7 +440,8 @@ public class TestDeltaLakeCacheIds
                 updatedColumns,
                 analyzeHandle,
                 readVersion,
-                false);
+                false,
+                Optional.empty());
     }
 
     private static MetadataEntry createMetadataEntry(String id, String schema)

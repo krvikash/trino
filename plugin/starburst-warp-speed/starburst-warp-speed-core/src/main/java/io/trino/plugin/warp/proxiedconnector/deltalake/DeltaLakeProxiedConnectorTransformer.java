@@ -76,7 +76,8 @@ public class DeltaLakeProxiedConnectorTransformer
                 tableHandle.getUpdateRowIdColumns(),
                 tableHandle.getAnalyzeHandle(),
                 tableHandle.getReadVersion(),
-                tableHandle.isTimeTravel());
+                tableHandle.isTimeTravel(),
+                tableHandle.getVendedCredentials());
     }
 
     @Override
@@ -179,7 +180,8 @@ public class DeltaLakeProxiedConnectorTransformer
                 tableHandle.getUpdateRowIdColumns(),
                 tableHandle.getAnalyzeHandle(),
                 tableHandle.getReadVersion(),
-                tableHandle.isTimeTravel());
+                tableHandle.isTimeTravel(),
+                tableHandle.getVendedCredentials());
     }
 
     @Override

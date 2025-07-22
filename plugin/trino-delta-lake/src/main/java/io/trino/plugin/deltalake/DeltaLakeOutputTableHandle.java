@@ -14,6 +14,7 @@
 package io.trino.plugin.deltalake;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ColumnMappingMode;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
 import io.trino.spi.connector.ConnectorOutputTableHandle;
@@ -43,7 +44,8 @@ public record DeltaLakeOutputTableHandle(
         OptionalInt maxColumnId,
         boolean replace,
         OptionalLong readVersion,
-        ProtocolEntry protocolEntry)
+        ProtocolEntry protocolEntry,
+        VendedCredentialsHandle credentialsHandle)
         implements ConnectorOutputTableHandle
 {
     public DeltaLakeOutputTableHandle
@@ -61,6 +63,7 @@ public record DeltaLakeOutputTableHandle(
         requireNonNull(maxColumnId, "maxColumnId is null");
         requireNonNull(readVersion, "readVersion is null");
         requireNonNull(protocolEntry, "protocolEntry is null");
+        requireNonNull(credentialsHandle, "credentialsHandle is null");
     }
 
     public List<String> partitionedBy()

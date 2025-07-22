@@ -55,7 +55,7 @@ public class TestDeltaPageSourceProvider
             throws IOException
     {
         pageSourceProvider = new DeltaLakePageSourceProvider(
-                new LocalFileSystemFactory(Files.createTempDirectory("prefix")),
+                new DefaultDeltaLakeFileSystemFactory(new LocalFileSystemFactory(Files.createTempDirectory("prefix"))),
                 new FileFormatDataSourceStats(),
                 new ParquetReaderConfig(),
                 new DeltaLakeConfig(),
@@ -213,7 +213,8 @@ public class TestDeltaPageSourceProvider
                 Optional.empty(),
                 Optional.empty(),
                 0,
-                false);
+                false,
+                Optional.empty());
     }
 
     private static MetadataEntry createMetadataEntry(List<String> partitionedColumns, String schema)

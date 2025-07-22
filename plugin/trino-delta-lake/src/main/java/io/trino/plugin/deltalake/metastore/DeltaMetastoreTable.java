@@ -25,13 +25,15 @@ public record DeltaMetastoreTable(
         boolean managed,
         boolean catalogOwned,
         String location,
-        Optional<String> tableId)
+        Optional<String> tableId,
+        Optional<VendedCredentials> vendedCredentials)
 {
     public DeltaMetastoreTable
     {
         requireNonNull(schemaTableName, "schemaTableName is null");
         requireNonNull(location, "location is null");
         requireNonNull(tableId, "tableId is null");
+        requireNonNull(vendedCredentials, "vendedCredentials is null");
 
         if (catalogOwned) {
             checkArgument(managed, "catalog owned tables must be managed");
