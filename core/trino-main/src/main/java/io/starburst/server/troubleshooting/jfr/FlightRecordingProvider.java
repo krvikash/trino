@@ -17,6 +17,7 @@ import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryManager;
 import io.trino.execution.StageInfo;
+import io.trino.execution.StagesInfo;
 import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
 import io.trino.spi.QueryId;
@@ -30,7 +31,7 @@ import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.trino.execution.StageInfo.getAllStages;
+import static io.trino.execution.StagesInfo.getAllStages;
 import static java.util.Objects.requireNonNull;
 
 public class FlightRecordingProvider
@@ -64,14 +65,14 @@ public class FlightRecordingProvider
     {
         try {
             QueryInfo queryInfo = queryManager.getFullQueryInfo(queryId);
-            return queryInfo.getOutputStage().map(this::getNodeIdsProcessingQuery).orElse(ImmutableSet.of());
+            return queryInfo.getStages().map(this::getNodeIdsProcessingQuery).orElse(ImmutableSet.of());
         }
         catch (Exception e) {
             return Set.of();
         }
     }
 
-    private Set<String> getNodeIdsProcessingQuery(StageInfo outputStage)
+    private Set<String> getNodeIdsProcessingQuery(StagesInfo outputStage)
     {
         List<TaskInfo> tasks = getAllStages(Optional.of(outputStage)).stream()
                 .map(StageInfo::getTasks)

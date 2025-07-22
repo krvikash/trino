@@ -9,7 +9,6 @@
  */
 package io.starburst.server.troubleshooting;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
@@ -17,6 +16,7 @@ import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.StageInfo;
+import io.trino.execution.StagesInfo;
 import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
 import io.trino.metadata.InternalNodeManager;
@@ -32,6 +32,7 @@ import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -121,8 +122,8 @@ class TroubleshootingTestHelper
     {
         try {
             QueryInfo queryInfo = queryRunner.getCoordinator().getQueryManager().getFullQueryInfo(queryId);
-            return queryInfo.getOutputStage()
-                    .map(stage -> getNodeIdsProcessingQuery(queryRunner, stage))
+            return queryInfo.getStages()
+                    .map(stages -> getNodeIdsProcessingQuery(queryRunner, stages))
                     .orElse(ImmutableSet.of());
         }
         catch (Exception e) {
@@ -130,25 +131,15 @@ class TroubleshootingTestHelper
         }
     }
 
-    private static Set<String> getNodeIdsProcessingQuery(DistributedQueryRunner queryRunner, StageInfo outputStage)
+    private static Set<String> getNodeIdsProcessingQuery(DistributedQueryRunner queryRunner, StagesInfo stages)
     {
-        List<TaskInfo> tasks = gatherAllTasks(outputStage);
-
-        return tasks.stream()
+        return stages.getStages().stream()
+                .map(StageInfo::getTasks)
+                .flatMap(Collection::stream)
                 .map(TaskInfo::taskStatus)
                 .map(TaskStatus::getNodeId)
                 .filter(nodeId -> isNotCoordinator(queryRunner, nodeId))
                 .collect(toImmutableSet());
-    }
-
-    private static List<TaskInfo> gatherAllTasks(StageInfo stageInfo)
-    {
-        ImmutableList.Builder<TaskInfo> builder = ImmutableList.builder();
-        builder.addAll(stageInfo.getTasks());
-        for (StageInfo subStage : stageInfo.getSubStages()) {
-            builder.addAll(gatherAllTasks(subStage));
-        }
-        return builder.build();
     }
 
     private static boolean isNotCoordinator(DistributedQueryRunner queryRunner, String nodeId)

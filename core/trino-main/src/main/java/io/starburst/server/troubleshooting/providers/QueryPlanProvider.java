@@ -70,9 +70,9 @@ public class QueryPlanProvider
 
     private Optional<String> createTextQueryPlan(QueryInfo queryInfo)
     {
-        if (queryInfo.getOutputStage().isPresent()) {
+        if (queryInfo.getStages().isPresent()) {
             return Optional.of(textDistributedPlan(
-                    queryInfo.getOutputStage().get(),
+                    queryInfo.getStages().get(),
                     queryInfo.getQueryStats(),
                     new ValuePrinter(metadata, functionManager, queryInfo.getSession().toSession(sessionPropertyManager)),
                     false,

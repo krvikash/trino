@@ -186,7 +186,13 @@ public abstract class AbstractQueryTroubleshootingTest
         JsonNode queryInfo = mapper.readTree(inputsMap.contents().get(getPath(data, "query.json")));
         softly.assertThat(queryInfo.get("query").asText()).isEqualTo(troubleshootedQuery);
         softly.assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
-        softly.assertThat(queryInfo.get("outputStage").get("plan")).isNotEmpty();
+        JsonNode outputStageId = queryInfo.get("stages").get("outputStageId");
+        softly.assertThat(outputStageId).isNotNull();
+        Optional<JsonNode> planNodeMaybe = queryInfo.get("stages").get("stages").valueStream()
+                .filter(stage -> outputStageId.equals(stage.get("stageId")))
+                .map(stage -> stage.get("plan"))
+                .findAny();
+        softly.assertThat(planNodeMaybe).hasValueSatisfying(planNode -> softly.assertThat(planNode).isNotEmpty());
 
         Set<String> nodesProcessingQuery = getNodesProcessingQuery(getDistributedQueryRunner(), data.getQueryId());
         for (String workerId : nodesProcessingQuery) {

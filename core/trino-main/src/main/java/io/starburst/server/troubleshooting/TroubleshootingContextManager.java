@@ -20,6 +20,7 @@ import io.trino.Session;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.StageInfo;
+import io.trino.execution.StagesInfo;
 import io.trino.execution.StateMachine;
 import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
@@ -51,7 +52,7 @@ import static io.starburst.server.troubleshooting.TroubleshootingContext.State.R
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
 import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.getMaxCollectedWorkersJfr;
 import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.getMaxCollectedWorkersTrace;
-import static io.trino.execution.StageInfo.getAllStages;
+import static io.trino.execution.StagesInfo.getAllStages;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -313,10 +314,10 @@ public class TroubleshootingContextManager
 
     private static Set<String> getProcessingNodesForQuery(QueryInfo queryInfo)
     {
-        return queryInfo.getOutputStage().map(TroubleshootingContextManager::getNodeIdsProcessingQuery).orElse(ImmutableSet.of());
+        return queryInfo.getStages().map(TroubleshootingContextManager::getNodeIdsProcessingQuery).orElse(ImmutableSet.of());
     }
 
-    private static Set<String> getNodeIdsProcessingQuery(StageInfo outputStage)
+    private static Set<String> getNodeIdsProcessingQuery(StagesInfo outputStage)
     {
         List<TaskInfo> tasks = getAllStages(Optional.of(outputStage)).stream()
                 .map(StageInfo::getTasks)
