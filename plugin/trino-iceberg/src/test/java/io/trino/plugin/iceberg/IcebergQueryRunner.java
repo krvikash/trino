@@ -611,9 +611,9 @@ public final class IcebergQueryRunner
         }
     }
 
-    public static final class IcebergQueryRunnerWithSpoolingExchangeMain
+    public static final class IcebergQueryRunnerWithFilesystemSpoolingExchangeMain
     {
-        private IcebergQueryRunnerWithSpoolingExchangeMain() {}
+        private IcebergQueryRunnerWithFilesystemSpoolingExchangeMain() {}
 
         public static void main(String[] args)
                 throws Exception
