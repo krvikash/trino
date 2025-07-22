@@ -20,6 +20,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
+import io.starburst.stargate.buffer.trino.exchange.BufferExchangePlugin;
 import io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin;
 import io.trino.plugin.hive.containers.Hive3MinioDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
@@ -635,6 +636,38 @@ public final class IcebergQueryRunner
                     .setAdditionalSetup(runner -> {
                         runner.installPlugin(new FileSystemExchangePlugin());
                         runner.loadExchangeManager("filesystem", exchangeManagerProperties);
+                    })
+                    .build();
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static final class IcebergQueryRunnerWithEmbeddedBufferExchangeMain
+    {
+        private IcebergQueryRunnerWithEmbeddedBufferExchangeMain() {}
+
+        public static void main(String[] args)
+                throws Exception
+        {
+            File exchangeManagerDirectory = createTempDirectory("exchange_manager").toFile();
+            ImmutableMap.Builder<String, String> extraProperties = ImmutableMap.<String, String>builder()
+                    .put("embedded-buffer-service-enabled", "true")
+                    .put("buffer.spooling.directory", exchangeManagerDirectory.getAbsolutePath());
+            exchangeManagerDirectory.deleteOnExit();
+
+            Logger log = Logger.get(DefaultIcebergQueryRunnerMain.class);
+            File metastoreDir = createTempDirectory("iceberg_query_runner").toFile();
+            metastoreDir.deleteOnExit();
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
+                    .addIcebergProperty("hive.metastore.catalog.dir", metastoreDir.toURI().toString())
+                    .setInitialTables(TpchTable.getTables())
+                    .addExtraProperties(extraProperties.buildOrThrow())
+                    .setAdditionalSetup(runner -> {
+                        runner.installPlugin(new BufferExchangePlugin());
+                        runner.loadExchangeManager("buffer", ImmutableMap.of("exchange.use-embedded-buffer-service", "true"));
                     })
                     .build();
             log.info("======== SERVER STARTED ========");
