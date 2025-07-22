@@ -378,6 +378,13 @@ jobs:
           S3_BUCKET_ENDPOINT: "s3.${{ vars.TRINO_AWS_REGION }}.amazonaws.com"
           GCP_CREDENTIALS_KEY: ${{ secrets.GCP_CREDENTIALS_KEY }}
           GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
+          GCS_DATABRICKS_UNITY_JDBC_URL: ${{ vars.GCS_DATABRICKS_UNITY_JDBC_URL }}
+          GCS_DATABRICKS_UNITY_CATALOG_NAME: ${{ vars.GCS_DATABRICKS_UNITY_CATALOG_NAME }}
+          GCS_DATABRICKS_UNITY_EXTERNAL_LOCATION: ${{ vars.GCS_DATABRICKS_UNITY_EXTERNAL_LOCATION }}
+          GCS_DATABRICKS_HOST: ${{ vars.GCS_DATABRICKS_HOST }}
+          GCS_DATABRICKS_LOGIN: token
+          GCS_DATABRICKS_TOKEN: ${{ secrets.GCS_DATABRICKS_TOKEN }}
+          DATABRICKS_UNITY_GCP_GCS_JSON_KEY: ${{ secrets.DATABRICKS_UNITY_GCP_GCS_JSON_KEY }}
           DATABRICKS_UNITY_JDBC_URL: ${{ vars.DATABRICKS_UNITY_JDBC_URL }}
           DATABRICKS_UNITY_CATALOG_NAME: ${{ vars.DATABRICKS_UNITY_CATALOG_NAME }}
           DATABRICKS_UNITY_EXTERNAL_LOCATION: ${{ vars.DATABRICKS_UNITY_EXTERNAL_LOCATION }}
@@ -1522,6 +1529,13 @@ jobs:
           S3_BUCKET: ${{ vars.TRINO_S3_BUCKET }}
           GCP_CREDENTIALS_KEY: ${{ secrets.GCP_CREDENTIALS_KEY }}
           GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
+          GCS_DATABRICKS_UNITY_JDBC_URL: ${{ vars.GCS_DATABRICKS_UNITY_JDBC_URL }}
+          GCS_DATABRICKS_UNITY_CATALOG_NAME: ${{ vars.GCS_DATABRICKS_UNITY_CATALOG_NAME }}
+          GCS_DATABRICKS_UNITY_EXTERNAL_LOCATION: ${{ vars.GCS_DATABRICKS_UNITY_EXTERNAL_LOCATION }}
+          GCS_DATABRICKS_HOST: ${{ vars.GCS_DATABRICKS_HOST }}
+          GCS_DATABRICKS_LOGIN: token
+          GCS_DATABRICKS_TOKEN: ${{ secrets.GCS_DATABRICKS_TOKEN }}
+          DATABRICKS_UNITY_GCP_GCS_JSON_KEY: ${{ secrets.DATABRICKS_UNITY_GCP_GCS_JSON_KEY }}
           DATABRICKS_UNITY_JDBC_URL: ${{ vars.DATABRICKS_UNITY_JDBC_URL }}
           DATABRICKS_UNITY_CATALOG_NAME: ${{ vars.DATABRICKS_UNITY_CATALOG_NAME }}
           DATABRICKS_UNITY_EXTERNAL_LOCATION: ${{ vars.DATABRICKS_UNITY_EXTERNAL_LOCATION }}
@@ -1839,6 +1853,8 @@ jobs:
             - suite-delta-lake-databricks154
             - suite-delta-lake-databricks164
             - suite-delta-lake-databricks-unity
+            - suite-delta-lake-databricks-unity-s3-credentials-vending
+            - suite-delta-lake-databricks-unity-gcs-credentials-vending
             - suite-hive-databricks-unity
             - suite-hive4
             - suite-ranger
@@ -1895,6 +1911,16 @@ jobs:
             - suite: suite-delta-lake-databricks-unity
               config: hdp3
             - suite: suite-delta-lake-databricks-unity
+              ignore exclusion if: >-
+                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+            - suite: suite-delta-lake-databricks-unity-s3-credentials-vending
+              config: hdp3 
+            - suite: suite-delta-lake-databricks-unity-s3-credentials-vending
+              ignore exclusion if: >-
+                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+            - suite: suite-delta-lake-databricks-unity-gcs-credentials-vending
+              config: hdp3
+            - suite: suite-delta-lake-databricks-unity-gcs-credentials-vending
               ignore exclusion if: >-
                 ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
             - suite: suite-hive-databricks-unity
@@ -1984,6 +2010,13 @@ jobs:
           DATABRICKS_HOST: ""
           DATABRICKS_LOGIN: ""
           DATABRICKS_TOKEN: ""
+          GCS_DATABRICKS_UNITY_JDBC_URL: ""
+          GCS_DATABRICKS_UNITY_CATALOG_NAME: ""
+          GCS_DATABRICKS_UNITY_EXTERNAL_LOCATION: ""
+          GCS_DATABRICKS_HOST: ""
+          GCS_DATABRICKS_LOGIN: ""
+          GCS_DATABRICKS_TOKEN: ""
+          DATABRICKS_UNITY_GCP_GCS_JSON_KEY: ""
           GCP_CREDENTIALS_KEY: ""
           GCP_STORAGE_BUCKET: ""
           SYNAPSE_ENDPOINT: ""
@@ -2078,6 +2111,13 @@ jobs:
           DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
           DATABRICKS_LOGIN: token
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_UNITY_GCP_GCS_JSON_KEY: ${{ secrets.DATABRICKS_UNITY_GCP_GCS_JSON_KEY }}
+          GCS_DATABRICKS_UNITY_JDBC_URL: ${{ vars.GCS_DATABRICKS_UNITY_JDBC_URL }}
+          GCS_DATABRICKS_UNITY_CATALOG_NAME: ${{ vars.GCS_DATABRICKS_UNITY_CATALOG_NAME }}
+          GCS_DATABRICKS_UNITY_EXTERNAL_LOCATION: ${{ vars.GCS_DATABRICKS_UNITY_EXTERNAL_LOCATION }}
+          GCS_DATABRICKS_HOST: ${{ vars.GCS_DATABRICKS_HOST }}
+          GCS_DATABRICKS_LOGIN: token
+          GCS_DATABRICKS_TOKEN: ${{ secrets.GCS_DATABRICKS_TOKEN }}
           SYNAPSE_ENDPOINT: ${{ vars.SYNAPSE_ENDPOINT }}
           SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
           SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}

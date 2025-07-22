@@ -1567,7 +1567,7 @@ public class DeltaLakeMetadata
 
     private VendedCredentialsHandle fetchCredentialsForLocation(String tableLocation)
     {
-        // TODO: update once we support creating managed table
+        // TODO: update once we support creating managed table https://starburstdata.atlassian.net/browse/ENG-385
         return vendedCredentialsProvider.getFreshCredentials(VendedCredentialsHandle.empty(tableLocation));
     }
 

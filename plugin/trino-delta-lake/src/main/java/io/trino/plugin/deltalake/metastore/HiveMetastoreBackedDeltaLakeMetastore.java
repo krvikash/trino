@@ -22,6 +22,7 @@ import io.trino.metastore.TableInfo;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,6 +32,12 @@ import static io.trino.plugin.deltalake.DeltaLakeErrorCode.DELTA_LAKE_INVALID_SC
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.PATH_PROPERTY;
 import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
 import static io.trino.plugin.hive.ViewReaderUtil.isSomeKindOfAView;
+import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_CREDENTIALS_ENABLED;
+import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_CREDENTIALS_EXPIRE_AT;
+import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_GCS_OAUTH_TOKEN;
+import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_S3_ACCESS_KEY;
+import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_S3_SECRET_KEY;
+import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_S3_SESSION_TOKEN;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -133,8 +140,8 @@ public class HiveMetastoreBackedDeltaLakeMetastore
                 table.getTableType().equals(MANAGED_TABLE.name()),
                 catalogOwned(table),
                 getTableLocation(table),
-                Optional.ofNullable(table.getParameters().get("ucTableId")),
-                Optional.empty());
+                getTableId(table),
+                getVendedCredentials(table));
     }
 
     private static boolean catalogOwned(Table table)
@@ -153,6 +160,35 @@ public class HiveMetastoreBackedDeltaLakeMetastore
         return true;
     }
 
+    private static Optional<VendedCredentials> getVendedCredentials(Table table)
+    {
+        Map<String, String> parameters = table.getParameters();
+
+        if (!parameters.containsKey(VENDED_CREDENTIALS_ENABLED)) {
+            return Optional.empty();
+        }
+
+        Optional<String> tableId = getTableId(table);
+
+        Instant expireAt = Instant.MAX;
+        if (parameters.containsKey(VENDED_CREDENTIALS_EXPIRE_AT)) {
+            expireAt = Instant.ofEpochMilli(Long.parseLong(parameters.get(VENDED_CREDENTIALS_EXPIRE_AT)));
+        }
+
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+        if (parameters.containsKey(VENDED_S3_ACCESS_KEY)) {
+            builder.put(VENDED_S3_ACCESS_KEY, parameters.get(VENDED_S3_ACCESS_KEY));
+            builder.put(VENDED_S3_SECRET_KEY, parameters.get(VENDED_S3_SECRET_KEY));
+            builder.put(VENDED_S3_SESSION_TOKEN, parameters.get(VENDED_S3_SESSION_TOKEN));
+        }
+
+        if (parameters.containsKey(VENDED_GCS_OAUTH_TOKEN)) {
+            builder.put(VENDED_GCS_OAUTH_TOKEN, parameters.get(VENDED_GCS_OAUTH_TOKEN));
+        }
+
+        return Optional.of(new VendedCredentials(tableId, expireAt, builder.buildOrThrow()));
+    }
+
     public static String getTableLocation(Table table)
     {
         Map<String, String> serdeParameters = table.getStorage().getSerdeParameters();
@@ -161,5 +197,10 @@ public class HiveMetastoreBackedDeltaLakeMetastore
             throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, format("No %s property defined for table: %s", PATH_PROPERTY, table));
         }
         return location;
+    }
+
+    private static Optional<String> getTableId(Table table)
+    {
+        return Optional.ofNullable(table.getParameters().get("ucTableId"));
     }
 }

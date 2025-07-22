@@ -14,6 +14,9 @@
 package io.trino.plugin.hive.metastore.unity;
 
 import io.trino.metastore.HiveMetastore;
+import io.unitycatalog.client.model.PathOperation;
+import io.unitycatalog.client.model.TableOperation;
+import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.util.Optional;
 
@@ -23,4 +26,8 @@ public interface UnityMetastore
     StagedCommitsInfo loadStagedCommitsInfo(String tableId, String tableLocation, Optional<Long> startVersion, Optional<Long> endVersion);
 
     void commitStagedCommits(CommitRequest commitStagedRequest);
+
+    TemporaryCredentials getTemporaryTableCredentials(String tableId, TableOperation operation);
+
+    TemporaryCredentials getTemporaryPathCredentials(String tableLocation, PathOperation operation);
 }

@@ -14,6 +14,7 @@
 package io.trino.filesystem.gcs;
 
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -27,6 +28,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -34,6 +37,8 @@ import java.util.Optional;
 import static com.google.cloud.storage.StorageRetryStrategy.getUniformStorageRetryStrategy;
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.net.HttpHeaders.USER_AGENT;
+import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY;
+import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class GcsStorageFactory
@@ -86,7 +91,15 @@ public class GcsStorageFactory
     {
         try {
             GoogleCredentials credentials;
-            if (useGcsAccessToken) {
+            if (identity.getExtraCredentials().containsKey(EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY)) {
+                String accessToken = nullToEmpty(identity.getExtraCredentials().get(EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY));
+                Optional<Date> expireAt = Optional.ofNullable(identity.getExtraCredentials().get(EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY))
+                        .map(Long::parseLong)
+                        .map(Instant::ofEpochMilli)
+                        .map(Date::from);
+                credentials = GoogleCredentials.create(new AccessToken(accessToken, expireAt.orElse(null)));
+            }
+            else if (useGcsAccessToken) {
                 String accessToken = nullToEmpty(identity.getExtraCredentials().get(GCS_OAUTH_KEY));
                 try (ByteArrayInputStream inputStream = new ByteArrayInputStream(accessToken.getBytes(UTF_8))) {
                     credentials = GoogleCredentials.fromStream(inputStream).createScoped(DEFAULT_SCOPES);

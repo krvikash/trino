@@ -32,7 +32,7 @@ public class UnityHiveMetastoreFactory
     {
         this.metastore = new TracingUnityHiveMetastore(
                 tracer,
-                new UnityHiveMetastore(config.getHost(), config.getCatalogName(), config.getToken(), supportedUnityTableFormatsProvider.supportedUnityTableFormats()));
+                new UnityHiveMetastore(config.getHost(), config.getCatalogName(), config.getToken(), config.isVendedCredentialsEnabled(), supportedUnityTableFormatsProvider.supportedUnityTableFormats()));
     }
 
     @Override

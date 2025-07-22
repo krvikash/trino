@@ -26,6 +26,7 @@ public class UnityMetastoreConfig
     private String host;
     private String token;
     private boolean catalogOwnedTableEnabled;
+    private boolean vendedCredentialsEnabled;
 
     @NotNull
     public String getCatalogName()
@@ -78,6 +79,19 @@ public class UnityMetastoreConfig
     public UnityMetastoreConfig setCatalogOwnedTableEnabled(boolean catalogOwnedTableEnabled)
     {
         this.catalogOwnedTableEnabled = catalogOwnedTableEnabled;
+        return this;
+    }
+
+    public boolean isVendedCredentialsEnabled()
+    {
+        return vendedCredentialsEnabled;
+    }
+
+    @Config("hive.metastore.unity.vended-credentials-enabled")
+    @ConfigDescription("Use credentials provided by Unity for file system access")
+    public UnityMetastoreConfig setVendedCredentialsEnabled(boolean vendedCredentialsEnabled)
+    {
+        this.vendedCredentialsEnabled = vendedCredentialsEnabled;
         return this;
     }
 }

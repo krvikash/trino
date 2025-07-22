@@ -16,9 +16,11 @@ package io.trino.plugin.deltalake.metastore;
 import com.google.common.collect.ImmutableMap;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
 public record VendedCredentials(Optional<String> tableId, Instant expireAt, Map<String, String> credentials)
@@ -33,5 +35,26 @@ public record VendedCredentials(Optional<String> tableId, Instant expireAt, Map<
     public static VendedCredentials empty()
     {
         return new VendedCredentials(Optional.empty(), Instant.MAX, ImmutableMap.of());
+    }
+
+    public boolean isFresh()
+    {
+        // If the token expires after 2 mins, don't use it
+        // TODO: make the time configurable
+        return isFresh(Instant.now().plus(2, ChronoUnit.MINUTES));
+    }
+
+    private boolean isFresh(Instant now)
+    {
+        return !credentials.isEmpty() && now.isBefore(expireAt);
+    }
+
+    @Override
+    public String toString()
+    {
+        return toStringHelper(this)
+                .add("tableId", tableId)
+                .add("expireAt", expireAt)
+                .toString();
     }
 }

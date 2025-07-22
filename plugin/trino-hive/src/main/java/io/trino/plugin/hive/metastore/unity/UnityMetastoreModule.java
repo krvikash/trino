@@ -49,6 +49,7 @@ public class UnityMetastoreModule
     protected void setup(Binder binder)
     {
         checkArgument(isConfiguredWithHive, "Unity metastore is only supported with Hive");
+        checkArgument(!buildConfigObject(UnityMetastoreConfig.class).isVendedCredentialsEnabled(), "Setting hive.metastore.unity.vended-credentials-enabled to true is supported only with Delta Lake");
         configBinder(binder).bindConfig(UnityMetastoreConfig.class);
 
         binder.bind(UnityHiveMetastoreFactory.class).in(Scopes.SINGLETON);

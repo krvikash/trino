@@ -1,0 +1,13 @@
+databases:
+  trino:
+    jdbc_user: root
+  delta:
+    jdbc_driver_class: com.databricks.client.jdbc.Driver
+    jdbc_jar: /docker/jdbc/databricks-jdbc.jar
+    schema: default
+    prepare_statement:
+      - USE ${databases.delta.schema}
+    table_manager_type: jdbc
+    jdbc_url: ${GCS_DATABRICKS_JDBC_URL};EnableArrow=0;SocketTimeout=120
+    jdbc_user: ${GCS_DATABRICKS_LOGIN}
+    jdbc_password: ${GCS_DATABRICKS_TOKEN}

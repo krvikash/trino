@@ -117,6 +117,9 @@ public class LakehouseDeltaModule
             case UNITY -> new DeltaLakeUnityMetastoreModule();
         });
 
+        newOptionalBinder(binder, DeltaLakeFileSystemFactory.class).setDefault().to(DefaultDeltaLakeFileSystemFactory.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, VendedCredentialsProvider.class).setDefault().to(NoOpVendedCredentialsProvider.class).in(Scopes.SINGLETON);
+
         binder.install(new DeltaLakeExecutorModule());
 
         jsonCodecBinder(binder).bindJsonCodec(DeltaLakeCacheSplitId.class);

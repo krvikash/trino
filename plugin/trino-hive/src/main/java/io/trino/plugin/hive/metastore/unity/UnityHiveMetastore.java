@@ -67,6 +67,16 @@ import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.RoleGrant;
+import io.unitycatalog.client.ApiException;
+import io.unitycatalog.client.api.TemporaryCredentialsApi;
+import io.unitycatalog.client.model.AwsCredentials;
+import io.unitycatalog.client.model.AzureUserDelegationSAS;
+import io.unitycatalog.client.model.GcpOauthToken;
+import io.unitycatalog.client.model.GenerateTemporaryPathCredential;
+import io.unitycatalog.client.model.GenerateTemporaryTableCredential;
+import io.unitycatalog.client.model.PathOperation;
+import io.unitycatalog.client.model.TableOperation;
+import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -85,6 +95,7 @@ import static com.databricks.sdk.service.catalog.TableType.EXTERNAL;
 import static com.databricks.sdk.service.catalog.TableType.MANAGED;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.hive.thrift.metastore.hive_metastoreConstants.META_TABLE_LOCATION;
 import static io.trino.metastore.TableInfo.ExtendedRelationType.TABLE;
@@ -97,15 +108,33 @@ import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
 import static io.trino.plugin.hive.HiveStorageFormat.TEXTFILE;
 import static io.trino.plugin.hive.TableType.EXTERNAL_TABLE;
 import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
+import static io.trino.plugin.hive.TableType.MATERIALIZED_VIEW;
+import static io.trino.plugin.hive.TableType.VIRTUAL_VIEW;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static io.trino.spi.security.PrincipalType.USER;
+import static io.unitycatalog.client.model.PathOperation.PATH_READ_WRITE;
+import static io.unitycatalog.client.model.TableOperation.READ;
+import static io.unitycatalog.client.model.TableOperation.READ_WRITE;
 import static java.util.Objects.requireNonNull;
 
 public class UnityHiveMetastore
         implements UnityMetastore
 {
     private static final Logger LOG = Logger.get(UnityHiveMetastore.class);
+
+    public static final String VENDED_CREDENTIALS_ENABLED = "vended-credentials-enabled";
+    public static final String VENDED_CREDENTIALS_EXPIRE_AT = "credentials-expire-at";
+
+    // s3
+    public static final String VENDED_S3_ACCESS_KEY = "s3.access-key-id";
+    public static final String VENDED_S3_SECRET_KEY = "s3.secret-access-key";
+    public static final String VENDED_S3_SESSION_TOKEN = "s3.session-token";
+
+    // TODO: support azure credentials vending https://starburstdata.atlassian.net/browse/SEP-18169
+
+    // gcs
+    public static final String VENDED_GCS_OAUTH_TOKEN = "gcs.oauth-token";
 
     private static final String NAMESPACE_SEPARATOR = ".";
     private static final String DELTA_PATH_PROPERTY = "path";
@@ -120,8 +149,10 @@ public class UnityHiveMetastore
     private final SchemasAPI schemasApi;
     private final TablesAPI tablesApi;
     private final String catalogName;
+    private final boolean vendedCredentialsEnabled;
+    private final TemporaryCredentialsApi temporaryCredentialsApi;
 
-    public UnityHiveMetastore(String host, String catalogName, Optional<String> token, Set<DataSourceFormat> supportedUnityTableFormats)
+    public UnityHiveMetastore(String host, String catalogName, Optional<String> token, boolean vendedCredentialsEnabled, Set<DataSourceFormat> supportedUnityTableFormats)
     {
         DatabricksConfig databricksConfig = new DatabricksConfig()
                 .setHost(host)
@@ -131,6 +162,17 @@ public class UnityHiveMetastore
         schemasApi = new SchemasAPI(apiClient);
         tablesApi = new TablesAPI(apiClient);
         this.catalogName = catalogName;
+
+        this.vendedCredentialsEnabled = vendedCredentialsEnabled;
+        if (vendedCredentialsEnabled) {
+            io.unitycatalog.client.ApiClient unityApiClient = new io.unitycatalog.client.ApiClient();
+            unityApiClient.updateBaseUri("https://" + host + "/api/2.1/unity-catalog");
+            token.ifPresent(authToken -> unityApiClient.setRequestInterceptor(request -> request.header("Authorization", "Bearer " + authToken)));
+            this.temporaryCredentialsApi = new TemporaryCredentialsApi(unityApiClient);
+        }
+        else {
+            this.temporaryCredentialsApi = null;
+        }
         this.supportedUnityTableFormats = ImmutableSet.copyOf(supportedUnityTableFormats);
     }
 
@@ -644,12 +686,13 @@ public class UnityHiveMetastore
                 .map(column -> new Column(column.getName(), getHiveTypeFromUnity(column.getTypeText()), Optional.ofNullable(column.getComment()), ImmutableMap.of()))
                 .toList();
 
+        TableType type = SUPPORTED_TABLE_TYPES_MAPPING.get(tableType);
         Table.Builder tableBuilder = Table.builder()
                 .setDatabaseName(tableInfo.getSchemaName())
                 .setTableName(tableInfo.getName())
                 .setDataColumns(dataColumns)
                 .setPartitionColumns(partitionColumns)
-                .setTableType(SUPPORTED_TABLE_TYPES_MAPPING.get(tableType).name())
+                .setTableType(type.name())
                 .setOwner(Optional.ofNullable(tableInfo.getOwner()))
                 .setParameter(META_TABLE_LOCATION, tableInfo.getStorageLocation());
 
@@ -667,7 +710,79 @@ public class UnityHiveMetastore
                     .setLocation(tableInfo.getStorageLocation()));
         }
 
+        setVendingProperties(type, tableInfo.getTableId(), tableInfo.getStorageLocation(), Optional.ofNullable(tableInfo.getProperties()), tableBuilder);
+
         return Optional.of(tableBuilder.build().withComment(Optional.ofNullable(tableInfo.getComment())));
+    }
+
+    private void setVendingProperties(TableType tableType, String tableId, String tableLocation, Optional<Map<String, String>> properties, Table.Builder tableBuilder)
+    {
+        if (!vendedCredentialsEnabled) {
+            return;
+        }
+
+        if (tableType == VIRTUAL_VIEW || tableType == MATERIALIZED_VIEW) {
+            throw new TrinoException(NOT_SUPPORTED, "credentials vending are not supported for view or materialized view");
+        }
+
+        TemporaryCredentials credentials;
+
+        // catalog-owned table is a managed table
+        if (catalogOwned(tableType, properties)) {
+            credentials = getTemporaryTableCredentials(tableId, READ_WRITE);
+        }
+        else if (tableType == MANAGED_TABLE) {
+            // unlike catalog-owned table, the table properties don't keep the tableId by default
+            tableBuilder.setParameter("ucTableId", tableId);
+
+            credentials = getTemporaryTableCredentials(tableId, READ);
+        }
+        else {
+            // external table
+            credentials = getTemporaryPathCredentials(tableLocation, PATH_READ_WRITE);
+        }
+
+        AwsCredentials awsTempCredentials = credentials.getAwsTempCredentials();
+        if (awsTempCredentials != null) {
+            tableBuilder.setParameter(VENDED_S3_ACCESS_KEY, awsTempCredentials.getAccessKeyId());
+            tableBuilder.setParameter(VENDED_S3_SECRET_KEY, awsTempCredentials.getSecretAccessKey());
+            tableBuilder.setParameter(VENDED_S3_SESSION_TOKEN, awsTempCredentials.getSessionToken());
+        }
+
+        AzureUserDelegationSAS azureUserDelegationSas = credentials.getAzureUserDelegationSas();
+        if (azureUserDelegationSas != null) {
+            // TODO: support azure vended credentials https://starburstdata.atlassian.net/browse/SEP-18169
+            throw new TrinoException(NOT_SUPPORTED, "Azure vended credentials are not supported yet");
+        }
+
+        GcpOauthToken gcpOauthToken = credentials.getGcpOauthToken();
+        if (gcpOauthToken != null) {
+            tableBuilder.setParameter(VENDED_GCS_OAUTH_TOKEN, gcpOauthToken.getOauthToken());
+        }
+
+        if (credentials.getExpirationTime() != null) {
+            tableBuilder.setParameter(VENDED_CREDENTIALS_EXPIRE_AT, String.valueOf(credentials.getExpirationTime()));
+        }
+
+        // Mark that vended credentials are enabled for this table
+        tableBuilder.setParameter(VENDED_CREDENTIALS_ENABLED, "true");
+    }
+
+    private static boolean catalogOwned(TableType tableType, Optional<Map<String, String>> tableParameters)
+    {
+        if (tableParameters.isEmpty()) {
+            return false;
+        }
+
+        Map<String, String> parameters = tableParameters.get();
+
+        if (!"supported".equals(parameters.get("delta.feature.catalogOwned-preview"))) {
+            return false;
+        }
+
+        checkState("true".equals(parameters.get("delta.enableInCommitTimestamps")), "Catalog owned table must enable in-commit timestamps");
+        checkState(tableType == MANAGED_TABLE, "Catalog owned table must be managed type table");
+        return true;
     }
 
     private static HiveType getHiveTypeFromUnity(String hiveType)
@@ -900,5 +1015,27 @@ public class UnityHiveMetastore
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
         }
         // handle databricks on the caller side
+    }
+
+    @Override
+    public TemporaryCredentials getTemporaryTableCredentials(String tableId, TableOperation operation)
+    {
+        try {
+            return temporaryCredentialsApi.generateTemporaryTableCredentials(new GenerateTemporaryTableCredential().tableId(tableId).operation(operation));
+        }
+        catch (ApiException e) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, e);
+        }
+    }
+
+    @Override
+    public TemporaryCredentials getTemporaryPathCredentials(String tableLocation, PathOperation operation)
+    {
+        try {
+            return temporaryCredentialsApi.generateTemporaryPathCredentials(new GenerateTemporaryPathCredential().url(tableLocation).operation(operation));
+        }
+        catch (Exception e) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, e);
+        }
     }
 }

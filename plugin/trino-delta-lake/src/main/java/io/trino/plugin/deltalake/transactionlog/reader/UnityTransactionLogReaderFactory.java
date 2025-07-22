@@ -22,7 +22,6 @@ import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
 import io.trino.spi.TrinoException;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogOwnedTable;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
@@ -56,22 +55,21 @@ public class UnityTransactionLogReaderFactory
             return new RestUnityTransactionLogReader(tableId, tableHandle.getLocation(), tableHandle.toCredentialsHandle(), fileSystemFactory, tableOperationsProvider);
         }
 
-        checkArgument(tableHandle.getMetadataEntry().getTableId().isEmpty(), "Table id exists but table is not Unity Catalog owned");
         return new FileSystemTransactionLogReader(tableHandle.getLocation(), tableHandle.toCredentialsHandle(), fileSystemFactory);
     }
 
     @Override
     public TransactionLogReader createReader(DeltaMetastoreTable table)
     {
+        VendedCredentialsHandle credentialsHandle = VendedCredentialsHandle.of(table);
         if (table.catalogOwned()) {
             if (!isCatalogOwnedTableEnabled) {
                 throw new TrinoException(NOT_SUPPORTED, "Catalog owned table not enabled");
             }
             String tableId = table.tableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog owned tables"));
-            return new RestUnityTransactionLogReader(tableId, table.location(), VendedCredentialsHandle.of(table), fileSystemFactory, tableOperationsProvider);
+            return new RestUnityTransactionLogReader(tableId, table.location(), credentialsHandle, fileSystemFactory, tableOperationsProvider);
         }
 
-        checkArgument(table.tableId().isEmpty(), "Table id exists but table is not Unity Catalog owned");
-        return new FileSystemTransactionLogReader(table.location(), VendedCredentialsHandle.of(table), fileSystemFactory);
+        return new FileSystemTransactionLogReader(table.location(), credentialsHandle, fileSystemFactory);
     }
 }

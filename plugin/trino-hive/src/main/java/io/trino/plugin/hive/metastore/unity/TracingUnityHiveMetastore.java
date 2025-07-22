@@ -16,6 +16,9 @@ package io.trino.plugin.hive.metastore.unity;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.metastore.tracing.TracingHiveMetastore;
+import io.unitycatalog.client.model.PathOperation;
+import io.unitycatalog.client.model.TableOperation;
+import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.util.Optional;
 
@@ -50,5 +53,21 @@ public class TracingUnityHiveMetastore
         Span span = tracer.spanBuilder("HiveMetastore.commitStagedCommits")
                 .startSpan();
         withTracing(span, () -> delegate.commitStagedCommits(commitStagedRequest));
+    }
+
+    @Override
+    public TemporaryCredentials getTemporaryTableCredentials(String tableId, TableOperation operation)
+    {
+        Span span = tracer.spanBuilder("UnityHiveMetastore.getTemporaryTableCredentials")
+                .startSpan();
+        return withTracing(span, () -> delegate.getTemporaryTableCredentials(tableId, operation));
+    }
+
+    @Override
+    public TemporaryCredentials getTemporaryPathCredentials(String tableLocation, PathOperation operation)
+    {
+        Span span = tracer.spanBuilder("UnityHiveMetastore.getTemporaryPathCredentials")
+                .startSpan();
+        return withTracing(span, () -> delegate.getTemporaryPathCredentials(tableLocation, operation));
     }
 }

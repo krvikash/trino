@@ -28,6 +28,7 @@ import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY;
+import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_ISSUE;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_MATCH;
@@ -59,7 +60,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         onDelta().executeQuery(format("DROP SCHEMA IF EXISTS %s.%s CASCADE", unityCatalogName, schemaName));
     }
 
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testTableReadWriteExternalTable()
     {
@@ -127,7 +128,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                 .containsOnly(expectedRowsForMerge);
     }
 
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testReadWriteCatalogOwnedTable()
     {
@@ -190,7 +191,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         }
     }
 
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testTableReadWriteManagedTable()
     {

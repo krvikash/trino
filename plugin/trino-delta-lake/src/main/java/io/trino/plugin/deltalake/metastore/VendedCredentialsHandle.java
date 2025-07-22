@@ -41,4 +41,9 @@ public record VendedCredentialsHandle(
     {
         return new VendedCredentialsHandle(table.catalogOwned(), table.managed(), table.location(), table.vendedCredentials().orElse(VendedCredentials.empty()));
     }
+
+    public VendedCredentialsHandle withVendedCredentials(VendedCredentials vendedCredentials)
+    {
+        return new VendedCredentialsHandle(catalogOwned, managed, tableLocation, vendedCredentials);
+    }
 }
