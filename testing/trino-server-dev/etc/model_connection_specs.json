@@ -1,0 +1,16 @@
+{
+    "models": [
+        {
+            "id": "gpt4o_mini",
+            "modelName": "gpt-4o-mini",
+            "kind": "GENERATE",
+            "maxTokens": 8192,
+            "temperature": 0.1,
+            "connectionInfo": {
+                "provider": "OPENAI",
+                "endpoint": "https://api.openai.com/v1",
+                "apiKey": "${ENV:OPEN_AI_API_KEY}"
+            }
+        }
+    ]
+}
