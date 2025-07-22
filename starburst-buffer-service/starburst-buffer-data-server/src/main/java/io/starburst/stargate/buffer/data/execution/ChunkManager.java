@@ -153,6 +153,7 @@ public class ChunkManager
     private final Cache<String, ExchangeRemovalReason> recentlyRemovedExchanges = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES));
     private final LoadingCache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap;
     private final Set<String> exchangesBeingReleased = ConcurrentHashMap.newKeySet();
+    private final boolean traceResourceReportingEnabled;
     private final Duration traceResourceReportInterval;
     final int traceResourceMaximumReportsPerExchange;
     private final String trinoPlaneId;
@@ -185,9 +186,13 @@ public class ChunkManager
         this.chunkListTargetSize = dataServerConfig.getChunkListTargetSize();
         this.chunkListMaxSize = dataServerConfig.getChunkListMaxSize();
         this.chunkListPollTimeout = dataServerConfig.getChunkListPollTimeout();
+        this.traceResourceReportingEnabled = dataServerConfig.isTraceResourceReportingEnabled();
         this.traceResourceReportInterval = requireNonNull(dataServerConfig.getTraceResourceReportInterval(), "traceResourceReportInterval is null");
         this.traceResourceMaximumReportsPerExchange = dataServerConfig.getTraceResourceMaximumReportsPerExchange();
         this.trinoPlaneId = dataServerConfig.getTrinoPlaneId();
+        if (traceResourceReportingEnabled) {
+            requireNonNull(trinoPlaneId, "trinoPlaneId must be set if trace resource reporting is enabled");
+        }
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();
         this.chunkSpoolConcurrency = chunkManagerConfig.getChunkSpoolConcurrency();
@@ -269,27 +274,29 @@ public class ChunkManager
             }
         }, eagerDeliveryModeCloseChunksInterval, eagerDeliveryModeCloseChunksInterval, MILLISECONDS);
 
-        // Add a cluster unique adjustment to the start value to minimize herd reporting spans
-        long adjustment = HASH_FUNC.hashBytes(trinoPlaneId.getBytes(StandardCharsets.UTF_8)).asInt() % traceResourceReportInterval.toMillis();
-        // When reporting intervals are large (minutes), it is ideal if all servers in the cluster reported events at roughly the same time.
-        long nextCheckpointTime = traceResourceReportInterval.toMillis() + adjustment - (Instant.now().toEpochMilli() % traceResourceReportInterval.toMillis());
-        traceResourceReportExecutor.scheduleAtFixedRate(() -> {
-            try {
-                // Avoid having multiple reports running concurrently.
-                if (resourceReportInProgress.compareAndSet(false, true)) {
-                    writeResourceReportToExchangeSpans();
+        if (traceResourceReportingEnabled) {
+            // Add a cluster unique adjustment to the start value to minimize herd reporting spans
+            long adjustment = HASH_FUNC.hashBytes(trinoPlaneId.getBytes(StandardCharsets.UTF_8)).asInt() % traceResourceReportInterval.toMillis();
+            // When reporting intervals are large (minutes), it is ideal if all servers in the cluster reported events at roughly the same time.
+            long nextCheckpointTime = traceResourceReportInterval.toMillis() + adjustment - (Instant.now().toEpochMilli() % traceResourceReportInterval.toMillis());
+            traceResourceReportExecutor.scheduleAtFixedRate(() -> {
+                try {
+                    // Avoid having multiple reports running concurrently.
+                    if (resourceReportInProgress.compareAndSet(false, true)) {
+                        writeResourceReportToExchangeSpans();
+                    }
+                    else {
+                        log.warn("New resource report started before the prior report completed");
+                    }
                 }
-                else {
-                    log.warn("New resource report started before the prior report completed");
+                catch (Throwable e) {
+                    log.error(e, "Error calling writeResourceReportToExchangeSpans");
                 }
-            }
-            catch (Throwable e) {
-                log.error(e, "Error calling writeResourceReportToExchangeSpans");
-            }
-            finally {
-                resourceReportInProgress.set(false);
-            }
-        }, nextCheckpointTime, traceResourceReportInterval.toMillis(), MILLISECONDS);
+                finally {
+                    resourceReportInProgress.set(false);
+                }
+            }, nextCheckpointTime, traceResourceReportInterval.toMillis(), MILLISECONDS);
+        }
     }
 
     @PreDestroy

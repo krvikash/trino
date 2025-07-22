@@ -42,6 +42,7 @@ public class TestDataServerConfig
                 .setChunkListTargetSize(1)
                 .setChunkListMaxSize(100)
                 .setChunkListPollTimeout(succinctDuration(100, MILLISECONDS))
+                .setTraceResourceReportingEnabled(true)
                 .setTraceResourceReportInterval(succinctDuration(5, MINUTES))
                 .setTraceResourceMaximumReportsPerExchange(20)
                 .setTrinoPlaneId(null));
@@ -65,6 +66,7 @@ public class TestDataServerConfig
                 .put("chunk-list.target-size", "42")
                 .put("chunk-list.max-size", "1000")
                 .put("chunk-list.poll-timeout", "12345ms")
+                .put("trace-resource-reporting-enabled", "false")
                 .put("trace-resource-report-interval", "2m")
                 .put("trace-resource-maximum-reports-per-exchange", "5")
                 .put("trino.plane-id", "aws-us-east1-1")
@@ -85,6 +87,7 @@ public class TestDataServerConfig
                 .setChunkListTargetSize(42)
                 .setChunkListMaxSize(1000)
                 .setChunkListPollTimeout(succinctDuration(12345, MILLISECONDS))
+                .setTraceResourceReportingEnabled(false)
                 .setTraceResourceReportInterval(succinctDuration(2, MINUTES))
                 .setTraceResourceMaximumReportsPerExchange(5)
                 .setTrinoPlaneId("aws-us-east1-1");

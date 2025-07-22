@@ -1105,6 +1105,7 @@ public class TestChunkManager
                 .setChunkSpoolInterval(succinctDuration(100, SECONDS))
                 .setChunkSpoolConcurrency(chunkSpoolConcurrency); // only manual triggering in tests
         DataServerConfig dataServerConfig = new DataServerConfig()
+                .setTraceResourceReportingEnabled(false)
                 .setDataIntegrityVerificationEnabled(true)
                 .setMinDrainingDuration(succinctDuration(0, SECONDS)) // don't wait for extra time in tests
                 // Reduce timeout here for calls when we expect zero results - we want those to return ASAP to reduce test duration

@@ -39,6 +39,7 @@ public class DataServerConfig
     private int chunkListTargetSize = 1;
     private int chunkListMaxSize = 100;
     private Duration chunkListPollTimeout = succinctDuration(100, MILLISECONDS);
+    private boolean traceResourceReportingEnabled = true;
     private Duration traceResourceReportInterval = succinctDuration(5, MINUTES);
     private int traceResourceMaximumReportsPerExchange = 20;
     private String trinoPlaneId;
@@ -221,6 +222,19 @@ public class DataServerConfig
         return this;
     }
 
+    public boolean isTraceResourceReportingEnabled()
+    {
+        return traceResourceReportingEnabled;
+    }
+
+    @Config("trace-resource-reporting-enabled")
+    @ConfigDescription("Enable resource reporting in traces.")
+    public DataServerConfig setTraceResourceReportingEnabled(boolean traceResourceReportingEnabled)
+    {
+        this.traceResourceReportingEnabled = traceResourceReportingEnabled;
+        return this;
+    }
+
     @Config("trace-resource-report-interval")
     @ConfigDescription("The interval at which all active exchanges will report current resource consumption.")
     public DataServerConfig setTraceResourceReportInterval(Duration traceResourceReportInterval)
@@ -256,7 +270,6 @@ public class DataServerConfig
         return this;
     }
 
-    @NotNull
     public String getTrinoPlaneId()
     {
         return trinoPlaneId;
