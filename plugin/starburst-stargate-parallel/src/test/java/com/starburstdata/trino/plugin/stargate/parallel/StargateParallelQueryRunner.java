@@ -25,6 +25,7 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.tpch.TpchTable;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -265,7 +266,7 @@ public final class StargateParallelQueryRunner
 
         String bucketName = "test-stargate" + UUID.randomUUID();
 
-        LocalStackContainer localstack = new LocalStackContainer("s3-latest");
+        LocalStackContainer localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:s3-latest"));
         localstack.start();
 
         try (S3Client client = createS3Client(localstack)) {

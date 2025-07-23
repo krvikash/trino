@@ -30,7 +30,7 @@ class TestStargateParallelPlugin
         List<ConnectorFactory> connectorFactories = ImmutableList.copyOf(plugin.getConnectorFactories());
         assertThat(connectorFactories).hasSize(1);
 
-        ConnectorFactory factory = connectorFactories.get(0);
+        ConnectorFactory factory = connectorFactories.getFirst();
 
         Map<String, String> properties = ImmutableMap.of(
                 "connection-url", "jdbc:trino://localhost:8080/test",

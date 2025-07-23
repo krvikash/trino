@@ -25,6 +25,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
 
 import java.sql.ResultSet;
@@ -130,7 +131,7 @@ public class StargateParallelPageSource
     }
 
     @Override
-    public Page getNextPage()
+    public SourcePage getNextSourcePage()
     {
         verify(pageBuilder.isEmpty(), "Expected pageBuilder to be empty");
         if (closed) {
@@ -179,7 +180,7 @@ public class StargateParallelPageSource
 
         Page page = pageBuilder.build();
         pageBuilder.reset();
-        return page;
+        return SourcePage.create(page);
     }
 
     @Override

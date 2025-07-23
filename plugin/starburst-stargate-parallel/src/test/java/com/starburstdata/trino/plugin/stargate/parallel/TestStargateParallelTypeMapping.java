@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -83,13 +84,12 @@ public class TestStargateParallelTypeMapping
     // minutes offset change since 1970-01-01, no DST
     private final ZoneId kathmandu = ZoneId.of("Asia/Kathmandu");
     private final LocalDateTime timeGapInKathmandu = LocalDateTime.of(1986, 1, 1, 0, 13, 7);
-    private LocalStackContainer localstack;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        localstack = closeAfterClass(new LocalStackContainer("s3-latest"));
+        LocalStackContainer localstack = closeAfterClass(new LocalStackContainer(DockerImageName.parse("localstack/localstack:s3-latest")));
         localstack.start();
         remoteStarburst = closeAfterClass(createRemoteStarburstQueryRunnerWithMemory(List.of(), localstack, Optional.empty()));
         return StargateParallelQueryRunner.builder(remoteStarburst, "memory")
