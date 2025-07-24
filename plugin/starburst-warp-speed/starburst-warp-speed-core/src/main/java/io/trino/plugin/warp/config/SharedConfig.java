@@ -25,6 +25,7 @@ public class SharedConfig
 
     private boolean isSingle;
 
+    private boolean enableFSCacheMode;
     private boolean enableMatchCollect = true;
     private boolean enableMappedMatchCollect = true;
     private boolean enableVarcharMappedMatchCollect = true;
@@ -45,6 +46,17 @@ public class SharedConfig
     public void setIsSingle(boolean isSingle)
     {
         this.isSingle = isSingle;
+    }
+
+    public boolean getEnableFSCacheMode()
+    {
+        return enableFSCacheMode;
+    }
+
+    @Config("warp-speed.enable.fs-cache-mode")
+    public void setEnableFSCacheMode(boolean enableFSCacheMode)
+    {
+        this.enableFSCacheMode = enableFSCacheMode;
     }
 
     public boolean getEnableMatchCollect()

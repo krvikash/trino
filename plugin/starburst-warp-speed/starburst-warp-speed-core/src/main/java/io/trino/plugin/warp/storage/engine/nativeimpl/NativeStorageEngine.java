@@ -66,7 +66,7 @@ public class NativeStorageEngine
     private static final long ENV_ENABLE_CONFIG_OFFSET_SINGLE_CHUNK;
     private static final long ENV_ENABLE_CONFIG_OFFSET_PACKED_CHUNK;
     private static final long ENV_ENABLE_CONFIG_OFFSET_COMPRESSION;
-    private static final long ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID;
+    private static final long ENV_ENABLE_CONFIG_OFFSET_WARM_DATA_DISABLED;
 
     private final ShapingLogger shapingLogger;
     private final NativeLogger nativeLogger;
@@ -146,13 +146,13 @@ public class NativeStorageEngine
                 ValueLayout.JAVA_BYTE.withName("single_chunk"),
                 ValueLayout.JAVA_BYTE.withName("packed_chunk"),
                 ValueLayout.JAVA_BYTE.withName("compression"),
-                ValueLayout.JAVA_BYTE.withName("validate_warm_id")).withName("env_enable_config_t");
+                ValueLayout.JAVA_BYTE.withName("warm_data_disabled")).withName("env_enable_config_t");
 
         ENV_ENABLE_CONFIG_OFFSET_COMPRESSION_EXCEPTION_LIST = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("compression_exceptional_list"));
         ENV_ENABLE_CONFIG_OFFSET_SINGLE_CHUNK = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("single_chunk"));
         ENV_ENABLE_CONFIG_OFFSET_PACKED_CHUNK = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("packed_chunk"));
         ENV_ENABLE_CONFIG_OFFSET_COMPRESSION = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("compression"));
-        ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("validate_warm_id"));
+        ENV_ENABLE_CONFIG_OFFSET_WARM_DATA_DISABLED = ENV_ENABLE_CONFIG_LAYOUT.byteOffset(PathElement.groupElement("warm_data_disabled"));
     }
 
     public NativeStorageEngine(
@@ -264,7 +264,7 @@ public class NativeStorageEngine
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_SINGLE_CHUNK, nativeConfig.getEnableSingleChunk() ? (byte) 1 : (byte) 0);
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_PACKED_CHUNK, nativeConfig.getEnablePackedChunk() ? (byte) 1 : (byte) 0);
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION, nativeConfig.getEnableCompression() ? (byte) 1 : (byte) 0);
-            envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_VALIDATE_WARM_ID, sharedConfig.getDebugWarming() ? (byte) 1 : (byte) 0);
+            envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_WARM_DATA_DISABLED, sharedConfig.getEnableFSCacheMode() ? (byte) 1 : (byte) 0);
 
             int initRes = -1;
             try (NativeLogger.LogId logId = nativeLogger.getLogId(this.exceptionThrower)) {

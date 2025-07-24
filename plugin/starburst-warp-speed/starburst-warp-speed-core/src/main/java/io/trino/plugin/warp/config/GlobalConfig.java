@@ -77,6 +77,12 @@ public class GlobalConfig
         return isSingle;
     }
 
+    @Config(CONFIG_IS_SINGLE)
+    public void setIsSingle(boolean isSingle)
+    {
+        this.isSingle = isSingle;
+    }
+
     public boolean getEnableFSCacheMode()
     {
         return enableFSCacheMode;
@@ -86,12 +92,6 @@ public class GlobalConfig
     public void setEnableFSCacheMode(boolean enableFSCacheMode)
     {
         this.enableFSCacheMode = enableFSCacheMode;
-    }
-
-    @Config(CONFIG_IS_SINGLE)
-    public void setIsSingle(boolean isSingle)
-    {
-        this.isSingle = isSingle;
     }
 
     public boolean getEnableImportExport()
