@@ -14,13 +14,15 @@ import io.trino.spi.ErrorCodeSupplier;
 import io.trino.spi.ErrorType;
 
 import static io.trino.spi.ErrorType.INTERNAL_ERROR;
+import static io.trino.spi.ErrorType.USER_ERROR;
 
 public enum BufferServiceExchangeErrorCode
         implements ErrorCodeSupplier
 {
     INVALID_TASK_ID(0, INTERNAL_ERROR, true),
     INVALID_ATTEMPT_ID(1, INTERNAL_ERROR, true),
-    COMMUNICATION_FAILURE(2, INTERNAL_ERROR, false);
+    COMMUNICATION_FAILURE(2, INTERNAL_ERROR, false),
+    CONFIGURATION_ERROR(3, USER_ERROR, true);
 
     private final ErrorCode errorCode;
 

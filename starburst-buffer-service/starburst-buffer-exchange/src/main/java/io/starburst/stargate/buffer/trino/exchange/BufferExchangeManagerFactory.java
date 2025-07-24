@@ -17,6 +17,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.jmx.PrefixObjectNameGeneratorModule;
+import io.trino.spi.CoordinatorLocator;
 import io.trino.spi.exchange.ExchangeManager;
 import io.trino.spi.exchange.ExchangeManagerContext;
 import io.trino.spi.exchange.ExchangeManagerFactory;
@@ -67,6 +68,7 @@ public class BufferExchangeManagerFactory
                 new BufferExchangeModule(apiFactory),
                 binder -> {
                     binder.bind(OpenTelemetry.class).toInstance(exchangeManagerContext.getOpenTelemetry());
+                    binder.bind(CoordinatorLocator.class).toInstance(exchangeManagerContext.getCoordinatorLocator());
                     binder.bind(Tracer.class).toInstance(exchangeManagerContext.getTracer());
                 });
 

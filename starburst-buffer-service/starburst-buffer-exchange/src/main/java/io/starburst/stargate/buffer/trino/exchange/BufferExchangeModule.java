@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Binder;
@@ -21,10 +22,15 @@ import io.airlift.tracing.SpanSerialization;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
+import io.trino.spi.CoordinatorLocator;
+import io.trino.spi.TrinoException;
 
+import java.net.URI;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
@@ -32,6 +38,7 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static io.starburst.stargate.buffer.data.client.DataApiBinder.dataApiBinder;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
@@ -97,11 +104,28 @@ public class BufferExchangeModule
         }
 
         @Provides
-        public DiscoveryApi getDiscoveryApi(BufferExchangeConfig config, @ForBufferDiscoveryClient HttpClient httpClient)
+        public DiscoveryApi getDiscoveryApi(BufferExchangeConfig config, CoordinatorLocator coordinatorLocator, @ForBufferDiscoveryClient HttpClient httpClient)
         {
             requireNonNull(config, "config is null");
             requireNonNull(httpClient, "httpClient is null");
-            return new HttpDiscoveryClient(config::getDiscoveryServiceUri, httpClient);
+
+            Supplier<URI> uriSupplier;
+            if (config.isUseEmbeddedBufferService()) {
+                uriSupplier = () -> {
+                    Set<URI> coordinatorUris = coordinatorLocator.getCoordinatorUris();
+                    if (coordinatorUris.isEmpty()) {
+                        throw new TrinoException(GENERIC_INTERNAL_ERROR, "No coordinator nodes available");
+                    }
+                    if (coordinatorUris.size() > 1) {
+                        throw new TrinoException(GENERIC_INTERNAL_ERROR, "Multiple coordinator nodes available");
+                    }
+                    return Iterables.getOnlyElement(coordinatorUris);
+                };
+            }
+            else {
+                uriSupplier = config::getDiscoveryServiceUri;
+            }
+            return new HttpDiscoveryClient(uriSupplier, httpClient);
         }
     }
 }

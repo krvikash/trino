@@ -14,6 +14,7 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -28,6 +29,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class BufferExchangeConfig
 {
     private URI discoveryServiceUri;
+    private boolean useEmbeddedBufferService;
     private DataSize sinkBlockedMemoryLowWaterMark = DataSize.of(128, MEGABYTE);
     private DataSize sinkBlockedMemoryHighWaterMark = DataSize.of(256, MEGABYTE);
     private DataSize sourceBlockedMemoryLowWaterMark = DataSize.of(32, MEGABYTE);
@@ -69,7 +71,6 @@ public class BufferExchangeConfig
     private int dataClientAddDataPagesCircuitBreakerSuccessThreshold = 5;
     private Duration dataClientAddDataPagesCircuitBreakerDelay = succinctDuration(5.0, SECONDS);
 
-    @NotNull
     public URI getDiscoveryServiceUri()
     {
         return discoveryServiceUri;
@@ -81,6 +82,25 @@ public class BufferExchangeConfig
     {
         this.discoveryServiceUri = discoveryServiceUri;
         return this;
+    }
+
+    public boolean isUseEmbeddedBufferService()
+    {
+        return useEmbeddedBufferService;
+    }
+
+    @Config("exchange.use-embedded-buffer-service")
+    @ConfigDescription("Configures buffer exchange to use buffer service instance embedded in Trino cluster; exchange.buffer-discovery.uri must be unset if true")
+    public BufferExchangeConfig setUseEmbeddedBufferService(boolean useEmbeddedBufferService)
+    {
+        this.useEmbeddedBufferService = useEmbeddedBufferService;
+        return this;
+    }
+
+    @AssertTrue(message = "Exactly one of exchange.buffer-discovery.uri and exchange.use-embedded-buffer-service must be set")
+    public boolean isDiscoveryServerConfigurationValid()
+    {
+        return useEmbeddedBufferService == (discoveryServiceUri == null);
     }
 
     public DataSize getSinkBlockedMemoryLowWaterMark()
