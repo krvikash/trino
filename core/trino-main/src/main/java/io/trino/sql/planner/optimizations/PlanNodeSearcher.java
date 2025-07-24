@@ -19,6 +19,7 @@ import io.trino.sql.planner.plan.PlanNode;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -52,6 +53,7 @@ public class PlanNodeSearcher
     private final Lookup lookup;
     private Predicate<PlanNode> where = alwaysTrue();
     private Predicate<PlanNode> recurseOnlyWhen = alwaysTrue();
+    private Function<PlanNode, List<PlanNode>> recurseOnSources = PlanNode::getSources;
 
     private PlanNodeSearcher(PlanNode node, Lookup lookup)
     {
@@ -86,6 +88,12 @@ public class PlanNodeSearcher
         return this;
     }
 
+    public PlanNodeSearcher recurseOnSources(Function<PlanNode, List<PlanNode>> recurseOnSources)
+    {
+        this.recurseOnSources = requireNonNull(recurseOnSources, "recurseOnSources is null");
+        return this;
+    }
+
     public Optional<PlanNode> findFirst()
     {
         return findFirstRecursive(node);
@@ -99,7 +107,7 @@ public class PlanNodeSearcher
             return Optional.of(node);
         }
         if (recurseOnlyWhen.test(node)) {
-            for (PlanNode source : node.getSources()) {
+            for (PlanNode source : recurseOnSources.apply(node)) {
                 Optional<PlanNode> found = findFirstRecursive(source);
                 if (found.isPresent()) {
                     return found;

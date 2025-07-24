@@ -30,6 +30,7 @@ import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.iterative.rule.test.BaseRuleTest;
 import io.trino.sql.planner.iterative.rule.test.PlanBuilder;
 import io.trino.sql.planner.plan.Assignments;
+import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.UnnestNode;
 import org.junit.jupiter.api.Test;
 
@@ -47,14 +48,17 @@ import static io.trino.sql.planner.assertions.PlanMatchPattern.aggregation;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.aggregationFunction;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.assignUniqueId;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.expression;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.join;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.project;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.singleGroupingSet;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.strictProject;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.unnest;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.values;
 import static io.trino.sql.planner.plan.AggregationNode.Step.SINGLE;
+import static io.trino.sql.planner.plan.JoinType.FULL;
 import static io.trino.sql.planner.plan.JoinType.INNER;
 import static io.trino.sql.planner.plan.JoinType.LEFT;
+import static io.trino.sql.planner.plan.JoinType.RIGHT;
 import static io.trino.type.JoniRegexpType.JONI_REGEXP;
 
 public class TestDecorrelateInnerUnnestWithGlobalAggregation
@@ -428,5 +432,108 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                                                                                         Optional.of("ordinality"),
                                                                                         LEFT,
                                                                                         assignUniqueId("unique", values("groups", "numbers")))))))))));
+    }
+
+    @Test
+    public void testTransformCorrelatedUnnestWithJoins()
+    {
+        tester().assertThat(new DecorrelateInnerUnnestWithGlobalAggregation(FUNCTIONS.getMetadata()))
+                .on(p -> p.correlatedJoin(
+                        ImmutableList.of(p.symbol("corr")),
+                        p.values(p.symbol("corr")),
+                        p.aggregation(builder -> builder
+                                .globalGrouping()
+                                .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
+                                .source(
+                                        p.join(
+                                                LEFT,
+                                                p.unnest(
+                                                        ImmutableList.of(),
+                                                        ImmutableList.of(new UnnestNode.Mapping(p.symbol("corr"), ImmutableList.of(p.symbol("unnested_corr")))),
+                                                        Optional.empty(),
+                                                        INNER,
+                                                        p.values(ImmutableList.of(), ImmutableList.of(ImmutableList.of()))),
+                                                p.values(p.symbol("b"), p.symbol("c")),
+                                                new JoinNode.EquiJoinClause(p.symbol("unnested_corr"), p.symbol("b")))))))
+                .matches(
+                        project(
+                                aggregation(
+                                        singleGroupingSet("unique", "corr"),
+                                        ImmutableMap.of(Optional.of("sum"), aggregationFunction("sum", ImmutableList.of("c"))),
+                                        ImmutableList.of(),
+                                        ImmutableList.of("mask"),
+                                        Optional.empty(),
+                                        SINGLE,
+                                        join(LEFT, builder -> builder
+                                                .left(project(
+                                                        ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), new IsNull(new Reference(BIGINT, "ordinality"))))),
+                                                        unnest(
+                                                                ImmutableList.of("corr", "unique"),
+                                                                ImmutableList.of(unnestMapping("corr", ImmutableList.of("unnested_corr"))),
+                                                                Optional.of("ordinality"),
+                                                                LEFT,
+                                                                assignUniqueId("unique", values("corr")))))
+                                                .right(values("b", "c"))
+                                                .equiCriteria("unnested_corr", "b")))));
+
+        tester().assertThat(new DecorrelateInnerUnnestWithGlobalAggregation(FUNCTIONS.getMetadata()))
+                .on(p -> p.correlatedJoin(
+                        ImmutableList.of(p.symbol("corr")),
+                        p.values(p.symbol("corr")),
+                        p.aggregation(builder -> builder
+                                .globalGrouping()
+                                .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
+                                .source(
+                                        p.join(
+                                                INNER,
+                                                p.unnest(
+                                                        ImmutableList.of(),
+                                                        ImmutableList.of(new UnnestNode.Mapping(p.symbol("corr"), ImmutableList.of(p.symbol("unnested_corr")))),
+                                                        Optional.empty(),
+                                                        INNER,
+                                                        p.values(ImmutableList.of(), ImmutableList.of(ImmutableList.of()))),
+                                                p.values(p.symbol("b"), p.symbol("c")),
+                                                new JoinNode.EquiJoinClause(p.symbol("unnested_corr"), p.symbol("b")))))))
+                .doesNotFire();
+
+        tester().assertThat(new DecorrelateInnerUnnestWithGlobalAggregation(FUNCTIONS.getMetadata()))
+                .on(p -> p.correlatedJoin(
+                        ImmutableList.of(p.symbol("corr")),
+                        p.values(p.symbol("corr")),
+                        p.aggregation(builder -> builder
+                                .globalGrouping()
+                                .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
+                                .source(
+                                        p.join(
+                                                RIGHT,
+                                                p.unnest(
+                                                        ImmutableList.of(),
+                                                        ImmutableList.of(new UnnestNode.Mapping(p.symbol("corr"), ImmutableList.of(p.symbol("unnested_corr")))),
+                                                        Optional.empty(),
+                                                        INNER,
+                                                        p.values(ImmutableList.of(), ImmutableList.of(ImmutableList.of()))),
+                                                p.values(p.symbol("b"), p.symbol("c")),
+                                                new JoinNode.EquiJoinClause(p.symbol("unnested_corr"), p.symbol("b")))))))
+                .doesNotFire();
+
+        tester().assertThat(new DecorrelateInnerUnnestWithGlobalAggregation(FUNCTIONS.getMetadata()))
+                .on(p -> p.correlatedJoin(
+                        ImmutableList.of(p.symbol("corr")),
+                        p.values(p.symbol("corr")),
+                        p.aggregation(builder -> builder
+                                .globalGrouping()
+                                .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
+                                .source(
+                                        p.join(
+                                                FULL,
+                                                p.unnest(
+                                                        ImmutableList.of(),
+                                                        ImmutableList.of(new UnnestNode.Mapping(p.symbol("corr"), ImmutableList.of(p.symbol("unnested_corr")))),
+                                                        Optional.empty(),
+                                                        INNER,
+                                                        p.values(ImmutableList.of(), ImmutableList.of(ImmutableList.of()))),
+                                                p.values(p.symbol("b"), p.symbol("c")),
+                                                new JoinNode.EquiJoinClause(p.symbol("unnested_corr"), p.symbol("b")))))))
+                .doesNotFire();
     }
 }

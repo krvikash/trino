@@ -33,7 +33,7 @@ import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.AssignUniqueId;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.CorrelatedJoinNode;
-import io.trino.sql.planner.plan.JoinType;
+import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ProjectNode;
@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.matching.Pattern.nonEmpty;
@@ -72,7 +73,7 @@ import static io.trino.sql.planner.plan.Patterns.correlatedJoin;
  * - UnnestNode in subquery is based only on correlation symbols
  * - UnnestNode in subquery is INNER without filter
  * - subquery contains global aggregation over the result of unnest
- * Additionally, other global aggregations, grouped aggregations and projections
+ * Additionally, other global aggregations, grouped aggregations, projections and joins
  * in subquery are supported.
  * <p>
  * Transforms:
@@ -119,7 +120,7 @@ public class DecorrelateInnerUnnestWithGlobalAggregation
     private static final Pattern<CorrelatedJoinNode> PATTERN = correlatedJoin()
             .with(nonEmpty(correlation()))
             .with(filter().equalTo(TRUE))
-            .matching(node -> node.getType() == JoinType.INNER || node.getType() == JoinType.LEFT);
+            .matching(node -> node.getType() == INNER || node.getType() == LEFT);
 
     private final Metadata metadata;
 
@@ -153,7 +154,15 @@ public class DecorrelateInnerUnnestWithGlobalAggregation
         // find unnest in subquery
         Optional<PlanNode> subqueryUnnest = PlanNodeSearcher.searchFrom(reducingAggregation.getSource(), context.getLookup())
                 .where(node -> isSupportedUnnest(node, correlatedJoinNode.getCorrelation(), context.getLookup()))
-                .recurseOnlyWhen(node -> node instanceof ProjectNode || isGroupedAggregation(node))
+                .recurseOnlyWhen(node -> node instanceof ProjectNode ||
+                        isGroupedAggregation(node) ||
+                        isSupportedJoinNode(node, correlatedJoinNode.getCorrelation(), context.getLookup()))
+                .recurseOnSources(planNode -> {
+                    if (planNode instanceof JoinNode joinNode) {
+                        return ImmutableList.of(joinNode.getLeft());
+                    }
+                    return planNode.getSources();
+                })
                 .findFirst();
 
         if (subqueryUnnest.isEmpty()) {
@@ -241,6 +250,22 @@ public class DecorrelateInnerUnnestWithGlobalAggregation
                 aggregationNode.getStep() == SINGLE;
     }
 
+    private static boolean isSupportedJoinNode(PlanNode node, List<Symbol> correlation, Lookup lookup)
+    {
+        if (!(node instanceof JoinNode joinNode)) {
+            return false;
+        }
+
+        if (joinNode.getType() != LEFT) {
+            return false;
+        }
+
+        // TODO: Check for dynamic filters symbols to be un-correlated when adding support for non LEFT joins
+        return joinNode.getCriteria().stream().noneMatch(equiJoinClause -> correlation.contains(equiJoinClause.getLeft()) || correlation.contains(equiJoinClause.getRight()))
+                && correlation.stream().noneMatch(SymbolsExtractor.extractUnique(joinNode.getFilter().orElse(TRUE))::contains)
+                && correlation.stream().noneMatch(SymbolsExtractor.extractUnique(joinNode.getRight(), lookup)::contains);
+    }
+
     /**
      * This rule supports decorrelation of UnnestNode meeting certain conditions:
      * - the UnnestNode should be based on correlation symbols, that is: either unnest correlation symbols directly,
@@ -276,9 +301,30 @@ public class DecorrelateInnerUnnestWithGlobalAggregation
             return sequenceSource;
         }
 
-        PlanNode source = rewriteNodeSequence(lookup.resolve(getOnlyElement(root.getSources())), leftOutputs, mask, sequenceSource, reducingAggregationId, correlatedUnnestId, symbolAllocator, idAllocator, lookup);
+        if (root instanceof JoinNode joinNode) {
+            checkArgument(joinNode.getType() == LEFT, "Only left joins are supported");
+            checkArgument(joinNode.getDynamicFilters().isEmpty(), "DynamicFilters are not supported");
+
+            PlanNode left = rewriteNodeSequence(lookup.resolve(joinNode.getLeft()), leftOutputs, mask, sequenceSource, reducingAggregationId, correlatedUnnestId, symbolAllocator, idAllocator, lookup);
+
+            return new JoinNode(
+                    joinNode.getId(),
+                    joinNode.getType(),
+                    left,
+                    joinNode.getRight(),
+                    joinNode.getCriteria(),
+                    left.getOutputSymbols(),
+                    joinNode.getRightOutputSymbols(),
+                    joinNode.isMaySkipOutputDuplicates(),
+                    joinNode.getFilter(),
+                    Optional.empty(),
+                    Optional.empty(),
+                    ImmutableMap.of(),
+                    Optional.empty());
+        }
 
         if (isGlobalAggregation(root)) {
+            PlanNode source = rewriteNodeSequence(lookup.resolve(getOnlyElement(root.getSources())), leftOutputs, mask, sequenceSource, reducingAggregationId, correlatedUnnestId, symbolAllocator, idAllocator, lookup);
             AggregationNode aggregationNode = (AggregationNode) root;
             if (aggregationNode.getId().equals(reducingAggregationId)) {
                 return withGroupingAndMask(aggregationNode, leftOutputs, mask, source, symbolAllocator, idAllocator);
@@ -287,6 +333,7 @@ public class DecorrelateInnerUnnestWithGlobalAggregation
         }
 
         if (isGroupedAggregation(root)) {
+            PlanNode source = rewriteNodeSequence(lookup.resolve(getOnlyElement(root.getSources())), leftOutputs, mask, sequenceSource, reducingAggregationId, correlatedUnnestId, symbolAllocator, idAllocator, lookup);
             AggregationNode aggregationNode = (AggregationNode) root;
             return withGrouping(
                     aggregationNode,
@@ -298,6 +345,7 @@ public class DecorrelateInnerUnnestWithGlobalAggregation
         }
 
         if (root instanceof ProjectNode projectNode) {
+            PlanNode source = rewriteNodeSequence(lookup.resolve(getOnlyElement(root.getSources())), leftOutputs, mask, sequenceSource, reducingAggregationId, correlatedUnnestId, symbolAllocator, idAllocator, lookup);
             return new ProjectNode(
                     projectNode.getId(),
                     source,
