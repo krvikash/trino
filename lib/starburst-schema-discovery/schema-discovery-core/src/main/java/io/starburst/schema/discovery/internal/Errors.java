@@ -41,7 +41,7 @@ public class Errors
     @FormatMethod
     public void addTableError(TablePath withinTablePath, @FormatString String error, Object... args)
     {
-        tablePathToTableErrors.computeIfAbsent(withinTablePath.toString(), __ -> Sets.newConcurrentHashSet())
+        tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath.path()).toString(), __ -> Sets.newConcurrentHashSet())
                 .add(String.format(error, args));
     }
 

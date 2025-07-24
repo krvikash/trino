@@ -33,6 +33,8 @@ import static io.starburst.schema.discovery.io.LocationUtils.parentOf;
 import static io.starburst.schema.discovery.models.TablePath.asTablePath;
 import static io.trino.plugin.iceberg.IcebergUtil.METADATA_FOLDER_NAME;
 import static io.trino.plugin.iceberg.IcebergUtil.getLatestMetadataLocation;
+import static io.trino.plugin.iceberg.procedure.RegisterTableProcedure.locationEquivalent;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toMap;
 
 public class LakehouseUtil
@@ -41,11 +43,12 @@ public class LakehouseUtil
 
     private LakehouseUtil() {}
 
-    public static TablePath enhanceIcebergTableLocationFromMetadata(DiscoveryTrinoFileSystem fileSystem, TablePath rootTablePath)
+    public static IcebergLocationReadResult readIcebergTableMetadataLocation(DiscoveryTrinoFileSystem fileSystem, TablePath rootTablePath)
     {
         String latestMetadataLocation = getLatestMetadataLocation(fileSystem, rootTablePath.path());
         TableMetadata tableMetadata = TableMetadataParser.read(new ForwardingFileIo(fileSystem, true), latestMetadataLocation);
-        return asTablePath(tableMetadata.location());
+        TablePath tableLocationFromMetadata = asTablePath(tableMetadata.location());
+        return new IcebergLocationReadResult(latestMetadataLocation, tableLocationFromMetadata);
     }
 
     public static Optional<LakehouseFormat> checkIcebergFormatMatch(Location path)
@@ -114,5 +117,24 @@ public class LakehouseUtil
             path = parentOf(path);
         }
         return true;
+    }
+
+    public record IcebergLocationReadResult(
+            String latestMetadataLocation,
+            TablePath tablePath)
+    {
+        public IcebergLocationReadResult
+        {
+            requireNonNull(latestMetadataLocation, "latestMetadataLocation is null");
+            requireNonNull(tablePath, "tablePath is null");
+        }
+
+        public boolean isEqualTo(TablePath otherPath)
+        {
+            if (otherPath == null) {
+                return false;
+            }
+            return locationEquivalent(tablePath.path(), otherPath.path());
+        }
     }
 }

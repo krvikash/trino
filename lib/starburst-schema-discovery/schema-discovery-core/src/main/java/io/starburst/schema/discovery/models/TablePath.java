@@ -32,4 +32,12 @@ public sealed interface TablePath
     {
         return string.endsWith("/") ? SlashEndedPath.ensureEndsWithSlash(string) : new ArbitraryPath(string);
     }
+
+    default TablePath removeTrailingSlash()
+    {
+        if (this instanceof SlashEndedPath(String path)) {
+            return new ArbitraryPath(path.substring(0, path.length() - 1));
+        }
+        return this;
+    }
 }

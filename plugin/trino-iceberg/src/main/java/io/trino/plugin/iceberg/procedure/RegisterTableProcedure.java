@@ -202,7 +202,7 @@ public class RegisterTableProcedure
         }
     }
 
-    private static boolean locationEquivalent(String a, String b)
+    public static boolean locationEquivalent(String a, String b)
     {
         return normalizeS3Uri(a).equals(normalizeS3Uri(b));
     }

@@ -27,6 +27,7 @@ import static io.starburst.schema.discovery.models.DiscoveredIdentifier.identifi
 import static io.starburst.schema.discovery.models.DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS;
 import static io.starburst.schema.discovery.models.IdentifierConstraint.VALID_IN_TRINO;
 import static io.starburst.schema.discovery.models.TableFormat.ERROR;
+import static io.starburst.schema.discovery.models.TableFormat.ICEBERG;
 import static java.util.Objects.requireNonNull;
 
 @SuppressWarnings("BooleanMethodIsAlwaysInverted")
@@ -62,6 +63,10 @@ public record DiscoveredTable(
         options = ImmutableMap.copyOf(options);
         buckets = ImmutableSet.copyOf(buckets);
         errors = Optional.ofNullable(errors).map(ImmutableList::copyOf).orElseGet(ImmutableList::of);
+        // iceberg library strips trailing slash from table location by default, so we do the same to keep it consistent
+        if (format == ICEBERG) {
+            path = path.removeTrailingSlash();
+        }
     }
 
     // for backwards compatibility

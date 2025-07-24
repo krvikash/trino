@@ -22,6 +22,7 @@ import io.starburst.schema.discovery.ExtensionTableFormatMatcher;
 import io.starburst.schema.discovery.SchemaDiscovery;
 import io.starburst.schema.discovery.TableChanges.TableName;
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseFormat;
+import io.starburst.schema.discovery.formats.lakehouse.LakehouseUtil.IcebergLocationReadResult;
 import io.starburst.schema.discovery.infer.InferPartitions;
 import io.starburst.schema.discovery.infer.InferredPartition;
 import io.starburst.schema.discovery.infer.InferredPartitionProjection;
@@ -77,7 +78,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.starburst.schema.discovery.formats.lakehouse.LakehouseUtil.enhanceIcebergTableLocationFromMetadata;
+import static io.starburst.schema.discovery.formats.lakehouse.LakehouseUtil.readIcebergTableMetadataLocation;
 import static io.starburst.schema.discovery.infer.InferPartitions.PARTITION_SEPARATOR;
 import static io.starburst.schema.discovery.internal.HiveTypes.STRING_TYPE;
 import static io.starburst.schema.discovery.io.LocationUtils.directoryOrFileName;
@@ -301,7 +302,7 @@ public class Processor
                 .collect(toImmutableList());
         tables = reduceRecursiveTables(tables);
         tables = tables.stream()
-                .map(this::enhanceIcebergTableLocation)
+                .map(this::validateIcebergTablesMetadataRead)
                 .collect(toImmutableList());
 
         DiscoveredSchema discoveredSchema = new DiscoveredSchema(ensureEndsWithSlash(rootPath), tables, errors.build());
@@ -309,16 +310,30 @@ public class Processor
         return null;
     }
 
-    private DiscoveredTable enhanceIcebergTableLocation(DiscoveredTable table)
+    /**
+     * Attempt to read iceberg table metadata, in case it fails - fail its discovery
+     * This will make errors visible immediately, instead of giving an impression of false positive
+     */
+    private DiscoveredTable validateIcebergTablesMetadataRead(DiscoveredTable table)
     {
         if (table.format() != TableFormat.ICEBERG) {
             return table;
         }
         try {
-            return table.withPath(enhanceIcebergTableLocationFromMetadata(fileSystem, table.path()));
+            IcebergLocationReadResult metadataLocation = readIcebergTableMetadataLocation(fileSystem, table.path());
+            if (!metadataLocation.isEqualTo(table.path())) {
+                errors.addTableError(table.path(), """
+                        Table metadata file [%s] declares table location as [%s] which is differs from location where table was discovered at [%s]. \
+                        Iceberg table can only be discovered in the same location it was created with.""".formatted(
+                        metadataLocation.latestMetadataLocation(),
+                        metadataLocation.tablePath().path(),
+                        table.path()));
+                return table.withErrors(errors.buildForPathAndChildren(table.path().path()));
+            }
+            return table;
         }
         catch (Exception e) {
-            errors.addTableError(table.path(), "Failed to read location from iceberg table's latest metadata file - [%s]", extractTrinoOrRootCauseMessage(e));
+            errors.addTableError(table.path(), "Failed to read iceberg table's latest metadata file - [%s]", extractTrinoOrRootCauseMessage(e));
             return table.withErrors(errors.buildForPathAndChildren(table.path().path()));
         }
     }
