@@ -95,7 +95,7 @@
         <dependency>
             <groupId>net.snowflake</groupId>
             <artifactId>snowflake-jdbc-thin</artifactId>
-            <version>3.23.1</version>
+            <version>3.25.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.amazonaws</groupId>

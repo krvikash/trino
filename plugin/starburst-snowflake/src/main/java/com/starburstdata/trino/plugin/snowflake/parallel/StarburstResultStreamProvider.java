@@ -95,22 +95,27 @@ public class StarburstResultStreamProvider
             httpRequest.addHeader(entry.getKey(), entry.getValue());
         }
 
+        // RestRequest.execute method in snowflake 3.25.1 has a bug with shift of input parameters,
+        // where noRetry is used as unpack response, so we need to use executeWithRetries directly
+        // with noRetry set to true and unpackResponse set to false
         HttpResponse response =
-                RestRequest.execute(
-                        httpClient,
-                        httpRequest,
-                        NETWORK_TIMEOUT_IN_MILLI / 1000, // retry timeout
-                        AUTH_TIMEOUT_IN_SECONDS,
-                        SOCKET_TIMEOUT_IN_MILLI,
-                        0,
-                        0, // no socket timeout injection
-                        null, // no canceling
-                        false, // no cookie
-                        false, // no retry parameters in url
-                        false, // no request_guid
-                        true, // retry on HTTP403 for AWS S3
-                        true, // no retry on http request
-                        new ExecTimeTelemetryData());
+                RestRequest.executeWithRetries(
+                                httpClient,
+                                httpRequest,
+                                NETWORK_TIMEOUT_IN_MILLI / 1000, // retry timeout
+                                AUTH_TIMEOUT_IN_SECONDS,
+                                SOCKET_TIMEOUT_IN_MILLI,
+                                0,
+                                0, // no socket timeout injection
+                                null, // no canceling
+                                false, // no cookie
+                                false, // no retry parameters in url
+                                false, // no request_guid
+                                true, // retry on HTTP403 for AWS S3
+                                true, // no retry on http request
+                                false, // prevent unpacking response here
+                                new ExecTimeTelemetryData())
+                        .getHttpResponse();
         if (response == null || response.getStatusLine().getStatusCode() != 200) {
             throw new TrinoException(
                     JDBC_ERROR,
