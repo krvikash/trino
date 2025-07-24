@@ -44,6 +44,7 @@ import io.trino.memory.QueryContext;
 import io.trino.memory.context.SimpleLocalMemoryContext;
 import io.trino.metadata.Split;
 import io.trino.node.InternalNode;
+import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.TaskContext;
 import io.trino.operator.TaskStats;
 import io.trino.spi.predicate.TupleDomain;
@@ -238,7 +239,7 @@ public class MockRemoteTaskFactory
                     DataSize.ofBytes(1),
                     () -> new SimpleLocalMemoryContext(newSimpleAggregatedMemoryContext(), "test"),
                     () -> {},
-                    new ExchangeManagerRegistry(OpenTelemetry.noop(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())));
+                    new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())));
 
             this.fragment = requireNonNull(fragment, "fragment is null");
             this.nodeId = requireNonNull(nodeId, "nodeId is null");

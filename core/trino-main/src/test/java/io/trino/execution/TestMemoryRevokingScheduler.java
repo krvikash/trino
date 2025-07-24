@@ -32,6 +32,7 @@ import io.trino.execution.executor.timesharing.TimeSharingTaskExecutor;
 import io.trino.memory.MemoryPool;
 import io.trino.memory.QueryContext;
 import io.trino.memory.context.LocalMemoryContext;
+import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.DriverContext;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.PipelineContext;
@@ -284,7 +285,7 @@ public class TestMemoryRevokingScheduler
                 sqlTask -> {},
                 DataSize.of(32, MEGABYTE),
                 DataSize.of(200, MEGABYTE),
-                new ExchangeManagerRegistry(OpenTelemetry.noop(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())),
+                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())),
                 new CounterStat());
     }
 

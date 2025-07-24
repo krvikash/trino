@@ -37,6 +37,7 @@ import io.trino.execution.executor.TaskExecutor;
 import io.trino.execution.executor.timesharing.TimeSharingTaskExecutor;
 import io.trino.memory.MemoryPool;
 import io.trino.memory.QueryContext;
+import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.TaskContext;
 import io.trino.spi.QueryId;
 import io.trino.spiller.SpillSpaceTracker;
@@ -456,7 +457,7 @@ public class TestSqlTask
                 sqlTask -> {},
                 DataSize.of(32, MEGABYTE),
                 DataSize.of(200, MEGABYTE),
-                new ExchangeManagerRegistry(OpenTelemetry.noop(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())),
+                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())),
                 new CounterStat());
     }
 }

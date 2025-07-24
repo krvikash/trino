@@ -33,6 +33,7 @@ import io.trino.execution.StageId;
 import io.trino.execution.TaskId;
 import io.trino.execution.buffer.PagesSerdeFactory;
 import io.trino.metadata.Split;
+import io.trino.node.TestingInternalNodeManager;
 import io.trino.spi.Page;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
@@ -101,7 +102,7 @@ public class TestMergeOperator
                 httpClient,
                 new HttpClientConfig(),
                 executor,
-                new ExchangeManagerRegistry(OpenTelemetry.noop(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())));
+                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())));
         orderingCompiler = new OrderingCompiler(new TypeOperators());
     }
 

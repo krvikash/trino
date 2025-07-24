@@ -15,10 +15,16 @@ package io.trino.spi.exchange;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.trino.spi.CoordinatorLocator;
 
 public interface ExchangeManagerContext
 {
     default OpenTelemetry getOpenTelemetry()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default CoordinatorLocator getCoordinatorLocator()
     {
         throw new UnsupportedOperationException();
     }

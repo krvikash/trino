@@ -20,6 +20,7 @@ import io.airlift.tracing.Tracing;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.trino.memory.context.SimpleLocalMemoryContext;
+import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.RetryPolicy;
 import io.trino.spi.QueryId;
 import io.trino.spi.exchange.ExchangeId;
@@ -45,7 +46,7 @@ public class TestLazyExchangeDataSource
                     throw new UnsupportedOperationException();
                 },
                 RetryPolicy.NONE,
-                new ExchangeManagerRegistry(OpenTelemetry.noop(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())))) {
+                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())))) {
             ListenableFuture<Void> first = source.isBlocked();
             ListenableFuture<Void> second = source.isBlocked();
             assertThat(first)

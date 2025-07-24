@@ -18,6 +18,8 @@ import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.trino.node.DefaultCoordinatorLocator;
+import io.trino.node.InternalCoordinatorLocator;
 import io.trino.spi.TrinoException;
 import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.exchange.ExchangeManager;
@@ -47,6 +49,7 @@ public class ExchangeManagerRegistry
     private static final String EXCHANGE_MANAGER_NAME_PROPERTY = "exchange-manager.name";
 
     private final OpenTelemetry openTelemetry;
+    private final InternalCoordinatorLocator coordinatorLocator;
     private final Tracer tracer;
     private final Map<String, ExchangeManagerFactory> exchangeManagerFactories = new ConcurrentHashMap<>();
 
@@ -56,10 +59,12 @@ public class ExchangeManagerRegistry
     @Inject
     public ExchangeManagerRegistry(
             OpenTelemetry openTelemetry,
+            InternalCoordinatorLocator coordinatorLocator,
             Tracer tracer,
             SecretsResolver secretsResolver)
     {
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
+        this.coordinatorLocator = requireNonNull(coordinatorLocator, " is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
     }
@@ -96,7 +101,11 @@ public class ExchangeManagerRegistry
 
         ExchangeManager exchangeManager;
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(factory.getClass().getClassLoader())) {
-            exchangeManager = factory.create(secretsResolver.getResolvedConfiguration(properties), new ExchangeManagerContextInstance(openTelemetry, tracer));
+            exchangeManager = factory.create(secretsResolver.getResolvedConfiguration(properties),
+                    new ExchangeManagerContextInstance(
+                            openTelemetry,
+                            new DefaultCoordinatorLocator(coordinatorLocator),
+                            tracer));
         }
 
         log.info("-- Loaded exchange manager %s --", name);

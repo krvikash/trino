@@ -41,6 +41,7 @@ import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
 import io.trino.spi.exchange.ExchangeSource;
 import io.trino.spi.exchange.ExchangeSourceHandleSource;
 import io.trino.spi.exchange.ExchangeSourceOutputSelector;
+import io.trino.testing.TestingNodeManager;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -101,7 +102,7 @@ public class SourceBenchmarkDriver
                     .buildOrThrow();
             ExchangeManager exchangeManager = BufferExchangeManagerFactory.forRealBufferService().create(
                     config,
-                    new ExchangeManagerContextInstance(OpenTelemetry.noop(), Tracing.noopTracer()));
+                    new ExchangeManagerContextInstance(OpenTelemetry.noop(), TestingNodeManager.create().getCoordinatorLocator(), Tracing.noopTracer()));
             closer.register(exchangeManager::shutdown);
 
             ExchangeId exchangeId = new ExchangeId("dummy");

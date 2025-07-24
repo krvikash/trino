@@ -118,7 +118,6 @@ import io.trino.metadata.TablePropertyManager;
 import io.trino.metadata.TypeRegistry;
 import io.trino.metadata.ViewPropertyManager;
 import io.trino.node.InternalNode;
-import io.trino.node.InternalNodeManager;
 import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
@@ -306,7 +305,7 @@ public class PlanTester
 
     private final SqlParser sqlParser;
     private final PlanFragmenter planFragmenter;
-    private final InternalNodeManager nodeManager;
+    private final TestingInternalNodeManager nodeManager;
     private final TypeOperators typeOperators;
     private final BlockTypeOperators blockTypeOperators;
     private final NullSafeHashCompiler hashCompiler;
@@ -526,7 +525,7 @@ public class PlanTester
         cacheManagerRegistry = new CacheManagerRegistry(cacheConfig, new LocalMemoryManager(new NodeMemoryConfig()), plannerContext.getBlockEncodingSerde(), new CacheStats(), node, TestingInternalNodeManager.createDefault());
         cachePerformanceTracker = new CachePerformanceTracker();
         tupleDomainCodec = getTupleDomainJsonCodec(blockEncodingSerde, typeManager);
-        exchangeManagerRegistry = new ExchangeManagerRegistry(noop(), noopTracer(), secretsResolver);
+        exchangeManagerRegistry = new ExchangeManagerRegistry(noop(), nodeManager.getTestingInternalCoordinatorLocator(), noopTracer(), secretsResolver);
         spoolingManagerRegistry = new SpoolingManagerRegistry(
                 node,
                 new ServerConfig(),

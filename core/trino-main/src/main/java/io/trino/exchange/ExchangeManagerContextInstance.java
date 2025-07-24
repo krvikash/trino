@@ -15,6 +15,7 @@ package io.trino.exchange;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.trino.spi.CoordinatorLocator;
 import io.trino.spi.exchange.ExchangeManagerContext;
 
 import static java.util.Objects.requireNonNull;
@@ -23,13 +24,16 @@ public class ExchangeManagerContextInstance
         implements ExchangeManagerContext
 {
     private final OpenTelemetry openTelemetry;
+    private final CoordinatorLocator coordinatorLocator;
     private final Tracer tracer;
 
     public ExchangeManagerContextInstance(
             OpenTelemetry openTelemetry,
+            CoordinatorLocator coordinatorLocator,
             Tracer tracer)
     {
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
+        this.coordinatorLocator = requireNonNull(coordinatorLocator, "coordinatorLocator is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
     }
 
@@ -37,6 +41,12 @@ public class ExchangeManagerContextInstance
     public OpenTelemetry getOpenTelemetry()
     {
         return openTelemetry;
+    }
+
+    @Override
+    public CoordinatorLocator getCoordinatorLocator()
+    {
+        return coordinatorLocator;
     }
 
     @Override

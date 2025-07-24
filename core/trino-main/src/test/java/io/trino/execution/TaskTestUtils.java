@@ -203,7 +203,7 @@ public final class TaskTestUtils
                 PLANNER_CONTEXT.getTypeOperators(),
                 hashCompiler,
                 new TableExecuteContextManager(),
-                new ExchangeManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of())),
+                new ExchangeManagerRegistry(noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), noopTracer(), new SecretsResolver(ImmutableMap.of())),
                 new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats, CURRENT_NODE, TestingInternalNodeManager.createDefault()),
                 new CachePerformanceTracker(),
                 new JsonCodecFactory(new ObjectMapperProvider()).jsonCodec(TupleDomain.class),
