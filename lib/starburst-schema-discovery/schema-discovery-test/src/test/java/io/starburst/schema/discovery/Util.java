@@ -77,6 +77,11 @@ public class Util
         }
     }
 
+    public static Location toLocalDirectory(Object path)
+    {
+        return Location.of("local://" + path);
+    }
+
     public static DiscoveryInput testFile(DiscoveryTrinoFileSystem fileSystem, String name)
     {
         try {
