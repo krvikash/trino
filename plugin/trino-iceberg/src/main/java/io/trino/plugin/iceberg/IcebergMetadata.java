@@ -2244,6 +2244,7 @@ public class IcebergMetadata
         // Set dataSequenceNumber to avoid contention between OPTIMIZE and concurrent writing of equality deletes
         rewriteFiles.dataSequenceNumber(snapshot.sequenceNumber());
         rewriteFiles.validateFromSnapshot(snapshot.snapshotId());
+        rewriteFiles.scanManifestsWith(icebergScanExecutor);
         commitUpdateAndTransaction(rewriteFiles, session, transaction, "optimize");
 
         // TODO (https://github.com/trinodb/trino/issues/15439) this may not exactly be the snapshot we committed, if there is another writer
@@ -2443,11 +2444,14 @@ public class IcebergMetadata
 
         beginTransaction(icebergTable);
         RewriteManifests rewriteManifests = transaction.rewriteManifests();
-        rewriteManifests.clusterBy(file -> {
-            // Use the first partition field as the clustering key
-            StructLike partition = file.partition();
-            return partition.size() > 1 ? Optional.ofNullable(partition.get(0, Object.class)) : partition;
-        }).commit();
+        rewriteManifests
+                .clusterBy(file -> {
+                    // Use the first partition field as the clustering key
+                    StructLike partition = file.partition();
+                    return partition.size() > 1 ? Optional.ofNullable(partition.get(0, Object.class)) : partition;
+                })
+                .scanManifestsWith(icebergScanExecutor)
+                .commit();
         commitTransaction(transaction, "optimize manifests");
         transaction = null;
     }
@@ -2637,6 +2641,7 @@ public class IcebergMetadata
             table.expireSnapshots()
                     .expireOlderThan(expireTimestampMillis)
                     .deleteWith(deleteFunction)
+                    .planWith(icebergScanExecutor)
                     .commit();
 
             fileSystem.deleteFiles(pathsToDelete);
@@ -3727,6 +3732,7 @@ public class IcebergMetadata
 
         // Ensure a row that is updated by this commit was not deleted by a separate commit
         rowDelta.validateNoConflictingDeleteFiles();
+        rowDelta.scanManifestsWith(icebergScanExecutor);
 
         ImmutableSet.Builder<String> writtenFiles = ImmutableSet.builder();
         ImmutableSet.Builder<String> referencedDataFiles = ImmutableSet.builder();

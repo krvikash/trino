@@ -20,6 +20,7 @@ import org.apache.iceberg.SnapshotUpdate;
 import org.apache.iceberg.expressions.Expression;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -80,6 +81,12 @@ public class CopyOnWrite
         // When the data in file all removed, just delete the file, no need to add a new data file
         dataFile.ifPresent(overwriteFiles::addFile);
         rewrittenDataFile.ifPresent(overwriteFiles::deleteFile);
+    }
+
+    @Override
+    public void scanManifestsWith(ExecutorService executorService)
+    {
+        overwriteFiles.scanManifestsWith(executorService);
     }
 
     @Override

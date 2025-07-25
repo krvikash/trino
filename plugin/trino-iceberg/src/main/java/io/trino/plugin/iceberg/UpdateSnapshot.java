@@ -19,6 +19,7 @@ import org.apache.iceberg.SnapshotUpdate;
 import org.apache.iceberg.expressions.Expression;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 
 /**
  * An interface for updating table snapshots to support both Copy-on-Write (CoW) and Merge-on-Read (MoR) write modes in Iceberg.
@@ -45,6 +46,8 @@ public interface UpdateSnapshot
     void removeDeletes(DeleteFile deletes);
 
     void addRows(Optional<DataFile> dataFile, Optional<DataFile> rewrittenDataFile);
+
+    void scanManifestsWith(ExecutorService executorService);
 
     SnapshotUpdate<?> unwrap();
 }

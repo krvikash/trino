@@ -20,6 +20,7 @@ import org.apache.iceberg.SnapshotUpdate;
 import org.apache.iceberg.expressions.Expression;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 
 import static java.util.Objects.requireNonNull;
 
@@ -80,6 +81,12 @@ public class MergeOnRead
     public void addRows(Optional<DataFile> dataFile, Optional<DataFile> rewrittenDataFile)
     {
         rowDelta.addRows(dataFile.orElseThrow());
+    }
+
+    @Override
+    public void scanManifestsWith(ExecutorService executorService)
+    {
+        rowDelta.scanManifestsWith(executorService);
     }
 
     @Override
