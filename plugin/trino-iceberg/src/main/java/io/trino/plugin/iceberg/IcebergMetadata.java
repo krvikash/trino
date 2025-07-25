@@ -2265,6 +2265,7 @@ public class IcebergMetadata
         // Table.snapshot method returns null if there is no matching snapshot
         Snapshot snapshot = requireNonNull(icebergTable.snapshot(generateEmbeddingsHandle.snapshotId().get()), "snapshot is null");
         rewriteFiles.validateFromSnapshot(snapshot.snapshotId());
+        rewriteFiles.scanManifestsWith(icebergScanExecutor);
         commitUpdate(rewriteFiles, session, "generate_embeddings");
 
         long newSnapshotId = icebergTable.currentSnapshot().snapshotId();
