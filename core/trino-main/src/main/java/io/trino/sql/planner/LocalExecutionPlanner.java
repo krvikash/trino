@@ -1356,7 +1356,6 @@ public class LocalExecutionPlanner
                                         pagesIndexFactory,
                                         finalAccumulatorSupplier.apply(lambdaProviders),
                                         argumentTypes,
-                                        argumentChannels,
                                         sortKeysArguments,
                                         sortOrders);
                     }
