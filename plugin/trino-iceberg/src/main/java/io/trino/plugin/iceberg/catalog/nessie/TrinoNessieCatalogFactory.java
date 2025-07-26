@@ -20,6 +20,7 @@ import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
+import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
@@ -38,6 +39,7 @@ public class TrinoNessieCatalogFactory
     private final WorkScheduler workScheduler;
     private final TypeManager typeManager;
     private final TrinoFileSystemFactory fileSystemFactory;
+    private final ForwardingFileIoFactory fileIoFactory;
 
     @Inject
     public TrinoNessieCatalogFactory(
@@ -45,6 +47,7 @@ public class TrinoNessieCatalogFactory
             WorkScheduler workScheduler,
             TypeManager typeManager,
             TrinoFileSystemFactory fileSystemFactory,
+            ForwardingFileIoFactory fileIoFactory,
             IcebergTableOperationsProvider tableOperationsProvider,
             NessieIcebergClient nessieClient,
             IcebergNessieCatalogConfig icebergNessieCatalogConfig,
@@ -53,6 +56,7 @@ public class TrinoNessieCatalogFactory
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
+        this.fileIoFactory = requireNonNull(fileIoFactory, "fileIoFactory is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
         this.nessieClient = requireNonNull(nessieClient, "nessieClient is null");
@@ -63,6 +67,6 @@ public class TrinoNessieCatalogFactory
     @Override
     public TrinoCatalog create(ConnectorIdentity identity)
     {
-        return new TrinoNessieCatalog(catalogName, workScheduler, typeManager, fileSystemFactory, tableOperationsProvider, nessieClient, warehouseLocation, isUniqueTableLocation);
+        return new TrinoNessieCatalog(catalogName, workScheduler, typeManager, fileSystemFactory, fileIoFactory, tableOperationsProvider, nessieClient, warehouseLocation, isUniqueTableLocation);
     }
 }

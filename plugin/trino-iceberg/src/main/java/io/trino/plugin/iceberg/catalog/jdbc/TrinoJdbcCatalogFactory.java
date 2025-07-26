@@ -21,7 +21,7 @@ import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
-import io.trino.plugin.iceberg.fileio.ForwardingFileIo;
+import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
@@ -44,6 +44,7 @@ public class TrinoJdbcCatalogFactory
     private final TypeManager typeManager;
     private final IcebergTableOperationsProvider tableOperationsProvider;
     private final TrinoFileSystemFactory fileSystemFactory;
+    private final ForwardingFileIoFactory fileIoFactory;
     private final IcebergJdbcClient jdbcClient;
     private final String jdbcCatalogName;
     private final String defaultWarehouseDir;
@@ -58,6 +59,7 @@ public class TrinoJdbcCatalogFactory
             IcebergTableOperationsProvider tableOperationsProvider,
             WorkScheduler workScheduler,
             TrinoFileSystemFactory fileSystemFactory,
+            ForwardingFileIoFactory fileIoFactory,
             IcebergJdbcClient jdbcClient,
             IcebergJdbcCatalogConfig jdbcConfig,
             IcebergConfig icebergConfig)
@@ -67,6 +69,7 @@ public class TrinoJdbcCatalogFactory
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
+        this.fileIoFactory = requireNonNull(fileIoFactory, "fileIoFactory is null");
         this.isUniqueTableLocation = requireNonNull(icebergConfig, "icebergConfig is null").isUniqueTableLocation();
         this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient is null");
         this.jdbcCatalogName = jdbcConfig.getCatalogName();
@@ -94,7 +97,7 @@ public class TrinoJdbcCatalogFactory
     public TrinoCatalog create(ConnectorIdentity identity)
     {
         JdbcCatalog jdbcCatalog = new JdbcCatalog(
-                config -> new ForwardingFileIo(fileSystemFactory.create(identity)),
+                config -> fileIoFactory.create(fileSystemFactory.create(identity)),
                 config -> clientPool,
                 false);
 
@@ -108,6 +111,7 @@ public class TrinoJdbcCatalogFactory
                 jdbcCatalog,
                 jdbcClient,
                 fileSystemFactory,
+                fileIoFactory,
                 isUniqueTableLocation,
                 defaultWarehouseDir);
     }

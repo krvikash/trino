@@ -59,6 +59,7 @@ import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FILE_FORMAT_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FORMAT_VERSION_PROPERTY;
+import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -85,12 +86,14 @@ public class TestTrinoGlueCatalog
                 new CatalogName("catalog_name"),
                 new NoopWorkScheduler(),
                 HDFS_FILE_SYSTEM_FACTORY,
+                FILE_IO_FACTORY,
                 new TestingTypeManager(),
                 catalogConfig.isCacheTableMetadata(),
                 new GlueIcebergTableOperationsProvider(
+                        HDFS_FILE_SYSTEM_FACTORY,
+                        FILE_IO_FACTORY,
                         TESTING_TYPE_MANAGER,
                         catalogConfig,
-                        HDFS_FILE_SYSTEM_FACTORY,
                         new GlueMetastoreStats(),
                         glueClient),
                 "test",
@@ -228,12 +231,14 @@ public class TestTrinoGlueCatalog
                 new CatalogName("catalog_name"),
                 new NoopWorkScheduler(),
                 fileSystemFactory,
+                FILE_IO_FACTORY,
                 new TestingTypeManager(),
                 catalogConfig.isCacheTableMetadata(),
                 new GlueIcebergTableOperationsProvider(
+                        fileSystemFactory,
+                        FILE_IO_FACTORY,
                         TESTING_TYPE_MANAGER,
                         catalogConfig,
-                        fileSystemFactory,
                         new GlueMetastoreStats(),
                         glueClient),
                 "test",

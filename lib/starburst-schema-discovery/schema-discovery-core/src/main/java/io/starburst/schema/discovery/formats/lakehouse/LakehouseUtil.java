@@ -44,7 +44,7 @@ public class LakehouseUtil
     public static TablePath enhanceIcebergTableLocationFromMetadata(DiscoveryTrinoFileSystem fileSystem, TablePath rootTablePath)
     {
         String latestMetadataLocation = getLatestMetadataLocation(fileSystem, rootTablePath.path());
-        TableMetadata tableMetadata = TableMetadataParser.read(new ForwardingFileIo(fileSystem), latestMetadataLocation);
+        TableMetadata tableMetadata = TableMetadataParser.read(new ForwardingFileIo(fileSystem, true), latestMetadataLocation);
         return asTablePath(tableMetadata.location());
     }
 
