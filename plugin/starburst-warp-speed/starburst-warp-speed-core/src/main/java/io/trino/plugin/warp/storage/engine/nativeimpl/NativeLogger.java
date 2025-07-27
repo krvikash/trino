@@ -143,7 +143,7 @@ public class NativeLogger
         if (logLevel < 0) {
             final int expectionId = -1 * logLevel;
             shapingLogger.error("threw native exception %s", logString);
-            exceptionThrower.ifPresent(e -> e.throwException(expectionId, "Exception thrown from warp speed native library"));
+            exceptionThrower.ifPresent(e -> e.throwException(expectionId, "Exception thrown from warp speed native library: " + logString));
             while (true) {
                 shapingLogger.warn("threw native exception went to endless sleep");
                 try {
