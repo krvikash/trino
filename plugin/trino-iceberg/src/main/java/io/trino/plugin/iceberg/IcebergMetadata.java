@@ -731,7 +731,7 @@ public class IcebergMetadata
                 tableSnapshotId,
                 SchemaParser.toJson(tableSchema),
                 partitionSpec.map(PartitionSpecParser::toJson),
-                table.operations().current().formatVersion(),
+                formatVersion(table),
                 TupleDomain.all(),
                 TupleDomain.all(),
                 OptionalLong.empty(),
@@ -2139,7 +2139,7 @@ public class IcebergMetadata
 
         validateNotModifyingOldSnapshot(table, icebergTable);
 
-        int tableFormatVersion = icebergTable.operations().current().formatVersion();
+        int tableFormatVersion = formatVersion(icebergTable);
         if (tableFormatVersion > OPTIMIZE_MAX_SUPPORTED_TABLE_VERSION) {
             throw new TrinoException(NOT_SUPPORTED, format(
                     "%s is not supported for Iceberg table format version > %d. Table %s format version is %s.",
@@ -2163,7 +2163,7 @@ public class IcebergMetadata
     {
         Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
         validateNotModifyingOldSnapshot(table, icebergTable);
-        int tableFormatVersion = ((BaseTable) icebergTable).operations().current().formatVersion();
+        int tableFormatVersion = formatVersion(icebergTable);
         if (tableFormatVersion > OPTIMIZE_MAX_SUPPORTED_TABLE_VERSION) {
             throw new TrinoException(NOT_SUPPORTED, format(
                     "generate_embeddings is not supported for Iceberg table format version > %d. Table %s format version is %s.",
@@ -2686,7 +2686,7 @@ public class IcebergMetadata
             String minRetentionParameterName,
             String sessionMinRetentionParameterName)
     {
-        int tableFormatVersion = table.operations().current().formatVersion();
+        int tableFormatVersion = formatVersion(table);
         if (tableFormatVersion > CLEANING_UP_PROCEDURES_MAX_SUPPORTED_TABLE_VERSION) {
             // It is not known if future version won't bring any new kind of metadata or data files
             // because of the way procedures are implemented it is safer to fail here than to potentially remove

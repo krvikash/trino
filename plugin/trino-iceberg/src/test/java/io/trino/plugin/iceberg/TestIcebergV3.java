@@ -33,6 +33,7 @@ import static io.trino.plugin.iceberg.IcebergTestUtils.listFiles;
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.apache.iceberg.TableProperties.ENCRYPTION_TABLE_KEY;
+import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -125,16 +126,16 @@ public class TestIcebergV3
     {
         String tableName = "test_upgrade_table_to_v3_from_trino_" + randomNameSuffix();
         assertUpdate("CREATE TABLE " + tableName + " WITH (format_version = 1) AS SELECT * FROM tpch.tiny.nation", 25);
-        assertThat(loadTable(tableName).operations().current().formatVersion()).isEqualTo(1);
+        assertThat(formatVersion(loadTable(tableName))).isEqualTo(1);
 
         // v1 -> v2
         assertUpdate("ALTER TABLE " + tableName + " SET PROPERTIES format_version = 2");
-        assertThat(loadTable(tableName).operations().current().formatVersion()).isEqualTo(2);
+        assertThat(formatVersion(loadTable(tableName))).isEqualTo(2);
         assertQuery("SELECT * FROM " + tableName, "SELECT * FROM nation");
 
         // v2 -> v3
         assertUpdate("ALTER TABLE " + tableName + " SET PROPERTIES format_version = 3");
-        assertThat(loadTable(tableName).operations().current().formatVersion()).isEqualTo(3);
+        assertThat(formatVersion(loadTable(tableName))).isEqualTo(3);
         assertQuery("SELECT * FROM " + tableName, "SELECT * FROM nation");
     }
 
@@ -143,11 +144,11 @@ public class TestIcebergV3
     {
         String tableName = "test_upgrade_table_from_v1_to_v3_from_trino_" + randomNameSuffix();
         assertUpdate("CREATE TABLE " + tableName + " WITH (format_version = 1) AS SELECT * FROM tpch.tiny.nation", 25);
-        assertThat(loadTable(tableName).operations().current().formatVersion()).isEqualTo(1);
+        assertThat(formatVersion(loadTable(tableName))).isEqualTo(1);
 
         // v1 -> v3
         assertUpdate("ALTER TABLE " + tableName + " SET PROPERTIES format_version = 3");
-        assertThat(loadTable(tableName).operations().current().formatVersion()).isEqualTo(3);
+        assertThat(formatVersion(loadTable(tableName))).isEqualTo(3);
         assertQuery("SELECT * FROM " + tableName, "SELECT * FROM nation");
     }
 
@@ -156,7 +157,7 @@ public class TestIcebergV3
     {
         String tableName = "test_downgrading_from_v3_fails_" + randomNameSuffix();
         assertUpdate("CREATE TABLE " + tableName + " WITH (format_version = 3) AS SELECT * FROM tpch.tiny.nation", 25);
-        assertThat(loadTable(tableName).operations().current().formatVersion()).isEqualTo(3);
+        assertThat(formatVersion(loadTable(tableName))).isEqualTo(3);
 
         assertThat(query("ALTER TABLE " + tableName + " SET PROPERTIES format_version = 2"))
                 .failure()
