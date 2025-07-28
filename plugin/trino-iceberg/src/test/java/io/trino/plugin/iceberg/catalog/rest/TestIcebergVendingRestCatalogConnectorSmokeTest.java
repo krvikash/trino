@@ -336,6 +336,15 @@ public class TestIcebergVendingRestCatalogConnectorSmokeTest
                 .hasMessageMatching("Unsupported format version: v3.*");
     }
 
+    @Test
+    @Override
+    public void testVariantType()
+    {
+        assertThatThrownBy(super::testVariantType)
+                .hasMessage("Failed to create transaction")
+                .hasStackTraceContaining("Cannot parse type string to primitive: variant");
+    }
+
     @Override
     protected boolean isFileSorted(Location path, String sortColumnName)
     {

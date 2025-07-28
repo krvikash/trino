@@ -161,6 +161,15 @@ final class TestIcebergS3TablesConnectorSmokeTest
 
     @Test
     @Override
+    public void testVariantType()
+    {
+        assertThatThrownBy(super::testVariantType)
+                .hasMessageContaining("Failed to create transaction")
+                .hasStackTraceContaining("Cannot parse type string to primitive: variant");
+    }
+
+    @Test
+    @Override
     public void testRenameSchema()
     {
         assertThatThrownBy(super::testRenameSchema)

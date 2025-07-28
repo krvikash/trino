@@ -31,6 +31,7 @@ import static io.trino.tpch.TpchTable.ORDERS;
 import static io.trino.tpch.TpchTable.REGION;
 import static org.apache.iceberg.FileFormat.ORC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 // Redundant over TestIcebergOrcConnectorTest, but exists to exercise BaseConnectorSmokeTest
@@ -151,5 +152,13 @@ public class TestIcebergConnectorSmokeTest
                 WHEN NOT MATCHED THEN INSERT VALUES (%s)
                 """.formatted(mergeTable.getName(), table.getName(), matchedClause, notMatchedClause),
                 1);
+    }
+
+    @Test
+    @Override
+    public void testVariantType()
+    {
+        assertThatThrownBy(super::testVariantType)
+                .hasMessage("Unsupported Iceberg type: variant");
     }
 }

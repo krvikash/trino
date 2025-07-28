@@ -230,6 +230,15 @@ final class TestIcebergLakekeeperCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testVariantType()
+    {
+        assertThatThrownBy(super::testVariantType)
+                .hasMessageContaining("Failed to create transaction")
+                .hasStackTraceContaining("Unable to process: Failed to deserialize the JSON body into the target type");
+    }
+
+    @Test
+    @Override
     public void testRegisterTableWithDroppedTable()
     {
         String tableName = "test_register_table_with_dropped_table_" + randomNameSuffix();

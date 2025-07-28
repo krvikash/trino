@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.iceberg.catalog;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.trino.annotation.NotThreadSafe;
@@ -49,6 +51,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.hive.formats.HiveClassNames.FILE_INPUT_FORMAT_CLASS;
 import static io.trino.hive.formats.HiveClassNames.FILE_OUTPUT_FORMAT_CLASS;
 import static io.trino.hive.formats.HiveClassNames.LAZY_SIMPLE_SERDE_CLASS;
+import static io.trino.metastore.HiveType.HIVE_STRING;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergExceptions.translateMetadataException;
 import static io.trino.plugin.iceberg.IcebergTableName.isMaterializedViewStorage;
@@ -58,6 +61,7 @@ import static io.trino.plugin.iceberg.IcebergUtil.getLocationProvider;
 import static io.trino.plugin.iceberg.IcebergUtil.parseVersion;
 import static io.trino.plugin.iceberg.procedure.MigrateProcedure.PROVIDER_PROPERTY_KEY;
 import static io.trino.plugin.iceberg.procedure.MigrateProcedure.PROVIDER_PROPERTY_VALUE;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.lang.String.format;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Objects.requireNonNull;
@@ -303,12 +307,21 @@ public abstract class AbstractIcebergTableOperations
 
     public static List<Column> toHiveColumns(List<NestedField> columns)
     {
-        return columns.stream()
-                .map(column -> new Column(
-                        column.name(),
-                        HiveType.fromTypeInfo(HiveSchemaUtil.convert(column.type())),
-                        Optional.empty(),
-                        Map.of()))
-                .collect(toImmutableList());
+        try {
+            return columns.stream()
+                    .map(column -> new Column(
+                            column.name(),
+                            HiveType.fromTypeInfo(HiveSchemaUtil.convert(column.type())),
+                            Optional.empty(),
+                            Map.of()))
+                    .collect(toImmutableList());
+        }
+        catch (TrinoException e) {
+            if (e.getErrorCode() == NOT_SUPPORTED.toErrorCode()) {
+                Column dummyColumn = new Column("dummy", HIVE_STRING, Optional.empty(), ImmutableMap.of());
+                return ImmutableList.of(dummyColumn);
+            }
+            throw e;
+        }
     }
 }

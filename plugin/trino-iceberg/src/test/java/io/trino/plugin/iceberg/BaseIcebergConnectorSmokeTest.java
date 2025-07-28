@@ -153,6 +153,17 @@ public abstract class BaseIcebergConnectorSmokeTest
         }
     }
 
+    @Test
+    public void testVariantType()
+    {
+        try (TestTable table = newTrinoTable("test_variant", "(x json) WITH (format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES JSON 'true'", 1);
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES JSON 'true'");
+        }
+    }
+
     // Repeat test with invocationCount for better test coverage, since the tested aspect is inherently non-deterministic.
     @RepeatedTest(4)
     @Timeout(120)

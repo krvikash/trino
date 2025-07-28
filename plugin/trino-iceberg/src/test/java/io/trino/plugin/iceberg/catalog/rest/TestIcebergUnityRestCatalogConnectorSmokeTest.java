@@ -279,6 +279,14 @@ final class TestIcebergUnityRestCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testVariantType()
+    {
+        assertThatThrownBy(super::testVariantType)
+                .hasMessageContaining("Access Denied");
+    }
+
+    @Test
+    @Override
     public void testCreateOrReplaceTable()
     {
         assertThatThrownBy(super::testCreateOrReplaceTable)
