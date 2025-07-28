@@ -94,6 +94,18 @@ public class PredicateUtils
                 CONSTANT_RESULT.getAttribute(constantOperation.attributes()).equals(NullableValue.of(BOOLEAN, true));
     }
 
+    public static boolean isNull(Block block)
+    {
+        checkArgument(trinoType(block.getReturnedType()).equals(BOOLEAN), "expected block returning boolean");
+
+        return block.operations().size() == 2 &&
+                block.operations().getLast() instanceof Return returnOperation &&
+                // TODO this could be another operation or block parameter with constant null value
+                block.operations().getFirst() instanceof Constant constantOperation &&
+                returnOperation.argument().equals(constantOperation.result()) &&
+                CONSTANT_RESULT.getAttribute(constantOperation.attributes()).equals(NullableValue.asNull(BOOLEAN));
+    }
+
     /**
      * Create a block with a conjunction (AND) of predicates from all component blocks. At least one component block must be provided.
      * The resulting block has the same name and parameters as the first component block.
