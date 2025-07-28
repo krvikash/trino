@@ -29,6 +29,7 @@ import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
@@ -234,20 +235,16 @@ public class QueryClassifier
     private WarmedWarmupTypes createColumnToWarmUpElementPerType(RowGroupData rowGroupData, Optional<UUID> storeIdOpt)
     {
         WarmedWarmupTypes.Builder builder = new WarmedWarmupTypes.Builder();
-        if (storeIdOpt.isPresent()) {
-            UUID storeId = storeIdOpt.get();
-            for (WarmUpElement we : rowGroupData.getValidWarmUpElements()) {
-                if (storeId.equals(we.getStoreId())) {
-                    builder.add(we);
-                }
-            }
-        }
-        else {
-            for (WarmUpElement we : rowGroupData.getValidWarmUpElements()) {
-                builder.add(we);
-            }
-        }
+        rowGroupData.getValidWarmUpElements().stream()
+                .filter(we -> shouldAdd(we, storeIdOpt))
+                .forEach(builder::add);
 
         return builder.build();
+    }
+
+    private boolean shouldAdd(WarmUpElement warmUpElement, Optional<UUID> storeIdOpt)
+    {
+        return (storeIdOpt.isEmpty() || storeIdOpt.get().equals(warmUpElement.getStoreId()))
+                && (!globalConfig.getEnableFSCacheMode() || !WarmUpType.WARM_UP_TYPE_DATA.equals(warmUpElement.getWarmUpType()));
     }
 }
