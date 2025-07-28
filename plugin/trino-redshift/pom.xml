@@ -349,7 +349,8 @@
                             <includes>
                                 <include>**/TestRedshiftAutomaticJoinPushdown.java</include>
                                 <include>**/TestRedshiftConnectorTest.java</include>
-                                <include>**/TestRedshiftConnectorSmokeTest.java</include>
+                                <!-- Don't run smoke test because connector test should be enough -->
+                                <!-- <include>**/TestRedshiftConnectorSmokeTest.java</include> -->
                                 <include>**/TestRedshiftCastPushdown.java</include>
                                 <include>**/TestRedshiftTableStatisticsReader.java</include>
                                 <include>**/TestRedshiftTypeMapping.java</include>
