@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 
 public class WarmUtils
 {
-    public static final int FAST_WARMING_VERSION = 7;
+    public static final int FAST_WARMING_VERSION = 8;
 
     private static final Logger logger = Logger.get(WarmUtils.class);
 
