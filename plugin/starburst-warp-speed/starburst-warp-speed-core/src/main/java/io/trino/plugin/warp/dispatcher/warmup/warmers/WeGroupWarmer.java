@@ -498,7 +498,7 @@ public class WeGroupWarmer
 
     private record DownloadResults(boolean isDownloadDone, RowGroupDataValidation dataValidation)
     {
-        public DownloadResults()
+        DownloadResults()
         {
             this(false, RowGroupDataValidation.EMPTY_VALIDATION);
         }

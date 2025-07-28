@@ -460,12 +460,12 @@ public class DispatcherAlternativeChooserTest
         private TupleDomain<ColumnHandle> unenforcedPredicate;
         private TupleDomain<ColumnHandle> prunedPredicate;
 
-        public void setUnenforcedPredicate(TupleDomain<ColumnHandle> unenforcedPredicate)
+        void setUnenforcedPredicate(TupleDomain<ColumnHandle> unenforcedPredicate)
         {
             this.unenforcedPredicate = requireNonNull(unenforcedPredicate, "unenforcedPredicate is null");
         }
 
-        public void setPrunedPredicate(TupleDomain<ColumnHandle> prunedPredicate)
+        void setPrunedPredicate(TupleDomain<ColumnHandle> prunedPredicate)
         {
             this.prunedPredicate = requireNonNull(prunedPredicate, "prunedPredicate is null");
         }

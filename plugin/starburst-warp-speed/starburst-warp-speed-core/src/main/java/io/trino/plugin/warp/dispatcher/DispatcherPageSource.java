@@ -653,7 +653,7 @@ public class DispatcherPageSource
 
     private record RowRange(long minInclusive, long maxExclusive)
     {
-        public RowRange
+        RowRange
         {
             checkArgument(
                     minInclusive < maxExclusive && minInclusive >= 0,
@@ -662,12 +662,12 @@ public class DispatcherPageSource
                     maxExclusive);
         }
 
-        public boolean isFullyBefore(RowRange other)
+        boolean isFullyBefore(RowRange other)
         {
             return maxExclusive <= other.minInclusive();
         }
 
-        public long getRowCount()
+        long getRowCount()
         {
             return maxExclusive - minInclusive;
         }
@@ -690,9 +690,9 @@ public class DispatcherPageSource
         private final SourcePage warpSourcePage;
         private final Map<Integer, Integer> warpIxMap;
 
-        public DispatcherSourcePage(Block[] blocks,
-                                    SourcePage warpSourcePage,
-                                    Map<Integer, Integer> warpIxMap)
+        DispatcherSourcePage(Block[] blocks,
+                SourcePage warpSourcePage,
+                Map<Integer, Integer> warpIxMap)
         {
             this.blocks = blocks;
             this.warpSourcePage = warpSourcePage;

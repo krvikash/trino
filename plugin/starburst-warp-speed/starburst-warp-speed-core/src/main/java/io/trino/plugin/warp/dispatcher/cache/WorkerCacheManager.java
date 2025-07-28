@@ -148,7 +148,7 @@ public class WorkerCacheManager
         private final PlanSignature planSignature;
         private final CommonStoreIdFinder commonStoreIdFinder;
 
-        public WarpSplitCache(PlanSignature planSignature)
+        WarpSplitCache(PlanSignature planSignature)
         {
             //this has a smaller memory footprint
             this.planSignature = new PlanSignature(

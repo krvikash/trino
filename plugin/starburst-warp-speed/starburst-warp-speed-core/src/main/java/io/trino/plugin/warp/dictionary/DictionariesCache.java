@@ -480,12 +480,12 @@ public class DictionariesCache
             @SuppressWarnings("unused") SchemaTableColumn schemaTableColumn,
             @SuppressWarnings("unused") String nodeIdentifier)
     {
-        public static DictionaryId of(SchemaTableColumn schemaTableColumn, String nodeIdentifier)
+        static DictionaryId of(SchemaTableColumn schemaTableColumn, String nodeIdentifier)
         {
             return new DictionaryId(schemaTableColumn, nodeIdentifier);
         }
 
-        public static DictionaryId of(DictionaryKey dictionaryKey)
+        static DictionaryId of(DictionaryKey dictionaryKey)
         {
             return of(dictionaryKey.schemaTableColumn(), dictionaryKey.nodeIdentifier());
         }
@@ -496,23 +496,23 @@ public class DictionariesCache
         private final long lastCreatedTimestamp;
         private int failedWriteCount;
 
-        public DictionaryMetadata(long lastCreatedTimestamp)
+        DictionaryMetadata(long lastCreatedTimestamp)
         {
             this.lastCreatedTimestamp = lastCreatedTimestamp;
             this.failedWriteCount = 0;
         }
 
-        public long getLastCreatedTimestamp()
+        long getLastCreatedTimestamp()
         {
             return lastCreatedTimestamp;
         }
 
-        public void incFailedWriteCount()
+        void incFailedWriteCount()
         {
             failedWriteCount++;
         }
 
-        public int getFailedWriteCount()
+        int getFailedWriteCount()
         {
             return failedWriteCount;
         }

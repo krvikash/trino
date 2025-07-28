@@ -172,7 +172,7 @@ public class WorkerTaskExecutorServiceTest
         private final int priority;
         private final UUID id;
 
-        public TestSubmittableTask(RowGroupKey key, int priority)
+        TestSubmittableTask(RowGroupKey key, int priority)
         {
             this.priority = priority;
             this.key = key;
