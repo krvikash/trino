@@ -193,7 +193,7 @@ public class PredicateUtils
     }
 
     /**
-     * Decompose boolean a block into logical terms. If the returned operation is Logical, create one block for each term.
+     * Decompose a boolean block into logical terms. If the returned operation is Logical, create one block for each term.
      * Otherwise, return the original block as the only term.
      * All returned blocks have the same name and parameters as the original block.
      * <p>
