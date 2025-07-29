@@ -2840,6 +2840,21 @@ public class HiveMetadata
     }
 
     @Override
+    public void refreshView(ConnectorSession session, SchemaTableName viewName, ConnectorViewDefinition viewDefinition)
+    {
+        if (getView(session, viewName).isEmpty()) {
+            throw new ViewNotFoundException(viewName);
+        }
+        try {
+            Table view = metastore.getTable(viewName.getSchemaName(), viewName.getTableName()).orElseThrow(() -> new ViewNotFoundException(viewName));
+            replaceView(session, viewName, view, viewDefinition);
+        }
+        catch (TableNotFoundException e) {
+            throw new ViewNotFoundException(e.getTableName());
+        }
+    }
+
+    @Override
     public void dropView(ConnectorSession session, SchemaTableName viewName)
     {
         if (getView(session, viewName).isEmpty()) {

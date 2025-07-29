@@ -593,6 +593,12 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public void refreshView(ConnectorSession session, SchemaTableName viewName, ConnectorViewDefinition viewDefinition)
+    {
+        delegate.refreshView(session, viewName, viewDefinition);
+    }
+
+    @Override
     public void dropView(ConnectorSession session, SchemaTableName viewName)
     {
         delegate.dropView(session, viewName);
