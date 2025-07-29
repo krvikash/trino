@@ -72,8 +72,7 @@ public class DictionaryAdaptiveBlockEncoding
         int[] ids = new int[positionCount];
         AdaptiveIntEncoding.decode(sliceInput, ids, positionCount);
 
-        // flatten the dictionary
-        return dictionaryBlock.copyPositions(ids, 0, ids.length);
+        return DictionaryBlock.create(positionCount, dictionaryBlock, ids);
     }
 
     @Override
