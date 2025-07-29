@@ -3046,7 +3046,7 @@ public class IcebergMetadata
     }
 
     @Override
-    public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Map<String, Object> properties)
+    public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, Map<String, Object> properties)
     {
         IcebergTableHandle table = (IcebergTableHandle) tableHandle;
         BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());

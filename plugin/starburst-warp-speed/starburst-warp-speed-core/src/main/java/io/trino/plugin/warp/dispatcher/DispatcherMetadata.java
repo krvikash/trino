@@ -1420,9 +1420,9 @@ public class DispatcherMetadata
     }
 
     @Override
-    public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Map<String, Object> properties)
+    public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, Map<String, Object> properties)
     {
-        proxiedConnectorMetadata.createBranch(session, tableHandle, branch, properties);
+        proxiedConnectorMetadata.createBranch(session, tableHandle, branch, fromBranch, properties);
     }
 
     @Override
