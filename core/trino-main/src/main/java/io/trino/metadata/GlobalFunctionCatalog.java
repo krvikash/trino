@@ -27,6 +27,7 @@ import io.trino.operator.table.json.JsonTable.JsonTableFunctionHandle;
 import io.trino.server.dataframe.AnalyzeLogicalPlan;
 import io.trino.spi.function.AggregationFunctionMetadata;
 import io.trino.spi.function.AggregationImplementation;
+import io.trino.spi.function.BatchFunctionImplementation;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.FunctionDependencies;
@@ -196,6 +197,12 @@ public class GlobalFunctionCatalog
             InvocationConvention invocationConvention)
     {
         return functions.getFunctionBundle(functionId).getScalarFunctionImplementation(functionId, boundSignature, functionDependencies, invocationConvention);
+    }
+
+    @Override
+    public BatchFunctionImplementation getBatchFunctionImplementation(FunctionId functionId)
+    {
+        return functions.getFunctionBundle(functionId).getBatchFunctionImplementation(functionId);
     }
 
     @Override

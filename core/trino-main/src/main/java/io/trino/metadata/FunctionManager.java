@@ -28,6 +28,7 @@ import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.function.AggregationImplementation;
+import io.trino.spi.function.BatchFunctionImplementation;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.FunctionDependencies;
 import io.trino.spi.function.FunctionProvider;
@@ -96,6 +97,11 @@ public class FunctionManager
             throwIfInstanceOf(e.getCause(), TrinoException.class);
             throw new RuntimeException(e.getCause());
         }
+    }
+
+    public BatchFunctionImplementation getBatchFunctionImplementation(ResolvedFunction resolvedFunction)
+    {
+        return getFunctionProvider(resolvedFunction).getBatchFunctionImplementation(resolvedFunction.functionId());
     }
 
     private ScalarFunctionImplementation getScalarFunctionImplementationInternal(ResolvedFunction resolvedFunction, InvocationConvention invocationConvention)

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 
 import static io.trino.spi.function.FunctionKind.AGGREGATE;
+import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.spi.function.FunctionKind.SCALAR;
 import static io.trino.spi.function.FunctionKind.TABLE;
 import static io.trino.spi.function.FunctionKind.WINDOW;
@@ -188,6 +189,11 @@ public class FunctionMetadata
         return builder(canonicalName, SCALAR);
     }
 
+    public static Builder batchBuilder(String canonicalName)
+    {
+        return builder(canonicalName, BATCH);
+    }
+
     public static Builder operatorBuilder(OperatorType operatorType)
     {
         String name = OPERATOR_PREFIX + requireNonNull(operatorType, "operatorType is null").name();
@@ -326,7 +332,7 @@ public class FunctionMetadata
                 functionId = FunctionId.toFunctionId(canonicalName, signature);
             }
             if (argumentNullability == null) {
-                argumentNullability = Collections.nCopies(signature.getArgumentTypes().size(), kind == WINDOW);
+                argumentNullability = Collections.nCopies(signature.getArgumentTypes().size(), kind == WINDOW || kind == BATCH);
             }
             return new FunctionMetadata(
                     functionId,

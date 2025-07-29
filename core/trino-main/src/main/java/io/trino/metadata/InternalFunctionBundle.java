@@ -25,6 +25,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.function.AggregationFunction;
 import io.trino.spi.function.AggregationFunctionMetadata;
 import io.trino.spi.function.AggregationImplementation;
+import io.trino.spi.function.BatchFunctionImplementation;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.FunctionDependencies;
 import io.trino.spi.function.FunctionDependencyDeclaration;
@@ -132,6 +133,14 @@ public class InternalFunctionBundle
             throw new RuntimeException(e.getCause());
         }
         return specializedSqlScalarFunction.getScalarFunctionImplementation(invocationConvention);
+    }
+
+    @Override
+    public BatchFunctionImplementation getBatchFunctionImplementation(FunctionId functionId)
+    {
+        SqlFunction function = getSqlFunction(functionId);
+        checkArgument(function instanceof SqlBatchFunction, "%s is not a batch function", function.getFunctionMetadata().getSignature());
+        return ((SqlBatchFunction) function).getBatchFunctionImplementation();
     }
 
     private SpecializedSqlScalarFunction specializeScalarFunction(FunctionId functionId, BoundSignature boundSignature, FunctionDependencies functionDependencies)

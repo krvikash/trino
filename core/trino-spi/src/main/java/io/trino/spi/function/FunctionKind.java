@@ -19,4 +19,5 @@ public enum FunctionKind
     AGGREGATE,
     WINDOW,
     TABLE,
+    BATCH,
 }

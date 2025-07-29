@@ -15,6 +15,7 @@ package io.trino.metadata;
 
 import io.trino.spi.function.AggregationFunctionMetadata;
 import io.trino.spi.function.AggregationImplementation;
+import io.trino.spi.function.BatchFunctionImplementation;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.FunctionDependencies;
 import io.trino.spi.function.FunctionDependencyDeclaration;
@@ -39,6 +40,8 @@ public interface FunctionBundle
             BoundSignature boundSignature,
             FunctionDependencies functionDependencies,
             InvocationConvention invocationConvention);
+
+    BatchFunctionImplementation getBatchFunctionImplementation(FunctionId functionId);
 
     AggregationImplementation getAggregationImplementation(FunctionId functionId, BoundSignature boundSignature, FunctionDependencies functionDependencies);
 

@@ -30,6 +30,11 @@ public interface FunctionProvider
         throw new UnsupportedOperationException("%s does not provide scalar functions".formatted(getClass().getName()));
     }
 
+    default BatchFunctionImplementation getBatchFunctionImplementation(FunctionId functionId)
+    {
+        throw new UnsupportedOperationException("%s does not provide batch functions".formatted(getClass().getName()));
+    }
+
     default AggregationImplementation getAggregationImplementation(FunctionId functionId, BoundSignature boundSignature, FunctionDependencies functionDependencies)
     {
         throw new UnsupportedOperationException("%s does not provide aggregation functions".formatted(getClass().getName()));

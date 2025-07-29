@@ -35,6 +35,9 @@ import io.airlift.bytecode.control.IfStatement;
 import io.trino.cache.CacheStatsMBean;
 import io.trino.cache.NonEvictableLoadingCache;
 import io.trino.metadata.FunctionManager;
+import io.trino.metadata.ResolvedFunction;
+import io.trino.operator.project.BatchFunctionProjection;
+import io.trino.operator.project.BatchFunctionsRewriter;
 import io.trino.operator.project.ConstantPageProjection;
 import io.trino.operator.project.GeneratedPageProjection;
 import io.trino.operator.project.InputChannels;
@@ -42,14 +45,17 @@ import io.trino.operator.project.InputPageProjection;
 import io.trino.operator.project.PageFieldsToInputParametersRewriter;
 import io.trino.operator.project.PageFilter;
 import io.trino.operator.project.PageProjection;
+import io.trino.operator.project.ScalarProjectionOverBatchFunctions;
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.function.BatchFunctionImplementation;
 import io.trino.sql.gen.LambdaBytecodeGenerator.CompiledLambda;
 import io.trino.sql.planner.CompilerConfig;
+import io.trino.sql.relational.CallExpression;
 import io.trino.sql.relational.ConstantExpression;
 import io.trino.sql.relational.Expressions;
 import io.trino.sql.relational.InputReferenceExpression;
@@ -72,6 +78,7 @@ import java.util.function.Supplier;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.bytecode.Access.FINAL;
 import static io.airlift.bytecode.Access.PRIVATE;
 import static io.airlift.bytecode.Access.PUBLIC;
@@ -88,9 +95,12 @@ import static io.airlift.bytecode.expression.BytecodeExpressions.lessThan;
 import static io.airlift.bytecode.expression.BytecodeExpressions.newArray;
 import static io.airlift.bytecode.expression.BytecodeExpressions.not;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
+import static io.trino.operator.project.BatchFunctionsRewriter.rewriteBatchFunctionsToVariableReferences;
+import static io.trino.operator.project.BatchFunctionsRewriter.rewriteBatchVariableReferencesToInputReferences;
 import static io.trino.operator.project.PageFieldsToInputParametersRewriter.rewritePageFieldsToInputParameters;
 import static io.trino.spi.StandardErrorCode.COMPILER_ERROR;
 import static io.trino.spi.StandardErrorCode.QUERY_EXCEEDED_COMPILER_LIMIT;
+import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.sql.gen.BytecodeUtils.generateWrite;
 import static io.trino.sql.gen.BytecodeUtils.invoke;
 import static io.trino.sql.gen.LambdaExpressionExtractor.extractLambdaExpressions;
@@ -191,12 +201,38 @@ public class PageFunctionCompiler
             return () -> projectionFunction;
         }
 
+        if (projection instanceof CallExpression call && call.resolvedFunction().functionKind() == BATCH) {
+            List<Supplier<PageProjection>> batchInputProjections = call.arguments().stream()
+                    .map(argument -> compileProjectionInternal(argument, classNameSuffix))
+                    .collect(toImmutableList());
+            ResolvedFunction resolvedFunction = call.resolvedFunction();
+            BatchFunctionImplementation batchFunctionImplementation = functionManager.getBatchFunctionImplementation(resolvedFunction);
+            return () -> new BatchFunctionProjection(
+                    batchInputProjections.stream()
+                            .map(Supplier::get)
+                            .collect(toImmutableList()),
+                    batchFunctionImplementation.methodHandle(),
+                    resolvedFunction.deterministic());
+        }
+
+        BatchFunctionsRewriter.Result batchRewriterResult = rewriteBatchFunctionsToVariableReferences(projection);
+        if (!batchRewriterResult.batchExpressions().isEmpty()) {
+            List<Supplier<PageProjection>> batchProjections = batchRewriterResult.batchExpressions().stream()
+                    .map(expression -> compileProjectionInternal(expression, classNameSuffix))
+                    .collect(toImmutableList());
+            Supplier<PageProjection> rewrittenProjection = compileProjectionInternal(batchRewriterResult.rewrittenExpression(), classNameSuffix);
+            return () -> new ScalarProjectionOverBatchFunctions(
+                    batchProjections.stream().map(Supplier::get).collect(toImmutableList()),
+                    rewrittenProjection.get());
+        }
+
         PageFieldsToInputParametersRewriter.Result result = rewritePageFieldsToInputParameters(projection);
         boolean isExpressionDeterministic = isDeterministic(result.getRewrittenExpression());
+        RowExpression rewrittenExpression = rewriteBatchVariableReferencesToInputReferences(result.getRewrittenExpression());
 
         CallSiteBinder callSiteBinder = new CallSiteBinder();
 
-        ClassDefinition pageProjectionWorkDefinition = definePageProjectWorkClass(result.getRewrittenExpression(), callSiteBinder, classNameSuffix);
+        ClassDefinition pageProjectionWorkDefinition = definePageProjectWorkClass(rewrittenExpression, callSiteBinder, classNameSuffix);
 
         Class<?> pageProjectionWorkClass;
         try {
@@ -212,7 +248,7 @@ public class PageFunctionCompiler
 
         MethodHandle pageProjectionConstructor = constructorMethodHandle(pageProjectionWorkClass, BlockBuilder.class, ConnectorSession.class, SourcePage.class, SelectedPositions.class);
         return () -> new GeneratedPageProjection(
-                result.getRewrittenExpression(),
+                rewrittenExpression,
                 isExpressionDeterministic,
                 result.getInputChannels(),
                 pageProjectionConstructor);
