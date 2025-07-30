@@ -1141,8 +1141,7 @@ public interface ConnectorMetadata
     /**
      * Creates the specified branch.
      */
-    @Experimental(eta = "2025-12-31")
-    default void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, Map<String, Object> properties)
+    default void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, SaveMode saveMode, Map<String, Object> properties)
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support creating branches");
     }

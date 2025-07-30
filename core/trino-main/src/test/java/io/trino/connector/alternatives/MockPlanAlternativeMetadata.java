@@ -726,9 +726,9 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, Map<String, Object> properties)
+    public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, SaveMode saveMode, Map<String, Object> properties)
     {
-        delegate.createBranch(session, tableHandle, branch, fromBranch, properties);
+        delegate.createBranch(session, tableHandle, branch, fromBranch, saveMode, properties);
     }
 
     @Override
