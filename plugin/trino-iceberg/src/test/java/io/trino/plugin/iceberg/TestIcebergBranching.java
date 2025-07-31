@@ -59,6 +59,42 @@ final class TestIcebergBranching
     }
 
     @Test
+    void testCreateBranchFromOtherBranch()
+    {
+        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_create_branch", "AS SELECT 1 x")) {
+            assertBranch(table.getName(), "main");
+
+            assertUpdate("CREATE BRANCH \"" + "tmp" + "\" IN TABLE " + table.getName());
+            assertBranch(table.getName(), "main", "tmp");
+
+            assertUpdate("INSERT INTO " + table.getName() + " @ tmp VALUES 2", 1);
+            assertThat(query("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'main'")).matches("VALUES 1");
+            assertThat(query("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'tmp'")).matches("VALUES 1, 2");
+
+            assertUpdate("CREATE BRANCH \"" + "audit" + "\" IN TABLE " + table.getName() + " FROM tmp");
+            assertBranch(table.getName(), "main", "tmp", "audit");
+            assertThat(query("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'main'")).matches("VALUES 1");
+            assertThat(query("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'tmp'")).matches("VALUES 1, 2");
+            assertThat(query("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'audit'")).matches("VALUES 1, 2");
+
+            assertUpdate("INSERT INTO " + table.getName() + " @ audit VALUES 3", 1);
+            assertThat(query("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'main'")).matches("VALUES 1");
+            assertThat(query("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'tmp'")).matches("VALUES 1, 2");
+            assertThat(query("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'audit'")).matches("VALUES 1, 2, 3");
+        }
+    }
+
+    @Test
+    void testCreateBranchFromNonExistentOtherBranchFail()
+    {
+        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_create_branch", "AS SELECT 1 x")) {
+            assertQueryFails(
+                    "CREATE BRANCH \"" + "tmp" + "\" IN TABLE " + table.getName() + " FROM not_found",
+                    "line 1:1: Branch 'not_found' does not exist");
+        }
+    }
+
+    @Test
     void testCreateBranchAlreadyExist()
     {
         try (TestTable table = new TestTable(getQueryRunner()::execute, "test_create_branch", "(x int)")) {

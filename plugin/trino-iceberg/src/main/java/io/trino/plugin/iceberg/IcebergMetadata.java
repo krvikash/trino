@@ -164,6 +164,7 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.IsolationLevel;
+import org.apache.iceberg.ManageSnapshots;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
@@ -3055,10 +3056,19 @@ public class IcebergMetadata
 
         IcebergTableHandle table = (IcebergTableHandle) tableHandle;
         BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        ManageSnapshots manageSnapshots = icebergTable.manageSnapshots();
         try {
-            icebergTable.manageSnapshots()
-                    .createBranch(branch)
-                    .commit();
+            if (fromBranch.isPresent()) {
+                SnapshotRef ref = icebergTable.refs().get(fromBranch.get());
+                if (ref == null || !ref.isBranch()) {
+                    throw new TrinoException(GENERIC_USER_ERROR, "Branch '%s' does not exist".formatted(fromBranch.get()));
+                }
+                manageSnapshots.createBranch(branch, ref.snapshotId());
+            }
+            else {
+                manageSnapshots.createBranch(branch);
+            }
+            manageSnapshots.commit();
         }
         catch (Exception e) {
             throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to create branch", e);
