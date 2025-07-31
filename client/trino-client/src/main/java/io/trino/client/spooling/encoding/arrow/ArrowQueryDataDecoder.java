@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.client.spooling.encoding;
+package io.trino.client.spooling.encoding.arrow;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
@@ -19,7 +19,7 @@ import io.trino.client.CloseableIterator;
 import io.trino.client.Column;
 import io.trino.client.QueryDataDecoder;
 import io.trino.client.spooling.DataAttributes;
-import io.trino.client.spooling.encoding.ArrowDecodingUtils.VectorTypeDecoder;
+import io.trino.client.spooling.encoding.arrow.ArrowDecodingUtils.VectorTypeDecoder;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
@@ -35,7 +35,7 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.trino.client.spooling.encoding.ArrowDecodingUtils.createVectorTypeDecoders;
+import static io.trino.client.spooling.encoding.arrow.ArrowDecodingUtils.createVectorTypeDecoders;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 

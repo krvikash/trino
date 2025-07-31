@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.client.spooling.encoding;
+package io.trino.client.spooling.encoding.arrow;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.InetAddresses;
@@ -92,21 +92,21 @@ import static io.trino.client.ClientStandardTypes.UUID;
 import static io.trino.client.ClientStandardTypes.VARCHAR;
 import static io.trino.client.IntervalDayTime.formatMillis;
 import static io.trino.client.IntervalYearMonth.formatMonths;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.MICROSECONDS_PER_MILLISECOND;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.NANOSECONDS_PER_MICROSECOND;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.NANOSECONDS_PER_MILLISECOND;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.PICOSECONDS_PER_MICROSECOND;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.PICOSECONDS_PER_MILLISECOND;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.PICOSECONDS_PER_NANOSECOND;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.PICOSECONDS_PER_SECOND;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.PRECISION_MICROS;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.PRECISION_MILLIS;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.PRECISION_NANOS;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.PRECISION_SECONDS;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.formatOffset;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.formatTime;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.formatTimestamp;
-import static io.trino.client.spooling.encoding.ArrowDateTimeUtils.formatTimestampWithTimeZone;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.MICROSECONDS_PER_MILLISECOND;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.NANOSECONDS_PER_MICROSECOND;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.NANOSECONDS_PER_MILLISECOND;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PICOSECONDS_PER_MICROSECOND;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PICOSECONDS_PER_MILLISECOND;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PICOSECONDS_PER_NANOSECOND;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PICOSECONDS_PER_SECOND;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_MICROS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_MILLIS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_NANOS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_SECONDS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.formatOffset;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.formatTime;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.formatTimestamp;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.formatTimestampWithTimeZone;
 import static java.lang.Long.reverseBytes;
 import static java.lang.Math.floorDiv;
 import static java.lang.Math.toIntExact;

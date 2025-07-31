@@ -15,6 +15,7 @@ package io.trino.client.spooling.encoding;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.client.QueryDataDecoder.Factory;
+import io.trino.client.spooling.encoding.arrow.ArrowQueryDataDecoder;
 
 import java.util.List;
 import java.util.Map;

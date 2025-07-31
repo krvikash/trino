@@ -15,7 +15,7 @@ package io.trino.server.protocol;
 
 import io.trino.client.Column;
 import io.trino.client.QueryDataDecoder;
-import io.trino.client.spooling.encoding.ArrowQueryDataDecoder;
+import io.trino.client.spooling.encoding.arrow.ArrowQueryDataDecoder;
 import io.trino.server.protocol.spooling.QueryDataEncoder;
 import io.trino.server.protocol.spooling.encoding.ArrowQueryDataEncoder;
 import org.apache.arrow.memory.BufferAllocator;
