@@ -3048,6 +3048,10 @@ public class IcebergMetadata
     @Override
     public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, SaveMode saveMode, Map<String, Object> properties)
     {
+        if (saveMode == SaveMode.REPLACE) {
+            throw new TrinoException(NOT_SUPPORTED, "The connector does not support replacing branches");
+        }
+
         IcebergTableHandle table = (IcebergTableHandle) tableHandle;
         BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
         try {

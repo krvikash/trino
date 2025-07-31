@@ -68,6 +68,14 @@ final class TestIcebergBranching
     }
 
     @Test
+    void testReplaceBranchFail()
+    {
+        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_create_branch", "AS SELECT 1 x")) {
+            assertQueryFails("CREATE OR REPLACE BRANCH \"" + "audit" + "\" IN TABLE " + table.getName(), "The connector does not support replacing branches");
+        }
+    }
+
+    @Test
     void testDropBranch()
     {
         try (TestTable table = new TestTable(getQueryRunner()::execute, "test_drop_branch", "(x int)")) {
