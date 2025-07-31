@@ -3051,6 +3051,7 @@ public class IcebergMetadata
         if (saveMode == SaveMode.REPLACE) {
             throw new TrinoException(NOT_SUPPORTED, "The connector does not support replacing branches");
         }
+        checkArgument(properties.isEmpty(), "This connector does not support creating branches with properties");
 
         IcebergTableHandle table = (IcebergTableHandle) tableHandle;
         BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
