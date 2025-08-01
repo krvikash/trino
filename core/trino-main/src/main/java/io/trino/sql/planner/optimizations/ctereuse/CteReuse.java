@@ -923,7 +923,7 @@ public class CteReuse
         Block unifiedPredicateToApply = conjunction(
                 ImmutableList.of(
                         disjunction(dynamicPredicatesToApply, nameAllocator),
-                        disjunction(staticPredicatesToApply, nameAllocator)),
+                        hoistCommonConjuncts(disjunction(staticPredicatesToApply, nameAllocator), nameAllocator)),
                 nameAllocator);
         unifiedPredicateToApply = optimizeLogicalOperations(unifiedPredicateToApply);
         // remove the conjuncts that are already enforced
