@@ -39,6 +39,7 @@ import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
+import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
@@ -424,6 +425,14 @@ public class NewIrFragmenter
 
         @Override
         public PlanNode visitProject(Project operation, FragmentProperties context)
+        {
+            TrinoOperation source = getSource(operation);
+            PlanNode rewrittenSource = source.accept(this, context);
+            return operation.accept(relationalRewriter, ImmutableList.of(rewrittenSource));
+        }
+
+        @Override
+        public PlanNode visitSort(Sort operation, FragmentProperties context)
         {
             TrinoOperation source = getSource(operation);
             PlanNode rewrittenSource = source.accept(this, context);

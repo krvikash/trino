@@ -35,6 +35,7 @@ import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
+import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
@@ -71,6 +72,7 @@ import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.ValuesNode;
@@ -510,6 +512,18 @@ public class ToOldIrRelationalRewriter
                 planNodeIdAllocator.getNextId(),
                 source,
                 assignmentsBuilder.build());
+    }
+
+    @Override
+    public PlanNode visitSort(Sort sort, List<PlanNode> sources)
+    {
+        PlanNode source = getOnlyElement(sources);
+
+        return new SortNode(
+                planNodeIdAllocator.getNextId(),
+                source,
+                getOptionalOrderingScheme(SORT_ORDERS.getAttribute(sort.attributes()), sort.orderingSelector(), source.getOutputSymbols()).orElseThrow(),
+                PARTIAL.getAttribute(sort.attributes()));
     }
 
     @Override

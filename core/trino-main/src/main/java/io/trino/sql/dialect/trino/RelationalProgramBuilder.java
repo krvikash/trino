@@ -48,6 +48,7 @@ import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.Values;
@@ -74,6 +75,7 @@ import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanVisitor;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.ValuesNode;
@@ -764,6 +766,32 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(project.result().type())), node.getOutputSymbols());
         context.block().addOperation(project);
         return new OperationAndMapping(project, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitSort(SortNode node, Context context)
+    {
+        OperationAndMapping input = node.getSource().accept(this, context);
+        String resultName = nameAllocator.newName();
+
+        // order by
+        Block.Parameter orderingSelectorParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(relationRowType(trinoType(input.operation().result().type()))));
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, input.mapping(), node.getOrderingScheme().orderBy());
+        valueMap.put(orderingSelectorParameter, orderingSelector);
+
+        Sort sort = new Sort(
+                resultName,
+                input.operation().result(),
+                orderingSelector,
+                new SortOrderList(node.getOrderingScheme().orderingList()),
+                node.isPartial(),
+                input.operation().attributes());
+        valueMap.put(sort.result(), sort);
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(sort.result().type())), node.getOutputSymbols());
+        context.block().addOperation(sort);
+        return new OperationAndMapping(sort, outputMapping);
     }
 
     @Override

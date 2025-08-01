@@ -60,6 +60,7 @@ import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.sql.planner.plan.WindowNode;
@@ -404,6 +405,17 @@ class TestToOldIrRelationalRewriter
                         .put(new Symbol(BIGINT, "expr_0"), new Constant(BIGINT, 5L))
                         .build());
         assertRoundtrip(mixedProjection);
+    }
+
+    @Test
+    public void testSort()
+    {
+        SortNode sortNode = new SortNode(
+                new PlanNodeId("0"),
+                VALUES_NODE,
+                new OrderingScheme(ImmutableList.of(B, A), ImmutableMap.of(B, DESC_NULLS_FIRST, A, ASC_NULLS_FIRST)),
+                false);
+        assertRoundtrip(sortNode);
     }
 
     @Test

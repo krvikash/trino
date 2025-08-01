@@ -52,6 +52,7 @@ import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.Values;
@@ -87,6 +88,7 @@ import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.ValuesNode;
@@ -1377,6 +1379,45 @@ final class TestRelationalProgramBuilder
                 ImmutableList.of(valuesOperation, projectOperation),
                 new MultisetType(EMPTY_ROW),
                 ImmutableMap.of());
+    }
+
+    @Test
+    public void testSort()
+    {
+        SortNode sortNode = new SortNode(
+                new PlanNodeId("sort"),
+                VALUES_NODE,
+                new OrderingScheme(ImmutableList.of(new Symbol(BOOLEAN, "b")), ImmutableMap.of(new Symbol(BOOLEAN, "b"), ASC_NULLS_FIRST)),
+                false);
+
+        Block.Parameter orderingParameter = new Block.Parameter(
+                "%10",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%11", orderingParameter, 1, ImmutableMap.of());
+        Row rowOperationOrdering = new Row("%12", ImmutableList.of(fieldReferenceOperationOrderingB.result()), ImmutableList.of(fieldReferenceOperationOrderingB.attributes()));
+        Return returnOperationOrdering = new Return("%13", rowOperationOrdering.result(), rowOperationOrdering.attributes());
+
+        Sort sortOperation = new Sort(
+                "%9",
+                VALUES_OPERATION.result(),
+                new Block(
+                        Optional.of("^orderingSelector"),
+                        ImmutableList.of(orderingParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationOrderingB,
+                                rowOperationOrdering,
+                                returnOperationOrdering)),
+                new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
+                false,
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                sortNode,
+                ImmutableList.of(VALUES_OPERATION, sortOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1));
     }
 
     @Test
