@@ -208,6 +208,7 @@ public class TestTrinoNessieCatalog
                     UTC,
                     newDirectExecutorService(),
                     directExecutor(),
+                    newDirectExecutorService(),
                     newDirectExecutorService());
             assertThat(icebergMetadata.schemaExists(SESSION, namespace)).as("icebergMetadata.schemaExists(namespace)")
                     .isTrue();

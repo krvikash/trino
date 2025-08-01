@@ -161,6 +161,7 @@ public abstract class BaseTrinoCatalogTest
                     UTC,
                     newDirectExecutorService(),
                     directExecutor(),
+                    newDirectExecutorService(),
                     newDirectExecutorService());
             assertThat(icebergMetadata.schemaExists(SESSION, namespace)).as("icebergMetadata.schemaExists(namespace)")
                     .isFalse();

@@ -155,6 +155,7 @@ public class TestTrinoGlueCatalog
                     UTC,
                     newDirectExecutorService(),
                     directExecutor(),
+                    newDirectExecutorService(),
                     newDirectExecutorService());
             assertThat(icebergMetadata.schemaExists(SESSION, databaseName)).as("icebergMetadata.schemaExists(databaseName)")
                     .isFalse();
