@@ -15,17 +15,21 @@ package io.trino.server.protocol.spooling;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.inject.Binder;
+import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.server.protocol.spooling.encoding.ArrowCompressionFactory;
 import io.trino.server.protocol.spooling.encoding.ArrowQueryDataEncoder;
 import io.trino.server.protocol.spooling.encoding.JsonQueryDataEncoder;
+import io.trino.server.protocol.spooling.encoding.arrow.ArrowEncodingConfig;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.compression.CompressionCodec;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
+import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.base.JdkCompatibilityChecks.verifyServerAccessOpened;
 import static io.trino.plugin.base.JdkCompatibilityChecks.verifyServerUnsafeAllowed;
 
@@ -59,7 +63,8 @@ public class QueryDataEncodingModule
                     binder,
                     "Arrow encoding support");
 
-            binder.bind(BufferAllocator.class).toInstance(new RootAllocator());
+            configBinder(binder).bindConfig(ArrowEncodingConfig.class);
+            binder.bind(BufferAllocator.class).toProvider(BufferAllocatorProvider.class);
             binder.bind(CompressionCodec.Factory.class).to(ArrowCompressionFactory.class).in(Scopes.SINGLETON);
 
             if (config.isArrowEnabled()) {
@@ -70,5 +75,21 @@ public class QueryDataEncodingModule
             }
         }
         binder.bind(QueryDataEncoders.class).in(Scopes.SINGLETON);
+    }
+
+    private record BufferAllocatorProvider(long maximumAllocation)
+            implements Provider<BufferAllocator>
+    {
+        @Inject
+        private BufferAllocatorProvider(ArrowEncodingConfig maximumAllocation)
+        {
+            this(maximumAllocation.getAllocatorMemoryLimit().toBytes());
+        }
+
+        @Override
+        public BufferAllocator get()
+        {
+            return new RootAllocator(maximumAllocation);
+        }
     }
 }
