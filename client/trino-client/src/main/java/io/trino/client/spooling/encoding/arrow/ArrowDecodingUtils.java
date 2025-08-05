@@ -198,7 +198,12 @@ public class ArrowDecodingUtils
                 if (precision == PRECISION_MILLIS) {
                     return new TimeMilliWithTimeZoneDecoder(checkedCast(vector, StructVector.class));
                 }
-                // TODO: Support precisions from 6 to 9
+                if (precision == PRECISION_MICROS) {
+                    return new TimeMicroWithTimeZoneDecoder(checkedCast(vector, StructVector.class));
+                }
+                if (precision == PRECISION_NANOS) {
+                    return new TimeNanoWithTimeZoneDecoder(checkedCast(vector, StructVector.class));
+                }
                 throw new UnsupportedOperationException(format("Unsupported time(%d) with timezone type", precision));
             }
             case TIMESTAMP: {
@@ -766,6 +771,66 @@ public class ArrowDecodingUtils
                 return null;
             }
             return formatTime(PRECISION_MILLIS, (long) timeMilliVector.get(position) * PICOSECONDS_PER_MILLISECOND) + formatOffset(offsetVector.get(position));
+        }
+
+        @Override
+        public void close()
+        {
+            vector.close();
+        }
+    }
+
+    private static class TimeMicroWithTimeZoneDecoder
+            implements VectorTypeDecoder<String>
+    {
+        private final StructVector vector;
+        private final TimeMicroVector timeMicroVector;
+        private final IntVector offsetVector;
+
+        public TimeMicroWithTimeZoneDecoder(StructVector vector)
+        {
+            this.vector = requireNonNull(vector, "vector is null");
+            this.timeMicroVector = checkedCast(vector.getChild("time"), TimeMicroVector.class);
+            this.offsetVector = checkedCast(vector.getChild("offset"), IntVector.class);
+        }
+
+        @Override
+        public String decode(int position)
+        {
+            if (vector.isNull(position)) {
+                return null;
+            }
+            return formatTime(PRECISION_MICROS, timeMicroVector.get(position) * PICOSECONDS_PER_MICROSECOND) + formatOffset(offsetVector.get(position));
+        }
+
+        @Override
+        public void close()
+        {
+            vector.close();
+        }
+    }
+
+    private static class TimeNanoWithTimeZoneDecoder
+            implements VectorTypeDecoder<String>
+    {
+        private final StructVector vector;
+        private final TimeNanoVector timeNanoVector;
+        private final IntVector offsetVector;
+
+        public TimeNanoWithTimeZoneDecoder(StructVector vector)
+        {
+            this.vector = requireNonNull(vector, "vector is null");
+            this.timeNanoVector = checkedCast(vector.getChild("time"), TimeNanoVector.class);
+            this.offsetVector = checkedCast(vector.getChild("offset"), IntVector.class);
+        }
+
+        @Override
+        public String decode(int position)
+        {
+            if (vector.isNull(position)) {
+                return null;
+            }
+            return formatTime(PRECISION_NANOS, timeNanoVector.get(position) * PICOSECONDS_PER_NANOSECOND) + formatOffset(offsetVector.get(position));
         }
 
         @Override

@@ -61,6 +61,7 @@ import static io.trino.server.protocol.ProtocolUtil.createColumn;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
+import static io.trino.spi.type.DateTimeEncoding.packTimeWithTimeZone;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.Decimals.encodeScaledValue;
 import static io.trino.spi.type.Decimals.encodeShortScaledValue;
@@ -72,6 +73,10 @@ import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimeType.TIME_MILLIS;
 import static io.trino.spi.type.TimeType.TIME_NANOS;
 import static io.trino.spi.type.TimeType.TIME_SECONDS;
+import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_MICROS;
+import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_MILLIS;
+import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_NANOS;
+import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_SECONDS;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
@@ -80,6 +85,9 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_SECONDS;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
@@ -374,6 +382,22 @@ public abstract class AbstractTestEncodingDecoding
     }
 
     @Test
+    public void testTime0WithTzSerialization()
+            throws IOException
+    {
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(NANOSECONDS_PER_SECOND, 60));
+            TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(60 * NANOSECONDS_PER_SECOND, 30));
+            TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(99 * NANOSECONDS_PER_SECOND, 45));
+            TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(999 * NANOSECONDS_PER_SECOND, 180));
+            TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND, 719));
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(TIME_TZ_SECONDS, builder, "00:00:01+01:00", "00:01:00+00:30", "00:01:39+00:45", "00:16:39+03:00", "23:59:59+11:59", null);
+    }
+
+    @Test
     public void testTimestamp0WithTzSerialization()
             throws IOException
     {
@@ -406,6 +430,22 @@ public abstract class AbstractTestEncodingDecoding
     }
 
     @Test
+    public void testTime3WithTzSerialization()
+            throws IOException
+    {
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(NANOSECONDS_PER_SECOND + NANOSECONDS_PER_MILLISECOND, 60));
+            TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(60 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MILLISECOND, 30));
+            TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(99 * NANOSECONDS_PER_SECOND + 100 * NANOSECONDS_PER_MILLISECOND, 45));
+            TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(999 * NANOSECONDS_PER_SECOND + 999 * NANOSECONDS_PER_MILLISECOND, 180));
+            TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MILLISECOND, 719));
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(TIME_TZ_MILLIS, builder, "00:00:01.001+01:00", "00:01:00.010+00:30", "00:01:39.100+00:45", "00:16:39.999+03:00", "23:59:59.010+11:59", null);
+    }
+
+    @Test
     public void testTime6Serialization()
             throws IOException
     {
@@ -420,6 +460,22 @@ public abstract class AbstractTestEncodingDecoding
         };
 
         assertRoundTrip(TIME_MICROS, builder, "00:00:01.000000", "00:01:00.000000", "00:01:39.000000", "00:16:39.000000", "23:59:59.000000", "00:00:00.000001", null);
+    }
+
+    @Test
+    public void testTime6WithTzSerialization()
+            throws IOException
+    {
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(NANOSECONDS_PER_SECOND + NANOSECONDS_PER_MICROSECOND, 60));
+            TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(60 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MICROSECOND, 30));
+            TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(99 * NANOSECONDS_PER_SECOND + 100 * NANOSECONDS_PER_MICROSECOND, 45));
+            TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(999 * NANOSECONDS_PER_SECOND + 999 * NANOSECONDS_PER_MICROSECOND, 180));
+            TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MICROSECOND, 719));
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(TIME_TZ_MICROS, builder, "00:00:01.000001+01:00", "00:01:00.000010+00:30", "00:01:39.000100+00:45", "00:16:39.000999+03:00", "23:59:59.000010+11:59", null);
     }
 
     @Test
@@ -438,6 +494,22 @@ public abstract class AbstractTestEncodingDecoding
         };
 
         assertRoundTrip(TIME_NANOS, builder, "00:00:01.000000000", "00:01:00.000000000", "00:01:39.000000000", "00:16:39.000000000", "23:59:59.000000000", "00:00:00.000001000", "00:00:00.000000001", null);
+    }
+
+    @Test
+    public void testTime9WithTzSerialization()
+            throws IOException
+    {
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(NANOSECONDS_PER_SECOND + 1, 60));
+            TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(60 * NANOSECONDS_PER_SECOND + 10, 30));
+            TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(99 * NANOSECONDS_PER_SECOND + 100, 45));
+            TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(999 * NANOSECONDS_PER_SECOND + 999, 180));
+            TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10, 719));
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(TIME_TZ_NANOS, builder, "00:00:01.000000001+01:00", "00:01:00.000000010+00:30", "00:01:39.000000100+00:45", "00:16:39.000000999+03:00", "23:59:59.000000010+11:59", null);
     }
 
     @Test

@@ -67,6 +67,10 @@ import java.util.List;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_MICROS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_MILLIS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_NANOS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_SECONDS;
 import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.checkedCast;
 import static java.lang.Math.toIntExact;
 import static java.nio.channels.Channels.newChannel;
@@ -166,8 +170,13 @@ public class ArrowPageWriter
                     new ArrayWriter(vector, writerForVector(vector.getDataVector(), arrayType.getElementType()));
             case StructVector structVector when type instanceof RowType rowType ->
                     new RowWriter(structVector, writersForVectors(structVector.getChildrenFromFields(), rowType.getFields()));
-            case StructVector structVector when type instanceof TimeWithTimeZoneType timeWithTimeZoneType ->
-                    new TimeWithTimeZoneWriter(structVector, timeWithTimeZoneType.getPrecision());
+            case StructVector structVector when type instanceof TimeWithTimeZoneType timeWithTimeZoneType -> switch (timeWithTimeZoneType.getPrecision()) {
+                case PRECISION_SECONDS -> new TimeSecWithTimeZoneWriter(structVector);
+                case PRECISION_MILLIS -> new TimeMilliWithTimeZoneWriter(structVector);
+                case PRECISION_MICROS -> new TimeMicroWithTimeZoneWriter(structVector);
+                case PRECISION_NANOS -> new TimeNanoWithTimeZoneWriter(structVector);
+                default -> throw unsupportedVectorException(structVector, timeWithTimeZoneType);
+            };
             case StructVector structVector when type instanceof TimestampWithTimeZoneType timestampWithTimeZoneType ->
                     new TimestampWithTimeZoneWriter(structVector, timestampWithTimeZoneType.getPrecision());
             default -> throw unsupportedVectorException(valueVector, type);

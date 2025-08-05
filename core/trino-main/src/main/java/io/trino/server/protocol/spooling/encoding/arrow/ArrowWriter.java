@@ -20,12 +20,18 @@ import org.apache.arrow.vector.ValueVector;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-public sealed interface ArrowWriter permits
-        PrimitiveWriter,
-        ArrayWriter,
+public sealed interface ArrowWriter
+        permits ArrayWriter,
         MapWriter,
+        PrimitiveWriter,
         RowWriter,
-        TimeWithTimeZoneWriter,
+
+        TimeSecWithTimeZoneWriter, // time(0) with time zone
+        TimeMilliWithTimeZoneWriter, // time(3) with time zone
+        TimeMicroWithTimeZoneWriter, // time(6) with time zone
+        TimeNanoWithTimeZoneWriter, // time(9) with time zone
+        // time(12) is not supported by Arrow
+
         TimestampWithTimeZoneWriter
         // No extension types yet
 {

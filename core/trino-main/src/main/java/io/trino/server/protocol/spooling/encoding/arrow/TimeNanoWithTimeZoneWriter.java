@@ -14,37 +14,27 @@
 package io.trino.server.protocol.spooling.encoding.arrow;
 
 import io.trino.spi.block.Block;
-import io.trino.spi.block.LongArrayBlock;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.TimeMilliVector;
 import org.apache.arrow.vector.TimeNanoVector;
-import org.apache.arrow.vector.TimeSecVector;
 import org.apache.arrow.vector.complex.StructVector;
 
 import static io.trino.spi.type.DateTimeEncoding.unpackOffsetMinutes;
 import static io.trino.spi.type.DateTimeEncoding.unpackTimeNanos;
-import static io.trino.type.DateTimes.NANOSECONDS_PER_MILLISECOND;
-import static io.trino.type.DateTimes.NANOSECONDS_PER_SECOND;
-import static java.lang.Math.floorDiv;
-import static java.lang.Math.toIntExact;
+import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_NANOS;
 import static java.util.Objects.requireNonNull;
 
-// TODO: specialize this class for different time precisions
-public final class TimeWithTimeZoneWriter
+public final class TimeNanoWithTimeZoneWriter
         implements ArrowWriter
 {
     private final StructVector vector;
-    private final int precision;
-    private final FieldVector timeVector;
+    private final TimeNanoVector timeVector;
     private final IntVector offsetVector;
 
-    public TimeWithTimeZoneWriter(StructVector vector, int precision)
+    public TimeNanoWithTimeZoneWriter(StructVector vector)
     {
         this.vector = requireNonNull(vector, "vector is null");
-        this.timeVector = ArrowWriter.checkedCast(vector.getChild("time"), FieldVector.class);
+        this.timeVector = ArrowWriter.checkedCast(vector.getChild("time"), TimeNanoVector.class);
         this.offsetVector = ArrowWriter.checkedCast(vector.getChild("offset"), IntVector.class);
-        this.precision = precision;
     }
 
     @Override
@@ -61,20 +51,8 @@ public final class TimeWithTimeZoneWriter
                 vector.setNull(position);
             }
             else {
-                if (!(block instanceof LongArrayBlock arrayBlock)) {
-                    throw new IllegalArgumentException("Expected a LongArrayBlock for TimeWithTimeZone, but got " + block.getClass().getSimpleName());
-                }
-                long value = arrayBlock.getLong(position);
-                long timeNanos = unpackTimeNanos(value);
-                switch (precision) {
-                    case 0 -> ArrowWriter.checkedCast(timeVector, TimeSecVector.class)
-                            .set(position, toIntExact(floorDiv(timeNanos, NANOSECONDS_PER_SECOND)));
-                    case 3 -> ArrowWriter.checkedCast(timeVector, TimeMilliVector.class)
-                            .set(position, toIntExact(floorDiv(timeNanos, NANOSECONDS_PER_MILLISECOND)));
-                    case 6 -> ArrowWriter.checkedCast(timeVector, TimeNanoVector.class)
-                            .set(position, timeNanos);
-                    case 12 -> throw new UnsupportedOperationException("Precision " + precision + " is not supported for TimeWithTimeZone");
-                }
+                long value = TIME_TZ_NANOS.getLong(block, position);
+                timeVector.set(position, unpackTimeNanos(value));
                 offsetVector.set(position, unpackOffsetMinutes(value));
                 vector.setIndexDefined(position);
             }
