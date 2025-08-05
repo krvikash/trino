@@ -14,6 +14,7 @@ import com.starburstdata.trino.plugin.stargate.TestingMemoryPlugin;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
+import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.hive.HivePlugin;
 import io.trino.plugin.jmx.JmxPlugin;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
@@ -133,7 +134,8 @@ public final class StargateParallelQueryRunner
             queryRunner.createCatalog("hive", "hive", ImmutableMap.of(
                     "hive.metastore", "file",
                     "hive.metastore.catalog.dir", "file:" + hiveCatalog.toRealPath(),
-                    "hive.security", "allow-all"));
+                    "hive.security", "allow-all",
+                    "fs.hadoop.enabled", "true"));
 
             queryRunner.execute("CREATE SCHEMA hive.tiny");
             Session tpchSetupSession = testSessionBuilder()
@@ -163,6 +165,7 @@ public final class StargateParallelQueryRunner
 
             server.execute("CREATE SCHEMA tiny");
 
+            queryRunner.installPlugin(new GeoPlugin());
             queryRunner.installPlugin(new PostgreSqlPlugin());
             queryRunner.createCatalog("postgresql", "postgresql", connectorProperties);
 
@@ -220,6 +223,7 @@ public final class StargateParallelQueryRunner
 
             queryRunner.installPlugin(new TestingStargateParallelPlugin(enableWrites));
             queryRunner.createCatalog(catalogName, "stargate_parallel", connectorProperties);
+            queryRunner.createCatalog(catalogName + "_copy", "stargate_parallel", connectorProperties);
 
             return queryRunner;
         }

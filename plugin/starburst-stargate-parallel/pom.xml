@@ -162,6 +162,12 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-geospatial</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-hdfs</artifactId>
             <scope>test</scope>
         </dependency>
