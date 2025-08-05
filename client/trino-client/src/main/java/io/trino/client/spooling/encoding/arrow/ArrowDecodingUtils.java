@@ -295,7 +295,7 @@ public class ArrowDecodingUtils
     }
 
     private static class CharDecoder
-            implements VectorTypeDecoder
+            implements VectorTypeDecoder<String>
     {
         private final long length;
         private final VarCharVector vector;
@@ -307,7 +307,7 @@ public class ArrowDecodingUtils
         }
 
         @Override
-        public Object decode(int position)
+        public String decode(int position)
         {
             if (vector.isNull(position)) {
                 return null;
