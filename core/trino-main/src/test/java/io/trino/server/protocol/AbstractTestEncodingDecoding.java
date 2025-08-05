@@ -16,6 +16,7 @@ package io.trino.server.protocol;
 import com.google.common.collect.ImmutableList;
 import com.google.common.net.InetAddresses;
 import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.client.Column;
 import io.trino.client.QueryDataDecoder;
 import io.trino.client.Row;
@@ -328,6 +329,25 @@ public abstract class AbstractTestEncodingDecoding
                 "\r\t\n",
                 "\uD83E\uDD83",
                 null);
+    }
+
+    @Test
+    public void testVarbinarySerialization()
+            throws IOException
+    {
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            VARBINARY.writeSlice(blockBuilder, Slices.wrappedBuffer(new byte[] {0, 1, 2, 3, 4, 5, 6}));
+            blockBuilder.appendNull();
+        };
+
+        assertThat(roundTrip(ImmutableList.of(typed("singleType", VARBINARY)), page(buildBlock(VARBINARY, 2, builder))))
+                .usingRecursiveComparison()
+                .isEqualTo(column(new byte[] {0, 1, 2, 3, 4, 5, 6}, null));
+
+        assertThat(roundTrip(ImmutableList.of(typed("arrayType", new ArrayType(VARBINARY))), page(buildArrayBlock(VARBINARY, 2, builder))).getFirst().getFirst())
+                .as("Expected values for array type: " + new ArrayType(VARBINARY))
+                .usingRecursiveComparison()
+                .isEqualTo(array(new byte[] {0, 1, 2, 3, 4, 5, 6}, null));
     }
 
     @Test
@@ -711,9 +731,11 @@ public abstract class AbstractTestEncodingDecoding
             throws IOException
     {
         assertThat(roundTrip(ImmutableList.of(typed("singleType", type)), page(buildBlock(type, expectedValues.length, builder))))
+                .as("Expected values for type: " + type)
                 .isEqualTo(column(expectedValues));
 
         assertThat(roundTrip(ImmutableList.of(typed("arrayType", new ArrayType(type))), page(buildArrayBlock(type, expectedValues.length, builder))).getFirst())
+                .as("Expected values for array type: " + new ArrayType(type))
                 .containsExactly(array(expectedValues));
     }
 
