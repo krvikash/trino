@@ -38,6 +38,7 @@ import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.util.StructProjection;
 
 import java.nio.ByteBuffer;
@@ -51,12 +52,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.Slices.wrappedHeapBuffer;
 import static io.trino.plugin.iceberg.IcebergTypes.convertIcebergValueToTrino;
-import static io.trino.plugin.iceberg.IcebergUtil.getPartitionColumnType;
-import static io.trino.plugin.iceberg.IcebergUtil.partitionTypes;
 import static io.trino.plugin.iceberg.IcebergUtil.primitiveFieldTypes;
 import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
-import static io.trino.plugin.iceberg.system.FilesTable.getIcebergIdToTypeMapping;
-import static io.trino.plugin.iceberg.system.PartitionsTable.getAllPartitionFields;
+import static io.trino.plugin.iceberg.util.SystemTableUtil.getAllPartitionFields;
+import static io.trino.plugin.iceberg.util.SystemTableUtil.getPartitionColumnType;
+import static io.trino.plugin.iceberg.util.SystemTableUtil.partitionTypes;
+import static io.trino.plugin.iceberg.util.SystemTableUtil.readableMetricsToJson;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.StandardTypes.JSON;
@@ -79,7 +80,7 @@ public class EntriesTable
         extends BaseSystemTable
 {
     private final Map<Integer, Type> idToTypeMapping;
-    private final List<Types.NestedField> primitiveFields;
+    private final List<NestedField> primitiveFields;
     private final Optional<IcebergPartitionColumn> partitionColumn;
     private final List<Type> partitionTypes;
 
@@ -93,13 +94,13 @@ public class EntriesTable
                 metadataTableType,
                 executor);
         checkArgument(metadataTableType == ALL_ENTRIES || metadataTableType == ENTRIES, "Unexpected metadata table type: %s", metadataTableType);
-        idToTypeMapping = getIcebergIdToTypeMapping(supportsRowLineage(formatVersion(icebergTable)) ? schemaWithRowLineage(icebergTable.schema()) : icebergTable.schema());
+        idToTypeMapping = primitiveFieldTypes(supportsRowLineage(formatVersion(icebergTable)) ? schemaWithRowLineage(icebergTable.schema()) : icebergTable.schema());
         primitiveFields = IcebergUtil.primitiveFields(icebergTable.schema()).stream()
-                .sorted(Comparator.comparing(Types.NestedField::name))
+                .sorted(Comparator.comparing(NestedField::name))
                 .collect(toImmutableList());
         List<PartitionField> partitionFields = getAllPartitionFields(icebergTable);
-        partitionColumn = getPartitionColumnType(partitionFields, icebergTable.schema(), typeManager);
-        partitionTypes = partitionTypes(partitionFields, primitiveFieldTypes(icebergTable.schema()));
+        partitionColumn = getPartitionColumnType(typeManager, partitionFields, icebergTable.schema());
+        partitionTypes = partitionTypes(partitionFields, idToTypeMapping);
     }
 
     // TODO Use org.apache.iceberg.MetadataColumns#schemaWithRowLineage once Iceberg 1.10.0 is released
@@ -123,7 +124,7 @@ public class EntriesTable
     private static List<RowType.Field> dataFileFieldMetadata(TypeManager typeManager, Table icebergTable)
     {
         List<PartitionField> partitionFields = getAllPartitionFields(icebergTable);
-        Optional<IcebergPartitionColumn> partitionColumnType = getPartitionColumnType(partitionFields, icebergTable.schema(), typeManager);
+        Optional<IcebergPartitionColumn> partitionColumnType = getPartitionColumnType(typeManager, partitionFields, icebergTable.schema());
 
         ImmutableList.Builder<RowType.Field> fields = ImmutableList.builder();
         fields.add(new RowType.Field(Optional.of("content"), INTEGER));
@@ -157,7 +158,7 @@ public class EntriesTable
         StructProjection dataFile = row.get("data_file", StructProjection.class);
         appendDataFile((RowBlockBuilder) pagesBuilder.nextColumn(), dataFile);
         ReadableMetricsStruct readableMetrics = row.get("readable_metrics", ReadableMetricsStruct.class);
-        String readableMetricsJson = FilesTable.toJson(readableMetrics, primitiveFields);
+        String readableMetricsJson = readableMetricsToJson(readableMetrics, primitiveFields);
         pagesBuilder.appendVarchar(readableMetricsJson);
         pagesBuilder.endRow();
     }

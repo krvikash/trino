@@ -33,7 +33,6 @@ import io.trino.plugin.iceberg.PartitionTransforms.ColumnTransform;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperations;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
-import io.trino.plugin.iceberg.system.IcebergPartitionColumn;
 import io.trino.plugin.iceberg.util.DefaultLocationProvider;
 import io.trino.plugin.iceberg.util.ObjectStoreLocationProvider;
 import io.trino.spi.TrinoException;
@@ -50,7 +49,6 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
-import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
@@ -1286,35 +1284,6 @@ public final class IcebergUtil
         catch (IOException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed to get file modification time: " + path, e);
         }
-    }
-
-    public static Optional<IcebergPartitionColumn> getPartitionColumnType(List<PartitionField> fields, Schema schema, TypeManager typeManager)
-    {
-        if (fields.isEmpty()) {
-            return Optional.empty();
-        }
-        List<RowType.Field> partitionFields = fields.stream()
-                .map(field -> RowType.field(
-                        field.name(),
-                        toTrinoType(field.transform().getResultType(schema.findType(field.sourceId())), typeManager)))
-                .collect(toImmutableList());
-        List<Integer> fieldIds = fields.stream()
-                .map(PartitionField::fieldId)
-                .collect(toImmutableList());
-        return Optional.of(new IcebergPartitionColumn(RowType.from(partitionFields), fieldIds));
-    }
-
-    public static List<org.apache.iceberg.types.Type> partitionTypes(
-            List<PartitionField> partitionFields,
-            Map<Integer, org.apache.iceberg.types.Type> idToPrimitiveTypeMapping)
-    {
-        ImmutableList.Builder<org.apache.iceberg.types.Type> partitionTypeBuilder = ImmutableList.builder();
-        for (PartitionField partitionField : partitionFields) {
-            org.apache.iceberg.types.Type sourceType = idToPrimitiveTypeMapping.get(partitionField.sourceId());
-            org.apache.iceberg.types.Type type = partitionField.transform().getResultType(sourceType);
-            partitionTypeBuilder.add(type);
-        }
-        return partitionTypeBuilder.build();
     }
 
     public static boolean supportsRowLineage(int formatVersion)
