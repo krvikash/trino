@@ -219,6 +219,61 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
+    void testReadTimestampNtz()
+            throws Exception
+    {
+        String tableName = "read_timestamp_ntz_" + randomNameSuffix();
+        Connection connection = null;
+        Statement statement = null;
+        try {
+            connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, getDatabricksProperties());
+            statement = connection.createStatement();
+            statement.execute("""
+                    CREATE TABLE %s.%s.%s (id int, ts_ntz timestamp_ntz)
+                    USING DELTA
+                    """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
+            statement.execute("INSERT INTO %s.%s.%s VALUES (1, timestamp_ntz '2023-10-01 12:34:56.123456'), (2, timestamp_ntz '2025-01-01 12:34:56.123456')".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
+            assertThat(query("SELECT * FROM " + tableName))
+                    .matches("VALUES (1, TIMESTAMP '2023-10-01 12:34:56.123456'), (2, TIMESTAMP '2025-01-01 12:34:56.123456')");
+        }
+        finally {
+            if (statement != null) {
+                try {
+                    statement.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
+                    statement.close();
+                    connection.close();
+                }
+                catch (SQLException ignore) {}
+            }
+        }
+    }
+
+    @Test
+    void testExternalTableReadWriteTimestampNtz()
+            throws Exception
+    {
+        String tableName = "external_read_write_timestamp_ntz_" + randomNameSuffix();
+        String tableLocation = format("%s/%s/%s", DATABRICKS_UNITY_EXTERNAL_LOCATION, SCHEMA_NAME, tableName);
+        try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, getDatabricksProperties());
+                Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE %s.%s.%s (id int, ts_ntz timestamp_ntz)
+                    USING DELTA
+                    LOCATION '%s'
+                    """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName, tableLocation));
+
+            assertQueryReturnsEmptyResult("SELECT * FROM " + tableName);
+
+            assertUpdate("INSERT INTO " + tableName + " VALUES (1, TIMESTAMP '2023-10-01 12:34:56.123456'), (2, TIMESTAMP '2025-01-01 12:34:56.123456')", 2);
+            assertThat(query("SELECT * FROM " + tableName))
+                    .matches("VALUES (1, TIMESTAMP '2023-10-01 12:34:56.123456'), (2, TIMESTAMP '2025-01-01 12:34:56.123456')");
+        }
+        finally {
+            assertUpdate("DROP TABLE IF EXISTS " + tableName);
+        }
+    }
+
+    @Test
     void testShowTablesWithoutTableScanRedirection()
     {
         assertThat(computeActual("SHOW TABLES").getOnlyColumnAsSet())

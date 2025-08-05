@@ -677,7 +677,10 @@ public class UnityHiveMetastore
 
     private static HiveType getHiveTypeFromUnity(String hiveType)
     {
-        return HiveType.valueOf(hiveType);
+        return switch (hiveType) {
+            case "timestamp_ntz" -> HiveType.valueOf("timestamp(6)");
+            default -> HiveType.valueOf(hiveType);
+        };
     }
 
     private static StorageFormat getStorageFormat(DataSourceFormat dataSourceFormat)
