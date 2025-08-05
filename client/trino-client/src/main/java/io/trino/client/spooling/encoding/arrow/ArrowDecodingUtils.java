@@ -176,8 +176,7 @@ public class ArrowDecodingUtils
                 if (precision == PRECISION_NANOS) {
                     return new TimeNanoDecoder(checkedCast(vector, TimeNanoVector.class));
                 }
-
-                throw new UnsupportedOperationException(format("Unsupported time(%d) type", precision));
+                throw unsupportedTypeException(signature);
             }
             case TIMESTAMP_WITH_TIME_ZONE: {
                 long precision = signature.getArguments().get(0).getLongLiteral();
@@ -187,8 +186,7 @@ public class ArrowDecodingUtils
                 if (precision == PRECISION_MILLIS) {
                     return new TimestampMilliWithTimeZoneDecoder(checkedCast(vector, StructVector.class));
                 }
-                // TODO: support 6 to 9 precisions
-                throw new UnsupportedOperationException(format("Unsupported timestamp(%d) with time zone type", precision));
+                throw unsupportedTypeException(signature);
             }
             case TIME_WITH_TIME_ZONE: {
                 long precision = signature.getArguments().get(0).getLongLiteral();
@@ -204,7 +202,7 @@ public class ArrowDecodingUtils
                 if (precision == PRECISION_NANOS) {
                     return new TimeNanoWithTimeZoneDecoder(checkedCast(vector, StructVector.class));
                 }
-                throw new UnsupportedOperationException(format("Unsupported time(%d) with timezone type", precision));
+                throw unsupportedTypeException(signature);
             }
             case TIMESTAMP: {
                 long precision = signature.getArguments().get(0).getLongLiteral();
@@ -220,7 +218,7 @@ public class ArrowDecodingUtils
                 if (precision == PRECISION_NANOS) {
                     return new TimestampNanoDecoder(checkedCast(vector, TimeStampNanoVector.class));
                 }
-                throw new UnsupportedOperationException(format("Unsupported timestamp(%d) type", precision));
+                throw unsupportedTypeException(signature);
             }
             case JSON:
             case GEOMETRY:
@@ -1053,5 +1051,10 @@ public class ArrowDecodingUtils
         requireNonNull(vector, "vector is null");
         checkArgument(clazz.isInstance(vector), "Expected %s, but got %s", clazz, vector.getClass());
         return clazz.cast(vector);
+    }
+
+    private static UnsupportedOperationException unsupportedTypeException(ClientTypeSignature type)
+    {
+        return new UnsupportedOperationException(format("Unsupported type: %s", type));
     }
 }
