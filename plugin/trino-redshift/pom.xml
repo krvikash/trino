@@ -380,7 +380,8 @@
                         <configuration>
                             <includes>
                                 <include>**/Test*FailureRecoveryTest.java</include>
-                                <include>**/Test*FailureRecoverySmokeTest.java</include>
+                                <!-- Don't run smoke test because the above failure recovery test should be enough -->
+                                <!-- <include>**/Test*FailureRecoverySmokeTest.java</include> -->
                             </includes>
                             <systemPropertyVariables>
                                 <junit.jupiter.execution.parallel.enabled>true</junit.jupiter.execution.parallel.enabled>
