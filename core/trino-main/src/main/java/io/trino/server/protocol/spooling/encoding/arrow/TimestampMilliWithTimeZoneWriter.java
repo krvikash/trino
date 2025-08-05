@@ -14,35 +14,28 @@
 package io.trino.server.protocol.spooling.encoding.arrow;
 
 import io.trino.spi.block.Block;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
-import org.apache.arrow.vector.TimeStampSecVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 
 import static io.trino.spi.type.DateTimeEncoding.unpackMillisUtc;
 import static io.trino.spi.type.DateTimeEncoding.unpackZoneKey;
-import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_SECONDS;
-import static java.lang.Math.floorDiv;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static org.joda.time.DateTimeConstants.MILLIS_PER_SECOND;
 
-// TODO: specialize this class for different timestamp precisions
-public final class TimestampWithTimeZoneWriter
+public final class TimestampMilliWithTimeZoneWriter
         implements ArrowWriter
 {
     private final StructVector vector;
-    private final int precision;
-    private final FieldVector timestampVector;
+    private final TimeStampMilliVector timestampVector;
     private final VarCharVector timezoneVector;
 
-    public TimestampWithTimeZoneWriter(StructVector vector, int precision)
+    public TimestampMilliWithTimeZoneWriter(StructVector vector)
     {
         this.vector = requireNonNull(vector, "vector is null");
-        this.timestampVector = ArrowWriter.checkedCast(vector.getChild("timestamp"), FieldVector.class);
+        this.timestampVector = ArrowWriter.checkedCast(vector.getChild("timestamp"), TimeStampMilliVector.class);
         this.timezoneVector = ArrowWriter.checkedCast(vector.getChild("timezone"), VarCharVector.class);
-        this.precision = precision;
     }
 
     @Override
@@ -59,13 +52,9 @@ public final class TimestampWithTimeZoneWriter
                 vector.setNull(position);
             }
             else {
-                long value = TIMESTAMP_TZ_SECONDS.getLong(block, position);
+                long value = TIMESTAMP_TZ_MILLIS.getLong(block, position);
                 long epochMillis = unpackMillisUtc(value);
-                switch (precision) {
-                    case 0 -> ArrowWriter.checkedCast(timestampVector, TimeStampSecVector.class).set(position, floorDiv(epochMillis, MILLIS_PER_SECOND));
-                    case 3 -> ArrowWriter.checkedCast(timestampVector, TimeStampMilliVector.class).set(position, epochMillis);
-                    default -> throw new UnsupportedOperationException("Precision " + precision + " is not supported for TimestampWithTimeZone");
-                }
+                timestampVector.set(position, epochMillis);
                 timezoneVector.setSafe(position, unpackZoneKey(value).getId().getBytes(UTF_8));
                 vector.setIndexDefined(position);
             }

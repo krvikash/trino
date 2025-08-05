@@ -186,6 +186,12 @@ public class ArrowDecodingUtils
                 if (precision == PRECISION_MILLIS) {
                     return new TimestampMilliWithTimeZoneDecoder(checkedCast(vector, StructVector.class));
                 }
+                if (precision == PRECISION_MICROS) {
+                    return new TimestampMicroWithTimeZoneDecoder(checkedCast(vector, StructVector.class));
+                }
+                if (precision == PRECISION_NANOS) {
+                    return new TimestampNanoWithTimeZoneDecoder(checkedCast(vector, StructVector.class));
+                }
                 throw unsupportedTypeException(signature);
             }
             case TIME_WITH_TIME_ZONE: {
@@ -570,7 +576,76 @@ public class ArrowDecodingUtils
             if (vector.isNull(position)) {
                 return null;
             }
-            return formatTimestampWithTimeZone(PRECISION_SECONDS, timeStampMilliVector.get(position), 3, ZoneId.of(timezoneVector.getObject(position).toString()));
+            return formatTimestampWithTimeZone(PRECISION_MILLIS, timeStampMilliVector.get(position), 0, ZoneId.of(timezoneVector.getObject(position).toString()));
+        }
+
+        @Override
+        public void close()
+        {
+            vector.close();
+        }
+    }
+
+    private static class TimestampMicroWithTimeZoneDecoder
+            implements VectorTypeDecoder<String>
+    {
+        private final StructVector vector;
+        private final TimeStampMicroVector timeStampMicroVector;
+        private final VarCharVector timezoneVector;
+
+        public TimestampMicroWithTimeZoneDecoder(StructVector vector)
+        {
+            this.vector = requireNonNull(vector, "vector is null");
+            this.timeStampMicroVector = checkedCast(vector.getChild("timestamp"), TimeStampMicroVector.class);
+            this.timezoneVector = checkedCast(vector.getChild("timezone"), VarCharVector.class);
+        }
+
+        @Override
+        public String decode(int position)
+        {
+            if (vector.isNull(position)) {
+                return null;
+            }
+
+            long micros = timeStampMicroVector.get(position);
+            long millis = floorDiv(micros, MICROSECONDS_PER_MILLISECOND);
+            int picos = toIntExact(micros - millis * MICROSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_MICROSECOND;
+
+            return formatTimestampWithTimeZone(PRECISION_MICROS, millis, picos, ZoneId.of(timezoneVector.getObject(position).toString()));
+        }
+
+        @Override
+        public void close()
+        {
+            vector.close();
+        }
+    }
+
+    private static class TimestampNanoWithTimeZoneDecoder
+            implements VectorTypeDecoder<String>
+    {
+        private final StructVector vector;
+        private final TimeStampNanoVector timeStampNanoVector;
+        private final VarCharVector timezoneVector;
+
+        public TimestampNanoWithTimeZoneDecoder(StructVector vector)
+        {
+            this.vector = requireNonNull(vector, "vector is null");
+            this.timeStampNanoVector = checkedCast(vector.getChild("timestamp"), TimeStampNanoVector.class);
+            this.timezoneVector = checkedCast(vector.getChild("timezone"), VarCharVector.class);
+        }
+
+        @Override
+        public String decode(int position)
+        {
+            if (vector.isNull(position)) {
+                return null;
+            }
+            long nanos = timeStampNanoVector.get(position);
+            long millis = floorDiv(nanos, NANOSECONDS_PER_MILLISECOND);
+            int picos = toIntExact(nanos - millis * NANOSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_NANOSECOND;
+
+            return formatTimestampWithTimeZone(PRECISION_NANOS, millis, picos, ZoneId.of(timezoneVector.getObject(position).toString()));
         }
 
         @Override

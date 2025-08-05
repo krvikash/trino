@@ -177,8 +177,13 @@ public class ArrowPageWriter
                 case PRECISION_NANOS -> new TimeNanoWithTimeZoneWriter(structVector);
                 default -> throw unsupportedVectorException(structVector, timeWithTimeZoneType);
             };
-            case StructVector structVector when type instanceof TimestampWithTimeZoneType timestampWithTimeZoneType ->
-                    new TimestampWithTimeZoneWriter(structVector, timestampWithTimeZoneType.getPrecision());
+            case StructVector structVector when type instanceof TimestampWithTimeZoneType timestampWithTimeZoneType -> switch (timestampWithTimeZoneType.getPrecision()) {
+                case PRECISION_SECONDS -> new TimestampSecWithTimeZoneWriter(structVector);
+                case PRECISION_MILLIS -> new TimestampMilliWithTimeZoneWriter(structVector);
+                case PRECISION_MICROS -> new TimestampMicroWithTimeZoneWriter(structVector);
+                case PRECISION_NANOS -> new TimestampNanoWithTimeZoneWriter(structVector);
+                default -> throw unsupportedVectorException(structVector, timestampWithTimeZoneType);
+            };
             default -> throw unsupportedVectorException(valueVector, type);
         };
     }

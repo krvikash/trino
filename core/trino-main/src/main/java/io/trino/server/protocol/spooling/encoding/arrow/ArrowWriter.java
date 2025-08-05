@@ -32,7 +32,12 @@ public sealed interface ArrowWriter
         TimeNanoWithTimeZoneWriter, // time(9) with time zone
         // time(12) is not supported by Arrow
 
-        TimestampWithTimeZoneWriter
+        TimestampSecWithTimeZoneWriter, // timestamp(0) with time zone
+        TimestampMilliWithTimeZoneWriter, // timestamp(3) with time zone
+        TimestampMicroWithTimeZoneWriter, // timestamp(6) with time zone
+        TimestampNanoWithTimeZoneWriter // timestamp(9) with time zone
+        // timestamp(12) is not supported by Arrow
+
         // No extension types yet
 {
     /**

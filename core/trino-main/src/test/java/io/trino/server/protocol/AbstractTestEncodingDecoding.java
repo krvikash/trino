@@ -31,6 +31,7 @@ import io.trino.spi.block.RowBlockBuilder;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
@@ -84,6 +85,9 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_SECONDS;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
@@ -430,6 +434,51 @@ public abstract class AbstractTestEncodingDecoding
         };
 
         assertRoundTrip(TIMESTAMP_TZ_SECONDS, builder, "2025-03-03 18:57:17 UTC", "1970-01-01 00:00:00 UTC", "2025-03-03 12:57:17 America/Bahia_Banderas", "1969-12-31 17:00:00 America/Bahia_Banderas", null);
+    }
+
+    @Test
+    public void testTimestamp3WithTzSerialization()
+            throws IOException
+    {
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            TIMESTAMP_TZ_MILLIS.writeLong(blockBuilder, packDateTimeWithZone(1741028237000L, UTC_KEY));
+            TIMESTAMP_TZ_MILLIS.writeLong(blockBuilder, packDateTimeWithZone(1L, UTC_KEY));
+            TIMESTAMP_TZ_MILLIS.writeLong(blockBuilder, packDateTimeWithZone(1741028237010L, getTimeZoneKey("America/Bahia_Banderas")));
+            TIMESTAMP_TZ_MILLIS.writeLong(blockBuilder, packDateTimeWithZone(0L, getTimeZoneKey("America/Bahia_Banderas")));
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(TIMESTAMP_TZ_MILLIS, builder, "2025-03-03 18:57:17.000 UTC", "1970-01-01 00:00:00.001 UTC", "2025-03-03 12:57:17.010 America/Bahia_Banderas", "1969-12-31 17:00:00.000 America/Bahia_Banderas", null);
+    }
+
+    @Test
+    public void testTimestamp6WithTzSerialization()
+            throws IOException
+    {
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            TIMESTAMP_TZ_MICROS.writeObject(blockBuilder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(1741028237000L, PICOSECONDS_PER_MICROSECOND, UTC_KEY));
+            TIMESTAMP_TZ_MICROS.writeObject(blockBuilder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(1, 0, UTC_KEY));
+            TIMESTAMP_TZ_MICROS.writeObject(blockBuilder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(1741028237010L, 0, getTimeZoneKey("America/Bahia_Banderas")));
+            TIMESTAMP_TZ_MICROS.writeObject(blockBuilder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(0L, 0, getTimeZoneKey("America/Bahia_Banderas")));
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(TIMESTAMP_TZ_MICROS, builder, "2025-03-03 18:57:17.000001 UTC", "1970-01-01 00:00:00.001000 UTC", "2025-03-03 12:57:17.010000 America/Bahia_Banderas", "1969-12-31 17:00:00.000000 America/Bahia_Banderas", null);
+    }
+
+    @Test
+    public void testTimestamp9WithTzSerialization()
+            throws IOException
+    {
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            TIMESTAMP_TZ_NANOS.writeObject(blockBuilder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(1741028237000L, PICOSECONDS_PER_MICROSECOND, UTC_KEY));
+            TIMESTAMP_TZ_NANOS.writeObject(blockBuilder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(1, 0, UTC_KEY));
+            TIMESTAMP_TZ_NANOS.writeObject(blockBuilder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(1741028237010L, PICOSECONDS_PER_NANOSECOND, getTimeZoneKey("America/Bahia_Banderas")));
+            TIMESTAMP_TZ_NANOS.writeObject(blockBuilder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(0L, 66 * PICOSECONDS_PER_NANOSECOND, getTimeZoneKey("America/Bahia_Banderas")));
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(TIMESTAMP_TZ_NANOS, builder, "2025-03-03 18:57:17.000001000 UTC", "1970-01-01 00:00:00.001000000 UTC", "2025-03-03 12:57:17.010000001 America/Bahia_Banderas", "1969-12-31 17:00:00.000000066 America/Bahia_Banderas", null);
     }
 
     @Test
