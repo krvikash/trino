@@ -26,12 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
-import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -71,6 +66,8 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     private static final String DATABRICKS_AWS_ACCESS_KEY_ID = requireEnv("DATABRICKS_AWS_ACCESS_KEY_ID");
     private static final String DATABRICKS_AWS_SECRET_ACCESS_KEY = requireEnv("DATABRICKS_AWS_SECRET_ACCESS_KEY");
 
+    private static final DatabricksSqlExecutor DATABRICKS = new DatabricksSqlExecutor(DATABRICKS_UNITY_JDBC_URL, DATABRICKS_LOGIN, DATABRICKS_TOKEN);
+
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
@@ -97,25 +94,17 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     }
 
     private static void createTpchTables(QueryRunner queryRunner)
-            throws Exception
     {
-        Properties properties = new Properties();
-        properties.put("user", DATABRICKS_LOGIN);
-        properties.put("password", DATABRICKS_TOKEN);
-
         if (queryRunner.execute("SHOW SCHEMAS LIKE '" + SCHEMA_NAME + "'").getMaterializedRows().isEmpty()) {
             String schemaLocation = format("%s/%s", DATABRICKS_UNITY_EXTERNAL_LOCATION, SCHEMA_NAME);
             LOG.info("Creating schema '%s' as it doesn't exist", SCHEMA_NAME);
-            try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, properties);
-                    Statement statement = connection.createStatement()) {
-                statement.execute(format("CREATE SCHEMA IF NOT EXISTS %s.%s MANAGED LOCATION '%s'", DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, schemaLocation));
-            }
+            DATABRICKS.execute(format("CREATE SCHEMA IF NOT EXISTS %s.%s MANAGED LOCATION '%s'", DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, schemaLocation));
         }
         for (TpchTable<?> tpchTable : REQUIRED_TPCH_TABLES) {
             String tableName = tpchTable.getTableName();
             if (queryRunner.execute("SHOW TABLES LIKE '" + tableName + "'").getMaterializedRows().isEmpty()) {
                 LOG.info("Creating table '%s.%s' as it doesn't exist", SCHEMA_NAME, tableName);
-                createTable(tableName, properties, queryRunner);
+                createTable(tableName, queryRunner);
             }
             else {
                 long actualRows = (Long) queryRunner.execute("SELECT count(*) FROM tpch.tiny." + tableName).getMaterializedRows().getFirst().getField(0);
@@ -123,22 +112,18 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
                         .getMaterializedRows().getFirst().getField(0);
                 if (actualRows != expectedRows) {
                     LOG.info("Recreating table '%s.%s' as actual rows [%s] are different than the expected rows [%s]", SCHEMA_NAME, tableName, expectedRows, actualRows);
-                    createTable(tableName, properties, queryRunner);
+                    createTable(tableName, queryRunner);
                 }
             }
         }
-        try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, properties);
-                Statement statement = connection.createStatement()) {
-            statement.execute("""
+        DATABRICKS.execute("""
                 CREATE TABLE IF NOT EXISTS %s.%s.%s
                 USING DELTA
                 AS SELECT 1 col
                 """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, DELTA_TABLE_NAME));
-        }
     }
 
-    private static void createTable(String tableName, Properties connectionProperties, QueryRunner queryRunner)
-            throws SQLException
+    private static void createTable(String tableName, QueryRunner queryRunner)
     {
         String createNationTable =
                 """
@@ -154,20 +139,17 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
                 LOCATION '%3$s'
                 AS SELECT r_regionkey as regionkey, r_name as name, r_comment as comment FROM SAMPLES.TPCH.region
                 """;
-        try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, connectionProperties);
-                Statement statement = connection.createStatement()) {
-            String schemaLocation = getTpchSchemaLocation(queryRunner);
-            if (tableName.equals(NATION.getTableName())) {
-                statement.execute(createNationTable
-                        .formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
-            }
-            else if (tableName.equals(REGION.getTableName())) {
-                statement.execute(createRegionTable
-                        .formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName), tableName));
-            }
-            else {
-                throw new IllegalArgumentException("Unsupported table name: " + tableName);
-            }
+        String schemaLocation = getTpchSchemaLocation(queryRunner);
+        if (tableName.equals(NATION.getTableName())) {
+            DATABRICKS.execute(createNationTable
+                    .formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
+        }
+        else if (tableName.equals(REGION.getTableName())) {
+            DATABRICKS.execute(createRegionTable
+                    .formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName), tableName));
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported table name: " + tableName);
         }
     }
 
@@ -325,17 +307,10 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     @Test
     public void testInsert()
     {
-        Properties properties = new Properties();
-        properties.put("user", DATABRICKS_LOGIN);
-        properties.put("password", DATABRICKS_TOKEN);
         String tableName = "hive_table_" + randomNameSuffix();
-        Connection connection = null;
-        Statement statement = null;
         String schemaLocation = getTpchSchemaLocation(getQueryRunner());
         try {
-            connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, properties);
-            statement = connection.createStatement();
-            statement.execute("""
+            DATABRICKS.execute("""
                 CREATE TABLE IF NOT EXISTS %s.%s.%s (c int)
                 USING PARQUET
                 LOCATION '%s'
@@ -344,18 +319,8 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
             assertThat(query("SELECT * FROM " + tableName))
                     .matches("VALUES 1");
         }
-        catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
         finally {
-            if (statement != null) {
-                try {
-                    statement.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
-                    statement.close();
-                    connection.close();
-                }
-                catch (SQLException ignore) {}
-            }
+            DATABRICKS.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
         }
     }
 

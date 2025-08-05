@@ -16,6 +16,7 @@ package io.trino.plugin.deltalake.metastore.unity;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.plugin.deltalake.DeltaLakeQueryRunner;
+import io.trino.plugin.hive.metastore.unity.DatabricksSqlExecutor;
 import io.trino.testing.BaseConnectorSmokeTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
@@ -24,12 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
-import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -67,6 +63,8 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
     private static final String DATABRICKS_AWS_ACCESS_KEY_ID = requireEnv("DATABRICKS_AWS_ACCESS_KEY_ID");
     private static final String DATABRICKS_AWS_SECRET_ACCESS_KEY = requireEnv("DATABRICKS_AWS_SECRET_ACCESS_KEY");
 
+    private static final DatabricksSqlExecutor DATABRICKS = new DatabricksSqlExecutor(DATABRICKS_UNITY_JDBC_URL, DATABRICKS_LOGIN, DATABRICKS_TOKEN);
+
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
@@ -89,25 +87,17 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
     }
 
     private static void createTpchTables(QueryRunner queryRunner)
-            throws Exception
     {
-        Properties properties = new Properties();
-        properties.put("user", DATABRICKS_LOGIN);
-        properties.put("password", DATABRICKS_TOKEN);
-
         if (queryRunner.execute("SHOW SCHEMAS LIKE '" + SCHEMA_NAME + "'").getMaterializedRows().isEmpty()) {
             String schemaLocation = format("%s/%s", DATABRICKS_UNITY_EXTERNAL_LOCATION, SCHEMA_NAME);
             LOG.info("Creating schema '%s' as it doesn't exist", SCHEMA_NAME);
-            try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, properties);
-                    Statement statement = connection.createStatement()) {
-                statement.execute(format("CREATE SCHEMA IF NOT EXISTS %s.%s MANAGED LOCATION '%s'", DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, schemaLocation));
-            }
+            DATABRICKS.execute(format("CREATE SCHEMA IF NOT EXISTS %s.%s MANAGED LOCATION '%s'", DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, schemaLocation));
         }
         for (TpchTable<?> tpchTable : REQUIRED_TPCH_TABLES) {
             String tableName = tpchTable.getTableName();
             if (queryRunner.execute("SHOW TABLES LIKE '" + tableName + "'").getMaterializedRows().isEmpty()) {
                 LOG.info("Creating table '%s.%s' as it doesn't exist", SCHEMA_NAME, tableName);
-                createTable(tableName, properties, queryRunner);
+                createTable(tableName, queryRunner);
             }
             else {
                 long actualRows = (Long) queryRunner.execute("SELECT count(*) FROM tpch.tiny." + tableName).getMaterializedRows().getFirst().getField(0);
@@ -115,24 +105,20 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                         .getMaterializedRows().getFirst().getField(0);
                 if (actualRows != expectedRows) {
                     LOG.info("Recreating table '%s.%s' as actual rows [%s] are different than the expected rows [%s]", SCHEMA_NAME, tableName, expectedRows, actualRows);
-                    createTable(tableName, properties, queryRunner);
+                    createTable(tableName, queryRunner);
                 }
             }
         }
         String schemaLocation = getTpchSchemaLocation(queryRunner);
-        try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, properties);
-                Statement statement = connection.createStatement()) {
-            statement.execute("""
+        DATABRICKS.execute("""
                 CREATE TABLE IF NOT EXISTS %s.%s.%s
                 USING PARQUET
                 LOCATION '%s'
                 AS SELECT n_nationkey as nationkey, n_name as name, n_regionkey as regionkey, n_comment as comment from SAMPLES.TPCH.nation
                 """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, HIVE_TABLE_NAME, "%s/%s".formatted(schemaLocation, HIVE_TABLE_NAME)));
-        }
     }
 
-    private static void createTable(String tableName, Properties connectionProperties, QueryRunner queryRunner)
-            throws SQLException
+    private static void createTable(String tableName, QueryRunner queryRunner)
     {
         String createNationTable =
                 """
@@ -148,20 +134,17 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                 LOCATION '%3$s'
                 AS SELECT r_regionkey as regionkey, r_name as name, r_comment as comment FROM SAMPLES.TPCH.region
                 """;
-        try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, connectionProperties);
-                Statement statement = connection.createStatement()) {
-            String schemaLocation = getTpchSchemaLocation(queryRunner);
-            if (tableName.equals(NATION.getTableName())) {
-                statement.execute(createNationTable
-                        .formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
-            }
-            else if (tableName.equals(REGION.getTableName())) {
-                statement.execute(createRegionTable
-                        .formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
-            }
-            else {
-                throw new IllegalArgumentException("Unsupported table name: " + tableName);
-            }
+        String schemaLocation = getTpchSchemaLocation(queryRunner);
+        if (tableName.equals(NATION.getTableName())) {
+            DATABRICKS.execute(createNationTable
+                    .formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
+        }
+        else if (tableName.equals(REGION.getTableName())) {
+            DATABRICKS.execute(createRegionTable
+                    .formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported table name: " + tableName);
         }
     }
 
@@ -220,43 +203,29 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
 
     @Test
     void testReadTimestampNtz()
-            throws Exception
     {
         String tableName = "read_timestamp_ntz_" + randomNameSuffix();
-        Connection connection = null;
-        Statement statement = null;
         try {
-            connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, getDatabricksProperties());
-            statement = connection.createStatement();
-            statement.execute("""
+            DATABRICKS.execute("""
                     CREATE TABLE %s.%s.%s (id int, ts_ntz timestamp_ntz)
                     USING DELTA
                     """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
-            statement.execute("INSERT INTO %s.%s.%s VALUES (1, timestamp_ntz '2023-10-01 12:34:56.123456'), (2, timestamp_ntz '2025-01-01 12:34:56.123456')".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
+            DATABRICKS.execute("INSERT INTO %s.%s.%s VALUES (1, timestamp_ntz '2023-10-01 12:34:56.123456'), (2, timestamp_ntz '2025-01-01 12:34:56.123456')".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
             assertThat(query("SELECT * FROM " + tableName))
                     .matches("VALUES (1, TIMESTAMP '2023-10-01 12:34:56.123456'), (2, TIMESTAMP '2025-01-01 12:34:56.123456')");
         }
         finally {
-            if (statement != null) {
-                try {
-                    statement.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
-                    statement.close();
-                    connection.close();
-                }
-                catch (SQLException ignore) {}
-            }
+            DATABRICKS.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
         }
     }
 
     @Test
     void testExternalTableReadWriteTimestampNtz()
-            throws Exception
     {
         String tableName = "external_read_write_timestamp_ntz_" + randomNameSuffix();
         String tableLocation = format("%s/%s/%s", DATABRICKS_UNITY_EXTERNAL_LOCATION, SCHEMA_NAME, tableName);
-        try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, getDatabricksProperties());
-                Statement statement = connection.createStatement()) {
-            statement.execute("""
+        try {
+            DATABRICKS.execute("""
                     CREATE TABLE %s.%s.%s (id int, ts_ntz timestamp_ntz)
                     USING DELTA
                     LOCATION '%s'
@@ -368,43 +337,24 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
     public void testInsert()
     {
         String tableName = "delta_table_" + randomNameSuffix();
-        Connection connection = null;
-        Statement statement = null;
         try {
-            connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, getDatabricksProperties());
-            statement = connection.createStatement();
-            statement.execute("""
+            DATABRICKS.execute("""
                 CREATE TABLE IF NOT EXISTS %s.%s.%s (c int)
                 USING DELTA
                 """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
             assertQueryFails("INSERT INTO " + tableName + " VALUES (1)", "Writes are not supported on managed tables for Unity metastore");
         }
-        catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
         finally {
-            if (statement != null) {
-                try {
-                    statement.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
-                    statement.close();
-                    connection.close();
-                }
-                catch (SQLException ignore) {}
-            }
+            DATABRICKS.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
         }
     }
 
     @Test
     void testDisallowOtherWriteOperations()
-            throws Exception
     {
         String tableName = "delta_table_disallow_" + randomNameSuffix();
-        Connection connection = null;
-        Statement statement = null;
         try {
-            connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, getDatabricksProperties());
-            statement = connection.createStatement();
-            statement.execute("""
+            DATABRICKS.execute("""
                 CREATE TABLE %s.%s.%s (c int, d int NOT NULL)
                 USING DELTA
                 """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
@@ -418,14 +368,7 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
             assertQueryFails("ALTER TABLE " + tableName + " EXECUTE OPTIMIZE", "Writes are not supported on managed tables for Unity metastore");
         }
         finally {
-            if (statement != null) {
-                try {
-                    statement.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
-                    statement.close();
-                    connection.close();
-                }
-                catch (SQLException ignore) {}
-            }
+            DATABRICKS.execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
         }
     }
 
@@ -472,14 +415,6 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
         for (String columnName : testColumnNameTestData()) {
             testColumnName(columnName, requiresDelimiting(columnName));
         }
-    }
-
-    private static Properties getDatabricksProperties()
-    {
-        Properties properties = new Properties();
-        properties.put("user", DATABRICKS_LOGIN);
-        properties.put("password", DATABRICKS_TOKEN);
-        return properties;
     }
 
     private void testColumnName(String columnName, boolean delimited)
