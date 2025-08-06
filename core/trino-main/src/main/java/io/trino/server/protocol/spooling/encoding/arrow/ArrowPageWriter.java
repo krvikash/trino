@@ -165,7 +165,7 @@ public class ArrowPageWriter
             case FixedSizeBinaryVector vector when type instanceof IpAddressType ->
                     new IpAddressWriter(vector);
             case MapVector vector when type instanceof MapType mapType ->
-                    writerForVector(vector, mapType);
+                    mapWriterForVector(vector, mapType);
             case ListVector vector when type instanceof ArrayType arrayType ->
                     new ArrayWriter(vector, writerForVector(vector.getDataVector(), arrayType.getElementType()));
             case StructVector structVector when type instanceof RowType rowType ->
@@ -198,7 +198,7 @@ public class ArrowPageWriter
         return childWriters.build();
     }
 
-    private static MapWriter writerForVector(MapVector mapVector, MapType mapType)
+    private static MapWriter mapWriterForVector(MapVector mapVector, MapType mapType)
     {
         if (!(mapVector.getDataVector() instanceof StructVector structVector)) {
             throw new UnsupportedOperationException("Expected map vector to be a struct for type %s but got %s".formatted(mapType, mapVector.getDataVector().getClass()));
