@@ -103,6 +103,10 @@ import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISI
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_MILLIS;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_NANOS;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_SECONDS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMESTAMP_VECTOR_NAME;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMEZONE_VECTOR_NAME;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_OFFSET_VECTOR_NAME;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_VECTOR_NAME;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.formatOffset;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.formatTime;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.formatTimestamp;
@@ -536,8 +540,8 @@ public class ArrowDecodingUtils
         public TimestampSecWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
-            this.timestampSecVector = checkedCast(vector.getChild("timestamp"), TimeStampSecVector.class);
-            this.timezoneVector = checkedCast(vector.getChild("timezone"), VarCharVector.class);
+            this.timestampSecVector = checkedCast(vector.getChild(TIMESTAMP_VECTOR_NAME), TimeStampSecVector.class);
+            this.timezoneVector = checkedCast(vector.getChild(TIMEZONE_VECTOR_NAME), VarCharVector.class);
         }
 
         @Override
@@ -566,8 +570,8 @@ public class ArrowDecodingUtils
         public TimestampMilliWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
-            this.timeStampMilliVector = checkedCast(vector.getChild("timestamp"), TimeStampMilliVector.class);
-            this.timezoneVector = checkedCast(vector.getChild("timezone"), VarCharVector.class);
+            this.timeStampMilliVector = checkedCast(vector.getChild(TIMESTAMP_VECTOR_NAME), TimeStampMilliVector.class);
+            this.timezoneVector = checkedCast(vector.getChild(TIMEZONE_VECTOR_NAME), VarCharVector.class);
         }
 
         @Override
@@ -596,8 +600,8 @@ public class ArrowDecodingUtils
         public TimestampMicroWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
-            this.timeStampMicroVector = checkedCast(vector.getChild("timestamp"), TimeStampMicroVector.class);
-            this.timezoneVector = checkedCast(vector.getChild("timezone"), VarCharVector.class);
+            this.timeStampMicroVector = checkedCast(vector.getChild(TIMESTAMP_VECTOR_NAME), TimeStampMicroVector.class);
+            this.timezoneVector = checkedCast(vector.getChild(TIMEZONE_VECTOR_NAME), VarCharVector.class);
         }
 
         @Override
@@ -631,8 +635,8 @@ public class ArrowDecodingUtils
         public TimestampNanoWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
-            this.timeStampNanoVector = checkedCast(vector.getChild("timestamp"), TimeStampNanoVector.class);
-            this.timezoneVector = checkedCast(vector.getChild("timezone"), VarCharVector.class);
+            this.timeStampNanoVector = checkedCast(vector.getChild(TIMESTAMP_VECTOR_NAME), TimeStampNanoVector.class);
+            this.timezoneVector = checkedCast(vector.getChild(TIMEZONE_VECTOR_NAME), VarCharVector.class);
         }
 
         @Override
@@ -803,8 +807,8 @@ public class ArrowDecodingUtils
         public TimeSecWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
-            this.timeSecVector = checkedCast(vector.getChild("time"), TimeSecVector.class);
-            this.offsetVector = checkedCast(vector.getChild("offset"), IntVector.class);
+            this.timeSecVector = checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeSecVector.class);
+            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
         }
 
         @Override
@@ -833,8 +837,8 @@ public class ArrowDecodingUtils
         public TimeMilliWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
-            this.timeMilliVector = checkedCast(vector.getChild("time"), TimeMilliVector.class);
-            this.offsetVector = checkedCast(vector.getChild("offset"), IntVector.class);
+            this.timeMilliVector = checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeMilliVector.class);
+            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
         }
 
         @Override
@@ -863,8 +867,8 @@ public class ArrowDecodingUtils
         public TimeMicroWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
-            this.timeMicroVector = checkedCast(vector.getChild("time"), TimeMicroVector.class);
-            this.offsetVector = checkedCast(vector.getChild("offset"), IntVector.class);
+            this.timeMicroVector = checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeMicroVector.class);
+            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
         }
 
         @Override
@@ -893,8 +897,8 @@ public class ArrowDecodingUtils
         public TimeNanoWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
-            this.timeNanoVector = checkedCast(vector.getChild("time"), TimeNanoVector.class);
-            this.offsetVector = checkedCast(vector.getChild("offset"), IntVector.class);
+            this.timeNanoVector = checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeNanoVector.class);
+            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
         }
 
         @Override

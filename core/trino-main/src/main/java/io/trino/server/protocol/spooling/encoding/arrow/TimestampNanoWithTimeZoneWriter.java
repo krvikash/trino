@@ -20,6 +20,8 @@ import org.apache.arrow.vector.TimeStampNanoVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMESTAMP_VECTOR_NAME;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMEZONE_VECTOR_NAME;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
@@ -37,8 +39,8 @@ public final class TimestampNanoWithTimeZoneWriter
     public TimestampNanoWithTimeZoneWriter(StructVector vector)
     {
         this.vector = requireNonNull(vector, "vector is null");
-        this.timestampVector = ArrowWriter.checkedCast(vector.getChild("timestamp"), TimeStampNanoVector.class);
-        this.timezoneVector = ArrowWriter.checkedCast(vector.getChild("timezone"), VarCharVector.class);
+        this.timestampVector = ArrowWriter.checkedCast(vector.getChild(TIMESTAMP_VECTOR_NAME), TimeStampNanoVector.class);
+        this.timezoneVector = ArrowWriter.checkedCast(vector.getChild(TIMEZONE_VECTOR_NAME), VarCharVector.class);
     }
 
     @Override

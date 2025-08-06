@@ -18,6 +18,8 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.TimeNanoVector;
 import org.apache.arrow.vector.complex.StructVector;
 
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_OFFSET_VECTOR_NAME;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_VECTOR_NAME;
 import static io.trino.spi.type.DateTimeEncoding.unpackOffsetMinutes;
 import static io.trino.spi.type.DateTimeEncoding.unpackTimeNanos;
 import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_NANOS;
@@ -33,8 +35,8 @@ public final class TimeNanoWithTimeZoneWriter
     public TimeNanoWithTimeZoneWriter(StructVector vector)
     {
         this.vector = requireNonNull(vector, "vector is null");
-        this.timeVector = ArrowWriter.checkedCast(vector.getChild("time"), TimeNanoVector.class);
-        this.offsetVector = ArrowWriter.checkedCast(vector.getChild("offset"), IntVector.class);
+        this.timeVector = ArrowWriter.checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeNanoVector.class);
+        this.offsetVector = ArrowWriter.checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
     }
 
     @Override

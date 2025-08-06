@@ -33,6 +33,11 @@ public class ArrowDateTimeUtils
     public static final int PRECISION_NANOS = 9;
     public static final int PRECISION_PICOS = 12;
 
+    public static final String TIMESTAMP_VECTOR_NAME = "timestamp";
+    public static final String TIMEZONE_VECTOR_NAME = "timezone";
+    public static final String TIME_VECTOR_NAME = "time";
+    public static final String TIME_OFFSET_VECTOR_NAME = "offset";
+
     public static final int MILLISECONDS_PER_SECOND = 1_000;
     public static final int MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * 60;
     public static final int MILLISECONDS_PER_HOUR = MILLISECONDS_PER_MINUTE * 60;

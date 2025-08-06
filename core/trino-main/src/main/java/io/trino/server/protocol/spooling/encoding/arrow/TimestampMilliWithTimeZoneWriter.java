@@ -18,6 +18,8 @@ import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMESTAMP_VECTOR_NAME;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMEZONE_VECTOR_NAME;
 import static io.trino.spi.type.DateTimeEncoding.unpackMillisUtc;
 import static io.trino.spi.type.DateTimeEncoding.unpackZoneKey;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
@@ -34,8 +36,8 @@ public final class TimestampMilliWithTimeZoneWriter
     public TimestampMilliWithTimeZoneWriter(StructVector vector)
     {
         this.vector = requireNonNull(vector, "vector is null");
-        this.timestampVector = ArrowWriter.checkedCast(vector.getChild("timestamp"), TimeStampMilliVector.class);
-        this.timezoneVector = ArrowWriter.checkedCast(vector.getChild("timezone"), VarCharVector.class);
+        this.timestampVector = ArrowWriter.checkedCast(vector.getChild(TIMESTAMP_VECTOR_NAME), TimeStampMilliVector.class);
+        this.timezoneVector = ArrowWriter.checkedCast(vector.getChild(TIMEZONE_VECTOR_NAME), VarCharVector.class);
     }
 
     @Override

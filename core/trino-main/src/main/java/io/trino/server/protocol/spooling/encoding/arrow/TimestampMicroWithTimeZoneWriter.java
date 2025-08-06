@@ -20,6 +20,8 @@ import org.apache.arrow.vector.TimeStampMicroVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMESTAMP_VECTOR_NAME;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMEZONE_VECTOR_NAME;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MICROSECOND;
@@ -37,8 +39,8 @@ public final class TimestampMicroWithTimeZoneWriter
     public TimestampMicroWithTimeZoneWriter(StructVector vector)
     {
         this.vector = requireNonNull(vector, "vector is null");
-        this.timestampVector = ArrowWriter.checkedCast(vector.getChild("timestamp"), TimeStampMicroVector.class);
-        this.timezoneVector = ArrowWriter.checkedCast(vector.getChild("timezone"), VarCharVector.class);
+        this.timestampVector = ArrowWriter.checkedCast(vector.getChild(TIMESTAMP_VECTOR_NAME), TimeStampMicroVector.class);
+        this.timezoneVector = ArrowWriter.checkedCast(vector.getChild(TIMEZONE_VECTOR_NAME), VarCharVector.class);
     }
 
     @Override
