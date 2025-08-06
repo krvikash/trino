@@ -22,7 +22,11 @@ import static io.trino.sql.planner.optimizations.ctereuse.StructuralEquivalenceU
 /**
  * Utility class for checking semantic equivalence of blocks and operations.
  * <p>
- * Note: this class delegates to StructuralEquivalenceUtils, and compares blocks structurally. It misses some cases of semantic equivalence.
+ * Semantic equivalence considers the meaning of the operations rather than just their structure.
+ * Semantically equivalent blocks produce the same results, and have the same side effects,
+ * although they may differ in structure or order of operations.
+ * <p>
+ * Note: currently this class delegates to StructuralEquivalenceUtils, and compares blocks structurally. It misses some cases of semantic equivalence.
  */
 public class SemanticEquivalenceUtils
 {
