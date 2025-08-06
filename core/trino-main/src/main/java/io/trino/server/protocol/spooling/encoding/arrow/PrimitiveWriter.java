@@ -50,6 +50,6 @@ public abstract sealed class PrimitiveWriter<V extends ValueVector>
     @Override
     public String toString()
     {
-        return this.getClass().getSimpleName() + "{vector=" + vector.getName() + "}";
+        return ArrowWriter.describeWriter(this, vector);
     }
 }

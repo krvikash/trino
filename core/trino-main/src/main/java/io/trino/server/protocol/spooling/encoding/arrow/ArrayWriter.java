@@ -67,6 +67,6 @@ public final class ArrayWriter
     @Override
     public String toString()
     {
-        return this.getClass().getSimpleName() + "{vector=" + vector.getName() + ", elementWriter=" + elementWriter + "}";
+        return ArrowWriter.describeWriter(this, vector, elementWriter);
     }
 }

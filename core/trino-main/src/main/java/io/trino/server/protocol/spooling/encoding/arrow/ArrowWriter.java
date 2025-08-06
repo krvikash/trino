@@ -13,10 +13,12 @@
  */
 package io.trino.server.protocol.spooling.encoding.arrow;
 
+import com.google.common.base.MoreObjects.ToStringHelper;
 import io.trino.spi.block.Block;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
@@ -60,5 +62,18 @@ public sealed interface ArrowWriter
         requireNonNull(vector, "vector is null");
         checkArgument(clazz.isInstance(vector), "Expected %s, but got %s", clazz, vector.getClass());
         return clazz.cast(vector);
+    }
+
+    static String describeWriter(ArrowWriter writer, ValueVector vector, ArrowWriter... children)
+    {
+        ToStringHelper toStringHelper = toStringHelper(writer)
+                .add("type", vector.getMinorType())
+                .add("name", vector.getName())
+                .add("count", vector.getValueCount());
+
+        if (children.length > 0) {
+            toStringHelper.add("children", children);
+        }
+        return toStringHelper.toString();
     }
 }

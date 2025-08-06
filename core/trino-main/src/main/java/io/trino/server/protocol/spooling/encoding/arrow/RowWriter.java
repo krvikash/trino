@@ -21,7 +21,6 @@ import org.apache.arrow.vector.complex.StructVector;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.joining;
 
 public final class RowWriter
         implements ArrowWriter
@@ -68,6 +67,6 @@ public final class RowWriter
     @Override
     public String toString()
     {
-        return this.getClass().getSimpleName() + "{vector=" + vector.getName() + ", childWriters=[" + childWriters.stream().map(ArrowWriter::toString).collect(joining(", ")) + "]}";
+        return ArrowWriter.describeWriter(this, vector, childWriters.toArray(new ArrowWriter[0]));
     }
 }

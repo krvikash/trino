@@ -65,4 +65,10 @@ public final class TimestampNanoWithTimeZoneWriter
         }
         vector.setValueCount(block.getPositionCount());
     }
+
+    @Override
+    public String toString()
+    {
+        return ArrowWriter.describeWriter(this, vector);
+    }
 }

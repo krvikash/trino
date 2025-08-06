@@ -65,4 +65,10 @@ public final class TimestampMicroWithTimeZoneWriter
         }
         vector.setValueCount(block.getPositionCount());
     }
+
+    @Override
+    public String toString()
+    {
+        return ArrowWriter.describeWriter(this, vector);
+    }
 }

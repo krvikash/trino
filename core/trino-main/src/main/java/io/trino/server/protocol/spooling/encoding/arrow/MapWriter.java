@@ -66,6 +66,6 @@ public final class MapWriter
     @Override
     public String toString()
     {
-        return this.getClass().getSimpleName() + "{vector=" + vector.getName() + ",keyWriter=" + keyWriter + ",elementWriter" + valueWriter + "}";
+        return ArrowWriter.describeWriter(this, vector, keyWriter, valueWriter);
     }
 }
