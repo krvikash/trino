@@ -62,7 +62,7 @@ public final class TimestampNanoWithTimeZoneWriter
                 timezoneVector.setSafe(position, TimeZoneKey.getTimeZoneKey(value.getTimeZoneKey()).getId().getBytes(UTF_8));
                 vector.setIndexDefined(position);
             }
-            vector.setValueCount(block.getPositionCount());
         }
+        vector.setValueCount(block.getPositionCount());
     }
 }

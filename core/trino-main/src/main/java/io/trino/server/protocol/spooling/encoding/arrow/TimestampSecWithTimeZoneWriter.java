@@ -62,7 +62,7 @@ public final class TimestampSecWithTimeZoneWriter
                 timezoneVector.setSafe(position, unpackZoneKey(value).getId().getBytes(UTF_8));
                 vector.setIndexDefined(position);
             }
-            vector.setValueCount(block.getPositionCount());
         }
+        vector.setValueCount(block.getPositionCount());
     }
 }

@@ -61,7 +61,7 @@ public final class TimeMicroWithTimeZoneWriter
                 offsetVector.set(position, unpackOffsetMinutes(value));
                 vector.setIndexDefined(position);
             }
-            vector.setValueCount(block.getPositionCount());
         }
+        vector.setValueCount(block.getPositionCount());
     }
 }
