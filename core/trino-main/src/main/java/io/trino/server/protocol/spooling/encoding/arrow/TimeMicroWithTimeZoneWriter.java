@@ -14,7 +14,7 @@
 package io.trino.server.protocol.spooling.encoding.arrow;
 
 import io.trino.spi.block.Block;
-import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TimeMicroVector;
 import org.apache.arrow.vector.complex.StructVector;
 
@@ -32,13 +32,13 @@ public final class TimeMicroWithTimeZoneWriter
 {
     private final StructVector vector;
     private final TimeMicroVector timeVector;
-    private final IntVector offsetVector;
+    private final SmallIntVector offsetVector;
 
     public TimeMicroWithTimeZoneWriter(StructVector vector)
     {
         this.vector = requireNonNull(vector, "vector is null");
         this.timeVector = ArrowWriter.checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeMicroVector.class);
-        this.offsetVector = ArrowWriter.checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
+        this.offsetVector = ArrowWriter.checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), SmallIntVector.class);
     }
 
     @Override

@@ -24,9 +24,9 @@ import org.apache.arrow.vector.DateDayVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedSizeBinaryVector;
-import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.IntervalDayVector;
 import org.apache.arrow.vector.IntervalYearVector;
+import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TimeMicroVector;
 import org.apache.arrow.vector.TimeMilliVector;
 import org.apache.arrow.vector.TimeNanoVector;
@@ -802,13 +802,13 @@ public class ArrowDecodingUtils
     {
         private final StructVector vector;
         private final TimeSecVector timeSecVector;
-        private final IntVector offsetVector;
+        private final SmallIntVector offsetVector;
 
         public TimeSecWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
             this.timeSecVector = checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeSecVector.class);
-            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
+            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), SmallIntVector.class);
         }
 
         @Override
@@ -832,13 +832,13 @@ public class ArrowDecodingUtils
     {
         private final StructVector vector;
         private final TimeMilliVector timeMilliVector;
-        private final IntVector offsetVector;
+        private final SmallIntVector offsetVector;
 
         public TimeMilliWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
             this.timeMilliVector = checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeMilliVector.class);
-            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
+            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), SmallIntVector.class);
         }
 
         @Override
@@ -862,13 +862,13 @@ public class ArrowDecodingUtils
     {
         private final StructVector vector;
         private final TimeMicroVector timeMicroVector;
-        private final IntVector offsetVector;
+        private final SmallIntVector offsetVector;
 
         public TimeMicroWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
             this.timeMicroVector = checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeMicroVector.class);
-            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
+            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), SmallIntVector.class);
         }
 
         @Override
@@ -892,13 +892,13 @@ public class ArrowDecodingUtils
     {
         private final StructVector vector;
         private final TimeNanoVector timeNanoVector;
-        private final IntVector offsetVector;
+        private final SmallIntVector offsetVector;
 
         public TimeNanoWithTimeZoneDecoder(StructVector vector)
         {
             this.vector = requireNonNull(vector, "vector is null");
             this.timeNanoVector = checkedCast(vector.getChild(TIME_VECTOR_NAME), TimeNanoVector.class);
-            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), IntVector.class);
+            this.offsetVector = checkedCast(vector.getChild(TIME_OFFSET_VECTOR_NAME), SmallIntVector.class);
         }
 
         @Override

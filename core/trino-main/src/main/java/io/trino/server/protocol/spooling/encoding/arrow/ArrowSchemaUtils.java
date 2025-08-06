@@ -53,7 +53,7 @@ import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMESTA
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMEZONE_VECTOR_NAME;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_OFFSET_VECTOR_NAME;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_VECTOR_NAME;
-import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeType.createTimeType;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -102,7 +102,7 @@ public final class ArrowSchemaUtils
             case TimeWithTimeZoneType timeZoneType -> {
                 List<Field> child = List.of(
                         toArrowField(TIME_VECTOR_NAME, createTimeType(timeZoneType.getPrecision()), nullable),
-                        toArrowField(TIME_OFFSET_VECTOR_NAME, INTEGER, nullable));
+                        toArrowField(TIME_OFFSET_VECTOR_NAME, SMALLINT, nullable));
                 yield new Field(name, nullable(ArrowType.Struct.INSTANCE), child);
             }
             case TimestampWithTimeZoneType timestampWithTimeZoneType -> {
