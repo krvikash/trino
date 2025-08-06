@@ -415,10 +415,12 @@ public abstract class AbstractTestEncodingDecoding
             TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(99 * NANOSECONDS_PER_SECOND, 45));
             TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(999 * NANOSECONDS_PER_SECOND, 180));
             TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND, 719));
+            TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND, 14 * 60));
+            TIME_TZ_SECONDS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND, -14 * 60));
             blockBuilder.appendNull();
         };
 
-        assertRoundTrip(TIME_TZ_SECONDS, builder, "00:00:01+01:00", "00:01:00+00:30", "00:01:39+00:45", "00:16:39+03:00", "23:59:59+11:59", null);
+        assertRoundTrip(TIME_TZ_SECONDS, builder, "00:00:01+01:00", "00:01:00+00:30", "00:01:39+00:45", "00:16:39+03:00", "23:59:59+11:59", "23:59:59+14:00", "23:59:59-14:00", null);
     }
 
     @Test
@@ -508,10 +510,12 @@ public abstract class AbstractTestEncodingDecoding
             TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(99 * NANOSECONDS_PER_SECOND + 100 * NANOSECONDS_PER_MILLISECOND, 45));
             TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(999 * NANOSECONDS_PER_SECOND + 999 * NANOSECONDS_PER_MILLISECOND, 180));
             TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MILLISECOND, 719));
+            TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MILLISECOND, 14 * 60));
+            TIME_TZ_MILLIS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MILLISECOND, -14 * 60));
             blockBuilder.appendNull();
         };
 
-        assertRoundTrip(TIME_TZ_MILLIS, builder, "00:00:01.001+01:00", "00:01:00.010+00:30", "00:01:39.100+00:45", "00:16:39.999+03:00", "23:59:59.010+11:59", null);
+        assertRoundTrip(TIME_TZ_MILLIS, builder, "00:00:01.001+01:00", "00:01:00.010+00:30", "00:01:39.100+00:45", "00:16:39.999+03:00", "23:59:59.010+11:59", "23:59:59.010+14:00", "23:59:59.010-14:00", null);
     }
 
     @Test
@@ -541,10 +545,12 @@ public abstract class AbstractTestEncodingDecoding
             TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(99 * NANOSECONDS_PER_SECOND + 100 * NANOSECONDS_PER_MICROSECOND, 45));
             TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(999 * NANOSECONDS_PER_SECOND + 999 * NANOSECONDS_PER_MICROSECOND, 180));
             TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MICROSECOND, 719));
+            TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MICROSECOND, 14 * 60));
+            TIME_TZ_MICROS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10 * NANOSECONDS_PER_MICROSECOND, -14 * 60));
             blockBuilder.appendNull();
         };
 
-        assertRoundTrip(TIME_TZ_MICROS, builder, "00:00:01.000001+01:00", "00:01:00.000010+00:30", "00:01:39.000100+00:45", "00:16:39.000999+03:00", "23:59:59.000010+11:59", null);
+        assertRoundTrip(TIME_TZ_MICROS, builder, "00:00:01.000001+01:00", "00:01:00.000010+00:30", "00:01:39.000100+00:45", "00:16:39.000999+03:00", "23:59:59.000010+11:59", "23:59:59.000010+14:00", "23:59:59.000010-14:00", null);
     }
 
     @Test
@@ -575,10 +581,12 @@ public abstract class AbstractTestEncodingDecoding
             TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(99 * NANOSECONDS_PER_SECOND + 100, 45));
             TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(999 * NANOSECONDS_PER_SECOND + 999, 180));
             TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10, 719));
+            TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10, 14 * 60));
+            TIME_TZ_NANOS.writeLong(blockBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND + 10, -14 * 60));
             blockBuilder.appendNull();
         };
 
-        assertRoundTrip(TIME_TZ_NANOS, builder, "00:00:01.000000001+01:00", "00:01:00.000000010+00:30", "00:01:39.000000100+00:45", "00:16:39.000000999+03:00", "23:59:59.000000010+11:59", null);
+        assertRoundTrip(TIME_TZ_NANOS, builder, "00:00:01.000000001+01:00", "00:01:00.000000010+00:30", "00:01:39.000000100+00:45", "00:16:39.000000999+03:00", "23:59:59.000000010+11:59", "23:59:59.000000010+14:00", "23:59:59.000000010-14:00", null);
     }
 
     @Test
