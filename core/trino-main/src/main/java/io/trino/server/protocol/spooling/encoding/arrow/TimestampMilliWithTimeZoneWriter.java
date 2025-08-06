@@ -52,14 +52,14 @@ public final class TimestampMilliWithTimeZoneWriter
         for (int position = 0; position < block.getPositionCount(); position++) {
             if (block.isNull(position)) {
                 vector.setNull(position);
+                continue;
             }
-            else {
-                long value = TIMESTAMP_TZ_MILLIS.getLong(block, position);
-                long epochMillis = unpackMillisUtc(value);
-                timestampVector.set(position, epochMillis);
-                timezoneVector.setSafe(position, unpackZoneKey(value).getId().getBytes(UTF_8));
-                vector.setIndexDefined(position);
-            }
+
+            long value = TIMESTAMP_TZ_MILLIS.getLong(block, position);
+            long epochMillis = unpackMillisUtc(value);
+            timestampVector.set(position, epochMillis);
+            timezoneVector.setSafe(position, unpackZoneKey(value).getId().getBytes(UTF_8));
+            vector.setIndexDefined(position);
         }
         vector.setValueCount(block.getPositionCount());
     }

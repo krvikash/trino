@@ -54,14 +54,14 @@ public final class TimeMilliWithTimeZoneWriter
         for (int position = 0; position < block.getPositionCount(); position++) {
             if (block.isNull(position)) {
                 vector.setNull(position);
+                continue;
             }
-            else {
-                long value = TIME_TZ_MILLIS.getLong(block, position);
-                long timeNanos = unpackTimeNanos(value);
-                timeVector.set(position, toIntExact(floorDiv(timeNanos, NANOSECONDS_PER_MILLISECOND)));
-                offsetVector.set(position, unpackOffsetMinutes(value));
-                vector.setIndexDefined(position);
-            }
+
+            long value = TIME_TZ_MILLIS.getLong(block, position);
+            long timeNanos = unpackTimeNanos(value);
+            timeVector.set(position, toIntExact(floorDiv(timeNanos, NANOSECONDS_PER_MILLISECOND)));
+            offsetVector.set(position, unpackOffsetMinutes(value));
+            vector.setIndexDefined(position);
         }
         vector.setValueCount(block.getPositionCount());
     }

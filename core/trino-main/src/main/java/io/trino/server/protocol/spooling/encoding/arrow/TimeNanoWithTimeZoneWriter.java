@@ -51,13 +51,13 @@ public final class TimeNanoWithTimeZoneWriter
         for (int position = 0; position < block.getPositionCount(); position++) {
             if (block.isNull(position)) {
                 vector.setNull(position);
+                continue;
             }
-            else {
-                long value = TIME_TZ_NANOS.getLong(block, position);
-                timeVector.set(position, unpackTimeNanos(value));
-                offsetVector.set(position, unpackOffsetMinutes(value));
-                vector.setIndexDefined(position);
-            }
+
+            long value = TIME_TZ_NANOS.getLong(block, position);
+            timeVector.set(position, unpackTimeNanos(value));
+            offsetVector.set(position, unpackOffsetMinutes(value));
+            vector.setIndexDefined(position);
         }
         vector.setValueCount(block.getPositionCount());
     }

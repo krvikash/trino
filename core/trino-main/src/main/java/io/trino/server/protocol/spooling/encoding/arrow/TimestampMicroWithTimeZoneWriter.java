@@ -55,13 +55,13 @@ public final class TimestampMicroWithTimeZoneWriter
         for (int position = 0; position < block.getPositionCount(); position++) {
             if (block.isNull(position)) {
                 vector.setNull(position);
+                continue;
             }
-            else {
-                LongTimestampWithTimeZone value = (LongTimestampWithTimeZone) TIMESTAMP_TZ_MICROS.getObject(block, position);
-                timestampVector.set(position, value.getEpochMillis() * MICROSECONDS_PER_MILLISECOND + floorDiv(value.getPicosOfMilli(), PICOSECONDS_PER_MICROSECOND));
-                timezoneVector.setSafe(position, TimeZoneKey.getTimeZoneKey(value.getTimeZoneKey()).getId().getBytes(UTF_8));
-                vector.setIndexDefined(position);
-            }
+
+            LongTimestampWithTimeZone value = (LongTimestampWithTimeZone) TIMESTAMP_TZ_MICROS.getObject(block, position);
+            timestampVector.set(position, value.getEpochMillis() * MICROSECONDS_PER_MILLISECOND + floorDiv(value.getPicosOfMilli(), PICOSECONDS_PER_MICROSECOND));
+            timezoneVector.setSafe(position, TimeZoneKey.getTimeZoneKey(value.getTimeZoneKey()).getId().getBytes(UTF_8));
+            vector.setIndexDefined(position);
         }
         vector.setValueCount(block.getPositionCount());
     }
