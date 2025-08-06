@@ -23,12 +23,12 @@ public class TestArrowSpooledDistributedQueries
     @Override
     protected Map<String, String> spoolingConfig()
     {
-        return ImmutableMap.of("protocol.spooling.encoding.arrow+zstd.enabled", "true");
+        return ImmutableMap.of("protocol.spooling.encoding.arrow.enabled", "true");
     }
 
     @Override
     protected String encoding()
     {
-        return "arrow+zstd";
+        return "arrow";
     }
 }
