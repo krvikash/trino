@@ -133,14 +133,14 @@ public final class ArrowSchemaUtils
                 case 3 -> new ArrowType.Time(MILLISECOND, 32);
                 case 6 -> new ArrowType.Time(MICROSECOND, 64);
                 case 9 -> new ArrowType.Time(NANOSECOND, 64);
-                default -> throw new UnsupportedOperationException("Unsupported time precision: " + time.getPrecision());
+                default -> throw unsupportedTypeException(time);
             };
             case TimestampType timestamp -> switch (timestamp.getPrecision()) {
                 case 0 -> new ArrowType.Timestamp(SECOND, null);
                 case 3 -> new ArrowType.Timestamp(MILLISECOND, null);
                 case 6 -> new ArrowType.Timestamp(MICROSECOND, null);
                 case 9 -> new ArrowType.Timestamp(NANOSECOND, null);
-                default -> throw new UnsupportedOperationException("Unsupported timestamp precision: " + timestamp.getPrecision());
+                default -> throw unsupportedTypeException(timestamp);
             };
             case TimeWithTimeZoneType _, TimestampWithTimeZoneType _ -> new ArrowType.Struct();
             case DecimalType decimal -> new ArrowType.Decimal(decimal.getPrecision(), decimal.getScale(), 128); // Trino decimals are 64 or 128 bits
@@ -152,7 +152,7 @@ public final class ArrowSchemaUtils
             case IntervalDayTimeType _ -> new ArrowType.Interval(DAY_TIME);
             case IntervalYearMonthType _ -> new ArrowType.Interval(YEAR_MONTH);
             case UnknownType _ -> new ArrowType.Null();
-            default -> throw new UnsupportedOperationException("Unsupported type: " + type);
+            default -> throw unsupportedTypeException(type);
         };
     }
 
@@ -176,5 +176,10 @@ public final class ArrowSchemaUtils
             }
         }
         return builder.build();
+    }
+
+    public static UnsupportedOperationException unsupportedTypeException(Type type)
+    {
+        return new UnsupportedOperationException("Unsupported type: " + type);
     }
 }
