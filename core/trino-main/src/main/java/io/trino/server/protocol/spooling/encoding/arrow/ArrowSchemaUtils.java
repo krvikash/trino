@@ -103,13 +103,13 @@ public final class ArrowSchemaUtils
                 List<Field> child = List.of(
                         toArrowField(TIME_VECTOR_NAME, createTimeType(timeZoneType.getPrecision()), nullable),
                         toArrowField(TIME_OFFSET_VECTOR_NAME, INTEGER, nullable));
-                yield new Field(name, nullable(new ArrowType.Struct()), child);
+                yield new Field(name, nullable(ArrowType.Struct.INSTANCE), child);
             }
             case TimestampWithTimeZoneType timestampWithTimeZoneType -> {
                 List<Field> child = List.of(
                         toArrowField(TIMESTAMP_VECTOR_NAME, createTimestampType(timestampWithTimeZoneType.getPrecision()), nullable),
                         toArrowField(TIMEZONE_VECTOR_NAME, VARCHAR, nullable));
-                yield new Field(name, nullable(new ArrowType.Struct()), child);
+                yield new Field(name, nullable(ArrowType.Struct.INSTANCE), child);
             }
             default -> new Field(name, nullableField(toArrowType(type), nullable), null);
         };
@@ -118,15 +118,15 @@ public final class ArrowSchemaUtils
     private static ArrowType toArrowType(Type type)
     {
         return switch (type) {
-            case BooleanType _ -> new ArrowType.Bool();
+            case BooleanType _ -> ArrowType.Bool.INSTANCE;
             case TinyintType _ -> new ArrowType.Int(8, true);
             case SmallintType _ -> new ArrowType.Int(16, true);
             case IntegerType _ -> new ArrowType.Int(32, true);
             case BigintType _ -> new ArrowType.Int(64, true);
             case RealType _ -> new ArrowType.FloatingPoint(SINGLE);
             case DoubleType _ -> new ArrowType.FloatingPoint(DOUBLE);
-            case VarcharType _, CharType _ -> new ArrowType.Utf8();
-            case VarbinaryType _ -> new ArrowType.Binary();
+            case VarcharType _, CharType _ -> ArrowType.Utf8.INSTANCE;
+            case VarbinaryType _ -> ArrowType.Binary.INSTANCE;
             case DateType _ -> new ArrowType.Date(DAY);
             case TimeType time -> switch (time.getPrecision()) {
                 case 0 -> new ArrowType.Time(SECOND, 32);
@@ -142,16 +142,16 @@ public final class ArrowSchemaUtils
                 case 9 -> new ArrowType.Timestamp(NANOSECOND, null);
                 default -> throw unsupportedTypeException(timestamp);
             };
-            case TimeWithTimeZoneType _, TimestampWithTimeZoneType _ -> new ArrowType.Struct();
+            case TimeWithTimeZoneType _, TimestampWithTimeZoneType _ -> ArrowType.Struct.INSTANCE;
             case DecimalType decimal -> new ArrowType.Decimal(decimal.getPrecision(), decimal.getScale(), 128); // Trino decimals are 64 or 128 bits
             case UuidType _, IpAddressType _ -> new ArrowType.FixedSizeBinary(16);
-            case HyperLogLogType _ -> new ArrowType.Binary();
-            case ArrayType _ -> new ArrowType.List();
+            case HyperLogLogType _ -> ArrowType.Binary.INSTANCE;
+            case ArrayType _ -> ArrowType.List.INSTANCE;
             case MapType _ -> new ArrowType.Map(false);
-            case RowType _ -> new ArrowType.Struct();
+            case RowType _ -> ArrowType.Struct.INSTANCE;
             case IntervalDayTimeType _ -> new ArrowType.Interval(DAY_TIME);
             case IntervalYearMonthType _ -> new ArrowType.Interval(YEAR_MONTH);
-            case UnknownType _ -> new ArrowType.Null();
+            case UnknownType _ -> ArrowType.Null.INSTANCE;
             default -> throw unsupportedTypeException(type);
         };
     }
