@@ -289,7 +289,7 @@ public class RewriteUtils
     /**
      * Check that fields in the oldType are mapped to fields in newType with the same type.
      */
-    public static void validateMappedTypes(Type oldType, Type newType, FieldMapping fieldMapping)
+    private static void validateMappedTypes(Type oldType, Type newType, FieldMapping fieldMapping)
     {
         checkArgument(IS_RELATION_ROW.test(oldType) && IS_RELATION_ROW.test(newType), "expected relation row type");
 
