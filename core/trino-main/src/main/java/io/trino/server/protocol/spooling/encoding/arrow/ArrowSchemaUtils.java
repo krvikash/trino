@@ -41,6 +41,8 @@ import io.trino.type.IntervalDayTimeType;
 import io.trino.type.IntervalYearMonthType;
 import io.trino.type.IpAddressType;
 import io.trino.type.UnknownType;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -57,20 +59,34 @@ import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeType.createTimeType;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
-import static org.apache.arrow.vector.types.DateUnit.DAY;
 import static org.apache.arrow.vector.types.FloatingPointPrecision.DOUBLE;
 import static org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE;
 import static org.apache.arrow.vector.types.IntervalUnit.DAY_TIME;
 import static org.apache.arrow.vector.types.IntervalUnit.YEAR_MONTH;
-import static org.apache.arrow.vector.types.TimeUnit.MICROSECOND;
-import static org.apache.arrow.vector.types.TimeUnit.MILLISECOND;
-import static org.apache.arrow.vector.types.TimeUnit.NANOSECOND;
-import static org.apache.arrow.vector.types.TimeUnit.SECOND;
 import static org.apache.arrow.vector.types.pojo.FieldType.notNullable;
 import static org.apache.arrow.vector.types.pojo.FieldType.nullable;
 
 public final class ArrowSchemaUtils
 {
+    public static final ArrowType TINYINT_ARROW_TYPE = new ArrowType.Int(8, true);
+    public static final ArrowType SMALLINT_ARROW_TYPE = new ArrowType.Int(16, true);
+    public static final ArrowType INTEGER_ARROW_TYPE = new ArrowType.Int(32, true);
+    public static final ArrowType BIGINT_ARROW_TYPE = new ArrowType.Int(64, true);
+    public static final ArrowType REAL_ARROW_TYPE = new ArrowType.FloatingPoint(SINGLE);
+    public static final ArrowType DOUBLE_ARROW_TYPE = new ArrowType.FloatingPoint(DOUBLE);
+    public static final ArrowType DATE_ARROW_TYPE = new ArrowType.Date(DateUnit.DAY);
+    public static final ArrowType INTERVAL_DAY_TIME_ARROW_TYPE = new ArrowType.Interval(DAY_TIME);
+    public static final ArrowType INTERVAL_YEAR_MONTH_ARROW_TYPE = new ArrowType.Interval(YEAR_MONTH);
+    public static final ArrowType MAP_ARROW_TYPE = new ArrowType.Map(false);
+    public static final ArrowType TIME_SEC_ARROW_TYPE = new ArrowType.Time(TimeUnit.SECOND, 32);
+    public static final ArrowType TIME_MILLI_ARROW_TYPE = new ArrowType.Time(TimeUnit.MILLISECOND, 32);
+    public static final ArrowType TIME_MICRO_ARROW_TYPE = new ArrowType.Time(TimeUnit.MICROSECOND, 64);
+    public static final ArrowType TIME_NANO_ARROW_TYPE = new ArrowType.Time(TimeUnit.NANOSECOND, 64);
+    public static final ArrowType TIMESTAMP_SEC_ARROW_TYPE = new ArrowType.Timestamp(TimeUnit.SECOND, null);
+    public static final ArrowType TIMESTAMP_MILLI_ARROW_TYPE = new ArrowType.Timestamp(TimeUnit.MILLISECOND, null);
+    public static final ArrowType TIMESTAMP_MICRO_ARROW_TYPE = new ArrowType.Timestamp(TimeUnit.MICROSECOND, null);
+    public static final ArrowType TIMESTAMP_NANO_ARROW_TYPE = new ArrowType.Timestamp(TimeUnit.NANOSECOND, null);
+
     private ArrowSchemaUtils() {}
 
     public static Schema toArrowSchema(List<OutputColumn> columns)
@@ -119,27 +135,27 @@ public final class ArrowSchemaUtils
     {
         return switch (type) {
             case BooleanType _ -> ArrowType.Bool.INSTANCE;
-            case TinyintType _ -> new ArrowType.Int(8, true);
-            case SmallintType _ -> new ArrowType.Int(16, true);
-            case IntegerType _ -> new ArrowType.Int(32, true);
-            case BigintType _ -> new ArrowType.Int(64, true);
-            case RealType _ -> new ArrowType.FloatingPoint(SINGLE);
-            case DoubleType _ -> new ArrowType.FloatingPoint(DOUBLE);
+            case TinyintType _ -> TINYINT_ARROW_TYPE;
+            case SmallintType _ -> SMALLINT_ARROW_TYPE;
+            case IntegerType _ -> INTEGER_ARROW_TYPE;
+            case BigintType _ -> BIGINT_ARROW_TYPE;
+            case RealType _ -> REAL_ARROW_TYPE;
+            case DoubleType _ -> DOUBLE_ARROW_TYPE;
             case VarcharType _, CharType _ -> ArrowType.Utf8.INSTANCE;
             case VarbinaryType _ -> ArrowType.Binary.INSTANCE;
-            case DateType _ -> new ArrowType.Date(DAY);
+            case DateType _ -> DATE_ARROW_TYPE;
             case TimeType time -> switch (time.getPrecision()) {
-                case 0 -> new ArrowType.Time(SECOND, 32);
-                case 3 -> new ArrowType.Time(MILLISECOND, 32);
-                case 6 -> new ArrowType.Time(MICROSECOND, 64);
-                case 9 -> new ArrowType.Time(NANOSECOND, 64);
+                case 0 -> TIME_SEC_ARROW_TYPE;
+                case 3 -> TIME_MILLI_ARROW_TYPE;
+                case 6 -> TIME_MICRO_ARROW_TYPE;
+                case 9 -> TIME_NANO_ARROW_TYPE;
                 default -> throw unsupportedTypeException(time);
             };
             case TimestampType timestamp -> switch (timestamp.getPrecision()) {
-                case 0 -> new ArrowType.Timestamp(SECOND, null);
-                case 3 -> new ArrowType.Timestamp(MILLISECOND, null);
-                case 6 -> new ArrowType.Timestamp(MICROSECOND, null);
-                case 9 -> new ArrowType.Timestamp(NANOSECOND, null);
+                case 0 -> TIMESTAMP_SEC_ARROW_TYPE;
+                case 3 -> TIMESTAMP_MILLI_ARROW_TYPE;
+                case 6 -> TIMESTAMP_MICRO_ARROW_TYPE;
+                case 9 -> TIMESTAMP_NANO_ARROW_TYPE;
                 default -> throw unsupportedTypeException(timestamp);
             };
             case TimeWithTimeZoneType _, TimestampWithTimeZoneType _ -> ArrowType.Struct.INSTANCE;
@@ -147,10 +163,10 @@ public final class ArrowSchemaUtils
             case UuidType _, IpAddressType _ -> new ArrowType.FixedSizeBinary(16);
             case HyperLogLogType _ -> ArrowType.Binary.INSTANCE;
             case ArrayType _ -> ArrowType.List.INSTANCE;
-            case MapType _ -> new ArrowType.Map(false);
+            case MapType _ -> MAP_ARROW_TYPE;
             case RowType _ -> ArrowType.Struct.INSTANCE;
-            case IntervalDayTimeType _ -> new ArrowType.Interval(DAY_TIME);
-            case IntervalYearMonthType _ -> new ArrowType.Interval(YEAR_MONTH);
+            case IntervalDayTimeType _ -> INTERVAL_DAY_TIME_ARROW_TYPE;
+            case IntervalYearMonthType _ -> INTERVAL_YEAR_MONTH_ARROW_TYPE;
             case UnknownType _ -> ArrowType.Null.INSTANCE;
             default -> throw unsupportedTypeException(type);
         };
