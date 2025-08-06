@@ -38,6 +38,7 @@ import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -465,6 +466,86 @@ public class PlanNodeDecorrelator
                     childDecorrelationResult.correlatedSymbolsMapping,
                     childDecorrelationResult.constantSymbols,
                     childDecorrelationResult.atMostSingleRow));
+        }
+
+        @Override
+        public Optional<DecorrelationResult> visitJoin(JoinNode joinNode, Void context)
+        {
+            // Skip de-correlating for non cross joins
+            if (!joinNode.isCrossJoin() || !joinNode.getDynamicFilters().isEmpty()) {
+                return visitPlan(joinNode, context);
+            }
+
+            Optional<DecorrelationResult> leftDecorrelationResult = computeDecorrelationResult(joinNode.getLeft());
+            Optional<DecorrelationResult> rightDecorrelationResult = computeDecorrelationResult(joinNode.getRight());
+
+            if (leftDecorrelationResult.isEmpty() || rightDecorrelationResult.isEmpty()) {
+                return Optional.empty();
+            }
+
+            PlanNode left = leftDecorrelationResult.map(decorrelationResult -> decorrelationResult.node).get();
+            PlanNode right = rightDecorrelationResult.map(decorrelationResult -> decorrelationResult.node).get();
+
+            ImmutableList.Builder<Symbol> leftSymbolsBuilder = ImmutableList.builder();
+            leftSymbolsBuilder.addAll(left.getOutputSymbols());
+            leftDecorrelationResult.map(decorrelationResult -> decorrelationResult.symbolsToPropagate).ifPresent(leftSymbolsBuilder::addAll);
+
+            ImmutableList.Builder<Symbol> rightSymbolsBuilder = ImmutableList.builder();
+            rightSymbolsBuilder.addAll(right.getOutputSymbols());
+            rightDecorrelationResult.map(decorrelationResult -> decorrelationResult.symbolsToPropagate).ifPresent(rightSymbolsBuilder::addAll);
+
+            ImmutableSet.Builder<Symbol> symbolsToPropagateBuilder = ImmutableSet.builder();
+            leftDecorrelationResult.map(decorrelationResult -> decorrelationResult.symbolsToPropagate).ifPresent(symbolsToPropagateBuilder::addAll);
+            rightDecorrelationResult.map(decorrelationResult -> decorrelationResult.symbolsToPropagate).ifPresent(symbolsToPropagateBuilder::addAll);
+
+            ImmutableList.Builder<Expression> correlatedPredicatesBuilder = ImmutableList.builder();
+            leftDecorrelationResult.map(decorrelationResult -> decorrelationResult.correlatedPredicates).ifPresent(correlatedPredicatesBuilder::addAll);
+            rightDecorrelationResult.map(decorrelationResult -> decorrelationResult.correlatedPredicates).ifPresent(correlatedPredicatesBuilder::addAll);
+
+            ImmutableMultimap.Builder<Symbol, Symbol> correlatedSymbolsMappingBuilder = ImmutableMultimap.builder();
+            leftDecorrelationResult.map(decorrelationResult -> decorrelationResult.correlatedSymbolsMapping).ifPresent(correlatedSymbolsMappingBuilder::putAll);
+            rightDecorrelationResult.map(decorrelationResult -> decorrelationResult.correlatedSymbolsMapping).ifPresent(correlatedSymbolsMappingBuilder::putAll);
+
+            ImmutableSet.Builder<Symbol> constantSymbols = ImmutableSet.builder();
+            leftDecorrelationResult.map(decorrelationResult -> decorrelationResult.constantSymbols).ifPresent(constantSymbols::addAll);
+            rightDecorrelationResult.map(decorrelationResult -> decorrelationResult.constantSymbols).ifPresent(constantSymbols::addAll);
+
+            return Optional.of(new DecorrelationResult(
+                    new JoinNode(
+                            joinNode.getId(),
+                            joinNode.getType(),
+                            left,
+                            right,
+                            joinNode.getCriteria(),
+                            leftSymbolsBuilder.build(),
+                            rightSymbolsBuilder.build(),
+                            joinNode.isMaySkipOutputDuplicates(),
+                            joinNode.getFilter(),
+                            Optional.empty(),
+                            Optional.empty(),
+                            ImmutableMap.of(),
+                            Optional.empty()),
+                    symbolsToPropagateBuilder.build(),
+                    correlatedPredicatesBuilder.build(),
+                    correlatedSymbolsMappingBuilder.build(),
+                    constantSymbols.build(),
+                    false));
+        }
+
+        private Optional<DecorrelationResult> computeDecorrelationResult(PlanNode planNode)
+        {
+            if (containsCorrelation(planNode, correlation)) {
+                return planNode.accept(this, null);
+            }
+
+            return Optional.of(
+                    new DecorrelationResult(
+                            planNode,
+                            ImmutableSet.of(),
+                            ImmutableList.of(),
+                            ImmutableMultimap.of(),
+                            ImmutableSet.of(),
+                            false));
         }
 
         private Multimap<Symbol, Symbol> extractCorrelatedSymbolsMapping(List<Expression> correlatedConjuncts)

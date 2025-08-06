@@ -20,6 +20,7 @@ import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.iterative.rule.test.BaseRuleTest;
+import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinType;
 import org.junit.jupiter.api.Test;
 
@@ -32,8 +33,10 @@ import static io.trino.sql.ir.Logical.Operator.AND;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.filter;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.join;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.values;
+import static io.trino.sql.planner.plan.JoinType.FULL;
 import static io.trino.sql.planner.plan.JoinType.INNER;
 import static io.trino.sql.planner.plan.JoinType.LEFT;
+import static io.trino.sql.planner.plan.JoinType.RIGHT;
 
 public class TestTransformCorrelatedJoinToJoin
         extends BaseRuleTest
@@ -91,6 +94,131 @@ public class TestTransformCorrelatedJoinToJoin
                                         filter(
                                                 TRUE,
                                                 values("b")))));
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    Symbol e = p.symbol("e");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            c.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(INNER,
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            c.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(b, c)),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(d, e)),
+                                            new JoinNode.EquiJoinClause(b, e))));
+                }).doesNotFire();
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            b.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(INNER,
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            c.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(b, c)),
+                                            p.values(d),
+                                            new JoinNode.EquiJoinClause(b, d))));
+                }).doesNotFire();
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            b.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(LEFT,
+                                            p.values(b),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(c, d)),
+                                            new JoinNode.EquiJoinClause(b, c))));
+                }).doesNotFire();
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            b.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(RIGHT,
+                                            p.values(b),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(c, d)),
+                                            new JoinNode.EquiJoinClause(b, c))));
+                }).doesNotFire();
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            b.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(FULL,
+                                            p.values(b),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(c, d)),
+                                            new JoinNode.EquiJoinClause(b, c))));
+                }).doesNotFire();
     }
 
     @Test
@@ -148,6 +276,234 @@ public class TestTransformCorrelatedJoinToJoin
                                         filter(
                                                 TRUE,
                                                 values("b")))));
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    Symbol e = p.symbol("e");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            LEFT,
+                            new Comparison(
+                                    LESS_THAN,
+                                    b.toSymbolReference(),
+                                    new Constant(BIGINT, 3L)),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            c.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(INNER,
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            c.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(b, c)),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(d, e)),
+                                            new JoinNode.EquiJoinClause(b, e))));
+                }).doesNotFire();
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            LEFT,
+                            new Comparison(
+                                    LESS_THAN,
+                                    b.toSymbolReference(),
+                                    new Constant(BIGINT, 3L)),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            c.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(LEFT,
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            c.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(b, c)),
+                                            p.values(d),
+                                            new JoinNode.EquiJoinClause(b, d))));
+                }).doesNotFire();
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            LEFT,
+                            new Comparison(
+                                    LESS_THAN,
+                                    b.toSymbolReference(),
+                                    new Constant(BIGINT, 3L)),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            b.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(INNER,
+                                            p.values(b),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(c, d)),
+                                            new JoinNode.EquiJoinClause(b, c))));
+                }).doesNotFire();
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            LEFT,
+                            new Comparison(
+                                    LESS_THAN,
+                                    b.toSymbolReference(),
+                                    new Constant(BIGINT, 3L)),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            c.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(LEFT,
+                                            p.values(b),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(c, d)),
+                                            new JoinNode.EquiJoinClause(b, c))));
+                }).doesNotFire();
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            LEFT,
+                            new Comparison(
+                                    LESS_THAN,
+                                    b.toSymbolReference(),
+                                    new Constant(BIGINT, 3L)),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            b.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(RIGHT,
+                                            p.values(b),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(c, d)),
+                                            new JoinNode.EquiJoinClause(b, c))));
+                }).doesNotFire();
+
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            LEFT,
+                            new Comparison(
+                                    LESS_THAN,
+                                    b.toSymbolReference(),
+                                    new Constant(BIGINT, 3L)),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            b.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(FULL,
+                                            p.values(b),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(c, d)),
+                                            new JoinNode.EquiJoinClause(b, c))));
+                }).doesNotFire();
+    }
+
+    @Test
+    public void testRewriteCrossJoin()
+    {
+        tester().assertThat(new TransformCorrelatedJoinToJoin(tester().getPlannerContext()))
+                .on(p -> {
+                    Symbol a = p.symbol("a");
+                    Symbol b = p.symbol("b");
+                    Symbol c = p.symbol("c");
+                    Symbol d = p.symbol("d");
+                    return p.correlatedJoin(
+                            ImmutableList.of(a),
+                            p.values(a),
+                            LEFT,
+                            new Comparison(
+                                    LESS_THAN,
+                                    b.toSymbolReference(),
+                                    new Constant(BIGINT, 3L)),
+                            p.filter(
+                                    new Comparison(
+                                            GREATER_THAN,
+                                            b.toSymbolReference(),
+                                            a.toSymbolReference()),
+                                    p.join(INNER,
+                                            p.values(b),
+                                            p.filter(new Comparison(
+                                                            GREATER_THAN,
+                                                            d.toSymbolReference(),
+                                                            a.toSymbolReference()),
+                                                    p.values(c, d)))));
+                })
+                .matches(
+                        join(LEFT, builder -> builder
+                                .filter(new Logical(AND,
+                                        ImmutableList.of(
+                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "d"), new Reference(BIGINT, "a")),
+                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")),
+                                                new Comparison(LESS_THAN, new Reference(BIGINT, "b"), new Constant(BIGINT, 3L)))))
+                                .left(values("a"))
+                                .right(
+                                        filter(
+                                                TRUE,
+                                                join(INNER, innerJoinBuilder -> innerJoinBuilder
+                                                        .left(
+                                                                values("b"))
+                                                        .right(filter(
+                                                                TRUE,
+                                                                values("c", "d"))))))));
     }
 
     @Test
