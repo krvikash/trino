@@ -51,7 +51,12 @@ public final class RowWriter
             Block childBlock = fields.get(i);
 
             for (int position = 0; position < childBlock.getPositionCount(); position++) {
-                vector.setIndexDefined(position);
+                if (block.isNull(position)) {
+                    vector.setNull(position);
+                }
+                else {
+                    vector.setIndexDefined(position);
+                }
             }
 
             childWriters.get(i).initialize(childBlock);

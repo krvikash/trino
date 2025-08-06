@@ -107,6 +107,7 @@ import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.trino.type.IpAddressType.IPADDRESS;
 import static java.lang.System.arraycopy;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.nCopies;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.stream.Collectors.toList;
@@ -760,6 +761,8 @@ public abstract class AbstractTestEncodingDecoding
             builders.get(2).appendNull();
         });
 
+        blockBuilder.appendNull();
+
         Page page = page(blockBuilder.build());
         assertThat(roundTrip(columns, page))
                 .containsExactly(
@@ -772,7 +775,8 @@ public abstract class AbstractTestEncodingDecoding
                                 .addField("a", null)
                                 .addField("b", null)
                                 .addField("c", null)
-                                .build()));
+                                .build()),
+                        new ArrayList<>(nCopies(1, null)));
     }
 
     protected List<List<Object>> roundTrip(List<TypedColumn> columns, Page page)
