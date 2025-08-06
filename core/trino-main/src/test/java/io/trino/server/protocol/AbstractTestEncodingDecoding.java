@@ -677,7 +677,7 @@ public abstract class AbstractTestEncodingDecoding
     {
         MapType mapType = new MapType(REAL, DOUBLE, new TypeOperators());
         List<TypedColumn> columns = ImmutableList.of(typed("col0", mapType));
-        MapBlockBuilder blockBuilder = mapType.createBlockBuilder(null, 6);
+        MapBlockBuilder blockBuilder = mapType.createBlockBuilder(null, 7);
 
         blockBuilder.buildEntry((keyBuilder, valueBuilder) -> {
             REAL.writeFloat(keyBuilder, 0.0f);
@@ -699,8 +699,12 @@ public abstract class AbstractTestEncodingDecoding
             valueBuilder.appendNull();
         });
 
+        blockBuilder.appendNull();
+
         Page page = page(blockBuilder.build());
-        assertThat(roundTrip(columns, page).getFirst())
+
+        List<List<Object>> values = roundTrip(columns, page);
+        assertThat(values.getFirst())
                 .containsExactly(map(
                         entry(0.0f, 0.0d),
                         entry(1.0f, 1.0d),
@@ -708,6 +712,8 @@ public abstract class AbstractTestEncodingDecoding
                         entry(3.0f, 3.0d),
                         entry(4.0f, 4.0d),
                         entry(5.0f, null)));
+
+        assertThat(values.getLast()).isEqualTo(nullRow());
     }
 
     @Test
@@ -776,7 +782,7 @@ public abstract class AbstractTestEncodingDecoding
                                 .addField("b", null)
                                 .addField("c", null)
                                 .build()),
-                        new ArrayList<>(nCopies(1, null)));
+                        nullRow());
     }
 
     protected List<List<Object>> roundTrip(List<TypedColumn> columns, Page page)
@@ -901,5 +907,10 @@ public abstract class AbstractTestEncodingDecoding
             throw new IllegalArgumentException("Invalid InetAddress length: " + address.length);
         }
         return wrappedBuffer(bytes);
+    }
+
+    private static <T> List<T> nullRow()
+    {
+        return new ArrayList<>(nCopies(1, null));
     }
 }
