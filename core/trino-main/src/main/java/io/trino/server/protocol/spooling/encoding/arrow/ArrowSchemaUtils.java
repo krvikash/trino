@@ -163,7 +163,7 @@ public final class ArrowSchemaUtils
                 default -> throw unsupportedTypeException(timestamp);
             };
             case TimeWithTimeZoneType _, TimestampWithTimeZoneType _ -> ArrowType.Struct.INSTANCE;
-            case DecimalType decimal -> new ArrowType.Decimal(decimal.getPrecision(), decimal.getScale(), 128); // Trino decimals are 64 or 128 bits
+            case DecimalType decimal -> new ArrowType.Decimal(decimal.getPrecision(), decimal.getScale(), 128); // Trino decimals are 64 or 128 bits but Arrow supports 128-256 bits only
             case UuidType _, IpAddressType _ -> new ArrowType.FixedSizeBinary(16);
             case HyperLogLogType _ -> ArrowType.Binary.INSTANCE;
             case ArrayType _ -> ArrowType.List.INSTANCE;
