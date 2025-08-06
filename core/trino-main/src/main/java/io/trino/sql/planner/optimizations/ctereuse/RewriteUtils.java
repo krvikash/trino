@@ -232,23 +232,45 @@ public class RewriteUtils
      */
     public static Block reallocateValues(Block block, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
-        Block.Builder builder = new Block.Builder(block.name(), block.parameters());
-        reallocateValues(block.operations(), new HashMap<>(), builder, nameAllocator);
-        return builder.build();
+        return reallocateValues(block, new HashMap<>(), nameAllocator);
     }
 
-    private static void reallocateValues(List<Operation> operations, Map<Value, Value> map, Block.Builder builder, ProgramBuilder.ValueNameAllocator nameAllocator)
+    private static Block reallocateValues(Block block, Map<Value, Value> map, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
-        if (operations.isEmpty()) {
-            return;
+        Block.Builder builder = new Block.Builder(block.name(), block.parameters());
+
+        for (Operation operation : block.operations()) {
+            // allocate new result name
+            String newResultName = nameAllocator.newName();
+
+            // remap arguments
+            for (int i = 0; i < operation.arguments().size(); i++) {
+                Value oldArgument = operation.arguments().get(i);
+                Value newArgument = map.get(oldArgument);
+                if (newArgument != null) {
+                    operation = ((TrinoOperation) operation).withArgument(newArgument, i);
+                }
+            }
+
+            // remap regions
+            List<Region> newRegions = operation.regions().stream()
+                    .map(Region::getOnlyBlock)
+                    // copy the map before entering the nested context
+                    .map(nestedBlock -> reallocateValues(nestedBlock, new HashMap<>(map), nameAllocator))
+                    .map(Region::singleBlockRegion)
+                    .collect(toImmutableList());
+            operation = ((TrinoOperation) operation).withRegions(newRegions);
+
+            // assign new result name
+            Value oldResult = operation.result();
+            operation = ((TrinoOperation) operation).withResultName(newResultName);
+            map.put(oldResult, operation.result());
+
+            // add the operation to the block
+            builder.addOperation(operation);
         }
-        Operation operation = operations.getFirst();
-        Value oldResult = operation.result();
-        operation = remapValues(operation, map);
-        operation = ((TrinoOperation) operation).withResultName(nameAllocator.newName());
-        map.put(oldResult, operation.result());
-        builder.addOperation(operation);
-        reallocateValues(operations.subList(1, operations.size()), map, builder, nameAllocator);
+
+        return builder.build();
     }
 
     /**

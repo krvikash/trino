@@ -5,19 +5,19 @@ IR version = 1
             {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
         %2 = filter(%1) : ("multiset(row(bigint,varchar,varchar,varchar))") -> "multiset(row(bigint,varchar,varchar,varchar))" ({
             ^predicate (%3 : "row(bigint,varchar,varchar,varchar)")
-                %1081 = field_reference(%3) : ("row(bigint,varchar,varchar,varchar)") -> "bigint" ()
+                %1099 = field_reference(%3) : ("row(bigint,varchar,varchar,varchar)") -> "bigint" ()
                     {field_index = "0"}
-                %1082 = constant() : () -> "varchar" ()
+                %1100 = constant() : () -> "varchar" ()
                     {constant_result = "[test: constant_result attribute]"}
-                %1083 = constant() : () -> "varchar" ()
+                %1101 = constant() : () -> "varchar" ()
                     {constant_result = "[test: constant_result attribute]"}
-                %1084 = constant() : () -> "boolean" ()
+                %1102 = constant() : () -> "boolean" ()
                     {constant_result = "{""type"":""boolean"",""value"":false}"}
-                %1085 = constant() : () -> "integer" ()
+                %1103 = constant() : () -> "integer" ()
                     {constant_result = "{""type"":""integer"",""value"":0}"}
-                %1086 = call(%1081, %1082, %1083, %1084, %1085) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                %1104 = call(%1099, %1100, %1101, %1102, %1103) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
-                %1091 = return(%1086) : ("boolean") -> "boolean" ()
+                %1109 = return(%1104) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
         %11 = exchange(%2) : ("multiset(row(bigint,varchar,varchar,varchar))") -> "multiset(row(bigint,varchar,varchar,varchar))" ({
@@ -97,33 +97,33 @@ IR version = 1
             ^aggregates (%796 : "multiset(row(decimal(26,4),bigint))")
                 %801 = aggregate_call(%796) : ("multiset(row(decimal(26,4),bigint))") -> "varbinary" ({
                     ^arguments (%53 : "row(decimal(26,4),bigint)")
-                        %54 = field_reference(%53) : ("row(decimal(26,4),bigint)") -> "decimal(26,4)" ()
+                        %802 = field_reference(%53) : ("row(decimal(26,4),bigint)") -> "decimal(26,4)" ()
                             {field_index = "0"}
-                        %55 = row(%54) : ("decimal(26,4)") -> "row(decimal(26,4))" ()
-                        %56 = return(%55) : ("row(decimal(26,4))") -> "row(decimal(26,4))" ()
+                        %803 = row(%802) : ("decimal(26,4)") -> "row(decimal(26,4))" ()
+                        %804 = return(%803) : ("row(decimal(26,4))") -> "row(decimal(26,4))" ()
                             {ir.terminal = "true"}
                     }, {
                     ^filterSelector (%57 : "row(decimal(26,4),bigint)")
-                        %58 = constant() : () -> "empty row" ()
+                        %805 = constant() : () -> "empty row" ()
                             {constant_result = "{""type"":""empty row""}"}
-                        %59 = return(%58) : ("empty row") -> "empty row" ()
+                        %806 = return(%805) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^maskSelector (%60 : "row(decimal(26,4),bigint)")
-                        %61 = constant() : () -> "empty row" ()
+                        %807 = constant() : () -> "empty row" ()
                             {constant_result = "{""type"":""empty row""}"}
-                        %62 = return(%61) : ("empty row") -> "empty row" ()
+                        %808 = return(%807) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^orderingSelector (%63 : "row(decimal(26,4),bigint)")
-                        %64 = constant() : () -> "empty row" ()
+                        %809 = constant() : () -> "empty row" ()
                             {constant_result = "{""type"":""empty row""}"}
-                        %65 = return(%64) : ("empty row") -> "empty row" ()
+                        %810 = return(%809) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
                     {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,4)"",""argumentTypes"":[""decimal(26,4)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", distinct = "false", aggregation_step = "PARTIAL"}
-                %803 = row(%801) : ("varbinary") -> "row(varbinary)" ()
-                %804 = return(%803) : ("row(varbinary)") -> "row(varbinary)" ()
+                %812 = row(%801) : ("varbinary") -> "row(varbinary)" ()
+                %813 = return(%812) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.terminal = "true"}
             }, {
             ^groupingKeysSelector (%68 : "row(decimal(26,4),bigint)")
@@ -140,14 +140,14 @@ IR version = 1
                     {ir.terminal = "true"}
             })
             {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "PARTIAL", input_reducing = "true"}
-        %878 = exchange(%800) : ("multiset(row(bigint,varbinary))") -> "multiset(row(bigint,varbinary))" ({
-            ^inputSelector (%873 : "row(bigint,varbinary)")
-                %874 = field_reference(%873) : ("row(bigint,varbinary)") -> "bigint" ()
+        %887 = exchange(%800) : ("multiset(row(bigint,varbinary))") -> "multiset(row(bigint,varbinary))" ({
+            ^inputSelector (%882 : "row(bigint,varbinary)")
+                %883 = field_reference(%882) : ("row(bigint,varbinary)") -> "bigint" ()
                     {field_index = "0"}
-                %875 = field_reference(%873) : ("row(bigint,varbinary)") -> "varbinary" ()
+                %884 = field_reference(%882) : ("row(bigint,varbinary)") -> "varbinary" ()
                     {field_index = "1"}
-                %876 = row(%874, %875) : ("bigint", "varbinary") -> "row(bigint,varbinary)" ()
-                %877 = return(%876) : ("row(bigint,varbinary)") -> "row(bigint,varbinary)" ()
+                %885 = row(%883, %884) : ("bigint", "varbinary") -> "row(bigint,varbinary)" ()
+                %886 = return(%885) : ("row(bigint,varbinary)") -> "row(bigint,varbinary)" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%81 : "row(bigint,varbinary)")
@@ -170,7 +170,7 @@ IR version = 1
                     {ir.terminal = "true"}
             })
             {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
-        %91 = exchange(%878) : ("multiset(row(bigint,varbinary))") -> "multiset(row(bigint,varbinary))" ({
+        %91 = exchange(%887) : ("multiset(row(bigint,varbinary))") -> "multiset(row(bigint,varbinary))" ({
             ^inputSelector (%92 : "row(bigint,varbinary)")
                 %93 = field_reference(%92) : ("row(bigint,varbinary)") -> "bigint" ()
                     {field_index = "0"}
@@ -290,12 +290,12 @@ IR version = 1
             ^dynamicFilterTargetSelector (%155 : "row(bigint,decimal(38,4))")
                 %156 = field_reference(%155) : ("row(bigint,decimal(38,4))") -> "bigint" ()
                     {field_index = "0"}
-                %1106 = row(%156) : ("bigint") -> "row(bigint)" ()
-                %1107 = return(%1106) : ("row(bigint)") -> "row(bigint)" ()
+                %1124 = row(%156) : ("bigint") -> "row(bigint)" ()
+                %1125 = return(%1124) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join_type = "INNER", may_skip_output_duplicates = "false", distribution_type = "PARTITIONED", dynamic_filter_ids = "[""df_1133""]", statistics_and_cost_summary = "{""outputRowCount"":1.0E7,""outputSizeInBytes"":1.230797301E9,""cpuCost"":4.116812048793965E11,""memoryCost"":5.2E8,""networkCost"":6.942965875849109E9}"}
-        %221 = exchange(%878) : ("multiset(row(bigint,varbinary))") -> "multiset(row(bigint,varbinary))" ({
+        %221 = exchange(%887) : ("multiset(row(bigint,varbinary))") -> "multiset(row(bigint,varbinary))" ({
             ^inputSelector (%222 : "row(bigint,varbinary)")
                 %223 = field_reference(%222) : ("row(bigint,varbinary)") -> "bigint" ()
                     {field_index = "0"}
