@@ -13,17 +13,17 @@
  */
 package io.trino.sql.planner.optimizations.ctereuse;
 
-import com.google.common.collect.ImmutableMap;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.remapParameters;
-import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.remapValues;
 
 public class StructuralEquivalenceUtils
 {
@@ -32,11 +32,7 @@ public class StructuralEquivalenceUtils
 
     public static boolean blocksStructurallyEquivalent(List<Block> leftBlocks, List<Block> rightBlocks)
     {
-        if (leftBlocks.size() != rightBlocks.size()) {
-            return false;
-        }
-        return IntStream.range(0, leftBlocks.size())
-                .allMatch(i -> blocksStructurallyEquivalent(leftBlocks.get(i), rightBlocks.get(i)));
+        return blocksStructurallyEquivalent(leftBlocks, rightBlocks, new HashMap<>());
     }
 
     /**
@@ -44,38 +40,66 @@ public class StructuralEquivalenceUtils
      */
     public static boolean blocksStructurallyEquivalent(Block leftBlock, Block rightBlock)
     {
-        Block rightBlockRemapped = remapParameters(rightBlock, leftBlock.parameters());
-        return operationsStructurallyEquivalent(leftBlock.operations(), rightBlockRemapped.operations());
+        return blocksStructurallyEquivalent(leftBlock, rightBlock, new HashMap<>());
     }
 
-    private static boolean operationsStructurallyEquivalent(List<Operation> leftOperations, List<Operation> rightOperations)
+    private static boolean blocksStructurallyEquivalent(List<Block> leftBlocks, List<Block> rightBlocks, Map<Value, Value> equivalenceMapping)
     {
+        if (leftBlocks.size() != rightBlocks.size()) {
+            return false;
+        }
+        return IntStream.range(0, leftBlocks.size())
+                .allMatch(i -> blocksStructurallyEquivalent(leftBlocks.get(i), rightBlocks.get(i), new HashMap<>(equivalenceMapping)));
+    }
+
+    private static boolean blocksStructurallyEquivalent(Block leftBlock, Block rightBlock, Map<Value, Value> equivalenceMapping)
+    {
+        if (!leftBlock.parameters().stream().map(Block.Parameter::type).collect(toImmutableList())
+                .equals(rightBlock.parameters().stream().map(Block.Parameter::type).collect(toImmutableList()))) {
+            return false;
+        }
+
+        for (int i = 0; i < leftBlock.parameters().size(); i++) {
+            equivalenceMapping.put(rightBlock.parameters().get(i), leftBlock.parameters().get(i));
+        }
+
+        List<Operation> leftOperations = leftBlock.operations();
+        List<Operation> rightOperations = rightBlock.operations();
+
         if (leftOperations.size() != rightOperations.size()) {
             return false;
         }
-        if (leftOperations.isEmpty()) {
-            return true;
+
+        for (int i = 0; i < leftOperations.size(); i++) {
+            if (operationsStructurallyEquivalent(leftOperations.get(i), rightOperations.get(i), equivalenceMapping)) {
+                equivalenceMapping.put(rightOperations.get(i).result(), leftOperations.get(i).result());
+            }
+            else {
+                return false;
+            }
         }
-        if (!operationsStructurallyEquivalent(leftOperations.getFirst(), rightOperations.getFirst())) {
-            return false;
-        }
-        return operationsStructurallyEquivalent(
-                leftOperations.subList(1, leftOperations.size()),
-                rightOperations.subList(1, rightOperations.size()).stream()
-                        .map(operation -> remapValues(operation, ImmutableMap.of(rightOperations.getFirst().result(), leftOperations.getFirst().result())))
-                        .collect(toImmutableList()));
+
+        return true;
     }
 
-    private static boolean operationsStructurallyEquivalent(Operation leftOperation, Operation rightOperation)
+    private static boolean operationsStructurallyEquivalent(Operation leftOperation, Operation rightOperation, Map<Value, Value> equivalenceMapping)
     {
         // compare everything but the result name
         return leftOperation.dialect().equals(rightOperation.dialect()) &&
                 leftOperation.name().equals(rightOperation.name()) &&
                 leftOperation.result().type().equals(rightOperation.result().type()) &&
-                leftOperation.arguments().equals(rightOperation.arguments()) &&
+                leftOperation.arguments().equals(mapped(rightOperation.arguments(), equivalenceMapping)) &&
                 blocksStructurallyEquivalent(
                         leftOperation.regions().stream().map(Region::getOnlyBlock).collect(toImmutableList()),
-                        rightOperation.regions().stream().map(Region::getOnlyBlock).collect(toImmutableList())) &&
+                        rightOperation.regions().stream().map(Region::getOnlyBlock).collect(toImmutableList()),
+                        equivalenceMapping) &&
                 leftOperation.attributes().equals(rightOperation.attributes());
+    }
+
+    private static List<Value> mapped(List<Value> values, Map<Value, Value> mapping)
+    {
+        return values.stream()
+                .map(value -> mapping.getOrDefault(value, value))
+                .collect(toImmutableList());
     }
 }
