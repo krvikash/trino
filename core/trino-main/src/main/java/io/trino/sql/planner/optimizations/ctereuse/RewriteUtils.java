@@ -78,6 +78,7 @@ public class RewriteUtils
      */
     public static Optional<Block> rebaseBlock(Block block, int index, Type newType, FieldMapping fieldMapping, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
+        checkArgument(index >= 0 && index < block.parameters().size(), "parameter index out of bounds");
         Block.Parameter oldParameter = block.parameters().get(index);
         Type oldType = trinoType(oldParameter.type());
 
