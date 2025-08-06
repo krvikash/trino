@@ -36,7 +36,7 @@ public class ArrowDateTimeUtils
     public static final String TIMESTAMP_VECTOR_NAME = "timestamp";
     public static final String TIMEZONE_VECTOR_NAME = "timezone";
     public static final String TIME_VECTOR_NAME = "time";
-    public static final String TIME_OFFSET_VECTOR_NAME = "offset";
+    public static final String TIME_OFFSET_VECTOR_NAME = "offset_minutes";
 
     public static final int MILLISECONDS_PER_SECOND = 1_000;
     public static final int MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * 60;
