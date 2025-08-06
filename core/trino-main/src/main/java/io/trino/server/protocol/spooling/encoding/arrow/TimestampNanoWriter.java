@@ -13,12 +13,10 @@
  */
 package io.trino.server.protocol.spooling.encoding.arrow;
 
-import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.Fixed12Block;
 import org.apache.arrow.vector.TimeStampNanoVector;
 
-import static io.trino.spi.StandardErrorCode.SERIALIZATION_ERROR;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static java.lang.Math.addExact;
@@ -46,11 +44,6 @@ public final class TimestampNanoWriter
             throw new IllegalArgumentException("Expected block to be Fixed12Block but got " + block.getClass().getSimpleName());
         }
 
-        try {
-            vector.set(offset, addExact(multiplyExact(fixed12Block.getFixed12First(position), NANOSECONDS_PER_MICROSECOND), floorDiv(fixed12Block.getFixed12Second(position), PICOSECONDS_PER_NANOSECOND)));
-        }
-        catch (ArithmeticException e) {
-            throw new TrinoException(SERIALIZATION_ERROR, "Timestamp(6) value is out of range: [1677-09-21T00:12:43.145224192Z, 2262-04-11T23:47:16.854775807Z]", e);
-        }
+        vector.set(offset, addExact(multiplyExact(fixed12Block.getFixed12First(position), NANOSECONDS_PER_MICROSECOND), floorDiv(fixed12Block.getFixed12Second(position), PICOSECONDS_PER_NANOSECOND)));
     }
 }
