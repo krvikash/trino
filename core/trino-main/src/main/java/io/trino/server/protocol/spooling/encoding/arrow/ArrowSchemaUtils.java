@@ -51,6 +51,10 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import java.util.List;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_MICROS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_MILLIS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_NANOS;
+import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_SECONDS;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMESTAMP_VECTOR_NAME;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMEZONE_VECTOR_NAME;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_OFFSET_VECTOR_NAME;
@@ -145,17 +149,17 @@ public final class ArrowSchemaUtils
             case VarbinaryType _ -> ArrowType.Binary.INSTANCE;
             case DateType _ -> DATE_ARROW_TYPE;
             case TimeType time -> switch (time.getPrecision()) {
-                case 0 -> TIME_SEC_ARROW_TYPE;
-                case 3 -> TIME_MILLI_ARROW_TYPE;
-                case 6 -> TIME_MICRO_ARROW_TYPE;
-                case 9 -> TIME_NANO_ARROW_TYPE;
+                case PRECISION_SECONDS -> TIME_SEC_ARROW_TYPE;
+                case PRECISION_MILLIS -> TIME_MILLI_ARROW_TYPE;
+                case PRECISION_MICROS -> TIME_MICRO_ARROW_TYPE;
+                case PRECISION_NANOS -> TIME_NANO_ARROW_TYPE;
                 default -> throw unsupportedTypeException(time);
             };
             case TimestampType timestamp -> switch (timestamp.getPrecision()) {
-                case 0 -> TIMESTAMP_SEC_ARROW_TYPE;
-                case 3 -> TIMESTAMP_MILLI_ARROW_TYPE;
-                case 6 -> TIMESTAMP_MICRO_ARROW_TYPE;
-                case 9 -> TIMESTAMP_NANO_ARROW_TYPE;
+                case PRECISION_SECONDS -> TIMESTAMP_SEC_ARROW_TYPE;
+                case PRECISION_MILLIS -> TIMESTAMP_MILLI_ARROW_TYPE;
+                case PRECISION_MICROS -> TIMESTAMP_MICRO_ARROW_TYPE;
+                case PRECISION_NANOS -> TIMESTAMP_NANO_ARROW_TYPE;
                 default -> throw unsupportedTypeException(timestamp);
             };
             case TimeWithTimeZoneType _, TimestampWithTimeZoneType _ -> ArrowType.Struct.INSTANCE;
