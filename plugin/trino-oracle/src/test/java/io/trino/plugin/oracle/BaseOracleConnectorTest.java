@@ -357,6 +357,21 @@ public abstract class BaseOracleConnectorTest
     }
 
     @Test
+    public void testPredicatePushdownForOracleRawType()
+    {
+        predicatePushdownTest("RAW(5)", "hextoraw('68656C6C6F')", "=", "to_utf8('hello')");
+        predicatePushdownTest("RAW(5)", "hextoraw('68656C6C6F')", "!=", "to_utf8('hallo')");
+        predicatePushdownTest("RAW(5)", "hextoraw('68656C6C6F')", "<=", "to_utf8('helli')");
+        predicatePushdownTest("RAW(5)", "hextoraw('68656C6C6F')", ">=", "to_utf8('helloo')");
+        predicatePushdownTest("RAW(5)", "hextoraw('68656C6C6F')", ">=", "to_utf8('hello')");
+        predicatePushdownTest("RAW(5)", "hextoraw('68656C6C6F')", "IN", "(to_utf8('hello'), to_utf8('ello1'), to_utf8('ello2'))");
+        predicatePushdownTest("RAW(5)", "hextoraw('68656C6C6F')", "BETWEEN", "to_utf8('abc') AND to_utf8('hello1')");
+
+        // Since RAW has a size limitation of 2000, we apply a filter clause to verify it doesn't break beyond 2000 limit
+        predicatePushdownTest("RAW(5)", "hextoraw('68656C6C6F')", "<", "to_utf8('%s')".formatted("a".repeat(2001)));
+    }
+
+    @Test
     public void testTooLargeDomainCompactionThreshold()
     {
         assertQueryFails(

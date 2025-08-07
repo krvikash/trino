@@ -563,6 +563,11 @@ public class OracleClient
                         DISABLE_PUSHDOWN));
 
             case OracleTypes.VARBINARY: // Oracle's RAW(n)
+                return Optional.of(ColumnMapping.sliceMapping(
+                        VARBINARY,
+                        (resultSet, columnIndex) -> wrappedBuffer(resultSet.getBytes(columnIndex)),
+                        varbinaryWriteFunction(),
+                        FULL_PUSHDOWN));
             case OracleTypes.BLOB:
                 return Optional.of(ColumnMapping.sliceMapping(
                         VARBINARY,
