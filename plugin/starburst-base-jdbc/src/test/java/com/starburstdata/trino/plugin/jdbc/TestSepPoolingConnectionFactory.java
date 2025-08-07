@@ -10,7 +10,7 @@
 
 package com.starburstdata.trino.plugin.jdbc;
 
-import com.starburstdata.trino.plugin.jdbc.auth.AuthenticationBasedIdentityCacheMapping;
+import com.starburstdata.trino.plugin.base.cache.identity.AuthenticationBasedIdentityCacheMapping;
 import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 
 public class TestSepPoolingConnectionFactory
