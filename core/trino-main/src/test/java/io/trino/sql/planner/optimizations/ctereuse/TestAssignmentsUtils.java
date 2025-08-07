@@ -82,6 +82,7 @@ class TestAssignmentsUtils
     private static final Block FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DUPLICATES = getFieldSelectorFullPassthroughWithDuplicates();
     private static final Block FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DEAD_CODE = getFieldSelectorFullPassthroughWithDeadCode();
     private static final Block FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_OUTER_REFERENCE = getFieldSelectorFullPassthroughWithOuterReference();
+    private static final Block FIELD_SELECTOR_FULL_PASSTHROUGH_PREFIX = getFieldSelectorFullPassthroughPrefix();
 
     private static final Block FIELD_SELECTOR_REORDERING = getFieldSelectorReordering();
     private static final Block FIELD_SELECTOR_REORDERING_WITH_DUPLICATES = getFieldSelectorReorderingWithDuplicates();
@@ -129,6 +130,7 @@ class TestAssignmentsUtils
         assertThat(isFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DUPLICATES)).isFalse();
         assertThat(isFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DEAD_CODE)).isFalse();
         assertThat(isFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_OUTER_REFERENCE)).isFalse();
+        assertThat(isFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_PREFIX)).isTrue();
         assertThat(isFieldSelector(FIELD_SELECTOR_REORDERING)).isTrue();
         assertThat(isFieldSelector(FIELD_SELECTOR_REORDERING_WITH_DUPLICATES)).isFalse();
         assertThat(isFieldSelector(FIELD_SELECTOR_REORDERING_WITH_DEAD_CODE)).isFalse();
@@ -157,6 +159,7 @@ class TestAssignmentsUtils
         assertThat(isFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DUPLICATES, true)).isTrue();
         assertThat(isFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DEAD_CODE, true)).isFalse();
         assertThat(isFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_OUTER_REFERENCE, true)).isFalse();
+        assertThat(isFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_PREFIX, true)).isTrue();
         assertThat(isFieldSelector(FIELD_SELECTOR_REORDERING, true)).isTrue();
         assertThat(isFieldSelector(FIELD_SELECTOR_REORDERING_WITH_DUPLICATES, true)).isTrue();
         assertThat(isFieldSelector(FIELD_SELECTOR_REORDERING_WITH_DEAD_CODE, true)).isFalse();
@@ -185,6 +188,7 @@ class TestAssignmentsUtils
         assertThat(isEmptyFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DUPLICATES)).isFalse();
         assertThat(isEmptyFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DEAD_CODE)).isFalse();
         assertThat(isEmptyFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_OUTER_REFERENCE)).isFalse();
+        assertThat(isEmptyFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_PREFIX)).isFalse();
         assertThat(isEmptyFieldSelector(FIELD_SELECTOR_REORDERING)).isFalse();
         assertThat(isEmptyFieldSelector(FIELD_SELECTOR_REORDERING_WITH_DUPLICATES)).isFalse();
         assertThat(isEmptyFieldSelector(FIELD_SELECTOR_REORDERING_WITH_DEAD_CODE)).isFalse();
@@ -213,6 +217,7 @@ class TestAssignmentsUtils
         assertThat(isEmptyRelationalComputation(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DUPLICATES)).isFalse();
         assertThat(isEmptyRelationalComputation(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DEAD_CODE)).isFalse();
         assertThat(isEmptyRelationalComputation(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_OUTER_REFERENCE)).isFalse();
+        assertThat(isEmptyRelationalComputation(FIELD_SELECTOR_FULL_PASSTHROUGH_PREFIX)).isFalse();
         assertThat(isEmptyRelationalComputation(FIELD_SELECTOR_REORDERING)).isFalse();
         assertThat(isEmptyRelationalComputation(FIELD_SELECTOR_REORDERING_WITH_DUPLICATES)).isFalse();
         assertThat(isEmptyRelationalComputation(FIELD_SELECTOR_REORDERING_WITH_DEAD_CODE)).isFalse();
@@ -241,6 +246,7 @@ class TestAssignmentsUtils
         assertThat(isFullPassthroughFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DUPLICATES)).isFalse();
         assertThat(isFullPassthroughFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DEAD_CODE)).isFalse();
         assertThat(isFullPassthroughFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_OUTER_REFERENCE)).isFalse();
+        assertThat(isFullPassthroughFieldSelector(FIELD_SELECTOR_FULL_PASSTHROUGH_PREFIX)).isFalse();
         assertThat(isFullPassthroughFieldSelector(FIELD_SELECTOR_REORDERING)).isFalse();
         assertThat(isFullPassthroughFieldSelector(FIELD_SELECTOR_REORDERING_WITH_DUPLICATES)).isFalse();
         assertThat(isFullPassthroughFieldSelector(FIELD_SELECTOR_REORDERING_WITH_DEAD_CODE)).isFalse();
@@ -270,6 +276,7 @@ class TestAssignmentsUtils
         assertThat(isProjectAssignments(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DUPLICATES)).isTrue();
         assertThat(isProjectAssignments(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DEAD_CODE)).isTrue();
         assertThat(isProjectAssignments(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_OUTER_REFERENCE)).isTrue();
+        assertThat(isProjectAssignments(FIELD_SELECTOR_FULL_PASSTHROUGH_PREFIX)).isTrue();
         assertThat(isProjectAssignments(FIELD_SELECTOR_REORDERING)).isTrue();
         assertThat(isProjectAssignments(FIELD_SELECTOR_REORDERING_WITH_DUPLICATES)).isTrue();
         assertThat(isProjectAssignments(FIELD_SELECTOR_REORDERING_WITH_DEAD_CODE)).isTrue();
@@ -298,6 +305,7 @@ class TestAssignmentsUtils
         assertThat(isPruningAssignments(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DUPLICATES)).isFalse();
         assertThat(isPruningAssignments(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_DEAD_CODE)).isFalse();
         assertThat(isPruningAssignments(FIELD_SELECTOR_FULL_PASSTHROUGH_WITH_OUTER_REFERENCE)).isFalse();
+        assertThat(isPruningAssignments(FIELD_SELECTOR_FULL_PASSTHROUGH_PREFIX)).isTrue();
         assertThat(isPruningAssignments(FIELD_SELECTOR_REORDERING)).isTrue();
         assertThat(isPruningAssignments(FIELD_SELECTOR_REORDERING_WITH_DUPLICATES)).isFalse();
         assertThat(isPruningAssignments(FIELD_SELECTOR_REORDERING_WITH_DEAD_CODE)).isFalse();
@@ -439,6 +447,11 @@ class TestAssignmentsUtils
                         0, 0,
                         1, 1,
                         2, 2)));
+
+        assertThat(getIdentityMappings(FIELD_SELECTOR_FULL_PASSTHROUGH_PREFIX))
+                .isEqualTo(new FieldMapping(ImmutableMap.of(
+                        0, 0,
+                        1, 1)));
 
         assertThat(getIdentityMappings(FIELD_SELECTOR_REORDERING))
                 .isEqualTo(new FieldMapping(ImmutableMap.of(
@@ -1083,6 +1096,23 @@ class TestAssignmentsUtils
                 Optional.of("^fieldSelectorFullPassthroughWithOuterReference"),
                 ImmutableList.of(RELATION_ROW_PARAMETER),
                 ImmutableList.of(firstFieldReference, secondFieldReference, thirdFieldReference, fourthFieldReference, rowConstructor, returnOperation));
+    }
+
+    private static Block getFieldSelectorFullPassthroughPrefix()
+    {
+        // select f0:BIGINT, f1:BOOLEAN (the first two of the three fields)
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        Row rowConstructor = new Row(
+                "%2",
+                ImmutableList.of(firstFieldReference.result(), secondFieldReference.result()),
+                ImmutableList.of(firstFieldReference.attributes(), secondFieldReference.attributes()));
+        Return returnOperation = new Return("%3", rowConstructor.result(), rowConstructor.attributes());
+
+        return new Block(
+                Optional.of("^fieldSelectorFullPassthroughPrefix"),
+                ImmutableList.of(RELATION_ROW_PARAMETER),
+                ImmutableList.of(firstFieldReference, secondFieldReference, rowConstructor, returnOperation));
     }
 
     private static Block getFieldSelectorReordering()

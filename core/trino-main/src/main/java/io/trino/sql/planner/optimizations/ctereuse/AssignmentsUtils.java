@@ -166,6 +166,11 @@ public class AssignmentsUtils
         }
 
         Row rowConstructor = (Row) block.operations().get(block.operations().size() - 2);
+
+        if (rowConstructor.arguments().size() != trinoType(getOnlyElement(block.parameters()).type()).getTypeParameters().size()) {
+            return false;
+        }
+
         Map<Value, Integer> referencedFields = block.operations().subList(0, block.operations().size() - 2).stream()
                 .map(FieldReference.class::cast)
                 .collect(toImmutableMap(
