@@ -34,6 +34,7 @@ import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 
+import static io.opentelemetry.sdk.internal.StandardComponentId.ExporterType.OTLP_GRPC_SPAN_EXPORTER;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -99,8 +100,7 @@ public class TestingJaegerService
         requireNonNull(data, "data is null");
 
         GrpcExporterBuilder<RawMarshaler> grpcExporterBuilder = new GrpcExporterBuilder<>(
-                "otlp",
-                "span",
+                OTLP_GRPC_SPAN_EXPORTER,
                 10L,
                 getGrpcUri(),
                 () -> null,

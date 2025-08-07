@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
+import static io.opentelemetry.sdk.internal.StandardComponentId.ExporterType.OTLP_GRPC_SPAN_EXPORTER;
 import static java.lang.Math.toIntExact;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Objects.requireNonNull;
@@ -39,7 +40,7 @@ public final class JaegerTraceImporter
     public static void main(String[] args)
             throws IOException
     {
-        GrpcExporterBuilder<FileBasedMarshaller> grpcExporterBuilder = new GrpcExporterBuilder<>("otlp", "span", 10L, URI.create("http://localhost:4317"), () -> null, "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
+        GrpcExporterBuilder<FileBasedMarshaller> grpcExporterBuilder = new GrpcExporterBuilder<>(OTLP_GRPC_SPAN_EXPORTER, 10L, URI.create("http://localhost:4317"), () -> null, "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
         GrpcExporter<FileBasedMarshaller> exporter = grpcExporterBuilder.build();
         Path tracesDirectory = Paths.get(System.getProperty("user.home")).resolve("Downloads/traces");
         Path decompressedDirectory = tracesDirectory.resolve("decompressed");
