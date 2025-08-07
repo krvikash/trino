@@ -198,8 +198,7 @@ final class TestIcebergLakekeeperCatalogConnectorSmokeTest
                         "   format = '" + format.name() + "',\n" +
                         "   format_version = 2,\n" +
                         // lakekeeper uses namespaceId instead of schemaName in the location
-                        format("   location = 's3://" + TestingLakekeeperCatalog.BUCKET + "/.*/region.*',\n" +
-                                "   max_commit_retry = 4\n") +
+                        format("   location = 's3://" + TestingLakekeeperCatalog.BUCKET + "/.*/region.*'\n") +
                         "\\)");
     }
 
