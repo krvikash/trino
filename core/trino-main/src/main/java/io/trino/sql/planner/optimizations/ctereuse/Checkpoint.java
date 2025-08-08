@@ -14,7 +14,6 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multimap;
 import io.trino.Session;
 import io.trino.metadata.Metadata;
 import io.trino.sql.dialect.trino.ProgramBuilder;
@@ -41,7 +40,7 @@ public sealed interface Checkpoint
 
     CteReuse.UnifiedStates extractSubgroup(
             List<Integer> subgroupIndexes,
-            Multimap<Operation, Operation> usesMap,
+            Map<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             Session session,
@@ -67,7 +66,7 @@ public sealed interface Checkpoint
         @Override
         public CteReuse.UnifiedStates extractSubgroup(
                 List<Integer> subgroupIndexes,
-                Multimap<Operation, Operation> usesMap,
+                Map<Operation, Operation> usesMap,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations,
                 Session session,
@@ -118,7 +117,7 @@ public sealed interface Checkpoint
         @Override
         public CteReuse.UnifiedStates extractSubgroup(
                 List<Integer> subgroupIndexes,
-                Multimap<Operation, Operation> usesMap,
+                Map<Operation, Operation> usesMap,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations,
                 Session session,

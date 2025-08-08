@@ -15,7 +15,6 @@ package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.ProgramBuilder;
@@ -122,7 +121,7 @@ public class ProjectMerger
             List<TraversalState> branches,
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
-            Multimap<Operation, Operation> usesMap,
+            Map<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -224,7 +223,7 @@ public class ProjectMerger
                     traversalContext.enforcedLimit());
             newTraversalStates.add(new TraversalState(
                     rebasedContext,
-                    getNextOperation(originalProject, usesMap).orElseThrow()));
+                    getNextOperation(originalProject, usesMap)));
         }
 
         return new UnifiedStatesAndCheckpointMapping(

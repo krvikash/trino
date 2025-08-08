@@ -73,6 +73,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -189,7 +190,8 @@ public class CteReuse
         // initialize the (operation -> downstream operations) map for the original program
         // it will be used to traverse the original program and will not be updated when we change parts of the program
         // TODO operations should be always compared scope-aware. Theoretically, there can be equal operations in different scopes of one plan. The keys and values of usesMap should be (Operation, scope)
-        Multimap<Operation, Operation> usesMap = buildUsesMap(program);
+        // For now, it is an IdentityHashMap to avoid clashing operations from different scopes.
+        Map<Operation, Operation> usesMap = buildUsesMap(program);
 
         // initialize a ValueNameAllocator compatible with the original program
         // when we create new values using this allocator, they will be ready to incorporate
@@ -367,28 +369,31 @@ public class CteReuse
     }
 
     /**
-     * Map each operation to all operations that use this operation's result as an argument.
+     * Map each operation to the operation that uses this operation's result as an argument.
+     * Use mapping by identity to avoid clashing operations from different scopes.
      */
-    private static Multimap<Operation, Operation> buildUsesMap(Program program)
+    private static Map<Operation, Operation> buildUsesMap(Program program)
     {
-        ImmutableListMultimap.Builder<Operation, Operation> usesMap = ImmutableListMultimap.builder();
+        Map<Operation, Operation> usesMap = new IdentityHashMap<>();
         buildUsesMap(program.getRoot(), program.getValueMap(), usesMap);
-        return usesMap.build();
+        return usesMap;
     }
 
-    private static void buildUsesMap(Operation operation, Map<Value, SourceNode> valueMap, ImmutableListMultimap.Builder<Operation, Operation> builder)
+    private static void buildUsesMap(Operation operation, Map<Value, SourceNode> valueMap, Map<Operation, Operation> usesMap)
     {
         operation.arguments().stream()
                 .forEach(argument -> {
                     SourceNode source = valueMap.get(argument);
                     if (source instanceof Operation sourceOperation) {
-                        builder.put(sourceOperation, operation);
+                        if (usesMap.put(sourceOperation, operation) != null) {
+                            throw new TrinoException(IR_ERROR, format("Operation result %s is used by multiple operations", sourceOperation.result().name()));
+                        }
                     }
                 });
         for (Region region : operation.regions()) {
             for (Block block : region.blocks()) {
                 for (Operation nested : block.operations()) {
-                    buildUsesMap(nested, valueMap, builder);
+                    buildUsesMap(nested, valueMap, usesMap);
                 }
             }
         }
@@ -400,7 +405,7 @@ public class CteReuse
     public static UnifiedStates initializeTraversalForGroup(
             UnifiedGroup unifiedGroup,
             Metadata metadata,
-            Multimap<Operation, Operation> usesMap,
+            Map<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -414,7 +419,7 @@ public class CteReuse
         // initialize traversal state for each branch by combining the TraversalContext with the next downstream operation
         ImmutableList.Builder<TraversalState> traversalStates = ImmutableList.builder();
         for (int i = 0; i < unifiedGroup.tableScans().size(); i++) {
-            traversalStates.add(new TraversalState(traversalContexts.get(i), getNextOperation(unifiedGroup.tableScans().get(i), usesMap).orElseThrow()));
+            traversalStates.add(new TraversalState(traversalContexts.get(i), getNextOperation(unifiedGroup.tableScans().get(i), usesMap)));
         }
 
         return new UnifiedStates(unifiedTableScan, traversalStates.build());
@@ -632,22 +637,13 @@ public class CteReuse
      * Return the _only_ downstream operation of the provided operation. It is the operation that uses this operation's result as an argument.
      * The sourceIndex indicates which argument of the downstream operation the current operation is.
      * <p>
-     * Optional.empty() is returned in two cases:
-     * - the provided operation's result is not used. This is the case for terminal operations, like Output, or Return, or for dead code
-     * - the provided operation has multiple downstream dependencies (diamond shape)
-     * For the POC, we aim to perform CTE reuse in a single bottom-up pass, so we should not encounter diamond shape in the program.
-     * Later, we might consider handling it.
-     * <p>
-     * For now, we assume that neither of the cases is achievable. We will not call this method on terminal operations.
+     * This method should fail if the provided operation's result is not used. This is the case for terminal operations, like Output, or Return, or for dead code.
+     * For now, this is not achievable: we will not call this method on terminal operations, and there shall be no dead code.
      */
-    public static Optional<OperationAndIndex> getNextOperation(Operation operation, Multimap<Operation, Operation> usesMap)
+    public static OperationAndIndex getNextOperation(Operation operation, Map<Operation, Operation> usesMap)
     {
-        Collection<Operation> uses = usesMap.get(operation);
-        if (uses.size() != 1) {
-            return Optional.empty();
-        }
-        Operation nextOperation = getOnlyElement(uses);
-        return Optional.of(new OperationAndIndex(nextOperation, nextOperation.arguments().indexOf(operation.result())));
+        Operation nextOperation = requireNonNull(usesMap.get(operation), format("Operation result %s is not used in the program", operation.result().name()));
+        return new OperationAndIndex(nextOperation, nextOperation.arguments().indexOf(operation.result()));
     }
 
     /**
@@ -727,7 +723,7 @@ public class CteReuse
      * @param checkpoints -- the points to backtrack to when merging fails. Current branches correspond to the checkpoint branches as in the branchToCheckpoint mapping.
      * @param branchToCheckpoint -- the mapping of current branches to the corresponding branches in checkpoints.
      * @param setCheckpoint -- indicates whether the next remote exchange should be used as a checkpoint
-     * @param usesMap -- map (operation -> downstream operations) in the original plan
+     * @param usesMap -- map (operation -> downstream operation) in the original plan
      * @param nameAllocator -- ValueNameAllocator needed for creating new operations
      * @param newOperations -- a collection of newly created operations
      * @param multiGroupMerger -- a structure to enable merging multi-source operations, like Join. It records operations whose sources
@@ -738,7 +734,7 @@ public class CteReuse
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
             boolean setCheckpoint,
-            Multimap<Operation, Operation> usesMap,
+            Map<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             MultiGroupMerger multiGroupMerger,
@@ -864,7 +860,7 @@ public class CteReuse
     /**
      * Accumulate pruning projections and filters in the TraversalContext.
      */
-    private static TraversalState ingestOperationsIntoContext(TraversalState branchState, Operation unifiedOperation, Multimap<Operation, Operation> usesMap, ProgramBuilder.ValueNameAllocator nameAllocator)
+    private static TraversalState ingestOperationsIntoContext(TraversalState branchState, Operation unifiedOperation, Map<Operation, Operation> usesMap, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
         Operation nextOperation = branchState.nextOperation().operation();
         if (nextOperation instanceof Project project && project.isPruning() && isDeterministic(project)) {
@@ -875,7 +871,7 @@ public class CteReuse
                     branchState.traversalContext().predicateToApply(),
                     branchState.traversalContext().enforcedPredicate(),
                     branchState.traversalContext().enforcedLimit());
-            return ingestOperationsIntoContext(new TraversalState(newContext, getNextOperation(project, usesMap).orElseThrow()), unifiedOperation, usesMap, nameAllocator);
+            return ingestOperationsIntoContext(new TraversalState(newContext, getNextOperation(project, usesMap)), unifiedOperation, usesMap, nameAllocator);
         }
         else if (nextOperation instanceof Filter filter && isDeterministic(filter)) {
             Block newPredicateToApply = rebaseBlock(filter.predicate(), relationRowType(trinoType(unifiedOperation.result().type())), branchState.traversalContext().fieldMapping(), nameAllocator).orElseThrow();
@@ -888,7 +884,7 @@ public class CteReuse
                     newPredicateToApply,
                     branchState.traversalContext().enforcedPredicate(),
                     branchState.traversalContext().enforcedLimit());
-            return ingestOperationsIntoContext(new TraversalState(newContext, getNextOperation(filter, usesMap).orElseThrow()), unifiedOperation, usesMap, nameAllocator);
+            return ingestOperationsIntoContext(new TraversalState(newContext, getNextOperation(filter, usesMap)), unifiedOperation, usesMap, nameAllocator);
         }
         return branchState;
     }
@@ -1074,7 +1070,7 @@ public class CteReuse
      */
     private static Subgroups identifySubgroupsToMerge(
             UnifiedStates unifiedStates,
-            Multimap<Operation, Operation> usesMap,
+            Map<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             MultiGroupMerger multiGroupMerger,

@@ -14,7 +14,6 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multimap;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Value;
@@ -49,7 +48,7 @@ public class SingleGroupMerger
             List<CteReuse.TraversalState> branches,
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
-            Multimap<Operation, Operation> usesMap,
+            Map<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -116,7 +115,7 @@ public class SingleGroupMerger
                 List<CteReuse.TraversalState> branches,
                 List<Checkpoint> checkpoints,
                 BranchesToCheckpointsMapping branchToCheckpoint,
-                Multimap<Operation, Operation> usesMap,
+                Map<Operation, Operation> usesMap,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations);
     }

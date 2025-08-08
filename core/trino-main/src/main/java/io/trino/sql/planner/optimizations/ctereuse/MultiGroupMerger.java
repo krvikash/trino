@@ -16,7 +16,6 @@ package io.trino.sql.planner.optimizations.ctereuse;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Multimap;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
 import io.trino.Session;
@@ -83,7 +82,7 @@ public class MultiGroupMerger
      * - multiGroupMerges -> (b0, b1) can be merged with group C
      * - hangingBranches -> (b2, b3)
      */
-    public MultiGroupMergeDecomposition identifyMultiGroupSubgroupsToMerge(CteReuse.UnifiedStates newGroup, Multimap<Operation, Operation> usesMap, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations, Session session, Metadata metadata)
+    public MultiGroupMergeDecomposition identifyMultiGroupSubgroupsToMerge(CteReuse.UnifiedStates newGroup, Map<Operation, Operation> usesMap, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations, Session session, Metadata metadata)
     {
         // find merging candidates across the new group and the hanging groups
         List<MultiGroupMergeCandidate> candidates = MULTI_GROUP_PROCESSORS.stream()
@@ -147,7 +146,7 @@ public class MultiGroupMerger
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
             List<Integer> hangingGroupsToMerge,
-            Multimap<Operation, Operation> usesMap,
+            Map<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -215,7 +214,7 @@ public class MultiGroupMerger
     private void splitGroupRecursively(
             HangingGroup groupToSplit,
             Collection<List<Integer>> decomposition,
-            Multimap<Operation, Operation> usesMap,
+            Map<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             Session session,
@@ -414,7 +413,7 @@ public class MultiGroupMerger
                 BranchesToCheckpointsMapping branchToCheckpoint,
                 List<Integer> hangingGroupsToMerge,
                 Map<Integer, HangingGroup> hangingGroups,
-                Multimap<Operation, Operation> usesMap,
+                Map<Operation, Operation> usesMap,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations);
     }

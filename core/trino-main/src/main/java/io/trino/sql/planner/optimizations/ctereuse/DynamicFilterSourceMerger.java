@@ -14,7 +14,6 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multimap;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.newir.Block;
@@ -66,7 +65,7 @@ public class DynamicFilterSourceMerger
             List<TraversalState> branches,
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
-            Multimap<Operation, Operation> usesMap,
+            Map<Operation, Operation> usesMap,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -102,7 +101,7 @@ public class DynamicFilterSourceMerger
                         // The unified DynamicFilterSource has the same output type as the recent unified operation,
                         // and the next operation's input type is the same as the component DynamicFilterSource input type.
                         branch.traversalContext(),
-                        getNextOperation(branch.nextOperation().operation(), usesMap).orElseThrow()))
+                        getNextOperation(branch.nextOperation().operation(), usesMap)))
                 .collect(toImmutableList());
 
         return new CteReuse.UnifiedStatesAndCheckpointMapping(
