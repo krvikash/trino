@@ -12,7 +12,7 @@ package com.starburstdata.trino.plugin.functions.ai.embedding;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import com.starburstdata.trino.plugin.functions.ai.AiMetadata;
+import com.starburstdata.trino.plugin.functions.FunctionsMetadata;
 import io.airlift.slice.Slice;
 import io.starburst.ai.client.EmbeddingType;
 import io.starburst.ai.client.ModelClientProvider;
@@ -77,7 +77,7 @@ public class GenerateEmbeddingsTableFunction
     public GenerateEmbeddingsTableFunction(AiModelAccessControl aiModelAccessControl)
     {
         super(
-                AiMetadata.SCHEMA_NAME,
+                FunctionsMetadata.AI_SCHEMA_NAME,
                 "generate_embeddings",
                 ImmutableList.of(
                         TableArgumentSpecification.builder()

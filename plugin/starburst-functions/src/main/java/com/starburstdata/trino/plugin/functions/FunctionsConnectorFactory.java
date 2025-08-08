@@ -10,8 +10,13 @@
 package com.starburstdata.trino.plugin.functions;
 
 import com.google.inject.Injector;
+import com.google.inject.Module;
 import com.starburstdata.trino.plugin.functions.ai.AiModule;
+import com.starburstdata.trino.plugin.functions.io.ResolvingFileSystemModule;
+import com.starburstdata.trino.plugin.functions.io.StorageModule;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.json.JsonModule;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.spi.NodeManager;
 import io.trino.spi.catalog.CatalogName;
@@ -22,11 +27,25 @@ import io.trino.spi.security.AiModelAccessControl;
 
 import java.util.Map;
 
+import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
+import static java.util.Objects.requireNonNull;
 
 public class FunctionsConnectorFactory
         implements ConnectorFactory
 {
+    private final Module module;
+
+    public FunctionsConnectorFactory()
+    {
+        this(EMPTY_MODULE);
+    }
+
+    public FunctionsConnectorFactory(Module module)
+    {
+        this.module = requireNonNull(module, "module is null");
+    }
+
     @Override
     public String getName()
     {
@@ -40,12 +59,17 @@ public class FunctionsConnectorFactory
 
         Bootstrap app = new Bootstrap(
                 new AiModule(context.getModelConnectionSpecsLoader()),
+                new JsonModule(),
+                new StorageModule(context.getTypeManager()),
+                new ResolvingFileSystemModule(context.getOpenTelemetry()),
                 binder -> {
+                    binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
                     binder.bind(Tracer.class).toInstance(context.getTracer());
                     binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
                     binder.bind(NodeManager.class).toInstance(context.getNodeManager());
                     binder.bind(AiModelAccessControl.class).toInstance(context.getAiModelAccessControl());
-                });
+                },
+                module);
 
         Injector injector = app
                 .doNotInitializeLogging()

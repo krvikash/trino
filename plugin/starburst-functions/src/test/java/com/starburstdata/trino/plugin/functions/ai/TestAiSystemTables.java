@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.functions.ai;
 
+import com.starburstdata.trino.plugin.functions.FunctionsPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
@@ -93,7 +94,7 @@ public class TestAiSystemTables
         """);
         return MemoryQueryRunner.builder()
                 .setAdditionalSetup(runner -> {
-                    runner.installPlugin(new AiPlugin());
+                    runner.installPlugin(new FunctionsPlugin());
                     runner.createCatalog("ai", "starburst_functions", Map.of(
                             "ai.client.models.storage", "FILE",
                             "ai.client.models.file", modelsFile.getAbsolutePath()));

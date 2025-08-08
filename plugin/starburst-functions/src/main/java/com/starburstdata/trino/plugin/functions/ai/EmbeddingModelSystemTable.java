@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static com.starburstdata.trino.plugin.functions.ai.AiMetadata.SCHEMA_NAME;
+import static com.starburstdata.trino.plugin.functions.FunctionsMetadata.AI_SCHEMA_NAME;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
@@ -30,7 +30,7 @@ public class EmbeddingModelSystemTable
         extends AiSystemTable<EmbeddingModelConnectionSpec>
 {
     private static final ConnectorTableMetadata METADATA = new ConnectorTableMetadata(
-            new SchemaTableName(SCHEMA_NAME, "embedding_models"),
+            new SchemaTableName(AI_SCHEMA_NAME, "embedding_models"),
             ImmutableList.<ColumnMetadata>builder()
                     .add(new ColumnMetadata("id", VARCHAR))
                     .add(new ColumnMetadata("provider", VARCHAR))

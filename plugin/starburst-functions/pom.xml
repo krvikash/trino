@@ -15,8 +15,24 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jspecify</groupId>
+                    <artifactId>jspecify</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -41,6 +57,21 @@
         </dependency>
 
         <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>log</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>units</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.schema-discovery</groupId>
+            <artifactId>schema-discovery-core</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>io.trino</groupId>
             <artifactId>starburst-ai-client</artifactId>
         </dependency>
@@ -52,12 +83,62 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem-azure</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem-gcs</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem-s3</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-hive</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-metastore</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-orc</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-parquet</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-plugin-toolkit</artifactId>
         </dependency>
 
         <dependency>
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.weakref</groupId>
+            <artifactId>jmxutils</artifactId>
         </dependency>
 
         <dependency>
@@ -80,6 +161,12 @@
 
         <dependency>
             <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api-incubator</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-context</artifactId>
             <scope>provided</scope>
         </dependency>
@@ -97,8 +184,20 @@
         </dependency>
 
         <dependency>
+            <groupId>com.google.errorprone</groupId>
+            <artifactId>error_prone_annotations</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
             <groupId>io.airlift</groupId>
-            <artifactId>log</artifactId>
+            <artifactId>log-manager</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk-trace</artifactId>
             <scope>runtime</scope>
         </dependency>
 
@@ -127,14 +226,15 @@
         </dependency>
 
         <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-sdk-trace</artifactId>
+            <groupId>io.trino</groupId>
+            <artifactId>starburst-ai-client</artifactId>
+            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.trino</groupId>
-            <artifactId>starburst-ai-client</artifactId>
+            <artifactId>trino-hive</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
@@ -173,7 +273,19 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-testing-containers</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-testing-services</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-tpch</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -229,6 +341,15 @@
                         <ignoredNonTestScopedDependencies>
                             <ignoredNonTestScopedDependency>io.airlift:json</ignoredNonTestScopedDependency>
                         </ignoredNonTestScopedDependencies>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.basepom.maven</groupId>
+                    <artifactId>duplicate-finder-maven-plugin</artifactId>
+                    <configuration>
+                        <ignoredResourcePatterns>
+                            <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
+                        </ignoredResourcePatterns>
                     </configuration>
                 </plugin>
             </plugins>

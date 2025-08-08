@@ -68,7 +68,6 @@
         <module>plugin/starburst-base-jdbc</module>
         <module>plugin/starburst-dynamodb</module>
         <module>plugin/starburst-functions</module>
-        <module>plugin/starburst-io</module>
         <module>plugin/starburst-oracle</module>
         <module>plugin/starburst-salesforce</module>
         <module>plugin/starburst-sap-hana</module>

@@ -13,6 +13,7 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.starburstdata.trino.plugin.functions.FunctionsConnector;
+import com.starburstdata.trino.plugin.functions.FunctionsMetadata;
 import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsTableFunction;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.ai.client.AiClientModule;
@@ -43,11 +44,11 @@ public class AiModule
     {
         install(new AiClientModule(externalModelConnectionSpecsLoader));
         binder.bind(FunctionsConnector.class).in(Scopes.SINGLETON);
-        binder.bind(AiMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(FunctionsMetadata.class).in(Scopes.SINGLETON);
         binder.bind(AiFunctions.class).in(Scopes.SINGLETON);
 
         binder.bind(Connector.class).to(FunctionsConnector.class).in(Scopes.SINGLETON);
-        binder.bind(ConnectorMetadata.class).to(AiMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(ConnectorMetadata.class).to(FunctionsMetadata.class).in(Scopes.SINGLETON);
         binder.bind(FunctionProvider.class).to(AiFunctions.class).in(Scopes.SINGLETON);
 
         var systemTableBinder = newSetBinder(binder, SystemTable.class);

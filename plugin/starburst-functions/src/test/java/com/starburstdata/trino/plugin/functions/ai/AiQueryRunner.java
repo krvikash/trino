@@ -11,6 +11,7 @@ package com.starburstdata.trino.plugin.functions.ai;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.starburstdata.trino.plugin.functions.FunctionsPlugin;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.spi.security.Identity;
@@ -55,7 +56,7 @@ public final class AiQueryRunner
 
     private static void addStarburstAiCatalog(Map<String, String> properties, QueryRunner runner)
     {
-        runner.installPlugin(new AiPlugin());
+        runner.installPlugin(new FunctionsPlugin());
         runner.createCatalog(STARBURST_FUNCTIONS_CATALOG, "starburst_functions", properties);
     }
 
