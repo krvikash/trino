@@ -29,8 +29,8 @@ import java.util.Set;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static com.starburstdata.trino.plugin.ai.AiQueryRunner.addStarburstAiCatalog;
-import static com.starburstdata.trino.plugin.ai.AiQueryRunner.starburstAiFileStorageProperties;
+import static com.starburstdata.trino.plugin.functions.ai.AiQueryRunner.addStarburstAiCatalog;
+import static com.starburstdata.trino.plugin.functions.ai.AiQueryRunner.starburstAiFileStorageProperties;
 import static io.trino.spi.security.AccessDeniedException.denyExecuteAiModelAccess;
 import static org.assertj.core.api.Assertions.assertThat;
 

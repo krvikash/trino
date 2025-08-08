@@ -65,9 +65,9 @@
         <module>lib/trino-parquet</module>
         <module>lib/trino-plugin-toolkit</module>
         <module>lib/trino-record-decoder</module>
-        <module>plugin/starburst-ai</module>
         <module>plugin/starburst-base-jdbc</module>
         <module>plugin/starburst-dynamodb</module>
+        <module>plugin/starburst-functions</module>
         <module>plugin/starburst-io</module>
         <module>plugin/starburst-oracle</module>
         <module>plugin/starburst-salesforce</module>
@@ -1034,13 +1034,6 @@
 
             <dependency>
                 <groupId>io.trino</groupId>
-                <artifactId>starburst-ai</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
                 <artifactId>starburst-ai-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1067,6 +1060,13 @@
             <dependency>
                 <groupId>io.trino</groupId>
                 <artifactId>starburst-base-jdbc</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-functions</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>

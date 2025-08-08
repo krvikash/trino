@@ -10,8 +10,8 @@
     </artifactSet>
 
     <!-- Plugins -->
-    <artifactSet to="plugin/ai-functions">
-        <artifact id="${project.groupId}:starburst-ai:zip:${project.version}">
+    <artifactSet to="plugin/starburst-functions">
+        <artifact id="${project.groupId}:starburst-functions:zip:${project.version}">
             <unpack />
         </artifact>
     </artifactSet>

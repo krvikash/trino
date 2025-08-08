@@ -48,8 +48,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.starburstdata.trino.plugin.ai.AiQueryRunner.addStarburstAiCatalog;
-import static com.starburstdata.trino.plugin.ai.AiQueryRunner.starburstAiFileStorageProperties;
+import static com.starburstdata.trino.plugin.functions.ai.AiQueryRunner.addStarburstAiCatalog;
+import static com.starburstdata.trino.plugin.functions.ai.AiQueryRunner.starburstAiFileStorageProperties;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.PASSWORD;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.USER;

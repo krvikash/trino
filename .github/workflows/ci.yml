@@ -934,11 +934,11 @@ jobs:
           $MAVEN test ${MAVEN_TEST} -pl '
             !:starburst-buffer-testing,
             !:starburst-buffer-exchange-tests,
-            !:starburst-ai,
             !:starburst-ai-client,
             !:starburst-ai-client-model,
             !:starburst-base-jdbc,
             !:starburst-dynamodb,
+            !:starburst-functions,
             !:starburst-io,
             !:starburst-license,
             !:starburst-oracle,
@@ -1093,8 +1093,8 @@ jobs:
             - { modules: lib/trino-filesystem-s3, profile: cloud-tests }
             - { modules: lib/trino-hdfs, profile: cloud-tests }
             - { modules: lib/starburst-ai-client }
-            - { modules: plugin/starburst-ai }
             - { modules: plugin/starburst-dynamodb }
+            - { modules: plugin/starburst-functions }
             - { modules: plugin/starburst-io }
             - { modules: plugin/starburst-oracle }
             - { modules: plugin/starburst-sap-hana }
@@ -1191,7 +1191,7 @@ jobs:
       - name: Maven Tests
         id: tests
         if: >-
-          matrix.modules != 'plugin/starburst-ai'
+          matrix.modules != 'plugin/starburst-functions'
           && matrix.modules != 'lib/starburst-ai-client'
           && matrix.modules != 'plugin/starburst-io'
           && ! (contains(matrix.modules, 'trino-mongodb') && contains(matrix.profile, 'cloud-tests'))
@@ -1207,8 +1207,8 @@ jobs:
           && ! (contains(matrix.modules, 'trino-hdfs') && contains(matrix.profile, 'cloud-tests'))
         run: $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }}
       # Additional tests for selected modules
-      - name: Run Starburst AI tests
-        id: tests-starburst-ai
+      - name: Run Starburst Functions tests
+        id: tests-starburst-functions
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           AZURE_OPEN_AI_LANGUAGE_ENDPOINT: ${{ vars.AZURE_OPEN_AI_LANGUAGE_ENDPOINT }}
@@ -1219,7 +1219,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.TRINO_AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
         if: >-
-          (matrix.modules == 'plugin/starburst-ai' ||  matrix.modules == 'lib/starburst-ai-client')
+          (matrix.modules == 'plugin/starburst-functions' ||  matrix.modules == 'lib/starburst-ai-client')
           && (env.OPEN_AI_API_KEY != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_REGION != '')
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
@@ -1511,7 +1511,7 @@ jobs:
           artifact-name: ${{ env.ARTIFACT_NAME }}
           has-failed-tests: >-
             ${{ steps.tests.outcome == 'failure'
-              || steps.tests-starburst-ai.outcome == 'failure'
+              || steps.tests-starburst-functions.outcome == 'failure'
               || steps.tests-starburst-io.outcome == 'failure'
               || steps.tests-hdfs-isolated.outcome == 'failure'
               || steps.tests-hdfs.outcome == 'failure'
