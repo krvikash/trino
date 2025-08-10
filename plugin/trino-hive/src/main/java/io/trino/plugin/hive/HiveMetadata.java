@@ -111,6 +111,7 @@ import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableNotFoundException;
+import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.connector.ViewNotFoundException;
 import io.trino.spi.connector.WriterScalingOptions;
 import io.trino.spi.expression.ConnectorExpression;
@@ -302,6 +303,7 @@ import static io.trino.plugin.hive.util.AcidTables.isFullAcidTable;
 import static io.trino.plugin.hive.util.AcidTables.isTransactionalTable;
 import static io.trino.plugin.hive.util.AcidTables.writeAcidVersionFile;
 import static io.trino.plugin.hive.util.HiveBucketing.BucketingVersion.BUCKETING_V2;
+import static io.trino.plugin.hive.util.HiveBucketing.HiveBucketFilter;
 import static io.trino.plugin.hive.util.HiveBucketing.getBucketingVersion;
 import static io.trino.plugin.hive.util.HiveBucketing.getHiveTablePartitioningForRead;
 import static io.trino.plugin.hive.util.HiveBucketing.getHiveTablePartitioningForWrite;
@@ -342,6 +344,7 @@ import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.connector.RetryMode.NO_RETRIES;
 import static io.trino.spi.connector.RowChangeParadigm.DELETE_ROW_AND_INSERT_ROW;
 import static io.trino.spi.connector.SaveMode.REPLACE;
+import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
 import static io.trino.spi.predicate.TupleDomain.withColumnDomains;
 import static io.trino.spi.statistics.TableStatisticType.ROW_COUNT;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -428,6 +431,7 @@ public class HiveMetadata
     private final long maxPartitionDropsPerQuery;
     private final HiveTimestampPrecision hiveViewsTimestampPrecision;
     private final Executor metadataFetchingExecutor;
+    private final boolean reuseCommonSubqueriesEnabled;
 
     public HiveMetadata(
             LocationAccessControl locationAccessControl,
@@ -456,7 +460,8 @@ public class HiveMetadata
             boolean allowTableRename,
             long maxPartitionDropsPerQuery,
             HiveTimestampPrecision hiveViewsTimestampPrecision,
-            Executor metadataFetchingExecutor)
+            Executor metadataFetchingExecutor,
+            boolean reuseCommonSubqueriesEnabled)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
@@ -485,6 +490,7 @@ public class HiveMetadata
         this.maxPartitionDropsPerQuery = maxPartitionDropsPerQuery;
         this.hiveViewsTimestampPrecision = requireNonNull(hiveViewsTimestampPrecision, "hiveViewsTimestampPrecision is null");
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
+        this.reuseCommonSubqueriesEnabled = reuseCommonSubqueriesEnabled;
     }
 
     @Override
@@ -3149,6 +3155,125 @@ public class HiveMetadata
         }
 
         return Optional.of(new ConstraintApplicationResult<>(newHandle, unenforcedConstraint, constraint.getExpression(), false));
+    }
+
+    @Override
+    public Optional<UnificationResult<ConnectorTableHandle>> unifyTables(ConnectorSession session, ConnectorTableHandle first, ConnectorTableHandle second)
+    {
+        if (!reuseCommonSubqueriesEnabled) {
+            return Optional.empty();
+        }
+
+        HiveTableHandle firstTable = (HiveTableHandle) first;
+        HiveTableHandle secondTable = (HiveTableHandle) second;
+
+        if (!similar(firstTable, secondTable)) {
+            return Optional.empty();
+        }
+
+        // create a unified table handle containing all columns from the first and second table handles
+        HiveTableHandle unified = new HiveTableHandle(
+                firstTable.getSchemaName(),
+                firstTable.getTableName(),
+                firstTable.getTableParameters(),
+                firstTable.getPartitionColumns(),
+                firstTable.getDataColumns(),
+                firstTable.getPartitionNames(),
+                firstTable.getPartitions(),
+                TupleDomain.all(),
+                TupleDomain.all(),
+                firstTable.getTablePartitioning(),
+                Optional.empty(),
+                firstTable.getAnalyzePartitionValues(),
+                ImmutableSet.of(),
+                Sets.union(firstTable.getProjectedColumns(), secondTable.getProjectedColumns()),
+                firstTable.getTransaction(),
+                firstTable.isRecordScannedFiles(),
+                firstTable.getMaxScannedFileSize());
+
+        // union and push enforced constraints from the first and second table handles
+        // it doesn't matter if the unioned TupleDomain is abundant or if pushdown is incomplete,
+        // the original enforced constraints for both tables will be returned to the caller to re-apply
+        // Note: the pushed predicate might use columns that are not present in projectedColumns
+        TupleDomain<ColumnHandle> unionedEnforcedConstraint = columnWiseUnion(firstTable.getEnforcedConstraint(), secondTable.getEnforcedConstraint());
+        Optional<ConstraintApplicationResult<ConnectorTableHandle>> enforcedResult = applyFilter(
+                session,
+                unified,
+                new Constraint(unionedEnforcedConstraint, unionedEnforcedConstraint.asPredicate(), unionedEnforcedConstraint.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+        if (enforcedResult.isPresent()) {
+            unified = (HiveTableHandle) enforcedResult.get().getHandle();
+        }
+
+        // union and push compacted effective predicates from the first and second table handles
+        // it doesn't matter if the unioned TupleDomain is abundant or if pushdown is incomplete,
+        // the compacted effective predicate is "best effort", and there is no guarantee it is effective
+        // Note: the pushed predicate might use columns that are not present in projectedColumns
+        TupleDomain<ColumnHandle> unionedCompactEffectivePredicate = columnWiseUnion(
+                firstTable.getCompactEffectivePredicate()
+                        .transformKeys(ColumnHandle.class::cast),
+                secondTable.getCompactEffectivePredicate()
+                        .transformKeys(ColumnHandle.class::cast));
+        Optional<ConstraintApplicationResult<ConnectorTableHandle>> compactedEffectiveResult = applyFilter(
+                session,
+                unified,
+                new Constraint(unionedCompactEffectivePredicate, unionedCompactEffectivePredicate.asPredicate(), unionedCompactEffectivePredicate.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+        if (compactedEffectiveResult.isPresent()) {
+            unified = (HiveTableHandle) compactedEffectiveResult.get().getHandle();
+        }
+
+        // bucketFilter is created from scratch in each iteration based on effectivePredicate, which is lost (we only have compactedEffectivePredicate).
+        // Therefore, ensure unified's bucketFilter is no worse than the union of both original filters
+        if (firstTable.getBucketFilter().isPresent() && secondTable.getBucketFilter().isPresent()) {
+            Set<Integer> bucketsToKeep = Sets.union(firstTable.getBucketFilter().get().bucketsToKeep(), secondTable.getBucketFilter().get().bucketsToKeep());
+            if (unified.getBucketFilter().isPresent()) {
+                bucketsToKeep = Sets.intersection(bucketsToKeep, unified.getBucketFilter().get().bucketsToKeep());
+            }
+            unified = unified.withBucketFilter(Optional.of(new HiveBucketFilter(bucketsToKeep)));
+        }
+
+        TupleDomain<ColumnHandle> firstCompensationFilter = firstTable.getEnforcedConstraint().contains(unified.getEnforcedConstraint()) ? TupleDomain.all() : firstTable.getEnforcedConstraint();
+        TupleDomain<ColumnHandle> secondCompensationFilter = secondTable.getEnforcedConstraint().contains(unified.getEnforcedConstraint()) ? TupleDomain.all() : secondTable.getEnforcedConstraint();
+
+        // expose all columns necessary to support the compensation filters
+        Set<HiveColumnHandle> compensationColumns = Stream.of(firstCompensationFilter, secondCompensationFilter)
+                .map(TupleDomain::getDomains)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(Map::keySet)
+                .flatMap(Set::stream)
+                .map(HiveColumnHandle.class::cast)
+                .collect(toImmutableSet());
+        if (!compensationColumns.isEmpty()) {
+            unified = unified.withProjectedColumns(Sets.union(unified.getProjectedColumns(), compensationColumns));
+        }
+
+        return Optional.of(new UnificationResult<>(
+                unified,
+                firstCompensationFilter,
+                secondCompensationFilter,
+                new UnificationResult.Properties(
+                        unified.getEnforcedConstraint(),
+                        OptionalLong.empty()))); // Hive doesn't support limit pushdown
+    }
+
+    /**
+     * Check if tables can be unified. For unification, all properties compared in equals() must match,
+     * except for: compactEffectivePredicate, enforcedConstraint, bucketFilter, constraintColumns and projectedColumns.
+     */
+    private boolean similar(HiveTableHandle first, HiveTableHandle second)
+    {
+        return Objects.equals(first.getSchemaName(), second.getSchemaName()) &&
+                Objects.equals(first.getTableName(), second.getTableName()) &&
+                Objects.equals(first.getTableParameters(), second.getTableParameters()) &&
+                Objects.equals(first.getPartitionColumns(), second.getPartitionColumns()) &&
+                Objects.equals(first.getDataColumns(), second.getDataColumns()) &&
+                Objects.equals(first.getPartitionNames(), second.getPartitionNames()) &&
+                Objects.equals(first.getPartitions(), second.getPartitions()) &&
+                Objects.equals(first.getTablePartitioning(), second.getTablePartitioning()) &&
+                Objects.equals(first.getAnalyzePartitionValues(), second.getAnalyzePartitionValues()) &&
+                Objects.equals(first.getTransaction(), second.getTransaction()) &&
+                first.isRecordScannedFiles() == second.isRecordScannedFiles() &&
+                Objects.equals(first.getMaxScannedFileSize(), second.getMaxScannedFileSize());
     }
 
     @Override

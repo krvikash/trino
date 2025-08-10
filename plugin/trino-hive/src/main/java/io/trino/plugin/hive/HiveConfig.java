@@ -180,6 +180,8 @@ public class HiveConfig
 
     private boolean parquetRebaseLegacyInt96Timestamp;
 
+    private boolean reuseCommonSubqueriesEnabled = true;
+
     public boolean isSingleStatementWritesOnly()
     {
         return singleStatementWritesOnly;
@@ -1324,6 +1326,19 @@ public class HiveConfig
     public HiveConfig setParquetRebaseLegacyInt96Timestamp(boolean parquetRebaseLegacyInt96Timestamp)
     {
         this.parquetRebaseLegacyInt96Timestamp = parquetRebaseLegacyInt96Timestamp;
+        return this;
+    }
+
+    public boolean isReuseCommonSubqueriesEnabled()
+    {
+        return reuseCommonSubqueriesEnabled;
+    }
+
+    @Config("hive.reuse-common-subqueries-enabled")
+    @ConfigDescription("Enables reuse of common subqueries")
+    public HiveConfig setReuseCommonSubqueriesEnabled(boolean reuseCommonSubqueriesEnabled)
+    {
+        this.reuseCommonSubqueriesEnabled = reuseCommonSubqueriesEnabled;
         return this;
     }
 }

@@ -121,7 +121,8 @@ public class TestHiveConfig
                 .setPartitionProjectionEnabled(true)
                 .setS3GlacierFilter(S3GlacierFilter.READ_ALL)
                 .setMetadataParallelism(8)
-                .setParquetRebaseLegacyInt96Timestamp(false));
+                .setParquetRebaseLegacyInt96Timestamp(false)
+                .setReuseCommonSubqueriesEnabled(true));
     }
 
     @Test
@@ -211,6 +212,7 @@ public class TestHiveConfig
                 .put("hive.s3-glacier-filter", "READ_NON_GLACIER_AND_RESTORED")
                 .put("hive.metadata.parallelism", "10")
                 .put("hive.parquet.rebase-legacy-int96-timestamp", "true")
+                .put("hive.reuse-common-subqueries-enabled", "false")
                 .buildOrThrow();
 
         HiveConfig expected = new HiveConfig()
@@ -296,7 +298,8 @@ public class TestHiveConfig
                 .setPartitionProjectionEnabled(false)
                 .setS3GlacierFilter(S3GlacierFilter.READ_NON_GLACIER_AND_RESTORED)
                 .setMetadataParallelism(10)
-                .setParquetRebaseLegacyInt96Timestamp(true);
+                .setParquetRebaseLegacyInt96Timestamp(true)
+                .setReuseCommonSubqueriesEnabled(false);
 
         assertFullMapping(properties, expected);
     }

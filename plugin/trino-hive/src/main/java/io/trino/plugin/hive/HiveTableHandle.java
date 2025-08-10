@@ -196,6 +196,28 @@ public class HiveTableHandle
         this.maxScannedFileSize = requireNonNull(maxSplitFileSize, "maxSplitFileSize is null");
     }
 
+    public HiveTableHandle withBucketFilter(Optional<HiveBucketFilter> bucketFilter)
+    {
+        return new HiveTableHandle(
+                schemaName,
+                tableName,
+                tableParameters,
+                partitionColumns,
+                dataColumns,
+                partitionNames,
+                partitions,
+                compactEffectivePredicate,
+                enforcedConstraint,
+                tablePartitioning,
+                bucketFilter,
+                analyzePartitionValues,
+                constraintColumns,
+                projectedColumns,
+                transaction,
+                recordScannedFiles,
+                maxScannedFileSize);
+    }
+
     public HiveTableHandle withAnalyzePartitionValues(List<List<String>> analyzePartitionValues)
     {
         return new HiveTableHandle(
