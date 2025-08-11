@@ -442,6 +442,8 @@ public interface Metadata
      */
     ColumnHandle getMergeRowIdColumnHandle(Session session, TableHandle tableHandle);
 
+    Optional<List<ColumnHandle>> getColumnHandlesForExecute(Session session, TableExecuteHandle tableExecuteHandle, TableHandle tableHandle);
+
     /**
      * Get the physical layout for updated or deleted rows of a MERGE operation.
      */

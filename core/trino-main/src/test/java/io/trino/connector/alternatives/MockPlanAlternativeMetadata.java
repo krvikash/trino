@@ -548,6 +548,12 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorTableHandle tableHandle)
+    {
+        return delegate.getColumnHandlesForExecute(session, tableExecuteHandle, getDelegate(tableHandle));
+    }
+
+    @Override
     public Optional<ConnectorPartitioningHandle> getUpdateLayout(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return delegate.getUpdateLayout(session, getDelegate(tableHandle));

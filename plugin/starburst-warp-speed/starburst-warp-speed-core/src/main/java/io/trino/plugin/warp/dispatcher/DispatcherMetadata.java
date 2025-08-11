@@ -1291,6 +1291,15 @@ public class DispatcherMetadata
     }
 
     @Override
+    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorTableHandle tableHandle)
+    {
+        return proxiedConnectorMetadata.getColumnHandlesForExecute(
+                session,
+                tableExecuteHandle,
+                ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle());
+    }
+
+    @Override
     public Optional<ConnectorPartitioningHandle> getUpdateLayout(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return proxiedConnectorMetadata.getUpdateLayout(
