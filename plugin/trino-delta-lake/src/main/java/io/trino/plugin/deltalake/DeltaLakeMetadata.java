@@ -134,6 +134,7 @@ import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableNotFoundException;
+import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.connector.ViewNotFoundException;
 import io.trino.spi.connector.WriterScalingOptions;
 import io.trino.spi.expression.ConnectorExpression;
@@ -348,6 +349,7 @@ import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static io.trino.spi.predicate.Range.greaterThanOrEqual;
 import static io.trino.spi.predicate.Range.lessThanOrEqual;
 import static io.trino.spi.predicate.Range.range;
+import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
 import static io.trino.spi.predicate.TupleDomain.withColumnDomains;
 import static io.trino.spi.predicate.Utils.blockToNativeValue;
 import static io.trino.spi.predicate.ValueSet.ofRanges;
@@ -373,6 +375,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Math.floorDiv;
 import static java.lang.String.format;
 import static java.time.Instant.EPOCH;
+import static java.util.Collections.emptySet;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Comparator.naturalOrder;
 import static java.util.Locale.ENGLISH;
@@ -3805,6 +3808,135 @@ public class DeltaLakeMetadata
                 newRemainingConstraint.transformKeys(ColumnHandle.class::cast),
                 extractionResult.remainingExpression(),
                 false));
+    }
+
+    @Override
+    public Optional<UnificationResult<ConnectorTableHandle>> unifyTables(ConnectorSession session, ConnectorTableHandle first, ConnectorTableHandle second)
+    {
+        DeltaLakeTableHandle firstTable = (DeltaLakeTableHandle) first;
+        DeltaLakeTableHandle secondTable = (DeltaLakeTableHandle) second;
+
+        if (!similar(firstTable, secondTable)) {
+            return Optional.empty();
+        }
+
+        if (firstTable.getProjectedColumns().isEmpty() || secondTable.getProjectedColumns().isEmpty()) {
+            // Projected columns are expected to be present by the time unifyTables is called
+            return Optional.empty();
+        }
+
+        // create a unified table handle containing all columns from the first and second table handles
+        DeltaLakeTableHandle unified = new DeltaLakeTableHandle(
+                firstTable.getSchemaName(),
+                firstTable.getTableName(),
+                firstTable.isManaged(),
+                firstTable.getTableId(),
+                firstTable.getLocation(),
+                firstTable.getMetadataEntry(),
+                firstTable.getProtocolEntry(),
+                TupleDomain.all(),
+                TupleDomain.all(),
+                emptySet(),
+                firstTable.getWriteType(),
+                Optional.of(Sets.union(firstTable.getProjectedColumns().get(), secondTable.getProjectedColumns().get())),
+                firstTable.getUpdatedColumns(),
+                firstTable.getUpdateRowIdColumns(),
+                firstTable.getAnalyzeHandle(),
+                firstTable.isRecordScannedFiles(),
+                firstTable.isOptimize(),
+                firstTable.getMaxScannedFileSize(),
+                firstTable.getReadVersion(),
+                firstTable.isTimeTravel());
+
+        // union and push enforced partition constraints from the first and second table handles
+        // it doesn't matter if the unioned TupleDomain is abundant or if pushdown is incomplete,
+        // the original enforced constraints for both tables will be returned to the caller to re-apply
+        // Note: the pushed predicate might use columns that are not present in projectedColumns
+        TupleDomain<ColumnHandle> unionedPartitionConstraint = columnWiseUnion(
+                firstTable.getEnforcedPartitionConstraint()
+                        .transformKeys(ColumnHandle.class::cast),
+                secondTable.getEnforcedPartitionConstraint()
+                        .transformKeys(ColumnHandle.class::cast));
+        Optional<ConstraintApplicationResult<ConnectorTableHandle>> partitionResult = applyFilter(
+                session,
+                unified,
+                new Constraint(unionedPartitionConstraint, unionedPartitionConstraint.asPredicate(), unionedPartitionConstraint.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+        if (partitionResult.isPresent()) {
+            unified = (DeltaLakeTableHandle) partitionResult.get().getHandle();
+        }
+
+        // union and push non partition constraint from the first and second table handles
+        // it doesn't matter if the unioned TupleDomain is abundant or if pushdown is incomplete
+        // the unenforced predicate is "best effort", and there is no guarantee it is effective
+        // Note: the pushed predicate might use columns that are not present in projectedColumns
+        TupleDomain<ColumnHandle> unionedNonPartitionConstraint = columnWiseUnion(
+                firstTable.getNonPartitionConstraint()
+                        .transformKeys(ColumnHandle.class::cast),
+                secondTable.getNonPartitionConstraint()
+                        .transformKeys(ColumnHandle.class::cast));
+        Optional<ConstraintApplicationResult<ConnectorTableHandle>> nonPartitionResult = applyFilter(
+                session,
+                unified,
+                new Constraint(unionedNonPartitionConstraint, unionedNonPartitionConstraint.asPredicate(), unionedNonPartitionConstraint.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+        if (nonPartitionResult.isPresent()) {
+            unified = (DeltaLakeTableHandle) nonPartitionResult.get().getHandle();
+        }
+
+        TupleDomain<DeltaLakeColumnHandle> firstCompensationFilter =
+                firstTable.getEnforcedPartitionConstraint().contains(unified.getEnforcedPartitionConstraint())
+                        ? TupleDomain.all()
+                        : firstTable.getEnforcedPartitionConstraint();
+        TupleDomain<DeltaLakeColumnHandle> secondCompensationFilter =
+                secondTable.getEnforcedPartitionConstraint().contains(unified.getEnforcedPartitionConstraint())
+                        ? TupleDomain.all()
+                        : secondTable.getEnforcedPartitionConstraint();
+
+        // expose all columns necessary to support the compensation filters
+        Set<DeltaLakeColumnHandle> compensationColumns = Stream.of(firstCompensationFilter, secondCompensationFilter)
+                .map(TupleDomain::getDomains)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(Map::keySet)
+                .flatMap(Set::stream)
+                .collect(toImmutableSet());
+        if (!compensationColumns.isEmpty()) {
+            Set<DeltaLakeColumnHandle> projectedColumns = unified.getProjectedColumns()
+                    .map(unifiedColumns -> (Set<DeltaLakeColumnHandle>) Sets.union(unifiedColumns, compensationColumns))
+                    .orElseThrow();
+            unified = unified.withProjectedColumns(projectedColumns);
+        }
+
+        return Optional.of(new UnificationResult<>(
+                unified,
+                firstCompensationFilter.transformKeys(ColumnHandle.class::cast),
+                secondCompensationFilter.transformKeys(ColumnHandle.class::cast),
+                new UnificationResult.Properties(
+                        unified.getEnforcedPartitionConstraint().transformKeys(ColumnHandle.class::cast),
+                        OptionalLong.empty()))); // Deltalake doesn't support limit pushdown
+    }
+
+    /**
+     * Check if tables can be unified. For unification, all properties compared in equals() must match,
+     * except for: enforcedPartitionConstraint, nonPartitionConstraint and projectedColumns.
+     */
+    private boolean similar(DeltaLakeTableHandle first, DeltaLakeTableHandle second)
+    {
+        return first.isRecordScannedFiles() == second.isRecordScannedFiles() &&
+                Objects.equals(first.getSchemaName(), second.getSchemaName()) &&
+                Objects.equals(first.getTableName(), second.getTableName()) &&
+                first.isManaged() == second.isManaged() &&
+                Objects.equals(first.getTableId(), second.getTableId()) &&
+                Objects.equals(first.getLocation(), second.getLocation()) &&
+                Objects.equals(first.getMetadataEntry(), second.getMetadataEntry()) &&
+                Objects.equals(first.getProtocolEntry(), second.getProtocolEntry()) &&
+                Objects.equals(first.getWriteType(), second.getWriteType()) &&
+                Objects.equals(first.getUpdatedColumns(), second.getUpdatedColumns()) &&
+                Objects.equals(first.getUpdateRowIdColumns(), second.getUpdateRowIdColumns()) &&
+                Objects.equals(first.getAnalyzeHandle(), second.getAnalyzeHandle()) &&
+                first.isOptimize() == second.isOptimize() &&
+                Objects.equals(first.getMaxScannedFileSize(), second.getMaxScannedFileSize()) &&
+                first.getReadVersion() == second.getReadVersion() &&
+                first.isTimeTravel() == second.isTimeTravel();
     }
 
     @Override
