@@ -15,6 +15,7 @@ package io.trino.plugin.hive.coercions;
 
 import io.trino.plugin.hive.HiveTimestampPrecision;
 import io.trino.plugin.hive.coercions.CoercionUtils.CoercionContext;
+import io.trino.plugin.hive.parquet.ParquetTypeTranslator;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.LongTimestamp;
@@ -24,8 +25,17 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.Test;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.Optional;
+import java.util.TimeZone;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
@@ -37,12 +47,22 @@ import static io.trino.spi.predicate.Utils.blockToNativeValue;
 import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_PICOS;
+import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
+import static java.lang.Math.floorDiv;
+import static java.lang.Math.floorMod;
+import static java.lang.Math.multiplyExact;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT96;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -291,6 +311,179 @@ public class TestTimestampCoercer
                 timestamp.getEpochMicros()))
                 .isInstanceOf(TrinoException.class)
                 .hasMessageContaining("Coercion on historical dates is not supported");
+    }
+
+    @Test
+    public void testLegacyTimestampCoercionFromHybridCalendarToProlepticGregorianCalendar()
+            throws Exception
+    {
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 00:00:00.000", "0001-01-01T00:00:00.000");  // 1st  year of era
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:00:00.000", "0001-01-01T15:00:00.000");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:00.000", "0001-01-01T15:15:00.000");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:15.000", "0001-01-01T15:15:15.000");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:15.123", "0001-01-01T15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1000-01-01 15:15:15.123", "1000-01-01T15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-03 23:59:59.999", "1582-10-03T23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-04 00:00:00.000", "1582-10-04T00:00:00.000"); // just before the switch to Gregorian calendar
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-04 15:15:15.123", "1582-10-04T15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-04 23:59:59.999", "1582-10-04T23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-15 00:00:00.000", "1582-10-15T00:00:00.000"); // first day after the switch to Gregorian calendar
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-15 15:15:15.123", "1582-10-15T15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-15 23:59:59.999", "1582-10-15T23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-16 00:00:00.000", "1582-10-16T00:00:00.000");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1788-09-10 15:15:15.123", "1788-09-10T15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1888-12-31 15:15:15.123", "1888-12-31T15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1969-12-31 15:15:15.123", "1969-12-31T15:15:15.123"); // just before the epoch
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1970-01-01 00:00:00.001", "1970-01-01T00:00:00.001"); // epoch day
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1970-01-01 15:15:15.123", "1970-01-01T15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("2024-03-30 15:15:15.123", "2024-03-30T15:15:15.123");
+
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1000-02-29 01:02:03.123", "1000-03-01T01:02:03.123"); // legacy leap year
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1600-02-29 11:12:13.654", "1600-02-29T11:12:13.654"); // Gregorian leap year
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1700-02-29 21:22:23.001", "1700-03-01T21:22:23.001"); // non-leap year in Gregorian calendar
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("2000-02-29 00:00:00.999", "2000-02-29T00:00:00.999"); // Gregorian leap year
+
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:15.123", "0000-12-30T15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1000-01-01 15:15:15.123", "1000-01-06T15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-04 15:15:15.123", "1582-10-14T15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-04 23:59:59.999", "1582-10-14T23:59:59.999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-15 00:00:00.000", "1582-10-15T00:00:00.000");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-15 15:15:15.123", "1582-10-15T15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-15 23:59:59.999", "1582-10-15T23:59:59.999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-16 00:00:00.000", "1582-10-16T00:00:00.000");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1788-09-10 15:15:15.123", "1788-09-10T15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1888-12-31 15:15:15.123", "1888-12-31T15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1969-12-31 15:15:15.123", "1969-12-31T15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1970-01-01 15:15:15.123", "1970-01-01T15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("2024-03-30 15:15:15.123", "2024-03-30T15:15:15.123");
+
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1000-02-29 01:02:03.123", "1000-03-06T01:02:03.123"); // legacy leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1600-02-29 11:12:13.654", "1600-02-29T11:12:13.654"); // Gregorian leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1700-02-29 21:22:23.001", "1700-03-01T21:22:23.001"); // non-leap year in Gregorian calendar
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("2000-02-29 00:00:00.999", "2000-02-29T00:00:00.999"); // Gregorian leap year
+    }
+
+    @Test
+    public void testLegacyLongTimestampCoercionFromHybridCalendarToProlepticGregorianCalendar()
+            throws Exception
+    {
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("0001-01-01 15:15:15.123456789", "0001-01-01T15:15:15.123456789");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1000-01-01 15:15:15.123456789", "1000-01-01T15:15:15.123456789");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1582-10-04 15:15:15.123456789", "1582-10-04T15:15:15.123456789");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1582-10-04 23:59:59.999999999", "1582-10-04T23:59:59.999999999");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1582-10-15 00:00:00.000000000", "1582-10-15T00:00:00.000000000");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1582-10-15 15:15:15.123456789", "1582-10-15T15:15:15.123456789");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1582-10-15 23:59:59.999999999", "1582-10-15T23:59:59.999999999");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1582-10-16 00:00:00.000000000", "1582-10-16T00:00:00.000000000");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1788-09-10 15:15:15.123456789", "1788-09-10T15:15:15.123456789");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1888-12-31 15:15:15.123456789", "1888-12-31T15:15:15.123456789");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1969-12-31 15:15:15.123456789", "1969-12-31T15:15:15.123456789");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1970-01-01 15:15:15.123456789", "1970-01-01T15:15:15.123456789");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1970-01-01 00:00:00.000000001", "1970-01-01T00:00:00.000000001"); //epoch day
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("2024-03-30 15:15:15.123456789", "2024-03-30T15:15:15.123456789");
+
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("0001-01-01 15:15:15.123456789", "0000-12-30T15:15:15.123456789");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1000-01-01 15:15:15.123456789", "1000-01-06T15:15:15.123456789");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1582-10-04 15:15:15.123456789", "1582-10-14T15:15:15.123456789");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1582-10-04 23:59:59.999999999", "1582-10-14T23:59:59.999999999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1582-10-15 00:00:00.000000000", "1582-10-15T00:00:00.000000000");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1582-10-15 15:15:15.123456789", "1582-10-15T15:15:15.123456789");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1582-10-15 23:59:59.999999999", "1582-10-15T23:59:59.999999999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1582-10-16 00:00:00.000000000", "1582-10-16T00:00:00.000000000");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1788-09-10 15:15:15.123456789", "1788-09-10T15:15:15.123456789");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1888-12-31 15:15:15.123456789", "1888-12-31T15:15:15.123456789");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1969-12-31 15:15:15.123456789", "1969-12-31T15:15:15.123456789");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1970-01-01 15:15:15.123456789", "1970-01-01T15:15:15.123456789");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("2024-03-30 15:15:15.123456789", "2024-03-30T15:15:15.123456789");
+    }
+
+    private void assertReadingWithCoercionHybridToProlepticLegacyTimestamp(String writtenTimestamp, String actualReadDate)
+            throws Exception
+    {
+        assertReadingHybridToProlepticLegacyTimestamp(true, writtenTimestamp, actualReadDate);
+    }
+
+    private void assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp(String writtenTimestamp, String actualReadDate)
+            throws Exception
+    {
+        assertReadingHybridToProlepticLegacyTimestamp(false, writtenTimestamp, actualReadDate);
+    }
+
+    private void assertReadingHybridToProlepticLegacyTimestamp(boolean convertTimestampToProleptic, String writtenTimestamp, String actualReadTimestamp)
+            throws Exception
+    {
+        long hybridMillis = toHybridMillis(writtenTimestamp);
+        Block writtenBlock = nativeValueToBlock(TIMESTAMP_MICROS, multiplyExact(hybridMillis, MICROSECONDS_PER_MILLISECOND));
+
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_MICROS, new ParquetTypeTranslator.CoercionContext(false, convertTimestampToProleptic));
+        Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
+
+        long actualMillis = floorDiv((long) blockToNativeValue(TIMESTAMP_MICROS, readBlock), MICROSECONDS_PER_MILLISECOND);
+        long expectedMillis = toInstantInProlepticGregorian(actualReadTimestamp).toEpochMilli();
+        assertThat(actualMillis).isEqualTo(expectedMillis);
+    }
+
+    private static long toHybridMillis(String writtenTimestamp)
+            throws ParseException
+    {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        format.setCalendar(new GregorianCalendar(TimeZone.getTimeZone(UTC)));
+        Date parsed = format.parse(writtenTimestamp);
+        return parsed.getTime();
+    }
+
+    private void assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp(String writtenTimestamp, String actualReadDate)
+            throws Exception
+    {
+        assertReadingHybridToProlepticLegacyLongTimestamp(true, writtenTimestamp, actualReadDate);
+    }
+
+    private void assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp(String writtenTimestamp, String actualReadDate)
+            throws Exception
+    {
+        assertReadingHybridToProlepticLegacyLongTimestamp(false, writtenTimestamp, actualReadDate);
+    }
+
+    private void assertReadingHybridToProlepticLegacyLongTimestamp(boolean convertTimestampToProleptic, String writtenTimestamp, String actualReadTimestamp)
+            throws Exception
+    {
+        LongTimestamp givenTimestamp = fromHybridTimestamp(writtenTimestamp);
+        Block writtenBlock = nativeValueToBlock(TIMESTAMP_NANOS, givenTimestamp);
+
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_NANOS, new ParquetTypeTranslator.CoercionContext(false, convertTimestampToProleptic));
+        Block readBlock = coercer.isPresent() ? coercer.orElseThrow().apply(writtenBlock) : writtenBlock;
+        LongTimestamp actualLongTimestamp = (LongTimestamp) blockToNativeValue(TIMESTAMP_NANOS, readBlock);
+
+        LongTimestamp expectedLongTimestamp = fromProlepticGregorianTimestamp(actualReadTimestamp);
+
+        assertThat(actualLongTimestamp).isEqualTo(expectedLongTimestamp);
+    }
+
+    private static LongTimestamp fromProlepticGregorianTimestamp(String actualReadTimestamp)
+    {
+        Instant expectedInstant = toInstantInProlepticGregorian(actualReadTimestamp);
+        long epochMicros = multiplyExact(expectedInstant.getEpochSecond(), MICROSECONDS_PER_SECOND) + floorDiv(expectedInstant.getNano(), NANOSECONDS_PER_MICROSECOND);
+        int picosOfMicros = multiplyExact(floorMod(expectedInstant.getNano(), NANOSECONDS_PER_MICROSECOND), PICOSECONDS_PER_NANOSECOND);
+        return new LongTimestamp(epochMicros, picosOfMicros);
+    }
+
+    private static LongTimestamp fromHybridTimestamp(String writtenTimestamp)
+            throws ParseException
+    {
+        // in order to create julian timestamp with nanos precision we need to parse with LocaDateTime, then print it just up to millis, and then reparse with SimpleDateFormat and finally add the previously stripped nanos part
+        LocalDateTime localDateTime = LocalDateTime.parse(writtenTimestamp, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS"));
+        int nanosOfMilli = floorMod(localDateTime.getNano(), NANOSECONDS_PER_MILLISECOND);
+        long julianMillis = toHybridMillis(localDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")));
+        long epochMicros = multiplyExact(julianMillis, MICROSECONDS_PER_MILLISECOND) + floorDiv(nanosOfMilli, NANOSECONDS_PER_MICROSECOND);
+        int picosOfMicro = multiplyExact(floorMod(nanosOfMilli, NANOSECONDS_PER_MICROSECOND), PICOSECONDS_PER_NANOSECOND);
+        return new LongTimestamp(epochMicros, picosOfMicro);
+    }
+
+    private static Instant toInstantInProlepticGregorian(String actualReadTimestamp)
+    {
+        LocalDateTime localDateTime = LocalDateTime.parse(actualReadTimestamp);
+        ZonedDateTime zoned = localDateTime.atZone(UTC);
+        return zoned.toInstant();
     }
 
     public static void assertLongTimestampToVarcharCoercions(TimestampType fromType, LongTimestamp valueToBeCoerced, VarcharType toType, String expectedValue)

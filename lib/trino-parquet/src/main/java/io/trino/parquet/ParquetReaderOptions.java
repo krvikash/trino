@@ -38,6 +38,7 @@ public class ParquetReaderOptions
     private final DataSize smallFileThreshold;
     private final boolean vectorizedDecodingEnabled;
     private final DataSize maxFooterReadSize;
+    private final boolean rebaseLegacyInt96Timestamp;
 
     private ParquetReaderOptions()
     {
@@ -51,6 +52,7 @@ public class ParquetReaderOptions
         smallFileThreshold = DEFAULT_SMALL_FILE_THRESHOLD;
         vectorizedDecodingEnabled = true;
         maxFooterReadSize = DEFAULT_MAX_FOOTER_READ_SIZE;
+        rebaseLegacyInt96Timestamp = false;
     }
 
     private ParquetReaderOptions(
@@ -63,7 +65,8 @@ public class ParquetReaderOptions
             boolean useBloomFilter,
             DataSize smallFileThreshold,
             boolean vectorizedDecodingEnabled,
-            DataSize maxFooterReadSize)
+            DataSize maxFooterReadSize,
+            boolean rebaseLegacyInt96Timestamp)
     {
         this.ignoreStatistics = ignoreStatistics;
         this.maxReadBlockSize = requireNonNull(maxReadBlockSize, "maxReadBlockSize is null");
@@ -76,6 +79,7 @@ public class ParquetReaderOptions
         this.smallFileThreshold = requireNonNull(smallFileThreshold, "smallFileThreshold is null");
         this.vectorizedDecodingEnabled = vectorizedDecodingEnabled;
         this.maxFooterReadSize = requireNonNull(maxFooterReadSize, "maxFooterReadSize is null");
+        this.rebaseLegacyInt96Timestamp = rebaseLegacyInt96Timestamp;
     }
 
     public static Builder builder()
@@ -143,6 +147,11 @@ public class ParquetReaderOptions
         return maxFooterReadSize;
     }
 
+    public boolean isRebaseLegacyInt96Timestamp()
+    {
+        return rebaseLegacyInt96Timestamp;
+    }
+
     public static class Builder
     {
         private boolean ignoreStatistics;
@@ -155,6 +164,7 @@ public class ParquetReaderOptions
         private DataSize smallFileThreshold;
         private boolean vectorizedDecodingEnabled;
         private DataSize maxFooterReadSize;
+        private boolean rebaseLegacyInt96Timestamp;
 
         private Builder(ParquetReaderOptions parquetReaderOptions)
         {
@@ -169,6 +179,7 @@ public class ParquetReaderOptions
             this.smallFileThreshold = parquetReaderOptions.smallFileThreshold;
             this.vectorizedDecodingEnabled = parquetReaderOptions.vectorizedDecodingEnabled;
             this.maxFooterReadSize = parquetReaderOptions.maxFooterReadSize;
+            this.rebaseLegacyInt96Timestamp = parquetReaderOptions.rebaseLegacyInt96Timestamp;
         }
 
         public Builder withIgnoreStatistics(boolean ignoreStatistics)
@@ -231,6 +242,12 @@ public class ParquetReaderOptions
             return this;
         }
 
+        public Builder withParquetRebaseLegacyInt96Timestamp(boolean rebaseLegacyInt96Timestamp)
+        {
+            this.rebaseLegacyInt96Timestamp = rebaseLegacyInt96Timestamp;
+            return this;
+        }
+
         public ParquetReaderOptions build()
         {
             return new ParquetReaderOptions(
@@ -243,7 +260,8 @@ public class ParquetReaderOptions
                     useBloomFilter,
                     smallFileThreshold,
                     vectorizedDecodingEnabled,
-                    maxFooterReadSize);
+                    maxFooterReadSize,
+                    rebaseLegacyInt96Timestamp);
         }
     }
 }

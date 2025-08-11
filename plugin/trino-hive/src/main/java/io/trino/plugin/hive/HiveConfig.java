@@ -177,6 +177,8 @@ public class HiveConfig
 
     private int metadataParallelism = 8;
 
+    private boolean parquetRebaseLegacyInt96Timestamp;
+
     public boolean isSingleStatementWritesOnly()
     {
         return singleStatementWritesOnly;
@@ -1295,6 +1297,19 @@ public class HiveConfig
     public HiveConfig setMetadataParallelism(int metadataParallelism)
     {
         this.metadataParallelism = metadataParallelism;
+        return this;
+    }
+
+    public boolean isParquetRebaseLegacyInt96Timestamp()
+    {
+        return parquetRebaseLegacyInt96Timestamp;
+    }
+
+    @Config("hive.parquet.rebase-legacy-int96-timestamp")
+    @ConfigDescription("Legacy INT96 timestamp for Hive generated files will be rebased from Julian Calendar to Proleptic Gregorian Calendar")
+    public HiveConfig setParquetRebaseLegacyInt96Timestamp(boolean parquetRebaseLegacyInt96Timestamp)
+    {
+        this.parquetRebaseLegacyInt96Timestamp = parquetRebaseLegacyInt96Timestamp;
         return this;
     }
 }

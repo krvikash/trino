@@ -14,6 +14,7 @@
 package io.trino.plugin.hive.coercions;
 
 import io.trino.plugin.hive.coercions.CoercionUtils.CoercionContext;
+import io.trino.plugin.hive.parquet.ParquetTypeTranslator;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.Type;
@@ -28,7 +29,6 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
 import static io.trino.plugin.hive.HiveTimestampPrecision.DEFAULT_PRECISION;
 import static io.trino.plugin.hive.coercions.CoercionUtils.createCoercer;
-import static io.trino.plugin.hive.parquet.ParquetTypeTranslator.createCoercer;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.predicate.Utils.blockToNativeValue;
 import static io.trino.spi.predicate.Utils.nativeValueToBlock;
@@ -180,7 +180,12 @@ public class TestDateCoercer
     private void assertReadingHybridToProlepticLegacyDate(boolean convertDateToProleptic, String writtenDate, String actualReadDate)
     {
         Block writtenBlock = nativeValueToBlock(DATE, toEpochDaysInHybridCalendar(writtenDate));
-        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = createCoercer(INT32, LogicalTypeAnnotation.dateType(), DATE, convertDateToProleptic);
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer =
+                ParquetTypeTranslator.createCoercer(
+                        INT32,
+                        LogicalTypeAnnotation.dateType(),
+                        DATE,
+                        new ParquetTypeTranslator.CoercionContext(convertDateToProleptic, false));
         Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
 
         Object actualDays = blockToNativeValue(DATE, readBlock);

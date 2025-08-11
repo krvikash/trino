@@ -16,10 +16,13 @@ package io.trino.plugin.hive.parquet;
 import io.trino.plugin.hive.coercions.DateCoercer.DateHybridToProlepticGregorianCoercer;
 import io.trino.plugin.hive.coercions.IntegerNumberToDoubleCoercer;
 import io.trino.plugin.hive.coercions.IntegerNumberToVarcharCoercer;
+import io.trino.plugin.hive.coercions.TimestampCoercer.LongTimestampHybridToProlepticGregorianCoercer;
+import io.trino.plugin.hive.coercions.TimestampCoercer.ShortTimestampHybridToProlepticGregorianCoercer;
 import io.trino.plugin.hive.coercions.TypeCoercer;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
@@ -47,7 +50,7 @@ public final class ParquetTypeTranslator
 {
     private ParquetTypeTranslator() {}
 
-    public static Optional<TypeCoercer<? extends Type, ? extends Type>> createCoercer(PrimitiveTypeName fromParquetType, LogicalTypeAnnotation typeAnnotation, Type toTrinoType, boolean convertDateToProleptic)
+    public static Optional<TypeCoercer<? extends Type, ? extends Type>> createCoercer(PrimitiveTypeName fromParquetType, LogicalTypeAnnotation typeAnnotation, Type toTrinoType, CoercionContext coercionContext)
     {
         if (toTrinoType instanceof DoubleType) {
             if (isIntegerAnnotationAndPrimitive(typeAnnotation, fromParquetType)) {
@@ -84,10 +87,22 @@ public final class ParquetTypeTranslator
             }
         }
         if (toTrinoType instanceof DateType) {
-            if (convertDateToProleptic && fromParquetType == INT32 && typeAnnotation instanceof DateLogicalTypeAnnotation) {
+            if (coercionContext.convertDateToProleptic() && fromParquetType == INT32 && typeAnnotation instanceof DateLogicalTypeAnnotation) {
                 return Optional.of(new DateHybridToProlepticGregorianCoercer());
             }
         }
+        if (toTrinoType instanceof TimestampType timestampType) {
+            if (coercionContext.convertHiveInt96TimestampToProleptic() && fromParquetType == INT96) {
+                return Optional.of(timestampType.isShort()
+                        ? new ShortTimestampHybridToProlepticGregorianCoercer(timestampType)
+                        : new LongTimestampHybridToProlepticGregorianCoercer(timestampType));
+            }
+        }
         return Optional.empty();
+    }
+
+    public record CoercionContext(boolean convertDateToProleptic, boolean convertHiveInt96TimestampToProleptic)
+    {
+        public static final CoercionContext DEFAULT = new CoercionContext(false, false);
     }
 }

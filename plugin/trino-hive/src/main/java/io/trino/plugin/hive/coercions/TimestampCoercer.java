@@ -31,6 +31,7 @@ import java.time.format.DateTimeParseException;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_INVALID_TIMESTAMP_COERCION;
+import static io.trino.plugin.hive.util.CalendarUtils.convertHybridMicrosToProlepticGregorian;
 import static io.trino.spi.type.TimestampType.MAX_PRECISION;
 import static io.trino.spi.type.TimestampType.MAX_SHORT_PRECISION;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
@@ -174,6 +175,42 @@ public final class TimestampCoercer
                 // In case of bigger tables with all values being invalid, log output will be huge so avoiding log here.
                 blockBuilder.appendNull();
             }
+        }
+    }
+
+    public static class ShortTimestampHybridToProlepticGregorianCoercer
+            extends TypeCoercer<TimestampType, TimestampType>
+    {
+        public ShortTimestampHybridToProlepticGregorianCoercer(TimestampType timestampType)
+        {
+            super(timestampType, timestampType);
+            checkArgument(timestampType.isShort(), "TIMESTAMP precision must be in range [0, %s]: %s", MAX_PRECISION, toType.getPrecision());
+        }
+
+        @Override
+        protected void applyCoercedValue(BlockBuilder blockBuilder, Block block, int position)
+        {
+            long hybridMicros = fromType.getLong(block, position);
+            long prolepticMicros = convertHybridMicrosToProlepticGregorian(hybridMicros);
+            toType.writeLong(blockBuilder, prolepticMicros);
+        }
+    }
+
+    public static class LongTimestampHybridToProlepticGregorianCoercer
+            extends TypeCoercer<TimestampType, TimestampType>
+    {
+        public LongTimestampHybridToProlepticGregorianCoercer(TimestampType timestampType)
+        {
+            super(timestampType, timestampType);
+            checkArgument(!timestampType.isShort(), "Precision must be in the range [%s, %s]", MAX_SHORT_PRECISION + 1, MAX_PRECISION);
+        }
+
+        @Override
+        protected void applyCoercedValue(BlockBuilder blockBuilder, Block block, int position)
+        {
+            LongTimestamp timestamp = (LongTimestamp) fromType.getObject(block, position);
+            long prolepticMicros = convertHybridMicrosToProlepticGregorian(timestamp.getEpochMicros());
+            toType.writeObject(blockBuilder, new LongTimestamp(prolepticMicros, timestamp.getPicosOfMicro()));
         }
     }
 }
